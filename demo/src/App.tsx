@@ -76,7 +76,7 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
         <div className="text-center mb-6">
-          <img src="/bede-portrait.jpg" alt="Bede" className="w-36 h-36 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
+          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-36 h-36 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
           <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
         </div>
@@ -261,7 +261,7 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
   return (
     <div className="flex flex-col h-screen bg-parchment-50">
       <header className="bg-white border-b border-navy-100 shrink-0 h-14 flex items-center px-4 gap-3">
-        <img src="/bede-icon.png" alt="Bede" className="w-8 h-8 rounded-full object-cover" />
+        <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover" />
         <div className="flex-1 min-w-0">
           <span className="text-navy-700 font-semibold text-sm">Bede</span>
           <span className="text-gray-400 text-xs ml-2">with {student.name}</span>

@@ -80,11 +80,22 @@ export default {
         'fade-in': 'fadeIn 0.4s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+        'celebrate': 'celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'ring-pulse': 'ringPulse 1.8s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
         slideUp: { from: { transform: 'translateY(8px)', opacity: '0' }, to: { transform: 'translateY(0)', opacity: '1' } },
         pulseSoft: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.6' } },
+        celebrate: {
+          '0%': { transform: 'scale(0.9) translateY(6px)', opacity: '0' },
+          '60%': { transform: 'scale(1.03) translateY(0)', opacity: '1' },
+          '100%': { transform: 'scale(1) translateY(0)' },
+        },
+        ringPulse: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(30, 58, 138, 0.35)' },
+          '50%': { boxShadow: '0 0 0 6px rgba(30, 58, 138, 0)' },
+        },
       },
     },
   },

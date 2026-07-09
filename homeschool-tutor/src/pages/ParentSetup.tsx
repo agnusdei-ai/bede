@@ -125,7 +125,7 @@ export default function ParentSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -334,8 +334,8 @@ function StudentCard({
                 <button
                   key={s.id}
                   onClick={() => onToggleSubject(s.id)}
-                  className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-left transition-all ${
-                    active ? 'border-navy-400 bg-navy-50' : 'border-gray-200 bg-white opacity-50'
+                  className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-left transition-all hover:scale-[1.03] active:scale-[0.97] ${
+                    active ? 'border-navy-400 bg-navy-50 shadow-sm' : 'border-gray-200 bg-white opacity-50'
                   }`}
                 >
                   <s.Icon size={16} className="flex-shrink-0 text-current" />

@@ -60,13 +60,13 @@ export default function SubjectDrawer({
                 <div
                   key={subj}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                    isCurrent ? 'bg-navy-50' : ''
+                    isCurrent ? 'bg-navy-50' : 'hover:bg-gray-50'
                   }`}
                 >
                   {isDone ? (
-                    <CheckCircle size={16} className="text-navy-500 shrink-0" />
+                    <CheckCircle size={16} className="text-navy-500 shrink-0 animate-fade-in" />
                   ) : isCurrent ? (
-                    <div className="w-4 h-4 rounded-full bg-navy-500 shrink-0 ring-2 ring-navy-100 ring-offset-1" />
+                    <div className="w-4 h-4 rounded-full bg-navy-500 shrink-0 ring-2 ring-navy-100 ring-offset-1 animate-ring-pulse" />
                   ) : (
                     <div className="w-4 h-4 rounded-full border-2 border-gray-300 shrink-0" />
                   )}
@@ -109,7 +109,7 @@ export default function SubjectDrawer({
             <button
               onClick={() => { onNext(); onClose() }}
               disabled={disabled}
-              className="w-full py-3 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 disabled:opacity-40 transition-colors"
+              className="w-full py-3 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:hover:scale-100"
             >
               Next Subject
             </button>

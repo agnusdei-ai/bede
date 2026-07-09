@@ -112,7 +112,7 @@ export default function TutorSession() {
   const subjectInfo = SUBJECT_MAP[currentSubject]
 
   return (
-    <div className="h-screen flex flex-col bg-parchment-50 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40 overflow-hidden">
       {/* ── Minimal header ── */}
       <header className="pt-safe bg-white border-b border-navy-100 shrink-0 h-12 flex items-center px-4 gap-2">
         <img src="/bede-icon.png" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />

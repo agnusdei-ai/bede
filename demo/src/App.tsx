@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles } from 'lucide-react'
 import {
   streamTutorChat, SUBJECTS, SUBJECT_LABELS,
   type Subject, type StudentProfile, type ChatMessage, type GradeStage,
@@ -259,7 +259,7 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
   const toggleMic = () => (isListening ? stopListening() : startListening())
 
   return (
-    <div className="flex flex-col h-screen bg-parchment-50">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
       <header className="bg-white border-b border-navy-100 shrink-0 h-14 flex items-center px-4 gap-3">
         <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover" />
         <div className="flex-1 min-w-0">
@@ -316,14 +316,14 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
 
       <div className="px-4 py-3 bg-white border-t border-parchment-200">
         <div className="flex gap-2 items-end">
-          <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-colors flex-shrink-0">
+          <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
           </button>
-          <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${ttsEnabled ? 'bg-navy-100 text-navy-600' : 'bg-gray-100 text-gray-400'}`}>
+          <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-navy-100 text-navy-600' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleMic} disabled={isStreaming} className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'}`}>
+            <button onClick={toggleMic} disabled={isStreaming} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'}`}>
               {isListening ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
@@ -336,7 +336,7 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
             rows={2}
             className="flex-1 resize-none rounded-lg border border-navy-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white"
           />
-          <button onClick={send} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 transition-colors flex-shrink-0">
+          <button onClick={send} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
@@ -357,17 +357,23 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
     return <div className="flex justify-center"><div className="text-xs text-gray-400 bg-white border border-gray-100 rounded-full px-3 py-1 italic">{msg.content}</div></div>
   }
   if (msg.tool) {
+    const isCelebration = msg.tool === 'celebrate_discovery'
     const accent: Record<string, string> = {
       request_narration: 'border-l-[3px] border-amber-400 bg-amber-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
-      celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-emerald-50/70',
+      celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith: 'border-l-[3px] border-gold-400 bg-gold-50/70',
     }
-    return <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>{msg.content}</div>
+    return (
+      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>
+        {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
+        {msg.content}
+      </div>
+    )
   }
   const isUser = msg.role === 'user'
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
       <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? 'bg-navy-500 text-white rounded-br-sm' : 'bg-white border border-navy-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
         {!isUser && <div className="text-xs font-semibold text-navy-600 mb-1">Bede</div>}
         {isUser && <div className="text-xs font-semibold text-navy-100 mb-1">{studentName}</div>}

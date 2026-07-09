@@ -26,7 +26,7 @@ export default function PodDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

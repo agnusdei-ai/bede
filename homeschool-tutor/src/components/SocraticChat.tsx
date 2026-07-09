@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, Sparkles } from 'lucide-react'
 import { streamTutorChat } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
@@ -190,7 +190,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const fontClass = gradeStage === 'K-2' ? 'text-base' : 'text-sm'
 
   return (
-    <div className="flex flex-col h-full bg-parchment-50">
+    <div className="flex flex-col h-full">
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
@@ -240,7 +240,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             onClick={() => setShowCanvas(true)}
             disabled={isStreaming || breakActive}
             title="Draw or write by hand"
-            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-colors flex-shrink-0"
+            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             <PenLine size={18} />
           </button>
@@ -250,7 +250,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             <button
               onClick={toggleTTS}
               title={ttsEnabled ? 'Mute Bede' : 'Unmute Bede'}
-              className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
                 ttsEnabled
                   ? 'bg-navy-100 text-navy-600 hover:bg-navy-200'
                   : 'bg-gray-100 text-gray-400 hover:text-gray-600'
@@ -270,7 +270,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               onClick={toggleMic}
               disabled={isStreaming || breakActive || isTranscribing}
               title={isListening ? 'Stop listening' : isTranscribing ? 'Transcribing…' : 'Speak your answer'}
-              className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
                 isListening
                   ? 'bg-red-500 text-white animate-pulse'
                   : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'
@@ -301,7 +301,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <button
             onClick={send}
             disabled={isStreaming || breakActive || (!input.trim() && !pendingDrawing)}
-            className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+            className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0"
           >
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
@@ -342,15 +342,17 @@ function MessageBubble({ msg, studentName }: MsgProps) {
   }
 
   if (msg.tool) {
+    const isCelebration = msg.tool === 'celebrate_discovery'
     const toolAccent: Record<string, string> = {
       request_narration:   'border-l-[3px] border-amber-400 bg-amber-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
-      celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-emerald-50/70',
+      celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith:    'border-l-[3px] border-gold-400 bg-gold-50/70',
     }
     const cls = toolAccent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'
     return (
-      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 animate-slide-up ${cls}`}>
+      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
+        {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {msg.content}
       </div>
     )

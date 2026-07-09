@@ -155,3 +155,18 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
         lines.append(f"Supplemental: {titles}")
 
     return " ".join(lines)
+
+
+def get_subject_plan(year: int | None, subject: str) -> str | None:
+    """
+    Return the term plan for a non-book-list subject (mathematics, art_music,
+    language_arts, morning_time) for a given year, or None if unavailable.
+    Used by ai_service._get_catalog_context() the same way get_catalog_note()
+    is used for the book-list subjects.
+    """
+    if year is None:
+        return None
+    year_data = _CATALOG.get(year)
+    if year_data is None:
+        return None
+    return year_data.get("subject_plans", {}).get(subject)

@@ -378,12 +378,22 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
     """
     Return a brief catalog note if a curriculum year can be inferred and no
     explicit current_unit is set. Imports lazily to avoid circular dependency.
+
+    Book-list subjects (history, living_books, nature_study, saints, science) get
+    a note built from the catalog's book entries. The remaining graded subjects
+    (mathematics, art_music, language_arts, morning_time) have no book list —
+    they get a curated per-year term plan instead, so they aren't left with only
+    generic, grade-agnostic guidance from _SUBJECT_CONTEXT.
     """
     if config.current_unit:
         return ""  # Parent already specified the unit — catalog note not needed
     try:
-        from services.catalog_service import get_catalog_note
+        from services.catalog_service import get_catalog_note, get_subject_plan
         year = _infer_year(config)
+        _PLAN_SUBJECTS = {Subject.mathematics, Subject.art_music, Subject.language_arts, Subject.morning_time}
+        if subject in _PLAN_SUBJECTS:
+            plan = get_subject_plan(year, subject.value)
+            return f"\n{plan}" if plan else ""
         note = get_catalog_note(year, subject.value)
         return f"\nCatalog books for this subject: {note}" if note else ""
     except Exception:

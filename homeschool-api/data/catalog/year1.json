@@ -9,8 +9,19 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["virtue", "wisdom", "consequences", "animals", "morality", "fable"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "virtue",
+        "wisdom",
+        "consequences",
+        "animals",
+        "morality",
+        "fable"
+      ],
       "anti_twaddle": true,
       "notes": "Oral narration focus. One fable per sitting. Ask the child: 'What did you learn from that story?' Let them discover the moral themselves."
     },
@@ -21,8 +32,18 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2],
-      "concept_tags": ["imagination", "animals", "origins", "humor", "wonder", "storytelling"],
+      "terms": [
+        1,
+        2
+      ],
+      "concept_tags": [
+        "imagination",
+        "animals",
+        "origins",
+        "humor",
+        "wonder",
+        "storytelling"
+      ],
       "anti_twaddle": true,
       "notes": "Read aloud for rhythm and delight. Kipling's language is a feast — don't rush. Narration: 'Tell me how the elephant got its trunk.'"
     },
@@ -33,8 +54,18 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 1,
-      "terms": [2, 3],
-      "concept_tags": ["friendship", "imagination", "kindness", "humor", "community", "character"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "friendship",
+        "imagination",
+        "kindness",
+        "humor",
+        "community",
+        "character"
+      ],
       "anti_twaddle": true,
       "notes": "Charlotte Mason loved literature that illuminated character. Focus on Pooh's friendship with Piglet. One chapter per session."
     },
@@ -45,8 +76,19 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["courage", "virtue", "history", "heroes", "sacrifice", "honor"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "courage",
+        "virtue",
+        "history",
+        "heroes",
+        "sacrifice",
+        "honor"
+      ],
       "anti_twaddle": true,
       "notes": "Heroic tales from history retold simply. Perfect for narration — 'Tell me the story of William Tell in your own words.' Builds historical imagination."
     },
@@ -57,8 +99,18 @@
       "subject": "nature_study",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2],
-      "concept_tags": ["insects", "meadow", "nature", "community", "observation", "seasons"],
+      "terms": [
+        1,
+        2
+      ],
+      "concept_tags": [
+        "insects",
+        "meadow",
+        "nature",
+        "community",
+        "observation",
+        "seasons"
+      ],
       "anti_twaddle": true,
       "notes": "Gentle nature stories told from an insect's perspective. Pair with outdoor observation. Ask: 'Have you seen a grasshopper like this?'"
     },
@@ -69,8 +121,18 @@
       "subject": "nature_study",
       "type": "spine",
       "difficulty": 1,
-      "terms": [2, 3],
-      "concept_tags": ["wildlife", "woodland", "observation", "animals", "seasons", "wonder"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "wildlife",
+        "woodland",
+        "observation",
+        "animals",
+        "seasons",
+        "wonder"
+      ],
       "anti_twaddle": true,
       "notes": "First-hand naturalist accounts. Long observed animals directly and writes with the excitement of discovery. Ideal for nature journal follow-up."
     },
@@ -81,8 +143,17 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 2,
-      "terms": [3],
-      "concept_tags": ["self-reliance", "growth", "courage", "rural-life", "education", "character"],
+      "terms": [
+        3
+      ],
+      "concept_tags": [
+        "self-reliance",
+        "growth",
+        "courage",
+        "rural-life",
+        "education",
+        "character"
+      ],
       "anti_twaddle": true,
       "notes": "A timid city girl discovers competence and freedom on a Vermont farm. Rich in Charlotte Mason values — independence, real work, nature. Best for late Year 1 or early Year 2."
     },
@@ -93,8 +164,19 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["world-history", "ancient-civilizations", "timeline", "culture", "exploration", "kings"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "world-history",
+        "ancient-civilizations",
+        "timeline",
+        "culture",
+        "exploration",
+        "kings"
+      ],
       "anti_twaddle": true,
       "notes": "A narrative sweep of world history from creation to modern times, written for children. Read two to three pages per sitting. Pair with timeline entries."
     },
@@ -105,8 +187,19 @@
       "subject": "saints",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["saints", "faith", "martyrdom", "church-history", "courage", "virtue"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "saints",
+        "faith",
+        "martyrdom",
+        "church-history",
+        "courage",
+        "virtue"
+      ],
       "anti_twaddle": true,
       "notes": "Inspiring true stories of Christians throughout history. One story per week. Ask: 'What made this person brave?' and 'How could you show that virtue today?'"
     },
@@ -117,8 +210,17 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 1,
-      "terms": [1],
-      "concept_tags": ["animals", "nature", "mischief", "consequences", "gentleness", "beauty"],
+      "terms": [
+        1
+      ],
+      "concept_tags": [
+        "animals",
+        "nature",
+        "mischief",
+        "consequences",
+        "gentleness",
+        "beauty"
+      ],
       "anti_twaddle": true,
       "notes": "Potter was a naturalist as well as an artist. Note the botanical and animal accuracy alongside the story. Read one tale per session."
     },
@@ -129,8 +231,19 @@
       "subject": "nature_study",
       "type": "reference",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["botany", "zoology", "observation", "identification", "science", "field-guide"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "botany",
+        "zoology",
+        "observation",
+        "identification",
+        "science",
+        "field-guide"
+      ],
       "anti_twaddle": true,
       "notes": "Parent reference for guiding nature study. Use specific sections when the child encounters a bird, insect, or plant. Don't read cover to cover — consult as needed."
     },
@@ -141,10 +254,26 @@
       "subject": "saints",
       "type": "supplemental",
       "difficulty": 1,
-      "terms": [2, 3],
-      "concept_tags": ["faith", "pilgrimage", "virtue", "allegory", "perseverance", "salvation"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "faith",
+        "pilgrimage",
+        "virtue",
+        "allegory",
+        "perseverance",
+        "salvation"
+      ],
       "anti_twaddle": true,
       "notes": "Use a children's adaptation. The allegory is rich for narration — 'What do you think the Slough of Despond means for us today?' Connect to the child's own faith journey."
     }
-  ]
+  ],
+  "subject_plans": {
+    "mathematics": "Grade K/1 scope (Common Core domains K.CC, K.OA, K.G, K.MD): counting and cardinality to 20 and beyond; one-to-one correspondence; comparing quantities (more/fewer/equal); simple addition and subtraction within 10 using real objects, never abstract algorithms first; recognizing and naming 2D/3D shapes; measurable attributes (longer/shorter, heavier/lighter). Charlotte Mason approach: manipulatives (buttons, blocks, fingers, nature-study specimens) and real-life counting (setting the table, counting steps) before any worksheet or written number sentence.",
+    "art_music": "Composer: Wolfgang Amadeus Mozart — joyful, clear melodic lines, an ideal first composer for young ears. Listen to short, contrasting pieces (a symphony movement, a piano sonata, an aria) across the term, always the same composer, so the child begins to recognize his 'voice.' Artist: Vincent van Gogh — bold color and texture children respond to immediately (Sunflowers, The Starry Night, Wheatfield with Cypresses). Look at one picture per sitting, in silence first, then narrate what is seen before any facts are given. Poet: Christina Rossetti — short, musical poems written with children in mind (Sing-Song). Read aloud for rhythm and delight; memorization of a favorite stanza is welcome, analysis is not.",
+    "language_arts": "Grade K/1: oral narration only — never require written composition at this age. Copywork is a single short sentence or a few words, hand-picked from that day's living book, focused on letter formation and the pleasure of beautiful handwriting rather than length. Phonemic awareness and reading practice happen alongside, not through this tutoring session. 'Tell it back to me in your own words' is the whole of narration at this stage.",
+    "morning_time": "Opens with a short Scripture passage read aloud (a Gospel story or Psalm verse is ideal at this age), a simple hymn or folk song sung together, and a few lines of that term's poet (Christina Rossetti). Keep each element brief — a few minutes each — and warm rather than instructional."
+  }
 }

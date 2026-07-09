@@ -11,12 +11,11 @@ interface Props {
   studentName: string
   token: string
   onVerified: (result: VerifyResult) => void
-  onSkip?: () => void
 }
 
 type Step = 'prompt' | 'recording' | 'processing' | 'result'
 
-export default function VoiceVerification({ studentName, token, onVerified, onSkip }: Props) {
+export default function VoiceVerification({ studentName, token, onVerified }: Props) {
   const [step, setStep] = useState<Step>('prompt')
   const [result, setResult] = useState<VerifyResult | null>(null)
   const [attempts, setAttempts] = useState(0)
@@ -133,11 +132,10 @@ export default function VoiceVerification({ studentName, token, onVerified, onSk
               <Mic size={40} />
             </button>
             <p className="text-sm text-gray-500">Click the mic and speak clearly</p>
-            {onSkip && (
-              <button onClick={onSkip} className="text-xs text-gray-400 hover:text-gray-600 underline">
-                Skip voice check (parent mode)
-              </button>
-            )}
+            {/* Requires the parent password — never bypasses voice auth silently */}
+            <button onClick={handleParentOverride} className="text-xs text-gray-400 hover:text-gray-600 underline">
+              Skip voice check (parent mode)
+            </button>
           </div>
         )}
 

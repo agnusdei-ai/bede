@@ -79,11 +79,6 @@ export default function Login() {
     navigate(returnTo ? decodeURIComponent(returnTo) : '/session')
   }
 
-  const handleVoiceSkip = () => {
-    setAuth(pendingToken, 'child')
-    navigate(returnTo ? decodeURIComponent(returnTo) : '/session')
-  }
-
   if (phase === 'voice-verify') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100">
@@ -91,7 +86,6 @@ export default function Login() {
           studentName={knownStudentName || 'Student'}
           token={pendingToken}
           onVerified={handleVoiceVerified}
-          onSkip={handleVoiceSkip}
         />
         {!knownStudentName && (
           <div className="fixed bottom-6 left-0 right-0 text-center">

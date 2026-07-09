@@ -110,12 +110,12 @@ export default function Login() {
         {/* Header */}
         <div className="text-center mb-8">
           <img
-            src="/bede-portrait.svg"
+            src="/bede-portrait.jpg"
             alt="Bede"
-            className="w-28 h-28 mx-auto mb-4 rounded-full drop-shadow-sm object-cover"
+            className="w-28 h-28 mx-auto mb-4 rounded-full drop-shadow-sm object-cover object-top"
           />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede</h1>
-          <p className="text-sm text-gray-500 mt-1">Your Charlotte Mason Homeschool Tutor</p>
+          <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
           {studentFromUrl && (
             <p className="text-sm font-medium text-navy-700 mt-2">
               Welcome, {studentFromUrl}!
@@ -186,7 +186,8 @@ export default function Login() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
-          "Education is an atmosphere, a discipline, a life." — Charlotte Mason
+          "The sole true end of education is simply this: to teach men how to teach
+          themselves." — Dorothy L. Sayers, <em>The Lost Tools of Learning</em>
         </p>
       </div>
     </div>

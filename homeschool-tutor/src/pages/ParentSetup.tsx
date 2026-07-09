@@ -123,7 +123,7 @@ export default function ParentSetup() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <img src="/bede-monk.svg" alt="Bede" className="w-9 h-9" />
+              <img src="/bede-icon.png" alt="Bede" className="w-9 h-9 rounded-full object-cover" />
               <h1 className="text-2xl font-display font-bold text-gray-800">Plan Today's Pod</h1>
             </div>
             <p className="text-sm text-gray-500 mt-1">Add each student, then open their session on their tablet</p>

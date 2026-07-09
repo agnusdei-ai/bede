@@ -98,7 +98,7 @@ export default function TutorSession() {
     <div className="h-screen flex flex-col bg-parchment-50 overflow-hidden">
       {/* ── Minimal header ── */}
       <header className="pt-safe bg-white border-b border-navy-100 shrink-0 h-12 flex items-center px-4 gap-2">
-        <img src="/bede-monk.svg" alt="Bede" className="w-6 h-6 shrink-0" />
+        <img src="/bede-icon.png" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
 
         <span className="text-navy-700 font-semibold text-sm truncate max-w-[100px]">
           {sessionConfig.student_name}

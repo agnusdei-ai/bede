@@ -1,0 +1,108 @@
+{
+  "year": 5,
+  "description": "Ambleside Online Year 5 — Charlotte Mason living books curriculum for grade 5. The Plutarch rotation continues, American history moves from the colonies toward the founding era, and written narration becomes the primary mode across most subjects.",
+  "books": [
+    {
+      "id": "y5-adam-of-the-road",
+      "title": "Adam of the Road",
+      "author": "Elizabeth Janet Gray",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["medieval-england", "minstrel", "adventure", "loss", "perseverance", "friendship"],
+      "anti_twaddle": true,
+      "notes": "A minstrel boy's travels across medieval England searching for his lost dog and father. Newbery Medal winner. 'What does Adam learn about home along the way?'"
+    },
+    {
+      "id": "y5-door-in-the-wall",
+      "title": "The Door in the Wall",
+      "author": "Marguerite de Angeli",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 3,
+      "terms": [1],
+      "concept_tags": ["medieval-england", "disability", "courage", "purpose", "faith", "resilience"],
+      "anti_twaddle": true,
+      "notes": "A boy who cannot walk finds a different kind of usefulness and courage. 'What was the door in the wall, really?'"
+    },
+    {
+      "id": "y5-plutarchs-lives",
+      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "author": "Plutarch",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "leadership", "character"],
+      "anti_twaddle": true,
+      "notes": "Continuing the multi-year rotation begun in Year 3. Read slowly, one incident at a time. 'Was this choice virtuous, or only effective?'"
+    },
+    {
+      "id": "y5-story-thirteen-colonies",
+      "title": "The Story of the Thirteen Colonies",
+      "author": "H. A. Guerber",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["colonial-america", "founding", "exploration", "self-government", "biography"],
+      "anti_twaddle": true,
+      "notes": "Guerber's narrative history moves from early settlement toward the founding era, picking up where Year 4's George Washington's World left off. 'What made each colony's founding different from the others?'"
+    },
+    {
+      "id": "y5-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History (continuing)",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "faith", "church-history", "courage", "perseverance"],
+      "anti_twaddle": true,
+      "notes": "Continuing the rotation. 'What did this person risk, and why did they think it was worth it?'"
+    },
+    {
+      "id": "y5-madam-how-lady-why-second-half",
+      "title": "Madam How and Lady Why (second half)",
+      "author": "Charles Kingsley",
+      "subject": "science",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["geology", "earth-science", "observation", "wonder", "causation"],
+      "anti_twaddle": true,
+      "notes": "Continuing from Year 4's first half. Read a chapter, then look for a real example outdoors if possible. 'What question would you ask Madam How this time?'"
+    },
+    {
+      "id": "y5-archimedes-door-of-science",
+      "title": "Archimedes and the Door of Science",
+      "author": "Jeanne Bendick",
+      "subject": "science",
+      "type": "supplemental",
+      "difficulty": 3,
+      "terms": [2, 3],
+      "concept_tags": ["mathematics", "ancient-greece", "invention", "scientific-method", "biography"],
+      "anti_twaddle": true,
+      "notes": "A short, lively biography of Archimedes and the birth of scientific reasoning in the ancient world. Ties naturally to this term's Plutarch reading on ancient Greece and Rome."
+    },
+    {
+      "id": "y5-handbook-nature-study",
+      "title": "Handbook of Nature Study (continuing reference)",
+      "author": "Anna Botsford Comstock",
+      "subject": "nature_study",
+      "type": "reference",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["nature-journal", "observation", "reference", "outdoor-study"],
+      "anti_twaddle": true,
+      "notes": "A reference, not a read-aloud — consult for whatever the child has just found outside. Pair every entry with a nature journal sketch."
+    }
+  ],
+  "subject_plans": {
+    "mathematics": "Grade 5 scope (Common Core domains 5.OA, 5.NBT, 5.NF, 5.MD, 5.G): decimal place value and operations with decimals to hundredths; adding and subtracting fractions with unlike denominators, and multiplying/dividing fractions; volume of rectangular prisms; plotting points on a coordinate plane. Charlotte Mason approach: real-world problems (recipes, measurements, maps) before the abstract notation.",
+    "art_music": "Composer: Franz Schubert — lyrical, singable melodies (try 'The Trout' quintet), a warm middle ground between Classical clarity and Romantic feeling. Artist: Albrecht Dürer — precise, richly detailed engravings and woodcuts that reward slow, close looking. Ask what the child notices only on a second look. Poet: Alfred, Lord Tennyson — narrative and historical poems with strong rhythm (The Charge of the Light Brigade), pairing naturally with this year's history reading.",
+    "language_arts": "Grade 5: written narration is now the primary mode for most subjects, not the exception. Dictation passages grow longer and more complex. Grammar covers more sophisticated sentence structures (compound and complex sentences), and the student begins a simple outline before narrating a longer passage.",
+    "morning_time": "Scripture with more substantive discussion of its meaning, a hymn or folk song, and Tennyson for poetry. Connect briefly to this term's history rotation — the colonies, or Adam of the Road's medieval England."
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "year": 6,
+  "description": "Ambleside Online Year 6 — Charlotte Mason living books curriculum for grade 6. The Logic Stage is in full swing: Plutarch continues, American history moves toward the Republic, and literary analysis vocabulary begins alongside longer, more demanding novels.",
+  "books": [
+    {
+      "id": "y6-kim",
+      "title": "Kim",
+      "author": "Rudyard Kipling",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["india", "identity", "adventure", "espionage", "cultural-encounter", "coming-of-age"],
+      "anti_twaddle": true,
+      "notes": "An orphan boy moving between two worlds on the Grand Trunk Road. Rich material for discussing identity and loyalty. 'What does Kim have to choose between, and why is it hard?'"
+    },
+    {
+      "id": "y6-the-hobbit",
+      "title": "The Hobbit",
+      "author": "J. R. R. Tolkien",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 4,
+      "terms": [1, 2],
+      "concept_tags": ["courage", "unexpected-heroism", "adventure", "greed", "friendship", "growth"],
+      "anti_twaddle": true,
+      "notes": "A reluctant hero discovers courage he didn't know he had. 'How is Bilbo different at the end of the story than at the beginning, and what changed him?'"
+    },
+    {
+      "id": "y6-plutarchs-lives",
+      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "author": "Plutarch",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 5,
+      "terms": [1, 2, 3],
+      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "leadership", "rhetoric"],
+      "anti_twaddle": true,
+      "notes": "Continuing the rotation. By this year the student should begin weighing competing virtues, not just narrating events. 'Which of this leader's qualities would you keep, which would you reject?'"
+    },
+    {
+      "id": "y6-story-of-the-great-republic",
+      "title": "The Story of the Great Republic",
+      "author": "H. A. Guerber",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["american-history", "founding", "republic", "constitution", "biography"],
+      "anti_twaddle": true,
+      "notes": "Continues the American history arc from Year 5's colonies into the founding of the Republic. 'What problem was each founding decision trying to solve?'"
+    },
+    {
+      "id": "y6-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History (continuing)",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "faith", "church-history", "reformation", "courage"],
+      "anti_twaddle": true,
+      "notes": "Continuing the rotation, now reaching the Reformation era in most editions. 'What was this person willing to lose for what they believed?'"
+    },
+    {
+      "id": "y6-galileo-and-the-magic-numbers",
+      "title": "Galileo and the Magic Numbers",
+      "author": "Sidney Rosen",
+      "subject": "science",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["astronomy", "physics", "scientific-method", "biography", "courage"],
+      "anti_twaddle": true,
+      "notes": "Galileo's life and the birth of observational, evidence-based science. 'Why was what Galileo saw through his telescope so dangerous to say out loud?'"
+    },
+    {
+      "id": "y6-handbook-nature-study",
+      "title": "Handbook of Nature Study (continuing reference)",
+      "author": "Anna Botsford Comstock",
+      "subject": "nature_study",
+      "type": "reference",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["nature-journal", "observation", "reference", "outdoor-study"],
+      "anti_twaddle": true,
+      "notes": "Continuing as a reference — consult for whatever the student is currently observing outdoors."
+    }
+  ],
+  "subject_plans": {
+    "mathematics": "Grade 6 scope (Common Core domains 6.RP, 6.NS, 6.EE, 6.G, 6.SP): ratios and proportional reasoning; dividing fractions by fractions and operating with the full set of rational numbers, including negatives; writing and evaluating algebraic expressions and equations; area, surface area, and volume; an introduction to statistical thinking (measures of center, variability). Charlotte Mason approach: the student justifies each step, not just performs it.",
+    "art_music": "Composer: Frédéric Chopin — Romantic-era piano music, intimate and emotionally direct (a nocturne is an ideal entry point). Artist: Katsushika Hokusai — bold, graphic Japanese woodblock prints (The Great Wave off Kanagawa), a deliberate step outside the Western tradition studied so far. Poet: Emily Dickinson — compact, puzzling poems that reward re-reading and pattern-finding, well matched to the Logic Stage.",
+    "language_arts": "Grade 6: literary analysis vocabulary is introduced (simile, metaphor, plot structure, characterization) and used in discussing that term's living books. Multi-paragraph written composition is now expected as the norm. Grammar review shifts toward how the student actually uses language in their own writing, rather than isolated drills.",
+    "morning_time": "Scripture with real discussion of its meaning and context, a hymn or folk song, and Dickinson for poetry. Connect briefly to this term's history (the founding era, or Kim's India) when it fits naturally."
+  }
+}

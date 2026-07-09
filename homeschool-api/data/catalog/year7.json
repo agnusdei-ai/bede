@@ -1,0 +1,96 @@
+{
+  "year": 7,
+  "description": "Ambleside Online Year 7 — Charlotte Mason living books curriculum for grade 7. The Logic Stage's final year before Rhetoric begins: demanding 19th-century literature, the French Revolution and its aftermath, and the first steps into persuasive, evidence-based writing.",
+  "books": [
+    {
+      "id": "y7-tale-of-two-cities",
+      "title": "A Tale of Two Cities",
+      "author": "Charles Dickens",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 5,
+      "terms": [1, 2, 3],
+      "concept_tags": ["french-revolution", "sacrifice", "justice", "resurrection", "social-upheaval", "redemption"],
+      "anti_twaddle": true,
+      "notes": "Dickens at his most sweeping and morally serious. Pairs directly with this term's French history. 'Was Sydney Carton's sacrifice a waste, or the most meaningful thing he ever did?'"
+    },
+    {
+      "id": "y7-hound-of-the-baskervilles",
+      "title": "The Hound of the Baskervilles",
+      "author": "Arthur Conan Doyle",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 4,
+      "terms": [1],
+      "concept_tags": ["mystery", "reasoning", "evidence", "fear", "deduction"],
+      "anti_twaddle": true,
+      "notes": "Holmes's method is entirely about evidence over assumption — good pairing for a year emphasizing evidence-based writing. 'What clue did Holmes notice that everyone else dismissed?'"
+    },
+    {
+      "id": "y7-plutarchs-lives",
+      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "author": "Plutarch",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 5,
+      "terms": [1, 2, 3],
+      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "leadership", "rhetoric"],
+      "anti_twaddle": true,
+      "notes": "Continuing the long rotation. The student should now argue for or against a leader's choices with real textual evidence, not just describe them."
+    },
+    {
+      "id": "y7-story-of-modern-france",
+      "title": "The Story of Modern France",
+      "author": "H. A. Guerber",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 5,
+      "terms": [1, 2, 3],
+      "concept_tags": ["french-revolution", "napoleon", "european-history", "revolution", "monarchy"],
+      "anti_twaddle": true,
+      "notes": "Ties directly to A Tale of Two Cities this term. 'What made the Revolution's ideals curdle into the Terror?'"
+    },
+    {
+      "id": "y7-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History (continuing)",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "faith", "church-history", "courage", "conviction"],
+      "anti_twaddle": true,
+      "notes": "Continuing the rotation. 'How did this person's faith hold up under real pressure to recant?'"
+    },
+    {
+      "id": "y7-story-of-louis-pasteur",
+      "title": "The Story of Louis Pasteur (biography for young readers)",
+      "author": "adapted",
+      "subject": "science",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["microbiology", "scientific-method", "perseverance", "biography", "medicine"],
+      "anti_twaddle": true,
+      "notes": "Pasteur's patient, repeated experiments against skepticism from the scientific establishment of his day. 'What kept Pasteur going when others dismissed his evidence?'"
+    },
+    {
+      "id": "y7-handbook-nature-study",
+      "title": "Handbook of Nature Study (continuing reference)",
+      "author": "Anna Botsford Comstock",
+      "subject": "nature_study",
+      "type": "reference",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["nature-journal", "observation", "reference", "outdoor-study"],
+      "anti_twaddle": true,
+      "notes": "Continuing as a reference for whatever the student encounters outdoors."
+    }
+  ],
+  "subject_plans": {
+    "mathematics": "Grade 7 scope (Common Core domains 7.RP, 7.NS, 7.EE, 7.G, 7.SP): proportional relationships and unit rates; operations with all rational numbers, including negative fractions and decimals; multi-step algebraic expressions and equations; scale drawings, angle relationships, circles, and surface area/volume; an introduction to probability and sampling. Charlotte Mason approach: 'is there another way to see this?' stays ahead of speed.",
+    "art_music": "Composer: Pyotr Ilyich Tchaikovsky — dramatic, narrative orchestral and ballet music (the 1812 Overture ties directly to this year's Napoleonic-era history). Artist: Eugène Delacroix — Romantic, dramatic historical painting (Liberty Leading the People connects straight to the French Revolution unit). Poet: John Keats — rich, sensory Romantic-era verse, a natural pairing with Tchaikovsky and Delacroix's shared era and emotional register.",
+    "language_arts": "Grade 7: sustained multi-paragraph essays are expected, and the student takes first steps into persuasive/argumentative writing that must cite evidence from the text, not just assert an opinion. Literary vocabulary expands (foreshadowing, symbolism, tone). Grammar instruction shifts toward sentence variety and style rather than rules in isolation.",
+    "morning_time": "Scripture with real theological discussion, a hymn or folk song, and Keats for poetry. Connect to the French Revolution unit when it fits, and invite a brief spoken or written response rather than passive listening."
+  }
+}

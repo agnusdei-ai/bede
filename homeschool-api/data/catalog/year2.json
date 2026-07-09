@@ -134,5 +134,11 @@
       "anti_twaddle": true,
       "notes": "Continue from Year 1 or begin if not started. Narrative history that treats children as capable of engaging with real events and real people."
     }
-  ]
+  ],
+  "subject_plans": {
+    "mathematics": "Grade 2 scope (Common Core domains 2.OA, 2.NBT, 2.MD, 2.G): addition and subtraction within 100, and mentally within 20; understanding place value to 1,000; measuring length with standard units; telling time to the nearest 5 minutes; working with money; partitioning shapes into equal shares (halves, thirds, fourths). Charlotte Mason approach: real objects and real problems (measuring the garden, making change) before any written algorithm.",
+    "art_music": "Composer: Joseph Haydn — playful, good-humored, an easy step up from Year 1's Mozart (try the 'Surprise' Symphony). Artist: Claude Monet — Impressionist light and color on approachable, cheerful subjects (water lilies, haystacks, a garden). Look first in silence, narrate what is seen, then offer the title. Poet: Robert Louis Stevenson — A Child's Garden of Verses, written from a child's own point of view, ideal for this age.",
+    "language_arts": "Grade 2: oral narration remains the main habit, but written narration is gently invited a few times a term — a sentence or two the child writes themselves, never required at length. Copywork lengthens to a full sentence from that day's living book. Grammar stays entirely observational: noticing capital letters and end punctuation in real sentences, not naming parts of speech yet.",
+    "morning_time": "A short Scripture passage with a moment spent on a single word or image in it, a hymn or folk song, and a Stevenson poem. Keep it brief and warm — a few minutes per element."
+  }
 }

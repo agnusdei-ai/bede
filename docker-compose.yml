@@ -32,6 +32,8 @@ services:
       - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true

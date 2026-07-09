@@ -1,19 +1,20 @@
 import json
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import get_db
 from core.deps import require_auth, require_parent
-from models.schemas import SessionSummaryRequest, TutorRequest
+from models.schemas import SessionSummaryRequest, SpeakRequest, TutorRequest
 from services.ai_service import (
     check_safeguarding,
     generate_session_summary,
     SAFEGUARDING_RESPONSE,
     stream_tutor_response,
 )
+from services.voice_synthesis import synthesize_speech
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
@@ -64,6 +65,20 @@ async def chat(
             yield chunk
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.post("/speak")
+async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
+    """
+    Synthesize Bede's spoken voice via the configured cloud TTS (see
+    services/voice_synthesis.py). Returns 204 with no body when unconfigured
+    or on failure — the frontend falls back to the browser's own
+    speechSynthesis in that case, so a TTS hiccup never breaks the session.
+    """
+    audio = await synthesize_speech(req.text)
+    if audio is None:
+        return Response(status_code=204)
+    return Response(content=audio, media_type="audio/mpeg")
 
 
 @router.post("/summary")

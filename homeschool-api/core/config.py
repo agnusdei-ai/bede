@@ -9,6 +9,17 @@ class Settings(BaseSettings):
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 
+    # ── Voice output (Bede speaking) ─────────────────────────────────────────
+    # Optional: a cloud neural TTS gives a warm, trained male monk voice instead
+    # of the browser's robotic default. If unset, the frontend falls back to the
+    # browser's built-in speechSynthesis (see useTextToSpeech.ts).
+    # Self-hosted voice cloning (e.g. Chatterbox) was considered but needs a real
+    # GPU for real-time latency — not realistic on Raspberry Pi-class hosts.
+    elevenlabs_api_key: str = ""
+    # Must be a warm, elderly, MALE voice — Bede's persona and voice are both
+    # historically male (the Venerable Bede), never gender-ambiguous or female.
+    elevenlabs_voice_id: str = ""
+
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
     algorithm: str = "HS256"

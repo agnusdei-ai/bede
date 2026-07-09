@@ -90,6 +90,10 @@ class TutorRequest(BaseModel):
     drawing_image: Optional[str] = Field(default=None, max_length=8_000_000)
 
 
+class SpeakRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+
+
 class LoginRequest(BaseModel):
     role: Literal["parent", "child"]
     credential: str   # password for parent, PIN for child

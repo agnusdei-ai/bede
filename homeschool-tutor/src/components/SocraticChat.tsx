@@ -30,7 +30,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   } = useSessionStore()
 
   // ── Text-to-speech: Bede speaks its responses ────────────────────────────
-  const { speak, stop: stopSpeech, toggle: toggleTTS, isSpeaking, enabled: ttsEnabled, isSupported: ttsSupported } = useTextToSpeech()
+  const { speak, stop: stopSpeech, toggle: toggleTTS, isSpeaking, enabled: ttsEnabled, isSupported: ttsSupported } = useTextToSpeech(token)
 
   // ── Speech recognition: child speaks instead of typing ──────────────────
   // Native Web Speech API first, auto-falls back to recording + server-side

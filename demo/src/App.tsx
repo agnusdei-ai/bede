@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock } from 'lucide-react'
 import {
   streamTutorChat, SUBJECTS, SUBJECT_LABELS,
   type Subject, type StudentProfile, type ChatMessage, type GradeStage,
@@ -13,6 +13,7 @@ const LS_KEYS = {
   elevenLabsKey: 'bede_demo_elevenlabs_key',
   elevenLabsVoiceId: 'bede_demo_elevenlabs_voice_id',
   student: 'bede_demo_student',
+  pin: 'bede_demo_pin',
 }
 
 interface DisplayMessage {
@@ -29,6 +30,7 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
   const [name, setName] = useState('')
   const [grade, setGrade] = useState('')
   const [gradeStage, setGradeStage] = useState<GradeStage>('3-5')
+  const [pin, setPin] = useState('')
   const [error, setError] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,10 +39,16 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
       setError('Anthropic API key, name, and grade are all required.')
       return
     }
+    if (pin.trim() && !/^\d{4,}$/.test(pin.trim())) {
+      setError('PIN must be 4 or more digits (or leave it blank for no PIN screen).')
+      return
+    }
     localStorage.setItem(LS_KEYS.anthropicKey, anthropicKey.trim())
     if (elevenLabsKey.trim()) localStorage.setItem(LS_KEYS.elevenLabsKey, elevenLabsKey.trim())
     if (elevenLabsVoiceId.trim()) localStorage.setItem(LS_KEYS.elevenLabsVoiceId, elevenLabsVoiceId.trim())
     localStorage.setItem(LS_KEYS.student, JSON.stringify({ name: name.trim(), grade: grade.trim(), gradeStage }))
+    if (pin.trim()) localStorage.setItem(LS_KEYS.pin, pin.trim())
+    else localStorage.removeItem(LS_KEYS.pin)
     onReady()
   }
 
@@ -98,6 +106,14 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
                 >{s}</button>
               ))}
             </div>
+          </div>
+          <div>
+            <label className="label">Demo PIN screen (optional)</label>
+            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Leave blank to skip straight to Bede" inputMode="numeric" />
+            <p className="text-xs text-gray-400 mt-1">
+              Shows a PIN entry step before Bede, mirroring the real app's login <em>look</em> —
+              this is a UI demonstration only, not real security (see the notice on that screen).
+            </p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button type="submit" className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
@@ -298,6 +314,60 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   )
 }
 
+function PinScreen({ studentName, onVerified }: { studentName: string; onVerified: () => void }) {
+  const [entered, setEntered] = useState('')
+  const [error, setError] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const storedPin = localStorage.getItem(LS_KEYS.pin) ?? ''
+    if (entered.trim() === storedPin) {
+      onVerified()
+    } else {
+      setError('Incorrect PIN. Try again.')
+      setEntered('')
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-navy-100 flex items-center justify-center">
+            <Lock size={24} className="text-navy-600" />
+          </div>
+          <h1 className="text-xl font-display font-bold text-gray-800">Welcome, {studentName}</h1>
+          <p className="text-sm text-gray-500 mt-1">Enter your PIN to begin</p>
+        </div>
+
+        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
+          <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
+          <p>
+            <strong>UI demonstration only.</strong> This shows what the real app's login
+            <em> looks</em> like — it is not the real security model. The production app checks
+            the PIN server-side, then verifies the child's actual voice before granting access;
+            this demo only compares text stored in your own browser, which is not a real
+            safeguard.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="password" inputMode="numeric" autoFocus
+            className="input text-center text-lg tracking-widest"
+            value={entered} onChange={(e) => setEntered(e.target.value)}
+            placeholder="••••"
+          />
+          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          <button type="submit" disabled={!entered.trim()} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors">
+            Continue
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [student, setStudent] = useState<StudentProfile | null>(() => {
     const raw = localStorage.getItem(LS_KEYS.student)
@@ -307,12 +377,21 @@ export default function App() {
     }
     return null
   })
+  // Resets on every reload/new tab, same as the real app requiring login each session —
+  // never persisted, since persisting it would defeat the point of even a cosmetic gate.
+  const [pinVerified, setPinVerified] = useState(false)
 
   const handleReset = () => {
     Object.values(LS_KEYS).forEach((k) => localStorage.removeItem(k))
     setStudent(null)
+    setPinVerified(false)
   }
 
-  if (!student) return <SetupScreen onReady={() => setStudent(JSON.parse(localStorage.getItem(LS_KEYS.student)!))} />
+  if (!student) {
+    return <SetupScreen onReady={() => setStudent(JSON.parse(localStorage.getItem(LS_KEYS.student)!))} />
+  }
+  if (localStorage.getItem(LS_KEYS.pin) && !pinVerified) {
+    return <PinScreen studentName={student.name} onVerified={() => setPinVerified(true)} />
+  }
   return <ChatScreen student={student} onReset={handleReset} />
 }

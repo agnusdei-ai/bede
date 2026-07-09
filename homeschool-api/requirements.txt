@@ -1,0 +1,20 @@
+anthropic>=0.40.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.0.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+sse-starlette>=2.1.0
+python-multipart>=0.0.12
+# Encryption at rest (AES-256-GCM, no cffi dependency)
+pycryptodome>=3.21.0
+# Managed PostgreSQL async driver + ORM
+asyncpg>=0.30.0
+sqlalchemy[asyncio]>=2.0.36
+# Voice authentication + transcription
+numpy>=1.26.0
+scipy>=1.13.0
+librosa>=0.10.0
+soundfile>=0.12.0
+openai-whisper>=20240930
+resemblyzer>=0.1.1

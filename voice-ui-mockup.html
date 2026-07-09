@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emma's Voice Portal — Age 9 / Grade 4</title>
+<style>
+:root {
+  --navy-50:#f0f4fb; --navy-100:#dce6f7; --navy-200:#b9cdef; --navy-300:#87a9e2;
+  --navy-400:#5585d5; --navy-500:#1e3a8a; --navy-600:#17306e;
+  --gold-50:#fefae8; --gold-100:#fdf2c1; --gold-400:#f5c014; --gold-500:#d4a106;
+  --parchment:#fefcf7; --parchment-100:#fdf8ee; --parchment-200:#f9eecc;
+  --emerald-50:#ecfdf5; --emerald-400:#34d399; --emerald-500:#10b981;
+  --amber-50:#fffbeb; --amber-400:#fbbf24; --amber-600:#d97706;
+  --red-50:#fef2f2; --red-400:#f87171; --red-500:#ef4444;
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb; --gray-400:#9ca3af;
+  --gray-500:#6b7280; --gray-700:#374151; --gray-800:#1f2937;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background: #e8edf5;
+  color: var(--gray-800);
+  padding: 48px 24px 80px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Layout ── */
+h1.page-title { font-size:22px; font-weight:700; color:var(--navy-500); margin-bottom:4px; }
+p.page-sub { font-size:13px; color:var(--gray-500); margin-bottom:40px; }
+.badge { display:inline-flex; align-items:center; gap:5px; background:var(--navy-100); color:var(--navy-600); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; margin-right:6px; margin-bottom:24px; }
+.badge.amber { background:#fde68a; color:#92400e; }
+.badge.emerald { background:var(--emerald-50); color:#065f46; }
+
+section { margin-bottom:64px; }
+.section-label { font-size:11px; font-weight:600; color:var(--navy-400); letter-spacing:.08em; text-transform:uppercase; margin-bottom:6px; }
+.section-title { font-size:17px; font-weight:700; color:var(--gray-800); margin-bottom:20px; }
+
+.row { display:flex; flex-wrap:wrap; gap:32px; align-items:flex-start; }
+.annotation { max-width:280px; font-size:13px; color:var(--gray-500); line-height:1.6; }
+.annotation strong { color:var(--gray-700); }
+.annotation ul { margin:8px 0 0 14px; }
+.annotation li { margin-bottom:4px; }
+
+/* ── Phone frame ── */
+.phone {
+  width:320px; flex-shrink:0;
+  background:#1a1a2e;
+  border-radius:44px;
+  padding:10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.06);
+}
+.phone-inner {
+  border-radius:36px;
+  overflow:hidden;
+  background:var(--parchment);
+  position:relative;
+}
+.phone-notch {
+  position:absolute; top:0; left:50%; transform:translateX(-50%);
+  width:90px; height:22px;
+  background:#1a1a2e;
+  border-radius:0 0 14px 14px;
+  z-index:10;
+}
+
+/* ── Gradient bg (login / voice screens) ── */
+.bg-grad {
+  background: linear-gradient(135deg, var(--parchment-100) 0%, var(--navy-50) 50%, var(--gold-50) 100%);
+  min-height:580px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:32px 16px 24px;
+}
+
+/* ── Auth card ── */
+.auth-card {
+  background:#fff;
+  border-radius:20px;
+  border:1px solid var(--navy-100);
+  box-shadow:0 4px 20px rgba(30,58,138,.08);
+  width:100%;
+  padding:24px 20px;
+}
+.logo-wrap { text-align:center; margin-bottom:20px; }
+.logo-circle {
+  width:60px; height:60px; border-radius:50%;
+  background:var(--navy-50); border:2px solid var(--navy-200);
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 10px;
+}
+.logo-circle svg { width:34px; height:34px; }
+.auth-card h2 { font-size:17px; font-weight:700; text-align:center; color:var(--gray-800); }
+.auth-card .subtitle { font-size:12px; color:var(--gray-400); text-align:center; margin-top:2px; margin-bottom:16px; }
+
+/* Role tabs */
+.role-tabs { display:flex; border:1px solid var(--navy-200); border-radius:10px; overflow:hidden; margin-bottom:16px; }
+.role-tab { flex:1; padding:9px 0; font-size:12px; font-weight:600; text-align:center; cursor:pointer; }
+.role-tab.active { background:var(--navy-500); color:#fff; }
+.role-tab.inactive { background:#fff; color:var(--gray-500); }
+
+/* Input */
+.field-label { font-size:11px; font-weight:600; color:var(--gray-700); margin-bottom:5px; }
+.input-wrap { position:relative; margin-bottom:12px; }
+.input-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--gray-400); }
+.fake-input {
+  width:100%; padding:8px 10px 8px 30px;
+  border:1px solid var(--navy-200); border-radius:9px;
+  font-size:13px; color:var(--gray-800);
+  background:#fff;
+  display:flex; align-items:center;
+}
+.fake-input.filled { letter-spacing:5px; color:var(--gray-500); }
+.fake-input.focused { border-color:var(--navy-400); box-shadow:0 0 0 2px rgba(85,133,213,.2); }
+
+/* Info chip */
+.info-chip {
+  display:flex; gap:10px; align-items:flex-start;
+  background:var(--navy-50); border:1px solid var(--navy-200); border-radius:10px;
+  padding:10px; margin-bottom:14px;
+}
+.info-chip .icon-wrap { width:28px; height:28px; border-radius:7px; background:var(--navy-100); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.info-chip .icon-wrap svg { width:14px; height:14px; color:var(--navy-500); }
+.info-chip p { font-size:11px; color:var(--navy-700); line-height:1.5; }
+.info-chip strong { display:block; font-size:11px; font-weight:700; margin-bottom:1px; }
+
+/* Primary btn */
+.btn-primary {
+  width:100%; padding:10px; border-radius:10px;
+  background:var(--navy-500); color:#fff;
+  font-size:13px; font-weight:600; text-align:center;
+  cursor:pointer;
+}
+.btn-secondary {
+  width:100%; padding:8px; border-radius:10px;
+  background:var(--gray-100); color:var(--gray-700);
+  font-size:12px; font-weight:500; text-align:center;
+  cursor:pointer;
+}
+
+/* Quote */
+.mason-quote { font-size:11px; color:var(--gray-400); text-align:center; margin-top:14px; font-style:italic; }
+
+/* ── Voice verify card ── */
+.voice-card {
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 8px 32px rgba(0,0,0,.15);
+  width:100%;
+  padding:24px 20px;
+}
+.voice-card h2 { font-size:16px; font-weight:700; text-align:center; color:var(--gray-800); margin-bottom:2px; }
+.voice-card .hey { font-size:12px; color:var(--gray-400); text-align:center; margin-bottom:16px; }
+.passphrase-box {
+  background:var(--parchment-100); border:1px solid var(--parchment-200);
+  border-radius:12px; padding:12px 14px; text-align:center; margin-bottom:18px;
+}
+.passphrase-box .say { font-size:10px; color:var(--gray-400); margin-bottom:4px; }
+.passphrase-box .phrase { font-size:13px; color:var(--gray-800); font-style:italic; font-weight:500; }
+
+/* Mic button */
+.mic-btn-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.mic-btn {
+  width:72px; height:72px; border-radius:50%;
+  background:var(--navy-500);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 20px rgba(30,58,138,.35);
+  cursor:pointer;
+}
+.mic-btn svg { width:28px; height:28px; color:#fff; }
+.mic-hint { font-size:11px; color:var(--gray-400); }
+
+/* Waveform */
+.waveform { display:flex; align-items:flex-end; justify-content:center; gap:2px; height:48px; margin-bottom:14px; }
+.wave-bar { width:4px; border-radius:2px; background:var(--navy-400); }
+
+/* Mic recording btn */
+.mic-btn-red {
+  width:72px; height:72px; border-radius:50%;
+  background:var(--red-500);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 20px rgba(239,68,68,.4);
+  cursor:pointer;
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(239,68,68,.4), 0 6px 20px rgba(239,68,68,.3); }
+  70%  { box-shadow: 0 0 0 12px rgba(239,68,68,0), 0 6px 20px rgba(239,68,68,.3); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0), 0 6px 20px rgba(239,68,68,.3); }
+}
+.mic-btn-red .stop-icon { width:22px; height:22px; background:#fff; border-radius:4px; }
+.recording-hint { font-size:11px; color:var(--red-500); font-weight:600; }
+
+/* Confidence result */
+.confidence-card {
+  border-radius:12px; border:1px solid; padding:12px;
+  display:flex; flex-direction:column; gap:8px; margin-bottom:14px;
+}
+.confidence-card.success { background:var(--emerald-50); border-color:#a7f3d0; }
+.confidence-card .conf-row { display:flex; align-items:center; gap:10px; }
+.confidence-card svg.check { width:22px; height:22px; color:var(--emerald-500); flex-shrink:0; }
+.confidence-card .conf-text strong { font-size:12px; font-weight:700; color:#065f46; display:block; }
+.confidence-card .conf-text span { font-size:10px; color:var(--gray-400); }
+.conf-bar-track { height:5px; border-radius:3px; background:var(--gray-200); overflow:hidden; }
+.conf-bar-fill { height:100%; border-radius:3px; background:var(--emerald-400); }
+.btn-start {
+  width:100%; padding:10px; border-radius:10px;
+  background:var(--navy-500); color:#fff;
+  font-size:13px; font-weight:600; text-align:center; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+
+/* ── Session screen ── */
+.session-shell { background:var(--parchment); min-height:580px; display:flex; flex-direction:column; }
+.session-header {
+  height:48px; border-bottom:1px solid var(--navy-100);
+  background:#fff; display:flex; align-items:center;
+  padding:0 12px; gap:8px;
+  flex-shrink:0;
+}
+.session-header .logo-sm { width:26px; height:26px; border-radius:6px; background:var(--navy-50); border:1px solid var(--navy-200); display:flex; align-items:center; justify-content:center; }
+.session-header .logo-sm svg { width:14px; height:14px; }
+.session-header .student-name { font-size:13px; font-weight:600; color:var(--gray-800); flex:1; }
+.subject-pill {
+  display:flex; align-items:center; gap:4px;
+  background:var(--orange-50,#fff7ed); border:1px solid #fed7aa;
+  color:#9a3412; border-radius:20px; padding:3px 8px 3px 6px;
+  font-size:10px; font-weight:600; cursor:pointer;
+}
+.subject-pill svg { width:10px; height:10px; }
+.header-icon { width:28px; height:28px; border-radius:8px; background:var(--gray-100); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.header-icon svg { width:14px; height:14px; color:var(--gray-500); }
+
+/* Chat */
+.chat-area { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; }
+
+/* Bubbles */
+.bubble-bede {
+  background:#fff; border:1px solid var(--navy-100);
+  border-radius:16px 16px 16px 4px;
+  padding:10px 12px;
+  max-width:82%; font-size:13px; line-height:1.55;
+  color:var(--gray-800); box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+.bubble-bede .bede-name { font-size:10px; font-weight:700; color:var(--navy-500); margin-bottom:4px; }
+.bubble-user {
+  background:var(--navy-500); color:#fff;
+  border-radius:16px 16px 4px 16px;
+  padding:10px 12px;
+  max-width:82%; font-size:13px; line-height:1.55;
+  align-self:flex-end;
+}
+.bubble-user .user-name { font-size:10px; font-weight:700; color:var(--navy-200); margin-bottom:4px; }
+
+.tool-card {
+  padding:8px 12px 8px 10px; border-radius:0 12px 12px 0;
+  font-size:12px; line-height:1.55; color:var(--gray-700);
+  max-width:90%;
+}
+.tool-hint { border-left:3px solid var(--navy-300); background:rgba(135,169,226,.12); }
+.tool-faith { border-left:3px solid var(--gold-400); background:rgba(245,192,20,.08); }
+.tool-narrate { border-left:3px solid var(--amber-400); background:rgba(251,191,36,.08); }
+
+/* Input bar */
+.input-bar { padding:10px 10px 14px; background:#fff; border-top:1px solid var(--parchment-200); flex-shrink:0; }
+.input-row { display:flex; gap:6px; align-items:flex-end; }
+.bar-btn {
+  width:34px; height:34px; border-radius:9px;
+  background:var(--navy-100); color:var(--navy-600);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+}
+.bar-btn.active { background:var(--red-500); color:#fff; animation: mic-pulse .8s ease-in-out infinite alternate; }
+.bar-btn svg { width:16px; height:16px; }
+@keyframes mic-pulse { from { opacity:.8; } to { opacity:1; box-shadow:0 0 0 4px rgba(239,68,68,.25); } }
+.bar-btn.tts { background:var(--navy-100); }
+
+.fake-textarea {
+  flex:1; border:1px solid var(--navy-200); border-radius:9px;
+  padding:6px 10px; font-size:12px; color:var(--gray-500);
+  background:#fff; min-height:34px; display:flex; align-items:center;
+}
+.fake-textarea.listening { border-color:var(--red-400); background:var(--red-50); color:var(--red-500); font-style:italic; }
+.fake-textarea .interim { color:var(--navy-400); font-style:italic; }
+
+.send-btn {
+  width:34px; height:34px; border-radius:9px;
+  background:var(--navy-500); color:#fff;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+}
+.send-btn svg { width:16px; height:16px; }
+.bar-hint { font-size:10px; color:var(--gray-400); margin-top:5px; text-align:center; }
+
+/* Interim STT bubble */
+.interim-bubble {
+  align-self:flex-end; max-width:82%;
+  background:rgba(135,169,226,.2); border:1px solid var(--navy-200);
+  border-radius:16px 16px 4px 16px; padding:8px 12px;
+  font-size:12px; color:var(--navy-700); font-style:italic;
+  animation: fade-in .3s ease;
+}
+@keyframes fade-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; } }
+
+/* ── Annotations ── */
+.step-label {
+  font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--navy-400); margin-bottom:4px;
+}
+.callout {
+  margin-top:12px; background:#fff; border-radius:10px; border:1px solid var(--navy-100);
+  padding:10px 12px; font-size:12px; color:var(--gray-600); line-height:1.6;
+}
+.callout strong { color:var(--navy-500); }
+.callout ul { margin:4px 0 0 14px; }
+.callout li { margin-bottom:2px; }
+
+/* ── SVG icons (inline lucide-style) ── */
+svg { stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Emma's Voice Portal — Age 9 / Grade 4</h1>
+<p class="page-sub">3-5 grade stage &nbsp;·&nbsp; voice_required: true &nbsp;·&nbsp; History &amp; Geography &nbsp;·&nbsp; June 2026</p>
+
+<!-- ─────────────────────────── SCREEN 1: Child Login ─────────────────────────── -->
+<section>
+  <p class="section-label">Screen 1</p>
+  <p class="section-title">Student Login — PIN Entry</p>
+  <div class="row">
+
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="bg-grad" style="padding-top:42px;">
+          <div class="auth-card">
+            <div class="logo-wrap">
+              <div class="logo-circle">
+                <!-- Agnus Dei lamb SVG -->
+                <svg viewBox="0 0 40 40" stroke="none">
+                  <ellipse cx="20" cy="22" rx="12" ry="9" fill="#1e3a8a" opacity=".15"/>
+                  <ellipse cx="20" cy="21" rx="10" ry="8" fill="#dce6f7" stroke="#87a9e2" stroke-width="1"/>
+                  <circle cx="20" cy="13" r="5" fill="#dce6f7" stroke="#87a9e2" stroke-width="1"/>
+                  <circle cx="18" cy="12" r="1" fill="#1e3a8a"/>
+                  <ellipse cx="14" cy="27" rx="2" ry="3.5" fill="#b9cdef" stroke="#87a9e2" stroke-width=".8"/>
+                  <ellipse cx="19" cy="28" rx="2" ry="3.5" fill="#b9cdef" stroke="#87a9e2" stroke-width=".8"/>
+                  <ellipse cx="24" cy="28" rx="2" ry="3.5" fill="#b9cdef" stroke="#87a9e2" stroke-width=".8"/>
+                  <ellipse cx="26" cy="26" rx="2" ry="3.5" fill="#b9cdef" stroke="#87a9e2" stroke-width=".8"/>
+                  <!-- Cross flag -->
+                  <line x1="28" y1="16" x2="28" y2="8" stroke="#d4a106" stroke-width="1.2"/>
+                  <rect x="28" y="8" width="6" height="4" fill="#d4a106" rx=".5"/>
+                </svg>
+              </div>
+              <h2>Agnus Dei</h2>
+              <p class="subtitle">Your Charlotte Mason Homeschool Tutor</p>
+              <div style="font-size:12px;font-weight:600;color:var(--navy-600);margin-top:4px;">Welcome, Emma!</div>
+            </div>
+
+            <div class="role-tabs">
+              <div class="role-tab inactive" style="display:flex;align-items:center;justify-content:center;gap:5px;">
+                <svg width="11" height="11"><path d="M5.5 5.5A2.5 2.5 0 1 0 5.5.5a2.5 2.5 0 0 0 0 5z"/><path d="M1 10s.5-3 4.5-3 4.5 3 4.5 3"/></svg>
+                Parent
+              </div>
+              <div class="role-tab active" style="display:flex;align-items:center;justify-content:center;gap:5px;">
+                <svg width="11" height="11"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor" stroke="none"/></svg>
+                Student
+              </div>
+            </div>
+
+            <p class="field-label">Student PIN</p>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <div class="fake-input filled focused">●●●●</div>
+            </div>
+
+            <div class="info-chip">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </div>
+              <div>
+                <p><strong>Voice check required</strong>After your PIN, say a short passphrase so Bede knows it's really you.</p>
+              </div>
+            </div>
+
+            <div class="btn-primary">Continue →</div>
+            <p class="mason-quote">"Education is an atmosphere, a discipline, a life." — Charlotte Mason</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p class="step-label">What Emma sees</p>
+      <p>Emma's tablet opens to her personal URL — <code style="font-size:11px;background:#f3f4f6;padding:1px 5px;border-radius:4px;">/session?student=Emma</code> — so her name pre-fills and the Student tab is already active.</p>
+      <div class="callout">
+        <strong>Security layer 1 — PIN</strong>
+        <ul>
+          <li>4-digit numeric keypad (inputMode="numeric")</li>
+          <li>Masked display — no shoulder-reading</li>
+          <li>Server uses hmac.compare_digest (constant-time)</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>No cloud account, no OAuth</strong><br>
+        No Google, Apple, or Microsoft sign-in. No account creation. PIN goes to the local LAN server only.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── SCREEN 2: Voice prompt ─────────────────────────── -->
+<section>
+  <p class="section-label">Screen 2</p>
+  <p class="section-title">Voice Verification — Passphrase Prompt</p>
+  <div class="row">
+
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="bg-grad" style="padding-top:42px;">
+          <div class="voice-card">
+            <h2>Hi, Emma!</h2>
+            <p class="hey">Say the passphrase to begin your session</p>
+
+            <div class="passphrase-box">
+              <p class="say">Say this aloud:</p>
+              <p class="phrase">"I am ready to learn today!"</p>
+            </div>
+
+            <div class="mic-btn-wrap">
+              <div class="mic-btn">
+                <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+              </div>
+              <p class="mic-hint">Tap the mic and speak clearly</p>
+              <button style="font-size:10px;color:var(--gray-400);background:none;border:none;text-decoration:underline;cursor:pointer;">Skip — parent mode</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p class="step-label">Security layer 2 — Voice biometrics</p>
+      <p>After the PIN succeeds, Emma sees this screen. She must say the fixed passphrase aloud.</p>
+      <div class="callout">
+        <strong>How it works</strong>
+        <ul>
+          <li>MediaRecorder captures 8 seconds max</li>
+          <li>WAV blob → POST /voice/verify</li>
+          <li>Resemblyzer speaker embedding + MFCC similarity scored server-side</li>
+          <li>3 attempts before parent override required</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>Passphrase is fixed:</strong> <em>"I am ready to learn today!"</em><br>
+        Simple enough for a 7-year-old, distinct enough for the model.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── SCREEN 3: Recording ─────────────────────────── -->
+<section>
+  <p class="section-label">Screen 3</p>
+  <p class="section-title">Voice Verification — Recording in Progress</p>
+  <div class="row">
+
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="bg-grad" style="padding-top:42px;">
+          <div class="voice-card">
+            <h2>Hi, Emma!</h2>
+            <p class="hey">Say the passphrase to begin your session</p>
+
+            <div class="passphrase-box">
+              <p class="say">Say this aloud:</p>
+              <p class="phrase">"I am ready to learn today!"</p>
+            </div>
+
+            <!-- Live waveform -->
+            <div class="waveform" style="margin-bottom:14px;">
+              <div class="wave-bar" style="height:8px;opacity:.4;"></div>
+              <div class="wave-bar" style="height:14px;opacity:.5;"></div>
+              <div class="wave-bar" style="height:22px;opacity:.6;"></div>
+              <div class="wave-bar" style="height:36px;background:var(--navy-500);"></div>
+              <div class="wave-bar" style="height:44px;background:var(--navy-500);"></div>
+              <div class="wave-bar" style="height:38px;background:var(--navy-500);"></div>
+              <div class="wave-bar" style="height:28px;"></div>
+              <div class="wave-bar" style="height:42px;background:var(--navy-500);"></div>
+              <div class="wave-bar" style="height:46px;background:var(--navy-500);"></div>
+              <div class="wave-bar" style="height:40px;background:var(--navy-500);"></div>
+              <div class="wave-bar" style="height:30px;"></div>
+              <div class="wave-bar" style="height:22px;opacity:.7;"></div>
+              <div class="wave-bar" style="height:16px;opacity:.5;"></div>
+              <div class="wave-bar" style="height:10px;opacity:.4;"></div>
+              <div class="wave-bar" style="height:6px;opacity:.3;"></div>
+              <div class="wave-bar" style="height:4px;opacity:.2;"></div>
+            </div>
+
+            <div class="mic-btn-wrap">
+              <div class="mic-btn-red">
+                <div class="stop-icon"></div>
+              </div>
+              <p class="recording-hint">Listening… tap to stop</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p class="step-label">Recording state</p>
+      <p>The mic button turns red and pulses. A live waveform (24 bars driven by Web Audio <code style="font-size:11px;background:#f3f4f6;padding:1px 5px;border-radius:4px;">AnalyserNode</code>) shows Emma she's being heard.</p>
+      <div class="callout">
+        <strong>useVoiceRecorder hook</strong>
+        <ul>
+          <li>MediaRecorder API — WAV via mimeType detection</li>
+          <li>8-second auto-stop with visual countdown</li>
+          <li>Level (0–1) drives bar heights via getByteFrequencyData</li>
+          <li>Audio stays local — no streaming to the cloud</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>Air-gap note:</strong> The WAV blob travels only to the local FastAPI server on the LAN. Resemblyzer runs on-device (CPU). No external API call.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── SCREEN 4: Verified ─────────────────────────── -->
+<section>
+  <p class="section-label">Screen 4</p>
+  <p class="section-title">Voice Verification — Identity Confirmed</p>
+  <div class="row">
+
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="bg-grad" style="padding-top:42px;">
+          <div class="voice-card">
+            <h2>Hi, Emma!</h2>
+            <p class="hey">Say the passphrase to begin your session</p>
+
+            <div class="passphrase-box">
+              <p class="say">Say this aloud:</p>
+              <p class="phrase">"I am ready to learn today!"</p>
+            </div>
+
+            <!-- Confidence result -->
+            <div class="confidence-card success" style="margin-bottom:14px;">
+              <div class="conf-row">
+                <svg class="check" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <div class="conf-text">
+                  <strong>Voice confirmed — it's Emma!</strong>
+                  <span>Confidence: 91%</span>
+                </div>
+              </div>
+              <div class="conf-bar-track">
+                <div class="conf-bar-fill" style="width:91%;"></div>
+              </div>
+            </div>
+
+            <div class="btn-start">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Start Learning!
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p class="step-label">Identity confirmed</p>
+      <p>When Resemblyzer scores ≥ 0.72 (high confidence), Emma sees a green confirmation card with the confidence percentage. One tap starts her session.</p>
+      <div class="callout">
+        <strong>Three result levels</strong>
+        <ul>
+          <li><span style="color:var(--emerald-500);font-weight:600;">High (≥0.72)</span> — confirmed, green card</li>
+          <li><span style="color:var(--amber-600);font-weight:600;">Medium (≥0.50)</span> — uncertain, retry offered</li>
+          <li><span style="color:var(--red-500);font-weight:600;">Low (&lt;0.50)</span> — not matched, 3 attempts then parent override</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>No match path:</strong> after 3 failures, parent enters their password on the same device to approve the session — no separate device needed.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── SCREEN 5: Active Session, mic idle ─────────────────────────── -->
+<section>
+  <p class="section-label">Screen 5</p>
+  <p class="section-title">Tutor Session — Emma, Grade 4 (3-5 stage, voice idle)</p>
+  <div class="row">
+
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="session-shell">
+
+          <!-- Header -->
+          <div class="session-header">
+            <div class="logo-sm">
+              <svg viewBox="0 0 24 24" stroke="none">
+                <ellipse cx="12" cy="14" rx="7" ry="5.5" fill="#dce6f7" stroke="#87a9e2" stroke-width=".7"/>
+                <circle cx="12" cy="8.5" r="3.2" fill="#dce6f7" stroke="#87a9e2" stroke-width=".7"/>
+                <circle cx="10.8" cy="7.8" r=".6" fill="#1e3a8a"/>
+                <line x1="16.5" y1="10" x2="16.5" y2="5" stroke="#d4a106" stroke-width=".8"/>
+                <rect x="16.5" y="5" width="4" height="2.5" fill="#d4a106" rx=".3"/>
+              </svg>
+            </div>
+            <span class="student-name">Emma</span>
+            <div class="subject-pill" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
+              <svg viewBox="0 0 24 24" width="9" height="9"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              History
+              <svg viewBox="0 0 24 24" width="9" height="9"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="header-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="header-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+          </div>
+
+          <!-- Chat -->
+          <div class="chat-area">
+            <div class="bubble-bede" style="align-self:flex-start;">
+              <div class="bede-name">Bede</div>
+              Good morning, Emma! Today we're exploring the Magna Carta. Before I tell you anything — what do you already know about kings and their power in medieval England?
+            </div>
+
+            <div class="bubble-user" style="align-self:flex-end;">
+              <div class="user-name">Emma</div>
+              I think the king could do whatever he wanted and nobody could stop him?
+            </div>
+
+            <div class="tool-card tool-hint">
+              That's how it felt to the barons too. What do you think would happen if the king kept taking land from powerful lords without any rules?
+            </div>
+
+            <div class="bubble-user" style="align-self:flex-end;">
+              <div class="user-name">Emma</div>
+              Maybe they'd get angry and fight back?
+            </div>
+
+            <div class="bubble-bede" style="align-self:flex-start;">
+              <div class="bede-name">Bede</div>
+              Exactly — and in 1215, that's precisely what happened. Twenty-five barons forced King John to sign a document. Can you guess what that might have been called?
+            </div>
+          </div>
+
+          <!-- Input bar — idle -->
+          <div class="input-bar">
+            <div class="input-row">
+              <div class="bar-btn" title="Draw">
+                <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </div>
+              <div class="bar-btn tts" title="Unmute Bede">
+                <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </div>
+              <div class="bar-btn" title="Speak your answer">
+                <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </div>
+              <div class="fake-textarea">Type or tap mic to speak…</div>
+              <div class="send-btn">
+                <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </div>
+            </div>
+            <p class="bar-hint">Enter to send · mic for voice · pen to draw</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p class="step-label">3-5 grade chat — standard layout</p>
+      <p>At grade 4, Emma gets the full Socratic session. Bede opened automatically with <code style="font-size:11px;background:#f3f4f6;padding:1px 5px;border-radius:4px;">[START]</code> — she never had to tap anything to begin.</p>
+      <div class="callout">
+        <strong>What Emma sees in the input bar</strong>
+        <ul>
+          <li>Pen — opens handwriting canvas (stylus or finger)</li>
+          <li>Speaker — TTS on/off (Bede reads responses aloud)</li>
+          <li>Mic — tap to speak instead of type</li>
+          <li>Textarea — keyboard fallback</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>No timer shown yet</strong> — at 3-5 stage the timer appears only in the last 5 minutes, so Emma isn't clock-watching during the lesson.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── SCREEN 6: Mic active / STT ─────────────────────────── -->
+<section>
+  <p class="section-label">Screen 6</p>
+  <p class="section-title">Tutor Session — Voice Input Active (STT)</p>
+  <div class="row">
+
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="session-shell">
+
+          <div class="session-header">
+            <div class="logo-sm">
+              <svg viewBox="0 0 24 24" stroke="none">
+                <ellipse cx="12" cy="14" rx="7" ry="5.5" fill="#dce6f7" stroke="#87a9e2" stroke-width=".7"/>
+                <circle cx="12" cy="8.5" r="3.2" fill="#dce6f7" stroke="#87a9e2" stroke-width=".7"/>
+                <circle cx="10.8" cy="7.8" r=".6" fill="#1e3a8a"/>
+                <line x1="16.5" y1="10" x2="16.5" y2="5" stroke="#d4a106" stroke-width=".8"/>
+                <rect x="16.5" y="5" width="4" height="2.5" fill="#d4a106" rx=".3"/>
+              </svg>
+            </div>
+            <span class="student-name">Emma</span>
+            <div class="subject-pill" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
+              <svg viewBox="0 0 24 24" width="9" height="9"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              History
+              <svg viewBox="0 0 24 24" width="9" height="9"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="header-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+            <div class="header-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+          </div>
+
+          <div class="chat-area">
+            <div class="bubble-bede" style="align-self:flex-start;">
+              <div class="bede-name">Bede</div>
+              Good morning, Emma! Today we're exploring the Magna Carta. Before I tell you anything — what do you already know about kings and their power in medieval England?
+            </div>
+
+            <div class="bubble-user" style="align-self:flex-end;">
+              <div class="user-name">Emma</div>
+              I think the king could do whatever he wanted and nobody could stop him?
+            </div>
+
+            <div class="tool-card tool-hint">
+              That's how it felt to the barons too. What do you think would happen if the king kept taking land from powerful lords without any rules?
+            </div>
+
+            <div class="bubble-user" style="align-self:flex-end;">
+              <div class="user-name">Emma</div>
+              Maybe they'd get angry and fight back?
+            </div>
+
+            <div class="bubble-bede" style="align-self:flex-start;">
+              <div class="bede-name">Bede</div>
+              Exactly — and in 1215, that's precisely what happened. Twenty-five barons forced King John to sign a document. Can you guess what that might have been called?
+            </div>
+
+            <!-- Interim STT preview bubble -->
+            <div class="interim-bubble">
+              the magna carta because…
+            </div>
+          </div>
+
+          <!-- Input bar — mic active -->
+          <div class="input-bar">
+            <div class="input-row">
+              <div class="bar-btn" style="opacity:.4;" title="Draw">
+                <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </div>
+              <div class="bar-btn tts" title="Mute Bede">
+                <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </div>
+              <div class="bar-btn active" title="Listening — tap to stop">
+                <svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </div>
+              <div class="fake-textarea listening">Listening… speak now</div>
+              <div class="send-btn" style="opacity:.4;">
+                <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </div>
+            </div>
+            <p class="bar-hint" style="color:var(--red-500);">Speaking detected — tap mic to stop</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p class="step-label">Voice input in progress</p>
+      <p>Emma tapped the mic instead of typing. The Web Speech API (useSpeechRecognition hook) streams interim transcript in real time — she can see the words appear before she finishes speaking.</p>
+      <div class="callout">
+        <strong>Real-time interim transcript</strong>
+        <ul>
+          <li>Each interim result appears in a faded blue bubble above the input bar</li>
+          <li>On <code style="font-size:11px;background:#f3f4f6;padding:1px 5px;border-radius:4px;">onFinal</code>, it moves into the textarea</li>
+          <li>Emma can edit before sending, or tap mic again to stop + send</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>Mic turns red + pulses</strong> — clear visual that she's being heard. Draw and Send buttons dim while listening so she can't accidentally send a half-sentence.
+      </div>
+      <div class="callout" style="margin-top:8px;">
+        <strong>TTS note:</strong> While Emma speaks, Bede's TTS is automatically paused (stopSpeech called on send) so the mic doesn't hear Bede's voice as input.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── FLAGS ─────────────────────────── -->
+<section>
+  <p class="section-label">Code Issues to Fix</p>
+  <p class="section-title">VoiceVerification.tsx still uses old colors</p>
+  <div style="background:#fff;border:1px solid #fecaca;border-radius:12px;padding:20px;max-width:680px;font-size:13px;color:var(--gray-700);line-height:1.7;">
+    <p style="font-weight:700;color:#dc2626;margin-bottom:8px;">Three things to update in the actual component:</p>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="font-size:11px;font-weight:700;color:var(--gray-500);border-bottom:1px solid var(--gray-200);">
+        <td style="padding:4px 12px 4px 0;">File</td>
+        <td style="padding:4px 12px;">Current (wrong)</td>
+        <td style="padding:4px 0;">Should be</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--gray-100);">
+        <td style="padding:6px 12px 6px 0;font-family:monospace;font-size:11px;">VoiceVerification.tsx:71</td>
+        <td style="padding:6px 12px;font-family:monospace;font-size:11px;color:#dc2626;">from-sage-900/80 to-faith-600/60</td>
+        <td style="padding:6px 0;font-family:monospace;font-size:11px;color:var(--emerald-500);">from-parchment-100 via-navy-50 to-gold-100</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--gray-100);">
+        <td style="padding:6px 12px 6px 0;font-family:monospace;font-size:11px;">VoiceVerification.tsx:127</td>
+        <td style="padding:6px 12px;font-family:monospace;font-size:11px;color:#dc2626;">bg-sage-500 hover:bg-sage-600</td>
+        <td style="padding:6px 0;font-family:monospace;font-size:11px;color:var(--emerald-500);">bg-navy-500 hover:bg-navy-600</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--gray-100);">
+        <td style="padding:6px 12px 6px 0;font-family:monospace;font-size:11px;">VoiceVerification.tsx:110</td>
+        <td style="padding:6px 12px;font-family:monospace;font-size:11px;color:#dc2626;">text-5xl 🎙️ (emoji)</td>
+        <td style="padding:6px 0;font-family:monospace;font-size:11px;color:var(--emerald-500);">Lucide &lt;Mic size=48&gt; in navy circle</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--gray-100);">
+        <td style="padding:6px 12px 6px 0;font-family:monospace;font-size:11px;">VoiceVerification.tsx:165</td>
+        <td style="padding:6px 12px;font-family:monospace;font-size:11px;color:#dc2626;">🧠 animate-spin (emoji)</td>
+        <td style="padding:6px 0;font-family:monospace;font-size:11px;color:var(--emerald-500);">Lucide &lt;Loader2&gt; animate-spin</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--gray-100);">
+        <td style="padding:6px 12px 6px 0;font-family:monospace;font-size:11px;">VoiceVerification.tsx:197</td>
+        <td style="padding:6px 12px;font-family:monospace;font-size:11px;color:#dc2626;">👨‍👩‍👧 Parent Approve Session</td>
+        <td style="padding:6px 0;font-family:monospace;font-size:11px;color:var(--emerald-500);">Lucide &lt;ShieldCheck&gt; Parent Approve</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px 6px 0;font-family:monospace;font-size:11px;">Login.tsx:142-143</td>
+        <td style="padding:6px 12px;font-family:monospace;font-size:11px;color:#dc2626;">👨‍👩‍👧 Parent / 🌟 Student tabs</td>
+        <td style="padding:6px 0;font-family:monospace;font-size:11px;color:var(--emerald-500);">Lucide &lt;User&gt; / &lt;Star&gt; (filled)</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,138 @@
+{
+  "year": 2,
+  "description": "Ambleside Online Year 2 — Charlotte Mason living books curriculum for grades 1-2. Longer books, richer narrations, and introduction to biography and natural history.",
+  "books": [
+    {
+      "id": "y2-wind-in-willows",
+      "title": "The Wind in the Willows",
+      "author": "Kenneth Grahame",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2],
+      "concept_tags": ["friendship", "loyalty", "home", "adventure", "nature", "community", "character"],
+      "anti_twaddle": true,
+      "notes": "Rich in description of nature and friendship. Excellent for narration of character motivation — 'Why do you think Mole left his home that spring morning?'"
+    },
+    {
+      "id": "y2-robinson-crusoe-abridged",
+      "title": "Robinson Crusoe (abridged)",
+      "author": "Daniel Defoe",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [2, 3],
+      "concept_tags": ["survival", "self-reliance", "Providence", "resourcefulness", "faith", "isolation"],
+      "anti_twaddle": true,
+      "notes": "Use a good children's abridgment. Natural narration prompt: 'How did Crusoe solve the problem of food?' Themes of Providence and trust in God run throughout."
+    },
+    {
+      "id": "y2-pilgrims-progress-adapted",
+      "title": "Pilgrim's Progress (children's adaptation)",
+      "author": "John Bunyan",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["faith", "pilgrimage", "allegory", "perseverance", "virtue", "salvation", "temptation"],
+      "anti_twaddle": true,
+      "notes": "The greatest allegory in the English language. Ask: 'What do you think this place represents in our own lives?' Connects beautifully to catechism and virtue formation."
+    },
+    {
+      "id": "y2-bird-book",
+      "title": "The Bird Book (Birds Every Child Should Know)",
+      "author": "Neltje Blanchan",
+      "subject": "nature_study",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["birds", "ornithology", "observation", "habitats", "migration", "identification"],
+      "anti_twaddle": true,
+      "notes": "Pair with actual bird watching. Before reading about a bird, ask the child to describe any birds they have seen. After reading, go look for the bird together."
+    },
+    {
+      "id": "y2-wild-animals-i-have-known",
+      "title": "Wild Animals I Have Known",
+      "author": "Ernest Thompson Seton",
+      "subject": "nature_study",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [2, 3],
+      "concept_tags": ["wildlife", "naturalist", "animals", "survival", "wilderness", "observation", "sympathy"],
+      "anti_twaddle": true,
+      "notes": "Seton pioneered nature writing from the animal's perspective. Builds deep sympathy for creation. Ask: 'What did you notice about how Lobo led his pack?'"
+    },
+    {
+      "id": "y2-this-country-of-ours",
+      "title": "This Country of Ours",
+      "author": "Henrietta Elizabeth Marshall",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["american-history", "exploration", "founding", "heroes", "courage", "democracy"],
+      "anti_twaddle": true,
+      "notes": "Narrative American history from discovery through the Civil War. One chapter per sitting. Excellent narration material — each chapter has a clear protagonist and conflict."
+    },
+    {
+      "id": "y2-50-famous-stories",
+      "title": "Fifty Famous Stories Retold",
+      "author": "James Baldwin",
+      "subject": "history",
+      "type": "supplemental",
+      "difficulty": 1,
+      "terms": [1, 2],
+      "concept_tags": ["courage", "virtue", "history", "heroes", "honor", "sacrifice"],
+      "anti_twaddle": true,
+      "notes": "Continue from Year 1 if not completed, or revisit favorites. Excellent for copywork selection — Baldwin's prose is clear and memorable."
+    },
+    {
+      "id": "y2-understood-betsy",
+      "title": "Understood Betsy",
+      "author": "Dorothy Canfield Fisher",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [1],
+      "concept_tags": ["self-reliance", "growth", "courage", "rural-life", "education", "independence"],
+      "anti_twaddle": true,
+      "notes": "If not read in Year 1, excellent here. Elizabeth Ann's transformation mirrors the Charlotte Mason philosophy of education — discovery over instruction."
+    },
+    {
+      "id": "y2-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "faith", "church-history", "courage", "martyrdom", "virtue"],
+      "anti_twaddle": true,
+      "notes": "Continue working through this rich resource. Pair stories with the liturgical calendar when possible — read about a saint near their feast day."
+    },
+    {
+      "id": "y2-eckstorm-bird-book",
+      "title": "The Woodpeckers",
+      "author": "Fannie Hardy Eckstorm",
+      "subject": "nature_study",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [2],
+      "concept_tags": ["birds", "woodpeckers", "observation", "habitat", "behavior", "ornithology"],
+      "anti_twaddle": true,
+      "notes": "A detailed, loving study of woodpeckers by a careful naturalist. Use alongside actual observation. Ask: 'What do woodpeckers eat and how do they find it?'"
+    },
+    {
+      "id": "y2-child-history-world",
+      "title": "A Child's History of the World",
+      "author": "V. M. Hillyer",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["world-history", "civilizations", "timeline", "culture", "ancient", "medieval"],
+      "anti_twaddle": true,
+      "notes": "Continue from Year 1 or begin if not started. Narrative history that treats children as capable of engaging with real events and real people."
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "year": 1,
+  "description": "Ambleside Online Year 1 — Charlotte Mason living books curriculum for grades K-1. Emphasis on oral narration, nature observation, and wonder-filled discovery through short, rich lessons.",
+  "books": [
+    {
+      "id": "y1-aesop",
+      "title": "Aesop's Fables",
+      "author": "Aesop",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["virtue", "wisdom", "consequences", "animals", "morality", "fable"],
+      "anti_twaddle": true,
+      "notes": "Oral narration focus. One fable per sitting. Ask the child: 'What did you learn from that story?' Let them discover the moral themselves."
+    },
+    {
+      "id": "y1-just-so-stories",
+      "title": "Just So Stories",
+      "author": "Rudyard Kipling",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2],
+      "concept_tags": ["imagination", "animals", "origins", "humor", "wonder", "storytelling"],
+      "anti_twaddle": true,
+      "notes": "Read aloud for rhythm and delight. Kipling's language is a feast — don't rush. Narration: 'Tell me how the elephant got its trunk.'"
+    },
+    {
+      "id": "y1-winnie-the-pooh",
+      "title": "Winnie-the-Pooh",
+      "author": "A. A. Milne",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [2, 3],
+      "concept_tags": ["friendship", "imagination", "kindness", "humor", "community", "character"],
+      "anti_twaddle": true,
+      "notes": "Charlotte Mason loved literature that illuminated character. Focus on Pooh's friendship with Piglet. One chapter per session."
+    },
+    {
+      "id": "y1-50-famous-stories",
+      "title": "Fifty Famous Stories Retold",
+      "author": "James Baldwin",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["courage", "virtue", "history", "heroes", "sacrifice", "honor"],
+      "anti_twaddle": true,
+      "notes": "Heroic tales from history retold simply. Perfect for narration — 'Tell me the story of William Tell in your own words.' Builds historical imagination."
+    },
+    {
+      "id": "y1-among-meadow-people",
+      "title": "Among the Meadow People",
+      "author": "Clara Dillingham Pierson",
+      "subject": "nature_study",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2],
+      "concept_tags": ["insects", "meadow", "nature", "community", "observation", "seasons"],
+      "anti_twaddle": true,
+      "notes": "Gentle nature stories told from an insect's perspective. Pair with outdoor observation. Ask: 'Have you seen a grasshopper like this?'"
+    },
+    {
+      "id": "y1-secrets-of-the-woods",
+      "title": "Secrets of the Woods",
+      "author": "William J. Long",
+      "subject": "nature_study",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [2, 3],
+      "concept_tags": ["wildlife", "woodland", "observation", "animals", "seasons", "wonder"],
+      "anti_twaddle": true,
+      "notes": "First-hand naturalist accounts. Long observed animals directly and writes with the excitement of discovery. Ideal for nature journal follow-up."
+    },
+    {
+      "id": "y1-understood-betsy",
+      "title": "Understood Betsy",
+      "author": "Dorothy Canfield Fisher",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [3],
+      "concept_tags": ["self-reliance", "growth", "courage", "rural-life", "education", "character"],
+      "anti_twaddle": true,
+      "notes": "A timid city girl discovers competence and freedom on a Vermont farm. Rich in Charlotte Mason values — independence, real work, nature. Best for late Year 1 or early Year 2."
+    },
+    {
+      "id": "y1-child-history-world",
+      "title": "A Child's History of the World",
+      "author": "V. M. Hillyer",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["world-history", "ancient-civilizations", "timeline", "culture", "exploration", "kings"],
+      "anti_twaddle": true,
+      "notes": "A narrative sweep of world history from creation to modern times, written for children. Read two to three pages per sitting. Pair with timeline entries."
+    },
+    {
+      "id": "y1-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "faith", "martyrdom", "church-history", "courage", "virtue"],
+      "anti_twaddle": true,
+      "notes": "Inspiring true stories of Christians throughout history. One story per week. Ask: 'What made this person brave?' and 'How could you show that virtue today?'"
+    },
+    {
+      "id": "y1-beatrix-potter",
+      "title": "The Complete Tales of Beatrix Potter",
+      "author": "Beatrix Potter",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 1,
+      "terms": [1],
+      "concept_tags": ["animals", "nature", "mischief", "consequences", "gentleness", "beauty"],
+      "anti_twaddle": true,
+      "notes": "Potter was a naturalist as well as an artist. Note the botanical and animal accuracy alongside the story. Read one tale per session."
+    },
+    {
+      "id": "y1-handbook-nature-study",
+      "title": "Handbook of Nature Study",
+      "author": "Anna Botsford Comstock",
+      "subject": "nature_study",
+      "type": "reference",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["botany", "zoology", "observation", "identification", "science", "field-guide"],
+      "anti_twaddle": true,
+      "notes": "Parent reference for guiding nature study. Use specific sections when the child encounters a bird, insect, or plant. Don't read cover to cover — consult as needed."
+    },
+    {
+      "id": "y1-pilgrim-progress-abridged",
+      "title": "Pilgrim's Progress (abridged for children)",
+      "author": "John Bunyan",
+      "subject": "saints",
+      "type": "supplemental",
+      "difficulty": 1,
+      "terms": [2, 3],
+      "concept_tags": ["faith", "pilgrimage", "virtue", "allegory", "perseverance", "salvation"],
+      "anti_twaddle": true,
+      "notes": "Use a children's adaptation. The allegory is rich for narration — 'What do you think the Slough of Despond means for us today?' Connect to the child's own faith journey."
+    }
+  ]
+}

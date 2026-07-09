@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Agnus Dei / Bede Tutor — One-Pager</title>
+<style>
+  :root {
+    --navy-50:  #f0f4fb;
+    --navy-100: #dce6f7;
+    --navy-200: #b9cdef;
+    --navy-300: #87a9e2;
+    --navy-400: #5585d5;
+    --navy-500: #1e3a8a;
+    --navy-600: #17306e;
+    --navy-700: #112252;
+    --gold-50:  #fefae8;
+    --gold-100: #fdf2c1;
+    --gold-200: #fbe585;
+    --gold-300: #f9d54a;
+    --gold-400: #f5c014;
+    --gold-500: #d4a106;
+    --gold-700: #7c5a03;
+    --parchment: #fefcf7;
+    --border: #b9cdef;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f3f4f6;
+    color: #1a202c;
+    padding: 32px 16px 64px;
+  }
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(17,34,82,0.12);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #112252 0%, #1e3a8a 60%, #5585d5 100%);
+    color: white;
+    padding: 52px 48px 44px;
+  }
+  .hero-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .hero-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hero-brand-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1;
+  }
+  .hero-brand-sub {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+    max-width: 600px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: #f9d54a;
+  }
+  .hero-lead {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.82);
+    max-width: 560px;
+    margin-bottom: 28px;
+  }
+  .hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: rgba(255,255,255,0.13);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: white;
+  }
+  .pill svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .pill-gold {
+    background: rgba(212,161,6,0.22);
+    border-color: rgba(212,161,6,0.45);
+    color: #fdf2c1;
+  }
+
+  /* ── LEAD PARAGRAPH ── */
+  .section-lead {
+    padding: 36px 48px;
+    background: var(--parchment);
+    border-bottom: 1px solid var(--border);
+  }
+  .section-lead p {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: var(--navy-700);
+    font-family: Georgia, "Times New Roman", serif;
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .section-lead strong { color: var(--navy-500); }
+
+  /* ── SECTIONS ── */
+  .section {
+    padding: 40px 48px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--navy-500);
+    margin-bottom: 6px;
+  }
+  .section-heading {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--navy-700);
+    margin-bottom: 24px;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── FEATURE GRID ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .feature-card {
+    background: var(--navy-50);
+    border: 1px solid var(--navy-100);
+    border-radius: 10px;
+    padding: 18px 16px;
+  }
+  .feature-icon {
+    width: 38px;
+    height: 38px;
+    background: white;
+    border: 1px solid var(--navy-200);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    color: var(--navy-500);
+  }
+  .feature-icon svg { width: 18px; height: 18px; }
+  .feature-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--navy-700);
+    margin-bottom: 5px;
+  }
+  .feature-desc {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #4b5563;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .steps {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background: var(--navy-100);
+    z-index: 0;
+  }
+  .step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    padding: 0 10px;
+  }
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--navy-500);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px var(--navy-200);
+  }
+  .step-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--navy-700);
+    margin-bottom: 5px;
+  }
+  .step-desc {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: #6b7280;
+  }
+
+  /* ── FAITH CALLOUT ── */
+  .faith-callout {
+    background: var(--gold-50);
+    border-left: 4px solid var(--gold-500);
+    border-radius: 0 10px 10px 0;
+    padding: 20px 24px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .faith-callout svg { width: 22px; height: 22px; color: var(--gold-500); flex-shrink: 0; margin-top: 2px; }
+  .faith-callout-body {}
+  .faith-callout-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--gold-700);
+    margin-bottom: 6px;
+  }
+  .faith-callout-text {
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--gold-700);
+  }
+
+  /* ── TECH TABLE ── */
+  .tech-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .tech-table th {
+    text-align: left;
+    padding: 8px 14px;
+    background: var(--navy-50);
+    color: var(--navy-700);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    border-bottom: 2px solid var(--navy-200);
+  }
+  .tech-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: #374151;
+    vertical-align: top;
+  }
+  .tech-table tr:last-child td { border-bottom: none; }
+  .tech-table td:first-child {
+    font-weight: 600;
+    color: var(--navy-700);
+    width: 30%;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: "SF Mono", "Fira Code", monospace;
+    background: var(--navy-100);
+    color: var(--navy-700);
+    margin-right: 4px;
+    margin-bottom: 2px;
+  }
+
+  /* ── SECURITY STRIP ── */
+  .security-strip {
+    background: var(--navy-700);
+    padding: 28px 48px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  .security-strip-title {
+    width: 100%;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--navy-300);
+    margin-bottom: -8px;
+  }
+  .security-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    flex: 1;
+    min-width: 200px;
+  }
+  .security-item svg { width: 16px; height: 16px; color: var(--gold-400); flex-shrink: 0; margin-top: 1px; }
+  .security-item-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 3px;
+  }
+  .security-item-desc {
+    font-size: 0.73rem;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* ── TWO PERSPECTIVES ── */
+  .perspectives {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 40px 48px;
+    border-bottom: 1px solid var(--border);
+  }
+  .perspective-card {
+    background: var(--navy-50);
+    border: 1px solid var(--navy-100);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .perspective-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .perspective-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--navy-500);
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .perspective-avatar.gold { background: var(--gold-500); }
+  .perspective-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--navy-700);
+  }
+  .perspective-role {
+    font-size: 0.7rem;
+    color: #6b7280;
+  }
+  .perspective-quote {
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: #374151;
+    font-family: Georgia, "Times New Roman", serif;
+    font-style: italic;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 24px 48px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: white;
+    border-top: 1px solid var(--border);
+  }
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .footer-brand-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--navy-700);
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .footer-brand-sub {
+    font-size: 0.72rem;
+    color: #9ca3af;
+  }
+  .footer-note {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    text-align: right;
+  }
+  .footer-note a { color: var(--navy-400); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════ HERO ══════════════════════ -->
+  <div class="hero">
+    <div class="hero-top">
+      <img src="homeschool-tutor/public/agnus-dei.svg" width="48" height="48" alt="Agnus Dei" />
+      <div class="hero-brand">
+        <div class="hero-brand-name">Agnus Dei</div>
+        <div class="hero-brand-sub">Bede Tutor</div>
+      </div>
+    </div>
+    <h1>A self-hosted AI tutor rooted in <em>Charlotte Mason</em> and the Catholic tradition</h1>
+    <p class="hero-lead">Bede guides children through living books, nature study, mathematics, and catechesis via Socratic dialogue — running entirely on your home network, never in the cloud.</p>
+    <div class="hero-pills">
+      <div class="pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Charlotte Mason method
+      </div>
+      <div class="pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        LAN-only, no cloud data
+      </div>
+      <div class="pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        Voice biometric auth
+      </div>
+      <div class="pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Handwriting canvas
+      </div>
+      <div class="pill pill-gold">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Faith integration
+      </div>
+      <div class="pill pill-gold">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        AES-256-GCM encrypted at rest
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LEAD PARAGRAPH ══════════════════════ -->
+  <div class="section-lead">
+    <p>
+      Bede is a <strong>Socratic AI tutor</strong> that works the way Charlotte Mason intended — through living ideas, narration, short lessons, and wonder. One parent configures the daily plan; each child logs in from their own tablet. Bede opens every subject with a question, not a lecture, and celebrates discovery rather than correct answers.
+    </p>
+  </div>
+
+  <!-- ══════════════════════ FEATURE GRID ══════════════════════ -->
+  <div class="section">
+    <div class="section-title">What it does</div>
+    <div class="section-heading">Six capabilities in one tutor</div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <div class="feature-title">Charlotte Mason Subjects</div>
+        <div class="feature-desc">Morning Time, Living Books, Nature Study, History, Language Arts, Mathematics, Science, Saints &amp; Catechism, Art &amp; Music, and Free Study — each with grade-appropriate durations.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        </div>
+        <div class="feature-title">Socratic Dialogue</div>
+        <div class="feature-desc">Bede never lectures. It opens with a question, offers hints when a child is stuck, and celebrates the moment of discovery — building reasoning over recall.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </div>
+        <div class="feature-title">Handwriting Canvas</div>
+        <div class="feature-desc">Children draw or write their answers with an Apple Pencil, Livescribe pen, or any stylus. The sketch is sent directly into the conversation.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </div>
+        <div class="feature-title">Text-to-Speech</div>
+        <div class="feature-desc">Bede's responses are spoken aloud via browser TTS — ideal for K–3 readers who are still developing fluency and for read-aloud sessions.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+        </div>
+        <div class="feature-title">Session Summary</div>
+        <div class="feature-desc">At the end of each session Bede generates a concise parent report: what was covered, how the child engaged, and what to revisit next time.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="feature-title">Faith Integration</div>
+        <div class="feature-desc">Every subject includes optional connections to saints, scripture, or the theological virtues — woven naturally, never forced, through the connect_to_faith tool.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ HOW IT WORKS ══════════════════════ -->
+  <div class="section" style="background:var(--navy-50);">
+    <div class="section-title">Setup</div>
+    <div class="section-heading">Up and running in four steps</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-title">Run make setup</div>
+        <div class="step-desc">Generates .env, starts Caddy, nginx, and FastAPI via Docker Compose on your home server.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-title">Install the CA cert</div>
+        <div class="step-desc">Run make caddy-trust on each tablet once — enables LAN HTTPS without browser warnings.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-title">Configure students</div>
+        <div class="step-desc">Parent logs in, adds up to 10 students, selects subjects, grade, and context. Takes under five minutes.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-title">Copy tablet link</div>
+        <div class="step-desc">Each student gets a /session?student=Name URL. Paste it in the tablet browser and they are ready to learn.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ CHARLOTTE MASON CALLOUT ══════════════════════ -->
+  <div class="section">
+    <div class="faith-callout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <div class="faith-callout-body">
+        <div class="faith-callout-title">The Charlotte Mason Difference</div>
+        <div class="faith-callout-text">
+          Charlotte Mason taught that children are persons, not empty vessels. Bede reflects this: lessons are short (20 minutes for K–3, 60-minute blocks for grades 4–8), narration replaces tests, and living books replace textbooks. The AI is designed to step back — to prompt wonder, not to deliver information.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ TECH TABLE ══════════════════════ -->
+  <div class="section">
+    <div class="section-title">Technical reference</div>
+    <div class="section-heading">Stack at a glance</div>
+    <table class="tech-table">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Technology</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AI Model</td>
+          <td><span class="tag">claude-sonnet-4-6</span></td>
+          <td>Streaming, max_tokens 400. Prompt caching on the static Sage persona block.</td>
+        </tr>
+        <tr>
+          <td>Summary Model</td>
+          <td><span class="tag">claude-haiku-4-5</span></td>
+          <td>Non-streaming, max_tokens 600. End-of-session parent report only.</td>
+        </tr>
+        <tr>
+          <td>Backend</td>
+          <td><span class="tag">FastAPI</span> <span class="tag">asyncpg</span></td>
+          <td>SSE streaming, async SQLAlchemy, Pydantic Settings with production validation.</td>
+        </tr>
+        <tr>
+          <td>Frontend</td>
+          <td><span class="tag">React</span> <span class="tag">Vite</span> <span class="tag">TypeScript</span></td>
+          <td>Zustand store (sessionStorage), Tailwind CSS, Web Speech API for voice input.</td>
+        </tr>
+        <tr>
+          <td>Reverse Proxy</td>
+          <td><span class="tag">Caddy</span> + <span class="tag">nginx</span></td>
+          <td>Caddy generates a local CA for LAN HTTPS. Tablets trust it once via make caddy-trust.</td>
+        </tr>
+        <tr>
+          <td>Database</td>
+          <td><span class="tag">PostgreSQL</span></td>
+          <td>All student data and voice profiles stored as AES-256-GCM BYTEA. DB provider never sees plaintext.</td>
+        </tr>
+        <tr>
+          <td>Voice Auth</td>
+          <td><span class="tag">Resemblyzer</span> + <span class="tag">Whisper</span></td>
+          <td>Speaker embeddings + MFCC similarity scoring. Children speak a passphrase; server verifies identity.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══════════════════════ SECURITY STRIP ══════════════════════ -->
+  <div class="security-strip">
+    <div class="security-strip-title">Security</div>
+    <div class="security-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <div>
+        <div class="security-item-title">AES-256-GCM at rest</div>
+        <div class="security-item-desc">MASTER_SECRET derives a KEK which wraps a DATA_KEY. Every BYTEA column is encrypted before storage.</div>
+      </div>
+    </div>
+    <div class="security-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+      <div>
+        <div class="security-item-title">JWT device fingerprint</div>
+        <div class="security-item-desc">Tokens are bound to IP + User-Agent at issuance. Replaying a token from a different device returns 401.</div>
+      </div>
+    </div>
+    <div class="security-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+      <div>
+        <div class="security-item-title">ExfiltrationGuard</div>
+        <div class="security-item-desc">Middleware strips SSE data: lines containing prompt-injection markers before they reach the client.</div>
+      </div>
+    </div>
+    <div class="security-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      <div>
+        <div class="security-item-title">Hardened containers</div>
+        <div class="security-item-desc">sage container user has no shell. All containers run read_only: true, cap_drop: ALL, no-new-privileges.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ TWO PERSPECTIVES ══════════════════════ -->
+  <div class="perspectives">
+    <div class="perspective-card">
+      <div class="perspective-header">
+        <div class="perspective-avatar">M</div>
+        <div>
+          <div class="perspective-name">A homeschool mother</div>
+          <div class="perspective-role">Grades 2 and 5</div>
+        </div>
+      </div>
+      <div class="perspective-quote">
+        "I set up the pod in ten minutes on Sunday evening. By Monday morning my children were already deep in conversation about fractions and St. Thomas Aquinas — and I had a written summary waiting in my inbox."
+      </div>
+    </div>
+    <div class="perspective-card">
+      <div class="perspective-header">
+        <div class="perspective-avatar gold">E</div>
+        <div>
+          <div class="perspective-name">Emma, age 10</div>
+          <div class="perspective-role">Grade 5 student</div>
+        </div>
+      </div>
+      <div class="perspective-quote">
+        "Bede always asks me questions instead of telling me things. I like that I have to figure it out. And I get to draw my answers with my Apple Pencil."
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ FOOTER ══════════════════════ -->
+  <div class="footer">
+    <div class="footer-brand">
+      <img src="homeschool-tutor/public/agnus-dei.svg" width="28" height="28" alt="Agnus Dei" />
+      <div>
+        <div class="footer-brand-name">Agnus Dei</div>
+        <div class="footer-brand-sub">Bede Tutor — self-hosted Catholic homeschool AI</div>
+      </div>
+    </div>
+    <div class="footer-note">
+      LAN-deployed &middot; AES-256-GCM encrypted &middot; no cloud student data<br/>
+      Powered by Claude claude-sonnet-4-6 &amp; claude-haiku-4-5
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

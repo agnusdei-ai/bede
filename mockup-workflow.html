@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bede Tutor — Agentic UI Mockup</title>
+<style>
+  :root {
+    --navy-50:  #f0f4fb;
+    --navy-100: #dce6f7;
+    --navy-200: #b9cdef;
+    --navy-300: #87a9e2;
+    --navy-400: #5585d5;
+    --navy-500: #1e3a8a;
+    --navy-600: #17306e;
+    --navy-700: #112252;
+    --gold-50:  #fefae8;
+    --gold-100: #fdf2c1;
+    --gold-200: #fbe585;
+    --gold-400: #f5c014;
+    --gold-500: #d4a106;
+    --gold-700: #7c5a03;
+    --parchment: #fefcf7;
+    --amber-400: #fbbf24;
+    --amber-500: #f59e0b;
+    --amber-50: #fffbeb;
+    --amber-200: #fde68a;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f3f4f6;
+    padding: 32px 16px 64px;
+    color: #1f2937;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .page-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 28px;
+    color: var(--navy-700);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+  }
+
+  section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.07), 0 2px 16px rgba(0,0,0,0.04);
+    max-width: 1100px;
+    margin: 0 auto 48px;
+    padding: 32px;
+  }
+
+  .section-screen-label {
+    font-size: 11px;
+    color: var(--navy-400);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .section-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy-700);
+    margin-bottom: 28px;
+  }
+
+  /* ============================================================
+     SECTION 1 — COMPARISON
+  ============================================================ */
+
+  .comparison-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .comparison-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .comparison-col-label {
+    font-size: 11px;
+    font-variant: small-caps;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
+  }
+
+  .comparison-col-label.bede {
+    color: var(--navy-500);
+  }
+
+  .comparison-col-note {
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+    text-align: center;
+    max-width: 220px;
+  }
+
+  .comparison-col-note.bede {
+    color: var(--navy-500);
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  .vs-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #9ca3af;
+    flex-shrink: 0;
+    margin-top: 30px;
+  }
+
+  .khan-frame {
+    width: 220px;
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .khan-topbar {
+    background: #e5e7eb;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .khan-topbar-text {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .khan-streak-row {
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+  }
+
+  .khan-flame {
+    width: 14px;
+    height: 16px;
+    background: #f97316;
+    border-radius: 50% 50% 30% 30%;
+    opacity: 0.5;
+  }
+
+  .khan-streak-text {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .khan-banner {
+    background: #d1d5db;
+    height: 44px;
+    margin: 8px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .khan-banner-text {
+    font-size: 10px;
+    color: #9ca3af;
+  }
+
+  .khan-recent-heading {
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #9ca3af;
+  }
+
+  .khan-lesson-row {
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .khan-thumb {
+    width: 28px;
+    height: 28px;
+    background: #d1d5db;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .khan-lesson-title {
+    font-size: 10px;
+    color: #9ca3af;
+  }
+
+  .khan-tabs {
+    display: flex;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+    margin-top: 2px;
+  }
+
+  .khan-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 9px;
+    color: #9ca3af;
+  }
+
+  .bede-frame {
+    width: 220px;
+    background: white;
+    border: 1.5px solid var(--navy-200);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .bede-frame-header {
+    height: 40px;
+    background: var(--navy-50);
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--navy-100);
+  }
+
+  .bede-frame-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--navy-700);
+  }
+
+  .bede-frame-pill {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--navy-100);
+    border-radius: 20px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--navy-700);
+  }
+
+  .bede-frame-chat {
+    background: var(--parchment);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 80px;
+  }
+
+  .bede-bubble-bede {
+    background: white;
+    border: 1px solid var(--navy-100);
+    border-radius: 0 8px 8px 8px;
+    padding: 6px 8px;
+    font-size: 10px;
+    color: #374151;
+    font-family: Georgia, "Times New Roman", serif;
+    max-width: 80%;
+    line-height: 1.4;
+  }
+
+  .bede-bubble-student {
+    background: var(--navy-500);
+    color: white;
+    border-radius: 8px 8px 0 8px;
+    padding: 6px 8px;
+    font-size: 10px;
+    align-self: flex-end;
+    max-width: 75%;
+    line-height: 1.4;
+  }
+
+  .bede-frame-input {
+    border-top: 1px solid #e5e7eb;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: white;
+  }
+
+  .bede-frame-send {
+    width: 22px;
+    height: 22px;
+    background: var(--navy-500);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .bede-frame-textarea-mock {
+    flex: 1;
+    height: 22px;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    background: white;
+  }
+
+  /* ============================================================
+     SECTION 2 — LOGIN
+  ============================================================ */
+
+  .login-center {
+    display: flex;
+    justify-content: center;
+  }
+
+  .login-card {
+    width: 320px;
+    background: var(--parchment);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+    text-align: center;
+  }
+
+  .login-app-name {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 20px;
+    color: var(--navy-700);
+    margin-bottom: 2px;
+  }
+
+  .login-app-sub {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 24px;
+  }
+
+  .login-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .login-tab {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: #9ca3af;
+  }
+
+  .login-tab.active {
+    color: var(--navy-700);
+    border-bottom-color: var(--navy-500);
+    font-weight: 600;
+  }
+
+  .login-field {
+    margin-top: 20px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    height: 44px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .login-field-placeholder {
+    font-size: 14px;
+    color: #9ca3af;
+    letter-spacing: 0.1em;
+  }
+
+  .login-btn {
+    margin-top: 12px;
+    width: 100%;
+    height: 44px;
+    background: var(--navy-500);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-note {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 16px;
+  }
+
+  /* ============================================================
+     SECTION 3 — SESSION (shared frame styles)
+  ============================================================ */
+
+  .frames-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+  }
+
+  .frame-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .frame-label {
+    font-size: 13px;
+    color: var(--navy-600);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .phone-frame {
+    width: 320px;
+    height: 580px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .frame-header {
+    height: 48px;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    flex-shrink: 0;
+  }
+
+  .student-name-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy-700);
+    white-space: nowrap;
+  }
+
+  .subject-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--navy-50);
+    border: 1px solid var(--navy-200);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--navy-700);
+    white-space: nowrap;
+  }
+
+  .header-spacer {
+    flex: 1;
+  }
+
+  .timer-pill {
+    background: var(--amber-50);
+    border: 1px solid var(--amber-200);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: #b45309;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .header-icon-btn {
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--parchment);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chat-bede-label {
+    font-size: 10px;
+    color: var(--navy-600);
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .chat-student-label {
+    font-size: 10px;
+    color: var(--navy-300);
+    font-weight: 500;
+    margin-bottom: 3px;
+    text-align: right;
+  }
+
+  .chat-bubble-bede {
+    background: white;
+    border: 1px solid #dce6f7;
+    border-radius: 0 12px 12px 12px;
+    padding: 10px 12px;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.5;
+    color: #1f2937;
+    align-self: flex-start;
+    max-width: 85%;
+  }
+
+  .chat-bubble-student {
+    background: var(--navy-500);
+    color: white;
+    border-radius: 12px 12px 0 12px;
+    padding: 10px 12px;
+    line-height: 1.5;
+    align-self: flex-end;
+    max-width: 80%;
+  }
+
+  .hint-card {
+    border-radius: 0 8px 8px 0;
+    padding: 10px 12px;
+    align-self: flex-start;
+    width: 90%;
+  }
+
+  .hint-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .hint-card-content {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .input-bar {
+    border-top: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    flex-shrink: 0;
+  }
+
+  .input-icon-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #d1d5db;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    flex-shrink: 0;
+    background: white;
+  }
+
+  .input-textarea-mock {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    min-height: 34px;
+    resize: none;
+    background: white;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #9ca3af;
+  }
+
+  .send-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--navy-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     SECTION 4 — DRAWER
+  ============================================================ */
+
+  .drawer-frame-container {
+    display: flex;
+    justify-content: center;
+  }
+
+  .drawer-phone-frame {
+    width: 320px;
+    height: 580px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drawer-chat-bg {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drawer-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+
+  .drawer-dark-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 35%;
+    background: rgba(0,0,0,0.3);
+  }
+
+  .drawer-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 35%;
+    background: white;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .drawer-handle {
+    width: 36px;
+    height: 4px;
+    background: #d1d5db;
+    border-radius: 2px;
+    margin: 10px auto;
+  }
+
+  .drawer-header-row {
+    padding: 0 16px 12px;
+    display: flex;
+    align-items: center;
+  }
+
+  .drawer-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy-700);
+  }
+
+  .drawer-close-btn {
+    margin-left: auto;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+  }
+
+  .drawer-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .drawer-subject-row {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .drawer-subject-row.current {
+    background: var(--navy-50);
+  }
+
+  .drawer-row-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .drawer-row-dot.filled {
+    background: var(--navy-500);
+  }
+
+  .drawer-row-dot.empty {
+    border: 1.5px solid #d1d5db;
+    background: transparent;
+  }
+
+  .drawer-subject-text {
+    font-size: 13px;
+  }
+
+  .drawer-subject-text.done {
+    color: #9ca3af;
+    text-decoration: line-through;
+  }
+
+  .drawer-subject-text.current {
+    color: var(--navy-700);
+    font-weight: 600;
+  }
+
+  .drawer-subject-text.upcoming {
+    color: #6b7280;
+  }
+
+  .drawer-unit-card {
+    margin: 12px 16px 8px;
+    padding: 10px 12px;
+    background: var(--navy-50);
+    border: 1px solid var(--navy-100);
+    border-radius: 8px;
+  }
+
+  .drawer-unit-label {
+    font-size: 10px;
+    color: var(--navy-400);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .drawer-unit-value {
+    font-size: 13px;
+    color: var(--navy-700);
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .drawer-faith-card {
+    margin: 0 16px 12px;
+    padding: 10px 12px;
+    background: var(--gold-50);
+    border: 1px solid var(--gold-200);
+    border-radius: 8px;
+  }
+
+  .drawer-faith-label-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .drawer-faith-label {
+    font-size: 10px;
+    color: var(--gold-700);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .drawer-faith-value {
+    font-size: 13px;
+    color: var(--gold-700);
+    margin-top: 2px;
+  }
+
+  .drawer-next-btn {
+    margin: 0 16px 16px;
+    width: calc(100% - 32px);
+    height: 40px;
+    background: var(--navy-500);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ============================================================
+     SECTION 5 — BREAK + SUMMARY
+  ============================================================ */
+
+  .two-cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+  }
+
+  .break-card {
+    width: 320px;
+    background: var(--parchment);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    border: 1px solid var(--amber-200);
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .break-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+    color: var(--navy-700);
+    margin-bottom: 12px;
+  }
+
+  .break-desc {
+    font-size: 14px;
+    color: #4b5563;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .break-ring-container {
+    display: flex;
+    justify-content: center;
+  }
+
+  .break-ring-caption {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 12px;
+  }
+
+  .summary-card {
+    width: 320px;
+    background: white;
+    border-radius: 16px;
+    padding: 32px 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    border: 1px solid #e5e7eb;
+    text-align: center;
+  }
+
+  .summary-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+    color: var(--navy-700);
+    margin-bottom: 4px;
+  }
+
+  .summary-meta {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 20px;
+  }
+
+  .summary-text-box {
+    background: var(--parchment);
+    border-radius: 8px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.6;
+    text-align: left;
+  }
+
+  .summary-done-btn {
+    margin-top: 16px;
+    width: 100%;
+    height: 44px;
+    background: var(--navy-500);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== PAGE HEADER ==================== -->
+<div class="page-header">
+  <h1 class="page-title">Bede Tutor &mdash; Agentic UI</h1>
+  <p class="page-subtitle">Chat-first &middot; Air-gapped LAN &middot; Age-aware &middot; June 2026</p>
+</div>
+
+<!-- ==================== SECTION 1 — COMPARISON ==================== -->
+<section>
+  <p class="section-screen-label">Design Rationale</p>
+  <h2 class="section-title">What we&rsquo;re improving on</h2>
+
+  <div class="comparison-row">
+
+    <!-- Khan Academy column -->
+    <div class="comparison-col">
+      <span class="comparison-col-label">Khan Academy</span>
+      <div class="khan-frame">
+        <div class="khan-topbar">
+          <span class="khan-topbar-text">Khan Academy</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        </div>
+        <div class="khan-streak-row">
+          <div class="khan-flame"></div>
+          <span class="khan-streak-text">0 week streak</span>
+        </div>
+        <div class="khan-banner">
+          <span class="khan-banner-text">Promotional banner</span>
+        </div>
+        <div class="khan-recent-heading">Recent lessons</div>
+        <div class="khan-lesson-row">
+          <div class="khan-thumb"></div>
+          <span class="khan-lesson-title">Adding fractions</span>
+        </div>
+        <div class="khan-lesson-row">
+          <div class="khan-thumb"></div>
+          <span class="khan-lesson-title">Reading comprehension</span>
+        </div>
+        <div class="khan-lesson-row">
+          <div class="khan-thumb"></div>
+          <span class="khan-lesson-title">World history overview</span>
+        </div>
+        <div class="khan-tabs">
+          <div class="khan-tab">Home</div>
+          <div class="khan-tab">Explore</div>
+          <div class="khan-tab">Bookmarks</div>
+        </div>
+      </div>
+      <span class="comparison-col-note">Content-browsing model. External accounts required.</span>
+    </div>
+
+    <!-- VS divider -->
+    <div class="vs-circle">vs</div>
+
+    <!-- Bede Tutor column -->
+    <div class="comparison-col">
+      <span class="comparison-col-label bede">Bede Tutor</span>
+      <div class="bede-frame">
+        <div class="bede-frame-header">
+          <img src="homeschool-tutor/public/agnus-dei.svg" width="20" height="20" alt="">
+          <span class="bede-frame-name">Emma</span>
+          <div class="bede-frame-pill">
+            Morning Time
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div style="flex:1"></div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        </div>
+        <div class="bede-frame-chat">
+          <div class="bede-bubble-bede">Good morning! What shall we discover today?</div>
+          <div class="bede-bubble-student">Let&rsquo;s read!</div>
+        </div>
+        <div class="bede-frame-input">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          <div class="bede-frame-textarea-mock"></div>
+          <div class="bede-frame-send">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+      <span class="comparison-col-note bede">Conversation-first. No accounts. Air-gapped LAN.</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 2 — LOGIN ==================== -->
+<section>
+  <p class="section-screen-label">Screen 1 &mdash; Login</p>
+  <h2 class="section-title">Login Screen</h2>
+
+  <div class="login-center">
+    <div class="login-card">
+      <img src="homeschool-tutor/public/agnus-dei.svg" width="48" height="48" style="display:block;margin:0 auto 8px" alt="">
+      <div class="login-app-name">Agnus Dei</div>
+      <div class="login-app-sub">Bede Tutor</div>
+      <div class="login-tabs">
+        <div class="login-tab active">Parent</div>
+        <div class="login-tab">Child</div>
+      </div>
+      <div class="login-field">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span class="login-field-placeholder">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
+      </div>
+      <button class="login-btn">Sign In</button>
+      <p class="login-note">No cloud account needed &middot; runs on your network</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 3 — SESSION ==================== -->
+<section>
+  <p class="section-screen-label">Screen 2 &mdash; Tutoring Session</p>
+  <h2 class="section-title">Core Session Screen (three age variants)</h2>
+
+  <div class="frames-row">
+
+    <!-- K-2 variant -->
+    <div class="frame-wrapper">
+      <div class="frame-label">K&ndash;2 &nbsp;&middot;&nbsp; Grades K&ndash;2</div>
+      <div class="phone-frame">
+        <div class="frame-header">
+          <img src="homeschool-tutor/public/agnus-dei.svg" width="24" height="24" alt="">
+          <span class="student-name-header">James</span>
+          <div class="subject-pill">
+            Morning Time
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="7.05" y2="7.05"/><line x1="16.95" y1="16.95" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="header-spacer"></div>
+          <div class="header-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+          </div>
+          <div class="header-icon-btn" style="margin-left:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div style="align-self:flex-start;max-width:85%">
+            <div class="chat-bede-label">Bede</div>
+            <div class="chat-bubble-bede" style="font-size:16px">Good morning, James! Let us read together today. What animal do you think lives in that pond?</div>
+          </div>
+          <div style="align-self:flex-end;max-width:80%">
+            <div class="chat-student-label">James</div>
+            <div class="chat-bubble-student" style="font-size:15px">A frog! And ducks!</div>
+          </div>
+          <div style="align-self:flex-start;width:90%">
+            <div class="hint-card" style="border-left:3px solid #10b981;background:#ecfdf5">
+              <div class="hint-card-label" style="color:#065f46">Bede noticed</div>
+              <div class="hint-card-content" style="color:#065f46">You remembered two animals! Can you think of any more that might hide under the water?</div>
+            </div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <div class="input-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </div>
+          <div class="input-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          </div>
+          <textarea class="input-textarea-mock" placeholder="Type or speak..." readonly></textarea>
+          <div class="send-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3-5 variant -->
+    <div class="frame-wrapper">
+      <div class="frame-label">3&ndash;5 &nbsp;&middot;&nbsp; Grades 3&ndash;5</div>
+      <div class="phone-frame">
+        <div class="frame-header">
+          <img src="homeschool-tutor/public/agnus-dei.svg" width="24" height="24" alt="">
+          <span class="student-name-header">Emma</span>
+          <div class="subject-pill">
+            History
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="header-spacer"></div>
+          <div class="header-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+          </div>
+          <div class="header-icon-btn" style="margin-left:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div style="align-self:flex-start;max-width:85%">
+            <div class="chat-bede-label">Bede</div>
+            <div class="chat-bubble-bede" style="font-size:14px">Emma, you mentioned the Magna Carta last time. What do you think the barons were trying to protect when they forced King John to sign it?</div>
+          </div>
+          <div style="align-self:flex-end;max-width:80%">
+            <div class="chat-student-label">Emma</div>
+            <div class="chat-bubble-student" style="font-size:14px">Maybe their land? Or their rights?</div>
+          </div>
+          <div style="align-self:flex-start;width:90%">
+            <div class="hint-card" style="border-left:3px solid #5585d5;background:var(--navy-50)">
+              <div class="hint-card-label" style="color:var(--navy-600)">Think further</div>
+              <div class="hint-card-content" style="color:#1f2937">You are close &mdash; think about what a king could take away arbitrarily. What would you want protected if you were a baron?</div>
+            </div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <div class="input-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </div>
+          <div class="input-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          </div>
+          <textarea class="input-textarea-mock" placeholder="Type or speak..." readonly></textarea>
+          <div class="send-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6-8 variant -->
+    <div class="frame-wrapper">
+      <div class="frame-label">6&ndash;8 &nbsp;&middot;&nbsp; Grades 6&ndash;8</div>
+      <div class="phone-frame">
+        <div class="frame-header">
+          <img src="homeschool-tutor/public/agnus-dei.svg" width="24" height="24" alt="">
+          <span class="student-name-header">Liam</span>
+          <div class="subject-pill">
+            Language Arts
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="header-spacer"></div>
+          <div class="timer-pill">4:32</div>
+          <div class="header-icon-btn" style="margin-left:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+          </div>
+          <div class="header-icon-btn" style="margin-left:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div style="align-self:flex-start;max-width:85%">
+            <div class="chat-bede-label">Bede</div>
+            <div class="chat-bubble-bede" style="font-size:13px">We have been tracing the idea of natural law from Aquinas through Locke. Where do you see Locke departing from Aquinas, and why might that matter?</div>
+          </div>
+          <div style="align-self:flex-end;max-width:80%">
+            <div class="chat-student-label">Liam</div>
+            <div class="chat-bubble-student" style="font-size:13px">Locke removes the divine grounding &mdash; rights become rational, not sacred.</div>
+          </div>
+          <div style="align-self:flex-start;width:90%">
+            <div class="hint-card" style="border-left:3px solid #f5c014;background:var(--gold-50)">
+              <div class="hint-card-label" style="color:var(--gold-700)">Faith Connection</div>
+              <div class="hint-card-content" style="color:#374151">That is a precise observation. Aquinas would say this severs rights from their ontological foundation. Where does that leave human dignity without a theological anchor?</div>
+            </div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <div class="input-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </div>
+          <div class="input-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          </div>
+          <textarea class="input-textarea-mock" placeholder="Type or speak..." readonly></textarea>
+          <div class="send-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 4 — SUBJECT DRAWER ==================== -->
+<section>
+  <p class="section-screen-label">Screen 3 &mdash; Subject Drawer</p>
+  <h2 class="section-title">Subject Drawer (Bottom Sheet)</h2>
+
+  <div class="drawer-frame-container">
+    <div class="drawer-phone-frame">
+
+      <!-- Chat background (3-5 variant as base) -->
+      <div class="drawer-chat-bg">
+        <div class="frame-header">
+          <img src="homeschool-tutor/public/agnus-dei.svg" width="24" height="24" alt="">
+          <span class="student-name-header">Emma</span>
+          <div class="subject-pill">
+            History
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="header-spacer"></div>
+          <div class="header-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+          </div>
+          <div class="header-icon-btn" style="margin-left:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </div>
+        </div>
+        <!-- Blurred background chat -->
+        <div style="flex:1;background:var(--parchment);padding:16px;display:flex;flex-direction:column;gap:12px;filter:blur(0.5px)">
+          <div style="align-self:flex-start;max-width:85%">
+            <div style="font-size:10px;color:var(--navy-600);font-weight:600;margin-bottom:3px">Bede</div>
+            <div style="background:white;border:1px solid #dce6f7;border-radius:0 12px 12px 12px;padding:10px 12px;font-family:Georgia,serif;font-size:14px;line-height:1.5;color:#1f2937">Emma, you mentioned the Magna Carta last time. What do you think the barons were trying to protect?</div>
+          </div>
+          <div style="align-self:flex-end;max-width:80%">
+            <div style="font-size:10px;color:var(--navy-300);font-weight:500;margin-bottom:3px;text-align:right">Emma</div>
+            <div style="background:var(--navy-500);color:white;border-radius:12px 12px 0 12px;padding:10px 12px;font-size:14px;line-height:1.5">Maybe their land? Or their rights?</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay: dark backdrop + bottom sheet -->
+      <div class="drawer-backdrop">
+        <div class="drawer-dark-overlay"></div>
+        <div class="drawer-sheet">
+          <div class="drawer-handle"></div>
+          <div class="drawer-header-row">
+            <span class="drawer-title">Today&rsquo;s Plan</span>
+            <div class="drawer-close-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+          </div>
+          <hr class="drawer-divider">
+          <div style="padding:8px 0">
+            <!-- Morning Time — done -->
+            <div class="drawer-subject-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="7.05" y2="7.05"/><line x1="16.95" y1="16.95" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+              <span class="drawer-subject-text done">Morning Time</span>
+            </div>
+            <!-- Living Books — current -->
+            <div class="drawer-subject-row current">
+              <div class="drawer-row-dot filled"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#17306e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              <span class="drawer-subject-text current">Living Books</span>
+            </div>
+            <!-- Mathematics — upcoming -->
+            <div class="drawer-subject-row">
+              <div class="drawer-row-dot empty"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/></svg>
+              <span class="drawer-subject-text upcoming">Mathematics</span>
+            </div>
+            <!-- Nature Study — upcoming -->
+            <div class="drawer-subject-row">
+              <div class="drawer-row-dot empty"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+              <span class="drawer-subject-text upcoming">Nature Study</span>
+            </div>
+          </div>
+          <hr class="drawer-divider">
+          <div class="drawer-unit-card">
+            <div class="drawer-unit-label">Current Unit</div>
+            <div class="drawer-unit-value">Medieval Europe &mdash; The Magna Carta</div>
+          </div>
+          <div class="drawer-faith-card">
+            <div class="drawer-faith-label-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d4a106" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span class="drawer-faith-label">Faith Focus</span>
+            </div>
+            <div class="drawer-faith-value">St. Thomas Aquinas: faith and reason</div>
+          </div>
+          <button class="drawer-next-btn">Next Subject</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 5 — BREAK + SUMMARY ==================== -->
+<section>
+  <p class="section-screen-label">Screens 4 &amp; 5 &mdash; Break and Session End</p>
+  <h2 class="section-title">Break Overlay and Session Summary</h2>
+
+  <div class="two-cards-row">
+
+    <!-- Break card -->
+    <div class="break-card">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 16px"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+      <div class="break-title">Break Time</div>
+      <p class="break-desc">Well done. You have earned a rest before your next learning block.</p>
+      <div class="break-ring-container">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" stroke="#fde68a" stroke-width="8" fill="none"/>
+          <circle cx="50" cy="50" r="42" stroke="#fbbf24" stroke-width="8" fill="none"
+            stroke-dasharray="176 264"
+            stroke-linecap="round"
+            transform="rotate(-90 50 50)"/>
+          <text x="50" y="50"
+            font-family="Georgia, 'Times New Roman', serif"
+            font-size="18"
+            font-weight="700"
+            fill="#112252"
+            text-anchor="middle"
+            dominant-baseline="middle">7:32</text>
+        </svg>
+      </div>
+      <p class="break-ring-caption">until your next learning block</p>
+    </div>
+
+    <!-- Summary card -->
+    <div class="summary-card">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1e3a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 16px"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+      <div class="summary-title">Session Summary</div>
+      <p class="summary-meta">Emma &middot; Living Books &middot; 45 minutes</p>
+      <div class="summary-text-box">
+        Emma engaged thoughtfully with the Magna Carta today, connecting the barons&rsquo; grievances to the concept of limited governance. She offered the insight that King John&rsquo;s arbitrary power threatened the predictability of law &mdash; a sophisticated framing for her grade. Recommended reading: the chapter on common law in &ldquo;The Story of Britain.&rdquo;
+      </div>
+      <button class="summary-done-btn">Done &mdash; Return Home</button>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

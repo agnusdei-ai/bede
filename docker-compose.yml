@@ -1,0 +1,97 @@
+version: '3.9'
+
+# ── Sage Homeschool Tutor — secure deployment ─────────────────────────────────
+#
+# Required env vars (set in .env or shell — never hardcoded here):
+#   ANTHROPIC_API_KEY   Claude API key
+#   SECRET_KEY          JWT signing key   (openssl rand -hex 32)
+#   MASTER_SECRET       Encryption master secret (openssl rand -hex 32)
+#   PARENT_PASSWORD     Parent login password
+#   CHILD_PIN           Child login PIN
+#   DATABASE_URL        Managed PostgreSQL connection string
+#                       Format: postgresql+asyncpg://user:pass@host/db?ssl=require
+#                       Neon example:
+#                         postgresql+asyncpg://sage:pass@ep-xxx.us-east-2.aws.neon.tech/sagedb?ssl=require
+#
+# Storage model:
+#   All persistent data (encryption keys, voice profiles, audit log) lives in
+#   the managed PostgreSQL database. The API container is fully stateless —
+#   no local volumes, no writable filesystem except /tmp for audio processing.
+
+services:
+  api:
+    build:
+      context: ./homeschool-api
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - MASTER_SECRET=${MASTER_SECRET:?MASTER_SECRET is required}
+      - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
+      - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
+      - DISABLE_API_DOCS=true
+      - PRODUCTION=true
+    read_only: true                    # stateless container — all state in Postgres
+    tmpfs:
+      - /tmp:size=64m,mode=1777       # audio processing temp files only
+    networks:
+      - internal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  ui:
+    build:
+      context: ./homeschool-tutor
+      dockerfile: Dockerfile
+    expose:
+      - "80"
+    depends_on:
+      - api
+    networks:
+      - internal
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=32m
+      - /var/run:size=4m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+  # TLS termination — serves the entire pod over HTTPS (port 443)
+  # Tablets and other LAN devices connect here. Run "make caddy-trust" once
+  # per device to install the local root CA so there are no cert warnings.
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    networks:
+      - internal
+    depends_on:
+      - ui
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caddy_data:     # persists Caddy's local CA and issued certs across restarts
+
+networks:
+  internal:
+    driver: bridge
+    internal: false    # api needs outbound for Claude API + managed DB

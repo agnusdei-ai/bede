@@ -1,0 +1,150 @@
+{
+  "year": 3,
+  "description": "Ambleside Online Year 3 — Charlotte Mason living books curriculum for grades 2-3. Introduction to longer novels, biography, and Plutarch's lives. Richer Socratic discussion and written narration begins.",
+  "books": [
+    {
+      "id": "y3-little-women",
+      "title": "Little Women",
+      "author": "Louisa May Alcott",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["character", "virtue", "family", "sacrifice", "growth", "sisterhood", "faith", "poverty"],
+      "anti_twaddle": true,
+      "notes": "A rich character study ideal for discussing virtue and the four temperaments. Each sister embodies different strengths and weaknesses. 'Which sister are you most like and why?'"
+    },
+    {
+      "id": "y3-merry-adventures-robin-hood",
+      "title": "The Merry Adventures of Robin Hood",
+      "author": "Howard Pyle",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2],
+      "concept_tags": ["justice", "courage", "loyalty", "merry-england", "adventure", "honor", "friendship"],
+      "anti_twaddle": true,
+      "notes": "Pyle's prose is deliberately archaic — read aloud slowly. Excellent for discussing justice vs. law. 'Was Robin Hood right to steal from the rich? Why or why not?'"
+    },
+    {
+      "id": "y3-swiss-family-robinson",
+      "title": "The Swiss Family Robinson",
+      "author": "Johann David Wyss",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [2, 3],
+      "concept_tags": ["survival", "family", "resourcefulness", "nature", "Providence", "ingenuity", "creation"],
+      "anti_twaddle": true,
+      "notes": "The family's gratitude to God for provision runs throughout. Excellent natural history woven in — many animals the children encounter can be researched in nature study."
+    },
+    {
+      "id": "y3-plutarchs-lives",
+      "title": "Plutarch's Lives (Ambleside selections, North translation)",
+      "author": "Plutarch / Thomas North",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "character", "leadership", "courage"],
+      "anti_twaddle": true,
+      "notes": "Charlotte Mason considered Plutarch's Lives essential. Use the Ambleside-selected passages. Read slowly, discuss each moral dilemma. 'What made Publicola a good leader?' Written narration begins here."
+    },
+    {
+      "id": "y3-parables-from-nature",
+      "title": "Parables from Nature",
+      "author": "Margaret Gatty",
+      "subject": "nature_study",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["nature", "faith", "insects", "metamorphosis", "wonder", "allegory", "creation", "seasons"],
+      "anti_twaddle": true,
+      "notes": "Nature stories with rich theological and moral depth — in the tradition of Charlotte Mason's nature-faith integration. Ask: 'What does the caterpillar's transformation teach us?'"
+    },
+    {
+      "id": "y3-our-island-story",
+      "title": "Our Island Story",
+      "author": "Henrietta Elizabeth Marshall",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["british-history", "kings", "queens", "parliament", "heroism", "islands", "empire"],
+      "anti_twaddle": true,
+      "notes": "Narrative English history from the Romans to Queen Victoria. Marshall writes history as living story. One chapter per session — each is self-contained with a clear hero or crisis."
+    },
+    {
+      "id": "y3-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 1,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "faith", "church-history", "courage", "martyrdom", "virtue", "reformation"],
+      "anti_twaddle": true,
+      "notes": "Continue or complete this resource. By Year 3 the child may begin written narration of a saint's story. 'Write three sentences telling why this person was brave.'"
+    },
+    {
+      "id": "y3-wind-in-willows",
+      "title": "The Wind in the Willows",
+      "author": "Kenneth Grahame",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [1],
+      "concept_tags": ["friendship", "home", "nature", "adventure", "community", "seasons", "loyalty"],
+      "anti_twaddle": true,
+      "notes": "If not read in Year 2, excellent supplemental here. Grahame's prose lends itself to written narration of the descriptions — 'Describe the River Bank in your own words.'"
+    },
+    {
+      "id": "y3-secrets-of-the-woods",
+      "title": "Secrets of the Woods",
+      "author": "William J. Long",
+      "subject": "nature_study",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [2],
+      "concept_tags": ["wildlife", "woodland", "observation", "animals", "naturalist", "wonder"],
+      "anti_twaddle": true,
+      "notes": "If not completed in Year 1. Pair with nature notebook entries after each chapter — the child draws and describes the animal observed in the story."
+    },
+    {
+      "id": "y3-child-history-world",
+      "title": "A Child's History of the World",
+      "author": "V. M. Hillyer",
+      "subject": "history",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["world-history", "civilizations", "medieval", "renaissance", "exploration", "timeline"],
+      "anti_twaddle": true,
+      "notes": "Complete if not finished in earlier years. By Year 3, add timeline entries as each chapter is read — a visual history spine grows with the child."
+    },
+    {
+      "id": "y3-burgess-bird-book",
+      "title": "Burgess Bird Book for Children",
+      "author": "Thornton W. Burgess",
+      "subject": "nature_study",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2],
+      "concept_tags": ["birds", "observation", "habitats", "behavior", "seasons", "identification", "wonder"],
+      "anti_twaddle": true,
+      "notes": "Burgess presents bird facts through story — Peter Rabbit learns about birds from Old Mother Nature. Children absorb real ornithology within a narrative frame."
+    },
+    {
+      "id": "y3-star-names",
+      "title": "The Stars: A New Way to See Them",
+      "author": "H. A. Rey",
+      "subject": "science",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [3],
+      "concept_tags": ["astronomy", "constellations", "wonder", "creation", "night-sky", "observation"],
+      "anti_twaddle": true,
+      "notes": "Rey's stargazing guide makes constellations memorable through redrawn shapes. Best in Term 3 for evening observation. Connect to the wonder of creation: 'God calls each star by name.'"
+    }
+  ]
+}

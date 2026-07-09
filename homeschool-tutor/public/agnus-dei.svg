@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Outer circle -->
+  <circle cx="60" cy="60" r="56" fill="#f5f0e8" stroke="#5a7a62" stroke-width="3"/>
+
+  <!-- Cross staff (carried by the lamb) -->
+  <line x1="75" y1="22" x2="75" y2="72" stroke="#5a7a62" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="63" y1="32" x2="87" y2="32" stroke="#5a7a62" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Banner on cross -->
+  <rect x="75" y="36" width="16" height="10" rx="1.5" fill="#c8a96e" opacity="0.9"/>
+  <line x1="75" y1="38" x2="91" y2="38" stroke="#a07840" stroke-width="0.8"/>
+  <line x1="75" y1="41" x2="91" y2="41" stroke="#a07840" stroke-width="0.8"/>
+  <line x1="75" y1="44" x2="91" y2="44" stroke="#a07840" stroke-width="0.8"/>
+
+  <!-- Lamb body (ellipse) -->
+  <ellipse cx="52" cy="68" rx="22" ry="16" fill="white" stroke="#5a7a62" stroke-width="2.5"/>
+
+  <!-- Fleece texture dots -->
+  <circle cx="40" cy="63" r="2.5" fill="#e8e4dc"/>
+  <circle cx="47" cy="60" r="2.8" fill="#e8e4dc"/>
+  <circle cx="55" cy="59" r="2.5" fill="#e8e4dc"/>
+  <circle cx="63" cy="62" r="2.8" fill="#e8e4dc"/>
+  <circle cx="43" cy="69" r="2.5" fill="#e8e4dc"/>
+  <circle cx="52" cy="67" r="3" fill="#e8e4dc"/>
+  <circle cx="61" cy="68" r="2.5" fill="#e8e4dc"/>
+  <circle cx="48" cy="74" r="2.5" fill="#e8e4dc"/>
+  <circle cx="57" cy="74" r="2.5" fill="#e8e4dc"/>
+
+  <!-- Lamb head -->
+  <ellipse cx="74" cy="60" rx="9" ry="8" fill="white" stroke="#5a7a62" stroke-width="2.5"/>
+
+  <!-- Ear -->
+  <ellipse cx="67" cy="55" rx="4" ry="3" fill="white" stroke="#5a7a62" stroke-width="2" transform="rotate(-20 67 55)"/>
+
+  <!-- Eye -->
+  <circle cx="77" cy="59" r="1.5" fill="#5a7a62"/>
+
+  <!-- Nose -->
+  <ellipse cx="81" cy="63" rx="2" ry="1.5" fill="#e8d5c0" stroke="#5a7a62" stroke-width="1.2"/>
+
+  <!-- Front legs -->
+  <line x1="44" y1="82" x2="42" y2="96" stroke="#5a7a62" stroke-width="3" stroke-linecap="round"/>
+  <line x1="52" y1="83" x2="51" y2="97" stroke="#5a7a62" stroke-width="3" stroke-linecap="round"/>
+  <!-- Back legs -->
+  <line x1="60" y1="83" x2="59" y2="97" stroke="#5a7a62" stroke-width="3" stroke-linecap="round"/>
+  <line x1="68" y1="82" x2="67" y2="96" stroke="#5a7a62" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Hooves -->
+  <ellipse cx="42" cy="97" rx="3" ry="1.5" fill="#5a7a62"/>
+  <ellipse cx="51" cy="98" rx="3" ry="1.5" fill="#5a7a62"/>
+  <ellipse cx="59" cy="98" rx="3" ry="1.5" fill="#5a7a62"/>
+  <ellipse cx="67" cy="97" rx="3" ry="1.5" fill="#5a7a62"/>
+
+  <!-- Tail -->
+  <ellipse cx="31" cy="68" rx="4" ry="3" fill="white" stroke="#5a7a62" stroke-width="2"/>
+</svg>

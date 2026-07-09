@@ -1,0 +1,19 @@
+{
+  "name": "Agnus Dei — Bede Tutor",
+  "short_name": "Bede",
+  "description": "Catholic Charlotte Mason homeschool AI tutor",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#faf8f0",
+  "theme_color": "#5a8a72",
+  "icons": [
+    {
+      "src": "/agnus-dei.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

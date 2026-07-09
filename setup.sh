@@ -16,6 +16,15 @@ warn()    { echo -e "${YELLOW}⚠  $*${RESET}"; }
 error()   { echo -e "${RED}✗  $*${RESET}"; exit 1; }
 blank()   { echo ""; }
 
+# At least 6 digits, no digit repeated anywhere in the PIN (e.g. 384756, not 111111 or 123123).
+is_strong_pin() {
+  local pin="$1"
+  [[ "$pin" =~ ^[0-9]{6,}$ ]] || return 1
+  local unique
+  unique=$(echo -n "$pin" | fold -w1 | sort -u | wc -l)
+  [[ "$unique" -eq "${#pin}" ]]
+}
+
 # ── Banner ────────────────────────────────────────────────────────────────────
 blank
 echo -e "${BOLD}╔══════════════════════════════════════════╗${RESET}"
@@ -74,11 +83,11 @@ while true; do
 done
 
 blank
-info "4/5  Child PIN (student login, 4+ digits)"
+info "4/5  Child PIN (student login, 6+ digits, no digit repeated)"
 while true; do
   read -rp "     CHILD_PIN: " CHILD_PIN
-  [[ "$CHILD_PIN" =~ ^[0-9]{4,}$ ]] && break
-  warn "Must be 4 or more digits."
+  is_strong_pin "$CHILD_PIN" && break
+  warn "Must be 6+ digits with no digit repeated (e.g. 384756, not 111111 or 123123)."
 done
 
 # ── Auto-generate secrets ─────────────────────────────────────────────────────

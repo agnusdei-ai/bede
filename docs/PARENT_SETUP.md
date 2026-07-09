@@ -37,7 +37,7 @@ Bede uses **three separate layers**, and it matters which one you tell your chil
 | Credential | Who knows it | What it does |
 |---|---|---|
 | **Parent password** | You only — never the child | Full administrative access: configure students, view progress reports and transcripts, approve a session if voice check fails. |
-| **Child PIN** | Every child in the household (it's shared, not per-child) | Gets to the "child" login screen — a low-stakes shared secret, like a house key. |
+| **Child PIN** | Every child in the household (it's shared, not per-child) | Gets to the "child" login screen — a low-stakes shared secret, like a house key. Must be 6+ digits with no digit repeated (e.g. `384756`, not `111111` or `123123`) — `setup.sh` enforces this when you set it, and the app refuses to start in production mode with a weaker one. |
 | **Voice passphrase** | Each child, for their own profile | The actual identity check — after entering the PIN, the child says *"I am ready to learn today!"* and Bede matches their voice against their enrolled profile. This is what personalizes their session, not the PIN. |
 
 The PIN alone does **not** grant access to a specific child's lesson plan or history —

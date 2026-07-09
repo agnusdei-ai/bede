@@ -2,6 +2,13 @@ from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import List
 
+MIN_PIN_LENGTH = 6
+
+
+def pin_is_strong(pin: str) -> bool:
+    """At least 6 digits, no digit repeated anywhere in the PIN."""
+    return pin.isdigit() and len(pin) >= MIN_PIN_LENGTH and len(set(pin)) == len(pin)
+
 
 class Settings(BaseSettings):
     # ── AI models ──────────────────────────────────────────────────────────────
@@ -74,6 +81,11 @@ class Settings(BaseSettings):
             problems.append("PARENT_PASSWORD is set to the default dev value")
         if self.child_pin in self._WEAK_SECRETS:
             problems.append("CHILD_PIN is set to the default dev value")
+        elif not pin_is_strong(self.child_pin):
+            problems.append(
+                f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits with no digit repeated "
+                "(e.g. 384756, not 111111 or 123123)"
+            )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")
         if problems:

@@ -23,6 +23,16 @@ interface DisplayMessage {
   tool?: string
 }
 
+const MIN_PIN_LENGTH = 6
+
+/** At least 6 digits, no repeated digit anywhere in the PIN. */
+function pinStrengthError(pin: string): string | null {
+  if (!/^\d+$/.test(pin)) return 'PIN must contain only digits.'
+  if (pin.length < MIN_PIN_LENGTH) return `PIN must be at least ${MIN_PIN_LENGTH} digits.`
+  if (new Set(pin).size !== pin.length) return 'PIN cannot repeat any digit.'
+  return null
+}
+
 function SetupScreen({ onReady }: { onReady: () => void }) {
   const [anthropicKey, setAnthropicKey] = useState('')
   const [elevenLabsKey, setElevenLabsKey] = useState('')
@@ -39,9 +49,9 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
       setError('Anthropic API key, name, and grade are all required.')
       return
     }
-    if (pin.trim() && !/^\d{4,}$/.test(pin.trim())) {
-      setError('PIN must be 4 or more digits (or leave it blank for no PIN screen).')
-      return
+    if (pin.trim()) {
+      const pinError = pinStrengthError(pin.trim())
+      if (pinError) { setError(pinError); return }
     }
     localStorage.setItem(LS_KEYS.anthropicKey, anthropicKey.trim())
     if (elevenLabsKey.trim()) localStorage.setItem(LS_KEYS.elevenLabsKey, elevenLabsKey.trim())
@@ -109,10 +119,11 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
           </div>
           <div>
             <label className="label">Demo PIN screen (optional)</label>
-            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Leave blank to skip straight to Bede" inputMode="numeric" />
+            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no repeats — leave blank to skip" inputMode="numeric" />
             <p className="text-xs text-gray-400 mt-1">
               Shows a PIN entry step before Bede, mirroring the real app's login <em>look</em> —
               this is a UI demonstration only, not real security (see the notice on that screen).
+              If set: at least {MIN_PIN_LENGTH} digits, no digit repeated.
             </p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}

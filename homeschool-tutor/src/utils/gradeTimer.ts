@@ -2,7 +2,19 @@
  * Session timing rules by grade:
  *   K–3  → 20-min per-subject blocks, no break (timer resets with each subject)
  *   4–8  → 60-min continuous block, then 10-min break, then another 60-min block
+ *
+ * On top of the grade-based cycle above, a parent can optionally set a total
+ * on-screen time cap (SessionConfig.screen_time_limit_minutes). Reaching it
+ * forces an eye-rest break — enforced to be at least MIN_EYE_REST_MINUTES
+ * regardless of what's configured — modeled as its own study/break cycle via
+ * getPhase(), keyed to the whole session's elapsed time rather than per-subject.
  */
+
+export const MIN_EYE_REST_MINUTES = 30
+
+export function effectiveEyeRestMinutes(configured: number | undefined): number {
+  return Math.max(MIN_EYE_REST_MINUTES, configured ?? MIN_EYE_REST_MINUTES)
+}
 
 export interface TimerConfig {
   blockMinutes: number

@@ -6,8 +6,9 @@ import SocraticChat from '../components/SocraticChat'
 import SubjectDrawer from '../components/SubjectDrawer'
 import { fetchSessionSummary, fetchStudentConfig } from '../services/api'
 import { SUBJECT_MAP } from '../types'
-import { getTimerConfig, getPhase, fmtTime } from '../utils/gradeTimer'
-import { Coffee } from 'lucide-react'
+import { getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes } from '../utils/gradeTimer'
+import { pickBreakActivity } from '../utils/breakActivities'
+import { Coffee, Eye } from 'lucide-react'
 
 export default function TutorSession() {
   const navigate = useNavigate()
@@ -66,7 +67,23 @@ export default function TutorSession() {
   const timerCfg = getTimerConfig(sessionConfig.grade)
   const timerStartedAt = timerCfg.isYounger ? subjectStartedAt : sessionStartedAt
   const { phase: currentPhase, remainingSecs } = getPhase(timerStartedAt, timerCfg.blockMinutes, timerCfg.breakMinutes)
-  const isOnBreak = currentPhase === 'break'
+  const isSubjectBreak = currentPhase === 'break'
+
+  // Parent-set total on-screen time cap, tracked across the whole session
+  // (independent of the grade-based per-subject cycle above). Forces a
+  // mandatory eye-rest break, floored to 30 minutes, once reached.
+  const screenTimeLimitMin = sessionConfig.screen_time_limit_minutes
+  const screenTimeEnabled = !!screenTimeLimitMin
+  const eyeRestMin = effectiveEyeRestMinutes(sessionConfig.eye_rest_break_minutes)
+  const screenPhase = screenTimeEnabled
+    ? getPhase(sessionStartedAt, screenTimeLimitMin!, eyeRestMin)
+    : null
+  const isEyeRestBreak = screenPhase?.phase === 'break'
+
+  const isOnBreak = isSubjectBreak || isEyeRestBreak
+  const breakRemainingSecs = isEyeRestBreak ? screenPhase!.remainingSecs : remainingSecs
+  const breakActivity = isEyeRestBreak ? pickBreakActivity(screenPhase!.cycleIndex) : null
+
   const isWarning = !isOnBreak && remainingSecs > 0 && remainingSecs <= timerCfg.warningMinutes * 60
 
   const handleEndSession = async () => {
@@ -121,7 +138,7 @@ export default function TutorSession() {
           <div className={`text-xs font-mono font-semibold tabular-nums ${
             isOnBreak ? 'text-amber-600' : 'text-red-500'
           }`}>
-            {fmtTime(remainingSecs)}
+            {fmtTime(isOnBreak ? breakRemainingSecs : remainingSecs)}
           </div>
         )}
 
@@ -151,12 +168,30 @@ export default function TutorSession() {
         {isOnBreak && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
             <div className="bg-white rounded-2xl border border-amber-200 shadow-xl p-8 max-w-sm w-full text-center">
-              <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
-              <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
-              <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, you've been working hard.</p>
-              <p className="text-sm text-gray-500 mb-6">Step away, have a snack, come back refreshed.</p>
-              <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(remainingSecs)}</div>
-              <p className="text-xs text-gray-400">until your next learning block</p>
+              {isEyeRestBreak ? (
+                <>
+                  <Eye size={36} className="mx-auto mb-4 text-amber-500" />
+                  <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Eye Rest Break</h2>
+                  <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, that's enough screen time for now.</p>
+                  <p className="text-sm text-gray-500 mb-4">This break is at least {eyeRestMin} minutes — step away from the screen.</p>
+                  {breakActivity && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
+                      {breakActivity.prompt}
+                    </div>
+                  )}
+                  <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(breakRemainingSecs)}</div>
+                  <p className="text-xs text-gray-400">until you can continue</p>
+                </>
+              ) : (
+                <>
+                  <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
+                  <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
+                  <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, you've been working hard.</p>
+                  <p className="text-sm text-gray-500 mb-6">Step away, have a snack, come back refreshed.</p>
+                  <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(breakRemainingSecs)}</div>
+                  <p className="text-xs text-gray-400">until your next learning block</p>
+                </>
+              )}
             </div>
           </div>
         )}

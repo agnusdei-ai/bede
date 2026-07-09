@@ -23,6 +23,9 @@ interface StudentForm {
   faith_emphasis: string
   current_unit: string
   voice_required: boolean
+  screen_time_limit_enabled: boolean
+  screen_time_limit_minutes: number
+  eye_rest_break_minutes: number
   expandedContext: boolean
   showEnrollment: boolean
 }
@@ -36,6 +39,9 @@ const blankStudent = (): StudentForm => ({
   faith_emphasis: '',
   current_unit: '',
   voice_required: true,
+  screen_time_limit_enabled: false,
+  screen_time_limit_minutes: 90,
+  eye_rest_break_minutes: 30,
   expandedContext: false,
   showEnrollment: false,
 })
@@ -97,6 +103,8 @@ export default function ParentSetup() {
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
       voice_required: s.voice_required,
+      screen_time_limit_minutes: s.screen_time_limit_enabled ? s.screen_time_limit_minutes : null,
+      eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
     }))
     try {
       await savePodConfigs(token, configs)
@@ -363,6 +371,66 @@ function StudentCard({
               }`}
             />
           </button>
+        </div>
+
+        {/* Screen time limit + eye-rest break */}
+        <div className="p-3 bg-gray-50 rounded-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Limit total screen time today</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {student.screen_time_limit_enabled
+                  ? `Mandatory eye-rest break after ${student.screen_time_limit_minutes} min on screen`
+                  : 'Off — only the grade-based block/break cycle applies'}
+              </p>
+            </div>
+            <button
+              onClick={() => onUpdate({ screen_time_limit_enabled: !student.screen_time_limit_enabled })}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                student.screen_time_limit_enabled ? 'bg-navy-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  student.screen_time_limit_enabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {student.screen_time_limit_enabled && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Screen time cap (min)</label>
+                <input
+                  type="number"
+                  min={15}
+                  max={480}
+                  step={5}
+                  value={student.screen_time_limit_minutes}
+                  onChange={(e) =>
+                    onUpdate({ screen_time_limit_minutes: Math.max(15, Math.min(480, Number(e.target.value) || 15)) })
+                  }
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">Eye-rest break (min)</label>
+                <input
+                  type="number"
+                  min={30}
+                  max={120}
+                  step={5}
+                  value={student.eye_rest_break_minutes}
+                  onChange={(e) =>
+                    onUpdate({ eye_rest_break_minutes: Math.max(30, Math.min(120, Number(e.target.value) || 30)) })
+                  }
+                  className="input"
+                />
+                <p className="text-xs text-gray-400 mt-1">30-minute minimum, for eye health</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Voice enrollment */}

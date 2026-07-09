@@ -74,6 +74,15 @@ class SessionConfig(BaseModel):
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
+    # Parent-set cap on total on-screen tutoring minutes before a mandatory
+    # eye-rest break is inserted, independent of the grade-based block/break
+    # cycle. None = no additional cap.
+    screen_time_limit_minutes: Optional[int] = Field(default=None, ge=15, le=480)
+    # Length of the mandatory break once the cap is reached. 30-minute floor
+    # enforced here so a weaker value can never be saved, even if the client
+    # is bypassed.
+    eye_rest_break_minutes: int = Field(default=30, ge=30, le=120)
+
 
 class PodConfigsRequest(BaseModel):
     configs: List[SessionConfig] = Field(..., min_length=1, max_length=10)

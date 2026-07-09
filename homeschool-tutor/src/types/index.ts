@@ -24,6 +24,13 @@ export interface SessionConfig {
   faith_emphasis?: string
   current_unit?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
+  // Parent-set cap on total on-screen tutoring minutes before a mandatory eye-rest
+  // break is inserted. null/undefined = no cap beyond the normal grade-based
+  // block/break cycle in gradeTimer.ts.
+  screen_time_limit_minutes?: number | null
+  // Length of the mandatory break once screen_time_limit_minutes is reached.
+  // Floor of 30 is enforced in gradeTimer.ts regardless of what's stored here.
+  eye_rest_break_minutes?: number
 }
 
 export interface ChatMessage {

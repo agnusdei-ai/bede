@@ -6,10 +6,10 @@ setup:           ## Run interactive first-run wizard (generates .env, pulls imag
 	@bash setup.sh
 
 ##@ Day-to-day operations
-start:           ## Start Sage in the background
+start:           ## Start Bede in the background
 	docker compose up -d
 	@echo ""
-	@echo "Sage is starting — run 'make status' to check readiness."
+	@echo "Bede is starting — run 'make status' to check readiness."
 
 stop:            ## Stop all services (data stays in your database)
 	docker compose down

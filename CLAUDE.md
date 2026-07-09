@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-**Agnus Dei / Sage** — a self-hosted, LAN-deployed Catholic Charlotte Mason homeschool AI tutor. A parent configures each student's daily plan; students connect from their own tablets. Claude (Sage persona) tutors via Socratic dialogue, agentic tools, and subject-specific personas. All student data is AES-256-GCM encrypted at rest; voice biometrics authenticate children at session start.
+**Agnus Dei / Bede** — a self-hosted, LAN-deployed Catholic Charlotte Mason homeschool AI tutor. A parent configures each student's daily plan; students connect from their own tablets. Claude (Bede persona) tutors via Socratic dialogue, agentic tools, and subject-specific personas. All student data is AES-256-GCM encrypted at rest; voice biometrics authenticate children at session start.
 
 ## Running the Full Stack
 
@@ -92,7 +92,7 @@ models/
   schemas.py         Pydantic models: SessionConfig, Subject, TutorRequest, etc.
 ```
 
-**AI service pattern:** Two-block system prompt with prompt caching. The static block (`_build_static_prompt`) carries Sage's persona and rules and is marked `cache_control: ephemeral` — it's reused across turns. The subject block (`_build_subject_prompt`) changes per subject and is sent fresh. Tools block is also cached. The `[START]` sentinel triggers Sage's subject opener without showing a user bubble.
+**AI service pattern:** Two-block system prompt with prompt caching. The static block (`_build_static_prompt`) carries Bede's persona and rules and is marked `cache_control: ephemeral` — it's reused across turns. The subject block (`_build_subject_prompt`) changes per subject and is sent fresh. Tools block is also cached. The `[START]` sentinel triggers Bede's subject opener without showing a user bubble.
 
 **SSE streaming format:** Each chunk is `data: {"type":"text","content":"..."}`, `data: {"type":"tool","tool":"<name>","content":"..."}`, or `data: {"type":"done"}`. Tool calls are accumulated in a buffer, JSON-parsed at `ContentBlockStop`, then formatted and emitted.
 
@@ -110,7 +110,7 @@ pages/
   PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet"
   TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay
 components/
-  SocraticChat.tsx   Chat UI + SSE stream consumer + Sage opener ([START] sentinel)
+  SocraticChat.tsx   Chat UI + SSE stream consumer + Bede opener ([START] sentinel)
   SessionTimer.tsx   Countdown display; grade-aware (K-3 vs 4-8)
   SubjectNav.tsx     Sidebar subject list with completion tracking
   VoiceVerification.tsx  Child voice passphrase check at session start
@@ -122,7 +122,7 @@ services/
   voiceApi.ts        Voice enrollment/verification API calls
 hooks/
   useSpeechRecognition.ts  Web Speech API (Chrome/Edge/Safari); interim results
-  useTextToSpeech.ts       Browser TTS for Sage's responses
+  useTextToSpeech.ts       Browser TTS for Bede's responses
   useVoiceRecorder.ts      MediaRecorder for voice enrollment audio
 utils/
   gradeTimer.ts      K-3: 20-min per-subject; 4-8: 60-min block + 10-min break cycles

@@ -1,6 +1,6 @@
 version: '3.9'
 
-# ── Sage Homeschool Tutor — secure deployment ─────────────────────────────────
+# ── Bede Homeschool Tutor — secure deployment ─────────────────────────────────
 #
 # Required env vars (set in .env or shell — never hardcoded here):
 #   ANTHROPIC_API_KEY   Claude API key

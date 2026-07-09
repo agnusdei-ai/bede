@@ -2,9 +2,14 @@
 
 A self-hosted, LAN-deployed Catholic Charlotte Mason homeschool AI tutor. A parent
 configures each student's daily plan; students connect from their own tablets.
-Claude (the Sage persona) tutors via Socratic dialogue, agentic tools, and
+Claude (the Bede persona) tutors via Socratic dialogue, agentic tools, and
 subject-specific personas. All student data is AES-256-GCM encrypted at rest;
 voice biometrics authenticate children at session start.
+
+**New here?** [docs/PARENT_SETUP.md](docs/PARENT_SETUP.md) walks through the whole
+setup — including the security model you should understand before handing a tablet
+to your child. [docs/CHILD_GUIDE.md](docs/CHILD_GUIDE.md) is written directly to the
+child and needs no technical background to follow.
 
 ## Running the Full Stack
 

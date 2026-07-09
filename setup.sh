@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sage Homeschool Tutor — first-run setup wizard
+# Bede Homeschool Tutor — first-run setup wizard
 # Usage: bash setup.sh   (or: make setup)
 set -euo pipefail
 
@@ -19,7 +19,7 @@ blank()   { echo ""; }
 # ── Banner ────────────────────────────────────────────────────────────────────
 blank
 echo -e "${BOLD}╔══════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}║      Sage Homeschool Tutor — Setup       ║${RESET}"
+echo -e "${BOLD}║      Bede Homeschool Tutor — Setup       ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════╝${RESET}"
 blank
 
@@ -92,7 +92,7 @@ success "SECRET_KEY and MASTER_SECRET generated (64 hex chars each)"
 LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 if [[ -n "$LAN_IP" ]]; then
   CORS_ORIGINS="https://localhost,https://${LAN_IP},http://ui:80"
-  success "Detected LAN IP: ${LAN_IP} — tablets can reach Sage at https://${LAN_IP}"
+  success "Detected LAN IP: ${LAN_IP} — tablets can reach Bede at https://${LAN_IP}"
 else
   CORS_ORIGINS="https://localhost,http://ui:80"
   warn "Could not detect LAN IP. Add it to CORS_ORIGINS in .env if needed."
@@ -120,7 +120,7 @@ success ".env written (mode 600 — only readable by you)"
 
 # ── Start services ────────────────────────────────────────────────────────────
 blank
-echo -e "${BOLD}Starting Sage...${RESET}"
+echo -e "${BOLD}Starting Bede...${RESET}"
 docker compose up -d --build
 
 # ── Wait for health ───────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────────────
 blank
 echo -e "${BOLD}${GREEN}══════════════════════════════════════════${RESET}"
-echo -e "${BOLD}${GREEN}  Sage is running!${RESET}"
+echo -e "${BOLD}${GREEN}  Bede is running!${RESET}"
 echo -e "${BOLD}${GREEN}══════════════════════════════════════════${RESET}"
 blank
 echo "  Open in your browser:  https://localhost"

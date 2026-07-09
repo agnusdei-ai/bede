@@ -164,8 +164,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Prevent MIME type sniffing on API responses
         h["X-Permitted-Cross-Domain-Policies"] = "none"
         # Remove server fingerprinting
-        h.pop("server", None)
-        h.pop("x-powered-by", None)
+        if "server" in h:
+            del h["server"]
+        if "x-powered-by" in h:
+            del h["x-powered-by"]
 
         return response
 

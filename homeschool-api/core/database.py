@@ -19,13 +19,14 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-import os
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from core.config import settings
+
 
 def _build_engine():
-    url = os.environ.get("DATABASE_URL", "")
+    url = settings.database_url
     if not url:
         raise RuntimeError(
             "DATABASE_URL is not set. "

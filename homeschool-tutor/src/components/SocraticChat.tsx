@@ -127,6 +127,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
     // Append drawing indicator to message if a drawing is pending
     const fullMsg = pendingDrawing ? msg + (msg ? ' ' : '') + '[✏️ Drawing]' : msg
+    const drawingToSend = pendingDrawing
     setPendingDrawing(null)
 
     // Snapshot current-subject history BEFORE addUserMessage mutates displayMessages
@@ -143,7 +144,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         currentSubject,
         apiHistory,
         fullMsg,
-        abortRef.current.signal
+        abortRef.current.signal,
+        drawingToSend
       )
 
       for await (const chunk of stream) {

@@ -59,6 +59,7 @@ async def chat(
             history=req.conversation_history,
             child_message=req.child_message,
             db=db,
+            drawing_image=req.drawing_image,
         ):
             yield chunk
 

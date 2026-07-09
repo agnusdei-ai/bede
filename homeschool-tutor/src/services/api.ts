@@ -20,13 +20,20 @@ export async function login(role: 'parent' | 'child', credential: string): Promi
 
 // ── Streaming tutor chat ─────────────────────────────────────────────────────
 
+/** Strips the "data:image/png;base64," prefix a canvas data URL carries. */
+function stripDataUrlPrefix(dataUrl: string): string {
+  const idx = dataUrl.indexOf(',')
+  return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)
+}
+
 export async function* streamTutorChat(
   token: string,
   config: SessionConfig,
   subject: Subject,
   history: ChatMessage[],
   childMessage: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  drawingImageDataUrl?: string | null
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${BASE}/tutor/chat`, {
     method: 'POST',
@@ -39,6 +46,7 @@ export async function* streamTutorChat(
       current_subject: subject,
       conversation_history: history,
       child_message: childMessage,
+      drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
     }),
     signal,
   })

@@ -1,0 +1,102 @@
+{
+  "year": 8,
+  "description": "Ambleside Online Year 8 — Charlotte Mason living books curriculum for grade 8. Demanding literature, layered historical analysis, and mature written narration as the Rhetoric stage begins.",
+  "books": [
+    {
+      "id": "y8-new-world-churchill",
+      "title": "The New World (A History of the English-Speaking Peoples, Vol. 2)",
+      "author": "Winston Churchill",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 6,
+      "terms": [1, 2, 3],
+      "concept_tags": ["renaissance", "reformation", "exploration", "english-history", "empire", "world-history"],
+      "anti_twaddle": true,
+      "notes": "Dense, opinionated, adult prose — exactly the challenge this stage calls for. Push for written narration in the student's own analytical voice, not a summary. 'Do you agree with Churchill's judgment of this event, or would you argue differently?'"
+    },
+    {
+      "id": "y8-plutarchs-lives",
+      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "author": "Plutarch",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 6,
+      "terms": [1, 2, 3],
+      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "leadership", "rhetoric"],
+      "anti_twaddle": true,
+      "notes": "The final years of the multi-year Plutarch rotation. Expect the student to weigh competing virtues against each other, not just narrate events. 'Which of this man's qualities would you keep, and which would you reject?'"
+    },
+    {
+      "id": "y8-unknown-to-history",
+      "title": "Unknown to History: A Story of the Captivity of Mary of Scotland",
+      "author": "Charlotte M. Yonge",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 6,
+      "terms": [1, 2],
+      "concept_tags": ["tudor-england", "mary-queen-of-scots", "captivity", "loyalty", "historical-fiction"],
+      "anti_twaddle": true,
+      "notes": "Historical fiction that takes real captivity and real politics seriously. 'What does this story suggest about the cost of political loyalty?'"
+    },
+    {
+      "id": "y8-emma",
+      "title": "Emma",
+      "author": "Jane Austen",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 6,
+      "terms": [1, 2, 3],
+      "concept_tags": ["character", "self-knowledge", "social-comedy", "irony", "growth", "friendship"],
+      "anti_twaddle": true,
+      "notes": "Austen's most subtly ironic heroine — someone who means well and is repeatedly wrong. 'Where does Emma deceive herself, and how does she find that out?'"
+    },
+    {
+      "id": "y8-pickwick-papers",
+      "title": "The Pickwick Papers (selections)",
+      "author": "Charles Dickens",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 6,
+      "terms": [2, 3],
+      "concept_tags": ["comedy", "friendship", "english-society", "satire", "character"],
+      "anti_twaddle": true,
+      "notes": "Dickens at his most purely comic — good contrast against the heavier history reading this term. 'What is Dickens making fun of here, and is it kind or cruel humor?'"
+    },
+    {
+      "id": "y8-father-brown",
+      "title": "The Innocence of Father Brown (selected stories)",
+      "author": "G. K. Chesterton",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 5,
+      "terms": [2, 3],
+      "concept_tags": ["mystery", "detective", "humility", "wisdom", "moral-reasoning"],
+      "anti_twaddle": true,
+      "notes": "A quiet priest who solves crimes through moral insight rather than forensic cleverness. 'What did Father Brown understand about the criminal that the detectives missed?'"
+    },
+    {
+      "id": "y8-merchant-of-venice",
+      "title": "The Merchant of Venice",
+      "author": "William Shakespeare",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 6,
+      "terms": [1],
+      "concept_tags": ["shakespeare", "mercy", "justice", "prejudice", "drama", "rhetoric"],
+      "anti_twaddle": true,
+      "notes": "The full play, after the Lamb retelling met years earlier. Read some scenes aloud, in parts. 'Is Portia's famous mercy speech actually merciful in how the trial ends?'"
+    },
+    {
+      "id": "y8-everyman",
+      "title": "Everyman (medieval morality play)",
+      "author": "Anonymous",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 5,
+      "terms": [1],
+      "concept_tags": ["allegory", "morality-play", "medieval-literature", "mortality", "virtue"],
+      "anti_twaddle": true,
+      "notes": "A short, strange, entirely allegorical play — every character is a virtue or vice with a name to match. 'Which of Everyman's companions actually goes with him in the end, and why?'"
+    }
+  ]
+}

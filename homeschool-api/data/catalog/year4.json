@@ -1,0 +1,126 @@
+{
+  "year": 4,
+  "description": "Ambleside Online Year 4 — Charlotte Mason living books curriculum for grade 4. First encounters with Plutarch's Lives and Shakespeare; broader world history spanning the 17th–18th centuries; richer, more analytical narration.",
+  "books": [
+    {
+      "id": "y4-george-washingtons-world",
+      "title": "George Washington's World",
+      "author": "Genevieve Foster",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["colonial-america", "revolution", "world-history", "biography", "timeline", "leadership"],
+      "anti_twaddle": true,
+      "notes": "Foster sets Washington's life beside what was happening across the whole world at the same time. Great for building a sense of simultaneous history. 'What was happening in another country the same year Washington was a boy?'"
+    },
+    {
+      "id": "y4-trial-and-triumph",
+      "title": "Trial and Triumph: Stories from Church History",
+      "author": "Richard Hannula",
+      "subject": "saints",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["saints", "courage", "faith", "persecution", "church-history", "perseverance"],
+      "anti_twaddle": true,
+      "notes": "Short, vivid chapters on real believers who held to their faith under real cost. Ask: 'What gave this person the courage to keep going?'"
+    },
+    {
+      "id": "y4-plutarchs-lives",
+      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "author": "Plutarch",
+      "subject": "history",
+      "type": "spine",
+      "difficulty": 4,
+      "terms": [1, 2, 3],
+      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "character", "leadership"],
+      "anti_twaddle": true,
+      "notes": "Continues the Plutarch rotation begun in Year 3, in the original archaic North translation. Read slowly, one incident at a time. 'Was this leader's choice wise, or only brave?'"
+    },
+    {
+      "id": "y4-age-of-fable",
+      "title": "Age of Fable (Bulfinch's Mythology)",
+      "author": "Thomas Bulfinch",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["mythology", "ancient-greece", "ancient-rome", "imagination", "storytelling", "allusion"],
+      "anti_twaddle": true,
+      "notes": "The Greek and Roman myths that shaped centuries of Western literature and art. Not history — story. 'Why do you think people told this story to explain the world?'"
+    },
+    {
+      "id": "y4-robinson-crusoe",
+      "title": "Robinson Crusoe",
+      "author": "Daniel Defoe",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2],
+      "concept_tags": ["survival", "resourcefulness", "solitude", "providence", "adventure", "self-reliance"],
+      "anti_twaddle": true,
+      "notes": "One man's careful, practical rebuilding of a whole life from nothing. Good for discussing patience and providence. 'What would you have done differently on the island?'"
+    },
+    {
+      "id": "y4-merchant-of-venice-lamb",
+      "title": "Tales from Shakespeare: The Merchant of Venice (Lamb's prose retelling)",
+      "author": "Charles and Mary Lamb",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 3,
+      "terms": [1],
+      "concept_tags": ["shakespeare", "mercy", "justice", "friendship", "drama"],
+      "anti_twaddle": true,
+      "notes": "First taste of Shakespeare, in the Lambs' gentle prose retelling before the full play comes later in the Charlotte Mason rotation. 'Was Portia's solution fair to everyone?'"
+    },
+    {
+      "id": "y4-madam-how-lady-why",
+      "title": "Madam How and Lady Why (first half)",
+      "author": "Charles Kingsley",
+      "subject": "science",
+      "type": "spine",
+      "difficulty": 3,
+      "terms": [1, 2, 3],
+      "concept_tags": ["geology", "earthquakes", "volcanoes", "earth-science", "observation", "wonder"],
+      "anti_twaddle": true,
+      "notes": "Kingsley explains earth science as a conversation with a curious child. Read a chapter, then go find a real example outdoors if possible. 'What question would you ask Madam How?'"
+    },
+    {
+      "id": "y4-storybook-of-science",
+      "title": "The Storybook of Science",
+      "author": "Jean-Henri Fabre",
+      "subject": "science",
+      "type": "supplemental",
+      "difficulty": 3,
+      "terms": [2, 3],
+      "concept_tags": ["insects", "natural-history", "observation", "curiosity", "france"],
+      "anti_twaddle": true,
+      "notes": "Fabre's grandfatherly narrator answers a child's endless nature questions. Excellent read-aloud pacing for this age. 'What did Uncle Paul notice that most people would miss?'"
+    },
+    {
+      "id": "y4-gregor-mendel",
+      "title": "Gregor Mendel: The Friar Who Grew Peas",
+      "author": "Cheryl Bardoe",
+      "subject": "science",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [2],
+      "concept_tags": ["genetics", "monastery", "patience", "scientific-method", "biography"],
+      "anti_twaddle": true,
+      "notes": "A monk-scientist whose quiet, patient counting of pea plants in his monastery garden founded modern genetics. 'Why did it take so many years of counting before Mendel understood the pattern?'"
+    },
+    {
+      "id": "y4-handbook-of-nature-study",
+      "title": "Handbook of Nature Study (selections)",
+      "author": "Anna Botsford Comstock",
+      "subject": "nature_study",
+      "type": "reference",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["nature-journal", "observation", "seasons", "reference", "outdoor-study"],
+      "anti_twaddle": true,
+      "notes": "A reference, not a read-aloud — dip in for whatever the child has just found outside. Pair every entry with a nature journal sketch. 'Draw what you saw, then look up one thing you didn't know about it.'"
+    }
+  ]
+}

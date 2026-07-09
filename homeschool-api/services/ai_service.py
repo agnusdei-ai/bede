@@ -299,9 +299,35 @@ def check_safeguarding(message: str) -> bool:
     return False
 
 
+_GRADE_DESCRIPTORS = {
+    "K": "a Kindergarten student", "0": "a Kindergarten student",
+    "1": "a first-grade student", "2": "a second-grade student", "3": "a third-grade student",
+    "4": "a fourth-grade student", "5": "a fifth-grade student", "6": "a sixth-grade student",
+    "7": "a seventh-grade student", "8": "an eighth-grade student",
+}
+
+
+def _grade_descriptor(grade: str) -> str:
+    """Natural-language grade phrase. Avoids concatenating '{grade}th-grade', which
+    produced 'a Kth-grade student' for Kindergarten and 'a 8th-grade student' instead
+    of 'an eighth-grade student'."""
+    return _GRADE_DESCRIPTORS.get(grade.strip().upper(), f"a student in grade {grade}")
+
+
 def _build_static_prompt(config: SessionConfig) -> str:
     """Tutor persona, grade stage, and rules — constant within a session. Prompt-cacheable."""
-    return f"""You are Bede — a warm, wise, and patient Socratic tutor following the Charlotte Mason educational philosophy. You are tutoring {config.student_name}, a {config.grade}th-grade student.
+    return f"""You are Bede — a Benedictine monk-scholar in the spirit of the Venerable Bede of Jarrow (c. 673–735), \
+given to the monastery as a boy of seven and never left it, spending a lifetime among books, the garden, and the \
+quiet rhythm of prayer and work. He was history's most patient student before he was anyone's teacher: trained in \
+Scripture, history, nature, music, and the reckoning of time, and beloved by pupils who came from across the land \
+because he taught with humility and delight rather than authority. He is remembered for two things above all — \
+the careful, honest historian who checked his sources before he trusted them, and the dying man who kept dictating \
+his translation of Scripture to a young scribe until the very last sentence was finished. You carry that spirit — \
+patient, humble, endlessly curious, unhurried — but you wear it lightly. Speak plainly and warmly, the way a kind \
+teacher does, not in old or stiff language a child would struggle to follow. An occasional small touch of monastery \
+life (the garden, the scriptorium, the turning seasons) is welcome when it fits naturally — never forced, never in \
+every message. You are tutoring {config.student_name}, {_grade_descriptor(config.grade)}, using the Charlotte Mason \
+educational philosophy.
 
 {_STAGE_GUIDANCE[config.grade_stage]}
 
@@ -325,20 +351,25 @@ ETHICAL BOUNDARIES — never cross these:
 
 You have access to tools: use `request_narration` after learning moments, `offer_socratic_hint` when stuck, `celebrate_discovery` for breakthroughs, `connect_to_faith` when it fits naturally, and `assess_narration` silently after 2-3 follow-up exchanges following a narration (the child never sees this).
 
+When a message includes a drawing or handwritten work, look at it directly and respond to what you actually see there — treat it as their answer, exactly as you would a spoken or typed one. Comment on specifics (what they wrote, drew, or got right) rather than acknowledging generically that "a drawing was submitted."
+
 Remember: your goal is to kindle delight in learning, not to transfer information. The child who discovers is the child who remembers."""
 
 
 def _infer_year(config: SessionConfig) -> "int | None":
     """
     Rough heuristic: map grade string to Ambleside Online year.
-    AO Year 1 ~ grades K-1, Year 2 ~ grades 1-2, Year 3 ~ grades 2-3.
-    Returns None if the grade cannot be mapped.
+    AO Year 1 ~ grades K-1, Year 2 ~ grades 1-2, Year 3 ~ grades 2-3;
+    from Year 4 on, AO years track grade level 1:1.
+    Returns None if the grade cannot be mapped, or if no catalog file exists
+    for that year — get_catalog_note() degrades gracefully in that case.
     """
     grade = config.grade.strip().upper()
     mapping: dict = {
         "K": 1, "0": 1, "1": 1,
         "2": 2,
         "3": 3,
+        "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
     }
     return mapping.get(grade)
 
@@ -457,6 +488,7 @@ async def stream_tutor_response(
     history: List[ChatMessage],
     child_message: str,
     db: Optional["AsyncSession"] = None,
+    drawing_image: Optional[str] = None,
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
@@ -464,7 +496,18 @@ async def stream_tutor_response(
     """
     # Build message list and apply sliding window to cap per-turn input tokens
     messages = [{"role": m.role, "content": m.content} for m in history]
-    messages.append({"role": "user", "content": child_message})
+    if drawing_image:
+        # Multimodal turn — Claude reads the handwriting/drawing directly rather
+        # than receiving a text placeholder for it.
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": drawing_image}},
+                {"type": "text", "text": child_message},
+            ],
+        })
+    else:
+        messages.append({"role": "user", "content": child_message})
     messages = messages[-_HISTORY_WINDOW:]
 
     # Two-block system prompt: static block is prompt-cached across turns and subjects;

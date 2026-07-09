@@ -84,6 +84,10 @@ class TutorRequest(BaseModel):
     current_subject: Subject
     conversation_history: List[ChatMessage] = []
     child_message: str = Field(..., min_length=1, max_length=2000)
+    # Base64 PNG (no "data:image/..." prefix) from the handwriting canvas, sent to
+    # Claude as an image so Bede reads the child's actual work instead of a text
+    # placeholder. ~8MB base64 ceiling comfortably covers a canvas drawing.
+    drawing_image: Optional[str] = Field(default=None, max_length=8_000_000)
 
 
 class LoginRequest(BaseModel):

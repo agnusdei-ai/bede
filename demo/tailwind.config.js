@@ -3,6 +3,23 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Tailwind's default type scale, each size up 15% — applies globally to
+      // every text-* utility class without touching the spacing scale.
+      fontSize: {
+        xs: ['0.8625rem', { lineHeight: '1.15rem' }],
+        sm: ['1.00625rem', { lineHeight: '1.4375rem' }],
+        base: ['1.15rem', { lineHeight: '1.725rem' }],
+        lg: ['1.29375rem', { lineHeight: '2.0125rem' }],
+        xl: ['1.4375rem', { lineHeight: '2.0125rem' }],
+        '2xl': ['1.725rem', { lineHeight: '2.3rem' }],
+        '3xl': ['2.15625rem', { lineHeight: '2.5875rem' }],
+        '4xl': ['2.5875rem', { lineHeight: '2.875rem' }],
+        '5xl': ['3.45rem', { lineHeight: '1' }],
+        '6xl': ['4.3125rem', { lineHeight: '1' }],
+        '7xl': ['5.175rem', { lineHeight: '1' }],
+        '8xl': ['6.9rem', { lineHeight: '1' }],
+        '9xl': ['9.2rem', { lineHeight: '1' }],
+      },
       colors: {
         sage: {
           50: '#f0f7f0',

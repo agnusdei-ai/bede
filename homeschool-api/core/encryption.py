@@ -19,7 +19,6 @@ import struct
 from typing import Optional
 
 from Crypto.Cipher import AES
-from Crypto.Hash import HMAC as CryptoHMAC
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
@@ -61,13 +60,22 @@ def _aes_decrypt(blob: bytes, key: bytes) -> bytes:
 # ── Key management ───────────────────────────────────────────────────────────
 
 def _derive_kek(master_secret: str, salt: bytes) -> bytes:
-    """Derives Key Encryption Key. CPU-bound (~1.5 s) — run in executor."""
+    """
+    Derives Key Encryption Key. CPU-bound (~0.3-1.5s depending on hardware) —
+    run in executor.
+
+    Uses hmac_hash_module (pycryptodome's optimized C-level PRF loop), not a
+    custom Python prf= callback — the callback form calls back into Python
+    600,000 times and was measured at ~15s here, ~42x slower for identical
+    output. That gap matters most on the lowest-power hosts this targets
+    (Raspberry Pi), where it could stretch first-boot startup considerably.
+    """
     return PBKDF2(
         master_secret.encode("utf-8"),
         salt,
         dkLen=32,
         count=_PBKDF2_ITERS,
-        prf=lambda p, s: CryptoHMAC.new(p, s, SHA256).digest(),
+        hmac_hash_module=SHA256,
     )
 
 

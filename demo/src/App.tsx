@@ -16,6 +16,16 @@ const LS_KEYS = {
   pin: 'bede_demo_pin',
 }
 
+// Conversation progress — localStorage, same as the student profile/API keys: a
+// student closing and reopening the app (or the tablet being turned off and back on)
+// should resume the same conversation under the same login, not restart it. Cleared
+// only by the explicit "New Session" action below, or a full Reset.
+const SESSION_KEYS = {
+  messages: 'bede_demo_session_messages',
+  subject: 'bede_demo_session_subject',
+  openerFired: 'bede_demo_session_opener_fired',
+}
+
 interface DisplayMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -141,22 +151,34 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
   const elevenLabsKey = localStorage.getItem(LS_KEYS.elevenLabsKey)
   const elevenLabsVoiceId = localStorage.getItem(LS_KEYS.elevenLabsVoiceId)
 
-  const [subject, setSubject] = useState<Subject>('living_books')
-  const [messages, setMessages] = useState<DisplayMessage[]>([])
+  const [subject, setSubject] = useState<Subject>(
+    () => (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) ?? 'living_books',
+  )
+  const [messages, setMessages] = useState<DisplayMessage[]>(() => {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEYS.messages) ?? '[]') } catch { return [] }
+  })
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [ttsEnabled, setTtsEnabled] = useState(true)
+  // Bumped by "New Session" so the opener effect below re-fires even when the
+  // subject it resets to is unchanged from what was already selected.
+  const [sessionEpoch, setSessionEpoch] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const openerFired = useRef(new Set<Subject>())
+  const openerFired = useRef<Set<Subject>>(
+    new Set(JSON.parse(localStorage.getItem(SESSION_KEYS.openerFired) ?? '[]')),
+  )
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(elevenLabsKey, elevenLabsVoiceId)
   const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
     useSpeechRecognition((transcript) => setInput((prev) => (prev ? prev + ' ' + transcript : transcript)))
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  useEffect(() => { localStorage.setItem(SESSION_KEYS.subject, subject) }, [subject])
+  useEffect(() => { localStorage.setItem(SESSION_KEYS.messages, JSON.stringify(messages)) }, [messages])
 
   const historyForApi = useCallback((): ChatMessage[] => {
     return messages
@@ -200,9 +222,26 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
   useEffect(() => {
     if (openerFired.current.has(subject)) return
     openerFired.current.add(subject)
+    localStorage.setItem(SESSION_KEYS.openerFired, JSON.stringify([...openerFired.current]))
     runStream('[START]', null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject])
+  }, [subject, sessionEpoch])
+
+  // Clears the conversation only — keeps the API key and student setup, unlike onReset.
+  const startNewSession = () => {
+    stopSpeech()
+    stopListening()
+    abortRef.current?.abort()
+    localStorage.removeItem(SESSION_KEYS.messages)
+    localStorage.removeItem(SESSION_KEYS.subject)
+    localStorage.removeItem(SESSION_KEYS.openerFired)
+    openerFired.current = new Set()
+    setMessages([])
+    setSubject('living_books')
+    setInput('')
+    setPendingDrawing(null)
+    setSessionEpoch((n) => n + 1)
+  }
 
   const send = () => {
     const msg = input.trim()
@@ -234,7 +273,20 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
         >
           {SUBJECTS.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
         </select>
-        <button onClick={onReset} className="text-xs text-gray-400 hover:text-gray-600 underline">Reset</button>
+        <button
+          onClick={startNewSession}
+          title="Start a fresh conversation — keeps your API key and student setup"
+          className="text-xs text-navy-500 hover:text-navy-700 underline"
+        >
+          New Session
+        </button>
+        <button
+          onClick={onReset}
+          title="Clear everything, including your API key and student setup"
+          className="text-xs text-gray-400 hover:text-gray-600 underline"
+        >
+          Reset
+        </button>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -394,6 +446,7 @@ export default function App() {
 
   const handleReset = () => {
     Object.values(LS_KEYS).forEach((k) => localStorage.removeItem(k))
+    Object.values(SESSION_KEYS).forEach((k) => localStorage.removeItem(k))
     setStudent(null)
     setPinVerified(false)
   }

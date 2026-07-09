@@ -22,10 +22,22 @@ make status       # container health + /api/health check
 
 # Install Caddy's local CA on each tablet (run once per device)
 make caddy-trust
+
+# iPad/iPad Pro shortcut: one profile install instead of the manual steps above
+# (trusts the cert AND adds a Home Screen icon in a single tap)
+make ipad-profile
 ```
 
 The stack is: **Caddy (TLS/443) → nginx (UI/80) → FastAPI (API/8000)**. Caddy generates
 a local CA for LAN HTTPS — tablets need its root cert installed once.
+
+For iPads specifically, `make ipad-profile` generates `bede-ipad.mobileconfig`, which
+bundles the CA trust and a "Bede" Home Screen icon into one installable profile — AirDrop
+it to the iPad (or host it and open the link in Safari), then **Settings → Profile
+Downloaded → Install**. iOS still requires one manual step no matter how the cert is
+delivered: **Settings → General → About → Certificate Trust Settings** → enable full
+trust for "Bede LAN Root CA". After that, tapping the Home Screen icon opens Bede directly
+over HTTPS with no browser chrome.
 
 ## Local Development (without Docker)
 

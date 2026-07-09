@@ -3,6 +3,10 @@
 .env.backup
 .env.local
 
+# Generated per-deployment — embeds this deployment's real CA cert
+sage-root-ca.crt
+bede-ipad.mobileconfig
+
 # Claude Code agent worktrees (ephemeral, not source)
 .claude/
 

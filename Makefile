@@ -50,6 +50,12 @@ caddy-trust:     ## Export Caddy's root CA cert — install on each LAN tablet o
 	@echo "  macOS        : Double-click → Keychain Access → set to Always Trust"
 	@echo ""
 	@echo "After installing, open https://$$(hostname -I | awk '{print $$1}') on the tablet."
+	@echo ""
+	@echo "iPad/iPad Pro shortcut: run 'make ipad-profile' for a single-tap install"
+	@echo "(cert trust + Home Screen icon in one profile) instead of the manual steps above."
+
+ipad-profile:    ## Generate one .mobileconfig for iPad: CA trust + Home Screen icon in a single install
+	@bash ipad-profile.sh
 
 ##@ Maintenance
 update:          ## Pull latest images and restart

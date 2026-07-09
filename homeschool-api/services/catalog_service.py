@@ -19,12 +19,16 @@ log = logging.getLogger(__name__)
 # ── Load catalog JSON files at import time ────────────────────────────────────
 
 _DATA_DIR = Path(__file__).parent.parent / "data" / "catalog"
+_VISUAL_AIDS_FILE = Path(__file__).parent.parent / "data" / "visual_aids.json"
 
 # _CATALOG: year (int) -> {"year": int, "description": str, "books": list[dict]}
 _CATALOG: dict[int, dict] = {}
 
 # _BOOK_INDEX: book_id (str) -> book dict (with "year" injected)
 _BOOK_INDEX: dict[str, dict] = {}
+
+# _VISUAL_AIDS: visual_aid id (str) -> entry dict
+_VISUAL_AIDS: dict[str, dict] = {}
 
 
 def _load_catalog() -> None:
@@ -54,7 +58,23 @@ def _load_catalog() -> None:
         log.info("Catalog ready: %d years, %d books total", len(_CATALOG), len(_BOOK_INDEX))
 
 
+def _load_visual_aids() -> None:
+    """Load the curated picture-study/map/artifact catalog for show_visual_aid."""
+    if not _VISUAL_AIDS_FILE.exists():
+        log.warning("Visual aids file not found: %s — show_visual_aid will have nothing to offer", _VISUAL_AIDS_FILE)
+        return
+    try:
+        with _VISUAL_AIDS_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        for entry in data.get("visual_aids", []):
+            _VISUAL_AIDS[entry["id"]] = entry
+        log.info("Visual aids loaded: %d entries", len(_VISUAL_AIDS))
+    except (json.JSONDecodeError, KeyError) as exc:
+        log.warning("Failed to load visual aids file: %s", exc)
+
+
 _load_catalog()
+_load_visual_aids()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -155,6 +175,25 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
         lines.append(f"Supplemental: {titles}")
 
     return " ".join(lines)
+
+
+def get_visual_aids(subject: str) -> list[dict]:
+    """
+    Return curated visual aids (picture study art, historical maps/artifacts)
+    available for a subject — only "art_music" and "history" have entries today.
+    Used by ai_service._get_visual_aids_context() to tell Bede which ids are
+    valid to reference for show_visual_aid, so it never invents one.
+    """
+    return [v for v in _VISUAL_AIDS.values() if v.get("subject") == subject]
+
+
+def get_visual_aid(visual_aid_id: str) -> dict | None:
+    """
+    Server-side authoritative lookup for a single visual aid by id.
+    Always resolve show_visual_aid's tool input through this — never pass a
+    model-supplied id (or any other field it invents) straight to the client.
+    """
+    return _VISUAL_AIDS.get(visual_aid_id)
 
 
 def get_subject_plan(year: int | None, subject: str) -> str | None:

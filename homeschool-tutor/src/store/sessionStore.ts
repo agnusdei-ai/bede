@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { SessionConfig, Subject, ChatMessage } from '../types'
+import type { SessionConfig, Subject, ChatMessage, VisualAidData } from '../types'
 import { SUBJECTS } from '../types'
 
 interface DisplayMessage {
@@ -8,6 +8,7 @@ interface DisplayMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   tool?: string
+  visualAid?: VisualAidData
   timestamp: Date
 }
 
@@ -45,6 +46,7 @@ interface SessionState {
   addUserMessage: (content: string) => void
   appendAssistantChunk: (content: string) => void
   addToolMessage: (tool: string, content: string) => void
+  addVisualAidMessage: (visualAid: VisualAidData) => void
   finalizeAssistantMessage: () => void
   nextSubject: () => void
   endSession: () => void
@@ -173,6 +175,19 @@ export const useSessionStore = create<SessionState>()(
           .map((m) => ({ ...m, id: nextId() })),
         { id: nextId(), role: 'assistant' as const, content, tool, timestamp: new Date() },
         // Reopen streaming slot for any text that follows the tool call
+        { id: 'streaming-response', role: 'assistant' as const, content: '', timestamp: new Date() },
+      ],
+    }))
+  },
+
+  addVisualAidMessage: (visualAid) => {
+    set((s) => ({
+      displayMessages: [
+        ...s.displayMessages.filter((m) => m.id !== 'streaming-response'),
+        ...s.displayMessages
+          .filter((m) => m.id === 'streaming-response' && m.content)
+          .map((m) => ({ ...m, id: nextId() })),
+        { id: nextId(), role: 'assistant' as const, content: '', visualAid, timestamp: new Date() },
         { id: 'streaming-response', role: 'assistant' as const, content: '', timestamp: new Date() },
       ],
     }))

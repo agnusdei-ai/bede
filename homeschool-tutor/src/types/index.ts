@@ -38,11 +38,22 @@ export interface ChatMessage {
   content: string
 }
 
+export interface VisualAidData {
+  id: string
+  title: string
+  creator: string
+  year: string
+  wiki_title: string
+  description: string
+  category: string
+}
+
 export interface StreamChunk {
-  type: 'text' | 'tool' | 'done' | 'assessment'
+  type: 'text' | 'tool' | 'done' | 'assessment' | 'visual_aid'
   content?: string
   tool?: string
   data?: { subject: string; total_score: number; adaptive_signal: string }
+  visualAid?: VisualAidData
 }
 
 export interface SubjectInfo {

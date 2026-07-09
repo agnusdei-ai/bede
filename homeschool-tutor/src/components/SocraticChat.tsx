@@ -5,6 +5,7 @@ import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
+import VisualAidCard from './VisualAidCard'
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const [input, setInput] = useState('')
@@ -25,6 +26,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     addUserMessage,
     appendAssistantChunk,
     addToolMessage,
+    addVisualAidMessage,
     finalizeAssistantMessage,
     setStreaming,
   } = useSessionStore()
@@ -72,6 +74,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           speak(chunk.content)
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
+        } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
+          addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'done') {
           break
         }
@@ -84,7 +88,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       finalizeAssistantMessage()
       setStreaming(false)
     }
-  }, [appendAssistantChunk, addToolMessage, finalizeAssistantMessage, setStreaming, speak])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -157,6 +161,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           speak(chunk.content)
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
+        } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
+          addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'done') {
           break
         }
@@ -171,7 +177,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     }
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
-    addUserMessage, appendAssistantChunk, addToolMessage, finalizeAssistantMessage,
+    addUserMessage, appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage,
     setStreaming, stopSpeech, stopListening, speak,
   ])
 
@@ -325,6 +331,7 @@ interface MsgProps {
     role: 'user' | 'assistant' | 'system'
     content: string
     tool?: string
+    visualAid?: import('../types').VisualAidData
     timestamp: Date
   }
   studentName: string
@@ -339,6 +346,10 @@ function MessageBubble({ msg, studentName }: MsgProps) {
         </div>
       </div>
     )
+  }
+
+  if (msg.visualAid) {
+    return <VisualAidCard aid={msg.visualAid} />
   }
 
   if (msg.tool) {

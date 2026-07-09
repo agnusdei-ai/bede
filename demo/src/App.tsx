@@ -2,11 +2,12 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles } from 'lucide-react'
 import {
   streamTutorChat, SUBJECTS, SUBJECT_LABELS,
-  type Subject, type StudentProfile, type ChatMessage, type GradeStage,
+  type Subject, type StudentProfile, type ChatMessage, type GradeStage, type VisualAidData,
 } from './claude'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech } from './useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
+import VisualAidCard from './VisualAidCard'
 
 const LS_KEYS = {
   anthropicKey: 'bede_demo_anthropic_key',
@@ -31,6 +32,7 @@ interface DisplayMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   tool?: string
+  visualAid?: VisualAidData
 }
 
 const MIN_PIN_LENGTH = 6
@@ -201,6 +203,8 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
         } else if (chunk.type === 'tool') {
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: chunk.tool }])
           if (ttsEnabled) speak(chunk.content)
+        } else if (chunk.type === 'visual_aid') {
+          setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
         } else if (chunk.type === 'done') {
           break
         }
@@ -355,6 +359,9 @@ function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: ()
 function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName: string }) {
   if (msg.role === 'system') {
     return <div className="flex justify-center"><div className="text-xs text-gray-400 bg-white border border-gray-100 rounded-full px-3 py-1 italic">{msg.content}</div></div>
+  }
+  if (msg.visualAid) {
+    return <VisualAidCard aid={msg.visualAid} />
   }
   if (msg.tool) {
     const isCelebration = msg.tool === 'celebrate_discovery'

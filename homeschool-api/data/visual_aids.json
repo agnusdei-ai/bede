@@ -1,0 +1,125 @@
+{
+  "_comment": "Curated visual aids for Picture Study (art_music) and History maps/artifacts. wiki_title is the exact Wikipedia article title, resolved client-side via the Wikipedia REST summary API for a live thumbnail rather than a hardcoded image URL — keeps this catalog resilient to file/path changes and doesn't require hosting the images ourselves. If a title's thumbnail ever fails to resolve, the UI falls back to a plain text caption instead of a broken image.",
+  "visual_aids": [
+    {
+      "id": "vermeer_girl_pearl",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Girl with a Pearl Earring",
+      "creator": "Johannes Vermeer",
+      "year": "c. 1665",
+      "wiki_title": "Girl with a Pearl Earring",
+      "description": "A luminous portrait study — notice the light on her face and the single pearl earring."
+    },
+    {
+      "id": "constable_hay_wain",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Hay Wain",
+      "creator": "John Constable",
+      "year": "1821",
+      "wiki_title": "The Hay Wain",
+      "description": "An English countryside scene — notice the clouds, the water, and the horse-drawn cart."
+    },
+    {
+      "id": "davinci_mona_lisa",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Mona Lisa",
+      "creator": "Leonardo da Vinci",
+      "year": "c. 1503",
+      "wiki_title": "Mona Lisa",
+      "description": "Study her expression and the hazy landscape behind her."
+    },
+    {
+      "id": "van_gogh_starry_night",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Starry Night",
+      "creator": "Vincent van Gogh",
+      "year": "1889",
+      "wiki_title": "The Starry Night",
+      "description": "Notice the swirling sky and the quiet village below."
+    },
+    {
+      "id": "wood_american_gothic",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "American Gothic",
+      "creator": "Grant Wood",
+      "year": "1930",
+      "wiki_title": "American Gothic",
+      "description": "A farmer and his daughter — notice their expressions and the house behind them."
+    },
+    {
+      "id": "raphael_school_of_athens",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The School of Athens",
+      "creator": "Raphael",
+      "year": "1511",
+      "wiki_title": "The School of Athens",
+      "description": "Philosophers gathered together — can you find Plato and Aristotle in the center?"
+    },
+    {
+      "id": "map_roman_empire",
+      "subject": "history",
+      "category": "map",
+      "title": "The Roman Empire",
+      "creator": "",
+      "year": "",
+      "wiki_title": "Roman Empire",
+      "description": "Trace the boundaries on the map — how far did Rome's reach extend?"
+    },
+    {
+      "id": "roman_forum",
+      "subject": "history",
+      "category": "artifact",
+      "title": "The Roman Forum",
+      "creator": "",
+      "year": "",
+      "wiki_title": "Roman Forum",
+      "description": "The heart of ancient Roman public life — imagine the crowds and speeches held here."
+    },
+    {
+      "id": "map_ancient_egypt",
+      "subject": "history",
+      "category": "map",
+      "title": "Ancient Egypt",
+      "creator": "",
+      "year": "",
+      "wiki_title": "Ancient Egypt",
+      "description": "Find the Nile River on the map — why might a civilization grow up along it?"
+    },
+    {
+      "id": "hadrians_wall",
+      "subject": "history",
+      "category": "artifact",
+      "title": "Hadrian's Wall",
+      "creator": "",
+      "year": "",
+      "wiki_title": "Hadrian's Wall",
+      "description": "A real wall built to mark and defend the edge of an empire."
+    },
+    {
+      "id": "bayeux_tapestry",
+      "subject": "history",
+      "category": "artifact",
+      "title": "The Bayeux Tapestry",
+      "creator": "",
+      "year": "",
+      "wiki_title": "Bayeux Tapestry",
+      "description": "A stitched record of a real battle — notice how the story unfolds from left to right."
+    },
+    {
+      "id": "map_silk_road",
+      "subject": "history",
+      "category": "map",
+      "title": "The Silk Road",
+      "creator": "",
+      "year": "",
+      "wiki_title": "Silk Road",
+      "description": "Trace the trade routes on the map — what kinds of goods and ideas traveled along them?"
+    }
+  ]
+}

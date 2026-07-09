@@ -76,7 +76,7 @@ function SetupScreen({ onReady }: { onReady: () => void }) {
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
         <div className="text-center mb-6">
-          <img src="/bede-portrait.jpg" alt="Bede" className="w-24 h-24 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-sm" />
+          <img src="/bede-portrait.jpg" alt="Bede" className="w-36 h-36 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
           <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
         </div>

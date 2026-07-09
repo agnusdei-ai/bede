@@ -112,7 +112,7 @@ export default function Login() {
           <img
             src="/bede-portrait.jpg"
             alt="Bede"
-            className="w-28 h-28 mx-auto mb-4 rounded-full drop-shadow-sm object-cover object-top"
+            className="w-44 h-44 mx-auto mb-4 rounded-full drop-shadow-md object-cover object-top"
           />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede</h1>
           <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>

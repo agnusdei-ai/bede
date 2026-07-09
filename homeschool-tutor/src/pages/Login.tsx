@@ -110,11 +110,11 @@ export default function Login() {
         {/* Header */}
         <div className="text-center mb-8">
           <img
-            src="/agnus-dei.png"
-            alt="Agnus Dei"
-            className="w-20 h-20 mx-auto mb-4 drop-shadow-sm"
+            src="/bede-portrait.svg"
+            alt="Bede"
+            className="w-28 h-28 mx-auto mb-4 rounded-full drop-shadow-sm object-cover"
           />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Agnus Dei</h1>
+          <h1 className="text-2xl font-display font-bold text-gray-800">Bede</h1>
           <p className="text-sm text-gray-500 mt-1">Your Charlotte Mason Homeschool Tutor</p>
           {studentFromUrl && (
             <p className="text-sm font-medium text-navy-700 mt-2">

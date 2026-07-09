@@ -27,6 +27,18 @@
       "notes": "A reluctant hero discovers courage he didn't know he had. 'How is Bilbo different at the end of the story than at the beginning, and what changed him?'"
     },
     {
+      "id": "y6-silver-chair",
+      "title": "The Silver Chair",
+      "author": "C. S. Lewis",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 4,
+      "terms": [2, 3],
+      "concept_tags": ["discernment", "perseverance", "faith", "adventure", "deception", "courage"],
+      "anti_twaddle": true,
+      "notes": "The signs Aslan gives at the start matter more than what looks obvious later on — a good match for the Logic Stage's growing skepticism. 'Why is remembering the signs harder than trusting your own judgment in the moment?'"
+    },
+    {
       "id": "y6-plutarchs-lives",
       "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
       "author": "Plutarch",

@@ -123,6 +123,18 @@
       "notes": "A detailed, loving study of woodpeckers by a careful naturalist. Use alongside actual observation. Ask: 'What do woodpeckers eat and how do they find it?'"
     },
     {
+      "id": "y2-lion-witch-wardrobe",
+      "title": "The Lion, the Witch and the Wardrobe",
+      "author": "C. S. Lewis",
+      "subject": "living_books",
+      "type": "spine",
+      "difficulty": 2,
+      "terms": [1, 2, 3],
+      "concept_tags": ["allegory", "courage", "sacrifice", "faith", "adventure", "redemption", "wonder"],
+      "anti_twaddle": true,
+      "notes": "The first door into Narnia — read a chapter at a time, letting the wonder of a whole world behind a wardrobe unfold slowly. 'Why do you think Aslan let himself be bound, if he had the power not to be?'"
+    },
+    {
       "id": "y2-child-history-world",
       "title": "A Child's History of the World",
       "author": "V. M. Hillyer",

@@ -27,6 +27,18 @@
       "notes": "A boy who cannot walk finds a different kind of usefulness and courage. 'What was the door in the wall, really?'"
     },
     {
+      "id": "y5-voyage-dawn-treader",
+      "title": "The Voyage of the Dawn Treader",
+      "author": "C. S. Lewis",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 3,
+      "terms": [1, 2],
+      "concept_tags": ["adventure", "character", "redemption", "temptation", "faith", "seafaring"],
+      "anti_twaddle": true,
+      "notes": "Each island tests a different temptation — greed, vanity, despair. Pairs well with this year's growing emphasis on written narration of character change. 'What changed Eustace from the inside, not just the outside?'"
+    },
+    {
       "id": "y5-plutarchs-lives",
       "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
       "author": "Plutarch",

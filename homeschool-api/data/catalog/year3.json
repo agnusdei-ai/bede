@@ -135,6 +135,18 @@
       "notes": "Burgess presents bird facts through story — Peter Rabbit learns about birds from Old Mother Nature. Children absorb real ornithology within a narrative frame."
     },
     {
+      "id": "y3-princess-and-goblin",
+      "title": "The Princess and the Goblin",
+      "author": "George MacDonald",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 2,
+      "terms": [2, 3],
+      "concept_tags": ["fairy-tale", "courage", "faith", "unseen-guidance", "goblins", "wonder"],
+      "anti_twaddle": true,
+      "notes": "MacDonald's tales shaped both Lewis and Tolkien after him — the great-great-grandmother who is trusted before she is understood is classic MacDonald. 'Why does Irene believe her grandmother even when Curdie can't see her?'"
+    },
+    {
       "id": "y3-star-names",
       "title": "The Stars: A New Way to See Them",
       "author": "H. A. Rey",

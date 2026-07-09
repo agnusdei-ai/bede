@@ -201,6 +201,18 @@
       "notes": "A monk-scientist whose quiet, patient counting of pea plants in his monastery garden founded modern genetics. 'Why did it take so many years of counting before Mendel understood the pattern?'"
     },
     {
+      "id": "y4-back-of-north-wind",
+      "title": "At the Back of the North Wind",
+      "author": "George MacDonald",
+      "subject": "living_books",
+      "type": "supplemental",
+      "difficulty": 3,
+      "terms": [2, 3],
+      "concept_tags": ["fairy-tale", "death", "faith", "comfort", "wonder", "providence"],
+      "anti_twaddle": true,
+      "notes": "A strange, tender story that takes a child's questions about suffering and death seriously rather than brushing past them. 'What did Diamond come to understand about North Wind that frightened him at first?'"
+    },
+    {
       "id": "y4-handbook-of-nature-study",
       "title": "Handbook of Nature Study (selections)",
       "author": "Anna Botsford Comstock",

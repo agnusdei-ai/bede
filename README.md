@@ -1,6 +1,6 @@
 # Bede
 
-A self-hosted, LAN-deployed Catholic Charlotte Mason homeschool AI tutor. A parent
+A self-hosted, LAN-deployed Catholic Classical homeschool AI tutor. A parent
 configures each student's daily plan; students connect from their own tablets.
 Claude (the Bede persona) tutors via Socratic dialogue, agentic tools, and
 subject-specific personas. All student data is AES-256-GCM encrypted at rest;

@@ -62,7 +62,7 @@ export const SUBJECTS: SubjectInfo[] = [
     Icon: BookOpen,
     durationMin: 25,
     color: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-    description: 'Charlotte Mason literature & narration',
+    description: 'Classical literature & narration',
   },
   {
     id: 'mathematics',

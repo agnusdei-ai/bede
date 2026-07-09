@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X } from 'lucide-react'
 import { streamTutorChat } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
 
@@ -33,7 +33,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const { speak, stop: stopSpeech, toggle: toggleTTS, isSpeaking, enabled: ttsEnabled, isSupported: ttsSupported } = useTextToSpeech()
 
   // ── Speech recognition: child speaks instead of typing ──────────────────
-  const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
+  // Native Web Speech API first, auto-falls back to recording + server-side
+  // Whisper transcription when it's unsupported, errors, or silently stalls
+  // (Safari/iOS are known to do this — see useHybridVoiceInput).
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } = useHybridVoiceInput({
+    token,
     onFinal: (transcript) => {
       setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
     },
@@ -205,6 +209,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             </div>
           </div>
         )}
+        {isTranscribing && (
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-navy-200/60 text-navy-800 italic border border-navy-200 animate-pulse-soft flex items-center gap-2">
+              <Loader2 size={12} className="animate-spin" /> Transcribing…
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -255,15 +266,15 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           {sttSupported && (
             <button
               onClick={toggleMic}
-              disabled={isStreaming || breakActive}
-              title={isListening ? 'Stop listening' : 'Speak your answer'}
+              disabled={isStreaming || breakActive || isTranscribing}
+              title={isListening ? 'Stop listening' : isTranscribing ? 'Transcribing…' : 'Speak your answer'}
               className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${
                 isListening
                   ? 'bg-red-500 text-white animate-pulse'
                   : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'
               }`}
             >
-              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+              {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : isListening ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
 

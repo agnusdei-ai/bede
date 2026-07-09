@@ -377,7 +377,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   )
 }
 
-function PinScreen({ studentName, onVerified }: { studentName: string; onVerified: () => void }) {
+function PinScreen({ studentName, onVerified, onForgotPin }: { studentName: string; onVerified: () => void; onForgotPin: () => void }) {
   const [entered, setEntered] = useState('')
   const [error, setError] = useState('')
 
@@ -426,6 +426,13 @@ function PinScreen({ studentName, onVerified }: { studentName: string; onVerifie
             Continue
           </button>
         </form>
+
+        <button
+          onClick={onForgotPin}
+          className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4"
+        >
+          Forgot your PIN? Reset the demo
+        </button>
       </div>
     </div>
   )
@@ -455,7 +462,7 @@ export default function App() {
     return <SetupScreen onReady={() => setStudent(JSON.parse(localStorage.getItem(LS_KEYS.student)!))} />
   }
   if (localStorage.getItem(LS_KEYS.pin) && !pinVerified) {
-    return <PinScreen studentName={student.name} onVerified={() => setPinVerified(true)} />
+    return <PinScreen studentName={student.name} onVerified={() => setPinVerified(true)} onForgotPin={handleReset} />
   }
   return <ChatScreen student={student} onReset={handleReset} />
 }

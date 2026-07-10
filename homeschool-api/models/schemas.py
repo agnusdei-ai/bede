@@ -104,8 +104,8 @@ class SpeakRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    role: Literal["parent", "child"]
-    credential: str   # password for parent, PIN for child
+    role: Literal["parent", "child", "demo"]
+    credential: str   # password for parent, PIN for child, PIN for demo
 
 
 class TokenResponse(BaseModel):

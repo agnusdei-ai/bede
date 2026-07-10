@@ -29,6 +29,13 @@ async def login(req: LoginRequest, request: Request):
             await log_event(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         expires = timedelta(minutes=settings.child_token_expire_minutes)
+    elif req.role == "demo":
+        # Disabled entirely unless a deployment has deliberately set DEMO_PIN —
+        # an empty setting must never match an empty credential.
+        if not settings.demo_pin or not hmac.compare_digest(req.credential, settings.demo_pin):
+            await log_event(AuditEvent.AUTH_FAILURE, role="demo", success=False, **ctx)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        expires = timedelta(minutes=settings.demo_token_expire_minutes)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown role")
 

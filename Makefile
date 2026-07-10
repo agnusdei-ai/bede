@@ -1,9 +1,12 @@
 SHELL := /bin/bash
-.PHONY: setup start stop restart logs logs-api logs-ui status caddy-trust update backup-env db-backup db-restore clean help
+.PHONY: setup setup-gui start stop restart logs logs-api logs-ui status caddy-trust update backup-env db-backup db-restore clean help
 
 ##@ First-time setup
-setup:           ## Run interactive first-run wizard (generates .env, pulls images, starts services)
+setup:           ## Run interactive terminal wizard (generates .env, pulls images, starts services)
 	@bash setup.sh
+
+setup-gui:       ## Same as setup, but as a form in your browser instead of terminal prompts
+	@bash scripts/setup-gui-common.sh
 
 ##@ Day-to-day operations
 start:           ## Start Bede in the background

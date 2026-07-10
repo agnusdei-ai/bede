@@ -155,7 +155,21 @@ MASTER_SECRET=$(openssl rand -hex 32)
 success "SECRET_KEY and MASTER_SECRET generated (64 hex chars each)"
 
 # ── Detect LAN IP for tablet access ──────────────────────────────────────────
-LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+# `hostname -I` is GNU/Linux-only (BSD/macOS's hostname has no -I flag and
+# errors out) — this was silently falling through to "could not detect" on
+# every Mac, which per docs/PARENT_SETUP.md is a realistic "server" choice
+# (Mac mini). Try, in order: modern Linux (ip route), macOS, then the
+# original GNU hostname -I as a last resort for older Linux systems.
+detect_lan_ip() {
+  if command -v ip >/dev/null 2>&1; then
+    ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") print $(i+1)}'
+  elif [[ "$(uname)" == "Darwin" ]]; then
+    ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null
+  else
+    hostname -I 2>/dev/null | awk '{print $1}'
+  fi
+}
+LAN_IP=$(detect_lan_ip)
 if [[ -n "$LAN_IP" ]]; then
   CORS_ORIGINS="https://localhost,https://${LAN_IP},http://ui:80"
   success "Detected LAN IP: ${LAN_IP} — tablets can reach Bede at https://${LAN_IP}"

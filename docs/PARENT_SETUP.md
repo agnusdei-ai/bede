@@ -2,7 +2,8 @@
 
 This walks through everything from "nothing installed" to "my child is having their
 first lesson," including the parts that matter for keeping it secure once you hand
-it off. If you're comfortable with a terminal, the whole setup takes under 20 minutes.
+it off. No terminal or typed commands required — steps 2 and 3 below are answering
+a form in your browser. The whole setup takes under 20 minutes either way.
 
 ## 1. What you'll need
 
@@ -21,19 +22,34 @@ it off. If you're comfortable with a terminal, the whole setup takes under 20 mi
   self-hosted option needs no account at all; a paid OpenAI option sounds
   meaningfully more natural if you'd rather pay a small per-use cost for it.
 
-## 2. First-time setup
+## 2. Get the files onto your server machine
 
-```bash
-git clone <this repository>
-cd bede
-make setup
-```
+On GitHub, click the green **Code** button → **Download ZIP**, then unzip it
+wherever you'd like on the server machine (no terminal needed for this part).
 
-`make setup` asks you for the items above, generates the cryptographic secrets
-automatically, and starts everything. When it finishes, open `https://localhost`
-on the same computer to confirm it's running.
+*(If you're comfortable with `git`, `git clone <this repository>` works too
+— same result.)*
 
-## 3. Understanding the security model — read this before you hand anything to your child
+## 3. First-time setup
+
+Open the unzipped folder and:
+
+- **macOS**: double-click `setup-gui.command`.
+- **Windows**: double-click `setup-gui.bat`.
+
+A browser tab opens with a short form — fill in the items from step 1
+above, click the button, and everything else happens automatically. When
+it says Bede is running, open `https://localhost` on the same computer to
+confirm.
+
+*(Prefer a terminal? `make setup` or `bash setup.sh` asks the same
+questions as typed prompts instead — see `docs/PRODUCTION_SETUP.md`.)*
+
+> This browser-based setup is new and hasn't been confirmed working on
+> real hardware yet — if something doesn't work as described, the terminal
+> version above (`make setup`) is the well-tested fallback.
+
+## 4. Understanding the security model — read this before you hand anything to your child
 
 Bede uses **three separate layers**, and it matters which one you tell your child about:
 
@@ -48,7 +64,7 @@ voice verification does. If voice check fails, the only way through is the paren
 password (never a hidden bypass) — so a child can't skip their own verification
 without you present.
 
-## 4. Setting up each student
+## 5. Setting up each student
 
 1. Log in with the **parent password** → you land on **Setup**.
 2. Add each student: name, grade, and subjects. Grade is free text — use `K` for
@@ -60,7 +76,7 @@ without you present.
 4. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
 
-## 5. Getting each child onto their own tablet
+## 6. Getting each child onto their own tablet
 
 From the Pod Dashboard, **"Copy Link for Tablet"** gives you a link pre-filled with
 that student's name — send it to their device (AirDrop, text, email) so they land
@@ -79,16 +95,18 @@ step. iOS still requires one manual toggle afterward — the tool prints the exa
 path (Settings → General → About → Certificate Trust Settings). This works on
 older iPads too (tested down to iOS 15.8).
 
-## 6. *(Optional)* Giving Bede a real voice
+## 7. *(Optional)* Giving Bede a real voice
 
 By default, Bede speaks using your browser's built-in voice, which can sound
-robotic. For a warm, dedicated voice instead — free, self-hosted, no account or
-API key required — see `docs/VOICE_SETUP.md` for the full walkthrough.
+robotic. Two options for something better — see `docs/VOICE_SETUP.md` for
+the full walkthrough: a paid option (OpenAI, small per-use cost) that
+sounds meaningfully more natural, or a free, self-hosted option with no
+account needed but a lower quality ceiling.
 
 If you skip this, everything still works — it just falls back to the browser voice
 automatically.
 
-## 7. Handing off to your child — what to actually tell them
+## 8. Handing off to your child — what to actually tell them
 
 Once a student is enrolled, that's genuinely all they need:
 
@@ -101,7 +119,7 @@ to them. Do **not** share the parent password with your child; there's no legiti
 reason they'd need it day-to-day, and it's the one credential that can override
 their voice check.
 
-## 8. Checking in afterward
+## 9. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage,
   and — after 3+ sessions — Bede's synthesized sense of how that child learns best.

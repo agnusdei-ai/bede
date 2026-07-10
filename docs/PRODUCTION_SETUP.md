@@ -13,13 +13,40 @@ real instance — the two have different security models on purpose.
 
 ## First-time setup
 
+Two ways to do this — same result, different experience:
+
+**Terminal wizard** (`setup.sh`) — for anyone comfortable typing in a
+terminal:
 ```bash
 make setup        # or: bash setup.sh
 ```
+An interactive wizard: it asks for your Anthropic API key, your database
+choice (see below), a parent password, and a child PIN, generates the
+cryptographic secrets, writes `.env`, and starts everything.
 
-This is an interactive wizard: it asks for your Anthropic API key, your
-database choice (see below), a parent password, and a child PIN, generates
-the cryptographic secrets, writes `.env`, and starts everything.
+**Browser wizard** — no terminal typing at all, for anyone who isn't
+comfortable with the above. Requires [Docker Desktop](https://docker.com/products/docker-desktop)
+already installed and running (that part still needs its own installer —
+this doesn't replace installing Docker itself, just everything after):
+
+- **macOS**: double-click `setup-gui.command` in the repo folder.
+- **Windows**: double-click `setup-gui.bat`.
+- **Linux**: run `./setup-gui.sh` (or `make setup-gui`).
+
+A browser tab opens with a form — fill it in, click the button, close the
+tab when it says Bede is starting. It asks the exact same questions as the
+terminal wizard, just as text fields and clickable choices instead of typed
+answers, and produces the identical `.env`/Docker setup underneath.
+
+> **Status: built and unit-tested, not yet verified on a real machine.**
+> The wizard's own logic (form validation, `.env` generation for both
+> database choices, file permissions, re-run/backup behavior) has been
+> tested directly. What hasn't been verified is the actual `docker build`/
+> `docker run`/`docker compose up` sequence end-to-end on real hardware —
+> the environment this was built in has the Docker CLI but no daemon to
+> run against. If you try the browser wizard, please report back on
+> whether it worked smoothly (or where it didn't) — this note comes out
+> once that's confirmed on at least macOS and Windows.
 
 ## Choosing a database
 

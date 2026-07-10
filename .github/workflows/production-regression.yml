@@ -20,6 +20,7 @@ on:
     branches: [main]
     paths:
       - 'docker-compose.yml'
+      - 'Caddyfile'
       - 'homeschool-api/**'
       - 'homeschool-tutor/**'
       - 'scripts/setup_wizard/**'

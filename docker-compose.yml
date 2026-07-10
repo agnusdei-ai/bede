@@ -137,6 +137,13 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
+      # nginx's entrypoint chowns its tmpfs cache dirs (client_temp, etc.)
+      # to the nginx user at startup — without this, cap_drop: ALL makes
+      # even root unable to chown, and nginx crash-loops on every start.
+      # Caught by production-regression.yml's first real end-to-end boot;
+      # this combination (read_only + cap_drop: ALL + tmpfs) had never
+      # actually been started before that run.
+      - CHOWN
 
   # TLS termination — serves the entire pod over HTTPS (port 443)
   # Tablets and other LAN devices connect here. Run "make caddy-trust" once

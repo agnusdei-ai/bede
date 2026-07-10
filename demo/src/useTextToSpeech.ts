@@ -25,6 +25,39 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
   return voices[0] ?? null
 }
 
+/**
+ * Call synchronously inside a real click/submit handler — e.g. the setup
+ * form's submit, or the trial PIN's login button — BEFORE any await. Bede's
+ * very first line (the subject opener) is spoken automatically once the
+ * chat screen mounts, with no user gesture directly in that call stack: it
+ * only exists because an earlier async fetch/stream finished. Strict
+ * browsers (iOS Safari especially, and this app's primary target is
+ * tablets) silently refuse both speechSynthesis and <audio>.play() unless
+ * they were unlocked by a genuine, synchronous user gesture first. This
+ * "spends" that gesture on a silent no-op so the later automatic speech
+ * isn't blocked.
+ */
+export function unlockSpeechForSession() {
+  if ('speechSynthesis' in window) {
+    try {
+      const u = new SpeechSynthesisUtterance(' ')
+      u.volume = 0
+      window.speechSynthesis.speak(u)
+    } catch {
+      // best-effort — never block the actual form submission on this
+    }
+  }
+  try {
+    const silent = new Audio(
+      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
+    )
+    silent.volume = 0
+    silent.play().then(() => silent.pause()).catch(() => {})
+  } catch {
+    // best-effort
+  }
+}
+
 export function useTextToSpeech(speakToken: string | null = null) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)

@@ -9,7 +9,7 @@ import {
   TrialSessionEndedError, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
-import { useTextToSpeech } from './useTextToSpeech'
+import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 
@@ -111,6 +111,7 @@ function TrialPinScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, ex
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
     try {
@@ -181,6 +182,7 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
       const pinError = pinStrengthError(pin.trim())
       if (pinError) { setError(pinError); return }
     }
+    unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     localStorage.setItem(LS_KEYS.anthropicKey, anthropicKey.trim())
     localStorage.setItem(LS_KEYS.student, JSON.stringify({ name: name.trim(), grade: grade.trim(), gradeStage }))
     if (pin.trim()) localStorage.setItem(LS_KEYS.pin, pin.trim())
@@ -281,6 +283,7 @@ function PinScreen({ studentName, onVerified, onForgotPin }: { studentName: stri
     e.preventDefault()
     const storedPin = localStorage.getItem(LS_KEYS.pin) ?? ''
     if (entered.trim() === storedPin) {
+      unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
       onVerified()
     } else {
       setError('Incorrect PIN. Try again.')

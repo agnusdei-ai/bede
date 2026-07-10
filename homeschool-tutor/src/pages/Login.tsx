@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Lock, User, Star, Mic } from 'lucide-react'
 import { login, fetchStudentConfig, type LoginResult, type MfaMethod } from '../services/api'
+import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
 import ParentMfaVerification from '../components/ParentMfaVerification'
@@ -41,6 +42,12 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Must happen synchronously in this gesture, before any await — see
+    // hooks/useTextToSpeech.ts. This is a single-page app, so unlocking here
+    // (the first real user interaction) covers the session view too, even
+    // though the actual auto-spoken opener fires much later via an
+    // unrelated async effect with no gesture of its own.
+    unlockSpeechForSession()
     setError('')
     setLoading(true)
     try {

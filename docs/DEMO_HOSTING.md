@@ -1,8 +1,10 @@
 # Hosting the public demo's backend
 
-The demo's "Try it now — free, 15 minutes" trial (see `demo/README.md`) needs
-a real `homeschool-api` backend to talk to — the "own API key" path doesn't
-(it's fully static, calling Anthropic directly from the browser).
+Both of the demo's tiers (see `demo/README.md`) — the shared "Try it now —
+free, 15 minutes" trial, and the self-service "Get your own code" — need a
+real `homeschool-api` backend to talk to. There's no fully-static, key-in-
+the-browser path anymore; the operator's Anthropic key always stays
+server-side.
 
 This backend is **only** for the public demo — a family's real production
 instance should stay self-hosted on a LAN per the main `README.md` and

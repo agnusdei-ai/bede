@@ -9,15 +9,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import get_db
+from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
 from core.demo_session import end_session, start_new_session
 from core.deps import require_auth
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
-from models.schemas import LoginRequest, TokenResponse
+from models.schemas import DemoCodeResponse, LoginRequest, TokenResponse
 from services import mfa_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
+
+
+@router.post("/demo-code", response_model=DemoCodeResponse)
+async def create_demo_code():
+    """
+    Self-service alternative to the shared DEMO_PIN trial: mints a fresh,
+    one-time 6-digit code with no credentials required. Gated on DEMO_PIN
+    being set — the same "is the public demo enabled at all" switch the
+    shared trial already uses — even though the code itself never touches
+    DEMO_PIN's value. Exchange the returned code for a JWT via POST
+    /auth/login (role="demo_code"). Lives under /auth/ so it inherits the
+    existing per-IP auth rate limit (core/middleware.py) automatically.
+    """
+    if not settings.demo_pin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
+    code = generate_code()
+    if code is None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many demo sessions are active right now — please try again shortly",
+        )
+    return DemoCodeResponse(code=code)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -57,6 +80,15 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             await log_event(AuditEvent.AUTH_FAILURE, role="demo", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         expires = timedelta(minutes=settings.demo_token_expire_minutes)
+    elif req.role == "demo_code":
+        # No static secret to compare against — the credential is a code
+        # minted moments earlier by POST /auth/demo-code. redeem_code()
+        # rejects an unknown or already-redeemed code, so the same code can
+        # never be exchanged for two independent JWTs/quotas.
+        if not settings.demo_pin or not redeem_code(req.credential):
+            await log_event(AuditEvent.AUTH_FAILURE, role="demo_code", success=False, **ctx)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or already-used code")
+        expires = timedelta(minutes=settings.demo_code_token_expire_minutes)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown role")
 
@@ -69,6 +101,11 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         jti = secrets.token_hex(16)
         start_new_session(jti)
         token_data["jti"] = jti
+    elif req.role == "demo_code":
+        # The code itself is the tracking key for message-quota enforcement
+        # (core/demo_code_session.py) — no separate jti needed since each
+        # code is already unique to whoever generated it.
+        token_data["code"] = req.credential
 
     token = create_access_token(
         token_data,
@@ -120,5 +157,7 @@ async def logout(request: Request, auth: dict = Depends(require_auth)):
     ctx = audit_from_request(request)
     if auth.get("role") == "demo":
         end_session(auth.get("jti", ""))
+    elif auth.get("role") == "demo_code":
+        end_code_session(auth.get("code", ""))
     await log_event(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
     return {"success": True}

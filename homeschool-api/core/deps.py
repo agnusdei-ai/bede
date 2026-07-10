@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.audit import AuditEvent, audit_from_request, log_event
+from core.demo_code_session import code_exists as demo_code_exists
 from core.demo_session import is_active as demo_session_is_active, touch as demo_session_touch
 from core.middleware import compute_fingerprint
 from core.security import decode_token, validate_fingerprint
@@ -92,6 +93,21 @@ async def require_auth(
         # the frontend's own timer is UX only and can't be trusted as the
         # actual security boundary (see core/demo_session.py).
         demo_session_touch(jti)
+
+    if payload.get("role") == "demo_code":
+        code = payload.get("code", "")
+        if not demo_code_exists(code):
+            await log_event(
+                AuditEvent.TOKEN_INVALID,
+                role="demo_code",
+                success=False,
+                detail="code was logged out or forgotten (long abandoned)",
+                **ctx,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="This session ended — generate a new code to keep exploring",
+            )
 
     return payload
 

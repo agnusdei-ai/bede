@@ -9,6 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import get_db
+from core.demo_code_session import (
+    claim_email_send as demo_code_claim_email_send,
+    record_message as demo_code_record_message,
+    remaining_messages as demo_code_remaining_messages,
+)
 from core.demo_session import claim_email_send as demo_claim_email_send
 from core.deps import require_auth, require_parent
 from models.schemas import (
@@ -56,16 +61,31 @@ async def chat(
 ):
     """
     Stream Socratic tutor responses via Server-Sent Events.
-    Accessible to parent, child, and the scoped demo role. Passes db so Bede
+    Accessible to parent, child, and the two scoped public-demo roles
+    (shared-PIN "demo" and self-service-code "demo_code"). Passes db so Bede
     can persist narration assessments server-side mid-stream (skipped for
-    demo — see below).
+    both demo roles — see below).
     """
-    is_demo = auth.get("role") == "demo"
-    if is_demo:
-        # Never trust client-supplied session_config for the demo role — only
-        # the subject choice (browsing the curriculum) is theirs to make.
+    role = auth.get("role")
+    is_demo = role == "demo"
+    is_demo_code = role == "demo_code"
+    if is_demo or is_demo_code:
+        # Never trust client-supplied session_config for either demo role —
+        # only the subject choice (browsing the curriculum) is theirs to make.
         req.session_config = _demo_session_config()
         db = None
+
+    remaining: int | None = None
+    if is_demo_code:
+        code = auth.get("code", "")
+        if not demo_code_record_message(code):
+            quota_message = "You've used all your free messages for this code — generate a new one on the landing page to keep exploring Bede."
+
+            async def quota_exhausted():
+                yield f"data: {json.dumps({'type': 'text', 'content': quota_message})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return EventSourceResponse(quota_exhausted(), media_type="text/event-stream")
+        remaining = demo_code_remaining_messages(code)
 
     await log_event(
         AuditEvent.TUTOR_CHAT,
@@ -111,7 +131,8 @@ async def chat(
         ):
             yield chunk
 
-    return EventSourceResponse(event_generator(), media_type="text/event-stream")
+    headers = {"X-Demo-Code-Remaining": str(remaining)} if remaining is not None else None
+    return EventSourceResponse(event_generator(), media_type="text/event-stream", headers=headers)
 
 
 @router.get("/demo-config", response_model=SessionConfig)
@@ -172,27 +193,37 @@ async def email_summary(
     Generate the same end-of-session summary as /summary, then email it once
     to a parent-supplied address via Resend — never shown to the child, never
     written anywhere (see services/email_service.py). Available to the parent
-    role and the scoped public demo role; child and parent_pending are not
-    parents, so they're rejected here the same way /summary rejects them by
-    only depending on require_parent.
+    role and the two scoped public demo roles; child and parent_pending are
+    not parents, so they're rejected here the same way /summary rejects them
+    by only depending on require_parent.
 
-    The demo role is additionally capped to exactly one send per login (see
-    core/demo_session.claim_email_send) — the shared public trial shouldn't
-    let one visitor spam an address or run up the operator's Resend usage.
+    Both demo roles are additionally capped to exactly one send per session
+    (core/demo_session.claim_email_send / core/demo_code_session.claim_email_send)
+    — the public demo shouldn't let one visitor spam an address or run up the
+    operator's Resend usage.
     """
     role = auth.get("role")
-    if role not in ("parent", "demo"):
+    if role not in ("parent", "demo", "demo_code"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this action")
 
-    if role == "demo":
-        # Never trust client-supplied session_config for the demo role — only
-        # the transcript/subjects it already streamed are real; mirrors /chat.
+    if role in ("demo", "demo_code"):
+        # Never trust client-supplied session_config for either demo role —
+        # only the transcript/subjects it already streamed are real; mirrors /chat.
         req.session_config = _demo_session_config()
+
+    if role == "demo":
         jti = auth.get("jti", "")
         if not demo_claim_email_send(jti):
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="This trial session has already sent its one diagnostic email",
+            )
+    elif role == "demo_code":
+        code = auth.get("code", "")
+        if not demo_code_claim_email_send(code):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="This session has already sent its one diagnostic email",
             )
 
     summary = await generate_session_summary(req)

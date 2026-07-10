@@ -1,35 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, ExternalLink, KeyRound, Zap, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, KeyRound, Zap, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import {
-  streamTutorChat as claudeStreamTutorChat, SUBJECTS, SUBJECT_LABELS,
-  type Subject, type StudentProfile, type ChatMessage, type GradeStage, type VisualAidData, type StreamChunk,
-} from './claude'
-import {
-  streamTutorChat as trialStreamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
-  emailTrialSummary, streamSandboxDemoChat, TrialSessionEndedError, TrialEmailCappedError, type SessionConfig,
+  streamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
+  generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
+  TrialSessionEndedError, TrialEmailCappedError,
+  SUBJECTS, SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
-
-const LS_KEYS = {
-  anthropicKey: 'bede_demo_anthropic_key',
-  student: 'bede_demo_student',
-  pin: 'bede_demo_pin',
-}
-
-// Conversation progress — localStorage, same as the student profile/API keys: a
-// student closing and reopening the app (or the tablet being turned off and back on)
-// should resume the same conversation under the same login, not restart it. Cleared
-// only by the explicit "New Session" action below, or a full Reset. Only used by
-// the own-key path — the free-trial path is intentionally short-lived and doesn't
-// bother persisting across a reload.
-const SESSION_KEYS = {
-  messages: 'bede_demo_session_messages',
-  subject: 'bede_demo_session_subject',
-  openerFired: 'bede_demo_session_opener_fired',
-}
 
 interface DisplayMessage {
   id: string
@@ -39,52 +19,10 @@ interface DisplayMessage {
   visualAid?: VisualAidData
 }
 
-const MIN_PIN_LENGTH = 6
-
-/** True if every digit steps by the same +1/-1 from the last, mod 10 —
- *  catches not just 123456/654321 but wraparound runs like 789012/901234. */
-function isSequentialPin(pin: string): boolean {
-  const diffs = new Set<number>()
-  for (let i = 1; i < pin.length; i++) {
-    diffs.add((Number(pin[i]) - Number(pin[i - 1]) + 10) % 10)
-  }
-  return diffs.size === 1 && (diffs.has(1) || diffs.has(9))
-}
-
-/** True if the whole PIN is one short block repeated to fill the length —
- *  catches 111111 (block "1"), 123123 (block "123"), 121212 (block "12"). */
-function isRepeatingBlockPin(pin: string): boolean {
-  const n = pin.length
-  for (let blockLen = 1; blockLen <= n / 2; blockLen++) {
-    if (n % blockLen !== 0) continue
-    const block = pin.slice(0, blockLen)
-    if (block.repeat(n / blockLen) === pin) return true
-  }
-  return false
-}
-
-/** True if the PIN reads the same forwards and backwards — catches
- *  symmetric patterns like 669966 that isRepeatingBlockPin misses. */
-function isPalindromePin(pin: string): boolean {
-  return pin === [...pin].reverse().join('')
-}
-
-/** At least 6 digits and not an easily-guessable pattern — no sequential
- *  run, repeated block, or palindrome. Repeated digits are otherwise fine,
- *  e.g. 602656 is a good PIN. */
-function pinStrengthError(pin: string): string | null {
-  if (!/^\d+$/.test(pin)) return 'PIN must contain only digits.'
-  if (pin.length < MIN_PIN_LENGTH) return `PIN must be at least ${MIN_PIN_LENGTH} digits.`
-  if (isSequentialPin(pin)) return 'PIN cannot be a sequential run (e.g. 123456 or 654321).'
-  if (isRepeatingBlockPin(pin)) return 'PIN cannot be a repeated block (e.g. 111111, 123123, or 121212).'
-  if (isPalindromePin(pin)) return 'PIN cannot read the same forwards and backwards (e.g. 669966).'
-  return null
-}
-
 // ── Landing choice ────────────────────────────────────────────────────────────
 
-function ChoiceScreen({ onChooseTrial, onChooseOwnKey }: { onChooseTrial: () => void; onChooseOwnKey: () => void }) {
-  const trialOffered = trialAvailable()
+function ChoiceScreen({ onChooseTrial, onChooseCode }: { onChooseTrial: () => void; onChooseCode: () => void }) {
+  const demoOffered = trialAvailable()
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
@@ -94,8 +32,8 @@ function ChoiceScreen({ onChooseTrial, onChooseOwnKey }: { onChooseTrial: () => 
           <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
         </div>
 
-        <div className="space-y-3">
-          {trialOffered && (
+        {demoOffered ? (
+          <div className="space-y-3">
             <button
               onClick={onChooseTrial}
               className="w-full p-4 rounded-xl border-2 border-navy-400 bg-navy-50 hover:bg-navy-100 transition-all hover:scale-[1.02] active:scale-[0.98] text-left flex items-start gap-3"
@@ -106,24 +44,28 @@ function ChoiceScreen({ onChooseTrial, onChooseOwnKey }: { onChooseTrial: () => 
                   15-min shared trial
                 </span>
                 <div className="font-semibold text-navy-800 text-sm">Try it now — free, 15 minutes</div>
-                <div className="text-xs text-navy-600 mt-0.5">No key needed. One shared trial session, then it logs you out.</div>
+                <div className="text-xs text-navy-600 mt-0.5">No code needed. One shared trial session, then it logs you out.</div>
               </div>
             </button>
-          )}
-          <button
-            onClick={onChooseOwnKey}
-            className="w-full p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-navy-300 hover:bg-navy-50/40 transition-all hover:scale-[1.02] active:scale-[0.98] text-left flex items-start gap-3"
-          >
-            <KeyRound size={20} className="text-gray-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded mb-1">
-                Unlimited · untimed
-              </span>
-              <div className="font-semibold text-gray-800 text-sm">Use your own API key</div>
-              <div className="text-xs text-gray-500 mt-0.5">No time limit. Free to get, and you pay Anthropic directly for what you use.</div>
-            </div>
-          </button>
-        </div>
+            <button
+              onClick={onChooseCode}
+              className="w-full p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-navy-300 hover:bg-navy-50/40 transition-all hover:scale-[1.02] active:scale-[0.98] text-left flex items-start gap-3"
+            >
+              <KeyRound size={20} className="text-gray-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded mb-1">
+                  Your own code · 50 messages
+                </span>
+                <div className="font-semibold text-gray-800 text-sm">Get your own code</div>
+                <div className="text-xs text-gray-500 mt-0.5">One click, no key to paste — just for you, not shared.</div>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 text-center">
+            The free demo isn't configured on this deployment yet.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -182,117 +124,64 @@ function TrialPinScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, ex
         </form>
 
         <button onClick={onBack} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4">
-          ← Use your own key instead
+          ← Get your own code instead
         </button>
       </div>
     </div>
   )
 }
 
-// ── Own-key setup ──────────────────────────────────────────────────────────────
+// ── Self-service code login ───────────────────────────────────────────────────
+//
+// Replaces the old "bring your own Anthropic key" tier: one click mints a
+// fresh, one-time 6-digit code (POST /auth/demo-code) and immediately
+// exchanges it for a session (POST /auth/login) — no key to paste, no PIN
+// to remember, no separate "enter your code" step. The operator's real
+// Anthropic key stays obscured server-side the whole time (see api.ts).
 
-function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => void }) {
-  const [anthropicKey, setAnthropicKey] = useState('')
-  const [name, setName] = useState('')
-  const [grade, setGrade] = useState('')
-  const [gradeStage, setGradeStage] = useState<GradeStage>('3-5')
-  const [pin, setPin] = useState('')
+function CodeScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, code: string) => void; onBack: () => void }) {
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!anthropicKey.trim() || !name.trim() || !grade.trim()) {
-      setError('Anthropic API key, name, and grade are all required.')
-      return
-    }
-    if (pin.trim()) {
-      const pinError = pinStrengthError(pin.trim())
-      if (pinError) { setError(pinError); return }
-    }
+  const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
-    localStorage.setItem(LS_KEYS.anthropicKey, anthropicKey.trim())
-    localStorage.setItem(LS_KEYS.student, JSON.stringify({ name: name.trim(), grade: grade.trim(), gradeStage }))
-    if (pin.trim()) localStorage.setItem(LS_KEYS.pin, pin.trim())
-    else localStorage.removeItem(LS_KEYS.pin)
-    onReady()
+    setLoading(true)
+    setError('')
+    try {
+      const code = await generateDemoCode()
+      const { token } = await loginWithCode(code)
+      onLoggedIn(token, code)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start a session')
+      setLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
         <div className="text-center mb-6">
-          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
-          <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-emerald-100 flex items-center justify-center">
+            <KeyRound size={24} className="text-emerald-600" />
+          </div>
+          <h1 className="text-xl font-display font-bold text-gray-800">Get your own code</h1>
+          <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
         </div>
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>
-            <strong>Demo build, not the real app.</strong> Your API key is stored only in this
-            browser's local storage and sent directly to Anthropic — never to any server of ours.
-            Don't use a key you care about protecting on a shared device, and don't rely on this
-            for anything beyond trying Bede out.
-          </p>
+          <p>A one-time 6-digit code just for you, good for 50 messages. Nothing you type is saved after your session ends.</p>
         </div>
 
-        <div className="flex items-start gap-2.5 bg-navy-50 border border-navy-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-navy-800">
-          <ExternalLink size={16} className="flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold mb-1">Need a key? It's free to create.</p>
-            <ol className="list-decimal list-inside space-y-0.5">
-              <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="underline font-medium">console.anthropic.com/settings/keys</a></li>
-              <li>Sign up or log in</li>
-              <li>Click "Create Key", give it any name</li>
-              <li>Copy the key (starts with <code className="bg-navy-100 px-1 rounded">sk-ant-</code>) and paste it below</li>
-            </ol>
-            <p className="mt-1.5 text-navy-600">
-              New accounts get a small amount of free credit; beyond that, usage is billed per
-              token by Anthropic directly to you — not to us, and not through this demo.
-            </p>
-          </div>
-        </div>
+        {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="label">Anthropic API key (required)</label>
-            <input type="password" className="input" value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} placeholder="sk-ant-..." />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Student's name</label>
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Emma" />
-            </div>
-            <div>
-              <label className="label">Grade</label>
-              <input className="input" value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="K, 4, 8..." />
-            </div>
-          </div>
-          <div>
-            <label className="label">Stage</label>
-            <div className="flex rounded-lg border border-navy-200 overflow-hidden">
-              {(['K-2', '3-5', '6-8'] as GradeStage[]).map((s) => (
-                <button
-                  key={s} type="button" onClick={() => setGradeStage(s)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${gradeStage === s ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'}`}
-                >{s}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="label">Demo PIN screen (optional)</label>
-            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no obvious patterns — leave blank to skip" inputMode="numeric" />
-            <p className="text-xs text-gray-400 mt-1">
-              Shows a PIN entry step before Bede, mirroring the real app's login <em>look</em> —
-              this is a UI demonstration only, not real security (see the notice on that screen).
-              If set: at least {MIN_PIN_LENGTH} digits, no sequential run, repeated block, or palindrome.
-            </p>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button type="submit" className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
-            Start the demo
-          </button>
-        </form>
+        <button
+          onClick={handleClick}
+          disabled={loading}
+          className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+        >
+          {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
+        </button>
 
         <button onClick={onBack} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4">
           ← Back
@@ -302,94 +191,26 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
   )
 }
 
-function PinScreen({ studentName, onVerified, onForgotPin }: { studentName: string; onVerified: () => void; onForgotPin: () => void }) {
-  const [entered, setEntered] = useState('')
-  const [error, setError] = useState('')
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const storedPin = localStorage.getItem(LS_KEYS.pin) ?? ''
-    if (entered.trim() === storedPin) {
-      unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
-      onVerified()
-    } else {
-      setError('Incorrect PIN. Try again.')
-      setEntered('')
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-navy-100 flex items-center justify-center">
-            <Lock size={24} className="text-navy-600" />
-          </div>
-          <h1 className="text-xl font-display font-bold text-gray-800">Welcome, {studentName}</h1>
-          <p className="text-sm text-gray-500 mt-1">Enter your PIN to begin</p>
-        </div>
-
-        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
-          <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>
-            <strong>UI demonstration only.</strong> This shows what the real app's login
-            <em> looks</em> like — it is not the real security model. The production app checks
-            the PIN server-side, then verifies the child's actual voice before granting access;
-            this demo only compares text stored in your own browser, which is not a real
-            safeguard.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="password" inputMode="numeric" autoFocus
-            className="input text-center text-lg tracking-widest"
-            value={entered} onChange={(e) => setEntered(e.target.value)}
-            placeholder="••••"
-          />
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          <button type="submit" disabled={!entered.trim()} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors">
-            Continue
-          </button>
-        </form>
-
-        <button
-          onClick={onForgotPin}
-          className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4"
-        >
-          Forgot your PIN? Reset the demo
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ── Shared chat screen — used by both the own-key and free-trial paths ──────
+// ── Shared chat screen — used by both demo tiers ─────────────────────────────
 
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
-  persist: boolean // own-key: true (localStorage); trial: false (in-memory only)
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
-  speakToken?: string | null // trial path only — lets voice output use the backend's Kokoro model instead of just the browser's
-  header: React.ReactNode // right-hand header controls (differ between the two paths)
-  onActivity?: () => void // trial path uses this to drive its 5-minute inactivity timeout
-  onSessionInvalid?: () => void // trial path: route to the "session ended" screen instead of an inline error
-  // Trial path only — kept up to date with the conversation so far so the
-  // end-of-demo email screen can send it, without lifting message state
-  // itself up out of this component.
+  speakToken?: string | null // lets voice output use the backend's TTS instead of just the browser's
+  header: React.ReactNode // right-hand header controls (differ between the two demo tiers)
+  onActivity?: () => void // shared-trial tier uses this to drive its 5-minute inactivity timeout
+  onSessionInvalid?: () => void // route to the "session ended" screen instead of an inline error
+  // Kept up to date with the conversation so far so the end-of-demo email
+  // screen can send it, without lifting message state itself out of this
+  // component.
   sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
 }
 
-function ChatScreen({ displayName, subjects, persist, runChat, speakToken, header, onActivity, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
-  const [subject, setSubject] = useState<Subject>(
-    () => (persist ? (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) : null) ?? subjects[0] ?? 'living_books',
-  )
+function ChatScreen({ displayName, subjects, runChat, speakToken, header, onActivity, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
+  const [subject, setSubject] = useState<Subject>(subjects[0] ?? 'living_books')
   const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>([])
-  const [messages, setMessages] = useState<DisplayMessage[]>(() => {
-    if (!persist) return []
-    try { return JSON.parse(localStorage.getItem(SESSION_KEYS.messages) ?? '[]') } catch { return [] }
-  })
+  const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
@@ -398,18 +219,13 @@ function ChatScreen({ displayName, subjects, persist, runChat, speakToken, heade
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
-  const openerFired = useRef<Set<Subject>>(
-    new Set(persist ? JSON.parse(localStorage.getItem(SESSION_KEYS.openerFired) ?? '[]') : []),
-  )
+  const openerFired = useRef<Set<Subject>>(new Set())
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
   const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
     useSpeechRecognition((transcript) => setInput((prev) => (prev ? prev + ' ' + transcript : transcript)))
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
-
-  useEffect(() => { if (persist) localStorage.setItem(SESSION_KEYS.subject, subject) }, [subject, persist])
-  useEffect(() => { if (persist) localStorage.setItem(SESSION_KEYS.messages, JSON.stringify(messages)) }, [messages, persist])
 
   // Keep the caller's ref current so it can read a snapshot at "finish demo"
   // time, without lifting message state itself out of this component.
@@ -499,7 +315,6 @@ function ChatScreen({ displayName, subjects, persist, runChat, speakToken, heade
   useEffect(() => {
     if (openerFired.current.has(subject)) return
     openerFired.current.add(subject)
-    if (persist) localStorage.setItem(SESSION_KEYS.openerFired, JSON.stringify([...openerFired.current]))
     runStream('[START]', null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject])
@@ -646,45 +461,17 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   )
 }
 
-// ── Own-key flow wrapper ──────────────────────────────────────────────────────
-
-function OwnKeyFlow({ student, onReset }: { student: StudentProfile; onReset: () => void }) {
-  const anthropicKey = localStorage.getItem(LS_KEYS.anthropicKey) ?? ''
-
-  const runChat = useCallback(
-    (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      claudeStreamTutorChat(anthropicKey, student, subject, history, childMessage, drawingImage, signal),
-    [anthropicKey, student],
-  )
-
-  return (
-    <ChatScreen
-      displayName={student.name}
-      subjects={SUBJECTS}
-      persist
-      runChat={runChat}
-      header={
-        <>
-          <button onClick={onReset} title="Clear everything, including your API key and student setup" className="text-xs text-gray-400 hover:text-gray-600 underline">
-            Reset
-          </button>
-        </>
-      }
-    />
-  )
-}
-
 // ── Free-trial flow wrapper ───────────────────────────────────────────────────
 
 // Separate from the 15-minute absolute cap — logs out sooner if the visitor
 // just walks away without using it.
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000
 
-function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, onOpenSandbox }: {
+function TrialFlow({ token, expiresAt, onExpired, onSwitchToCode, onLogout, onOpenSandbox }: {
   token: string
   expiresAt: number | null
   onExpired: (reason: 'expired' | 'inactive') => void
-  onSwitchToOwnKey: () => void
+  onSwitchToCode: () => void
   onLogout: () => void
   onOpenSandbox: () => void
 }) {
@@ -719,7 +506,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, on
 
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      trialStreamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal),
+      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal),
     [token, config],
   )
 
@@ -734,7 +521,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, on
         <Lock size={32} className="text-gray-400" />
         <p className="text-gray-700 font-medium">Could not start the trial</p>
         <p className="text-sm text-gray-500 max-w-sm">{error}</p>
-        <button onClick={onSwitchToOwnKey} className="mt-2 text-sm text-navy-600 underline">Use your own key instead</button>
+        <button onClick={onSwitchToCode} className="mt-2 text-sm text-navy-600 underline">Get your own code instead</button>
       </div>
     )
   }
@@ -766,7 +553,6 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, on
     <ChatScreen
       displayName={config.student_name}
       subjects={config.subjects}
-      persist={false}
       runChat={runChat}
       speakToken={token}
       onActivity={onActivity}
@@ -787,7 +573,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, on
           >
             <FlaskConical size={12} /> Ask Bede
           </button>
-          <button onClick={onSwitchToOwnKey} title="Want to keep going? Longer sessions need your own API key" className="text-xs text-navy-500 hover:text-navy-700 underline">
+          <button onClick={onSwitchToCode} title="Want more messages? Get your own free code" className="text-xs text-navy-500 hover:text-navy-700 underline">
             Keep going →
           </button>
           <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
@@ -801,15 +587,14 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, on
 
 // ── End-of-demo diagnostic notes + email capture ─────────────────────────────
 //
-// Lead-gen mechanic for the free trial: at the end of a session, offer to
-// email Bede's informal notes on today's demo to a parent-supplied address.
-// The address is sent once to the backend and never stored — not here, not
+// Lead-gen mechanic for the demo: at the end of a session, offer to email
+// Bede's informal notes on today's demo to a parent-supplied address. The
+// address is sent once to the backend and never stored — not here, not
 // server-side (see homeschool-api/services/email_service.py) — and these
-// notes are never shown to the student in this browser. Only offered on the
-// shared-trial path (not bring-your-own-key): this is the only path with a
-// server-side session and a per-session send cap (core/demo_session.py),
-// which is what keeps this from being an open door to spam the operator's
-// own Resend/Claude usage.
+// notes are never shown to the student in this browser. Both backend-
+// mediated demo tiers have their own per-session send cap
+// (core/demo_session.py / core/demo_code_session.py), which is what keeps
+// this from being an open door to spam the operator's own Resend/Claude usage.
 function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDone }: {
   token: string
   config: SessionConfig
@@ -901,12 +686,12 @@ function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDo
 
 // ── Sandbox preview — "what a parent's private Ask Bede tool looks like" ────
 //
-// Only reachable from the shared trial (not bring-your-own-key), since it
-// needs the same server-side session that already gates the regular demo
-// chat (single active login, 5-minute inactivity timeout, DEMO_PIN) — see
-// homeschool-api/routers/sandbox.py's /demo-chat. Direct answers instead of
-// Socratic, free topic-switching, and a "custom instructions" box just like
-// the real parent-only sandbox — nothing typed here is saved server-side.
+// Reachable from either backend-mediated demo tier (shared-PIN trial or
+// self-service code), since both already gate the regular demo chat the
+// same way this endpoint needs — see homeschool-api/routers/sandbox.py's
+// /demo-chat. Direct answers instead of Socratic, free topic-switching, and
+// a "custom instructions" box just like the real parent-only sandbox —
+// nothing typed here is saved server-side.
 interface SandboxMessage {
   id: string
   role: 'user' | 'assistant'
@@ -1057,9 +842,118 @@ function TrialSandboxScreen({ token, onBack, onSessionInvalid }: {
   )
 }
 
-function TrialEndedScreen({ reason, onSwitchToOwnKey, onRetryTrial }: {
+// ── Self-service code flow wrapper ────────────────────────────────────────────
+//
+// Structurally parallel to TrialFlow, but capped by message count (see
+// core/demo_code_session.py) instead of a wall-clock timer/single-active-
+// session lock — each code is already unique to whoever generated it, so
+// that lock doesn't apply here. streamTutorChat's onQuotaHeader callback
+// reads the remaining-messages count off each response's
+// X-Demo-Code-Remaining header to drive the counter in the header below.
+function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
+  token: string
+  code: string
+  onExhausted: () => void
+  onLogout: () => void
+  onOpenSandbox: () => void
+}) {
+  const [config, setConfig] = useState<SessionConfig | null>(null)
+  const [error, setError] = useState('')
+  const [remaining, setRemaining] = useState<number | null>(null)
+  const [finished, setFinished] = useState(false)
+  const trialStartRef = useRef(Date.now())
+  const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
+
+  useEffect(() => {
+    getDemoConfig(token).then(setConfig).catch((err) => setError(err instanceof Error ? err.message : 'Could not start your session'))
+  }, [token])
+
+  // The backend never 401s once a code's quota is spent — it keeps replying
+  // with a canned "used up" message instead (see routers/tutor.py) — so the
+  // frontend is what notices remaining hit 0 and routes to the exhausted
+  // screen, mirroring how TrialFlow's timer hitting 0 triggers onExpired.
+  useEffect(() => {
+    if (remaining === 0) onExhausted()
+  }, [remaining, onExhausted])
+
+  const runChat = useCallback(
+    (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
+      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, setRemaining),
+    [token, config],
+  )
+
+  const handleLogout = () => {
+    trialLogout(token) // fire-and-forget — invalidates server-side immediately
+    onLogout()
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <Lock size={32} className="text-gray-400" />
+        <p className="text-gray-700 font-medium">Could not start your session</p>
+        <p className="text-sm text-gray-500 max-w-sm">{error}</p>
+      </div>
+    )
+  }
+  if (!config) {
+    return (
+      <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4">
+        <Loader2 size={28} className="text-navy-500 animate-spin" />
+        <p className="text-sm text-gray-500">Loading your session…</p>
+      </div>
+    )
+  }
+
+  if (finished) {
+    const elapsedMinutes = Math.max(1, Math.round((Date.now() - trialStartRef.current) / 60000))
+    return (
+      <TrialSummaryScreen
+        token={token}
+        config={config}
+        sessionState={sessionStateRef.current}
+        durationMinutes={elapsedMinutes}
+        onDone={handleLogout}
+      />
+    )
+  }
+
+  const lowQuota = remaining !== null && remaining <= 5
+
+  return (
+    <ChatScreen
+      displayName={config.student_name}
+      subjects={config.subjects}
+      runChat={runChat}
+      speakToken={token}
+      onSessionInvalid={onExhausted}
+      sessionStateRef={sessionStateRef}
+      header={
+        <>
+          {remaining !== null && (
+            <div className={`flex items-center gap-1 text-xs font-mono tabular-nums ${lowQuota ? 'text-red-500' : 'text-gray-400'}`}>
+              <KeyRound size={12} /> {code} · {remaining} left
+            </div>
+          )}
+          <button
+            onClick={onOpenSandbox}
+            title="Preview the parent-only direct-answer sandbox"
+            className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
+          >
+            <FlaskConical size={12} /> Ask Bede
+          </button>
+          <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
+            Finish demo
+          </button>
+        </>
+      }
+    />
+  )
+}
+
+function TrialEndedScreen({ reason, onSwitchToCode, onRetryTrial }: {
   reason: 'expired' | 'inactive'
-  onSwitchToOwnKey: () => void
+  onSwitchToCode: () => void
   onRetryTrial: () => void
 }) {
   const headline = reason === 'inactive' ? "Logged out for inactivity" : "Your free trial ended"
@@ -1072,15 +966,31 @@ function TrialEndedScreen({ reason, onSwitchToOwnKey, onRetryTrial }: {
         <Clock size={32} className="text-navy-400 mx-auto mb-3" />
         <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{headline}</h1>
         <p className="text-sm text-gray-500 mb-6">
-          {explanation} Want to keep going? Get your own free
-          Anthropic API key — it takes a minute, and beyond a small free credit, longer sessions
-          are billed per token directly to you by Anthropic, not through this demo.
+          {explanation} Want to keep going? Get your own free one-time code instead —
+          one click, good for 50 more messages.
         </p>
-        <button onClick={onSwitchToOwnKey} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors mb-2">
-          Use your own key
+        <button onClick={onSwitchToCode} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors mb-2">
+          Get your own code
         </button>
         <button onClick={onRetryTrial} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline">
           Or start another free trial
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CodeExhaustedScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
+        <KeyRound size={32} className="text-navy-400 mx-auto mb-3" />
+        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">That code is used up</h1>
+        <p className="text-sm text-gray-500 mb-6">
+          Each generated code is good for 50 messages. Generate a new one to keep exploring Bede.
+        </p>
+        <button onClick={onRetry} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
+          Generate a new code
         </button>
       </div>
     </div>
@@ -1095,37 +1005,20 @@ type Mode =
   | { kind: 'trial-chat'; token: string; expiresAt: number | null }
   | { kind: 'trial-sandbox'; token: string; expiresAt: number | null }
   | { kind: 'trial-ended'; reason: 'expired' | 'inactive' }
-  | { kind: 'own-key-setup' }
-  | { kind: 'own-key-pin'; student: StudentProfile }
-  | { kind: 'own-key-chat'; student: StudentProfile }
+  | { kind: 'code-setup' }
+  | { kind: 'code-chat'; token: string; code: string }
+  | { kind: 'code-sandbox'; token: string; code: string }
+  | { kind: 'code-exhausted' }
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>(() => {
-    const raw = localStorage.getItem(LS_KEYS.student)
-    const key = localStorage.getItem(LS_KEYS.anthropicKey)
-    if (raw && key) {
-      try {
-        const student = JSON.parse(raw) as StudentProfile
-        return localStorage.getItem(LS_KEYS.pin)
-          ? { kind: 'own-key-pin', student }
-          : { kind: 'own-key-chat', student }
-      } catch { /* fall through to choice screen */ }
-    }
-    return { kind: 'choice' }
-  })
-
-  const handleReset = () => {
-    Object.values(LS_KEYS).forEach((k) => localStorage.removeItem(k))
-    Object.values(SESSION_KEYS).forEach((k) => localStorage.removeItem(k))
-    setMode({ kind: 'choice' })
-  }
+  const [mode, setMode] = useState<Mode>({ kind: 'choice' })
 
   switch (mode.kind) {
     case 'choice':
       return (
         <ChoiceScreen
           onChooseTrial={() => setMode({ kind: 'trial-pin' })}
-          onChooseOwnKey={() => setMode({ kind: 'own-key-setup' })}
+          onChooseCode={() => setMode({ kind: 'code-setup' })}
         />
       )
 
@@ -1143,7 +1036,7 @@ export default function App() {
           token={mode.token}
           expiresAt={mode.expiresAt}
           onExpired={(reason) => setMode({ kind: 'trial-ended', reason })}
-          onSwitchToOwnKey={() => setMode({ kind: 'own-key-setup' })}
+          onSwitchToCode={() => setMode({ kind: 'code-setup' })}
           onLogout={() => setMode({ kind: 'choice' })}
           onOpenSandbox={() => setMode({ kind: 'trial-sandbox', token: mode.token, expiresAt: mode.expiresAt })}
         />
@@ -1162,32 +1055,40 @@ export default function App() {
       return (
         <TrialEndedScreen
           reason={mode.reason}
-          onSwitchToOwnKey={() => setMode({ kind: 'own-key-setup' })}
+          onSwitchToCode={() => setMode({ kind: 'code-setup' })}
           onRetryTrial={() => setMode({ kind: 'trial-pin' })}
         />
       )
 
-    case 'own-key-setup':
+    case 'code-setup':
       return (
-        <SetupScreen
-          onReady={() => {
-            const student = JSON.parse(localStorage.getItem(LS_KEYS.student)!) as StudentProfile
-            setMode(localStorage.getItem(LS_KEYS.pin) ? { kind: 'own-key-pin', student } : { kind: 'own-key-chat', student })
-          }}
+        <CodeScreen
+          onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })}
           onBack={() => setMode({ kind: 'choice' })}
         />
       )
 
-    case 'own-key-pin':
+    case 'code-chat':
       return (
-        <PinScreen
-          studentName={mode.student.name}
-          onVerified={() => setMode({ kind: 'own-key-chat', student: mode.student })}
-          onForgotPin={handleReset}
+        <CodeFlow
+          token={mode.token}
+          code={mode.code}
+          onExhausted={() => setMode({ kind: 'code-exhausted' })}
+          onLogout={() => setMode({ kind: 'choice' })}
+          onOpenSandbox={() => setMode({ kind: 'code-sandbox', token: mode.token, code: mode.code })}
         />
       )
 
-    case 'own-key-chat':
-      return <OwnKeyFlow student={mode.student} onReset={handleReset} />
+    case 'code-sandbox':
+      return (
+        <TrialSandboxScreen
+          token={mode.token}
+          onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
+          onSessionInvalid={() => setMode({ kind: 'code-exhausted' })}
+        />
+      )
+
+    case 'code-exhausted':
+      return <CodeExhaustedScreen onRetry={() => setMode({ kind: 'code-setup' })} />
   }
 }

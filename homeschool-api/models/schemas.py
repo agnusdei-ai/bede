@@ -142,8 +142,14 @@ class SandboxDemoChatRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    role: Literal["parent", "child", "demo"]
-    credential: str   # password for parent, PIN for child, PIN for demo
+    role: Literal["parent", "child", "demo", "demo_code"]
+    credential: str   # password for parent, PIN for child/demo, generated code for demo_code
+
+
+class DemoCodeResponse(BaseModel):
+    """A freshly minted, one-time 6-digit code — see POST /auth/demo-code.
+    Exchanged for a JWT via POST /auth/login (role="demo_code")."""
+    code: str
 
 
 class TokenResponse(BaseModel):

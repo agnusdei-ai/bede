@@ -2,10 +2,10 @@ import { useState, useRef, useCallback } from 'react'
 import { speakViaBackend } from './api'
 
 // Tries the backend's self-hosted Kokoro voice first (same one production
-// uses) when a trial token is supplied — the bring-your-own-key path has no
-// backend at all, so it passes null and goes straight to browser speech.
-// Bede's persona is historically male — voice selection prefers a male
-// voice in both paths, never gender-ambiguous or female.
+// uses) — both demo tiers always supply a real token, since both are
+// backend-mediated. Falls back to browser speech if the backend request
+// fails or isn't configured. Bede's persona is historically male — voice
+// selection prefers a male voice, never gender-ambiguous or female.
 
 // A name containing "female" also contains "male" as a literal substring
 // ("fe-MALE") — naively checking name.includes('male') alone matches female

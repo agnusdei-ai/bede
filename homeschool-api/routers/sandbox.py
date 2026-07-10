@@ -6,6 +6,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
+from core.demo_code_session import record_message as demo_code_record_message
 from core.deps import require_auth, require_parent
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services.ai_service import check_safeguarding, SAFEGUARDING_RESPONSE, stream_sandbox_response
@@ -55,20 +56,30 @@ async def demo_chat(
 ):
     """
     Public-demo preview of the sandbox above — same direct-answer, relaxed
-    persona, reachable via the shared DEMO_PIN login instead of a real
-    parent session + SANDBOX_PIN. require_auth already enforces the demo
-    role's single-active-session and 5-minute-inactivity timeout (see
-    core/deps.py, core/demo_session.py) — no separate rate limiting needed
-    here. Unlike the private /chat above, this keeps the deterministic
-    safeguarding check as a defensive baseline, since anyone who knows the
-    public DEMO_PIN can reach this, not just the deployment's trusted
-    operator.
+    persona, reachable via either public-demo login (shared DEMO_PIN, or the
+    self-service demo_code) instead of a real parent session + SANDBOX_PIN.
+    require_auth already enforces the "demo" role's single-active-session and
+    5-minute-inactivity timeout (see core/deps.py, core/demo_session.py), and
+    the "demo_code" role's message cap is enforced explicitly below (each
+    sandbox message spends the same shared quota as the regular /tutor/chat,
+    same as /tutor/chat itself). Unlike the private /chat above, this keeps
+    the deterministic safeguarding check as a defensive baseline, since
+    anyone who knows the public DEMO_PIN can reach this, not just the
+    deployment's trusted operator.
     """
-    if auth.get("role") != "demo":
+    role = auth.get("role")
+    if role not in ("demo", "demo_code"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This preview is only available through the public demo login",
         )
+    if role == "demo_code" and not demo_code_record_message(auth.get("code", "")):
+        quota_message = "You've used all your free messages for this code — generate a new one on the landing page to keep exploring."
+
+        async def quota_exhausted():
+            yield f"data: {json.dumps({'type': 'text', 'content': quota_message})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return EventSourceResponse(quota_exhausted(), media_type="text/event-stream")
 
     async def event_generator():
         if check_safeguarding(req.message):

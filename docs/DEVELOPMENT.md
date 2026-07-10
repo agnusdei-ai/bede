@@ -46,13 +46,12 @@ uvicorn main:app --reload --port 8000
 
 ## Demo (`demo/`)
 
-Fully static, no backend required for the bring-your-own-key path:
+Both demo tiers are backend-mediated — point it at a local backend with
+`DEMO_PIN` set:
 
 ```bash
 cd demo
 npm install
-npm run dev       # http://localhost:5173 — own-key path only
-# or, to also enable the free-trial path against a local backend:
 VITE_DEMO_API_BASE=http://localhost:8000 npm run dev
 ```
 

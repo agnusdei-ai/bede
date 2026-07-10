@@ -105,6 +105,13 @@ class Settings(BaseSettings):
     demo_student_name: str = "Guest"
     demo_grade: str = "4"
     demo_grade_stage: str = "3-5"
+    # Self-service alternative to the shared DEMO_PIN trial: a visitor
+    # generates their own one-time 6-digit code (POST /auth/demo-code) rather
+    # than typing a shared PIN or pasting their own Anthropic key. Capped by
+    # message count instead of a hard session length (see
+    # core/demo_code_session.py) — this expiry is just a backstop so a
+    # generated token can't be replayed forever if leaked/copied.
+    demo_code_token_expire_minutes: int = 120
 
     # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
     # An extra PIN — same "empty = disabled" pattern and strength rules as

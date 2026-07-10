@@ -1,32 +1,62 @@
-// Client for the optional "Try it now" shared-trial path — talks to a real
-// homeschool-api backend instead of Anthropic directly, so a shared demo key
-// never reaches the browser. This is the ONLY safe way to offer a shared key
-// at all: a purely static site cannot hide a secret from its own devtools,
-// no matter how it's encoded, since the browser must hold the plaintext key
-// to use it. The bring-your-own-key path (claude.ts) stays fully static and
-// needs none of this — this file is additive, not a replacement.
-//
-// Reuses claude.ts's shared shapes (Subject, ChatMessage, VisualAidData,
-// StreamChunk) rather than redefining them, since both paths render into the
-// same chat UI.
+// Client for the demo — talks to a real homeschool-api backend instead of
+// Anthropic directly, so the operator's key never reaches the browser. This
+// is the ONLY safe way to offer either tier: a purely static site cannot
+// hide a secret from its own devtools, no matter how it's encoded, since the
+// browser would have to hold the plaintext key to use it directly. That's
+// why the old "bring your own key" path was removed — both tiers now run
+// through this same backend-mediated flow instead.
 
-import type { GradeStage, Subject, ChatMessage, VisualAidData, StreamChunk } from './claude'
+export type GradeStage = 'K-2' | '3-5' | '6-8'
+
+export const SUBJECTS = [
+  'morning_time', 'living_books', 'mathematics', 'nature_study', 'history',
+  'language_arts', 'science', 'art_music', 'saints', 'free_study',
+] as const
+export type Subject = typeof SUBJECTS[number]
+
+export const SUBJECT_LABELS: Record<Subject, string> = {
+  morning_time: 'Morning Time', living_books: 'Living Books', mathematics: 'Mathematics',
+  nature_study: 'Nature Study', history: 'History & Geography', language_arts: 'Language Arts',
+  science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism', free_study: 'Free Study',
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface VisualAidData {
+  id: string
+  title: string
+  creator: string
+  year: string
+  wiki_title: string
+  description: string
+  category: string
+}
+
+export type StreamChunk =
+  | { type: 'text'; content: string }
+  | { type: 'tool'; tool: string; content: string }
+  | { type: 'visual_aid'; visualAid: VisualAidData }
+  | { type: 'subject_complete'; reason: 'mastery' | 'frustration'; content: string }
+  | { type: 'done' }
 
 // Must point at a real, publicly-reachable homeschool-api deployment with
-// DEMO_PIN set. Baked in at build time — set via VITE_DEMO_API_BASE. Until
-// that deployment exists, the "Try it now" path simply isn't offered (see
-// App.tsx's isTrialAvailable check) — bring-your-own-key keeps working
-// regardless.
+// DEMO_PIN set. Baked in at build time — set via VITE_DEMO_API_BASE. Both
+// demo tiers (shared-PIN trial and self-service code) need this; without it
+// the demo has nothing to offer at all (see ChoiceScreen's fallback).
 const BASE = import.meta.env.VITE_DEMO_API_BASE as string | undefined
 
 export function trialAvailable(): boolean {
   return !!BASE
 }
 
-/** Thrown when the backend rejects a trial request as ended (absolute expiry,
- *  server-enforced 5-minute inactivity timeout, or superseded by a newer
- *  login) — lets the UI route to a clear "session ended" screen instead of
- *  just showing an inline error bubble on a dead chat. */
+/** Thrown when the backend rejects a request as ended (absolute expiry,
+ *  server-enforced inactivity timeout, message quota reached and code
+ *  logged out, or — for the shared trial — superseded by a newer login) —
+ *  lets the UI route to a clear "session ended" screen instead of just
+ *  showing an inline error bubble on a dead chat. */
 export class TrialSessionEndedError extends Error {}
 
 export interface SessionConfig {
@@ -70,6 +100,37 @@ export async function login(pin: string): Promise<{ token: string; expiresAt: nu
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Incorrect PIN')
+  }
+  const data = await res.json()
+  return { token: data.access_token, expiresAt: decodeExpiry(data.access_token) }
+}
+
+/**
+ * Self-service alternative to the shared-PIN trial: mints a fresh one-time
+ * 6-digit code with no credentials required (see auth.py's /auth/demo-code).
+ * The code is exchanged for a JWT immediately via loginWithCode — the caller
+ * never needs to show a separate "enter your code" screen.
+ */
+export async function generateDemoCode(): Promise<string> {
+  const res = await fetch(`${apiBase()}/auth/demo-code`, { method: 'POST' })
+  if (res.status === 404) throw new Error('The free demo is not enabled on this deployment.')
+  if (res.status === 429) throw new Error('Too many demo sessions are active right now — please try again shortly.')
+  if (!res.ok) throw new Error('Could not start a session right now — please try again.')
+  const data = await res.json()
+  return data.code
+}
+
+/** Exchanges a code from generateDemoCode() for a JWT. One-time only — the
+ *  backend rejects a code that's already been redeemed once. */
+export async function loginWithCode(code: string): Promise<{ token: string; expiresAt: number | null }> {
+  const res = await fetch(`${apiBase()}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'demo_code', credential: code }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Could not start your session')
   }
   const data = await res.json()
   return { token: data.access_token, expiresAt: decodeExpiry(data.access_token) }
@@ -124,10 +185,9 @@ export class TrialEmailCappedError extends Error {}
  *  the same backend the chat itself uses. The address is never sent
  *  anywhere else, never persisted by the backend, and the notes are never
  *  shown to the student in this browser — see
- *  homeschool-api/services/email_service.py. Only offered on this
- *  shared-trial path (not bring-your-own-key), since it's the only path
- *  with server-side auth and a per-session send cap to protect the
- *  operator's own Claude/Resend usage. */
+ *  homeschool-api/services/email_service.py. Offered on both backend-mediated
+ *  demo tiers (shared-PIN trial and self-service code), each with its own
+ *  per-session send cap to protect the operator's own Claude/Resend usage. */
 export async function emailTrialSummary(
   token: string,
   email: string,
@@ -164,7 +224,11 @@ export async function* streamTutorChat(
   history: ChatMessage[],
   childMessage: string,
   drawingImageDataUrl: string | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  // Called once per request with the remaining-messages count from the
+  // X-Demo-Code-Remaining response header — only set for the self-service
+  // code tier (null for the shared-PIN trial, which has no message cap).
+  onQuotaHeader?: (remaining: number | null) => void
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${apiBase()}/tutor/chat`, {
     method: 'POST',
@@ -182,8 +246,13 @@ export async function* streamTutorChat(
     signal,
   })
 
-  if (res.status === 401) throw new TrialSessionEndedError('Your free trial has ended — log in again or use your own key to keep going.')
+  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — get a new code or trial login to keep going.')
   if (!res.ok) throw new Error('Tutor request failed — check your connection')
+
+  if (onQuotaHeader) {
+    const h = res.headers.get('X-Demo-Code-Remaining')
+    onQuotaHeader(h !== null ? parseInt(h, 10) : null)
+  }
 
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()

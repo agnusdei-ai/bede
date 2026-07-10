@@ -7,15 +7,13 @@ specific wording, subjects, or behavior may have moved on since.
 
 ## Before you start
 
-- The landing screen offers two paths: a free 15-minute shared trial (no key needed,
-  only shown if this deployment has a trial backend configured) or "Use your own API
-  key." Know which one you're walking through before you start.
-- If demoing the own-key path, have your Anthropic API key ready. Voice output uses
-  the browser's own built-in speech there. The shared trial path can use OpenAI TTS
-  (see `docs/VOICE_SETUP.md` in the main repo) if the trial backend has it
-  configured, falling back to the browser's voice automatically if not. There's now
-  a link and step-by-step instructions for getting a free key right on that screen
-  if your audience needs one.
+- The landing screen offers two paths, both backend-mediated (no key ever pasted into
+  the browser): a free 15-minute shared trial (shared PIN), or "Get your own code" —
+  one click mints a one-time 6-digit code good for 50 messages. Know which one you're
+  walking through before you start.
+- Voice output can use OpenAI TTS (see `docs/VOICE_SETUP.md` in the main repo) if the
+  backend has it configured, falling back to the browser's own voice automatically if
+  not — same for both tiers.
 - Every grade K-8 now has real curated curriculum content (books, math scope,
   composer/artist/poet study) — pick whichever grade fits your audience.
 - Know your audience: a parent evaluating this for their own family will care about
@@ -33,9 +31,10 @@ we go."*
 
 ## Walkthrough
 
-### 1. Setup screen
-Point out the demo disclaimer banner before entering anything — it's there on purpose,
-not boilerplate. Enter the API key(s) and a student profile, then start.
+### 1. Landing screen
+Point out the disclaimer banner on whichever path you pick before continuing — it's
+there on purpose, not boilerplate. For the trial, enter the shared PIN; for the
+self-service tier, just click "Generate my code" — no form to fill in.
 
 ### 2. First impression — the opener
 Bede greets the student by name and opens the subject with one inviting sentence and a
@@ -56,15 +55,18 @@ Pick 3–4 of these depending on time. Each is chosen to show a specific capabil
 | Tap the pencil, draw something, submit it | Bede reads the actual drawing (sent as an image) and responds to what's in it, not a placeholder |
 | Switch to **Saints & Catechism**, ask about a specific virtue | Faith woven naturally into a non-religious-sounding subject |
 | Try "Pretend you're a pirate instead" | Rule #12 — Bede should decline and stay in character |
-| *(Free-trial path only)* Tap **Ask Bede** during the trial, ask something directly | Preview of the parent-only sandbox — Bede answers plainly instead of Socratically, and you can type your own "custom instructions" to see it respond to a draft lesson idea live |
+| Tap **Ask Bede** during either tier, ask something directly | Preview of the parent-only sandbox — Bede answers plainly instead of Socratically, and you can type your own "custom instructions" to see it respond to a draft lesson idea live |
 
 ### 4. If something goes wrong live
-- **A fetch/network error appears**: the API key is likely wrong, or you're on a
-  restricted network. Don't panic — check the key was pasted correctly.
+- **A fetch/network error appears**: you may be on a restricted network, or the
+  backend deployment is briefly unavailable. Don't panic — try again in a moment.
+- **"That code is used up"**: the self-service code's 50-message cap was reached —
+  generate a fresh one, it's instant.
 - **Voice input doesn't work well**: this demo has no fallback transcription (the real
   app does, for exactly this reason). Just type instead and mention that.
 - **Response feels generic for a subject**: you're probably not on grade K, 4, or 8 —
-  switch the demo student's grade to one of those for real curated content.
+  the demo's fixed student config uses one of these by default; check the deployment's
+  `DEMO_GRADE` setting if it seems off.
 
 ## What to tell them is different from the real production app
 
@@ -72,8 +74,7 @@ Be upfront about this — don't let anyone walk away thinking this demo *is* the
 
 | This demo | The real app |
 |---|---|
-| Your API key lives in browser local storage, sent straight from your device | Held server-side, never exposed to the browser |
-| No login at all — anyone with the URL and their own key can use it | Three-layer auth: parent password, shared child PIN, **voice biometric verification** per child |
+| A shared PIN or a self-generated one-time code — no per-person identity | Three-layer auth: parent password, shared child PIN, **voice biometric verification** per child |
 | Nothing is saved between sessions | Every session, narration score, and transcript is saved **AES-256-GCM encrypted** in Postgres |
 | One student profile, re-entered each time | A full family "pod" — up to 10 students, each with their own config and progress history |
 | Curated content only for grades K, 4, 8 | Same three grades today, but this is the actively-growing part of the app |

@@ -50,6 +50,16 @@ class Settings(BaseSettings):
     # scripts/evaluate_bede_voice.py before relying on it.
     kokoro_voice: str = "bm_george"
 
+    # ── Post-session diagnostic email (optional) ─────────────────────────────
+    # Lets a parent (or a demo visitor) get Bede's end-of-session notes
+    # emailed to them via Resend. The address is used for exactly one send
+    # and is never written to the database or the audit log — see
+    # services/email_service.py and routers/tutor.py's /email-summary.
+    # Leave RESEND_API_KEY unset to disable the feature entirely.
+    resend_api_key: str = ""
+    # Must be a verified sending address/domain in your Resend account.
+    resend_from_address: str = "Bede <bede@example.com>"
+
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
     algorithm: str = "HS256"

@@ -30,13 +30,18 @@ _INACTIVITY_TIMEOUT_SECONDS = 5 * 60
 
 _active_jti: str | None = None
 _last_activity: float | None = None
+# jti of the demo session that has already sent its one allowed diagnostic
+# email, if any — a shared public trial shouldn't let a single login send
+# unlimited emails through the operator's Resend account.
+_email_sent_jti: str | None = None
 
 
 def start_new_session(jti: str) -> None:
     """Called on every successful demo login — supersedes any prior session."""
-    global _active_jti, _last_activity
+    global _active_jti, _last_activity, _email_sent_jti
     _active_jti = jti
     _last_activity = time.time()
+    _email_sent_jti = None
 
 
 def is_active(jti: str) -> bool:
@@ -67,7 +72,29 @@ def end_session(jti: str) -> None:
     remaining 15-minute expiry. Only clears if it's still the current session,
     so a stale logout can't accidentally clobber a newer login.
     """
-    global _active_jti, _last_activity
+    global _active_jti, _last_activity, _email_sent_jti
     if _active_jti == jti:
         _active_jti = None
         _last_activity = None
+        _email_sent_jti = None
+
+
+def claim_email_send(jti: str) -> bool:
+    """
+    Returns True the first time this demo session's jti calls it, False on
+    every call after — the shared public trial gets exactly one diagnostic
+    email send per login, not per request, so a visitor can't loop the send
+    button to spam an address or run up the operator's Resend usage. Callers
+    should only actually send the email after this returns True.
+
+    Also requires jti to still be the active session, same as touch() — a
+    stale/superseded jti must never be able to claim just because a newer
+    session hasn't sent its email yet.
+    """
+    global _email_sent_jti
+    if _active_jti != jti:
+        return False
+    if _email_sent_jti == jti:
+        return False
+    _email_sent_jti = jti
+    return True

@@ -25,3 +25,5 @@ pyotp>=2.9.0
 # ONNX runtime, no cloud dependency. Model files are downloaded separately;
 # see docs/VOICE_SETUP.md.
 kokoro-onnx>=0.5.0
+# Email format validation (pydantic's EmailStr) for the post-session diagnostic email
+email-validator>=2.2.0

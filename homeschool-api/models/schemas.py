@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, Literal
 from enum import Enum
 from datetime import date
@@ -139,6 +139,16 @@ class TotpVerifyRequest(BaseModel):
 
 
 class SessionSummaryRequest(BaseModel):
+    session_config: SessionConfig
+    conversation_history: List[ChatMessage]
+    subjects_completed: List[Subject]
+    duration_minutes: int
+
+
+class EmailSummaryRequest(BaseModel):
+    # Used for exactly one outbound send — never persisted anywhere, not the
+    # database, not the audit log. See routers/tutor.py's /email-summary.
+    email: EmailStr
     session_config: SessionConfig
     conversation_history: List[ChatMessage]
     subjects_completed: List[Subject]

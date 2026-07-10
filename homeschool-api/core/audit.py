@@ -42,6 +42,7 @@ class AuditEvent:
     RATE_LIMITED             = "rate_limited"
     SUSPICIOUS_REQUEST       = "suspicious_request"
     SAFEGUARDING             = "safeguarding.alert"
+    SUMMARY_EMAILED          = "summary.emailed"
 
 
 # ── Write ────────────────────────────────────────────────────────────────────

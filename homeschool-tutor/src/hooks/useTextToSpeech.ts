@@ -13,17 +13,48 @@ import { useState, useRef, useCallback, useEffect } from 'react'
  * in both paths prefers a male voice, never a gender-ambiguous or female one.
  */
 
+// A name containing "female" also contains "male" as a literal substring
+// ("fe-MALE") — naively checking name.includes('male') alone matches female
+// voices too. Every male check below excludes isFemale() explicitly to
+// avoid this exact bug (a real, confirmed cause of picking a female voice
+// on at least one Android/Chrome device that labels voices "...Female").
+function isFemaleVoiceName(name: string): boolean {
+  return name.toLowerCase().includes('female')
+}
+function isMaleVoiceName(name: string): boolean {
+  return name.toLowerCase().includes('male') && !isFemaleVoiceName(name)
+}
+
+// Exact names confirmed male across common desktop/mobile TTS engines that
+// don't label voices "male"/"female" in the first place (Safari/macOS/iOS
+// give plain first names; Windows/Edge give "Microsoft <Name> - ...").
+// Checked before any substring heuristics since exact names are unambiguous.
+const KNOWN_MALE_VOICE_NAMES = new Set([
+  'Daniel', 'Oliver', 'Arthur', 'Alex', 'Fred', 'Aaron', 'Gordon',
+  'Microsoft David - English (United States)',
+  'Microsoft Mark - English (United States)',
+  'Microsoft Guy - English (United States)',
+  'Microsoft Ryan - English (United Kingdom)',
+  'Microsoft George - English (United Kingdom)',
+  'Google UK English Male',
+  'Google US English Male',
+])
+
 function pickBestVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
 
   const priorities = [
-    (v: SpeechSynthesisVoice) => v.name === 'Google UK English Male',
-    (v: SpeechSynthesisVoice) => v.name === 'Google US English Male',
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en-GB') && v.name.toLowerCase().includes('male'),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && v.name.toLowerCase().includes('male'),
-    // Common iOS/Safari male voice names — Safari doesn't label voices "male"/"female"
-    (v: SpeechSynthesisVoice) => ['Daniel', 'Oliver', 'Arthur', 'Alex', 'Fred'].includes(v.name),
+    (v: SpeechSynthesisVoice) => KNOWN_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && isMaleVoiceName(v.name),
+    // Many Android/OEM TTS engines (Samsung's included) expose English
+    // voices with no gender word in the name at all — nothing above can
+    // match those. Rather than falling straight through to "just take the
+    // first English voice" (which might be the one explicitly labeled
+    // female), prefer any voice that ISN'T explicitly female first — an
+    // unlabeled voice is a better bet than a confirmed-wrong one.
+    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && !isFemaleVoiceName(v.name),
     (v: SpeechSynthesisVoice) => v.lang.startsWith('en'),
   ]
 

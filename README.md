@@ -20,7 +20,8 @@ make setup        # or: bash setup.sh
 # Day-to-day
 make start        # docker compose up -d
 make stop         # docker compose down
-make restart      # pick up .env changes
+make restart      # pick up .env changes only (no code changes)
+make update       # git pull + rebuild + restart — use this after pulling new commits
 make logs         # all services
 make logs-api     # FastAPI only
 make status       # container health + /api/health check

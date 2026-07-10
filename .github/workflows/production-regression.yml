@@ -148,7 +148,16 @@ jobs:
             fi
             sleep 2
           done
-          echo "API never became healthy — dumping logs:"
+          echo "API never became healthy. Diagnostics:"
+          echo "--- docker compose ps ---"
+          docker compose ps
+          echo "--- curl -v https://localhost/api/health ---"
+          curl -vsk https://localhost/api/health 2>&1 || true
+          echo "--- curl -v https://localhost/ (through nginx directly, no /api prefix) ---"
+          curl -vsk https://localhost/ 2>&1 || true
+          echo "--- direct to api container's own port, bypassing nginx/caddy ---"
+          docker compose exec -T api curl -sf http://localhost:8000/health 2>&1 || true
+          echo "--- docker compose logs ---"
           docker compose logs
           exit 1
 

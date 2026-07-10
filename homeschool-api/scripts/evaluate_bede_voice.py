@@ -3,11 +3,20 @@
 One-time voice-selection tool for Bede's spoken voice.
 
 Synthesizes the same short, in-character line with a shortlist of candidate
-Kokoro voices, saves each as a WAV file, and ranks them by estimated pitch
-(lower = reads as older/deeper, which is what we want for a monk's voice) as
-a first-pass filter — NOT a substitute for actually listening. Run this once
-after placing the Kokoro model files, listen to the output WAVs yourself,
-and set KOKORO_VOICE in .env to whichever one actually sounds right.
+Kokoro voices — including a couple of blended voices (see
+services/voice_synthesis.py's _resolve_voice) — at a few speeds, saves each
+as a WAV file, and ranks them by estimated pitch (lower = reads as
+older/deeper, which is what we want for a monk's voice) as a first-pass
+filter — NOT a substitute for actually listening. Run this once after
+placing the Kokoro model files, listen to the output WAVs yourself, and set
+KOKORO_VOICE/KOKORO_SPEED in .env to whichever actually sounds right.
+
+Ceiling: Kokoro is an ~82M-parameter CPU-friendly model. Tuning voice/speed/
+blend here finds the best result within that model's ceiling — it will not
+make it sound like a cloud voice product (OpenAI TTS, ElevenLabs, Google/
+Azure Neural). If none of these samples sound convincingly natural, that's
+the model's limit, not a setting to keep chasing — switching to a cloud
+provider is the only way past it.
 
 Usage:
     cd homeschool-api
@@ -23,7 +32,10 @@ cannot reach either huggingface.co or github.com's release-asset CDN, so
 there was no way to fetch the model files and validate this end-to-end.
 Treat the exact kokoro_onnx API calls below as "written against the
 documented interface, not yet run" and adjust if the installed version's
-signature differs.
+signature differs. The `Kokoro.create()` signature itself (voice as a name
+or a raw style-vector array, speed clamped 0.5–2.0) was confirmed by
+downloading and reading the actual kokoro-onnx package source from PyPI —
+only the model weights themselves are unreachable here.
 """
 import sys
 from pathlib import Path
@@ -31,6 +43,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config import settings  # noqa: E402
+from services.voice_synthesis import _first_voice_name, _resolve_voice  # noqa: E402
 
 SAMPLE_LINE = (
     "Ah, welcome back. Tell me — what did you discover in your reading today?"
@@ -39,12 +52,20 @@ SAMPLE_LINE = (
 # Kokoro-82M's English male voices as of this writing (see
 # huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md for the current,
 # authoritative list — verify these ids still exist before relying on them).
+# The blends are a real, supported technique (see _resolve_voice) worth
+# trying if a single voice alone still sounds too mechanical.
 CANDIDATE_VOICES = [
-    "bm_george",   # British male — the current default guess for Bede
-    "bm_lewis",    # British male
-    "am_adam",     # American male
-    "am_michael",  # American male
+    "bm_george",              # British male — the current default guess for Bede
+    "bm_lewis",                # British male
+    "bm_george+bm_lewis",       # equal blend — sometimes smooths a single voice's rough edges
+    "am_adam",                  # American male
+    "am_michael",                # American male
 ]
+
+# Kokoro's native speed is 1.0; these bracket it slightly to check whether
+# deviating actually helps or just introduces artifacts (see core/config.py's
+# comment on kokoro_speed for why 1.0 is the recommended starting point).
+CANDIDATE_SPEEDS = [1.0, 0.92, 1.08]
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "voice_samples"
 
@@ -84,43 +105,57 @@ def main():
     kokoro = Kokoro(str(model_path), str(voices_path))
 
     results = []
-    for voice in CANDIDATE_VOICES:
-        print(f"Synthesizing with voice={voice!r}...")
-        # Match phonemization to each candidate's actual accent — en-gb for
+    for voice_spec in CANDIDATE_VOICES:
+        # Match phonemization to the candidate's actual accent — en-gb for
         # British voices, en-us for American ones — same rule production uses
         # in voice_synthesis.py. Comparing George/Lewis under en-us (as this
         # script originally did) understates how they actually sound live.
-        lang = "en-gb" if voice.startswith(("bm_", "bf_")) else "en-us"
+        lang = "en-gb" if _first_voice_name(voice_spec).startswith(("bm_", "bf_")) else "en-us"
         try:
-            samples, sample_rate = kokoro.create(SAMPLE_LINE, voice=voice, speed=0.92, lang=lang)
+            voice = _resolve_voice(kokoro, voice_spec)
         except Exception as exc:
-            print(f"  FAILED: {exc}")
+            print(f"Skipping {voice_spec!r}: {exc}")
             continue
 
-        out_path = OUTPUT_DIR / f"{voice}.wav"
-        sf.write(str(out_path), samples, sample_rate, format="WAV")
+        for speed in CANDIDATE_SPEEDS:
+            label = f"{voice_spec}_speed{speed}".replace("+", "-").replace(":", "@")
+            print(f"Synthesizing voice={voice_spec!r} speed={speed}...")
+            try:
+                samples, sample_rate = kokoro.create(SAMPLE_LINE, voice=voice, speed=speed, lang=lang)
+            except Exception as exc:
+                print(f"  FAILED: {exc}")
+                continue
 
-        pitch = estimate_mean_pitch_hz(samples, sample_rate)
-        results.append((voice, out_path, pitch))
-        pitch_note = f"{pitch:.0f} Hz" if pitch else "unknown"
-        print(f"  saved {out_path} (estimated mean pitch: {pitch_note})")
+            out_path = OUTPUT_DIR / f"{label}.wav"
+            sf.write(str(out_path), samples, sample_rate, format="WAV")
+
+            pitch = estimate_mean_pitch_hz(samples, sample_rate)
+            results.append((voice_spec, speed, out_path, pitch))
+            pitch_note = f"{pitch:.0f} Hz" if pitch else "unknown"
+            print(f"  saved {out_path} (estimated mean pitch: {pitch_note})")
 
     if not results:
         print("\nNo candidates synthesized successfully.")
         sys.exit(1)
 
-    results.sort(key=lambda r: (r[2] is None, r[2] if r[2] is not None else 0))
+    results.sort(key=lambda r: (r[3] is None, r[3] if r[3] is not None else 0))
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("Ranked by estimated pitch (lower first — a rough proxy for")
     print("'deeper/older-sounding', NOT a substitute for listening):")
-    print("=" * 60)
-    for voice, path, pitch in results:
+    print("=" * 70)
+    for voice_spec, speed, path, pitch in results:
         pitch_note = f"{pitch:.0f} Hz" if pitch else "unknown"
-        print(f"  {voice:12s}  {pitch_note:>10s}   {path}")
+        print(f"  {voice_spec:24s}  speed={speed:<5}  {pitch_note:>10s}   {path}")
 
+    best_voice, best_speed = results[0][0], results[0][1]
     print(f"\nListen to the files in {OUTPUT_DIR}, then set in .env:")
-    print(f"  KOKORO_VOICE={results[0][0]}   # or whichever one actually sounds right")
+    print(f"  KOKORO_VOICE={best_voice}   # or whichever one actually sounds right")
+    print(f"  KOKORO_SPEED={best_speed}")
+    print(
+        "\nIf none of these sound convincingly natural, that's this model's "
+        "ceiling — see the module docstring above for cloud alternatives."
+    )
 
 
 if __name__ == "__main__":

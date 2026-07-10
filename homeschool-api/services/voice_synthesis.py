@@ -1,6 +1,7 @@
 """
 Server-side text-to-speech for Bede's spoken voice, via a self-hosted Kokoro
-model (kokoro-onnx — ONNX Runtime, CPU-friendly, ~80MB quantized).
+model (kokoro-onnx — ONNX Runtime, CPU-friendly, ~82M parameters, ~80MB
+quantized).
 
 Replaces the earlier ElevenLabs cloud integration: no per-user API key, no
 per-request network call, no cloud dependency at all — Kokoro runs locally
@@ -9,6 +10,12 @@ GPU is genuinely uncertain on Raspberry Pi-class hardware; that's exactly
 what scripts/evaluate_bede_voice.py is for — run it once on the real
 deployment target to confirm it's fast enough and to pick KOKORO_VOICE,
 before relying on this in a live session.
+
+Ceiling: as a small CPU-friendly model, Kokoro will not sound as natural as
+a cloud voice product (OpenAI TTS, ElevenLabs, Google/Azure Neural) — those
+are far larger models trained on far more data. KOKORO_VOICE/KOKORO_SPEED
+(see core/config.py) tune the best result within that ceiling; they don't
+close the gap to cloud-quality voices.
 
 Gracefully returns None whenever the model isn't loaded or the model files
 aren't present (see docs/VOICE_SETUP.md), so callers (routers/tutor.py) fall
@@ -88,6 +95,39 @@ def synthesis_configured() -> bool:
     return model_path.exists() and voices_path.exists()
 
 
+def _first_voice_name(voice_spec: str) -> str:
+    """First component's bare name, ignoring '+' blend separators and ':weight'
+    suffixes — used only to guess the right phonemizer accent (see below)."""
+    return voice_spec.split("+")[0].split(":")[0].strip()
+
+
+def _resolve_voice(kokoro, voice_spec: str):
+    """
+    KOKORO_VOICE is normally a single name (e.g. "bm_george"), passed straight
+    through to kokoro.create(). It can also be a '+'-separated blend of two or
+    more voices' style vectors — e.g. "bm_george+bm_lewis" (equal blend) or
+    "bm_george:0.7+bm_lewis:0.3" (weighted) — a real, supported technique
+    (kokoro.create() accepts a raw style-vector ndarray as well as a name) that
+    sometimes rounds off a single voice's rough edges. Only worth trying if a
+    single voice alone still sounds too mechanical — see docs/VOICE_SETUP.md.
+    """
+    parts = voice_spec.split("+")
+    if len(parts) == 1:
+        return voice_spec  # plain name — let kokoro.create() resolve it as before
+
+    import numpy as np
+
+    blended = None
+    total_weight = 0.0
+    for part in parts:
+        name, _, weight_str = part.strip().partition(":")
+        weight = float(weight_str) if weight_str else 1.0
+        style = kokoro.get_voice_style(name.strip())
+        blended = style * weight if blended is None else blended + style * weight
+        total_weight += weight
+    return (blended / total_weight).astype(np.float32)
+
+
 def _synthesize_sync(kokoro, text: str) -> bytes:
     """Blocking inference + WAV encoding — run in an executor."""
     import io
@@ -98,10 +138,9 @@ def _synthesize_sync(kokoro, text: str) -> bytes:
     # with "en-us" phonemization was making George sound like an American
     # accent forced onto a British voice: neither convincingly English nor
     # natural. Match phonemization to the voice's actual accent.
-    lang = "en-gb" if settings.kokoro_voice.startswith(("bm_", "bf_")) else "en-us"
-    # Slightly slower than natural speed reads as more measured and thoughtful
-    # for Bede's Socratic, unhurried persona rather than a brisk assistant voice.
-    samples, sample_rate = kokoro.create(text, voice=settings.kokoro_voice, speed=0.92, lang=lang)
+    lang = "en-gb" if _first_voice_name(settings.kokoro_voice).startswith(("bm_", "bf_")) else "en-us"
+    voice = _resolve_voice(kokoro, settings.kokoro_voice)
+    samples, sample_rate = kokoro.create(text, voice=voice, speed=settings.kokoro_speed, lang=lang)
     buf = io.BytesIO()
     sf.write(buf, samples, sample_rate, format="WAV")
     return buf.getvalue()

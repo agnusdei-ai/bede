@@ -34,6 +34,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
       - KOKORO_MODEL_DIR=${KOKORO_MODEL_DIR:-/app/models/kokoro}
       - KOKORO_VOICE=${KOKORO_VOICE:-bm_george}
+      - KOKORO_SPEED=${KOKORO_SPEED:-1.0}
       # Optional — leave RESEND_API_KEY unset to disable the post-session
       # diagnostic email feature entirely. See docs/VOICE_SETUP.md's sibling,
       # services/email_service.py, for what this powers.

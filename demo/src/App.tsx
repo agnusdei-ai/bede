@@ -41,11 +41,22 @@ interface DisplayMessage {
 
 const MIN_PIN_LENGTH = 6
 
-/** At least 6 digits, no repeated digit anywhere in the PIN. */
+/** True if every digit steps by the same +1/-1 from the last, mod 10 —
+ *  catches not just 123456/654321 but wraparound runs like 789012/901234. */
+function isSequentialPin(pin: string): boolean {
+  const diffs = new Set<number>()
+  for (let i = 1; i < pin.length; i++) {
+    diffs.add((Number(pin[i]) - Number(pin[i - 1]) + 10) % 10)
+  }
+  return diffs.size === 1 && (diffs.has(1) || diffs.has(9))
+}
+
+/** At least 6 digits, no repeated digit, and not a sequential run. */
 function pinStrengthError(pin: string): string | null {
   if (!/^\d+$/.test(pin)) return 'PIN must contain only digits.'
   if (pin.length < MIN_PIN_LENGTH) return `PIN must be at least ${MIN_PIN_LENGTH} digits.`
   if (new Set(pin).size !== pin.length) return 'PIN cannot repeat any digit.'
+  if (isSequentialPin(pin)) return 'PIN cannot be a sequential run (e.g. 123456 or 654321).'
   return null
 }
 
@@ -241,11 +252,11 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
           </div>
           <div>
             <label className="label">Demo PIN screen (optional)</label>
-            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no repeats — leave blank to skip" inputMode="numeric" />
+            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no repeats or sequences — leave blank to skip" inputMode="numeric" />
             <p className="text-xs text-gray-400 mt-1">
               Shows a PIN entry step before Bede, mirroring the real app's login <em>look</em> —
               this is a UI demonstration only, not real security (see the notice on that screen).
-              If set: at least {MIN_PIN_LENGTH} digits, no digit repeated.
+              If set: at least {MIN_PIN_LENGTH} digits, no digit repeated, not a sequential run.
             </p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}

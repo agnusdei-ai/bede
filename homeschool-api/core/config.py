@@ -149,6 +149,12 @@ class Settings(BaseSettings):
                 f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits, no digit repeated, and not a "
                 "sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321)"
             )
+        if self.demo_pin and not pin_is_strong(self.demo_pin):
+            problems.append(
+                f"DEMO_PIN must be {MIN_PIN_LENGTH}+ digits, no digit repeated, and not a "
+                "sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321) — "
+                "it's shared with the public, so it deserves the same bar as CHILD_PIN"
+            )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")
         if problems:

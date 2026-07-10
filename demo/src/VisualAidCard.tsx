@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ImageOff, MapPin, Palette } from 'lucide-react'
-import type { VisualAidData } from './api'
+import type { VisualAidData } from './claude'
 
 /**
  * Renders a picture-study artwork or historical map/artifact. The catalog only

@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import LearnerProfile, NarrationAssessment, get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_auth, require_parent
 from core.encryption import decrypt_json, encrypt_json
 from services.ai_service import synthesize_learner_profile
 
@@ -45,7 +45,7 @@ async def get_assessments(
 @router.get("/{student_name}/profile")
 async def get_profile(
     student_name: str,
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Return the current learner profile for a student (parent or child token)."""
@@ -65,7 +65,7 @@ async def get_profile(
 async def build_profile(
     student_name: str,
     session_count: int = Query(..., ge=3, description="Total sessions completed so far"),
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """

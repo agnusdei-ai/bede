@@ -51,27 +51,6 @@ async def require_auth(
     return payload
 
 
-async def require_real_user(auth: dict = Depends(require_auth)) -> dict:
-    """
-    Same as require_auth, but rejects the scoped "demo" role — for every
-    endpoint beyond the fixed demo chat itself (catalog browsing, student
-    configs, narration history, transcripts, voice, TTS). Parent and child
-    both pass through unchanged.
-    """
-    if auth.get("role") == "demo":
-        await log_event(
-            AuditEvent.ACCESS_DENIED,
-            role="demo",
-            success=False,
-            detail="Not available in demo mode",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not available in demo mode",
-        )
-    return auth
-
-
 async def require_parent(auth: dict = Depends(require_auth)) -> dict:
     """Require parent role. Children and unauthenticated requests are rejected."""
     if auth.get("role") != "parent":

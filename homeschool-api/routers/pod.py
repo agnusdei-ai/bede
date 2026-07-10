@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import StudentConfig, get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_auth, require_parent
 from core.encryption import decrypt_json, encrypt_json
 from models.schemas import PodConfigsRequest, SessionConfig
 
@@ -53,7 +53,7 @@ async def list_pod_configs(
 @router.get("/configs/{student_name}", response_model=SessionConfig)
 async def get_student_config(
     student_name: str,
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ) -> SessionConfig:
     """Any authenticated user can fetch a student config — child loads their own session."""

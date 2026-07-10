@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import SessionTranscript, get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_auth, require_parent
 from core.encryption import decrypt_json, encrypt_json
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
@@ -32,7 +32,7 @@ async def save_transcript(
     student_name: str,
     req: TranscriptSaveRequest,
     request: Request,
-    auth: dict = Depends(require_real_user),
+    auth: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
     """

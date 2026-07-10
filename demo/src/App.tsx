@@ -1,19 +1,31 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles } from 'lucide-react'
 import {
-  streamTutorChat, login, getDemoConfig, decodeExpiry, SUBJECTS, SUBJECT_LABELS,
-  type Subject, type SessionConfig, type ChatMessage, type VisualAidData,
-} from './api'
+  streamTutorChat, SUBJECTS, SUBJECT_LABELS,
+  type Subject, type StudentProfile, type ChatMessage, type GradeStage, type VisualAidData,
+} from './claude'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech } from './useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 
-// Session token only — sessionStorage so a reload within the same tab
-// doesn't force re-entering the PIN, but it's gone the moment the tab
-// closes. The server enforces the real 15-minute expiry regardless of
-// anything kept client-side; this is just for the countdown UI.
-const AUTH_KEY = 'bede_demo_auth'
+const LS_KEYS = {
+  anthropicKey: 'bede_demo_anthropic_key',
+  elevenLabsKey: 'bede_demo_elevenlabs_key',
+  elevenLabsVoiceId: 'bede_demo_elevenlabs_voice_id',
+  student: 'bede_demo_student',
+  pin: 'bede_demo_pin',
+}
+
+// Conversation progress — localStorage, same as the student profile/API keys: a
+// student closing and reopening the app (or the tablet being turned off and back on)
+// should resume the same conversation under the same login, not restart it. Cleared
+// only by the explicit "New Session" action below, or a full Reset.
+const SESSION_KEYS = {
+  messages: 'bede_demo_session_messages',
+  subject: 'bede_demo_session_subject',
+  openerFired: 'bede_demo_session_opener_fired',
+}
 
 interface DisplayMessage {
   id: string
@@ -23,44 +35,50 @@ interface DisplayMessage {
   visualAid?: VisualAidData
 }
 
-function loadAuth(): { token: string; expiresAt: number | null } | null {
-  try {
-    const raw = sessionStorage.getItem(AUTH_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed.expiresAt || parsed.expiresAt <= Date.now()) return null
-    return parsed
-  } catch {
-    return null
-  }
+const MIN_PIN_LENGTH = 6
+
+/** At least 6 digits, no repeated digit anywhere in the PIN. */
+function pinStrengthError(pin: string): string | null {
+  if (!/^\d+$/.test(pin)) return 'PIN must contain only digits.'
+  if (pin.length < MIN_PIN_LENGTH) return `PIN must be at least ${MIN_PIN_LENGTH} digits.`
+  if (new Set(pin).size !== pin.length) return 'PIN cannot repeat any digit.'
+  return null
 }
 
-function PinLoginScreen({ onLoggedIn }: { onLoggedIn: (token: string, expiresAt: number | null) => void }) {
+function SetupScreen({ onReady }: { onReady: () => void }) {
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [elevenLabsKey, setElevenLabsKey] = useState('')
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('')
+  const [name, setName] = useState('')
+  const [grade, setGrade] = useState('')
+  const [gradeStage, setGradeStage] = useState<GradeStage>('3-5')
   const [pin, setPin] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const { token, expiresAt } = await login(pin.trim())
-      sessionStorage.setItem(AUTH_KEY, JSON.stringify({ token, expiresAt }))
-      onLoggedIn(token, expiresAt)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not log in')
-      setPin('')
-    } finally {
-      setLoading(false)
+    if (!anthropicKey.trim() || !name.trim() || !grade.trim()) {
+      setError('Anthropic API key, name, and grade are all required.')
+      return
     }
+    if (pin.trim()) {
+      const pinError = pinStrengthError(pin.trim())
+      if (pinError) { setError(pinError); return }
+    }
+    localStorage.setItem(LS_KEYS.anthropicKey, anthropicKey.trim())
+    if (elevenLabsKey.trim()) localStorage.setItem(LS_KEYS.elevenLabsKey, elevenLabsKey.trim())
+    if (elevenLabsVoiceId.trim()) localStorage.setItem(LS_KEYS.elevenLabsVoiceId, elevenLabsVoiceId.trim())
+    localStorage.setItem(LS_KEYS.student, JSON.stringify({ name: name.trim(), grade: grade.trim(), gradeStage }))
+    if (pin.trim()) localStorage.setItem(LS_KEYS.pin, pin.trim())
+    else localStorage.removeItem(LS_KEYS.pin)
+    onReady()
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
         <div className="text-center mb-6">
-          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-32 h-32 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
+          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-36 h-36 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
           <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
         </div>
@@ -68,27 +86,61 @@ function PinLoginScreen({ onLoggedIn }: { onLoggedIn: (token: string, expiresAt:
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
           <p>
-            <strong>Shared public demo.</strong> One session, 15 minutes, then you're logged
-            out automatically. Nothing you type here is saved after that.
+            <strong>Demo build, not the real app.</strong> Your API key is stored only in this
+            browser's local storage and sent directly to Anthropic/ElevenLabs — never to any
+            server of ours. Don't use a key you care about protecting on a shared device, and
+            don't rely on this for anything beyond trying Bede out.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="label">Demo PIN</label>
-            <input
-              type="password" inputMode="numeric" autoFocus
-              className="input text-center text-lg tracking-widest"
-              value={pin} onChange={(e) => setPin(e.target.value)}
-              placeholder="••••••"
-            />
+            <label className="label">Anthropic API key (required)</label>
+            <input type="password" className="input" value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} placeholder="sk-ant-..." />
           </div>
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          <button
-            type="submit" disabled={!pin.trim() || loading}
-            className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Start the demo'}
+          <div>
+            <label className="label">ElevenLabs API key (optional — for a real voice)</label>
+            <input type="password" className="input" value={elevenLabsKey} onChange={(e) => setElevenLabsKey(e.target.value)} placeholder="Leave blank to use your browser's voice" />
+          </div>
+          {elevenLabsKey.trim() && (
+            <div>
+              <label className="label">ElevenLabs voice ID</label>
+              <input className="input" value={elevenLabsVoiceId} onChange={(e) => setElevenLabsVoiceId(e.target.value)} placeholder="Required if you set a key above" />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Student's name</label>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Emma" />
+            </div>
+            <div>
+              <label className="label">Grade</label>
+              <input className="input" value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="K, 4, 8..." />
+            </div>
+          </div>
+          <div>
+            <label className="label">Stage</label>
+            <div className="flex rounded-lg border border-navy-200 overflow-hidden">
+              {(['K-2', '3-5', '6-8'] as GradeStage[]).map((s) => (
+                <button
+                  key={s} type="button" onClick={() => setGradeStage(s)}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${gradeStage === s ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'}`}
+                >{s}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="label">Demo PIN screen (optional)</label>
+            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no repeats — leave blank to skip" inputMode="numeric" />
+            <p className="text-xs text-gray-400 mt-1">
+              Shows a PIN entry step before Bede, mirroring the real app's login <em>look</em> —
+              this is a UI demonstration only, not real security (see the notice on that screen).
+              If set: at least {MIN_PIN_LENGTH} digits, no digit repeated.
+            </p>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <button type="submit" className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
+            Start the demo
           </button>
         </form>
       </div>
@@ -96,43 +148,43 @@ function PinLoginScreen({ onLoggedIn }: { onLoggedIn: (token: string, expiresAt:
   )
 }
 
-function ChatScreen({ token, config, onLoggedOut }: { token: string; config: SessionConfig; onLoggedOut: () => void }) {
-  const [subject, setSubject] = useState<Subject>(config.subjects[0] ?? 'living_books')
-  const [messages, setMessages] = useState<DisplayMessage[]>([])
+function ChatScreen({ student, onReset }: { student: StudentProfile; onReset: () => void }) {
+  const anthropicKey = localStorage.getItem(LS_KEYS.anthropicKey) ?? ''
+  const elevenLabsKey = localStorage.getItem(LS_KEYS.elevenLabsKey)
+  const elevenLabsVoiceId = localStorage.getItem(LS_KEYS.elevenLabsVoiceId)
+
+  const [subject, setSubject] = useState<Subject>(
+    () => (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) ?? 'living_books',
+  )
+  const [messages, setMessages] = useState<DisplayMessage[]>(() => {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEYS.messages) ?? '[]') } catch { return [] }
+  })
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [ttsEnabled, setTtsEnabled] = useState(true)
-  const [remainingSecs, setRemainingSecs] = useState<number | null>(null)
+  // Bumped by "New Session" so the opener effect below re-fires even when the
+  // subject it resets to is unchanged from what was already selected.
+  const [sessionEpoch, setSessionEpoch] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const openerFired = useRef(new Set<Subject>())
+  const openerFired = useRef<Set<Subject>>(
+    new Set(JSON.parse(localStorage.getItem(SESSION_KEYS.openerFired) ?? '[]')),
+  )
 
-  const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(null, null)
+  const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(elevenLabsKey, elevenLabsVoiceId)
   const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
     useSpeechRecognition((transcript) => setInput((prev) => (prev ? prev + ' ' + transcript : transcript)))
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  // 15-minute countdown, ticking from the token's real exp claim — auto-logout at zero.
-  useEffect(() => {
-    const tick = () => {
-      const auth = loadAuth()
-      if (!auth || !auth.expiresAt) { onLoggedOut(); return }
-      const secs = Math.max(0, Math.round((auth.expiresAt - Date.now()) / 1000))
-      setRemainingSecs(secs)
-      if (secs <= 0) onLoggedOut()
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  useEffect(() => { localStorage.setItem(SESSION_KEYS.subject, subject) }, [subject])
+  useEffect(() => { localStorage.setItem(SESSION_KEYS.messages, JSON.stringify(messages)) }, [messages])
 
   const historyForApi = useCallback((): ChatMessage[] => {
     return messages
-      .filter((m) => m.role !== 'system' && !m.tool && !m.visualAid)
+      .filter((m) => m.role !== 'system' && !m.tool)
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
   }, [messages])
 
@@ -144,7 +196,7 @@ function ChatScreen({ token, config, onLoggedOut }: { token: string; config: Ses
     setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }])
     let fullText = ''
     try {
-      for await (const chunk of streamTutorChat(token, config, subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
+      for await (const chunk of streamTutorChat(anthropicKey, student, subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
         if (chunk.type === 'text') {
           fullText += chunk.content
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: fullText } : m)))
@@ -159,23 +211,41 @@ function ChatScreen({ token, config, onLoggedOut }: { token: string; config: Ses
       }
       if (ttsEnabled && fullText) speak(fullText)
     } catch (err) {
+      // Drop the empty placeholder bubble on failure — an error message alone
+      // reads better than an empty "Bede" bubble sitting above it.
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof Error && err.name !== 'AbortError') {
         setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${err.message}` }])
-        if (err.message.includes('session has ended')) onLoggedOut()
       }
     } finally {
       setIsStreaming(false)
     }
-  }, [token, config, subject, historyForApi, ttsEnabled, speak, onLoggedOut])
+  }, [anthropicKey, student, subject, historyForApi, ttsEnabled, speak])
 
   // Fire Bede's opener once per subject
   useEffect(() => {
     if (openerFired.current.has(subject)) return
     openerFired.current.add(subject)
+    localStorage.setItem(SESSION_KEYS.openerFired, JSON.stringify([...openerFired.current]))
     runStream('[START]', null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject])
+  }, [subject, sessionEpoch])
+
+  // Clears the conversation only — keeps the API key and student setup, unlike onReset.
+  const startNewSession = () => {
+    stopSpeech()
+    stopListening()
+    abortRef.current?.abort()
+    localStorage.removeItem(SESSION_KEYS.messages)
+    localStorage.removeItem(SESSION_KEYS.subject)
+    localStorage.removeItem(SESSION_KEYS.openerFired)
+    openerFired.current = new Set()
+    setMessages([])
+    setSubject('living_books')
+    setInput('')
+    setPendingDrawing(null)
+    setSessionEpoch((n) => n + 1)
+  }
 
   const send = () => {
     const msg = input.trim()
@@ -192,43 +262,42 @@ function ChatScreen({ token, config, onLoggedOut }: { token: string; config: Ses
 
   const toggleMic = () => (isListening ? stopListening() : startListening())
 
-  const logout = () => {
-    sessionStorage.removeItem(AUTH_KEY)
-    abortRef.current?.abort()
-    onLoggedOut()
-  }
-
-  const lowTime = remainingSecs !== null && remainingSecs <= 60
-
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
       <header className="bg-white border-b border-navy-100 shrink-0 h-14 flex items-center px-4 gap-3">
         <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover" />
         <div className="flex-1 min-w-0">
           <span className="text-navy-700 font-semibold text-sm">Bede</span>
-          <span className="text-gray-400 text-xs ml-2">with {config.student_name}</span>
+          <span className="text-gray-400 text-xs ml-2">with {student.name}</span>
         </div>
-        {remainingSecs !== null && (
-          <div className={`flex items-center gap-1 text-xs font-mono tabular-nums ${lowTime ? 'text-red-500' : 'text-gray-400'}`}>
-            <Clock size={12} />
-            {String(Math.floor(remainingSecs / 60)).padStart(1, '0')}:{String(remainingSecs % 60).padStart(2, '0')}
-          </div>
-        )}
         <select
           value={subject}
           onChange={(e) => setSubject(e.target.value as Subject)}
           className="text-xs border border-navy-200 rounded-lg px-2 py-1.5 bg-white"
         >
-          {config.subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
+          {SUBJECTS.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
         </select>
-        <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 underline">Log out</button>
+        <button
+          onClick={startNewSession}
+          title="Start a fresh conversation — keeps your API key and student setup"
+          className="text-xs text-navy-500 hover:text-navy-700 underline"
+        >
+          New Session
+        </button>
+        <button
+          onClick={onReset}
+          title="Clear everything, including your API key and student setup"
+          className="text-xs text-gray-400 hover:text-gray-600 underline"
+        >
+          Reset
+        </button>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={config.student_name} />
+          <MessageBubble key={msg.id} msg={msg} studentName={student.name} />
         ))}
-        {isStreaming && messages.at(-1)?.content === '' && !messages.at(-1)?.visualAid && (
+        {isStreaming && messages.at(-1)?.content === '' && (
           <div className="flex items-center gap-2 text-navy-500 text-sm">
             <Loader2 size={14} className="animate-spin" /> <span>Bede is thinking…</span>
           </div>
@@ -321,48 +390,92 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   )
 }
 
+function PinScreen({ studentName, onVerified, onForgotPin }: { studentName: string; onVerified: () => void; onForgotPin: () => void }) {
+  const [entered, setEntered] = useState('')
+  const [error, setError] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const storedPin = localStorage.getItem(LS_KEYS.pin) ?? ''
+    if (entered.trim() === storedPin) {
+      onVerified()
+    } else {
+      setError('Incorrect PIN. Try again.')
+      setEntered('')
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-navy-100 flex items-center justify-center">
+            <Lock size={24} className="text-navy-600" />
+          </div>
+          <h1 className="text-xl font-display font-bold text-gray-800">Welcome, {studentName}</h1>
+          <p className="text-sm text-gray-500 mt-1">Enter your PIN to begin</p>
+        </div>
+
+        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
+          <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
+          <p>
+            <strong>UI demonstration only.</strong> This shows what the real app's login
+            <em> looks</em> like — it is not the real security model. The production app checks
+            the PIN server-side, then verifies the child's actual voice before granting access;
+            this demo only compares text stored in your own browser, which is not a real
+            safeguard.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="password" inputMode="numeric" autoFocus
+            className="input text-center text-lg tracking-widest"
+            value={entered} onChange={(e) => setEntered(e.target.value)}
+            placeholder="••••"
+          />
+          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          <button type="submit" disabled={!entered.trim()} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors">
+            Continue
+          </button>
+        </form>
+
+        <button
+          onClick={onForgotPin}
+          className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4"
+        >
+          Forgot your PIN? Reset the demo
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
-  const [auth, setAuth] = useState<{ token: string; expiresAt: number | null } | null>(() => loadAuth())
-  const [config, setConfig] = useState<SessionConfig | null>(null)
-  const [configError, setConfigError] = useState('')
+  const [student, setStudent] = useState<StudentProfile | null>(() => {
+    const raw = localStorage.getItem(LS_KEYS.student)
+    const key = localStorage.getItem(LS_KEYS.anthropicKey)
+    if (raw && key) {
+      try { return JSON.parse(raw) } catch { return null }
+    }
+    return null
+  })
+  // Resets on every reload/new tab, same as the real app requiring login each session —
+  // never persisted, since persisting it would defeat the point of even a cosmetic gate.
+  const [pinVerified, setPinVerified] = useState(false)
 
-  useEffect(() => {
-    if (!auth) { setConfig(null); return }
-    getDemoConfig(auth.token)
-      .then(setConfig)
-      .catch((err) => setConfigError(err instanceof Error ? err.message : 'Could not load demo session'))
-  }, [auth])
-
-  const handleLoggedOut = () => {
-    sessionStorage.removeItem(AUTH_KEY)
-    setAuth(null)
-    setConfig(null)
-    setConfigError('')
+  const handleReset = () => {
+    Object.values(LS_KEYS).forEach((k) => localStorage.removeItem(k))
+    Object.values(SESSION_KEYS).forEach((k) => localStorage.removeItem(k))
+    setStudent(null)
+    setPinVerified(false)
   }
 
-  if (!auth) {
-    return <PinLoginScreen onLoggedIn={(token, expiresAt) => setAuth({ token, expiresAt })} />
+  if (!student) {
+    return <SetupScreen onReady={() => setStudent(JSON.parse(localStorage.getItem(LS_KEYS.student)!))} />
   }
-
-  if (configError) {
-    return (
-      <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4 p-8 text-center">
-        <Lock size={32} className="text-gray-400" />
-        <p className="text-gray-700 font-medium">Could not start the demo</p>
-        <p className="text-sm text-gray-500 max-w-sm">{configError}</p>
-        <button onClick={handleLoggedOut} className="mt-2 text-sm text-navy-600 underline">Back to login</button>
-      </div>
-    )
+  if (localStorage.getItem(LS_KEYS.pin) && !pinVerified) {
+    return <PinScreen studentName={student.name} onVerified={() => setPinVerified(true)} onForgotPin={handleReset} />
   }
-
-  if (!config) {
-    return (
-      <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4">
-        <Loader2 size={28} className="text-navy-500 animate-spin" />
-        <p className="text-sm text-gray-500">Loading your session…</p>
-      </div>
-    )
-  }
-
-  return <ChatScreen token={auth.token} config={config} onLoggedOut={handleLoggedOut} />
+  return <ChatScreen student={student} onReset={handleReset} />
 }

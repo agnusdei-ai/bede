@@ -14,7 +14,7 @@ Routes:
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from core.deps import require_real_user
+from core.deps import require_auth
 from services.catalog_service import get_book, get_books, get_years, search_books
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 
 @router.get("/years")
 async def list_years(
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
 ) -> list[int]:
     """Return the sorted list of available Ambleside Online curriculum years."""
     return get_years()
@@ -31,7 +31,7 @@ async def list_years(
 @router.get("/search")
 async def search_catalog(
     q: str = Query(..., min_length=1, max_length=100, description="Search term"),
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
 ) -> list[dict]:
     """
     Full-text search across title, author, concept_tags, and notes.
@@ -46,7 +46,7 @@ async def search_catalog(
 @router.get("/book/{book_id}")
 async def get_book_detail(
     book_id: str,
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
 ) -> dict:
     """Return full detail for a single book by its unique id slug."""
     book = get_book(book_id)
@@ -62,7 +62,7 @@ async def get_book_detail(
 async def list_books_for_year(
     year: int,
     subject: str | None = Query(default=None, description="Filter by subject slug (e.g. 'living_books')"),
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
 ) -> list[dict]:
     """
     Return all books for a curriculum year.
@@ -81,7 +81,7 @@ async def list_books_for_year(
 async def list_books_for_subject(
     year: int,
     subject: str,
-    _: dict = Depends(require_real_user),
+    _: dict = Depends(require_auth),
 ) -> list[dict]:
     """
     Return books for a specific subject in a curriculum year.

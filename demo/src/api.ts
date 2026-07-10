@@ -116,6 +116,42 @@ export async function getDemoConfig(token: string): Promise<SessionConfig> {
   return res.json()
 }
 
+/** Thrown when this trial session has already used its one allowed email
+ *  send (see homeschool-api's core/demo_session.claim_email_send). */
+export class TrialEmailCappedError extends Error {}
+
+/** Emails Bede's end-of-demo notes to a parent-supplied address once, via
+ *  the same backend the chat itself uses. The address is never sent
+ *  anywhere else, never persisted by the backend, and the notes are never
+ *  shown to the student in this browser — see
+ *  homeschool-api/services/email_service.py. Only offered on this
+ *  shared-trial path (not bring-your-own-key), since it's the only path
+ *  with server-side auth and a per-session send cap to protect the
+ *  operator's own Claude/Resend usage. */
+export async function emailTrialSummary(
+  token: string,
+  email: string,
+  config: SessionConfig,
+  history: ChatMessage[],
+  subjectsCompleted: Subject[],
+  durationMinutes: number
+): Promise<void> {
+  const res = await fetch(`${apiBase()}/tutor/email-summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      email,
+      session_config: config,
+      conversation_history: history,
+      subjects_completed: subjectsCompleted,
+      duration_minutes: durationMinutes,
+    }),
+  })
+  if (res.status === 401) throw new TrialSessionEndedError('Your free trial has ended.')
+  if (res.status === 429) throw new TrialEmailCappedError('This trial has already sent its one email.')
+  if (!res.ok) throw new Error('Could not send the email — please try again later.')
+}
+
 function stripDataUrlPrefix(dataUrl: string): string {
   const idx = dataUrl.indexOf(',')
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)

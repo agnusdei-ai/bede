@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, ExternalLink, KeyRound, Zap } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, ExternalLink, KeyRound, Zap, Mail, Check } from 'lucide-react'
 import {
   streamTutorChat as claudeStreamTutorChat, SUBJECTS, SUBJECT_LABELS,
   type Subject, type StudentProfile, type ChatMessage, type GradeStage, type VisualAidData, type StreamChunk,
 } from './claude'
 import {
   streamTutorChat as trialStreamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
-  TrialSessionEndedError, type SessionConfig,
+  emailTrialSummary, TrialSessionEndedError, TrialEmailCappedError, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -369,12 +369,17 @@ interface ChatScreenProps {
   header: React.ReactNode // right-hand header controls (differ between the two paths)
   onActivity?: () => void // trial path uses this to drive its 5-minute inactivity timeout
   onSessionInvalid?: () => void // trial path: route to the "session ended" screen instead of an inline error
+  // Trial path only — kept up to date with the conversation so far so the
+  // end-of-demo email screen can send it, without lifting message state
+  // itself up out of this component.
+  sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
 }
 
-function ChatScreen({ displayName, subjects, persist, runChat, speakToken, header, onActivity, onSessionInvalid }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, persist, runChat, speakToken, header, onActivity, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
   const [subject, setSubject] = useState<Subject>(
     () => (persist ? (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) : null) ?? subjects[0] ?? 'living_books',
   )
+  const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>([])
   const [messages, setMessages] = useState<DisplayMessage[]>(() => {
     if (!persist) return []
     try { return JSON.parse(localStorage.getItem(SESSION_KEYS.messages) ?? '[]') } catch { return [] }
@@ -399,6 +404,18 @@ function ChatScreen({ displayName, subjects, persist, runChat, speakToken, heade
 
   useEffect(() => { if (persist) localStorage.setItem(SESSION_KEYS.subject, subject) }, [subject, persist])
   useEffect(() => { if (persist) localStorage.setItem(SESSION_KEYS.messages, JSON.stringify(messages)) }, [messages, persist])
+
+  // Keep the caller's ref current so it can read a snapshot at "finish demo"
+  // time, without lifting message state itself out of this component.
+  useEffect(() => {
+    if (!sessionStateRef) return
+    sessionStateRef.current = {
+      history: messages
+        .filter((m) => m.role !== 'system' && !m.tool && !m.visualAid)
+        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      subjectsCompleted,
+    }
+  }, [messages, subjectsCompleted, sessionStateRef])
 
   const historyForApi = useCallback((): ChatMessage[] => {
     return messages
@@ -445,6 +462,7 @@ function ChatScreen({ displayName, subjects, persist, runChat, speakToken, heade
           flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: 'subject_complete' }])
           if (ttsEnabled) queueSpeak(chunk.content)
+          setSubjectsCompleted((prev) => (prev.includes(subject) ? prev : [...prev, subject]))
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
@@ -666,8 +684,11 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
   const [remainingSecs, setRemainingSecs] = useState<number | null>(null)
+  const [finished, setFinished] = useState(false)
   const lastActivityRef = useRef(Date.now())
   const onActivity = useCallback(() => { lastActivityRef.current = Date.now() }, [])
+  const trialStartRef = useRef(Date.now())
+  const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
 
   useEffect(() => {
     getDemoConfig(token).then(setConfig).catch((err) => setError(err instanceof Error ? err.message : 'Could not start the trial'))
@@ -719,6 +740,19 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
     )
   }
 
+  if (finished) {
+    const elapsedMinutes = Math.max(1, Math.round((Date.now() - trialStartRef.current) / 60000))
+    return (
+      <TrialSummaryScreen
+        token={token}
+        config={config}
+        sessionState={sessionStateRef.current}
+        durationMinutes={elapsedMinutes}
+        onDone={handleLogout}
+      />
+    )
+  }
+
   const lowTime = remainingSecs !== null && remainingSecs <= 60
 
   return (
@@ -730,6 +764,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
       speakToken={token}
       onActivity={onActivity}
       onSessionInvalid={() => onExpired('inactive')}
+      sessionStateRef={sessionStateRef}
       header={
         <>
           {remainingSecs !== null && (
@@ -741,12 +776,112 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
           <button onClick={onSwitchToOwnKey} title="Want to keep going? Longer sessions need your own API key" className="text-xs text-navy-500 hover:text-navy-700 underline">
             Keep going →
           </button>
-          <button onClick={handleLogout} title="End this trial session immediately" className="text-xs text-gray-400 hover:text-gray-600 underline">
-            Log out
+          <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
+            Finish demo
           </button>
         </>
       }
     />
+  )
+}
+
+// ── End-of-demo diagnostic notes + email capture ─────────────────────────────
+//
+// Lead-gen mechanic for the free trial: at the end of a session, offer to
+// email Bede's informal notes on today's demo to a parent-supplied address.
+// The address is sent once to the backend and never stored — not here, not
+// server-side (see homeschool-api/services/email_service.py) — and these
+// notes are never shown to the student in this browser. Only offered on the
+// shared-trial path (not bring-your-own-key): this is the only path with a
+// server-side session and a per-session send cap (core/demo_session.py),
+// which is what keeps this from being an open door to spam the operator's
+// own Resend/Claude usage.
+function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDone }: {
+  token: string
+  config: SessionConfig
+  sessionState: { history: ChatMessage[]; subjectsCompleted: Subject[] }
+  durationMinutes: number
+  onDone: () => void
+}) {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStatus('sending')
+    setErrorMsg('')
+    try {
+      await emailTrialSummary(token, email, config, sessionState.history, sessionState.subjectsCompleted, durationMinutes)
+      setStatus('sent')
+    } catch (err) {
+      setStatus('error')
+      setErrorMsg(
+        err instanceof TrialEmailCappedError
+          ? err.message
+          : err instanceof TrialSessionEndedError
+            ? 'Your trial session has ended, so this could not be sent.'
+            : err instanceof Error ? err.message : 'Could not send the email.'
+      )
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-parchment-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
+        <div className="text-center mb-6">
+          <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
+          <h1 className="text-xl font-display font-bold text-gray-800">That's a wrap!</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Thanks for trying Bede with {config.student_name}.
+          </p>
+        </div>
+
+        {status === 'sent' ? (
+          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
+            <Check size={18} className="shrink-0" />
+            Sent to {email}. This address wasn't saved anywhere.
+          </div>
+        ) : (
+          <form onSubmit={handleSend} className="mb-6">
+            <label htmlFor="trial-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
+              <Mail size={15} />
+              Want Bede's notes from today's demo?
+            </label>
+            <p className="text-xs text-gray-500 mb-2.5">
+              An informal impression based on this one short session, not an official evaluation —
+              sent once to the address below, never stored, and never shown to {config.student_name}.
+            </p>
+            <div className="flex gap-2">
+              <input
+                id="trial-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="input flex-1 min-w-0"
+              />
+              <button
+                type="submit"
+                disabled={status === 'sending'}
+                className="px-4 py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 shrink-0"
+              >
+                {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send'}
+              </button>
+            </div>
+            {status === 'error' && <p className="text-xs text-red-600 mt-2">{errorMsg}</p>}
+          </form>
+        )}
+
+        <button
+          onClick={onDone}
+          className="w-full py-3 bg-navy-100 text-navy-700 rounded-xl font-semibold hover:bg-navy-200 transition-colors"
+        >
+          Done
+        </button>
+      </div>
+    </div>
   )
 }
 

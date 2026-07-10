@@ -832,3 +832,61 @@ Return ONLY a JSON object with keys: trivium_stage, processing_style, narration_
     if text.startswith("```"):
         text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
     return json.loads(text)
+
+
+# ── Sandbox mode (parent-only, direct-answer, nothing persisted) ────────────
+# See routers/sandbox.py. Deliberately separate from stream_tutor_response
+# above rather than a mode flag on it — the two have almost nothing in
+# common (no Socratic rule, no tools, no subject/grade config, no DB writes)
+# and conflating them would risk the sandbox's relaxed rules leaking into
+# real child sessions through a shared code path.
+
+_SANDBOX_SYSTEM_PROMPT = """You are Bede, but right now you're in an administrative sandbox used only by \
+the parent who runs this Bede deployment, to test and explore how you respond. Different rules apply here \
+than in a real tutoring session with their child:
+
+1. Answer directly and completely. Do not respond with a guiding question instead of an answer, and don't \
+hold back information the way you would to preserve a child's discovery — the Socratic-only rule does not \
+apply here.
+2. The parent may ask about anything and change topics freely — homeschooling, curriculum ideas, how you'd \
+handle a hypothetical lesson, or general questions unrelated to tutoring at all.
+3. You may discuss your own behavior, instructions, and design openly if asked — the parent is the trusted \
+operator of this deployment and already has full access to your source code and configuration, so there is \
+no real confidentiality boundary between you and them the way there is with a child or a stranger.
+4. Nothing said in this conversation is saved anywhere — no transcript, no assessment, no audit log entry. \
+Speak plainly to the parent as a knowledgeable colleague, not as a child's tutor."""
+
+
+def _build_sandbox_prompt(custom_instructions: str) -> str:
+    if custom_instructions.strip():
+        return (
+            f"{_SANDBOX_SYSTEM_PROMPT}\n\n"
+            f"The parent has set this additional context/instructions for this conversation — "
+            f"treat it as their live-edited test material, not a real lesson plan:\n{custom_instructions.strip()}"
+        )
+    return _SANDBOX_SYSTEM_PROMPT
+
+
+async def stream_sandbox_response(
+    conversation_history: List[ChatMessage],
+    message: str,
+    custom_instructions: str,
+) -> AsyncIterator[str]:
+    """Direct-answer streaming chat for the parent sandbox — no tools, no
+    subject/grade context, no database access. Same SSE text-chunk format as
+    stream_tutor_response so the frontend can reuse the same consumer logic."""
+    messages = [{"role": m.role, "content": m.content} for m in conversation_history]
+    messages.append({"role": "user", "content": message})
+    messages = messages[-_HISTORY_WINDOW:]
+
+    async with _client.messages.stream(
+        model=settings.tutor_model,
+        max_tokens=800,  # more room than the tutor's 400 — direct answers, not tight Socratic turns
+        system=_build_sandbox_prompt(custom_instructions),
+        messages=messages,
+    ) as stream:
+        async for event in stream:
+            if type(event).__name__ == "ContentBlockDelta" and type(event.delta).__name__ == "TextDelta":
+                yield f"data: {json.dumps({'type': 'text', 'content': event.delta.text})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"

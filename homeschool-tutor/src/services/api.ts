@@ -164,6 +164,63 @@ export async function* streamTutorChat(
   }
 }
 
+// ── Sandbox (parent-only, direct-answer, nothing persisted) ──────────────────
+
+export async function* streamSandboxChat(
+  token: string,
+  sandboxPin: string,
+  history: ChatMessage[],
+  message: string,
+  customInstructions: string,
+  signal?: AbortSignal
+): AsyncGenerator<StreamChunk> {
+  const res = await fetch(`${BASE}/sandbox/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      sandbox_pin: sandboxPin,
+      conversation_history: history,
+      message,
+      custom_instructions: customInstructions,
+    }),
+    signal,
+  })
+
+  if (res.status === 401) throw new Error('Incorrect sandbox PIN')
+  if (res.status === 404) throw new Error('Sandbox mode is not enabled on this deployment')
+  if (!res.ok) throw new Error('Sandbox request failed — check your connection')
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const jsonStr = line.slice(6).trim()
+        if (!jsonStr) continue
+        try {
+          const chunk: StreamChunk = JSON.parse(jsonStr)
+          yield chunk
+          if (chunk.type === 'done') return
+        } catch {
+          // skip malformed chunk
+        }
+      }
+    }
+  }
+}
+
 // ── Admin ────────────────────────────────────────────────────────────────────
 
 export interface SystemStatus {

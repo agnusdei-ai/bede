@@ -118,6 +118,17 @@ class Settings(BaseSettings):
     demo_grade: str = "4"
     demo_grade_stage: str = "3-5"
 
+    # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
+    # An extra PIN — same "empty = disabled" pattern and strength rules as
+    # DEMO_PIN — that unlocks a direct-answer chat with Bede for testing and
+    # exploration (routers/sandbox.py). Unlike DEMO_PIN, this doesn't grant a
+    # separate login/role: it's an additional check layered on top of an
+    # *already-authenticated parent session* (require_parent), so it reuses
+    # all of parent auth's existing security rather than duplicating it.
+    # Nothing said in the sandbox is ever written to the database — no
+    # narration assessments, no session records, no audit-logged content.
+    sandbox_pin: str = ""
+
     # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
     # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
     # as DEMO_PIN) — a family only needs to set these if they want to enroll a
@@ -170,12 +181,20 @@ class Settings(BaseSettings):
         """A demo PIN that matches a real credential would let the low-rights
         demo role double as real family access, or vice versa — reject that
         regardless of production mode, since it's a correctness bug, not just
-        a weak-default hygiene issue."""
+        a weak-default hygiene issue. Same reasoning for SANDBOX_PIN, which
+        would otherwise let someone who only knows the child's PIN talk their
+        way into the direct-answer sandbox by guessing it matches."""
         if self.demo_pin and (
             hmac.compare_digest(self.demo_pin, self.parent_password)
             or hmac.compare_digest(self.demo_pin, self.child_pin)
         ):
             raise ValueError("DEMO_PIN must not match PARENT_PASSWORD or CHILD_PIN")
+        if self.sandbox_pin and (
+            hmac.compare_digest(self.sandbox_pin, self.parent_password)
+            or hmac.compare_digest(self.sandbox_pin, self.child_pin)
+            or (self.demo_pin and hmac.compare_digest(self.sandbox_pin, self.demo_pin))
+        ):
+            raise ValueError("SANDBOX_PIN must not match PARENT_PASSWORD, CHILD_PIN, or DEMO_PIN")
         return self
 
     @model_validator(mode="after")
@@ -201,6 +220,12 @@ class Settings(BaseSettings):
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
                 "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN — "
                 "it's shared with the public, so it deserves the same bar as CHILD_PIN"
+            )
+        if self.sandbox_pin and not pin_is_strong(self.sandbox_pin):
+            problems.append(
+                f"SANDBOX_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
+                "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
+                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
             )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles } from 'lucide-react'
+import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { fetchNarrationAssessments, fetchLearnerProfile } from '../services/api'
 import { SUBJECTS } from '../types'
@@ -83,6 +83,13 @@ export default function PodDashboard() {
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 border border-gray-200 hover:border-navy-300 rounded-lg transition-colors"
             >
               <Settings size={14} /> Edit Pod
+            </button>
+            <button
+              onClick={() => navigate('/sandbox')}
+              title="Ask Bede directly — for testing, not for students"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 border border-gray-200 hover:border-sage-300 hover:text-sage-700 rounded-lg transition-colors"
+            >
+              <FlaskConical size={14} /> Sandbox
             </button>
             <button
               onClick={logout}

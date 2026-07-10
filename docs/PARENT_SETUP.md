@@ -79,6 +79,14 @@ follow up, without waiting for you to think to check the audit log
 yourself. Leave `PARENT_EMAIL` unset if you'd rather rely on the audit log
 alone; the safety stop itself always happens either way.
 
+**Want to test or explore how Bede responds, without a real tutoring session?**
+Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod
+Dashboard. It's a direct-answer chat just for you — Bede answers plainly
+instead of Socratically, you can switch topics freely, and you can even try
+your own draft lesson instructions to see how Bede would run with them.
+Nothing said there is ever saved — no transcript, no student record. Leave
+`SANDBOX_PIN` unset to skip this entirely (default).
+
 ## 5. Setting up each student
 
 1. Log in with the **parent password** → you land on **Setup**.

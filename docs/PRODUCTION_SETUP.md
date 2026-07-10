@@ -122,5 +122,8 @@ full list, with comments: `ANTHROPIC_API_KEY`, `SECRET_KEY`,
 `CORS_ORIGINS`. Optional: `OPENAI_API_KEY`/Kokoro settings for voice (see
 `docs/VOICE_SETUP.md`), `RESEND_API_KEY` for the post-session diagnostic
 email, `PARENT_EMAIL` for an urgent alert when Bede detects a child in
-distress or danger (reuses `RESEND_API_KEY`), `WEBAUTHN_RP_ID`/TOTP settings
-for parent MFA.
+distress or danger (reuses `RESEND_API_KEY`), `SANDBOX_PIN` to unlock a
+direct-answer "Ask Bede" chat for you to test/explore Bede's behavior (see
+the Pod Dashboard's **Sandbox** button — requires being logged in as parent
+plus this PIN; nothing said there is ever saved), `WEBAUTHN_RP_ID`/TOTP
+settings for parent MFA.

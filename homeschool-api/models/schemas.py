@@ -103,6 +103,23 @@ class SpeakRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
 
 
+class SandboxChatRequest(BaseModel):
+    """
+    Parent-only, direct-answer chat for testing/exploring Bede's behavior —
+    see routers/sandbox.py. Nothing here is ever persisted: no DB writes, no
+    narration assessments, no audit-logged content. sandbox_pin is checked
+    on every request rather than once at login, since this doesn't have its
+    own session/token — it rides on the parent's existing auth instead.
+    """
+    sandbox_pin: str = Field(..., min_length=1, max_length=100)
+    conversation_history: List[ChatMessage] = []
+    message: str = Field(..., min_length=1, max_length=4000)
+    # The parent's own live-edited context/instructions for this conversation
+    # only — never written to the real per-subject prompts or catalog files
+    # that actually drive a child's tutoring session.
+    custom_instructions: str = Field(default="", max_length=4000)
+
+
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo"]
     credential: str   # password for parent, PIN for child, PIN for demo

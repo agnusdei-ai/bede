@@ -63,6 +63,10 @@ services:
       # Leave unset to disable this specific alert (the safeguarding event is
       # always recorded in the encrypted audit log regardless).
       - PARENT_EMAIL=${PARENT_EMAIL:-}
+      # Optional — unlocks a direct-answer sandbox chat for the parent to
+      # test/explore Bede's behavior. Requires already being logged in as
+      # parent; leave unset to disable entirely. See routers/sandbox.py.
+      - SANDBOX_PIN=${SANDBOX_PIN:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true

@@ -28,8 +28,12 @@ import segno
 PORT = int(os.environ.get("TRUST_SERVICE_PORT", "8080"))
 # Mounted read-only from the same `caddy_data` volume Caddy itself writes
 # to — see docker-compose.yml. This is where Caddy's `local_certs` PKI
-# stores the CA it generates on first boot.
-CA_CERT_PATH = os.environ.get("CA_CERT_PATH", "/data/pki/authorities/local/root.crt")
+# stores the CA it generates on first boot. Caddy's storage root is
+# /data/caddy (confirmed from its own logs: "storage":"FileStorage:/data/caddy"),
+# not /data directly — a pre-existing bug in `make caddy-trust` (missing the
+# "caddy/" segment) had gone unnoticed until this service's first real CI
+# run actually tried to read the file.
+CA_CERT_PATH = os.environ.get("CA_CERT_PATH", "/data/caddy/pki/authorities/local/root.crt")
 
 _PAGE_HEAD = """\
 <!DOCTYPE html>

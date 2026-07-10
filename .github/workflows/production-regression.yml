@@ -191,7 +191,7 @@ jobs:
           fi
 
           cert_code=$(curl -s -o downloaded-root-ca.crt -w '%{http_code}' http://localhost/trust/root-ca.crt)
-          docker compose exec -T caddy cat /data/pki/authorities/local/root.crt > actual-root-ca.crt
+          docker compose exec -T caddy cat /data/caddy/pki/authorities/local/root.crt > actual-root-ca.crt
           if [ "$cert_code" != "200" ] || ! diff -q downloaded-root-ca.crt actual-root-ca.crt >/dev/null; then
             echo "Expected 200 + matching cert from /trust/root-ca.crt, got $cert_code"; ok=false
           fi

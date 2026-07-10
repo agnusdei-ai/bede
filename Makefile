@@ -41,7 +41,7 @@ status:          ## Show container health and last 20 API log lines
 	docker compose logs --tail=20 api
 
 caddy-trust:     ## Export Caddy's root CA cert — install on each LAN tablet once (CLI route; http://<server-ip>/trust is the no-CLI route)
-	@docker compose exec caddy cat /data/pki/authorities/local/root.crt > sage-root-ca.crt 2>/dev/null || \
+	@docker compose exec caddy cat /data/caddy/pki/authorities/local/root.crt > sage-root-ca.crt 2>/dev/null || \
 	  { echo "Caddy is not running yet. Start with 'make start' first."; exit 1; }
 	@echo ""
 	@echo "Saved: sage-root-ca.crt"

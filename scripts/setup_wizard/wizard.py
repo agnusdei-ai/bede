@@ -18,9 +18,17 @@ import secrets
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs
 
-sys.path.insert(0, "/app/homeschool-api")
+# Inside the real Docker image (see Dockerfile in this directory), the
+# Dockerfile COPYs core/pin_policy.py to /app/homeschool-api/core/. For
+# tests running directly against this file (no Docker), fall back to the
+# actual repo layout (../../homeschool-api relative to this file) instead
+# of requiring a fake /app directory to exist on the test machine.
+_CONTAINER_PATH = "/app/homeschool-api"
+_REPO_PATH = str(Path(__file__).resolve().parent.parent.parent / "homeschool-api")
+sys.path.insert(0, _CONTAINER_PATH if os.path.isdir(_CONTAINER_PATH) else _REPO_PATH)
 from core.pin_policy import pin_is_strong  # noqa: E402
 
 REPO_DIR = "/repo"

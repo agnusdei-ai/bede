@@ -1,0 +1,192 @@
+"""
+Regression tests for the browser-based setup wizard's actual server logic
+(form rendering, validation, .env generation, resubmission/backup behavior,
+and the exit-on-success signal the launcher scripts depend on).
+
+This deliberately does NOT test the Docker packaging itself (building the
+image, running the container, the launcher scripts) — that needs a real
+Docker daemon and is covered instead by
+.github/workflows/production-regression.yml, which runs in CI where a
+daemon is actually available.
+"""
+import os
+import stat
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+import pytest
+
+import wizard
+
+
+@pytest.fixture
+def running_wizard(tmp_path, monkeypatch):
+    monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
+    monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
+    monkeypatch.setattr(wizard, "LAN_IP", "192.168.1.50")
+    wizard._shutdown_event.clear()
+
+    server = wizard.ThreadingHTTPServer(("127.0.0.1", 0), wizard.Handler)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    yield f"http://127.0.0.1:{port}"
+    server.shutdown()
+
+
+def _post(base_url, fields):
+    data = urllib.parse.urlencode(fields).encode()
+    req = urllib.request.Request(f"{base_url}/submit", data=data, method="POST")
+    return urllib.request.urlopen(req)
+
+
+def test_get_renders_form(running_wizard):
+    resp = urllib.request.urlopen(f"{running_wizard}/")
+    body = resp.read().decode()
+    assert resp.status == 200
+    assert "Let's set up Bede" in body
+    assert 'name="anthropic_key"' in body
+
+
+def test_weak_pin_rejected_without_writing_env(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": "111111",
+        })
+    assert exc_info.value.code == 400
+    assert "obvious pattern" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_short_parent_password_rejected(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "local",
+            "parent_password": "short",
+            "child_pin": "602656",
+        })
+    assert exc_info.value.code == 400
+    assert "8 characters" in exc_info.value.read().decode()
+
+
+def test_managed_db_without_url_rejected(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "managed",
+            "parent_password": "parentpass123",
+            "child_pin": "602656",
+        })
+    assert exc_info.value.code == 400
+    assert "connection string" in exc_info.value.read().decode()
+
+
+def test_valid_local_db_submission_writes_correct_env(running_wizard):
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+    })
+    assert resp.status == 200
+    success_body = resp.read().decode()
+    assert "All set" in success_body
+    assert "192.168.1.50" in success_body
+
+    assert os.path.exists(wizard.ENV_PATH)
+    env = open(wizard.ENV_PATH).read()
+    assert "ANTHROPIC_API_KEY=sk-ant-real-key" in env
+    assert "COMPOSE_PROFILES=local-db" in env
+    assert "POSTGRES_PASSWORD=" in env
+    assert "@db:5432/bede" in env
+    assert "PARENT_PASSWORD=parentpass123" in env
+    assert "CHILD_PIN=602656" in env
+    assert "CORS_ORIGINS=https://localhost,https://192.168.1.50,http://ui:80" in env
+
+    mode = stat.S_IMODE(os.stat(wizard.ENV_PATH).st_mode)
+    assert mode == 0o600
+
+
+def test_valid_managed_db_submission_has_no_local_db_settings(running_wizard):
+    _post(running_wizard, {
+        "anthropic_key": "sk-ant-test",
+        "db_choice": "managed",
+        "database_url": "postgresql://user:pass@neon.example/db",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+    })
+    env = open(wizard.ENV_PATH).read()
+    assert "COMPOSE_PROFILES" not in env
+    assert "DATABASE_URL=postgresql://user:pass@neon.example/db" in env
+
+
+def test_resubmission_backs_up_previous_env(running_wizard):
+    _post(running_wizard, {
+        "anthropic_key": "sk-ant-first",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+    })
+    _post(running_wizard, {
+        "anthropic_key": "sk-ant-second",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+    })
+    assert os.path.exists(wizard.ENV_PATH + ".backup")
+    assert "sk-ant-first" in open(wizard.ENV_PATH + ".backup").read()
+    assert "sk-ant-second" in open(wizard.ENV_PATH).read()
+
+
+def test_shutdown_signal_fires_after_success(running_wizard):
+    _post(running_wizard, {
+        "anthropic_key": "sk-ant-test",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+    })
+    assert wizard._shutdown_event.wait(timeout=2) is True
+
+
+def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch):
+    """The actual real entrypoint (not just the Handler class in isolation)
+    — this is the exact exit signal the launcher scripts depend on to know
+    the wizard finished and it's safe to proceed with `docker compose up`."""
+    monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
+    monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
+    monkeypatch.setattr(wizard, "PORT", 0)
+    wizard._shutdown_event.clear()
+
+    server_holder = {}
+    original_server_cls = wizard.ThreadingHTTPServer
+
+    class _CapturingServer(original_server_cls):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            server_holder["server"] = self
+
+    monkeypatch.setattr(wizard, "ThreadingHTTPServer", _CapturingServer)
+
+    main_thread = threading.Thread(target=wizard.main, daemon=True)
+    main_thread.start()
+    for _ in range(50):
+        if "server" in server_holder:
+            break
+        time.sleep(0.05)
+    port = server_holder["server"].server_address[1]
+
+    _post(f"http://127.0.0.1:{port}", {
+        "anthropic_key": "sk-ant-test",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+    })
+    main_thread.join(timeout=5)
+    assert main_thread.is_alive() is False

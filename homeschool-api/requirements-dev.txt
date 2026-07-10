@@ -1,0 +1,5 @@
+# Test-only dependencies — not needed to run the app itself, only to run
+# the regression suite in tests/ (see .github/workflows/test.yml).
+-r requirements.txt
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

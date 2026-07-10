@@ -1,0 +1,170 @@
+name: Production deployment regression
+
+# Proves the self-hosted production path actually works end-to-end, using a
+# real Docker daemon (this sandbox that built the local-Postgres option and
+# the setup wizard had the Docker CLI but no daemon, so this is the first
+# place either has actually been run, not just validated by config parsing).
+#
+# Runs on a schedule so it keeps proving this on an ongoing basis even when
+# nobody's touched the code recently (catching base-image updates, Alpine
+# package drift, etc.) — not just "worked once when it was written."
+#
+# Uses a throwaway ANTHROPIC_API_KEY — the app never validates it at
+# startup (only when an actual chat request comes in), so this proves the
+# stack boots and serves traffic without making any real, billable Claude
+# API calls.
+on:
+  schedule:
+    - cron: '0 13 * * 1'  # every Monday, 13:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - 'docker-compose.yml'
+      - 'homeschool-api/**'
+      - 'homeschool-tutor/**'
+      - 'scripts/setup_wizard/**'
+      - 'setup.sh'
+      - 'scripts/setup-gui-common.sh'
+      - '.github/workflows/production-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  compose-config-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate managed-DB mode
+        run: |
+          cat > .env <<EOF
+          ANTHROPIC_API_KEY=test
+          SECRET_KEY=test
+          MASTER_SECRET=test
+          PARENT_PASSWORD=test
+          CHILD_PIN=602656
+          DATABASE_URL=postgresql+asyncpg://user:pass@host/db
+          EOF
+          docker compose config --quiet
+          # db service must NOT be included when the local-db profile isn't active
+          test -z "$(docker compose config --services | grep '^db$')"
+          rm .env
+      - name: Validate local-DB mode
+        run: |
+          cat > .env <<EOF
+          ANTHROPIC_API_KEY=test
+          SECRET_KEY=test
+          MASTER_SECRET=test
+          PARENT_PASSWORD=test
+          CHILD_PIN=602656
+          DATABASE_URL=postgresql+asyncpg://sage:testpass@db:5432/bede
+          COMPOSE_PROFILES=local-db
+          POSTGRES_PASSWORD=testpass
+          EOF
+          docker compose config --quiet
+          docker compose config --services | grep -q '^db$'
+          rm .env
+
+  wizard-end-to-end:
+    runs-on: ubuntu-latest
+    needs: compose-config-validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the setup wizard image
+        run: docker build -t bede-setup-wizard -f scripts/setup_wizard/Dockerfile .
+
+      - name: Run the wizard and submit the setup form (local-DB path)
+        run: |
+          docker run --rm -d --name wizard -p 8765:8765 \
+            -e HOST_LAN_IP=192.168.1.50 \
+            -v "$(pwd)":/repo \
+            bede-setup-wizard
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:8765/ >/dev/null && break
+            sleep 0.5
+          done
+          curl -sf http://localhost:8765/ | grep -q "Let's set up Bede"
+
+          curl -sf -X POST http://localhost:8765/submit \
+            --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
+            --data-urlencode "db_choice=local" \
+            --data-urlencode "parent_password=cipassword123" \
+            --data-urlencode "child_pin=602656" \
+            | grep -q "All set"
+
+          # wizard.py signals success by exiting its own process — confirm
+          # the container actually stops on its own within a few seconds,
+          # exactly the signal the real launcher scripts wait on.
+          for i in $(seq 1 20); do
+            docker ps --filter "name=wizard" --filter "status=running" -q | grep -q . || break
+            sleep 0.5
+          done
+          if docker ps --filter "name=wizard" --filter "status=running" -q | grep -q .; then
+            echo "Wizard container did not exit after a successful submission"
+            docker logs wizard || true
+            exit 1
+          fi
+
+      - name: Verify the generated .env
+        run: |
+          test -f .env
+          grep -q '^ANTHROPIC_API_KEY=sk-ant-ci-test-key$' .env
+          grep -q '^COMPOSE_PROFILES=local-db$' .env
+          grep -q '^POSTGRES_PASSWORD=' .env
+          grep -q '^CHILD_PIN=602656$' .env
+          grep -q '@db:5432/bede$' .env
+          [ "$(stat -c '%a' .env)" = "600" ]
+
+      - name: Upload .env as an artifact for the next job
+        uses: actions/upload-artifact@v4
+        with:
+          name: wizard-generated-env
+          path: .env
+          retention-days: 1
+
+  full-stack-boot:
+    runs-on: ubuntu-latest
+    needs: wizard-end-to-end
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: wizard-generated-env
+
+      - name: Start the full stack (as the wizard configured it)
+        run: docker compose up -d --build
+
+      - name: Wait for the API to become healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -skf https://localhost/api/health >/dev/null 2>&1; then
+              echo "Healthy after $((i / 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API never became healthy — dumping logs:"
+          docker compose logs
+          exit 1
+
+      - name: Confirm local Postgres backup/restore works
+        run: |
+          make db-backup
+          ls backups/*.sql
+          BACKUP_FILE=$(ls -t backups/*.sql | head -1)
+          make db-restore FILE="$BACKUP_FILE"
+          # restart so the API re-reads a freshly-restored DB cleanly
+          docker compose restart api
+          for i in $(seq 1 30); do
+            curl -skf https://localhost/api/health >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "API did not come back healthy after a db-restore"
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

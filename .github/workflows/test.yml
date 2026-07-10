@@ -1,0 +1,48 @@
+name: Backend regression tests
+
+# Fast unit-level regression suite — runs on every push/PR so a broken PIN
+# policy, a mis-wired voice fallback, etc. is caught before merge. The
+# heavier "does the whole production stack actually boot" check lives in
+# production-regression.yml since it needs a real Docker daemon and takes
+# much longer.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'homeschool-api/**'
+      - 'scripts/setup_wizard/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    paths:
+      - 'homeschool-api/**'
+      - 'scripts/setup_wizard/**'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: homeschool-api
+        run: pip install -r requirements-dev.txt
+      - name: Run tests
+        working-directory: homeschool-api
+        run: python -m pytest tests/ -v
+
+  wizard-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pytest
+        run: pip install pytest
+      - name: Run tests
+        working-directory: scripts/setup_wizard
+        run: python -m pytest test_wizard.py -v

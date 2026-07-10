@@ -7,7 +7,21 @@
 
 # HTTPS: TLS-terminate and proxy to nginx
 :443 {
-  tls internal
+  # No hostname in this site address on purpose — tablets connect via
+  # whatever LAN IP the host machine has, which varies per household and
+  # isn't known at config time. Without a hostname, Caddy has nothing to
+  # pre-provision a cert for at startup, so it must issue one on demand
+  # for whatever SNI shows up. `on_demand` here (not the global
+  # on_demand_tls option) is what actually turns that on for this site;
+  # it's safe without an `ask` endpoint because the internal CA has no
+  # external abuse/rate-limit exposure. Without this, every handshake
+  # fails with a TLS "internal error" alert — caught by
+  # production-regression.yml's first real end-to-end boot, where every
+  # container was demonstrably healthy yet https://localhost never
+  # completed a handshake.
+  tls internal {
+    on_demand
+  }
 
   reverse_proxy ui:80 {
     header_up Host              {host}

@@ -82,22 +82,33 @@ without you present.
 
 ## 6. Getting each child onto their own tablet
 
-From the Pod Dashboard, **"Copy Link for Tablet"** gives you a link pre-filled with
-that student's name — send it to their device (AirDrop, text, email) so they land
-straight on their own login screen.
+**First, each new device needs to trust your server's certificate** — a
+one-time step per device, no terminal required. On the tablet (Android,
+iPad, or otherwise), open:
 
-**For iPad specifically**, the first time only, each device needs to trust your
-server's certificate:
-
-```bash
-make ipad-profile
+```
+http://<your-server's-address>/trust
 ```
 
-This generates one file you AirDrop to the iPad (or serve locally and open in
-Safari) that installs a Home Screen icon *and* trusts the certificate in a single
-step. iOS still requires one manual toggle afterward — the tool prints the exact
-path (Settings → General → About → Certificate Trust Settings). This works on
-older iPads too (tested down to iOS 15.8).
+or scan the QR code shown on that page from another device already on your
+network. Tap through the one confirmation step your platform asks for
+(the page shows exactly what to tap for Android, iPad, Windows, and macOS),
+then tap **"Continue to Bede"** on the same page. After this, the tablet
+stops showing certificate warnings for this server.
+
+*(Prefer a terminal? `make caddy-trust` prints the same certificate to
+install by hand — same one-time result.)*
+
+**iPad shortcut:** `make ipad-profile` (requires a terminal) generates one
+file that installs a Home Screen icon *and* trusts the certificate in a
+single step, instead of doing both separately. iOS still requires one
+manual toggle afterward either way (Settings → General → About →
+Certificate Trust Settings). Works on older iPads too (tested down to
+iOS 15.8).
+
+**Then**, from the Pod Dashboard, **"Copy Link for Tablet"** gives you a link
+pre-filled with that student's name — send it to their device (AirDrop, text,
+email) so they land straight on their own login screen.
 
 ## 7. *(Optional)* Giving Bede a real voice
 

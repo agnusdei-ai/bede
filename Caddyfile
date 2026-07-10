@@ -31,7 +31,20 @@
   }
 }
 
-# HTTP → HTTPS redirect (tablets and browsers follow automatically)
+# HTTP → HTTPS redirect (tablets and browsers follow automatically) — except
+# /trust, the "add a tablet" onboarding page. That one is deliberately left
+# on plain HTTP: a brand-new device hasn't installed this server's
+# certificate yet, so redirecting it to HTTPS first would hit the exact
+# untrusted-cert warning this page exists to help them past. handle_path
+# strips the /trust prefix before forwarding, so the trust service itself
+# only ever sees "/", "/qr.svg", "/root-ca.crt".
 :80 {
-  redir https://{host}{uri} permanent
+  handle_path /trust* {
+    reverse_proxy trust:8080 {
+      header_up Host {host}
+    }
+  }
+  handle {
+    redir https://{host}{uri} permanent
+  }
 }

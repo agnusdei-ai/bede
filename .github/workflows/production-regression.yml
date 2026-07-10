@@ -24,6 +24,7 @@ on:
       - 'homeschool-api/**'
       - 'homeschool-tutor/**'
       - 'scripts/setup_wizard/**'
+      - 'scripts/trust_service/**'
       - 'setup.sh'
       - 'scripts/setup-gui-common.sh'
       - '.github/workflows/production-regression.yml'
@@ -47,6 +48,9 @@ jobs:
           docker compose config --quiet
           # db service must NOT be included when the local-db profile isn't active
           test -z "$(docker compose config --services | grep '^db$')"
+          # trust (the no-CLI tablet-onboarding page) has nothing to do with
+          # DB choice — it must always be present either way
+          docker compose config --services | grep -q '^trust$'
           rm .env
       - name: Validate local-DB mode
         run: |
@@ -161,6 +165,25 @@ jobs:
           echo "--- docker compose logs ---"
           docker compose logs
           exit 1
+
+      - name: Confirm the no-CLI tablet-trust page works end-to-end
+        run: |
+          # Plain HTTP, not redirected — a new device hasn't trusted the
+          # cert yet, so this must stay reachable without HTTPS.
+          curl -sf http://localhost/trust | grep -q "Add a tablet to Bede"
+
+          curl -sf http://localhost/trust/qr.svg -o qr.svg
+          grep -q "<svg" qr.svg
+
+          curl -sf http://localhost/trust/root-ca.crt -o downloaded-root-ca.crt
+          docker compose exec -T caddy cat /data/pki/authorities/local/root.crt > actual-root-ca.crt
+          diff downloaded-root-ca.crt actual-root-ca.crt
+
+          # Guard against a regression that accidentally turns off the
+          # HTTPS redirect for everything else while adding the /trust
+          # exception (handle-block ordering is easy to get backwards).
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)
+          [ "$code" = "301" ] || [ "$code" = "308" ] || { echo "Expected a redirect for http://localhost/, got $code"; exit 1; }
 
       - name: Confirm local Postgres backup/restore works
         run: |

@@ -40,13 +40,16 @@ status:          ## Show container health and last 20 API log lines
 	@echo "=== Recent API logs ==="
 	docker compose logs --tail=20 api
 
-caddy-trust:     ## Export Caddy's root CA cert — install on each LAN tablet once
+caddy-trust:     ## Export Caddy's root CA cert — install on each LAN tablet once (CLI route; http://<server-ip>/trust is the no-CLI route)
 	@docker compose exec caddy cat /data/pki/authorities/local/root.crt > sage-root-ca.crt 2>/dev/null || \
 	  { echo "Caddy is not running yet. Start with 'make start' first."; exit 1; }
 	@echo ""
 	@echo "Saved: sage-root-ca.crt"
 	@echo ""
-	@echo "Install this cert on each tablet:"
+	@echo "No terminal needed instead? Open http://<server-ip>/trust on the tablet"
+	@echo "itself (or scan the QR code shown there) and skip everything below."
+	@echo ""
+	@echo "Install this cert on each tablet by hand:"
 	@echo "  iPad/iPhone  : AirDrop the file → Settings → General → VPN & Device Management → trust it"
 	@echo "  Android      : Settings → Security → Install a certificate → CA certificate"
 	@echo "  Windows      : Double-click → Install Certificate → Trusted Root Certification Authorities"

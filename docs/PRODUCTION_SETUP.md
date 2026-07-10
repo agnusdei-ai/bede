@@ -85,7 +85,9 @@ make status       # container health + /api/health check
 make db-backup    # dump the local database to backups/ — do this regularly
 make db-restore FILE=backups/bede-....sql   # restore from a backup
 
-# Install Caddy's local CA on each tablet (run once per device)
+# Install Caddy's local CA on each tablet (run once per device) — or skip
+# the terminal entirely: open http://<server-ip>/trust on the tablet itself
+# (or scan the QR code it shows), no CLI required either way.
 make caddy-trust
 
 # iPad/iPad Pro shortcut: one profile install instead of the manual steps above

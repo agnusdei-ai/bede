@@ -154,6 +154,30 @@ services:
       - SETUID
       - SETGID
 
+  # Always-on "add a tablet" page (no CLI needed) — open http://<server-ip>/trust
+  # on a new device, or scan the QR code shown there, to install this server's
+  # certificate. Kept separate from `api` because it needs read access to
+  # Caddy's CA cert file in `caddy_data` and has an entirely different (much
+  # lower) threat/privilege profile — no reason to share api's stricter lockdown.
+  trust:
+    build:
+      context: ./scripts/trust_service
+      dockerfile: Dockerfile
+    expose:
+      - "8080"
+    volumes:
+      - caddy_data:/data:ro
+    networks:
+      - internal
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   # TLS termination — serves the entire pod over HTTPS (port 443)
   # Tablets and other LAN devices connect here. Run "make caddy-trust" once
   # per device to install the local root CA so there are no cert warnings.
@@ -169,6 +193,7 @@ services:
       - internal
     depends_on:
       - ui
+      - trust
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

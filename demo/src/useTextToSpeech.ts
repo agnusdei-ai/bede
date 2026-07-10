@@ -57,6 +57,50 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
   return voices[0] ?? null
 }
 
+// Chrome — especially on Android — returns an EMPTY array from getVoices()
+// on the very first call after page load; the real list only populates
+// asynchronously via 'voiceschanged', sometimes after Bede's very first
+// line already wants to speak. Picking synchronously before that fires
+// silently falls back to whatever voice the OS/engine defaults to, which is
+// why the chosen voice could vary between sessions on the exact same
+// device. Resolving once (module-scoped, so it's stable for the whole tab)
+// and waiting briefly for the real list makes the pick deterministic.
+let resolvedVoice: SpeechSynthesisVoice | null = null
+let voiceResolutionPromise: Promise<SpeechSynthesisVoice | null> | null = null
+
+function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
+  if (resolvedVoice) return Promise.resolve(resolvedVoice)
+  if (voiceResolutionPromise) return voiceResolutionPromise
+
+  voiceResolutionPromise = new Promise((resolve) => {
+    const tryPick = (): boolean => {
+      if (!window.speechSynthesis.getVoices().length) return false
+      resolvedVoice = pickBestVoice()
+      resolve(resolvedVoice)
+      return true
+    }
+
+    if (tryPick()) return
+
+    const handler = () => {
+      if (tryPick()) {
+        window.speechSynthesis.removeEventListener('voiceschanged', handler)
+        clearTimeout(timeoutId)
+      }
+    }
+    window.speechSynthesis.addEventListener('voiceschanged', handler)
+
+    // Some engines never fire voiceschanged at all — don't wait forever.
+    const timeoutId = setTimeout(() => {
+      window.speechSynthesis.removeEventListener('voiceschanged', handler)
+      tryPick()
+      resolve(resolvedVoice)
+    }, 1000)
+  })
+
+  return voiceResolutionPromise
+}
+
 /**
  * Call synchronously inside a real click/submit handler — e.g. the setup
  * form's submit, or the trial PIN's login button — BEFORE any await. Bede's
@@ -114,13 +158,15 @@ export function useTextToSpeech(speakToken: string | null = null) {
   const speakViaBrowser = useCallback((text: string): Promise<void> => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return }
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.voice = pickBestVoice()
-      utterance.rate = 0.88
-      utterance.pitch = 0.92
-      utterance.onend = () => resolve()
-      utterance.onerror = () => resolve()
-      window.speechSynthesis.speak(utterance)
+      resolveVoice().then((voice) => {
+        const utterance = new SpeechSynthesisUtterance(text)
+        if (voice) utterance.voice = voice
+        utterance.rate = 0.88
+        utterance.pitch = 0.92
+        utterance.onend = () => resolve()
+        utterance.onerror = () => resolve()
+        window.speechSynthesis.speak(utterance)
+      })
     })
   }, [])
 

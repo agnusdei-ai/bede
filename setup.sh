@@ -16,13 +16,33 @@ warn()    { echo -e "${YELLOW}⚠  $*${RESET}"; }
 error()   { echo -e "${RED}✗  $*${RESET}"; exit 1; }
 blank()   { echo ""; }
 
-# At least 6 digits, no digit repeated anywhere in the PIN (e.g. 384756, not 111111 or 123123).
+# At least 6 digits, no digit repeated, and not a sequential run — ascending
+# or descending, wraparound included (e.g. 384756, not 111111, 123123, 123456,
+# 654321, or 789012).
+is_sequential_pin() {
+  local pin="$1" prev="" d="" diff="" first_diff="" all_same=1
+  for ((i = 0; i < ${#pin}; i++)); do
+    d="${pin:i:1}"
+    if [[ -n "$prev" ]]; then
+      diff=$(( (10#$d - 10#$prev + 10) % 10 ))
+      if [[ -z "$first_diff" ]]; then
+        first_diff="$diff"
+      elif [[ "$diff" != "$first_diff" ]]; then
+        all_same=0
+      fi
+    fi
+    prev="$d"
+  done
+  [[ "$all_same" -eq 1 && ( "$first_diff" == "1" || "$first_diff" == "9" ) ]]
+}
+
 is_strong_pin() {
   local pin="$1"
   [[ "$pin" =~ ^[0-9]{6,}$ ]] || return 1
   local unique
   unique=$(echo -n "$pin" | fold -w1 | sort -u | wc -l)
-  [[ "$unique" -eq "${#pin}" ]]
+  [[ "$unique" -eq "${#pin}" ]] || return 1
+  ! is_sequential_pin "$pin"
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -87,7 +107,7 @@ info "4/5  Child PIN (student login, 6+ digits, no digit repeated)"
 while true; do
   read -rp "     CHILD_PIN: " CHILD_PIN
   is_strong_pin "$CHILD_PIN" && break
-  warn "Must be 6+ digits with no digit repeated (e.g. 384756, not 111111 or 123123)."
+  warn "Must be 6+ digits, no digit repeated, and not a sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321)."
 done
 
 # ── Auto-generate secrets ─────────────────────────────────────────────────────

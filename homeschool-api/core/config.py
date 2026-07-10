@@ -6,9 +6,23 @@ from typing import List
 MIN_PIN_LENGTH = 6
 
 
+def _is_sequential(pin: str) -> bool:
+    """True if every digit steps by the same +1/-1 from the last, mod 10 —
+    catches not just 123456/654321 but wraparound runs like 789012/901234
+    that a naive non-modular check would miss."""
+    diffs = {(int(b) - int(a)) % 10 for a, b in zip(pin, pin[1:])}
+    return diffs in ({1}, {9})
+
+
 def pin_is_strong(pin: str) -> bool:
-    """At least 6 digits, no digit repeated anywhere in the PIN."""
-    return pin.isdigit() and len(pin) >= MIN_PIN_LENGTH and len(set(pin)) == len(pin)
+    """At least 6 digits, no digit repeated anywhere in the PIN, and not a
+    simple sequential run (ascending or descending, wraparound included)."""
+    return (
+        pin.isdigit()
+        and len(pin) >= MIN_PIN_LENGTH
+        and len(set(pin)) == len(pin)
+        and not _is_sequential(pin)
+    )
 
 
 class Settings(BaseSettings):
@@ -124,8 +138,8 @@ class Settings(BaseSettings):
             problems.append("CHILD_PIN is set to the default dev value")
         elif not pin_is_strong(self.child_pin):
             problems.append(
-                f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits with no digit repeated "
-                "(e.g. 384756, not 111111 or 123123)"
+                f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits, no digit repeated, and not a "
+                "sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321)"
             )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")

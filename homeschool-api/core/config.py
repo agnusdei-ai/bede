@@ -14,14 +14,36 @@ def _is_sequential(pin: str) -> bool:
     return diffs in ({1}, {9})
 
 
+def _is_repeating_block(pin: str) -> bool:
+    """True if the whole PIN is one short block repeated to fill the length —
+    catches 111111 (block "1"), 123123 (block "123"), 121212 (block "12")."""
+    n = len(pin)
+    for block_len in range(1, n // 2 + 1):
+        if n % block_len == 0:
+            block = pin[:block_len]
+            if block * (n // block_len) == pin:
+                return True
+    return False
+
+
+def _is_palindrome(pin: str) -> bool:
+    """True if the PIN reads the same forwards and backwards — catches
+    symmetric patterns like 669966 that _is_repeating_block misses (it's
+    not a repeated block, but it's still an obviously guessable shape)."""
+    return pin == pin[::-1]
+
+
 def pin_is_strong(pin: str) -> bool:
-    """At least 6 digits, no digit repeated anywhere in the PIN, and not a
-    simple sequential run (ascending or descending, wraparound included)."""
+    """At least 6 digits, not a simple sequential run (ascending or
+    descending, wraparound included), not a repeated-block pattern, and not
+    a palindrome. Repeated digits are otherwise fine — e.g. 602656 is a
+    perfectly good PIN — only easily-guessable *patterns* are rejected."""
     return (
         pin.isdigit()
         and len(pin) >= MIN_PIN_LENGTH
-        and len(set(pin)) == len(pin)
         and not _is_sequential(pin)
+        and not _is_repeating_block(pin)
+        and not _is_palindrome(pin)
     )
 
 
@@ -156,13 +178,15 @@ class Settings(BaseSettings):
             problems.append("CHILD_PIN is set to the default dev value")
         elif not pin_is_strong(self.child_pin):
             problems.append(
-                f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits, no digit repeated, and not a "
-                "sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321)"
+                f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
+                "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
+                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
             )
         if self.demo_pin and not pin_is_strong(self.demo_pin):
             problems.append(
-                f"DEMO_PIN must be {MIN_PIN_LENGTH}+ digits, no digit repeated, and not a "
-                "sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321) — "
+                f"DEMO_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
+                "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
+                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN — "
                 "it's shared with the public, so it deserves the same bar as CHILD_PIN"
             )
         if self.master_secret in self._WEAK_SECRETS:

@@ -13,7 +13,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const lastAssistantRef = useRef('')  // track last spoken text to avoid re-speaking
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
 
   const {
@@ -59,6 +58,18 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     abortRef.current?.abort()
     abortRef.current = new AbortController()
 
+    // speak() already queues internally (see useTextToSpeech), so calls here
+    // play in the order they're made — but only if we make them in the right
+    // order. Tool cards used to be spoken the instant their chunk arrived,
+    // while the surrounding text was only ever spoken later, once the whole
+    // message finalized — so a tool card could finish playing before Bede's
+    // own opening text even started. Flushing pendingText before every tool
+    // card keeps speech in the same order the words appear on screen.
+    let pendingText = ''
+    const flush = () => {
+      if (pendingText.trim()) speak(pendingText)
+      pendingText = ''
+    }
     try {
       const stream = streamTutorChat(
         state.token,
@@ -71,7 +82,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       for await (const chunk of stream) {
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
+          pendingText += chunk.content
         } else if (chunk.type === 'tool' && chunk.content) {
+          flush()
           addToolMessage(chunk.tool ?? 'tool', chunk.content)
           speak(chunk.content)
         } else if (chunk.type === 'assessment') {
@@ -79,6 +92,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
           addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'subject_complete') {
+          flush()
           addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
           speak(chunk.content ?? '')
           advanceSubjectRef.current = true
@@ -86,6 +100,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           break
         }
       }
+      flush()
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         addToolMessage('error', `⚠️ ${err.message}`)
@@ -115,18 +130,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [displayMessages])
 
-  // Auto-speak new assistant messages
-  useEffect(() => {
-    const lastAssistant = displayMessages
-      .filter((m) => m.role === 'assistant' && m.id !== 'streaming-response' && !m.tool)
-      .at(-1)
-
-    if (lastAssistant && lastAssistant.content && lastAssistant.content !== lastAssistantRef.current) {
-      lastAssistantRef.current = lastAssistant.content
-      speak(lastAssistant.content)
-    }
-  }, [displayMessages, speak])
-
   const handleDrawingSubmit = (imageDataUrl: string) => {
     setPendingDrawing(imageDataUrl)
     setShowCanvas(false)
@@ -153,6 +156,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     abortRef.current?.abort()
     abortRef.current = new AbortController()
 
+    // See sendOpener's comment — flush any accumulated text before speaking a
+    // tool card, so speech plays in the same order it appears on screen.
+    let pendingText = ''
+    const flush = () => {
+      if (pendingText.trim()) speak(pendingText)
+      pendingText = ''
+    }
     try {
       const stream = streamTutorChat(
         token,
@@ -167,7 +177,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       for await (const chunk of stream) {
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
+          pendingText += chunk.content
         } else if (chunk.type === 'tool' && chunk.content) {
+          flush()
           addToolMessage(chunk.tool ?? 'tool', chunk.content)
           // Speak tool responses too (narration prompts, hints, etc.)
           speak(chunk.content)
@@ -176,6 +188,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
           addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'subject_complete') {
+          flush()
           addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
           speak(chunk.content ?? '')
           advanceSubjectRef.current = true
@@ -183,6 +196,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           break
         }
       }
+      flush()
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         addToolMessage('error', `⚠️ ${err.message}`)

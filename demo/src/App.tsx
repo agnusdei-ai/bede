@@ -51,12 +51,33 @@ function isSequentialPin(pin: string): boolean {
   return diffs.size === 1 && (diffs.has(1) || diffs.has(9))
 }
 
-/** At least 6 digits, no repeated digit, and not a sequential run. */
+/** True if the whole PIN is one short block repeated to fill the length —
+ *  catches 111111 (block "1"), 123123 (block "123"), 121212 (block "12"). */
+function isRepeatingBlockPin(pin: string): boolean {
+  const n = pin.length
+  for (let blockLen = 1; blockLen <= n / 2; blockLen++) {
+    if (n % blockLen !== 0) continue
+    const block = pin.slice(0, blockLen)
+    if (block.repeat(n / blockLen) === pin) return true
+  }
+  return false
+}
+
+/** True if the PIN reads the same forwards and backwards — catches
+ *  symmetric patterns like 669966 that isRepeatingBlockPin misses. */
+function isPalindromePin(pin: string): boolean {
+  return pin === [...pin].reverse().join('')
+}
+
+/** At least 6 digits and not an easily-guessable pattern — no sequential
+ *  run, repeated block, or palindrome. Repeated digits are otherwise fine,
+ *  e.g. 602656 is a good PIN. */
 function pinStrengthError(pin: string): string | null {
   if (!/^\d+$/.test(pin)) return 'PIN must contain only digits.'
   if (pin.length < MIN_PIN_LENGTH) return `PIN must be at least ${MIN_PIN_LENGTH} digits.`
-  if (new Set(pin).size !== pin.length) return 'PIN cannot repeat any digit.'
   if (isSequentialPin(pin)) return 'PIN cannot be a sequential run (e.g. 123456 or 654321).'
+  if (isRepeatingBlockPin(pin)) return 'PIN cannot be a repeated block (e.g. 111111, 123123, or 121212).'
+  if (isPalindromePin(pin)) return 'PIN cannot read the same forwards and backwards (e.g. 669966).'
   return null
 }
 
@@ -254,11 +275,11 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
           </div>
           <div>
             <label className="label">Demo PIN screen (optional)</label>
-            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no repeats or sequences — leave blank to skip" inputMode="numeric" />
+            <input className="input" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="6+ digits, no obvious patterns — leave blank to skip" inputMode="numeric" />
             <p className="text-xs text-gray-400 mt-1">
               Shows a PIN entry step before Bede, mirroring the real app's login <em>look</em> —
               this is a UI demonstration only, not real security (see the notice on that screen).
-              If set: at least {MIN_PIN_LENGTH} digits, no digit repeated, not a sequential run.
+              If set: at least {MIN_PIN_LENGTH} digits, no sequential run, repeated block, or palindrome.
             </p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -392,25 +413,44 @@ function ChatScreen({ displayName, subjects, persist, runChat, speakToken, heade
     const assistantId = `assistant-${Date.now()}`
     setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }])
     let fullText = ''
+    // Chained so each speak() waits for the previous one to finish instead of
+    // firing concurrently — otherwise a tool card's speak() (queued the
+    // instant its chunk arrives) can finish playing before the main response
+    // text even starts, since that text was only ever spoken once at the very
+    // end. Flushing pendingSpeech before each tool card keeps playback in the
+    // same order the words actually appear on screen: Bede's initial text
+    // first, then the tool card, not the reverse.
+    let speechQueue = Promise.resolve()
+    let pendingSpeech = ''
+    const queueSpeak = (text: string) => {
+      speechQueue = speechQueue.then(() => speak(text))
+    }
+    const flushPendingSpeech = () => {
+      if (ttsEnabled && pendingSpeech.trim()) queueSpeak(pendingSpeech)
+      pendingSpeech = ''
+    }
     try {
       for await (const chunk of runChat(subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
         if (chunk.type === 'text') {
           fullText += chunk.content
+          pendingSpeech += chunk.content
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: fullText } : m)))
         } else if (chunk.type === 'tool') {
+          flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: chunk.tool }])
-          if (ttsEnabled) speak(chunk.content)
+          if (ttsEnabled) queueSpeak(chunk.content)
         } else if (chunk.type === 'visual_aid') {
           setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
         } else if (chunk.type === 'subject_complete') {
+          flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: 'subject_complete' }])
-          if (ttsEnabled) speak(chunk.content)
+          if (ttsEnabled) queueSpeak(chunk.content)
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
         }
       }
-      if (ttsEnabled && fullText) speak(fullText)
+      flushPendingSpeech()
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {

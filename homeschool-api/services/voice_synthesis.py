@@ -93,7 +93,15 @@ def _synthesize_sync(kokoro, text: str) -> bytes:
     import io
     import soundfile as sf
 
-    samples, sample_rate = kokoro.create(text, voice=settings.kokoro_voice, speed=1.0, lang="en-us")
+    # Kokoro's `lang` controls the phonemizer's pronunciation rules, separate
+    # from the voice's own acoustic model — pairing a British voice (bm_/bf_)
+    # with "en-us" phonemization was making George sound like an American
+    # accent forced onto a British voice: neither convincingly English nor
+    # natural. Match phonemization to the voice's actual accent.
+    lang = "en-gb" if settings.kokoro_voice.startswith(("bm_", "bf_")) else "en-us"
+    # Slightly slower than natural speed reads as more measured and thoughtful
+    # for Bede's Socratic, unhurried persona rather than a brisk assistant voice.
+    samples, sample_rate = kokoro.create(text, voice=settings.kokoro_voice, speed=0.92, lang=lang)
     buf = io.BytesIO()
     sf.write(buf, samples, sample_rate, format="WAV")
     return buf.getvalue()

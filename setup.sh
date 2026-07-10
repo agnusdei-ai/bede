@@ -16,9 +16,10 @@ warn()    { echo -e "${YELLOW}⚠  $*${RESET}"; }
 error()   { echo -e "${RED}✗  $*${RESET}"; exit 1; }
 blank()   { echo ""; }
 
-# At least 6 digits, no digit repeated, and not a sequential run — ascending
-# or descending, wraparound included (e.g. 384756, not 111111, 123123, 123456,
-# 654321, or 789012).
+# At least 6 digits and not an easily-guessable pattern: no sequential run —
+# ascending or descending, wraparound included (123456, 654321, 789012) — no
+# repeated block (111111, 123123, 121212), and not a palindrome (669966).
+# Repeated digits are otherwise fine, e.g. 602656 is a good PIN.
 is_sequential_pin() {
   local pin="$1" prev="" d="" diff="" first_diff="" all_same=1
   for ((i = 0; i < ${#pin}; i++)); do
@@ -36,13 +37,33 @@ is_sequential_pin() {
   [[ "$all_same" -eq 1 && ( "$first_diff" == "1" || "$first_diff" == "9" ) ]]
 }
 
+is_repeating_block_pin() {
+  local pin="$1" n=${#pin} block_len block reps candidate r
+  for ((block_len = 1; block_len <= n / 2; block_len++)); do
+    if (( n % block_len == 0 )); then
+      block="${pin:0:block_len}"
+      reps=$(( n / block_len ))
+      candidate=""
+      for ((r = 0; r < reps; r++)); do candidate+="$block"; done
+      [[ "$candidate" == "$pin" ]] && return 0
+    fi
+  done
+  return 1
+}
+
+is_palindrome_pin() {
+  local pin="$1" rev="" i
+  for ((i = ${#pin} - 1; i >= 0; i--)); do rev+="${pin:i:1}"; done
+  [[ "$pin" == "$rev" ]]
+}
+
 is_strong_pin() {
   local pin="$1"
   [[ "$pin" =~ ^[0-9]{6,}$ ]] || return 1
-  local unique
-  unique=$(echo -n "$pin" | fold -w1 | sort -u | wc -l)
-  [[ "$unique" -eq "${#pin}" ]] || return 1
-  ! is_sequential_pin "$pin"
+  is_sequential_pin "$pin" && return 1
+  is_repeating_block_pin "$pin" && return 1
+  is_palindrome_pin "$pin" && return 1
+  return 0
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -103,11 +124,11 @@ while true; do
 done
 
 blank
-info "4/5  Child PIN (student login, 6+ digits, no digit repeated)"
+info "4/5  Child PIN (student login, 6+ digits, no easily-guessable pattern)"
 while true; do
   read -rp "     CHILD_PIN: " CHILD_PIN
   is_strong_pin "$CHILD_PIN" && break
-  warn "Must be 6+ digits, no digit repeated, and not a sequential run (e.g. 384756, not 111111, 123123, 123456, or 654321)."
+  warn "Must be 6+ digits and not a sequential run, repeated block, or palindrome (e.g. 602656 is fine, not 111111, 123123, 121212, 123456, 654321, or 669966)."
 done
 
 # ── Auto-generate secrets ─────────────────────────────────────────────────────

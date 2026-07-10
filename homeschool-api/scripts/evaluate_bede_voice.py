@@ -86,8 +86,13 @@ def main():
     results = []
     for voice in CANDIDATE_VOICES:
         print(f"Synthesizing with voice={voice!r}...")
+        # Match phonemization to each candidate's actual accent — en-gb for
+        # British voices, en-us for American ones — same rule production uses
+        # in voice_synthesis.py. Comparing George/Lewis under en-us (as this
+        # script originally did) understates how they actually sound live.
+        lang = "en-gb" if voice.startswith(("bm_", "bf_")) else "en-us"
         try:
-            samples, sample_rate = kokoro.create(SAMPLE_LINE, voice=voice, speed=1.0, lang="en-us")
+            samples, sample_rate = kokoro.create(SAMPLE_LINE, voice=voice, speed=0.92, lang=lang)
         except Exception as exc:
             print(f"  FAILED: {exc}")
             continue

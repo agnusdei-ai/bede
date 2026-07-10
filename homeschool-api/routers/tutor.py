@@ -104,7 +104,7 @@ async def get_demo_config(_: dict = Depends(require_auth)) -> SessionConfig:
 @router.post("/speak")
 async def speak(req: SpeakRequest, auth: dict = Depends(require_real_user)):
     """
-    Synthesize Bede's spoken voice via the configured cloud TTS (see
+    Synthesize Bede's spoken voice via the self-hosted Kokoro model (see
     services/voice_synthesis.py). Returns 204 with no body when unconfigured
     or on failure — the frontend falls back to the browser's own
     speechSynthesis in that case, so a TTS hiccup never breaks the session.
@@ -112,7 +112,7 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_real_user)):
     audio = await synthesize_speech(req.text)
     if audio is None:
         return Response(status_code=204)
-    return Response(content=audio, media_type="audio/mpeg")
+    return Response(content=audio, media_type="audio/wav")
 
 
 @router.post("/summary")

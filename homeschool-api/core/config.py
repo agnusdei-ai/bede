@@ -31,16 +31,24 @@ class Settings(BaseSettings):
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 
-    # ── Voice output (Bede speaking) ─────────────────────────────────────────
-    # Optional: a cloud neural TTS gives a warm, trained male monk voice instead
-    # of the browser's robotic default. If unset, the frontend falls back to the
-    # browser's built-in speechSynthesis (see useTextToSpeech.ts).
-    # Self-hosted voice cloning (e.g. Chatterbox) was considered but needs a real
-    # GPU for real-time latency — not realistic on Raspberry Pi-class hosts.
-    elevenlabs_api_key: str = ""
+    # ── Voice output (Bede speaking) — self-hosted Kokoro TTS ────────────────
+    # No cloud dependency, no per-user API key — runs locally via kokoro-onnx
+    # (ONNX Runtime, CPU-friendly, ~80MB quantized model). If the model files
+    # aren't present at KOKORO_MODEL_DIR, the frontend falls back to the
+    # browser's built-in speechSynthesis (see useTextToSpeech.ts) — voice
+    # output never blocks a session either way.
+    #
+    # One-time setup: download kokoro-v1.0.onnx and voices-v1.0.bin from
+    # github.com/thewh1teagle/kokoro-onnx/releases into this directory, then
+    # run scripts/evaluate_bede_voice.py to compare candidate voices and
+    # confirm KOKORO_VOICE — see docs/VOICE_SETUP.md.
+    kokoro_model_dir: str = "./models/kokoro"
     # Must be a warm, elderly, MALE voice — Bede's persona and voice are both
     # historically male (the Venerable Bede), never gender-ambiguous or female.
-    elevenlabs_voice_id: str = ""
+    # "bm_george" is a reasonable starting default (British Male) but is NOT
+    # independently verified against real audio — confirm it with
+    # scripts/evaluate_bede_voice.py before relying on it.
+    kokoro_voice: str = "bm_george"
 
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"

@@ -1,13 +1,45 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Copy, Check, ExternalLink, Settings, BarChart2 } from 'lucide-react'
+import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
+import { fetchNarrationAssessments, fetchLearnerProfile } from '../services/api'
 import { SUBJECTS } from '../types'
 import type { SessionConfig } from '../types'
 
 export default function PodDashboard() {
   const navigate = useNavigate()
-  const { podStudents, logout } = useSessionStore()
+  const { podStudents, logout, token } = useSessionStore()
+
+  // A student is "ready" once they've completed at least one session (has a
+  // narration assessment on record) but Bede's initial learner profile
+  // hasn't been built yet — this is exactly the condition Progress.tsx's
+  // "Get Initial Recommendations" button unlocks. Naturally stops nudging
+  // once the parent actually views/builds it (fetchLearnerProfile then
+  // returns non-null), so there's no separate "dismiss" state to track.
+  const [readyStudents, setReadyStudents] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!token || !podStudents.length) return
+    let cancelled = false
+    Promise.all(
+      podStudents.map(async (s) => {
+        try {
+          const [assessments, profile] = await Promise.all([
+            fetchNarrationAssessments(token, s.student_name),
+            fetchLearnerProfile(token, s.student_name),
+          ])
+          return assessments.length >= 1 && profile === null ? s.student_name : null
+        } catch {
+          return null // best-effort nudge, not critical path — fail silently
+        }
+      })
+    ).then((results) => {
+      if (!cancelled) setReadyStudents(results.filter((name): name is string => name !== null))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [token, podStudents])
 
   if (!podStudents.length) {
     return (
@@ -60,6 +92,36 @@ export default function PodDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Initial recommendations nudge — only shown once at least one
+            student has a completed session with no learner profile built yet */}
+        {readyStudents.length > 0 && (
+          <div className="mb-6 p-5 bg-sage-50 border border-sage-200 rounded-xl flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={18} className="text-sage-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-semibold text-gray-800">
+                Bede has initial recommendations ready
+              </h2>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Based on their first session{readyStudents.length > 1 ? 's' : ''} — see what Bede
+                noticed and what&apos;s suggested next.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {readyStudents.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => navigate(`/progress?student=${encodeURIComponent(name)}`)}
+                    className="px-3 py-1.5 bg-white border border-sage-300 text-sage-700 text-xs font-medium rounded-full hover:bg-sage-100 transition-colors"
+                  >
+                    View {name}&apos;s recommendations &rarr;
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Student grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { SUBJECT_MAP } from '../types'
@@ -337,10 +337,16 @@ function StudentTabs({
 
 export default function Progress() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { token, podStudents } = useSessionStore()
 
   const studentNames = podStudents.map((s) => s.student_name)
-  const [activeStudent, setActiveStudent] = useState<string>(studentNames[0] ?? '')
+  // Deep-linked from the Pod Dashboard's "recommendations ready" nudge when
+  // present — falls back to the first student otherwise.
+  const requestedStudent = searchParams.get('student')
+  const initialStudent =
+    requestedStudent && studentNames.includes(requestedStudent) ? requestedStudent : studentNames[0] ?? ''
+  const [activeStudent, setActiveStudent] = useState<string>(initialStudent)
 
   const [assessments, setAssessments] = useState<NarrationAssessmentData[]>([])
   const [profile, setProfile] = useState<LearnerProfileData | null>(null)

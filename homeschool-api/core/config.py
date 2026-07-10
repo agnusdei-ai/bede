@@ -1,3 +1,4 @@
+import hmac
 from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import List
@@ -38,6 +39,18 @@ class Settings(BaseSettings):
     parent_password: str = "change-me-parent"
     child_pin: str = "0000"
 
+    # ── Public demo mode (optional) ────────────────────────────────────────────
+    # Empty by default: the "demo" login role is entirely disabled unless a
+    # deployment deliberately sets DEMO_PIN. Meant only for a dedicated public
+    # demo deployment, never a family's real instance — issues a short-lived,
+    # rights-restricted token against one fixed server-defined student config,
+    # never the real parent_password/child_pin.
+    demo_pin: str = ""
+    demo_token_expire_minutes: int = 15
+    demo_student_name: str = "Guest"
+    demo_grade: str = "4"
+    demo_grade_stage: str = "3-5"
+
     # ── Database ──────────────────────────────────────────────────────────────
     # asyncpg-compatible PostgreSQL URL.
     # Neon example: postgresql+asyncpg://user:pass@host/db?ssl=require
@@ -69,6 +82,19 @@ class Settings(BaseSettings):
         "change-me-master-secret-32-chars-min",
         "0000",
     }
+
+    @model_validator(mode="after")
+    def reject_demo_pin_reuse(self) -> "Settings":
+        """A demo PIN that matches a real credential would let the low-rights
+        demo role double as real family access, or vice versa — reject that
+        regardless of production mode, since it's a correctness bug, not just
+        a weak-default hygiene issue."""
+        if self.demo_pin and (
+            hmac.compare_digest(self.demo_pin, self.parent_password)
+            or hmac.compare_digest(self.demo_pin, self.child_pin)
+        ):
+            raise ValueError("DEMO_PIN must not match PARENT_PASSWORD or CHILD_PIN")
+        return self
 
     @model_validator(mode="after")
     def reject_weak_defaults_in_production(self) -> "Settings":

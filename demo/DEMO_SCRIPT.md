@@ -7,11 +7,15 @@ specific wording, subjects, or behavior may have moved on since.
 
 ## Before you start
 
-- Have your Anthropic API key ready (and an ElevenLabs key + voice ID if you set up a
-  trained voice — see `docs/PARENT_SETUP.md` in the main repo for how to pick one).
-- Decide which student profile you'll demo with — grades **K, 4, and 8** have real
-  curated curriculum content (books, math scope, composer/artist study); any other
-  grade falls back to generic guidance, so pick one of those three for the richest demo.
+- The landing screen offers two paths: a free 15-minute shared trial (no key needed,
+  only shown if this deployment has a trial backend configured) or "Use your own API
+  key." Know which one you're walking through before you start.
+- If demoing the own-key path, have your Anthropic API key ready (and an ElevenLabs
+  key + voice ID if you set up a trained voice — see `docs/PARENT_SETUP.md` in the
+  main repo for how to pick one). There's now a link and step-by-step instructions for
+  getting a free key right on that screen if your audience needs one.
+- Every grade K-8 now has real curated curriculum content (books, math scope,
+  composer/artist/poet study) — pick whichever grade fits your audience.
 - Know your audience: a parent evaluating this for their own family will care about
   different things than an educator evaluating it for a classroom. Adjust which parts
   you linger on accordingly.

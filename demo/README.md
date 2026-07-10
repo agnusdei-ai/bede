@@ -1,8 +1,25 @@
 # Bede — Demo Build
 
-A standalone, client-only version of Bede for trying it out on an iPad (or any
-device) without setting up the full server stack. No Docker, no Postgres, no
-separate host machine — it runs entirely in the browser.
+A version of Bede for trying it out without setting up the full server stack.
+The landing screen offers two paths:
+
+- **"Use your own API key"** — fully static, no backend needed. Runs entirely
+  in the browser (client-only, works on GitHub Pages, an iPad, anywhere) using
+  a key the visitor pastes in themselves, stored only in that browser's local
+  storage, sent straight to Anthropic/ElevenLabs. No time limit; the visitor
+  pays Anthropic directly for what they use. This path always works.
+- **"Try it now — free, 15 minutes"** *(optional)* — a shared trial session
+  against a real `homeschool-api` backend, so nobody needs their own key to
+  try it. Only appears if `VITE_DEMO_API_BASE` is set at build time to a
+  publicly-reachable `homeschool-api` deployment with `DEMO_PIN` configured
+  (see the root `homeschool-api/.env.example`) — without that, the demo just
+  quietly offers the own-key path only. The shared key never reaches the
+  browser: `core/deps.py`'s `require_real_user` blocks the scoped `demo` role
+  from every endpoint except the chat itself, sessions expire in 15 minutes,
+  and nothing is persisted (`db=None` for the demo role in `routers/tutor.py`).
+  When the trial ends, the UI prompts the visitor to get their own free key
+  for unlimited use, noting that beyond a small free credit, usage is billed
+  per token by Anthropic directly to them.
 
 **This is a demo, not the real app.** See `DEMO_SCRIPT.md` for a guided walkthrough
 with reference prompts, and the table there for exactly what's different from the
@@ -13,22 +30,26 @@ production version in `docs/PARENT_SETUP.md` at the repo root.
 ```bash
 cd demo
 npm install
-npm run dev       # http://localhost:5173
+npm run dev       # http://localhost:5173 — own-key path only
+# or, to also enable the free-trial path against a local backend:
+VITE_DEMO_API_BASE=http://localhost:8000 npm run dev
 ```
-
-On first load it asks for an Anthropic API key (required) and optionally an
-ElevenLabs key + voice ID for a trained voice instead of the browser default. Both
-are stored only in that browser's local storage — never committed, never sent
-anywhere but directly to Anthropic/ElevenLabs.
 
 ## Building for deployment
 
 ```bash
-npm run build     # outputs to demo/dist
+npm run build     # outputs to demo/dist — own-key path only
+# or, to also offer the free trial:
+VITE_DEMO_API_BASE=https://your-backend.example.com npm run build
 ```
 
-The build uses a relative base path, so the output works whether it's served from a
-domain root or a subpath (e.g. a GitHub Pages project site).
+The build uses a relative base path for its own assets, so the output works
+whether it's served from a domain root or a subpath (e.g. a GitHub Pages
+project site) — but `VITE_DEMO_API_BASE` itself must be an absolute URL,
+since it points at a different host entirely. `.github/workflows/deploy-demo.yml`
+reads it from the `VITE_DEMO_API_BASE` repository variable (Settings →
+Secrets and variables → Actions → Variables) automatically; leave that unset
+to ship own-key-only, same as today.
 
 ## What's included vs. left out
 

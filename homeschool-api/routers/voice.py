@@ -4,7 +4,7 @@ from typing import List
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import get_db
-from core.deps import require_auth, require_parent
+from core.deps import require_parent, require_real_user
 from services.voice_auth import (
     delete_profile,
     enroll_student,
@@ -83,7 +83,7 @@ async def verify(
     student_name: str = Form(..., min_length=1, max_length=50),
     audio: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    auth: dict = Depends(require_auth),
+    auth: dict = Depends(require_real_user),
 ):
     """Verify student voice. Returns score + level — never the stored embedding."""
     ctx = audit_from_request(request)
@@ -160,7 +160,7 @@ async def transcribe(
     request: Request,
     audio: UploadFile = File(...),
     language: str = Form(default="en"),
-    auth: dict = Depends(require_auth),
+    auth: dict = Depends(require_real_user),
 ):
     """
     Server-side Whisper transcription fallback.

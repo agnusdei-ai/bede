@@ -1,0 +1,136 @@
+// Client for the optional "Try it now" shared-trial path — talks to a real
+// homeschool-api backend instead of Anthropic directly, so a shared demo key
+// never reaches the browser. This is the ONLY safe way to offer a shared key
+// at all: a purely static site cannot hide a secret from its own devtools,
+// no matter how it's encoded, since the browser must hold the plaintext key
+// to use it. The bring-your-own-key path (claude.ts) stays fully static and
+// needs none of this — this file is additive, not a replacement.
+//
+// Reuses claude.ts's shared shapes (Subject, ChatMessage, VisualAidData,
+// StreamChunk) rather than redefining them, since both paths render into the
+// same chat UI.
+
+import type { GradeStage, Subject, ChatMessage, VisualAidData, StreamChunk } from './claude'
+
+// Must point at a real, publicly-reachable homeschool-api deployment with
+// DEMO_PIN set. Baked in at build time — set via VITE_DEMO_API_BASE. Until
+// that deployment exists, the "Try it now" path simply isn't offered (see
+// App.tsx's isTrialAvailable check) — bring-your-own-key keeps working
+// regardless.
+const BASE = import.meta.env.VITE_DEMO_API_BASE as string | undefined
+
+export function trialAvailable(): boolean {
+  return !!BASE
+}
+
+export interface SessionConfig {
+  student_name: string
+  grade: string
+  grade_stage: GradeStage
+  subjects: Subject[]
+  lesson_focus?: string | null
+  faith_emphasis?: string | null
+  current_unit?: string | null
+  voice_required?: boolean
+  screen_time_limit_minutes?: number | null
+  eye_rest_break_minutes?: number
+}
+
+function apiBase(): string {
+  if (!BASE) throw new Error('The free trial is not configured on this deployment.')
+  return BASE
+}
+
+/** Decodes a JWT's payload without verifying the signature — fine for reading
+ *  our own freshly-issued `exp` claim to drive the countdown UI; the server
+ *  is what actually enforces expiry on every request regardless. */
+export function decodeExpiry(token: string): number | null {
+  try {
+    const [, payloadB64] = token.split('.')
+    const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))
+    const payload = JSON.parse(json)
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+export async function login(pin: string): Promise<{ token: string; expiresAt: number | null }> {
+  const res = await fetch(`${apiBase()}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'demo', credential: pin }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Incorrect PIN')
+  }
+  const data = await res.json()
+  return { token: data.access_token, expiresAt: decodeExpiry(data.access_token) }
+}
+
+export async function getDemoConfig(token: string): Promise<SessionConfig> {
+  const res = await fetch(`${apiBase()}/tutor/demo-config`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load the trial session — please try logging in again')
+  return res.json()
+}
+
+function stripDataUrlPrefix(dataUrl: string): string {
+  const idx = dataUrl.indexOf(',')
+  return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)
+}
+
+export async function* streamTutorChat(
+  token: string,
+  config: SessionConfig,
+  subject: Subject,
+  history: ChatMessage[],
+  childMessage: string,
+  drawingImageDataUrl: string | null,
+  signal?: AbortSignal
+): AsyncGenerator<StreamChunk> {
+  const res = await fetch(`${apiBase()}/tutor/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      session_config: config,
+      current_subject: subject,
+      conversation_history: history,
+      child_message: childMessage,
+      drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
+    }),
+    signal,
+  })
+
+  if (res.status === 401) throw new Error('Your free trial has ended — log in again or use your own key to keep going.')
+  if (!res.ok) throw new Error('Tutor request failed — check your connection')
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const jsonStr = line.slice(6).trim()
+      if (!jsonStr) continue
+      try {
+        const chunk: StreamChunk = JSON.parse(jsonStr)
+        yield chunk
+        if (chunk.type === 'done') return
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
+}

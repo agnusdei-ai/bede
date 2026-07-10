@@ -213,7 +213,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     else startListening()
   }
 
-  const fontClass = gradeStage === 'K-2' ? 'text-base' : 'text-sm'
+  const fontClass = gradeStage === 'K-2' ? 'text-lg' : 'text-base'
 
   return (
     <div className="flex flex-col h-full">

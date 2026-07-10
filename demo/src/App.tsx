@@ -467,19 +467,25 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
-      <header className="bg-white border-b border-navy-100 shrink-0 h-14 flex items-center px-4 gap-3">
+      <header className="bg-white border-b border-navy-100 shrink-0 min-h-16 flex items-center px-4 py-2 gap-3">
         <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover" />
         <div className="flex-1 min-w-0">
           <span className="text-navy-700 font-semibold text-sm">Bede</span>
           <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
         </div>
-        <select
-          value={subject}
-          onChange={(e) => setSubject(e.target.value as Subject)}
-          className="text-xs border border-navy-200 rounded-lg px-2 py-1.5 bg-white"
-        >
-          {subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
-        </select>
+        <div className="flex flex-col items-start shrink-0">
+          <label htmlFor="subject-select" className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none mb-1">
+            Learning Subject
+          </label>
+          <select
+            id="subject-select"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value as Subject)}
+            className="text-sm font-medium border border-navy-300 rounded-lg pl-3 pr-2 py-2 bg-white text-navy-700 hover:border-navy-400 cursor-pointer transition-colors"
+          >
+            {subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
+          </select>
+        </div>
         {header}
       </header>
 
@@ -563,7 +569,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
       subject_complete: 'border-l-[3px] border-navy-400 bg-navy-50/70 font-medium',
     }
     return (
-      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>
+      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-base leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {msg.content}
       </div>
@@ -572,7 +578,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   const isUser = msg.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? 'bg-navy-500 text-white rounded-br-sm' : 'bg-white border border-navy-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? 'bg-navy-500 text-white rounded-br-sm' : 'bg-white border border-navy-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
         {!isUser && <div className="text-xs font-semibold text-navy-600 mb-1">Bede</div>}
         {isUser && <div className="text-xs font-semibold text-navy-100 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{msg.content}</div>

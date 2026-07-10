@@ -114,21 +114,26 @@ export default function TutorSession() {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40 overflow-hidden">
       {/* ── Minimal header ── */}
-      <header className="pt-safe bg-white border-b border-navy-100 shrink-0 h-12 flex items-center px-4 gap-2">
+      <header className="pt-safe bg-white border-b border-navy-100 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
         <img src="/bede-icon.png" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
 
         <span className="text-navy-700 font-semibold text-sm truncate max-w-[100px]">
           {sessionConfig.student_name}
         </span>
 
-        {/* Subject pill — tap to open drawer */}
+        {/* Subject selector — tap to open drawer */}
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-navy-50 text-navy-700 text-xs font-medium border border-navy-100 hover:bg-navy-100 transition-colors shrink-0"
+          className="flex flex-col items-start shrink-0"
         >
-          {subjectInfo && <subjectInfo.Icon size={12} />}
-          <span className="max-w-[120px] truncate">{subjectInfo?.label}</span>
-          <ChevronDown size={11} />
+          <span className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none mb-1">
+            Learning Subject
+          </span>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-navy-50 text-navy-700 text-sm font-medium border border-navy-200 hover:bg-navy-100 transition-colors">
+            {subjectInfo && <subjectInfo.Icon size={16} />}
+            <span className="max-w-[140px] truncate">{subjectInfo?.label}</span>
+            <ChevronDown size={14} />
+          </span>
         </button>
 
         <div className="flex-1" />

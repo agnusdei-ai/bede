@@ -35,16 +35,29 @@
 # /trust, the "add a tablet" onboarding page. That one is deliberately left
 # on plain HTTP: a brand-new device hasn't installed this server's
 # certificate yet, so redirecting it to HTTPS first would hit the exact
-# untrusted-cert warning this page exists to help them past. handle_path
-# strips the /trust prefix before forwarding, so the trust service itself
-# only ever sees "/", "/qr.svg", "/root-ca.crt".
+# untrusted-cert warning this page exists to help them past.
 :80 {
-  handle_path /trust* {
-    reverse_proxy trust:8080 {
-      header_up Host {host}
+  # Wrapped in an explicit route{} because Caddy normally evaluates
+  # top-level directives in its own fixed priority order, not the order
+  # they're written — without this wrapper, the catch-all redirect below
+  # could silently win over the /trust exception regardless of where
+  # either is placed in this file. route{} forces strict, written-order
+  # evaluation instead.
+  route {
+    # handle_path strips the matched literal prefix, including the
+    # trailing slash in the pattern below — matching the bare "/trust"
+    # (no slash) would strip down to an empty path, which isn't a valid
+    # request path to forward upstream. Redirecting it to "/trust/" first
+    # guarantees handle_path always has at least "/" left over.
+    redir /trust /trust/ 302
+
+    handle_path /trust/* {
+      reverse_proxy trust:8080 {
+        header_up Host {host}
+      }
     }
-  }
-  handle {
-    redir https://{host}{uri} permanent
+    handle {
+      redir https://{host}{uri} permanent
+    }
   }
 }

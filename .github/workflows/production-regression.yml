@@ -168,22 +168,31 @@ jobs:
 
       - name: Confirm the no-CLI tablet-trust page works end-to-end
         run: |
+          fail() {
+            echo "$1"
+            echo "--- docker compose logs trust caddy ---"
+            docker compose logs trust caddy
+            exit 1
+          }
+
           # Plain HTTP, not redirected — a new device hasn't trusted the
-          # cert yet, so this must stay reachable without HTTPS.
-          curl -sf http://localhost/trust | grep -q "Add a tablet to Bede"
+          # cert yet, so this must stay reachable without HTTPS. -L follows
+          # the bare "/trust" -> "/trust/" redirect, same as a real browser.
+          curl -sfL http://localhost/trust -o index.html || fail "GET /trust failed"
+          grep -q "Add a tablet to Bede" index.html || fail "GET /trust didn't return the instructions page"
 
-          curl -sf http://localhost/trust/qr.svg -o qr.svg
-          grep -q "<svg" qr.svg
+          curl -sf http://localhost/trust/qr.svg -o qr.svg || fail "GET /trust/qr.svg failed"
+          grep -q "<svg" qr.svg || fail "/trust/qr.svg didn't return an SVG"
 
-          curl -sf http://localhost/trust/root-ca.crt -o downloaded-root-ca.crt
+          curl -sf http://localhost/trust/root-ca.crt -o downloaded-root-ca.crt || fail "GET /trust/root-ca.crt failed"
           docker compose exec -T caddy cat /data/pki/authorities/local/root.crt > actual-root-ca.crt
-          diff downloaded-root-ca.crt actual-root-ca.crt
+          diff downloaded-root-ca.crt actual-root-ca.crt || fail "/trust/root-ca.crt didn't match Caddy's actual CA cert"
 
           # Guard against a regression that accidentally turns off the
           # HTTPS redirect for everything else while adding the /trust
           # exception (handle-block ordering is easy to get backwards).
           code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)
-          [ "$code" = "301" ] || [ "$code" = "308" ] || { echo "Expected a redirect for http://localhost/, got $code"; exit 1; }
+          [ "$code" = "301" ] || [ "$code" = "308" ] || fail "Expected a redirect for http://localhost/, got $code"
 
       - name: Confirm local Postgres backup/restore works
         run: |

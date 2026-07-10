@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, ExternalLink, KeyRound, Zap, Mail, Check } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, ExternalLink, KeyRound, Zap, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import {
   streamTutorChat as claudeStreamTutorChat, SUBJECTS, SUBJECT_LABELS,
   type Subject, type StudentProfile, type ChatMessage, type GradeStage, type VisualAidData, type StreamChunk,
 } from './claude'
 import {
   streamTutorChat as trialStreamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
-  emailTrialSummary, TrialSessionEndedError, TrialEmailCappedError, type SessionConfig,
+  emailTrialSummary, streamSandboxDemoChat, TrialSessionEndedError, TrialEmailCappedError, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -674,12 +674,13 @@ function OwnKeyFlow({ student, onReset }: { student: StudentProfile; onReset: ()
 // just walks away without using it.
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000
 
-function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: {
+function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout, onOpenSandbox }: {
   token: string
   expiresAt: number | null
   onExpired: (reason: 'expired' | 'inactive') => void
   onSwitchToOwnKey: () => void
   onLogout: () => void
+  onOpenSandbox: () => void
 }) {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
@@ -773,6 +774,13 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
               {String(Math.floor(remainingSecs / 60)).padStart(1, '0')}:{String(remainingSecs % 60).padStart(2, '0')}
             </div>
           )}
+          <button
+            onClick={onOpenSandbox}
+            title="Preview the parent-only direct-answer sandbox"
+            className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
+          >
+            <FlaskConical size={12} /> Ask Bede
+          </button>
           <button onClick={onSwitchToOwnKey} title="Want to keep going? Longer sessions need your own API key" className="text-xs text-navy-500 hover:text-navy-700 underline">
             Keep going →
           </button>
@@ -885,6 +893,164 @@ function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDo
   )
 }
 
+// ── Sandbox preview — "what a parent's private Ask Bede tool looks like" ────
+//
+// Only reachable from the shared trial (not bring-your-own-key), since it
+// needs the same server-side session that already gates the regular demo
+// chat (single active login, 5-minute inactivity timeout, DEMO_PIN) — see
+// homeschool-api/routers/sandbox.py's /demo-chat. Direct answers instead of
+// Socratic, free topic-switching, and a "custom instructions" box just like
+// the real parent-only sandbox — nothing typed here is saved server-side.
+interface SandboxMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
+function TrialSandboxScreen({ token, onBack, onSessionInvalid }: {
+  token: string
+  onBack: () => void
+  onSessionInvalid: () => void
+}) {
+  const [customInstructions, setCustomInstructions] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(true)
+  const [messages, setMessages] = useState<SandboxMessage[]>([])
+  const [input, setInput] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [error, setError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || streaming) return
+    setError('')
+    const history: ChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }))
+    setMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: 'user', content: text },
+      { id: `assistant-${Date.now()}`, role: 'assistant', content: '' },
+    ])
+    setInput('')
+    setStreaming(true)
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    try {
+      let assembled = ''
+      for await (const chunk of streamSandboxDemoChat(token, history, text, customInstructions, abortRef.current.signal)) {
+        if (chunk.type === 'text' && chunk.content) {
+          assembled += chunk.content
+          setMessages((prev) => {
+            const next = [...prev]
+            next[next.length - 1] = { ...next[next.length - 1], content: assembled }
+            return next
+          })
+        }
+      }
+    } catch (err) {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid()
+        return
+      }
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setMessages((prev) => prev.slice(0, -1))
+    } finally {
+      setStreaming(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-parchment-50">
+      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-3 flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="Back to the tutoring demo">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="w-8 h-8 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
+          <FlaskConical size={16} className="text-sage-600" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Ask Bede — Sandbox Preview</h1>
+          <p className="text-xs text-gray-500 leading-tight">
+            What a parent sees on their own deployment — direct answers, not Socratic
+          </p>
+        </div>
+      </header>
+
+      <div className="shrink-0 bg-white border-b border-navy-100">
+        <button
+          onClick={() => setSettingsOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+        >
+          <span>Preview settings</span>
+          {settingsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        {settingsOpen && (
+          <div className="px-4 pb-4 max-w-2xl">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Custom instructions <span className="font-normal text-gray-400">(your own test lesson content — never saved)</span>
+            </label>
+            <textarea
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              placeholder="e.g. Try responding as if teaching a 3rd-grade fractions lesson on equivalent fractions..."
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"
+            />
+          </div>
+        )}
+      </div>
+
+      <main className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="max-w-2xl mx-auto space-y-3">
+          {messages.length === 0 && (
+            <p className="text-sm text-gray-400 text-center mt-12">
+              Ask Bede anything — no need to guess through questions, and you can switch topics freely.
+              A real parent gets this on their own private deployment, gated behind their own PIN.
+            </p>
+          )}
+          {messages.map((m, i) => (
+            <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                m.role === 'user' ? 'bg-navy-500 text-white' : 'bg-white border border-sage-100 text-gray-800'
+              }`}>
+                {m.content || (streaming && i === messages.length - 1 && (
+                  <Loader2 size={14} className="animate-spin text-gray-400" />
+                ))}
+              </div>
+            </div>
+          ))}
+          {error && (
+            <p className="text-xs text-red-600 flex items-center gap-1 justify-center">
+              <AlertCircle size={12} /> {error}
+            </p>
+          )}
+        </div>
+      </main>
+
+      <div className="shrink-0 border-t border-navy-100 bg-white p-3">
+        <div className="max-w-2xl mx-auto flex items-end gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            placeholder="Ask Bede anything…"
+            rows={1}
+            disabled={streaming}
+            className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-sage-300 disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={streaming || !input.trim()}
+            className="p-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-600 transition-colors disabled:opacity-40"
+          >
+            {streaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TrialEndedScreen({ reason, onSwitchToOwnKey, onRetryTrial }: {
   reason: 'expired' | 'inactive'
   onSwitchToOwnKey: () => void
@@ -921,6 +1087,7 @@ type Mode =
   | { kind: 'choice' }
   | { kind: 'trial-pin' }
   | { kind: 'trial-chat'; token: string; expiresAt: number | null }
+  | { kind: 'trial-sandbox'; token: string; expiresAt: number | null }
   | { kind: 'trial-ended'; reason: 'expired' | 'inactive' }
   | { kind: 'own-key-setup' }
   | { kind: 'own-key-pin'; student: StudentProfile }
@@ -972,6 +1139,16 @@ export default function App() {
           onExpired={(reason) => setMode({ kind: 'trial-ended', reason })}
           onSwitchToOwnKey={() => setMode({ kind: 'own-key-setup' })}
           onLogout={() => setMode({ kind: 'choice' })}
+          onOpenSandbox={() => setMode({ kind: 'trial-sandbox', token: mode.token, expiresAt: mode.expiresAt })}
+        />
+      )
+
+    case 'trial-sandbox':
+      return (
+        <TrialSandboxScreen
+          token={mode.token}
+          onBack={() => setMode({ kind: 'trial-chat', token: mode.token, expiresAt: mode.expiresAt })}
+          onSessionInvalid={() => setMode({ kind: 'trial-ended', reason: 'inactive' })}
         />
       )
 

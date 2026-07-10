@@ -18,14 +18,25 @@ The landing screen offers two paths:
   repo root for how to actually stand this backend up (a Render Blueprint is
   included). The shared key never reaches the
   browser: `core/deps.py`'s `require_real_user` blocks the scoped `demo` role
-  from every endpoint except chat and voice output, sessions expire in 15
-  minutes, and nothing is persisted (`db=None` for the demo role in
-  `routers/tutor.py`). Voice output tries the backend's self-hosted Kokoro
-  voice first, falling back to the browser's own speech if the model files
-  aren't set up on that deployment.
+  from every endpoint that reads or writes real student data (pod configs,
+  narration history, transcripts, voice enrollment, admin) — the handful of
+  ephemeral, per-request endpoints it *can* reach (chat, voice output,
+  the one-time diagnostic email, and the sandbox preview below) all use
+  `require_auth` directly instead, and each still enforces the demo role's
+  own single-active-session + 5-minute-inactivity rules on top. Sessions
+  expire in 15 minutes, and nothing is persisted (`db=None` for the demo
+  role in `routers/tutor.py`). Voice output tries the backend's self-hosted
+  Kokoro voice first, falling back to the browser's own speech if the model
+  files aren't set up on that deployment.
   When the trial ends, the UI prompts the visitor to get their own free key
   for unlimited use, noting that beyond a small free credit, usage is billed
   per token by Anthropic directly to them.
+  An **"Ask Bede"** button during the trial previews the parent-only sandbox
+  from the real app (`homeschool-api/routers/sandbox.py`'s `/demo-chat`) —
+  direct answers instead of Socratic, free topic-switching, and a "custom
+  instructions" box, so a prospective parent can see what their own private
+  sandbox would feel like. Same session/rate limits as the rest of the
+  trial; nothing typed there is saved either.
 
 **This is a demo, not the real app.** See `DEMO_SCRIPT.md` for a guided walkthrough
 with reference prompts, and the table there for exactly what's different from the

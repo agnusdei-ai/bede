@@ -209,3 +209,60 @@ export async function* streamTutorChat(
     }
   }
 }
+
+/**
+ * Preview of the parent-only "Ask Bede" sandbox (direct answers, not
+ * Socratic, free topic-switching) — reachable on this shared trial only,
+ * since it needs the same server-side session that gates the regular demo
+ * chat (single active login, 5-minute inactivity timeout). Nothing said
+ * here is saved server-side either — see homeschool-api/routers/sandbox.py's
+ * /demo-chat.
+ */
+export async function* streamSandboxDemoChat(
+  token: string,
+  history: ChatMessage[],
+  message: string,
+  customInstructions: string,
+  signal?: AbortSignal
+): AsyncGenerator<StreamChunk> {
+  const res = await fetch(`${apiBase()}/sandbox/demo-chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      conversation_history: history,
+      message,
+      custom_instructions: customInstructions,
+    }),
+    signal,
+  })
+
+  if (res.status === 401) throw new TrialSessionEndedError('Your free trial has ended — log in again or use your own key to keep going.')
+  if (!res.ok) throw new Error('Sandbox request failed — check your connection')
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const jsonStr = line.slice(6).trim()
+      if (!jsonStr) continue
+      try {
+        const chunk: StreamChunk = JSON.parse(jsonStr)
+        yield chunk
+        if (chunk.type === 'done') return
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
+}

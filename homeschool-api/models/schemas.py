@@ -120,6 +120,17 @@ class SandboxChatRequest(BaseModel):
     custom_instructions: str = Field(default="", max_length=4000)
 
 
+class SandboxDemoChatRequest(BaseModel):
+    """
+    Public-demo preview of the sandbox above — same shape minus sandbox_pin,
+    since the demo role's own auth (DEMO_PIN + single-active-session) is the
+    gate here instead. See routers/sandbox.py's /demo-chat.
+    """
+    conversation_history: List[ChatMessage] = []
+    message: str = Field(..., min_length=1, max_length=4000)
+    custom_instructions: str = Field(default="", max_length=4000)
+
+
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo"]
     credential: str   # password for parent, PIN for child, PIN for demo

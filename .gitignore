@@ -3,6 +3,9 @@
 .env.backup
 .env.local
 
+# Local Postgres backups (make db-backup) — never commit these
+/backups/
+
 # Generated per-deployment — embeds this deployment's real CA cert
 sage-root-ca.crt
 bede-ipad.mobileconfig

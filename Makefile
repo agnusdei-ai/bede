@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup start stop restart logs logs-api logs-ui status caddy-trust update backup-env clean help
+.PHONY: setup start stop restart logs logs-api logs-ui status caddy-trust update backup-env db-backup db-restore clean help
 
 ##@ First-time setup
 setup:           ## Run interactive first-run wizard (generates .env, pulls images, starts services)
@@ -66,6 +66,19 @@ update:          ## Pull latest images and restart
 backup-env:      ## Copy .env to .env.backup (never commit either file)
 	cp .env .env.backup
 	@echo ".env backed up to .env.backup"
+
+db-backup:       ## Back up the LOCAL Postgres database (only if COMPOSE_PROFILES=local-db) to backups/
+	@mkdir -p backups
+	docker compose exec -T db pg_dump -U sage bede > backups/bede-$$(date -u +%Y%m%d-%H%M%S).sql
+	@echo "Saved to backups/ — using a MANAGED database instead? Your provider (Neon/Supabase/etc.) handles backups for you."
+
+db-restore:      ## Restore the LOCAL Postgres database from a backup: make db-restore FILE=backups/bede-....sql
+	@test -n "$(FILE)" || { echo "Usage: make db-restore FILE=backups/bede-YYYYMMDD-HHMMSS.sql"; exit 1; }
+	@test -f "$(FILE)" || { echo "File not found: $(FILE)"; exit 1; }
+	@echo "This REPLACES all data currently in the local database. Ctrl-C now to cancel."
+	@sleep 5
+	docker compose exec -T db psql -U sage -d bede < $(FILE)
+	@echo "Restored from $(FILE) — restart the API so it picks up any changed encryption keys: make restart"
 
 clean:           ## Remove stopped containers and dangling images (data stays in database)
 	docker compose down --remove-orphans

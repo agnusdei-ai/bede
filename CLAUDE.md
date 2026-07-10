@@ -8,23 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the Full Stack
 
-```bash
-# First-time setup (generates .env, starts Docker services)
-make setup        # or: bash setup.sh
-
-# Day-to-day
-make start        # docker compose up -d
-make stop         # docker compose down
-make restart      # pick up .env changes
-make logs         # all services
-make logs-api     # FastAPI only
-make status       # container health + /api/health check
-
-# Install Caddy's local CA on each tablet (run once per device)
-make caddy-trust
-```
-
-The stack is: **Caddy (TLS/443) → nginx (UI/80) → FastAPI (API/8000)**. Caddy generates a local CA for LAN HTTPS — tablets need its root cert installed once.
+Full deployment instructions (Docker Compose, database choice, day-to-day
+commands) live in `docs/PRODUCTION_SETUP.md` — that's the single source of
+truth for `make setup`/`make update`/etc. so it doesn't drift out of sync
+with a second copy here. Quick orientation: the stack is **Caddy (TLS/443)
+→ nginx (UI/80) → FastAPI (API/8000)**, optionally plus a local Postgres.
 
 ## Local Development (without Docker)
 
@@ -50,19 +38,12 @@ The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it
 
 ## Required Environment Variables
 
-All from `.env` (gitignored — never commit):
-
-| Variable | Purpose |
-|---|---|
-| `ANTHROPIC_API_KEY` | Claude API access |
-| `SECRET_KEY` | JWT signing (32 hex bytes) |
-| `MASTER_SECRET` | AES key derivation root (32 hex bytes) |
-| `PARENT_PASSWORD` | Parent login credential |
-| `CHILD_PIN` | Child login PIN (4+ digits) |
-| `DATABASE_URL` | `postgresql+asyncpg://user:pass@host/db?ssl=require` |
-| `CORS_ORIGINS` | Comma-separated allowed origins |
-
-In production mode (`PRODUCTION=true`), the API rejects startup if any credential matches a known-weak default (enforced by `model_validator` in `core/config.py`).
+All from `.env` (gitignored — never commit) — see `.env.example` for the
+full, current list with comments, or `docs/PRODUCTION_SETUP.md` for the
+narrative version. In production mode (`PRODUCTION=true`), the API rejects
+startup if any credential matches a known-weak default, or if `CHILD_PIN`/
+`DEMO_PIN` isn't a strong pattern (enforced by `model_validator` in
+`core/config.py` — see `pin_is_strong()` for the exact rules).
 
 ## Architecture
 

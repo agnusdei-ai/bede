@@ -1,5 +1,3 @@
-version: '3.9'
-
 # ── Bede Homeschool Tutor — secure deployment ─────────────────────────────────
 #
 # Required env vars (set in .env or shell — never hardcoded here):
@@ -8,15 +6,23 @@ version: '3.9'
 #   MASTER_SECRET       Encryption master secret (openssl rand -hex 32)
 #   PARENT_PASSWORD     Parent login password
 #   CHILD_PIN           Child login PIN
-#   DATABASE_URL        Managed PostgreSQL connection string
-#                       Format: postgresql+asyncpg://user:pass@host/db?ssl=require
-#                       Neon example:
-#                         postgresql+asyncpg://sage:pass@ep-xxx.us-east-2.aws.neon.tech/sagedb?ssl=require
+#   DATABASE_URL        PostgreSQL connection string — see "Storage model" below
 #
-# Storage model:
-#   All persistent data (encryption keys, voice profiles, audit log) lives in
-#   the managed PostgreSQL database. The API container is fully stateless —
-#   no local volumes, no writable filesystem except /tmp for audio processing.
+# Storage model — two options, see docs/PRODUCTION_SETUP.md:
+#   1. Managed Postgres (Neon/Supabase/etc., the original default) — nothing
+#      to run yourself, automatic backups, but an external account and your
+#      encrypted data leaves this machine for their cloud.
+#        DATABASE_URL=postgresql+asyncpg://user:pass@host/db?ssl=require
+#   2. Local Postgres (the `db` service below) — zero external accounts,
+#      nothing leaves this machine, but backups are your responsibility (see
+#      `make db-backup`). Enabled by setting in .env:
+#        COMPOSE_PROFILES=local-db
+#        POSTGRES_PASSWORD=<openssl rand -hex 24>
+#        DATABASE_URL=postgresql+asyncpg://sage:<same password>@db:5432/bede
+#   setup.sh asks which you want and wires this up for you either way.
+#
+#   Either way, the api container itself stays fully stateless — no local
+#   volumes, no writable filesystem except /tmp for audio processing.
 
 services:
   api:
@@ -25,6 +31,12 @@ services:
       dockerfile: Dockerfile
     expose:
       - "8000"
+    # `required: false` means this is a no-op when the local-db profile isn't
+    # active (managed Postgres path) — api starts immediately either way.
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
@@ -65,6 +77,43 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+
+  # Optional local Postgres — only starts when COMPOSE_PROFILES=local-db is
+  # set in .env (setup.sh does this automatically if you choose local
+  # Postgres during setup; see the "Storage model" note at the top of this
+  # file). Zero external accounts, nothing leaves this machine — the
+  # tradeoff is backups become your responsibility instead of a managed
+  # provider's; see `make db-backup` / `make db-restore`.
+  #
+  # Not fully locked down like api/ui above (no cap_drop: ALL) — the
+  # official Postgres image's own entrypoint needs broader capabilities to
+  # initialize/manage its data directory (chown, etc.) on first run.
+  db:
+    image: postgres:16-alpine
+    profiles: ["local-db"]
+    environment:
+      - POSTGRES_USER=sage
+      # NOT `:?required` — Compose interpolates every declared service's
+      # variables regardless of whether its profile is active, so a hard
+      # requirement here would break `make start` for anyone NOT using
+      # local-db. Postgres itself refuses to start with an empty password,
+      # which is fine: this container is never actually started unless
+      # COMPOSE_PROFILES=local-db, and setup.sh always sets a real value
+      # together with that profile.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - POSTGRES_DB=bede
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sage -d bede"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ui:
     build:
@@ -110,6 +159,7 @@ services:
 
 volumes:
   caddy_data:     # persists Caddy's local CA and issued certs across restarts
+  pgdata:         # local Postgres data — only used when COMPOSE_PROFILES=local-db
 
 networks:
   internal:

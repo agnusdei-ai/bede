@@ -11,12 +11,15 @@ it off. If you're comfortable with a terminal, the whole setup takes under 20 mi
 - [Docker](https://docs.docker.com/get-docker/) installed on that machine.
 - An [Anthropic API key](https://console.anthropic.com/) (this is what powers Bede's
   actual tutoring conversation).
-- A free managed Postgres database — [Neon](https://neon.tech) or
-  [Supabase](https://supabase.com) both have generous free tiers that are plenty for
-  a family. You'll get a connection string during their signup.
-- *(Optional)* Nothing to sign up for — if you want Bede to speak with a dedicated
-  voice instead of your device's default one, that's a free, self-hosted model with
-  no account or API key; see `docs/VOICE_SETUP.md`.
+- A database — `make setup` asks which you want:
+  - **Local Postgres (recommended)** — nothing to sign up for. It runs
+    alongside Bede in Docker on your own machine; nothing leaves your house.
+    You're responsible for backing it up yourself (`make db-backup`).
+  - **Managed Postgres** — [Neon](https://neon.tech) or [Supabase](https://supabase.com)
+    both have generous free tiers. An extra account, but automatic backups.
+- *(Optional)* Bede's spoken voice — see `docs/VOICE_SETUP.md`. A free,
+  self-hosted option needs no account at all; a paid OpenAI option sounds
+  meaningfully more natural if you'd rather pay a small per-use cost for it.
 
 ## 2. First-time setup
 
@@ -37,7 +40,7 @@ Bede uses **three separate layers**, and it matters which one you tell your chil
 | Credential | Who knows it | What it does |
 |---|---|---|
 | **Parent password** | You only — never the child | Full administrative access: configure students, view progress reports and transcripts, approve a session if voice check fails. |
-| **Child PIN** | Every child in the household (it's shared, not per-child) | Gets to the "child" login screen — a low-stakes shared secret, like a house key. Must be 6+ digits, no digit repeated, and not a sequential run (e.g. `384756`, not `111111`, `123123`, `123456`, or `654321`) — `setup.sh` enforces this when you set it, and the app refuses to start in production mode with a weaker one. |
+| **Child PIN** | Every child in the household (it's shared, not per-child) | Gets to the "child" login screen — a low-stakes shared secret, like a house key. Must be 6+ digits and not an easily-guessable pattern — no sequential run (`123456`), repeated block (`111111`, `123123`), or palindrome (`669966`); repeated digits are otherwise fine, e.g. `602656` is a good PIN — `setup.sh` enforces this when you set it, and the app refuses to start in production mode with a weaker one. |
 | **Voice passphrase** | Each child, for their own profile | The actual identity check — after entering the PIN, the child says *"I am ready to learn today!"* and Bede matches their voice against their enrolled profile. This is what personalizes their session, not the PIN. |
 
 The PIN alone does **not** grant access to a specific child's lesson plan or history —

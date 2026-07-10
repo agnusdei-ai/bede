@@ -103,16 +103,32 @@ while true; do
   warn "This field is required."
 done
 
-# ── Database URL ──────────────────────────────────────────────────────────────
+# ── Database ──────────────────────────────────────────────────────────────────
 blank
-info "2/5  Managed PostgreSQL database URL"
-echo "     Supported providers: Neon (free tier), Supabase, Railway, Render"
-echo "     Format: postgresql+asyncpg://user:pass@host/dbname?ssl=require"
-while true; do
-  read -rp "     DATABASE_URL: " DATABASE_URL
-  [[ -n "$DATABASE_URL" ]] && break
-  warn "This field is required."
-done
+info "2/5  Database"
+echo "     1) Local Postgres (recommended) — runs alongside Bede in Docker."
+echo "        No external account, nothing leaves this machine. You're"
+echo "        responsible for backups — see 'make db-backup' after setup."
+echo "     2) Managed Postgres (Neon, Supabase, Railway, Render, etc.) —"
+echo "        automatic backups, but an extra account and your encrypted"
+echo "        data leaves this machine for their cloud."
+read -rp "     Use local Postgres? [Y/n] " USE_LOCAL_DB
+if [[ "${USE_LOCAL_DB,,}" != "n" ]]; then
+  COMPOSE_PROFILES="local-db"
+  POSTGRES_PASSWORD=$(openssl rand -hex 24)
+  DATABASE_URL="postgresql+asyncpg://sage:${POSTGRES_PASSWORD}@db:5432/bede"
+  success "Will run a local Postgres container — remember 'make db-backup' regularly."
+else
+  COMPOSE_PROFILES=""
+  POSTGRES_PASSWORD=""
+  blank
+  echo "     Format: postgresql+asyncpg://user:pass@host/dbname?ssl=require"
+  while true; do
+    read -rp "     DATABASE_URL: " DATABASE_URL
+    [[ -n "$DATABASE_URL" ]] && break
+    warn "This field is required."
+  done
+fi
 
 # ── Access credentials ────────────────────────────────────────────────────────
 blank
@@ -165,6 +181,12 @@ CORS_ORIGINS=${CORS_ORIGINS}
 DISABLE_API_DOCS=true
 PRODUCTION=true
 EOF
+if [[ -n "$COMPOSE_PROFILES" ]]; then
+  cat >> .env <<EOF
+COMPOSE_PROFILES=${COMPOSE_PROFILES}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+EOF
+fi
 chmod 600 .env
 success ".env written (mode 600 — only readable by you)"
 
@@ -208,5 +230,8 @@ echo "  Useful commands:"
 echo "    make status    — check container health"
 echo "    make logs      — tail live logs"
 echo "    make stop      — shut down"
+if [[ -n "$COMPOSE_PROFILES" ]]; then
+echo "    make db-backup — back up your local database (do this regularly!)"
+fi
 echo "    make help      — all available commands"
 blank

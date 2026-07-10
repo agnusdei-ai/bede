@@ -6,7 +6,7 @@ import {
 } from './claude'
 import {
   streamTutorChat as trialStreamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
-  type SessionConfig,
+  TrialSessionEndedError, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech } from './useTextToSpeech'
@@ -349,9 +349,10 @@ interface ChatScreenProps {
   ttsSource: { elevenLabsKey: string | null; elevenLabsVoiceId: string | null } | null // null = browser voice only
   header: React.ReactNode // right-hand header controls (differ between the two paths)
   onActivity?: () => void // trial path uses this to drive its 5-minute inactivity timeout
+  onSessionInvalid?: () => void // trial path: route to the "session ended" screen instead of an inline error
 }
 
-function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header, onActivity }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header, onActivity, onSessionInvalid }: ChatScreenProps) {
   const [subject, setSubject] = useState<Subject>(
     () => (persist ? (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) : null) ?? subjects[0] ?? 'living_books',
   )
@@ -412,13 +413,15 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
       if (ttsEnabled && fullText) speak(fullText)
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid?.()
+      } else if (err instanceof Error && err.name !== 'AbortError') {
         setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${err.message}` }])
       }
     } finally {
       setIsStreaming(false)
     }
-  }, [runChat, subject, historyForApi, ttsEnabled, speak])
+  }, [runChat, subject, historyForApi, ttsEnabled, speak, onSessionInvalid])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return
@@ -673,6 +676,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
       runChat={runChat}
       ttsSource={null}
       onActivity={onActivity}
+      onSessionInvalid={() => onExpired('inactive')}
       header={
         <>
           {remainingSecs !== null && (

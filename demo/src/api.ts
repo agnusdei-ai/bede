@@ -23,6 +23,12 @@ export function trialAvailable(): boolean {
   return !!BASE
 }
 
+/** Thrown when the backend rejects a trial request as ended (absolute expiry,
+ *  server-enforced 5-minute inactivity timeout, or superseded by a newer
+ *  login) — lets the UI route to a clear "session ended" screen instead of
+ *  just showing an inline error bubble on a dead chat. */
+export class TrialSessionEndedError extends Error {}
+
 export interface SessionConfig {
   student_name: string
   grade: string
@@ -121,7 +127,7 @@ export async function* streamTutorChat(
     signal,
   })
 
-  if (res.status === 401) throw new Error('Your free trial has ended — log in again or use your own key to keep going.')
+  if (res.status === 401) throw new TrialSessionEndedError('Your free trial has ended — log in again or use your own key to keep going.')
   if (!res.ok) throw new Error('Tutor request failed — check your connection')
 
   const reader = res.body!.getReader()

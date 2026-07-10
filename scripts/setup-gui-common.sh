@@ -45,9 +45,12 @@ info "Opening the setup wizard in your browser..."
   fi
 ) &
 
-# Foreground on purpose — this returns once the wizard container exits,
-# which wizard.py triggers itself right after a successful submission.
-docker run --rm -p 8765:8765 -e HOST_LAN_IP="$LAN_IP" -v "$(pwd)":/repo bede-setup-wizard
+# --user matches the container process to your own account — without it,
+# the wizard (which otherwise runs as root inside the container) writes
+# .env owned by root, and chmod 600 on a root-owned file then locks YOU
+# out of your own .env (caught by production-regression.yml's CI run).
+docker run --rm -p 8765:8765 -e HOST_LAN_IP="$LAN_IP" -v "$(pwd)":/repo \
+  --user "$(id -u):$(id -g)" bede-setup-wizard
 
 if [[ ! -f .env ]]; then
   error "Setup wasn't completed (no configuration was saved). Run this again when you're ready."

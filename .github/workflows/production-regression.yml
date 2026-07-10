@@ -77,6 +77,7 @@ jobs:
           docker run --rm -d --name wizard -p 8765:8765 \
             -e HOST_LAN_IP=192.168.1.50 \
             -v "$(pwd)":/repo \
+            --user "$(id -u):$(id -g)" \
             bede-setup-wizard
           for i in $(seq 1 20); do
             curl -sf http://localhost:8765/ >/dev/null && break

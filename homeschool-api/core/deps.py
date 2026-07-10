@@ -14,7 +14,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.audit import AuditEvent, audit_from_request, log_event
-from core.demo_session import is_active as demo_session_is_active
+from core.demo_session import is_active as demo_session_is_active, touch as demo_session_touch
 from core.middleware import compute_fingerprint
 from core.security import decode_token, validate_fingerprint
 
@@ -74,18 +74,24 @@ async def require_auth(
             detail="Second-factor verification required to finish logging in",
         )
 
-    if payload.get("role") == "demo" and not demo_session_is_active(payload.get("jti", "")):
-        await log_event(
-            AuditEvent.TOKEN_INVALID,
-            role="demo",
-            success=False,
-            detail="superseded by a newer demo login",
-            **ctx,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="This trial session was replaced by a newer login — only one demo session runs at a time",
-        )
+    if payload.get("role") == "demo":
+        jti = payload.get("jti", "")
+        if not demo_session_is_active(jti):
+            await log_event(
+                AuditEvent.TOKEN_INVALID,
+                role="demo",
+                success=False,
+                detail="superseded by a newer demo login, or idle for 5+ minutes",
+                **ctx,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="This trial session ended — it was replaced by a newer login, or idle for 5+ minutes",
+            )
+        # Real, server-enforced backstop for the 5-minute inactivity window —
+        # the frontend's own timer is UX only and can't be trusted as the
+        # actual security boundary (see core/demo_session.py).
+        demo_session_touch(jti)
 
     return payload
 

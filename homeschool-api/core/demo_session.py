@@ -10,23 +10,54 @@ hasn't reached its own 15-minute expiry yet. This makes the login "unique"
 in the sense that matters for cost control: at most one demo session is
 usable at any given moment, no matter how many people know the PIN.
 
+Also enforces the 5-minute inactivity timeout SERVER-SIDE, not just in the
+frontend's timer. The frontend timer is UX only — it can't be trusted as the
+actual security boundary (a stalled tab, a browser's back-forward cache
+restoring old JS state, or simply a bug can leave it running long past where
+it should've fired). Every authenticated demo request touches the activity
+clock; is_active() checks it before the touch, so a request that arrives
+after 5+ silent minutes is rejected regardless of what the client believes
+its own state is.
+
 Deliberately not persisted to the database — it resets on server restart,
 which is fine here since this tracks nothing but "which login is currently
 allowed to keep using the shared trial," not any real user data.
 """
 
+import time
+
+_INACTIVITY_TIMEOUT_SECONDS = 5 * 60
+
 _active_jti: str | None = None
+_last_activity: float | None = None
 
 
 def start_new_session(jti: str) -> None:
     """Called on every successful demo login — supersedes any prior session."""
-    global _active_jti
+    global _active_jti, _last_activity
     _active_jti = jti
+    _last_activity = time.time()
 
 
 def is_active(jti: str) -> bool:
-    """True if this token's session id is still the current one."""
-    return _active_jti is not None and _active_jti == jti
+    """True if this token's session id is still current AND hasn't been
+    idle for 5+ minutes. Checked before touch() records this request, so an
+    inactivity-expired request is rejected even though it's the one that
+    would otherwise refresh the clock."""
+    if _active_jti is None or _active_jti != jti:
+        return False
+    if _last_activity is not None and (time.time() - _last_activity) > _INACTIVITY_TIMEOUT_SECONDS:
+        return False
+    return True
+
+
+def touch(jti: str) -> None:
+    """Call on every successful authenticated request for this session —
+    resets the 5-minute inactivity clock. Only updates if it's still the
+    current session, so a stale/superseded token can't revive itself."""
+    global _last_activity
+    if _active_jti == jti:
+        _last_activity = time.time()
 
 
 def end_session(jti: str) -> None:
@@ -36,6 +67,7 @@ def end_session(jti: str) -> None:
     remaining 15-minute expiry. Only clears if it's still the current session,
     so a stale logout can't accidentally clobber a newer login.
     """
-    global _active_jti
+    global _active_jti, _last_activity
     if _active_jti == jti:
         _active_jti = None
+        _last_activity = None

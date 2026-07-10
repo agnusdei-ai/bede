@@ -168,31 +168,55 @@ jobs:
 
       - name: Confirm the no-CLI tablet-trust page works end-to-end
         run: |
-          fail() {
-            echo "$1"
-            echo "--- docker compose logs trust caddy ---"
-            docker compose logs trust caddy
-            exit 1
-          }
+          ok=true
 
           # Plain HTTP, not redirected — a new device hasn't trusted the
-          # cert yet, so this must stay reachable without HTTPS. -L follows
-          # the bare "/trust" -> "/trust/" redirect, same as a real browser.
-          curl -sfL http://localhost/trust -o index.html || fail "GET /trust failed"
-          grep -q "Add a tablet to Bede" index.html || fail "GET /trust didn't return the instructions page"
+          # cert yet, so this must stay reachable without HTTPS. curl -f
+          # swallows the actual status code on failure, so capture it
+          # explicitly with -w instead of relying on -f's pass/fail alone —
+          # cost real debugging time the first time this failed silently.
+          bare_code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/trust)
+          if [ "$bare_code" != "302" ]; then
+            echo "Expected 302 (redirect to /trust/) from bare /trust, got $bare_code"; ok=false
+          fi
 
-          curl -sf http://localhost/trust/qr.svg -o qr.svg || fail "GET /trust/qr.svg failed"
-          grep -q "<svg" qr.svg || fail "/trust/qr.svg didn't return an SVG"
+          index_code=$(curl -sL -o index.html -w '%{http_code}' http://localhost/trust)
+          if [ "$index_code" != "200" ] || ! grep -q "Add a tablet to Bede" index.html; then
+            echo "Expected 200 + instructions page from /trust (following redirect), got $index_code"; ok=false
+          fi
 
-          curl -sf http://localhost/trust/root-ca.crt -o downloaded-root-ca.crt || fail "GET /trust/root-ca.crt failed"
+          qr_code=$(curl -s -o qr.svg -w '%{http_code}' http://localhost/trust/qr.svg)
+          if [ "$qr_code" != "200" ] || ! grep -q "<svg" qr.svg; then
+            echo "Expected 200 + svg from /trust/qr.svg, got $qr_code"; ok=false
+          fi
+
+          cert_code=$(curl -s -o downloaded-root-ca.crt -w '%{http_code}' http://localhost/trust/root-ca.crt)
           docker compose exec -T caddy cat /data/pki/authorities/local/root.crt > actual-root-ca.crt
-          diff downloaded-root-ca.crt actual-root-ca.crt || fail "/trust/root-ca.crt didn't match Caddy's actual CA cert"
+          if [ "$cert_code" != "200" ] || ! diff -q downloaded-root-ca.crt actual-root-ca.crt >/dev/null; then
+            echo "Expected 200 + matching cert from /trust/root-ca.crt, got $cert_code"; ok=false
+          fi
 
           # Guard against a regression that accidentally turns off the
           # HTTPS redirect for everything else while adding the /trust
           # exception (handle-block ordering is easy to get backwards).
-          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)
-          [ "$code" = "301" ] || [ "$code" = "308" ] || fail "Expected a redirect for http://localhost/, got $code"
+          redirect_code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)
+          if [ "$redirect_code" != "301" ] && [ "$redirect_code" != "308" ]; then
+            echo "Expected a redirect for http://localhost/, got $redirect_code"; ok=false
+          fi
+
+          if [ "$ok" = "false" ]; then
+            echo "--- docker compose ps ---"
+            docker compose ps
+            echo "--- curl -v http://localhost/trust ---"
+            curl -v http://localhost/trust 2>&1 || true
+            echo "--- curl -v http://localhost/trust/ ---"
+            curl -v http://localhost/trust/ 2>&1 || true
+            echo "--- trust container: is it actually listening on 8080? ---"
+            docker compose exec -T trust python3 -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8080/', timeout=3).status)" 2>&1 || true
+            echo "--- docker compose logs trust caddy ---"
+            docker compose logs trust caddy
+            exit 1
+          fi
 
       - name: Confirm local Postgres backup/restore works
         run: |

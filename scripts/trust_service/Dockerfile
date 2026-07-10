@@ -1,5 +1,12 @@
 FROM python:3.12-alpine
 
+# Without this, print()'s stdout is fully block-buffered (not line-buffered)
+# whenever it's not attached to a TTY — which is always true under
+# `docker compose logs` — so nothing shows up until the buffer fills or the
+# process exits. Cost real debugging time chasing an empty log during this
+# service's first real CI run.
+ENV PYTHONUNBUFFERED=1
+
 # segno is pure Python (no C extension) — verified no gcc/build deps needed,
 # same lesson learned the hard way from webrtcvad in homeschool-api/Dockerfile.
 RUN pip install --no-cache-dir segno==1.6.6

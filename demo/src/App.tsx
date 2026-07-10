@@ -367,6 +367,7 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
   const [ttsEnabled, setTtsEnabled] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
   const openerFired = useRef<Set<Subject>>(
     new Set(persist ? JSON.parse(localStorage.getItem(SESSION_KEYS.openerFired) ?? '[]') : []),
   )
@@ -406,6 +407,10 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
           if (ttsEnabled) speak(chunk.content)
         } else if (chunk.type === 'visual_aid') {
           setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
+        } else if (chunk.type === 'subject_complete') {
+          setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: 'subject_complete' }])
+          if (ttsEnabled) speak(chunk.content)
+          advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
         }
@@ -420,8 +425,17 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
       }
     } finally {
       setIsStreaming(false)
+      if (advanceSubjectRef.current) {
+        advanceSubjectRef.current = false
+        // Brief pause so the child can read Bede's transition line first.
+        setTimeout(() => {
+          const idx = subjects.indexOf(subject)
+          const next = idx >= 0 ? subjects[idx + 1] : undefined
+          if (next) setSubject(next)
+        }, 2500)
+      }
     }
-  }, [runChat, subject, historyForApi, ttsEnabled, speak, onSessionInvalid])
+  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, onSessionInvalid])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return
@@ -546,6 +560,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith: 'border-l-[3px] border-gold-400 bg-gold-50/70',
+      subject_complete: 'border-l-[3px] border-navy-400 bg-navy-50/70 font-medium',
     }
     return (
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>

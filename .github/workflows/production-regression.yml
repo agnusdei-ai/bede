@@ -121,6 +121,11 @@ jobs:
           name: wizard-generated-env
           path: .env
           retention-days: 1
+          # v4 excludes dotfiles by default — .env is exactly that, and
+          # without this the upload silently succeeds with zero files
+          # (a warning, not a failure), which only surfaces as a confusing
+          # "artifact not found" in the NEXT job's download step.
+          include-hidden-files: true
 
   full-stack-boot:
     runs-on: ubuntu-latest

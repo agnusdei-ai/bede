@@ -14,6 +14,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const lastAssistantRef = useRef('')  // track last spoken text to avoid re-speaking
+  const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
 
   const {
     token,
@@ -29,6 +30,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     addVisualAidMessage,
     finalizeAssistantMessage,
     setStreaming,
+    nextSubject,
   } = useSessionStore()
 
   // ── Text-to-speech: Bede speaks its responses ────────────────────────────
@@ -76,6 +78,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
           addVisualAidMessage(chunk.visualAid)
+        } else if (chunk.type === 'subject_complete') {
+          addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
+          speak(chunk.content ?? '')
+          advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
         }
@@ -87,8 +93,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     } finally {
       finalizeAssistantMessage()
       setStreaming(false)
+      if (advanceSubjectRef.current) {
+        advanceSubjectRef.current = false
+        // Brief pause so the child can read Bede's transition line before the
+        // subject switches and the next opener fires.
+        setTimeout(() => nextSubject(), 2500)
+      }
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, nextSubject])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -163,6 +175,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
           addVisualAidMessage(chunk.visualAid)
+        } else if (chunk.type === 'subject_complete') {
+          addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
+          speak(chunk.content ?? '')
+          advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
         }
@@ -174,11 +190,15 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     } finally {
       finalizeAssistantMessage()
       setStreaming(false)
+      if (advanceSubjectRef.current) {
+        advanceSubjectRef.current = false
+        setTimeout(() => nextSubject(), 2500)
+      }
     }
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
     addUserMessage, appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage,
-    setStreaming, stopSpeech, stopListening, speak,
+    setStreaming, stopSpeech, stopListening, speak, nextSubject,
   ])
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -359,6 +379,7 @@ function MessageBubble({ msg, studentName }: MsgProps) {
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith:    'border-l-[3px] border-gold-400 bg-gold-50/70',
+      subject_complete:    'border-l-[3px] border-navy-400 bg-navy-50/70 font-medium',
     }
     const cls = toolAccent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'
     return (

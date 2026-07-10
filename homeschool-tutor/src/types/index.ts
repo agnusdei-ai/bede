@@ -49,9 +49,10 @@ export interface VisualAidData {
 }
 
 export interface StreamChunk {
-  type: 'text' | 'tool' | 'done' | 'assessment' | 'visual_aid'
+  type: 'text' | 'tool' | 'done' | 'assessment' | 'visual_aid' | 'subject_complete'
   content?: string
   tool?: string
+  reason?: 'mastery' | 'frustration'
   data?: { subject: string; total_score: number; adaptive_signal: string }
   visualAid?: VisualAidData
 }

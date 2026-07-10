@@ -14,7 +14,9 @@ The landing screen offers two paths:
   try it. Only appears if `VITE_DEMO_API_BASE` is set at build time to a
   publicly-reachable `homeschool-api` deployment with `DEMO_PIN` configured
   (see the root `homeschool-api/.env.example`) — without that, the demo just
-  quietly offers the own-key path only. The shared key never reaches the
+  quietly offers the own-key path only. See `docs/DEMO_HOSTING.md` at the
+  repo root for how to actually stand this backend up (a Render Blueprint is
+  included). The shared key never reaches the
   browser: `core/deps.py`'s `require_real_user` blocks the scoped `demo` role
   from every endpoint except chat and voice output, sessions expire in 15
   minutes, and nothing is persisted (`db=None` for the demo role in

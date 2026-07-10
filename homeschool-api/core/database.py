@@ -32,6 +32,16 @@ def _build_engine():
             "DATABASE_URL is not set. "
             "Provide a postgresql+asyncpg://... connection string."
         )
+    # Most managed providers (Render, Railway, Heroku-style "postgres://")
+    # hand you a plain sync-driver URL — SQLAlchemy's async engine needs the
+    # +asyncpg suffix explicit in the scheme or it'll try (and fail) to load
+    # psycopg2 instead. Normalizing here means copy-pasting a provider's
+    # connection string as-is just works, rather than being a silent
+    # first-deploy footgun that only surfaces as an opaque driver error.
+    if url.startswith("postgres://"):
+        url = "postgresql+asyncpg://" + url[len("postgres://"):]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
     return create_async_engine(
         url,
         pool_pre_ping=True,   # verify connection health before each use

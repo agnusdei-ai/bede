@@ -14,9 +14,9 @@ it off. If you're comfortable with a terminal, the whole setup takes under 20 mi
 - A free managed Postgres database — [Neon](https://neon.tech) or
   [Supabase](https://supabase.com) both have generous free tiers that are plenty for
   a family. You'll get a connection string during their signup.
-- *(Optional)* An [ElevenLabs](https://elevenlabs.io) account if you want Bede to
-  speak with a real trained voice instead of your device's default robotic one — see
-  step 6.
+- *(Optional)* Nothing to sign up for — if you want Bede to speak with a dedicated
+  voice instead of your device's default one, that's a free, self-hosted model with
+  no account or API key; see `docs/VOICE_SETUP.md`.
 
 ## 2. First-time setup
 
@@ -79,14 +79,8 @@ older iPads too (tested down to iOS 15.8).
 ## 6. *(Optional)* Giving Bede a real voice
 
 By default, Bede speaks using your browser's built-in voice, which can sound
-robotic. For a warm, natural, trained voice instead:
-
-1. Sign up at [elevenlabs.io](https://elevenlabs.io).
-2. Either pick a warm, elderly male voice from their Voice Library, or use their
-   **Voice Design** tool with a prompt like *"warm, elderly, gentle English
-   Benedictine monk, contemplative and kind, unhurried pace."*
-3. Add `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` to your `.env` file and
-   restart (`make restart`).
+robotic. For a warm, dedicated voice instead — free, self-hosted, no account or
+API key required — see `docs/VOICE_SETUP.md` for the full walkthrough.
 
 If you skip this, everything still works — it just falls back to the browser voice
 automatically.

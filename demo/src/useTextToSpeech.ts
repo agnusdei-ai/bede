@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback } from 'react'
+import { speakViaBackend } from './api'
 
-// Ported from homeschool-tutor/src/hooks/useTextToSpeech.ts, calling ElevenLabs
-// directly from the browser (no backend proxy) when a key is configured.
-// Bede's persona is historically male — voice selection prefers a male voice
-// in both paths, never gender-ambiguous or female.
+// Tries the backend's self-hosted Kokoro voice first (same one production
+// uses) when a trial token is supplied — the bring-your-own-key path has no
+// backend at all, so it passes null and goes straight to browser speech.
+// Bede's persona is historically male — voice selection prefers a male
+// voice in both paths, never gender-ambiguous or female.
 
 function pickBestVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
@@ -23,57 +25,48 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
   return voices[0] ?? null
 }
 
-export function useTextToSpeech(elevenLabsKey: string | null, elevenLabsVoiceId: string | null) {
+export function useTextToSpeech(speakToken: string | null = null) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const speakViaElevenLabs = useCallback(async (text: string): Promise<boolean> => {
-    if (!elevenLabsKey || !elevenLabsVoiceId) return false
-    try {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenLabsVoiceId}`, {
-        method: 'POST',
-        headers: { 'xi-api-key': elevenLabsKey, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_turbo_v2_5',
-          voice_settings: { stability: 0.55, similarity_boost: 0.8 },
-        }),
-      })
-      if (!res.ok) return false
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      await new Promise<void>((resolve) => {
-        const audio = new Audio(url)
-        audioRef.current = audio
-        audio.onended = () => resolve()
-        audio.onerror = () => resolve()
-        audio.play().catch(() => resolve())
-      })
-      URL.revokeObjectURL(url)
-      return true
-    } catch {
-      return false
-    }
-  }, [elevenLabsKey, elevenLabsVoiceId])
+  const speakViaKokoro = useCallback(async (text: string): Promise<boolean> => {
+    if (!speakToken) return false
+    const blob = await speakViaBackend(speakToken, text)
+    if (!blob) return false
+    const url = URL.createObjectURL(blob)
+    await new Promise<void>((resolve) => {
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onended = () => resolve()
+      audio.onerror = () => resolve()
+      audio.play().catch(() => resolve())
+    })
+    URL.revokeObjectURL(url)
+    audioRef.current = null
+    return true
+  }, [speakToken])
+
+  const speakViaBrowser = useCallback((text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) { resolve(); return }
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.voice = pickBestVoice()
+      utterance.rate = 0.88
+      utterance.pitch = 0.92
+      utterance.onend = () => resolve()
+      utterance.onerror = () => resolve()
+      window.speechSynthesis.speak(utterance)
+    })
+  }, [])
 
   const speak = useCallback(async (text: string) => {
     const clean = text.replace(/^[📖🔍✨🌿⚠️]\s*/, '').replace(/\*[^*]+\*/g, '').trim()
     if (!clean) return
     setIsSpeaking(true)
-    const spoke = await speakViaElevenLabs(clean)
-    if (!spoke && 'speechSynthesis' in window) {
-      await new Promise<void>((resolve) => {
-        const utterance = new SpeechSynthesisUtterance(clean)
-        utterance.voice = pickBestVoice()
-        utterance.rate = 0.88
-        utterance.pitch = 0.92
-        utterance.onend = () => resolve()
-        utterance.onerror = () => resolve()
-        window.speechSynthesis.speak(utterance)
-      })
-    }
+    const spoke = await speakViaKokoro(clean)
+    if (!spoke) await speakViaBrowser(clean)
     setIsSpeaking(false)
-  }, [speakViaElevenLabs])
+  }, [speakViaKokoro, speakViaBrowser])
 
   const stop = useCallback(() => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }

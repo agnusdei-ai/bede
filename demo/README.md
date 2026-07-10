@@ -6,7 +6,8 @@ The landing screen offers two paths:
 - **"Use your own API key"** — fully static, no backend needed. Runs entirely
   in the browser (client-only, works on GitHub Pages, an iPad, anywhere) using
   a key the visitor pastes in themselves, stored only in that browser's local
-  storage, sent straight to Anthropic/ElevenLabs. No time limit; the visitor
+  storage, sent straight to Anthropic. Voice output uses the browser's own
+  built-in speech (no cloud TTS in this path). No time limit; the visitor
   pays Anthropic directly for what they use. This path always works.
 - **"Try it now — free, 15 minutes"** *(optional)* — a shared trial session
   against a real `homeschool-api` backend, so nobody needs their own key to
@@ -15,8 +16,11 @@ The landing screen offers two paths:
   (see the root `homeschool-api/.env.example`) — without that, the demo just
   quietly offers the own-key path only. The shared key never reaches the
   browser: `core/deps.py`'s `require_real_user` blocks the scoped `demo` role
-  from every endpoint except the chat itself, sessions expire in 15 minutes,
-  and nothing is persisted (`db=None` for the demo role in `routers/tutor.py`).
+  from every endpoint except chat and voice output, sessions expire in 15
+  minutes, and nothing is persisted (`db=None` for the demo role in
+  `routers/tutor.py`). Voice output tries the backend's self-hosted Kokoro
+  voice first, falling back to the browser's own speech if the model files
+  aren't set up on that deployment.
   When the trial ends, the UI prompts the visitor to get their own free key
   for unlimited use, noting that beyond a small free credit, usage is billed
   per token by Anthropic directly to them.

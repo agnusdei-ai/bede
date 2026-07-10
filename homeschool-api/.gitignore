@@ -3,3 +3,9 @@ __pycache__/
 .env
 .venv/
 venv/
+
+# Kokoro TTS model files — large binaries, downloaded per docs/VOICE_SETUP.md,
+# never committed
+models/kokoro/*.onnx
+models/kokoro/*.bin
+scripts/voice_samples/

@@ -32,11 +32,17 @@ services:
       - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
-      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
-      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-}
+      - KOKORO_MODEL_DIR=${KOKORO_MODEL_DIR:-/app/models/kokoro}
+      - KOKORO_VOICE=${KOKORO_VOICE:-bm_george}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true
+    volumes:
+      # Self-hosted Kokoro TTS model files — see docs/VOICE_SETUP.md. Read-only:
+      # the app only ever reads them, never writes. Fine to leave the host
+      # directory empty; voice output just falls back to the browser's own
+      # speech until the files are placed there.
+      - ./homeschool-api/models/kokoro:/app/models/kokoro:ro
     read_only: true                    # stateless container — all state in Postgres
     tmpfs:
       - /tmp:size=64m,mode=1777       # audio processing temp files only

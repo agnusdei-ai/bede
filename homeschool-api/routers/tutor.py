@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import get_db
-from core.deps import require_auth, require_parent, require_real_user
+from core.deps import require_auth, require_parent
 from models.schemas import GradeStage, SessionConfig, SessionSummaryRequest, Subject, SpeakRequest, TutorRequest
 from services.ai_service import (
     check_safeguarding,
@@ -102,12 +102,17 @@ async def get_demo_config(_: dict = Depends(require_auth)) -> SessionConfig:
 
 
 @router.post("/speak")
-async def speak(req: SpeakRequest, auth: dict = Depends(require_real_user)):
+async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     """
     Synthesize Bede's spoken voice via the self-hosted Kokoro model (see
     services/voice_synthesis.py). Returns 204 with no body when unconfigured
     or on failure — the frontend falls back to the browser's own
     speechSynthesis in that case, so a TTS hiccup never breaks the session.
+
+    Uses require_auth (not require_real_user) so the scoped demo role can
+    reach this too — unlike catalog/pod/narration/transcripts/voice, this
+    endpoint reads no student data and writes nothing; it's the same
+    ephemeral speak-this-line trade the demo already makes for /chat.
     """
     audio = await synthesize_speech(req.text)
     if audio is None:

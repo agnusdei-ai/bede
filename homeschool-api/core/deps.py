@@ -128,9 +128,9 @@ async def require_mfa_pending(
 async def require_real_user(auth: dict = Depends(require_auth)) -> dict:
     """
     Same as require_auth, but rejects the scoped "demo" role — for every
-    endpoint beyond the fixed demo chat itself (catalog browsing, student
-    configs, narration history, transcripts, voice, TTS). Parent and child
-    both pass through unchanged.
+    endpoint beyond the fixed demo chat and TTS (catalog browsing, student
+    configs, narration history, transcripts, voice enrollment/verification).
+    Parent and child both pass through unchanged.
     """
     if auth.get("role") == "demo":
         await log_event(

@@ -89,6 +89,25 @@ export async function logout(token: string): Promise<void> {
   }
 }
 
+/** Bede's spoken voice via the backend's self-hosted Kokoro model (see
+ *  homeschool-api/services/voice_synthesis.py) — the same voice production
+ *  uses. Returns null if unconfigured server-side (no model files placed
+ *  yet) or the request fails; callers should fall back to the browser's own
+ *  speech in that case, same contract as the production app's hook. */
+export async function speakViaBackend(token: string, text: string): Promise<Blob | null> {
+  try {
+    const res = await fetch(`${apiBase()}/tutor/speak`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
+    })
+    if (res.status !== 200) return null // 204 = not configured server-side
+    return await res.blob()
+  } catch {
+    return null
+  }
+}
+
 export async function getDemoConfig(token: string): Promise<SessionConfig> {
   const res = await fetch(`${apiBase()}/tutor/demo-config`, {
     headers: { Authorization: `Bearer ${token}` },

@@ -15,8 +15,6 @@ import VisualAidCard from './VisualAidCard'
 
 const LS_KEYS = {
   anthropicKey: 'bede_demo_anthropic_key',
-  elevenLabsKey: 'bede_demo_elevenlabs_key',
-  elevenLabsVoiceId: 'bede_demo_elevenlabs_voice_id',
   student: 'bede_demo_student',
   pin: 'bede_demo_pin',
 }
@@ -156,8 +154,6 @@ function TrialPinScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, ex
 
 function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => void }) {
   const [anthropicKey, setAnthropicKey] = useState('')
-  const [elevenLabsKey, setElevenLabsKey] = useState('')
-  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('')
   const [name, setName] = useState('')
   const [grade, setGrade] = useState('')
   const [gradeStage, setGradeStage] = useState<GradeStage>('3-5')
@@ -175,8 +171,6 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
       if (pinError) { setError(pinError); return }
     }
     localStorage.setItem(LS_KEYS.anthropicKey, anthropicKey.trim())
-    if (elevenLabsKey.trim()) localStorage.setItem(LS_KEYS.elevenLabsKey, elevenLabsKey.trim())
-    if (elevenLabsVoiceId.trim()) localStorage.setItem(LS_KEYS.elevenLabsVoiceId, elevenLabsVoiceId.trim())
     localStorage.setItem(LS_KEYS.student, JSON.stringify({ name: name.trim(), grade: grade.trim(), gradeStage }))
     if (pin.trim()) localStorage.setItem(LS_KEYS.pin, pin.trim())
     else localStorage.removeItem(LS_KEYS.pin)
@@ -196,9 +190,9 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
           <p>
             <strong>Demo build, not the real app.</strong> Your API key is stored only in this
-            browser's local storage and sent directly to Anthropic/ElevenLabs — never to any
-            server of ours. Don't use a key you care about protecting on a shared device, and
-            don't rely on this for anything beyond trying Bede out.
+            browser's local storage and sent directly to Anthropic — never to any server of ours.
+            Don't use a key you care about protecting on a shared device, and don't rely on this
+            for anything beyond trying Bede out.
           </p>
         </div>
 
@@ -224,16 +218,6 @@ function SetupScreen({ onReady, onBack }: { onReady: () => void; onBack: () => v
             <label className="label">Anthropic API key (required)</label>
             <input type="password" className="input" value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} placeholder="sk-ant-..." />
           </div>
-          <div>
-            <label className="label">ElevenLabs API key (optional — for a real voice)</label>
-            <input type="password" className="input" value={elevenLabsKey} onChange={(e) => setElevenLabsKey(e.target.value)} placeholder="Leave blank to use your browser's voice" />
-          </div>
-          {elevenLabsKey.trim() && (
-            <div>
-              <label className="label">ElevenLabs voice ID</label>
-              <input className="input" value={elevenLabsVoiceId} onChange={(e) => setElevenLabsVoiceId(e.target.value)} placeholder="Required if you set a key above" />
-            </div>
-          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Student's name</label>
@@ -346,13 +330,13 @@ interface ChatScreenProps {
   subjects: readonly Subject[]
   persist: boolean // own-key: true (localStorage); trial: false (in-memory only)
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
-  ttsSource: { elevenLabsKey: string | null; elevenLabsVoiceId: string | null } | null // null = browser voice only
+  speakToken?: string | null // trial path only — lets voice output use the backend's Kokoro model instead of just the browser's
   header: React.ReactNode // right-hand header controls (differ between the two paths)
   onActivity?: () => void // trial path uses this to drive its 5-minute inactivity timeout
   onSessionInvalid?: () => void // trial path: route to the "session ended" screen instead of an inline error
 }
 
-function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header, onActivity, onSessionInvalid }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, persist, runChat, speakToken, header, onActivity, onSessionInvalid }: ChatScreenProps) {
   const [subject, setSubject] = useState<Subject>(
     () => (persist ? (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) : null) ?? subjects[0] ?? 'living_books',
   )
@@ -372,10 +356,7 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
     new Set(persist ? JSON.parse(localStorage.getItem(SESSION_KEYS.openerFired) ?? '[]') : []),
   )
 
-  const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(
-    ttsSource?.elevenLabsKey ?? null,
-    ttsSource?.elevenLabsVoiceId ?? null,
-  )
+  const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
   const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
     useSpeechRecognition((transcript) => setInput((prev) => (prev ? prev + ' ' + transcript : transcript)))
 
@@ -591,8 +572,6 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
 
 function OwnKeyFlow({ student, onReset }: { student: StudentProfile; onReset: () => void }) {
   const anthropicKey = localStorage.getItem(LS_KEYS.anthropicKey) ?? ''
-  const elevenLabsKey = localStorage.getItem(LS_KEYS.elevenLabsKey)
-  const elevenLabsVoiceId = localStorage.getItem(LS_KEYS.elevenLabsVoiceId)
 
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
@@ -606,7 +585,6 @@ function OwnKeyFlow({ student, onReset }: { student: StudentProfile; onReset: ()
       subjects={SUBJECTS}
       persist
       runChat={runChat}
-      ttsSource={{ elevenLabsKey, elevenLabsVoiceId }}
       header={
         <>
           <button onClick={onReset} title="Clear everything, including your API key and student setup" className="text-xs text-gray-400 hover:text-gray-600 underline">
@@ -695,7 +673,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: 
       subjects={config.subjects}
       persist={false}
       runChat={runChat}
-      ttsSource={null}
+      speakToken={token}
       onActivity={onActivity}
       onSessionInvalid={() => onExpired('inactive')}
       header={

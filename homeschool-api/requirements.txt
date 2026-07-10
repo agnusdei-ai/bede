@@ -18,3 +18,6 @@ librosa>=0.10.0
 soundfile>=0.12.0
 openai-whisper>=20240930
 resemblyzer>=0.1.1
+# Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
+webauthn>=2.0.0
+pyotp>=2.9.0

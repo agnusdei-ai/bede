@@ -161,6 +161,50 @@ class SessionTranscript(Base):
     )
 
 
+class ParentSecurityKey(Base):
+    """
+    One row per enrolled FIDO2 authenticator (YubiKey or other WebAuthn
+    authenticator) for the parent role's optional second factor. Single-family
+    app — there's exactly one parent credential, so these all belong to "the
+    parent" with no user foreign key needed, same as parent_password itself.
+
+    credential_enc holds the JSON {credential_id, public_key, sign_count,
+    transports} (all base64/int — no secrets beyond what the authenticator
+    already discloses to any relying party), AES-256-GCM encrypted like every
+    other user-data column in this database.
+    """
+    __tablename__ = "parent_security_keys"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    nickname: Mapped[str] = mapped_column(String(100), nullable=False)
+    credential_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class ParentTotpConfig(Base):
+    """
+    Single row (key="totp") holding the parent's TOTP secret once enrolled.
+    `confirmed=False` while a freshly generated secret awaits its first
+    verifying code — never treated as a valid second factor until confirmed,
+    so an abandoned enrollment can't silently weaken login.
+    """
+    __tablename__ = "parent_totp_config"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    secret_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    confirmed: Mapped[bool] = mapped_column(default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 async def create_tables() -> None:
     """Idempotent table creation — safe to call on every startup."""
     async with engine.begin() as conn:

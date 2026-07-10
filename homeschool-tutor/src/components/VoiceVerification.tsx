@@ -55,8 +55,15 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
     setParentAuthLoading(true)
     setParentAuthError('')
     try {
-      const parentToken = await login('parent', parentPw)
-      const res = await parentOverrideVoice(parentToken, studentName)
+      const result = await login('parent', parentPw)
+      if (result.mfaRequired) {
+        // Fail closed — this modal doesn't carry a security-key/TOTP step of
+        // its own, so a parent with MFA enrolled must approve via the normal
+        // parent login instead of this shortcut.
+        setParentAuthError('This parent account requires a security key or authenticator code — please sign in as parent normally to approve.')
+        return
+      }
+      const res = await parentOverrideVoice(result.accessToken, studentName)
       setShowParentModal(false)
       onVerified(res)
     } catch {

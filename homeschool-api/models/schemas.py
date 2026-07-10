@@ -112,6 +112,30 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     role: str
+    # True when this token is only a "parent_pending" stepping-stone — the
+    # parent's password was correct, but an enrolled security key/TOTP code
+    # is still required before the real "parent" token is issued.
+    mfa_required: bool = False
+    mfa_methods: List[Literal["webauthn", "totp"]] = []
+
+
+# ── Parent MFA: FIDO2 security key + TOTP ────────────────────────────────────
+
+class WebAuthnRegisterVerifyRequest(BaseModel):
+    credential: dict
+    nickname: str = Field(default="", max_length=100)
+
+
+class WebAuthnAuthVerifyRequest(BaseModel):
+    credential: dict
+
+
+class TotpConfirmRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=8)
+
+
+class TotpVerifyRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=8)
 
 
 class SessionSummaryRequest(BaseModel):

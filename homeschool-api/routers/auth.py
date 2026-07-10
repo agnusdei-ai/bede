@@ -4,21 +4,24 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
+from core.database import get_db
 from core.demo_session import end_session, start_new_session
 from core.deps import require_auth
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
 from models.schemas import LoginRequest, TokenResponse
+from services import mfa_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(req: LoginRequest, request: Request):
+async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
 
@@ -26,6 +29,21 @@ async def login(req: LoginRequest, request: Request):
         if not hmac.compare_digest(req.credential, settings.parent_password):
             await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+        # Password alone isn't enough once a security key or TOTP app is
+        # enrolled — issue a short-lived "parent_pending" token that can only
+        # be used to complete that second factor (see core/deps.py,
+        # routers/mfa.py), not a real parent session.
+        methods = await mfa_service.enrolled_methods(db)
+        if methods:
+            pending_token = create_access_token(
+                {"sub": "parent", "role": "parent_pending"},
+                fingerprint=fp,
+                expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
+            )
+            await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="password ok, mfa pending", **ctx)
+            return TokenResponse(access_token=pending_token, role="parent_pending", mfa_required=True, mfa_methods=methods)
+
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
         if not hmac.compare_digest(req.credential, settings.child_pin):

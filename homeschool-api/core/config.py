@@ -51,6 +51,21 @@ class Settings(BaseSettings):
     demo_grade: str = "4"
     demo_grade_stage: str = "3-5"
 
+    # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
+    # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
+    # as DEMO_PIN) — a family only needs to set these if they want to enroll a
+    # hardware key. Must be the exact domain the tablets/browsers use to reach
+    # this deployment (no scheme/port) — WebAuthn refuses to verify otherwise.
+    webauthn_rp_id: str = ""
+    webauthn_rp_name: str = "Bede"
+    webauthn_origin: str = ""
+    # TOTP has no domain-binding requirement, so it's always available — no
+    # separate enable flag needed, enrollment itself is the opt-in.
+    totp_issuer: str = "Bede Homeschool"
+    # Short-lived — just long enough for the parent to complete their second
+    # factor right after the password check.
+    mfa_pending_token_expire_minutes: int = 5
+
     # ── Database ──────────────────────────────────────────────────────────────
     # asyncpg-compatible PostgreSQL URL.
     # Neon example: postgresql+asyncpg://user:pass@host/db?ssl=require

@@ -21,11 +21,8 @@ from core.security import decode_token, validate_fingerprint
 _bearer = HTTPBearer()
 
 
-async def require_auth(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
-) -> dict:
-    """Validate JWT + fingerprint. Returns payload dict."""
+async def _validate_token(request: Request, credentials: HTTPAuthorizationCredentials) -> dict:
+    """Shared JWT signature/expiry + device fingerprint validation."""
     ctx = audit_from_request(request)
 
     payload = decode_token(credentials.credentials)
@@ -49,6 +46,34 @@ async def require_auth(
             detail="Session cannot be used from a different device — please log in again",
         )
 
+    return payload
+
+
+async def require_auth(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Validate JWT + fingerprint. Returns payload dict for a *fully*
+    authenticated session — rejects the transient "parent_pending" role
+    (issued after a correct password but before the parent's enrolled
+    security key/TOTP has been verified), which may only be used with
+    require_mfa_pending to complete that second factor."""
+    ctx = audit_from_request(request)
+    payload = await _validate_token(request, credentials)
+
+    if payload.get("role") == "parent_pending":
+        await log_event(
+            AuditEvent.ACCESS_DENIED,
+            role="parent_pending",
+            success=False,
+            detail="MFA not yet completed",
+            **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Second-factor verification required to finish logging in",
+        )
+
     if payload.get("role") == "demo" and not demo_session_is_active(payload.get("jti", "")):
         await log_event(
             AuditEvent.TOKEN_INVALID,
@@ -60,6 +85,35 @@ async def require_auth(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="This trial session was replaced by a newer login — only one demo session runs at a time",
+        )
+
+    return payload
+
+
+async def require_mfa_pending(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """
+    Validate JWT + fingerprint for the transient "parent_pending" role only —
+    used exclusively by the MFA completion endpoints in routers/mfa.py. A
+    fully authenticated "parent" token is deliberately NOT accepted here,
+    since there'd be nothing left to complete.
+    """
+    ctx = audit_from_request(request)
+    payload = await _validate_token(request, credentials)
+
+    if payload.get("role") != "parent_pending":
+        await log_event(
+            AuditEvent.ACCESS_DENIED,
+            role=payload.get("role"),
+            success=False,
+            detail="Not a pending MFA session",
+            **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No second-factor verification is pending",
         )
 
     return payload

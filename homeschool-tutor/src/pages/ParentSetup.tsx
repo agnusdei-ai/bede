@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig } from '../types'
 import { SUBJECTS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
+import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, savePodConfigs, type SystemStatus } from '../services/api'
 
@@ -166,6 +167,8 @@ export default function ParentSetup() {
             <span>Checking system status…</span>
           )}
         </div>
+
+        <ParentSecuritySettings token={token!} />
 
         {/* Student cards */}
         <div className="space-y-4">

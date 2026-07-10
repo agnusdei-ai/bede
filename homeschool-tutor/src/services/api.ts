@@ -4,7 +4,28 @@ const BASE = '/api'
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
-export async function login(role: 'parent' | 'child', credential: string): Promise<string> {
+export type MfaMethod = 'webauthn' | 'totp'
+
+export interface LoginResult {
+  accessToken: string
+  role: string
+  // True when accessToken is only a "parent_pending" stepping-stone — the
+  // password was correct, but an enrolled security key/TOTP code is still
+  // required before a real "parent" token is issued (see /mfa/*/authenticate).
+  mfaRequired: boolean
+  mfaMethods: MfaMethod[]
+}
+
+function toLoginResult(data: any): LoginResult {
+  return {
+    accessToken: data.access_token,
+    role: data.role,
+    mfaRequired: !!data.mfa_required,
+    mfaMethods: data.mfa_methods ?? [],
+  }
+}
+
+export async function login(role: 'parent' | 'child', credential: string): Promise<LoginResult> {
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -14,9 +35,69 @@ export async function login(role: 'parent' | 'child', credential: string): Promi
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Login failed')
   }
-  const data = await res.json()
-  return data.access_token
+  return toLoginResult(await res.json())
 }
+
+export async function logout(token: string): Promise<void> {
+  try {
+    await fetch(`${BASE}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+  } catch {
+    // best-effort — parent/child tokens are stateless JWTs anyway
+  }
+}
+
+// ── Parent MFA: FIDO2 security keys + TOTP ───────────────────────────────────
+
+export interface MfaStatus {
+  webauthn_available: boolean
+  security_keys: Array<{ id: number; nickname: string; created_at: string }>
+  totp_enabled: boolean
+}
+
+export async function fetchMfaStatus(token: string): Promise<MfaStatus> {
+  const res = await fetch(`${BASE}/mfa/status`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to load security settings')
+  return res.json()
+}
+
+async function postJson(path: string, token: string, body?: unknown): Promise<any> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Request failed')
+  }
+  return res.json()
+}
+
+// Enrollment (requires a full parent session):
+export const webauthnRegisterOptions = (token: string) => postJson('/mfa/webauthn/register/options', token)
+export const webauthnRegisterVerify = (token: string, credential: object, nickname: string) =>
+  postJson('/mfa/webauthn/register/verify', token, { credential, nickname })
+
+export async function deleteSecurityKey(token: string, keyId: number): Promise<void> {
+  const res = await fetch(`${BASE}/mfa/webauthn/${keyId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to remove security key')
+}
+
+export const enrollTotp = (token: string): Promise<{ secret: string; otpauth_uri: string }> =>
+  postJson('/mfa/totp/enroll', token)
+export const confirmTotp = (token: string, code: string) => postJson('/mfa/totp/confirm', token, { code })
+
+export async function disableTotp(token: string): Promise<void> {
+  const res = await fetch(`${BASE}/mfa/totp`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to disable authenticator app')
+}
+
+// Completing a pending login (requires the "parent_pending" token):
+export const webauthnAuthOptions = (pendingToken: string) => postJson('/mfa/webauthn/authenticate/options', pendingToken)
+export const webauthnAuthVerify = async (pendingToken: string, credential: object): Promise<LoginResult> =>
+  toLoginResult(await postJson('/mfa/webauthn/authenticate/verify', pendingToken, { credential }))
+export const totpAuthVerify = async (pendingToken: string, code: string): Promise<LoginResult> =>
+  toLoginResult(await postJson('/mfa/totp/authenticate/verify', pendingToken, { code }))
 
 // ── Streaming tutor chat ─────────────────────────────────────────────────────
 

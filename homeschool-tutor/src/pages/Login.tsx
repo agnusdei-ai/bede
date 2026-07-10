@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Lock, User, Star, Mic } from 'lucide-react'
-import { login, fetchStudentConfig } from '../services/api'
+import { login, fetchStudentConfig, type LoginResult, type MfaMethod } from '../services/api'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
+import ParentMfaVerification from '../components/ParentMfaVerification'
 import type { VerifyResult } from '../services/voiceApi'
 
-type Phase = 'login' | 'voice-verify'
+type Phase = 'login' | 'voice-verify' | 'parent-mfa'
 
 export default function Login() {
   const [role, setRole] = useState<'parent' | 'child'>('parent')
@@ -15,6 +16,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [phase, setPhase] = useState<Phase>('login')
   const [pendingToken, setPendingToken] = useState('')
+  const [pendingMfaMethods, setPendingMfaMethods] = useState<MfaMethod[]>([])
   const [studentName, setStudentName] = useState('')
 
   const navigate = useNavigate()
@@ -42,13 +44,21 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const token = await login(role, credential)
+      const result = await login(role, credential)
 
       if (role === 'parent') {
-        setAuth(token, 'parent')
+        if (result.mfaRequired) {
+          setPendingToken(result.accessToken)
+          setPendingMfaMethods(result.mfaMethods)
+          setPhase('parent-mfa')
+          return
+        }
+        setAuth(result.accessToken, 'parent')
         navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
         return
       }
+
+      const token = result.accessToken
 
       // Child: check if voice verification is required for this student
       if (studentFromUrl) {
@@ -77,6 +87,21 @@ export default function Login() {
   const handleVoiceVerified = (_result: VerifyResult) => {
     setAuth(pendingToken, 'child')
     navigate(returnTo ? decodeURIComponent(returnTo) : '/session')
+  }
+
+  const handleMfaVerified = (result: LoginResult) => {
+    setAuth(result.accessToken, 'parent')
+    navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
+  }
+
+  if (phase === 'parent-mfa') {
+    return (
+      <ParentMfaVerification
+        pendingToken={pendingToken}
+        methods={pendingMfaMethods}
+        onVerified={handleMfaVerified}
+      />
+    )
   }
 
   if (phase === 'voice-verify') {

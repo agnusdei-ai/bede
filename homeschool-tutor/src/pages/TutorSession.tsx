@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine } from 'lucide-react'
+import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import SocraticChat from '../components/SocraticChat'
 import SubjectDrawer from '../components/SubjectDrawer'
-import { fetchSessionSummary, fetchStudentConfig } from '../services/api'
+import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig } from '../services/api'
 import { SUBJECT_MAP } from '../types'
 import { getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes } from '../utils/gradeTimer'
 import { pickBreakActivity } from '../utils/breakActivities'
@@ -24,6 +24,7 @@ export default function TutorSession() {
   const [showSummary, setShowSummary] = useState(false)
   const [summary, setSummary] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryDurationMin, setSummaryDurationMin] = useState(0)
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -93,6 +94,7 @@ export default function TutorSession() {
       setShowSummary(true)
       try {
         const elapsed = sessionStartedAt ? Math.floor((Date.now() - sessionStartedAt.getTime()) / 60000) : 0
+        setSummaryDurationMin(elapsed)
         const text = await fetchSessionSummary(token, sessionConfig, getApiMessages(displayMessages), subjectsCompleted, elapsed)
         setSummary(text)
       } catch {
@@ -106,7 +108,14 @@ export default function TutorSession() {
   }
 
   if (showSummary) return (
-    <SessionSummaryView summary={summary} loading={summaryLoading} onDone={() => { logout(); navigate('/') }} />
+    <SessionSummaryView
+      summary={summary}
+      loading={summaryLoading}
+      onDone={() => { logout(); navigate('/') }}
+      onEmail={(email) => emailSessionSummary(
+        token!, email, sessionConfig, getApiMessages(displayMessages), subjectsCompleted, summaryDurationMin
+      )}
+    />
   )
 
   const subjectInfo = SUBJECT_MAP[currentSubject]
@@ -218,7 +227,31 @@ export default function TutorSession() {
   )
 }
 
-function SessionSummaryView({ summary, loading, onDone }: { summary: string; loading: boolean; onDone: () => void }) {
+function SessionSummaryView({
+  summary, loading, onDone, onEmail,
+}: {
+  summary: string
+  loading: boolean
+  onDone: () => void
+  onEmail: (email: string) => Promise<void>
+}) {
+  const [email, setEmail] = useState('')
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [emailError, setEmailError] = useState('')
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEmailStatus('sending')
+    setEmailError('')
+    try {
+      await onEmail(email)
+      setEmailStatus('sent')
+    } catch (err) {
+      setEmailStatus('error')
+      setEmailError(err instanceof Error ? err.message : 'Could not send the email.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-parchment-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-xl p-8">
@@ -233,9 +266,52 @@ function SessionSummaryView({ summary, loading, onDone }: { summary: string; loa
             <p className="text-sm">Bede is writing your summary…</p>
           </div>
         ) : (
-          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap bg-parchment-50 rounded-xl p-5 border border-parchment-200 font-serif text-sm">
-            {summary}
-          </div>
+          <>
+            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap bg-parchment-50 rounded-xl p-5 border border-parchment-200 font-serif text-sm">
+              {summary}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-navy-100">
+              {emailStatus === 'sent' ? (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                  <Check size={18} className="shrink-0" />
+                  Sent to {email}. This address wasn't saved anywhere.
+                </div>
+              ) : (
+                <form onSubmit={handleSendEmail}>
+                  <label htmlFor="summary-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
+                    <Mail size={15} />
+                    Email these notes to yourself
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2.5">
+                    An informal impression from today's session, not an official evaluation. Used once to
+                    send this email, never stored, and never shown to your student.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      id="summary-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400"
+                    />
+                    <button
+                      type="submit"
+                      disabled={emailStatus === 'sending'}
+                      className="px-4 py-2.5 bg-navy-100 text-navy-700 rounded-xl font-semibold text-sm hover:bg-navy-200 transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      {emailStatus === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send'}
+                    </button>
+                  </div>
+                  {emailStatus === 'error' && (
+                    <p className="text-xs text-red-600 mt-2">{emailError}</p>
+                  )}
+                </form>
+              )}
+            </div>
+          </>
         )}
         <button
           onClick={onDone}

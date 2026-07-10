@@ -236,6 +236,37 @@ export async function fetchSessionSummary(
   return data.summary
 }
 
+// Emails the same summary to a parent-supplied address once via Resend.
+// The address is never sent anywhere else and the backend never persists
+// it — see homeschool-api/services/email_service.py.
+export async function emailSessionSummary(
+  token: string,
+  email: string,
+  config: SessionConfig,
+  history: ChatMessage[],
+  subjectsCompleted: Subject[],
+  durationMinutes: number
+): Promise<void> {
+  const res = await fetch(`${BASE}/tutor/email-summary`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      email,
+      session_config: config,
+      conversation_history: history,
+      subjects_completed: subjectsCompleted,
+      duration_minutes: durationMinutes,
+    }),
+  })
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('This trial has already sent its one email.')
+    throw new Error('Could not send the email — please try again later.')
+  }
+}
+
 // ── Narration assessments & learner profile ──────────────────────────────────
 
 export async function fetchNarrationAssessments(

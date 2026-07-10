@@ -1,4 +1,6 @@
+import asyncio
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
@@ -24,7 +26,7 @@ from services.ai_service import (
     SAFEGUARDING_RESPONSE,
     stream_tutor_response,
 )
-from services.email_service import build_summary_email_html, send_email
+from services.email_service import build_summary_email_html, send_distress_alert, send_email
 from services.voice_synthesis import synthesize_speech
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
@@ -76,14 +78,25 @@ async def chat(
     async def event_generator():
         # Deterministic safeguarding check — bypasses LLM entirely for crisis signals
         if check_safeguarding(req.child_message):
+            trigger_excerpt = req.child_message[:80]
             await log_event(
                 AuditEvent.SAFEGUARDING,
                 role=auth.get("role"),
                 student_name=req.session_config.student_name,
                 success=True,
-                detail=f"trigger:{req.child_message[:80]}",
+                detail=f"trigger:{trigger_excerpt}",
                 **audit_from_request(request),
             )
+            # Fire-and-forget — the child's safety response below must not
+            # wait on a network round-trip to Resend. The audit log entry
+            # above is the durable record regardless of whether this send
+            # succeeds; distress_alert_configured() short-circuits instantly
+            # when PARENT_EMAIL/Resend aren't set up.
+            asyncio.create_task(send_distress_alert(
+                req.session_config.student_name,
+                datetime.now(timezone.utc).isoformat(),
+                trigger_excerpt,
+            ))
             yield f"data: {json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
             return

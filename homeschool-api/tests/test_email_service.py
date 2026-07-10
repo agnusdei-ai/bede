@@ -8,8 +8,11 @@ real HTML into the outgoing email.
 import asyncio
 
 from services.email_service import (
+    build_distress_alert_html,
     build_summary_email_html,
+    distress_alert_configured,
     email_configured,
+    send_distress_alert,
     send_email,
 )
 
@@ -45,4 +48,40 @@ def test_send_email_returns_false_when_unconfigured(monkeypatch):
 
     monkeypatch.setattr(settings, "resend_api_key", "")
     result = asyncio.run(send_email("parent@example.com", "subject", "<p>body</p>"))
+    assert result is False
+
+
+def test_distress_alert_html_includes_student_and_excerpt():
+    html = build_distress_alert_html("Emma", "2026-07-10T12:00:00+00:00", "I want to hurt myself")
+    assert "Emma" in html
+    assert "I want to hurt myself" in html
+    assert "2026-07-10T12:00:00+00:00" in html
+    assert "not a professional assessment" in html
+
+
+def test_distress_alert_html_escapes_malicious_excerpt():
+    """The excerpt is child-authored text — must never be trusted as HTML."""
+    html = build_distress_alert_html("Emma", "2026-07-10T12:00:00+00:00", "<script>alert(1)</script>")
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_distress_alert_configured_requires_both_resend_and_parent_email(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    monkeypatch.setattr(settings, "parent_email", "")
+    assert distress_alert_configured() is False
+
+    monkeypatch.setattr(settings, "parent_email", "parent@example.com")
+    assert distress_alert_configured() is True
+
+
+def test_send_distress_alert_returns_false_when_parent_email_unset(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "parent_email", "")
+    result = asyncio.run(send_distress_alert("Emma", "2026-07-10T12:00:00+00:00", "trigger text"))
     assert result is False

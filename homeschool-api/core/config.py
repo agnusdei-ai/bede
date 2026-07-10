@@ -85,6 +85,16 @@ class Settings(BaseSettings):
     # Must be a verified sending address/domain in your Resend account.
     resend_from_address: str = "Bede <bede@example.com>"
 
+    # ── Distress alert (optional) ─────────────────────────────────────────────
+    # Unlike the post-session email above, a distress signal is child-
+    # initiated — there's no parent present in the moment to type an address
+    # in, so it has to be configured ahead of time. Reuses the same Resend
+    # setup (RESEND_API_KEY/RESEND_FROM_ADDRESS above); leave PARENT_EMAIL
+    # unset to disable this specific alert (the safeguarding event is still
+    # always written to the encrypted audit log either way — see
+    # core/audit.py's AuditEvent.SAFEGUARDING).
+    parent_email: str = ""
+
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
     algorithm: str = "HS256"

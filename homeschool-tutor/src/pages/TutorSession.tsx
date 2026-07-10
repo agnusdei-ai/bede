@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
@@ -45,6 +45,45 @@ export default function TutorSession() {
     }
   }, [token, sessionConfig, role, studentParam, navigate, setSessionConfig, startSession])
 
+  // Grades 4-8's hard 2-hour screen-time cap: hooks must run unconditionally
+  // on every render, so this lives here (before the sessionConfig-null return
+  // below) rather than alongside the rest of the timer logic further down,
+  // which depends on sessionConfig and can't run until after that check.
+  // endSessionRef defers to handleEndSession (defined later, once
+  // sessionConfig is known) so the actual end-of-session logic — generating
+  // the parent summary, logging out — lives in exactly one place.
+  const endSessionRef = useRef<() => void>(() => {})
+  const hasAutoConcludedRef = useRef(false)
+  const [, setCapTick] = useState(0)
+  const [showConcludedMessage, setShowConcludedMessage] = useState(false)
+  useEffect(() => {
+    if (!sessionConfig || !sessionStartedAt) return
+    const cfg = getTimerConfig(sessionConfig.grade)
+    if (!cfg.totalCapMinutes) return
+    // Forces a re-render every 15s so the cap is noticed promptly even if
+    // nothing else (chat activity, etc.) happens to re-render in the meantime.
+    const id = setInterval(() => setCapTick((n) => n + 1), 15000)
+    return () => clearInterval(id)
+  }, [sessionConfig, sessionStartedAt])
+  useEffect(() => {
+    if (!sessionConfig || !sessionStartedAt) return
+    const cfg = getTimerConfig(sessionConfig.grade)
+    if (!cfg.totalCapMinutes) return
+    const { phase } = getPhase(sessionStartedAt, cfg.blockMinutes, cfg.breakMinutes, cfg.totalCapMinutes)
+    if (phase === 'concluded' && !hasAutoConcludedRef.current) {
+      hasAutoConcludedRef.current = true  // guard against re-firing on every subsequent render
+      // Show a brief, friendly heads-up before actually ending the session —
+      // neither role has ever had their session end programmatically before
+      // this, and a silent instant logout (especially for a child, who has
+      // no "End Session" button of their own to begin with) would be jarring.
+      setShowConcludedMessage(true)
+      setTimeout(() => endSessionRef.current(), 4000)
+    }
+    // No dependency array on purpose — this should re-check on every render,
+    // including the capTick-driven interval tick above and any organic
+    // re-render (chat streaming, etc.), not just when specific values change.
+  })
+
   if (!sessionConfig) {
     if (configLoading) return (
       <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4">
@@ -67,7 +106,9 @@ export default function TutorSession() {
 
   const timerCfg = getTimerConfig(sessionConfig.grade)
   const timerStartedAt = timerCfg.isYounger ? subjectStartedAt : sessionStartedAt
-  const { phase: currentPhase, remainingSecs } = getPhase(timerStartedAt, timerCfg.blockMinutes, timerCfg.breakMinutes)
+  const { phase: currentPhase, remainingSecs } = getPhase(
+    timerStartedAt, timerCfg.blockMinutes, timerCfg.breakMinutes, timerCfg.totalCapMinutes
+  )
   const isSubjectBreak = currentPhase === 'break'
 
   // Parent-set total on-screen time cap, tracked across the whole session
@@ -106,6 +147,7 @@ export default function TutorSession() {
       logout(); navigate('/')
     }
   }
+  endSessionRef.current = handleEndSession
 
   if (showSummary) return (
     <SessionSummaryView
@@ -178,8 +220,23 @@ export default function TutorSession() {
 
       {/* ── Full-height chat ── */}
       <main className="flex-1 overflow-hidden relative">
+        {/* Session-concluded overlay — today's 2-hour cap reached (grades 4-8) */}
+        {showConcludedMessage && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
+            <div className="bg-white rounded-2xl border border-sage-200 shadow-xl p-8 max-w-sm w-full text-center">
+              <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
+                <Check size={24} className="text-sage-600" />
+              </div>
+              <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Great work today!</h2>
+              <p className="text-sm text-gray-600 mb-1">
+                {sessionConfig.student_name}, you've reached today's 2-hour learning time.
+              </p>
+              <p className="text-sm text-gray-500">Wrapping up your session now.</p>
+            </div>
+          </div>
+        )}
         {/* Break overlay */}
-        {isOnBreak && (
+        {!showConcludedMessage && isOnBreak && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
             <div className="bg-white rounded-2xl border border-amber-200 shadow-xl p-8 max-w-sm w-full text-center">
               {isEyeRestBreak ? (
@@ -209,7 +266,7 @@ export default function TutorSession() {
             </div>
           </div>
         )}
-        <SocraticChat breakActive={isOnBreak} gradeStage={sessionConfig.grade_stage} />
+        <SocraticChat breakActive={isOnBreak || showConcludedMessage} gradeStage={sessionConfig.grade_stage} />
       </main>
 
       {/* ── Subject drawer ── */}

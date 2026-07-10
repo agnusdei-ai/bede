@@ -792,17 +792,27 @@ async def synthesize_learner_profile(
     session_count: int,
 ) -> dict:
     """
-    Uses Claude Haiku to synthesize a stable learner-type profile from narration history.
-    Called by the narration router after session 3+. Returns a plain dict for encryption.
+    Uses Claude Haiku to synthesize a learner-type profile from narration history.
+    Called by the narration router from session 1 onward — with just one
+    session's data this is a genuinely lower-confidence, initial read rather
+    than a settled "stable" profile, which the prompt below asks the model
+    to reflect honestly in bede_profile_notes rather than overstating.
+    Returns a plain dict for encryption.
     """
     assessment_summary = json.dumps(assessments[:15], indent=2, default=str)
+    session_word = "session" if session_count == 1 else "sessions"
+    confidence_note = (
+        "This is only their first session — treat this as an initial, tentative read, "
+        "not a settled profile; say so plainly in bede_profile_notes rather than overstating confidence.\n\n"
+        if session_count <= 1 else ""
+    )
 
-    prompt = f"""Analyze narration scores for {student_name} across {session_count} tutoring sessions and identify their stable learner characteristics.
+    prompt = f"""Analyze narration scores for {student_name} across {session_count} tutoring {session_word} and identify their learner characteristics.
 
-Assessment history (most recent first):
+{confidence_note}Assessment history (most recent first):
 {assessment_summary}
 
-Determine these four stable characteristics:
+Determine these four characteristics:
 - trivium_stage: "grammar" (K-5, absorbs facts and stories), "logic" (6-8, asks why, finds patterns), or "rhetoric" (9-12, synthesizes and argues)
 - processing_style: "visual" (rich imagery in narrations), "auditory" (rhythm, sound, music references), "reading_writing" (precise language, accurate quotes), or "kinesthetic" (action, movement, hands-on references)
 - narration_mode: "sequential" (retells in careful order, step-by-step) or "associative" (jumps to what matters most, makes cross-connections)

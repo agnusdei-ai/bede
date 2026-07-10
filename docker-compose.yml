@@ -58,6 +58,11 @@ services:
       # services/email_service.py, for what this powers.
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - RESEND_FROM_ADDRESS=${RESEND_FROM_ADDRESS:-Bede <bede@agnusdei.ai>}
+      # Optional — urgent parent notification when Bede detects a child in
+      # distress/danger and pauses the session. Reuses RESEND_API_KEY above.
+      # Leave unset to disable this specific alert (the safeguarding event is
+      # always recorded in the encrypted audit log regardless).
+      - PARENT_EMAIL=${PARENT_EMAIL:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true

@@ -121,4 +121,6 @@ full list, with comments: `ANTHROPIC_API_KEY`, `SECRET_KEY`,
 `MASTER_SECRET`, `PARENT_PASSWORD`, `CHILD_PIN`, `DATABASE_URL`,
 `CORS_ORIGINS`. Optional: `OPENAI_API_KEY`/Kokoro settings for voice (see
 `docs/VOICE_SETUP.md`), `RESEND_API_KEY` for the post-session diagnostic
-email, `WEBAUTHN_RP_ID`/TOTP settings for parent MFA.
+email, `PARENT_EMAIL` for an urgent alert when Bede detects a child in
+distress or danger (reuses `RESEND_API_KEY`), `WEBAUTHN_RP_ID`/TOTP settings
+for parent MFA.

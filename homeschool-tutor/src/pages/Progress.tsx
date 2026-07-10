@@ -146,20 +146,19 @@ function LearnerProfileCard({
             {profile.session_count_assessed !== 1 ? 's' : ''} &middot; Updated {formatDate(profile.assessed_at)}
           </p>
         </div>
-      ) : assessmentCount < 3 ? (
+      ) : assessmentCount < 1 ? (
         <div className="flex items-start gap-3 text-gray-500">
           <Lock size={16} className="mt-0.5 shrink-0 text-gray-300" />
           <p className="text-sm">
-            Complete 3 or more sessions to unlock Bede&apos;s learner profile for this student.
-            <span className="block mt-1 text-xs text-gray-400">
-              {assessmentCount} session{assessmentCount !== 1 ? 's' : ''} recorded so far.
-            </span>
+            Complete a session to unlock Bede&apos;s initial recommendations for this student.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Bede has observed {assessmentCount} sessions and is ready to synthesise a learner profile.
+            {assessmentCount < 3
+              ? `Bede has observed ${assessmentCount} session${assessmentCount !== 1 ? 's' : ''} so far and can share an initial, tentative read — this will sharpen as more sessions accumulate.`
+              : `Bede has observed ${assessmentCount} sessions and is ready to synthesise a learner profile.`}
           </p>
           {error && (
             <p className="text-xs text-red-600 flex items-center gap-1">
@@ -171,7 +170,7 @@ function LearnerProfileCard({
             disabled={building}
             className="px-4 py-2 bg-sage-500 text-white text-sm font-medium rounded-xl hover:bg-sage-600 transition-colors disabled:opacity-50"
           >
-            {building ? 'Building profile…' : 'Build Learner Profile'}
+            {building ? 'Building profile…' : assessmentCount < 3 ? 'Get Initial Recommendations' : 'Build Learner Profile'}
           </button>
         </div>
       )}

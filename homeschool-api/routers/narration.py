@@ -7,7 +7,13 @@ plaintext narration scores or profile notes.
 Routes:
   GET  /narration/{student}/assessments     — parent: score history
   GET  /narration/{student}/profile         — parent or child: current learner profile
-  POST /narration/{student}/profile         — trigger profile synthesis (after session 3+)
+  POST /narration/{student}/profile         — trigger profile synthesis (after session 1+)
+
+Synthesis is available from the very first session on purpose — parents
+should have an initial read on how their child learns (and Bede's first
+recommendations) right away, not after waiting three sessions. It's simply
+lower-confidence with fewer data points; the profile can (and should) be
+rebuilt again after each additional session as more narrations accumulate.
 """
 
 from datetime import datetime, timezone
@@ -56,7 +62,7 @@ async def get_profile(
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No learner profile yet — complete 3+ sessions to build one.",
+            detail="No learner profile yet — complete a session to build one.",
         )
     return decrypt_json(row.profile_enc)
 
@@ -64,14 +70,15 @@ async def get_profile(
 @router.post("/{student_name}/profile")
 async def build_profile(
     student_name: str,
-    session_count: int = Query(..., ge=3, description="Total sessions completed so far"),
+    session_count: int = Query(..., ge=1, description="Total sessions completed so far"),
     _: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
-    Synthesize (or refresh) the stable learner profile from accumulated assessments.
-    Frontend calls this at the end of session 3 and optionally thereafter.
-    Requires at least 3 assessments on record.
+    Synthesize (or refresh) the learner profile from accumulated assessments.
+    Frontend calls this at the end of the very first session (an initial,
+    lower-confidence read parents can act on immediately) and again after
+    each subsequent session as more narrations accumulate.
     """
     result = await db.execute(
         select(NarrationAssessment)
@@ -81,10 +88,10 @@ async def build_profile(
     )
     rows = result.scalars().all()
 
-    if len(rows) < 3:
+    if len(rows) < 1:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Only {len(rows)} narration(s) recorded — need at least 3 to build a profile.",
+            detail="No narrations recorded yet — complete a session first.",
         )
 
     assessments = [decrypt_json(row.assessment_enc) for row in rows]

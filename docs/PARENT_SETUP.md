@@ -68,6 +68,17 @@ voice verification does. If voice check fails, the only way through is the paren
 password (never a hidden bypass) — so a child can't skip their own verification
 without you present.
 
+**If a child expresses distress or danger**, Bede stops tutoring immediately —
+regardless of subject or grade — and tells them to find a trusted adult right
+now. This is a deterministic keyword/pattern check that runs before anything
+reaches Claude, not a judgment call by the AI. Every occurrence is written to
+the encrypted audit log. If you set `PARENT_EMAIL` in your `.env` (see
+`.env.example`), you'll also get an urgent email the moment it happens,
+including a short excerpt of what triggered it — enough to know how to
+follow up, without waiting for you to think to check the audit log
+yourself. Leave `PARENT_EMAIL` unset if you'd rather rely on the audit log
+alone; the safety stop itself always happens either way.
+
 ## 5. Setting up each student
 
 1. Log in with the **parent password** → you land on **Setup**.
@@ -79,6 +90,17 @@ without you present.
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
 4. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
+
+**Session length is capped automatically by grade** — this isn't something you
+configure, it's built in: grades K-3 work in 20-minute per-subject blocks with
+no break (short blocks suit shorter attention spans at that age); grades 4-8
+get a 60-minute block, a 10-minute break, then one more block, then the
+session concludes on its own — a hard 2-hour ceiling per sitting either way.
+You'll still see a countdown in the header during the last stretch before
+each transition. On top of this, you can optionally set a stricter total
+on-screen-time cap per student (with a longer mandatory eye-rest break) from
+the student's settings — the grade-based cap above is the floor everyone
+gets regardless.
 
 ## 6. Getting each child onto their own tablet
 
@@ -136,8 +158,10 @@ their voice check.
 
 ## 9. Checking in afterward
 
-- **Progress page** (from the Pod Dashboard): narration scores, concept coverage,
-  and — after 3+ sessions — Bede's synthesized sense of how that child learns best.
+- **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
+  Bede's sense of how that child learns best — available from the very first session
+  (an initial, tentative read that sharpens as more sessions accumulate), not just
+  after 3+.
 - Every session is saved as an encrypted transcript, viewable from the same place.
 - If a child's voice changes enough that verification starts failing (common after
   a cold, or over months of growth), re-run enrollment from the Pod Dashboard.

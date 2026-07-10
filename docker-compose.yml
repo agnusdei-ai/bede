@@ -144,6 +144,15 @@ services:
       # this combination (read_only + cap_drop: ALL + tmpfs) had never
       # actually been started before that run.
       - CHOWN
+      # After chowning its cache dirs, nginx's master (root) forks worker
+      # processes and drops them to the nginx user via setuid/setgid —
+      # without these, every worker crashes immediately ("setgid(101)
+      # failed: Operation not permitted") and nginx ends up with zero
+      # working workers, serving nothing, once it runs out of respawn
+      # attempts. Caught by the same first real boot as the CHOWN fix
+      # above, one capability at a time.
+      - SETUID
+      - SETGID
 
   # TLS termination — serves the entire pod over HTTPS (port 443)
   # Tablets and other LAN devices connect here. Run "make caddy-trust" once

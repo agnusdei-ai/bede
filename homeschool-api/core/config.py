@@ -88,6 +88,34 @@ class Settings(BaseSettings):
     # anyway; valid range is 0.5–2.0 (enforced by kokoro-onnx itself).
     kokoro_speed: float = 1.0
 
+    # ── Voice output — OpenAI TTS (preferred over Kokoro when configured) ────
+    # Kokoro's ~82M-parameter model has a real ceiling — it never sounds more
+    # than "decent small open model," no matter how KOKORO_VOICE/KOKORO_SPEED
+    # are tuned (confirmed against real listening feedback, not a guess).
+    # Setting OPENAI_API_KEY switches Bede's voice to OpenAI's TTS API, which
+    # is a full cloud model and sounds meaningfully more natural. Leave unset
+    # to keep the free, self-hosted Kokoro path (or no backend TTS at all —
+    # the browser's own speech always still works either way).
+    openai_api_key: str = ""
+    # gpt-4o-mini-tts (not the older tts-1/tts-1-hd) is the only OpenAI TTS
+    # model that accepts `instructions` below — that's what actually lets us
+    # steer character/delivery rather than just picking a fixed preset voice.
+    openai_tts_model: str = "gpt-4o-mini-tts"
+    # OpenAI's preset voices are fixed timbres, not custom-designed — "fable"
+    # is the one OpenAI itself describes as having a British storyteller
+    # quality, the closest preset starting point for Bede. Not independently
+    # verified against real audio; try "onyx" (deeper, American) too.
+    openai_tts_voice: str = "fable"
+    # gpt-4o-mini-tts-only: steers delivery style/character in plain English.
+    # This is the main lever for actually sounding like "a specific monk,"
+    # not just a voice — no equivalent exists for Kokoro or tts-1/tts-1-hd.
+    openai_tts_instructions: str = (
+        "Speak as Bede, an elderly Benedictine monk from Southern England. "
+        "Warm, unhurried, and deliberately thoughtful — the quiet, measured "
+        "cadence of someone used to contemplation and reading aloud, never "
+        "brisk or robotic. Gentle authority, softly spoken."
+    )
+
     # ── Post-session diagnostic email (optional) ─────────────────────────────
     # Lets a parent (or a demo visitor) get Bede's end-of-session notes
     # emailed to them via Resend. The address is used for exactly one send

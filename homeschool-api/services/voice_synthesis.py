@@ -1,25 +1,24 @@
 """
-Server-side text-to-speech for Bede's spoken voice, via a self-hosted Kokoro
-model (kokoro-onnx — ONNX Runtime, CPU-friendly, ~82M parameters, ~80MB
-quantized).
+Server-side text-to-speech for Bede's spoken voice.
 
-Replaces the earlier ElevenLabs cloud integration: no per-user API key, no
-per-request network call, no cloud dependency at all — Kokoro runs locally
-as part of this same process. The tradeoff is real-time latency without a
-GPU is genuinely uncertain on Raspberry Pi-class hardware; that's exactly
-what scripts/evaluate_bede_voice.py is for — run it once on the real
-deployment target to confirm it's fast enough and to pick KOKORO_VOICE,
-before relying on this in a live session.
+Two backends, tried in order:
 
-Ceiling: as a small CPU-friendly model, Kokoro will not sound as natural as
-a cloud voice product (OpenAI TTS, ElevenLabs, Google/Azure Neural) — those
-are far larger models trained on far more data. KOKORO_VOICE/KOKORO_SPEED
-(see core/config.py) tune the best result within that ceiling; they don't
-close the gap to cloud-quality voices.
+1. OpenAI TTS (services/voice_synthesis.py's _synthesize_openai) — used when
+   OPENAI_API_KEY is set. A full cloud model; meaningfully more natural than
+   Kokoro, and gpt-4o-mini-tts's `instructions` parameter lets us steer
+   delivery/character in plain English, which is the main lever for actually
+   sounding like a specific persona rather than a generic preset voice.
 
-Gracefully returns None whenever the model isn't loaded or the model files
-aren't present (see docs/VOICE_SETUP.md), so callers (routers/tutor.py) fall
-back to the browser's own speechSynthesis instead of erroring.
+2. Kokoro (kokoro-onnx — ONNX Runtime, CPU-friendly, ~82M parameters, ~80MB
+   quantized) — the free, fully self-hosted fallback when OPENAI_API_KEY
+   isn't set. No per-user API key, no cloud dependency at all. Its ceiling is
+   real, though: confirmed against actual listening feedback that no amount
+   of KOKORO_VOICE/KOKORO_SPEED tuning gets it past "decent small open
+   model" — see core/config.py's comments and docs/VOICE_SETUP.md.
+
+Both gracefully return None on any failure or when unconfigured, so callers
+(routers/tutor.py) fall back to the browser's own speechSynthesis instead of
+erroring — voice output never blocks a session either way.
 """
 import asyncio
 import logging
@@ -33,6 +32,7 @@ log = logging.getLogger(__name__)
 _MODEL_FILENAME = "kokoro-v1.0.onnx"
 _VOICES_FILENAME = "voices-v1.0.bin"
 _SAMPLE_RATE = 24000
+_OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 
 _kokoro = None
 _load_attempted = False
@@ -88,11 +88,46 @@ async def _get_model():
 
 
 def synthesis_configured() -> bool:
-    """Best-effort, non-blocking check for whether Kokoro is likely usable —
-    the authoritative check happens lazily in synthesize_speech(), since
-    actually loading the model requires the executor thread."""
+    """Best-effort, non-blocking check for whether some backend TTS is likely
+    usable — the authoritative check happens lazily in synthesize_speech()."""
+    if settings.openai_api_key:
+        return True
     model_path, voices_path = _model_paths()
     return model_path.exists() and voices_path.exists()
+
+
+async def _synthesize_openai(text: str) -> Optional[bytes]:
+    """OpenAI TTS — returns WAV bytes, or None on any failure (network,
+    auth, rate limit) so the caller falls through to Kokoro/browser speech
+    instead of breaking the session."""
+    import httpx
+
+    payload = {
+        "model": settings.openai_tts_model,
+        "voice": settings.openai_tts_voice,
+        "input": text,
+        "response_format": "wav",
+    }
+    # Only gpt-4o-mini-tts understands `instructions` — the older tts-1/
+    # tts-1-hd models reject unrecognized fields, so omit it for those.
+    if settings.openai_tts_instructions and "mini-tts" in settings.openai_tts_model:
+        payload["instructions"] = settings.openai_tts_instructions
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                _OPENAI_TTS_URL,
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            resp.raise_for_status()
+            return resp.content
+    except httpx.HTTPError:
+        log.exception("OpenAI TTS request failed — falling back to Kokoro/browser speech")
+        return None
 
 
 def _first_voice_name(voice_spec: str) -> str:
@@ -149,9 +184,19 @@ def _synthesize_sync(kokoro, text: str) -> bytes:
 async def synthesize_speech(text: str) -> Optional[bytes]:
     """
     Convert text to spoken audio (WAV bytes) using Bede's configured voice.
-    Returns None if the model isn't available or synthesis fails — never
-    raises, so a voice-output hiccup never breaks the tutoring session.
+    Tries OpenAI TTS first if configured (meaningfully more natural), then
+    Kokoro, then gives up. Returns None if nothing is available or every
+    attempt fails — never raises, so a voice-output hiccup never breaks the
+    tutoring session; the caller falls back to the browser's own speech.
     """
+    if settings.openai_api_key:
+        audio = await _synthesize_openai(text)
+        if audio is not None:
+            return audio
+        # Falls through to Kokoro/None below rather than returning — an
+        # OpenAI hiccup shouldn't lose voice output entirely if Kokoro's
+        # model files also happen to be present.
+
     kokoro = await _get_model()
     if kokoro is None:
         return None

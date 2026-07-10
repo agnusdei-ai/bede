@@ -114,10 +114,11 @@ async def get_demo_config(_: dict = Depends(require_auth)) -> SessionConfig:
 @router.post("/speak")
 async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     """
-    Synthesize Bede's spoken voice via the self-hosted Kokoro model (see
-    services/voice_synthesis.py). Returns 204 with no body when unconfigured
-    or on failure — the frontend falls back to the browser's own
-    speechSynthesis in that case, so a TTS hiccup never breaks the session.
+    Synthesize Bede's spoken voice — OpenAI TTS if configured, else the
+    self-hosted Kokoro model, else nothing (see services/voice_synthesis.py).
+    Returns 204 with no body when neither is configured or synthesis fails —
+    the frontend falls back to the browser's own speechSynthesis in that
+    case, so a TTS hiccup never breaks the session.
 
     Uses require_auth (not require_real_user) so the scoped demo role can
     reach this too — unlike catalog/pod/narration/transcripts/voice, this

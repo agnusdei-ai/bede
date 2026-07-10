@@ -1,22 +1,45 @@
 # Setting up Bede's spoken voice
 
-Bede's voice output is entirely optional and entirely self-hosted — there's no
-cloud API, no per-user key, and no cost. If you skip this setup, the tablet's
-browser speaks Bede's lines instead using its own built-in voice. Everything
-below just upgrades that to a dedicated, consistent voice running on your own
-server via [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a small
-(~82M-parameter, ~80MB quantized) open-source TTS model.
+Bede's voice output is entirely optional. If you don't configure anything
+below, the tablet's browser speaks Bede's lines using its own built-in voice.
+There are two backends you can add on top of that, tried in this order:
 
-**Honest ceiling:** Kokoro is a good *small* model, but it will not sound as
-natural as a cloud voice product (OpenAI's TTS API, ElevenLabs, Google/Azure
-Neural voices) — those are far larger models trained on far more data. The
-steps below (voice choice, speed, blending) get the best result *within*
-Kokoro's ceiling; they can't close the gap to cloud-quality voices. If you
-try everything here and it still sounds computerized, that's the tradeoff of
-"free and self-hosted" — the only way past it is switching to a paid cloud
-provider.
+1. **OpenAI TTS** (recommended) — a cloud API, small per-character cost,
+   meaningfully more natural than Kokoro. Confirmed against real listening
+   feedback that this is what it takes to get past "sounds computerized."
+2. **Kokoro** — free, fully self-hosted, no cloud dependency, no per-user
+   key. A good *small* (~82M-parameter) open model, but it has a real
+   ceiling: it will not sound as natural as OpenAI TTS, ElevenLabs, or
+   Google/Azure Neural voices, no matter how much KOKORO_VOICE/KOKORO_SPEED
+   are tuned. Worth using only if avoiding all cloud cost/dependency matters
+   more to you than voice quality.
 
-## 1. Download the model files
+## Option 1: OpenAI TTS (recommended)
+
+Get an API key from [platform.openai.com](https://platform.openai.com/), then
+set in `.env`:
+
+```bash
+OPENAI_API_KEY=sk-...
+OPENAI_TTS_MODEL=gpt-4o-mini-tts   # the only OpenAI TTS model with `instructions` support
+OPENAI_TTS_VOICE=fable             # OpenAI's own description: closest preset to a British storyteller tone
+OPENAI_TTS_INSTRUCTIONS=Speak as an elderly, warm, unhurried Southern English monk.
+```
+
+`gpt-4o-mini-tts`'s `instructions` field is what actually lets you steer
+character and delivery in plain English — that's the real lever for sounding
+like a specific persona rather than a generic preset voice, and it's the main
+reason to prefer `gpt-4o-mini-tts` over the older `tts-1`/`tts-1-hd` models
+(which accept a fixed voice only, no instructions). Restart (`make restart`)
+and test in a real session — there's no local script for this path since it's
+a live API call, not a local model to benchmark offline.
+
+If `OPENAI_API_KEY` is set, it's used for every voice request; Kokoro (below)
+is never even loaded. Leave it unset to use Kokoro or the browser instead.
+
+## Option 2: Kokoro (free, self-hosted fallback)
+
+### 1. Download the model files
 
 Get both files from the
 [kokoro-onnx releases page](https://github.com/thewh1teagle/kokoro-onnx/releases)
@@ -28,7 +51,7 @@ Get both files from the
 Place both in `homeschool-api/models/kokoro/` (or wherever you set
 `KOKORO_MODEL_DIR` in `.env`).
 
-## 2. Pick Bede's voice
+### 2. Pick Bede's voice
 
 Kokoro ships several dozen named voices across languages and genders. Bede's
 voice must stay warm, elderly, and male — never gender-ambiguous or female —
@@ -76,7 +99,7 @@ existing artifacts more noticeable instead. Try `0.92`–`1.08` if you want
 (the evaluation script generates all three by default), but don't assume
 slower is better without actually listening.
 
-## 3. Check real-time performance
+### 3. Check real-time performance
 
 Kokoro is CPU-friendly, but "friendly" isn't the same as "fast enough" on
 every host — that depends on your actual hardware. Watch the time between a

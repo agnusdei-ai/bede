@@ -32,6 +32,12 @@ services:
       - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      # Optional — takes priority over Kokoro below when set. Meaningfully
+      # more natural voice; see docs/VOICE_SETUP.md.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
+      - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-fable}
+      # Free, self-hosted fallback — only used when OPENAI_API_KEY is unset.
       - KOKORO_MODEL_DIR=${KOKORO_MODEL_DIR:-/app/models/kokoro}
       - KOKORO_VOICE=${KOKORO_VOICE:-bm_george}
       - KOKORO_SPEED=${KOKORO_SPEED:-1.0}

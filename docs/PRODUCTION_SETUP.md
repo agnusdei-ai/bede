@@ -38,15 +38,19 @@ tab when it says Bede is starting. It asks the exact same questions as the
 terminal wizard, just as text fields and clickable choices instead of typed
 answers, and produces the identical `.env`/Docker setup underneath.
 
-> **Status: built and unit-tested, not yet verified on a real machine.**
-> The wizard's own logic (form validation, `.env` generation for both
-> database choices, file permissions, re-run/backup behavior) has been
-> tested directly. What hasn't been verified is the actual `docker build`/
-> `docker run`/`docker compose up` sequence end-to-end on real hardware —
-> the environment this was built in has the Docker CLI but no daemon to
-> run against. If you try the browser wizard, please report back on
-> whether it worked smoothly (or where it didn't) — this note comes out
-> once that's confirmed on at least macOS and Windows.
+> **Status: proven end-to-end, on an ongoing basis.** A scheduled CI job
+> (`.github/workflows/production-regression.yml`, weekly plus on every
+> relevant change) builds the wizard image, submits the form exactly as a
+> parent would, confirms the generated `.env` and file permissions, then
+> boots the *entire* real stack from that `.env` — Caddy, nginx, FastAPI,
+> local Postgres — and confirms `https://.../api/health` actually answers
+> through the full TLS→proxy→API path, plus that `make db-backup`/
+> `make db-restore` round-trip cleanly. This is a real Docker daemon doing
+> a real `docker build`/`docker run`/`docker compose up`, not a dry run.
+> What CI can't cover: the double-click launchers themselves
+> (`setup-gui.command`/`setup-gui.bat`) run on a Linux runner under the
+> hood, so a literal double-click on macOS/Windows hasn't been observed —
+> if that differs for you, please report back.
 
 ## Choosing a database
 

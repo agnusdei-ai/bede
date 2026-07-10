@@ -45,9 +45,13 @@ confirm.
 *(Prefer a terminal? `make setup` or `bash setup.sh` asks the same
 questions as typed prompts instead — see `docs/PRODUCTION_SETUP.md`.)*
 
-> This browser-based setup is new and hasn't been confirmed working on
-> real hardware yet — if something doesn't work as described, the terminal
-> version above (`make setup`) is the well-tested fallback.
+> This browser-based setup is tested automatically on a regular schedule —
+> the form, the file it produces, and Bede actually starting and answering
+> requests from it are all checked end-to-end, not just by hand once. The
+> one thing that check can't see is the literal double-click on your own
+> macOS/Windows machine — if that ever behaves differently than described
+> here, `make setup` / `bash setup.sh` is the terminal equivalent as a
+> fallback.
 
 ## 4. Understanding the security model — read this before you hand anything to your child
 

@@ -5,7 +5,7 @@ import {
   type Subject, type StudentProfile, type ChatMessage, type GradeStage, type VisualAidData, type StreamChunk,
 } from './claude'
 import {
-  streamTutorChat as trialStreamTutorChat, login as trialLogin, getDemoConfig, trialAvailable,
+  streamTutorChat as trialStreamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
   type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
@@ -600,11 +600,12 @@ function OwnKeyFlow({ student, onReset }: { student: StudentProfile; onReset: ()
 // just walks away without using it.
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000
 
-function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
+function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey, onLogout }: {
   token: string
   expiresAt: number | null
   onExpired: (reason: 'expired' | 'inactive') => void
   onSwitchToOwnKey: () => void
+  onLogout: () => void
 }) {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
@@ -637,6 +638,11 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
       trialStreamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal),
     [token, config],
   )
+
+  const handleLogout = () => {
+    trialLogout(token) // fire-and-forget — invalidates server-side immediately
+    onLogout()
+  }
 
   if (error) {
     return (
@@ -677,6 +683,9 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
           )}
           <button onClick={onSwitchToOwnKey} title="Want to keep going? Longer sessions need your own API key" className="text-xs text-navy-500 hover:text-navy-700 underline">
             Keep going →
+          </button>
+          <button onClick={handleLogout} title="End this trial session immediately" className="text-xs text-gray-400 hover:text-gray-600 underline">
+            Log out
           </button>
         </>
       }
@@ -770,6 +779,7 @@ export default function App() {
           expiresAt={mode.expiresAt}
           onExpired={(reason) => setMode({ kind: 'trial-ended', reason })}
           onSwitchToOwnKey={() => setMode({ kind: 'own-key-setup' })}
+          onLogout={() => setMode({ kind: 'choice' })}
         />
       )
 

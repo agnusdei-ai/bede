@@ -69,6 +69,20 @@ export async function login(pin: string): Promise<{ token: string; expiresAt: nu
   return { token: data.access_token, expiresAt: decodeExpiry(data.access_token) }
 }
 
+/** Instantly invalidates the trial session server-side (see auth.py's
+ *  /auth/logout) rather than just discarding the token client-side, so a
+ *  leaked/copied token can't keep being used after the visitor logs out. */
+export async function logout(token: string): Promise<void> {
+  try {
+    await fetch(`${apiBase()}/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch {
+    // best-effort — the token expires on its own within 15 minutes regardless
+  }
+}
+
 export async function getDemoConfig(token: string): Promise<SessionConfig> {
   const res = await fetch(`${apiBase()}/tutor/demo-config`, {
     headers: { Authorization: `Bearer ${token}` },

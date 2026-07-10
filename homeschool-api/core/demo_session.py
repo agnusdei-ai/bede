@@ -27,3 +27,15 @@ def start_new_session(jti: str) -> None:
 def is_active(jti: str) -> bool:
     """True if this token's session id is still the current one."""
     return _active_jti is not None and _active_jti == jti
+
+
+def end_session(jti: str) -> None:
+    """
+    Called on explicit logout — clears the active session so this token (and
+    any copy of it) stops working immediately, rather than waiting out its
+    remaining 15-minute expiry. Only clears if it's still the current session,
+    so a stale logout can't accidentally clobber a newer login.
+    """
+    global _active_jti
+    if _active_jti == jti:
+        _active_jti = None

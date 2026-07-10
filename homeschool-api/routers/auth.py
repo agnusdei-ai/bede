@@ -7,7 +7,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
-from core.demo_session import start_new_session
+from core.demo_session import end_session, start_new_session
+from core.deps import require_auth
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
 from models.schemas import LoginRequest, TokenResponse
@@ -86,3 +87,20 @@ async def validate_token(
         raise HTTPException(status_code=401, detail="Session fingerprint mismatch — please log in again")
 
     return {"role": payload.get("role"), "valid": True}
+
+
+@router.post("/logout")
+async def logout(request: Request, auth: dict = Depends(require_auth)):
+    """
+    Explicit logout. For the demo role this immediately invalidates the
+    session's jti server-side, so the token stops working right away instead
+    of riding out its remaining expiry — a real "instant terminate," not just
+    the client forgetting the token. Parent/child tokens are stateless JWTs
+    with no server-side session to revoke, so this is a no-op for them beyond
+    the audit log entry; the client is responsible for discarding the token.
+    """
+    ctx = audit_from_request(request)
+    if auth.get("role") == "demo":
+        end_session(auth.get("jti", ""))
+    await log_event(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
+    return {"success": True}

@@ -102,6 +102,9 @@ function ChoiceScreen({ onChooseTrial, onChooseOwnKey }: { onChooseTrial: () => 
             >
               <Zap size={20} className="text-navy-600 flex-shrink-0 mt-0.5" />
               <div>
+                <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-navy-700 bg-navy-200/70 px-1.5 py-0.5 rounded mb-1">
+                  15-min shared trial
+                </span>
                 <div className="font-semibold text-navy-800 text-sm">Try it now — free, 15 minutes</div>
                 <div className="text-xs text-navy-600 mt-0.5">No key needed. One shared trial session, then it logs you out.</div>
               </div>
@@ -113,6 +116,9 @@ function ChoiceScreen({ onChooseTrial, onChooseOwnKey }: { onChooseTrial: () => 
           >
             <KeyRound size={20} className="text-gray-500 flex-shrink-0 mt-0.5" />
             <div>
+              <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded mb-1">
+                Unlimited · untimed
+              </span>
               <div className="font-semibold text-gray-800 text-sm">Use your own API key</div>
               <div className="text-xs text-gray-500 mt-0.5">No time limit. Free to get, and you pay Anthropic directly for what you use.</div>
             </div>

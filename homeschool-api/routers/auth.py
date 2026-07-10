@@ -1,11 +1,13 @@
 from datetime import timedelta
 import hmac
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
+from core.demo_session import start_new_session
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
 from models.schemas import LoginRequest, TokenResponse
@@ -39,8 +41,18 @@ async def login(req: LoginRequest, request: Request):
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown role")
 
+    token_data = {"sub": req.role, "role": req.role}
+    if req.role == "demo":
+        # The shared PIN is public by design — this makes each login unique in
+        # the sense that matters: only the most recent one stays usable, so at
+        # most one demo session can be active at a time regardless of how many
+        # people know the PIN. See core/demo_session.py.
+        jti = secrets.token_hex(16)
+        start_new_session(jti)
+        token_data["jti"] = jti
+
     token = create_access_token(
-        {"sub": req.role, "role": req.role},
+        token_data,
         fingerprint=fp,
         expires_delta=expires,
     )

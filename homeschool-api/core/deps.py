@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.audit import AuditEvent, audit_from_request, log_event
+from core.demo_session import is_active as demo_session_is_active
 from core.middleware import compute_fingerprint
 from core.security import decode_token, validate_fingerprint
 
@@ -46,6 +47,19 @@ async def require_auth(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session cannot be used from a different device — please log in again",
+        )
+
+    if payload.get("role") == "demo" and not demo_session_is_active(payload.get("jti", "")):
+        await log_event(
+            AuditEvent.TOKEN_INVALID,
+            role="demo",
+            success=False,
+            detail="superseded by a newer demo login",
+            **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This trial session was replaced by a newer login — only one demo session runs at a time",
         )
 
     return payload

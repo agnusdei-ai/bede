@@ -348,9 +348,10 @@ interface ChatScreenProps {
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
   ttsSource: { elevenLabsKey: string | null; elevenLabsVoiceId: string | null } | null // null = browser voice only
   header: React.ReactNode // right-hand header controls (differ between the two paths)
+  onActivity?: () => void // trial path uses this to drive its 5-minute inactivity timeout
 }
 
-function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header, onActivity }: ChatScreenProps) {
   const [subject, setSubject] = useState<Subject>(
     () => (persist ? (localStorage.getItem(SESSION_KEYS.subject) as Subject | null) : null) ?? subjects[0] ?? 'living_books',
   )
@@ -430,6 +431,7 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
   const send = () => {
     const msg = input.trim()
     if ((!msg && !pendingDrawing) || isStreaming) return
+    onActivity?.()
     stopSpeech()
     stopListening()
     setInput('')
@@ -440,7 +442,11 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
 
-  const toggleMic = () => (isListening ? stopListening() : startListening())
+  const toggleMic = () => {
+    onActivity?.()
+    if (isListening) stopListening()
+    else startListening()
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
@@ -500,7 +506,7 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
           )}
           <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { setInput(e.target.value); onActivity?.() }}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={isStreaming}
             placeholder={isListening ? 'Listening… speak now' : 'Type or tap the mic to speak…'}
@@ -515,7 +521,7 @@ function ChatScreen({ displayName, subjects, persist, runChat, ttsSource, header
 
       {showCanvas && (
         <HandwritingCanvas
-          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
+          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false); onActivity?.() }}
           onCancel={() => setShowCanvas(false)}
         />
       )}
@@ -590,15 +596,21 @@ function OwnKeyFlow({ student, onReset }: { student: StudentProfile; onReset: ()
 
 // ── Free-trial flow wrapper ───────────────────────────────────────────────────
 
+// Separate from the 15-minute absolute cap — logs out sooner if the visitor
+// just walks away without using it.
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000
+
 function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
   token: string
   expiresAt: number | null
-  onExpired: () => void
+  onExpired: (reason: 'expired' | 'inactive') => void
   onSwitchToOwnKey: () => void
 }) {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
   const [remainingSecs, setRemainingSecs] = useState<number | null>(null)
+  const lastActivityRef = useRef(Date.now())
+  const onActivity = useCallback(() => { lastActivityRef.current = Date.now() }, [])
 
   useEffect(() => {
     getDemoConfig(token).then(setConfig).catch((err) => setError(err instanceof Error ? err.message : 'Could not start the trial'))
@@ -606,10 +618,14 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
 
   useEffect(() => {
     const tick = () => {
+      if (Date.now() - lastActivityRef.current >= INACTIVITY_TIMEOUT_MS) {
+        onExpired('inactive')
+        return
+      }
       if (!expiresAt) return
       const secs = Math.max(0, Math.round((expiresAt - Date.now()) / 1000))
       setRemainingSecs(secs)
-      if (secs <= 0) onExpired()
+      if (secs <= 0) onExpired('expired')
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -650,6 +666,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
       persist={false}
       runChat={runChat}
       ttsSource={null}
+      onActivity={onActivity}
       header={
         <>
           {remainingSecs !== null && (
@@ -667,14 +684,22 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToOwnKey }: {
   )
 }
 
-function TrialEndedScreen({ onSwitchToOwnKey, onRetryTrial }: { onSwitchToOwnKey: () => void; onRetryTrial: () => void }) {
+function TrialEndedScreen({ reason, onSwitchToOwnKey, onRetryTrial }: {
+  reason: 'expired' | 'inactive'
+  onSwitchToOwnKey: () => void
+  onRetryTrial: () => void
+}) {
+  const headline = reason === 'inactive' ? "Logged out for inactivity" : "Your free trial ended"
+  const explanation = reason === 'inactive'
+    ? "The shared trial logs out after 5 minutes of no activity, to keep it free for others waiting to try it."
+    : "That's the 15-minute limit on the shared trial."
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
         <Clock size={32} className="text-navy-400 mx-auto mb-3" />
-        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">Your free trial ended</h1>
+        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{headline}</h1>
         <p className="text-sm text-gray-500 mb-6">
-          That's the 15-minute limit on the shared trial. Want to keep going? Get your own free
+          {explanation} Want to keep going? Get your own free
           Anthropic API key — it takes a minute, and beyond a small free credit, longer sessions
           are billed per token directly to you by Anthropic, not through this demo.
         </p>
@@ -695,7 +720,7 @@ type Mode =
   | { kind: 'choice' }
   | { kind: 'trial-pin' }
   | { kind: 'trial-chat'; token: string; expiresAt: number | null }
-  | { kind: 'trial-ended' }
+  | { kind: 'trial-ended'; reason: 'expired' | 'inactive' }
   | { kind: 'own-key-setup' }
   | { kind: 'own-key-pin'; student: StudentProfile }
   | { kind: 'own-key-chat'; student: StudentProfile }
@@ -743,7 +768,7 @@ export default function App() {
         <TrialFlow
           token={mode.token}
           expiresAt={mode.expiresAt}
-          onExpired={() => setMode({ kind: 'trial-ended' })}
+          onExpired={(reason) => setMode({ kind: 'trial-ended', reason })}
           onSwitchToOwnKey={() => setMode({ kind: 'own-key-setup' })}
         />
       )
@@ -751,6 +776,7 @@ export default function App() {
     case 'trial-ended':
       return (
         <TrialEndedScreen
+          reason={mode.reason}
           onSwitchToOwnKey={() => setMode({ kind: 'own-key-setup' })}
           onRetryTrial={() => setMode({ kind: 'trial-pin' })}
         />

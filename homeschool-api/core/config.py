@@ -12,39 +12,27 @@ class Settings(BaseSettings):
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 
-    # ── Voice output (Bede speaking) — self-hosted Kokoro TTS ────────────────
-    # No cloud dependency, no per-user API key — runs locally via kokoro-onnx
-    # (ONNX Runtime, CPU-friendly, ~80MB quantized model). If the model files
-    # aren't present at KOKORO_MODEL_DIR, the frontend falls back to the
-    # browser's built-in speechSynthesis (see useTextToSpeech.ts) — voice
-    # output never blocks a session either way.
-    #
-    # One-time setup: download kokoro-v1.0.onnx and voices-v1.0.bin from
-    # github.com/thewh1teagle/kokoro-onnx/releases into this directory, then
-    # run scripts/evaluate_bede_voice.py to compare candidate voices and
-    # confirm KOKORO_VOICE — see docs/VOICE_SETUP.md.
-    #
-    # Honest ceiling: Kokoro is an ~82M-parameter CPU-friendly model. It's a
-    # good small open model, but it will not sound as natural as a cloud
-    # voice product (OpenAI TTS, ElevenLabs, Google/Azure Neural) — those are
-    # far larger models trained on far more data. These settings are for
-    # getting the best result *within* that ceiling, not closing the gap to
-    # cloud-quality voices — that requires switching providers entirely.
+    # ── Voice output — self-hosted Kokoro TTS (undocumented internal fallback) ─
+    # Not part of the documented setup path (docs/VOICE_SETUP.md covers only
+    # OpenAI TTS below) — kept here purely as a code-level fallback for
+    # anyone building from source who wants zero cloud dependency for voice.
+    # Runs locally via kokoro-onnx (ONNX Runtime, CPU-friendly, ~80MB
+    # quantized model). If the model files aren't present at
+    # KOKORO_MODEL_DIR, the frontend falls back to the browser's built-in
+    # speechSynthesis (see useTextToSpeech.ts) — voice output never blocks a
+    # session either way.
     kokoro_model_dir: str = "./models/kokoro"
     # Must be a warm, elderly, MALE voice — Bede's persona and voice are both
     # historically male (the Venerable Bede), never gender-ambiguous or female.
-    # "bm_george" is a reasonable starting default (British Male) but is NOT
-    # independently verified against real audio — confirm it with
-    # scripts/evaluate_bede_voice.py before relying on it. Can also be a
-    # '+'-separated blend of two or more voices' style vectors, e.g.
-    # "bm_george+bm_lewis" (equal blend) or "bm_george:0.7+bm_lewis:0.3"
-    # (weighted) — sometimes smooths over a single voice's rough edges.
+    # "bm_george" is a reasonable starting default (British Male), not
+    # independently verified against real audio. Can also be a '+'-separated
+    # blend of two or more voices' style vectors, e.g. "bm_george+bm_lewis"
+    # (equal blend) or "bm_george:0.7+bm_lewis:0.3" (weighted).
     kokoro_voice: str = "bm_george"
     # Kokoro's native speed is 1.0 — pushing it slower or faster tends to
     # introduce artifacts (stretched phonemes, odd pacing) rather than sound
     # more natural, since it moves the model outside its training range.
-    # Tune by ear via scripts/evaluate_bede_voice.py if you want to try
-    # anyway; valid range is 0.5–2.0 (enforced by kokoro-onnx itself).
+    # Valid range is 0.5–2.0 (enforced by kokoro-onnx itself).
     kokoro_speed: float = 1.0
 
     # ── Voice output — OpenAI TTS (preferred over Kokoro when configured) ────

@@ -11,11 +11,11 @@ specific wording, subjects, or behavior may have moved on since.
   only shown if this deployment has a trial backend configured) or "Use your own API
   key." Know which one you're walking through before you start.
 - If demoing the own-key path, have your Anthropic API key ready. Voice output uses
-  the browser's own built-in speech there (no backend to run Kokoro on). The shared
-  trial path can use the real self-hosted Kokoro voice (see `docs/VOICE_SETUP.md` in
-  the main repo) if the trial backend has the model files set up, falling back to
-  the browser's voice automatically if not. There's now a link and step-by-step instructions for
-  getting a free key right on that screen if your audience needs one.
+  the browser's own built-in speech there. The shared trial path can use OpenAI TTS
+  (see `docs/VOICE_SETUP.md` in the main repo) if the trial backend has it
+  configured, falling back to the browser's voice automatically if not. There's now
+  a link and step-by-step instructions for getting a free key right on that screen
+  if your audience needs one.
 - Every grade K-8 now has real curated curriculum content (books, math scope,
   composer/artist/poet study) — pick whichever grade fits your audience.
 - Know your audience: a parent evaluating this for their own family will care about

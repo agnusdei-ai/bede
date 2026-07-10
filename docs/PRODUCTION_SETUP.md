@@ -119,7 +119,7 @@ HTTPS with no browser chrome.
 All from `.env` (gitignored — never commit). See `.env.example` for the
 full list, with comments: `ANTHROPIC_API_KEY`, `SECRET_KEY`,
 `MASTER_SECRET`, `PARENT_PASSWORD`, `CHILD_PIN`, `DATABASE_URL`,
-`CORS_ORIGINS`. Optional: `OPENAI_API_KEY`/Kokoro settings for voice (see
+`CORS_ORIGINS`. Optional: `OPENAI_API_KEY` for voice (see
 `docs/VOICE_SETUP.md`), `RESEND_API_KEY` for the post-session diagnostic
 email, `PARENT_EMAIL` for an urgent alert when Bede detects a child in
 distress or danger (reuses `RESEND_API_KEY`), `SANDBOX_PIN` to unlock a

@@ -266,6 +266,24 @@ export async function fetchStudentConfig(token: string, studentName: string): Pr
   return res.json()
 }
 
+/**
+ * Persists the child's own mute/unmute choice for Bede's spoken narration,
+ * so it's remembered next session — see SocraticChat.tsx's TTS toggle.
+ * Best-effort: a failed save shouldn't interrupt the session the child is
+ * already in, so callers should treat this as fire-and-forget.
+ */
+export async function updateVoiceNarrationPreference(
+  token: string,
+  studentName: string,
+  voiceNarrationEnabled: boolean
+): Promise<void> {
+  await fetch(`${BASE}/pod/configs/${encodeURIComponent(studentName)}/voice-narration`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ voice_narration_enabled: voiceNarrationEnabled }),
+  })
+}
+
 // ── Session summary ──────────────────────────────────────────────────────────
 
 export async function fetchSessionSummary(

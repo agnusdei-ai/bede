@@ -82,6 +82,16 @@ class SessionConfig(BaseModel):
     # enforced here so a weaker value can never be saved, even if the client
     # is bypassed.
     eye_rest_break_minutes: int = Field(default=30, ge=30, le=120)
+    # Remembers the child's own last choice for Bede's spoken narration (the
+    # mute/unmute button in SocraticChat.tsx) — distinct from voice_required
+    # above, which is about login voice-biometric verification, not TTS
+    # output. Updated via PATCH /pod/configs/{student_name}/voice-narration
+    # (routers/pod.py), reachable by the child themselves, not just the parent.
+    voice_narration_enabled: bool = True
+
+
+class VoiceNarrationPreferenceRequest(BaseModel):
+    voice_narration_enabled: bool
 
 
 class PodConfigsRequest(BaseModel):

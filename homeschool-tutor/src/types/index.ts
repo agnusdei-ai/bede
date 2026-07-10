@@ -31,6 +31,11 @@ export interface SessionConfig {
   // Length of the mandatory break once screen_time_limit_minutes is reached.
   // Floor of 30 is enforced in gradeTimer.ts regardless of what's stored here.
   eye_rest_break_minutes?: number
+  // Remembers the child's own last choice for Bede's spoken narration (the
+  // mute/unmute button in SocraticChat.tsx) — distinct from voice_required
+  // above, which is about login voice-biometric verification, not TTS
+  // output. Defaults true when absent (configs saved before this field existed).
+  voice_narration_enabled?: boolean
 }
 
 export interface ChatMessage {

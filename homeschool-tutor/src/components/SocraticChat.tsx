@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, Sparkles } from 'lucide-react'
-import { streamTutorChat } from '../services/api'
+import { streamTutorChat, updateVoiceNarrationPreference } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
@@ -30,10 +30,30 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     finalizeAssistantMessage,
     setStreaming,
     nextSubject,
+    setSessionConfig,
   } = useSessionStore()
 
   // ── Text-to-speech: Bede speaks its responses ────────────────────────────
-  const { speak, stop: stopSpeech, toggle: toggleTTS, isSpeaking, enabled: ttsEnabled, isSupported: ttsSupported } = useTextToSpeech(token)
+  const {
+    speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
+    enabled: ttsEnabled, isSupported: ttsSupported,
+  } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
+
+  // Wraps the local toggle to also persist the child's choice server-side,
+  // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
+  const toggleTTS = useCallback(() => {
+    const newValue = !ttsEnabled
+    toggleTTSLocal()
+    if (sessionConfig) {
+      setSessionConfig({ ...sessionConfig, voice_narration_enabled: newValue })
+      if (token) {
+        updateVoiceNarrationPreference(token, sessionConfig.student_name, newValue).catch(() => {
+          // Best-effort — a failed save shouldn't interrupt the session the
+          // child is already in; it just won't be remembered next time.
+        })
+      }
+    }
+  }, [ttsEnabled, toggleTTSLocal, sessionConfig, setSessionConfig, token])
 
   // ── Speech recognition: child speaks instead of typing ──────────────────
   // Native Web Speech API first, auto-falls back to recording + server-side

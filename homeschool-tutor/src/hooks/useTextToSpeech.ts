@@ -97,9 +97,9 @@ export function unlockSpeechForSession() {
   }
 }
 
-export function useTextToSpeech(token: string | null = null) {
+export function useTextToSpeech(token: string | null = null, initialEnabled: boolean = true) {
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const [enabled, setEnabled] = useState(true)
+  const [enabled, setEnabled] = useState(initialEnabled)
   const [isSupported] = useState(() => 'speechSynthesis' in window)
   const queueRef = useRef<string[]>([])
   const speakingRef = useRef(false)

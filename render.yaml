@@ -80,11 +80,13 @@ services:
         value: "4"
       - key: DEMO_GRADE_STAGE
         value: "3-5"
-      # Verify this matches your actual GitHub Pages URL (Settings -> Pages)
-      # before deploying — a project page is usually
-      # https://<org>.github.io/<repo>, not just https://<org>.github.io.
+      # A browser's CORS Origin header is always scheme://host[:port] with
+      # NO path — even though the demo itself is served from
+      # https://agnusdei-ai.github.io/bede/, the Origin it sends is just
+      # https://agnusdei-ai.github.io. Including the /bede path here would
+      # never match, silently CORS-blocking every request from the demo.
       - key: CORS_ORIGINS
-        value: https://agnusdei-ai.github.io/bede
+        value: https://agnusdei-ai.github.io
       - key: DISABLE_API_DOCS
         value: "true"
       - key: PRODUCTION

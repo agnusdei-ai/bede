@@ -36,10 +36,11 @@ just push to `main` and it redeploys itself.
      one active session at a time, not meant to be secret.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
-   to remember them) or a fixed non-secret value. Double-check
-   `CORS_ORIGINS` matches your actual GitHub Pages URL (**Settings → Pages**
-   on the repo) before deploying — a project page is usually
-   `https://<org>.github.io/<repo>`, not just `https://<org>.github.io`.
+   to remember them) or a fixed non-secret value, including `CORS_ORIGINS`
+   (already set to `https://agnusdei-ai.github.io` — a browser's CORS
+   `Origin` header is always just `scheme://host[:port]`, never a path, so
+   this is correct even though the demo itself lives at
+   `https://agnusdei-ai.github.io/bede/`).
 5. Click deploy. First build takes a few minutes (installing
    `openai-whisper`, `librosa`, etc.). Once it's up, copy the service URL
    Render gives you — looks like `https://bede-demo-api-XXXX.onrender.com`.

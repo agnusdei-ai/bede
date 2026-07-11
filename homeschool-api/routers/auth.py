@@ -34,6 +34,16 @@ def _looks_like_anthropic_key(value: str) -> bool:
     return v.startswith("sk-ant-") and 20 <= len(v) <= 200 and " " not in v
 
 
+def _looks_like_openai_key(value: str) -> bool:
+    """Same loose-format-only intent as _looks_like_anthropic_key, for a
+    visitor's own OpenAI key instead — real OpenAI keys start "sk-" (legacy
+    project keys are "sk-proj-", both match this prefix). Real validity is
+    confirmed the same way: an actual API call, handled gracefully by
+    _stream_tutor_events_openai's httpx.HTTPError handling."""
+    v = value.strip()
+    return v.startswith("sk-") and 20 <= len(v) <= 200 and " " not in v
+
+
 @router.post("/demo-code", response_model=DemoCodeResponse)
 async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     """
@@ -56,13 +66,14 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     allowlist is silently ignored (falls back to the operator's configured
     DEMO_GRADE) rather than trusted as text.
 
-    byok_anthropic_key, if supplied, unlocks an uncapped session using the
-    visitor's OWN Anthropic key instead of the operator's (see
-    core/demo_code_session.py's generate_code docstring for the full
-    ephemeral-handling contract) — format-checked here and rejected outright
-    if it doesn't look like a real key, since silently falling back to a
-    capped session would leave the visitor thinking they got what they asked
-    for when they didn't.
+    byok_anthropic_key / byok_openai_key, if supplied, unlocks an uncapped
+    session using the visitor's OWN Anthropic or OpenAI key instead of the
+    operator's (see core/demo_code_session.py's generate_code docstring for
+    the full ephemeral-handling contract) — format-checked here and rejected
+    outright if it doesn't look like a real key, since silently falling back
+    to a capped session would leave the visitor thinking they got what they
+    asked for when they didn't. A visitor sets at most one of the two —
+    the frontend only shows one BYOK field at a time.
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
@@ -70,14 +81,26 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
 
-    byok_key = req.byok_anthropic_key.strip() if req and req.byok_anthropic_key else None
-    if byok_key and not _looks_like_anthropic_key(byok_key):
+    byok_anthropic_key = req.byok_anthropic_key.strip() if req and req.byok_anthropic_key else None
+    if byok_anthropic_key and not _looks_like_anthropic_key(byok_anthropic_key):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="That doesn't look like a valid Anthropic API key (should start with sk-ant-)",
         )
 
-    code = generate_code(student_name=student_name, grade=grade, byok_anthropic_key=byok_key)
+    byok_openai_key = req.byok_openai_key.strip() if req and req.byok_openai_key else None
+    if byok_openai_key and not _looks_like_openai_key(byok_openai_key):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That doesn't look like a valid OpenAI API key (should start with sk-)",
+        )
+
+    code = generate_code(
+        student_name=student_name,
+        grade=grade,
+        byok_anthropic_key=byok_anthropic_key,
+        byok_openai_key=byok_openai_key,
+    )
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

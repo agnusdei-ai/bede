@@ -121,9 +121,9 @@ jobs:
           import anthropic.types as t
           print([n for n in dir(t) if 'Event' in n or 'Delta' in n])
           "
-          echo "--- does event_generator's exact tutor.py pattern double-wrap over real ASGI (not just body_iterator)? ---"
+          echo "--- FIXED pattern: plain json.dumps(), no manual data: framing ---"
           pip install --quiet uvicorn
-          cat > /tmp/testapp.py <<'PYEOF'
+          cat > /tmp/testapp2.py <<'PYEOF'
           import json
           from fastapi import FastAPI
           from sse_starlette.sse import EventSourceResponse
@@ -133,10 +133,29 @@ jobs:
           @app.post("/tutor/chat")
           async def chat():
               async def event_generator():
-                  yield f"data: {json.dumps({'type': 'text', 'content': 'Hello there'})}\n\n"
-                  yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                  yield json.dumps({'type': 'text', 'content': 'Hello there'})
+                  yield json.dumps({'type': 'done'})
               return EventSourceResponse(event_generator(), media_type="text/event-stream")
           PYEOF
-          (cd /tmp && python3 -m uvicorn testapp:app --port 8123 &)
+          (cd /tmp && python3 -m uvicorn testapp2:app --port 8124 > /tmp/uvicorn2.log 2>&1 &)
           sleep 3
-          curl -sS -D - -X POST http://127.0.0.1:8123/tutor/chat
+          curl -sS -D - -X POST http://127.0.0.1:8124/tutor/chat
+          echo "--- confirming event.type / event.delta.type against REAL installed anthropic wire-format types ---"
+          python3 -c "
+          from anthropic.types import RawContentBlockStartEvent, RawContentBlockDeltaEvent, RawContentBlockStopEvent
+
+          start = RawContentBlockStartEvent.model_validate({'type': 'content_block_start', 'index': 0, 'content_block': {'type': 'text', 'text': ''}})
+          print('start.type =', repr(start.type))
+
+          delta = RawContentBlockDeltaEvent.model_validate({'type': 'content_block_delta', 'index': 0, 'delta': {'type': 'text_delta', 'text': 'Hi'}})
+          print('delta.type =', repr(delta.type), 'delta.delta.type =', repr(delta.delta.type), 'delta.delta.text =', repr(delta.delta.text))
+
+          tool_start = RawContentBlockStartEvent.model_validate({'type': 'content_block_start', 'index': 0, 'content_block': {'type': 'tool_use', 'id': 'toolu_1', 'name': 'offer_socratic_hint', 'input': {}}})
+          print('tool_start.content_block.type =', repr(tool_start.content_block.type), 'id =', tool_start.content_block.id, 'name =', tool_start.content_block.name)
+
+          json_delta = RawContentBlockDeltaEvent.model_validate({'type': 'content_block_delta', 'index': 0, 'delta': {'type': 'input_json_delta', 'partial_json': '{\"a\":1}'}})
+          print('json_delta.delta.type =', repr(json_delta.delta.type), 'partial_json =', repr(json_delta.delta.partial_json))
+
+          stop = RawContentBlockStopEvent.model_validate({'type': 'content_block_stop', 'index': 0})
+          print('stop.type =', repr(stop.type))
+          "

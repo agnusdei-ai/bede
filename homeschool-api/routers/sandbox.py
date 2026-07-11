@@ -80,8 +80,8 @@ async def demo_chat(
                 detail=f"trigger:{req.message[:80]} (sandbox demo preview)",
                 **audit_from_request(request),
             )
-            yield f"data: {json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})}\n\n"
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})
+            yield json.dumps({'type': 'done'})
             return
 
         async for chunk in stream_sandbox_response(

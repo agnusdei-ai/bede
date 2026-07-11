@@ -342,6 +342,46 @@ export async function emailSessionSummary(
   }
 }
 
+// ── Beta feedback ──────────────────────────────────────────────────────────
+// Routes CX/UX/content-quality feedback to the operator's own inbox — never
+// persisted server-side beyond that one email. See
+// homeschool-api/routers/feedback.py.
+
+export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other'
+
+/** Checked before showing the feedback button at all, so it never appears
+ *  only to fail on submit on a deployment where FEEDBACK_EMAIL isn't set. */
+export async function isFeedbackEnabled(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/feedback/enabled`)
+    if (!res.ok) return false
+    const data = await res.json()
+    return Boolean(data.enabled)
+  } catch {
+    return false
+  }
+}
+
+export async function submitFeedback(
+  token: string,
+  category: FeedbackCategory,
+  message: string,
+  rating?: number,
+  contactEmail?: string,
+): Promise<void> {
+  const res = await fetch(`${BASE}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      category,
+      message,
+      rating: rating || undefined,
+      contact_email: contactEmail?.trim() || undefined,
+    }),
+  })
+  if (!res.ok) throw new Error('Could not send feedback right now — please try again later.')
+}
+
 // ── Narration assessments & learner profile ──────────────────────────────────
 
 export async function fetchNarrationAssessments(

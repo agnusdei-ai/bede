@@ -43,6 +43,7 @@ class AuditEvent:
     SUSPICIOUS_REQUEST       = "suspicious_request"
     SAFEGUARDING             = "safeguarding.alert"
     SUMMARY_EMAILED          = "summary.emailed"
+    FEEDBACK_SUBMITTED       = "feedback.submitted"
 
 
 # ── Write ────────────────────────────────────────────────────────────────────

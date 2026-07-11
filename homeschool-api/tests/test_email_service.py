@@ -9,11 +9,14 @@ import asyncio
 
 from services.email_service import (
     build_distress_alert_html,
+    build_feedback_email_html,
     build_summary_email_html,
     distress_alert_configured,
     email_configured,
+    feedback_configured,
     send_distress_alert,
     send_email,
+    send_feedback,
 )
 
 
@@ -84,4 +87,48 @@ def test_send_distress_alert_returns_false_when_parent_email_unset(monkeypatch):
     monkeypatch.setattr(settings, "resend_api_key", "re_test")
     monkeypatch.setattr(settings, "parent_email", "")
     result = asyncio.run(send_distress_alert("Emma", "2026-07-10T12:00:00+00:00", "trigger text"))
+    assert result is False
+
+
+def test_feedback_html_includes_category_role_and_rating():
+    html = build_feedback_email_html("ux", "The subject sidebar is hard to reach", "demo_code", rating=4)
+    assert "The subject sidebar is hard to reach" in html
+    assert "demo_code" in html
+    assert "★★★★☆" in html
+
+
+def test_feedback_html_omits_reply_to_when_no_contact_email():
+    html = build_feedback_email_html("cx", "Loved it", "parent")
+    assert "Reply-to" not in html
+
+
+def test_feedback_html_includes_reply_to_when_contact_email_given():
+    html = build_feedback_email_html("cx", "Loved it", "parent", contact_email="mom@example.com")
+    assert "mom@example.com" in html
+
+
+def test_feedback_html_escapes_malicious_message():
+    html = build_feedback_email_html("other", "<script>alert(1)</script>", "child")
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_feedback_configured_requires_both_resend_and_feedback_email(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    monkeypatch.setattr(settings, "feedback_email", "")
+    assert feedback_configured() is False
+
+    monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
+    assert feedback_configured() is True
+
+
+def test_send_feedback_returns_false_when_feedback_email_unset(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "feedback_email", "")
+    result = asyncio.run(send_feedback("cx", "message", "parent"))
     assert result is False

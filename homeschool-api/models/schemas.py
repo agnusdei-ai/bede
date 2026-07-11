@@ -231,6 +231,20 @@ class EmailSummaryRequest(BaseModel):
     duration_minutes: int
 
 
+class FeedbackRequest(BaseModel):
+    """
+    Beta feedback from any authenticated role (parent, child, or a public
+    demo visitor) routed to the operator's own inbox — see routers/feedback.py.
+    Nothing here is persisted server-side beyond the outbound email itself;
+    the audit log records only that feedback was submitted, never its content
+    or contact_email (same "never log the address" rule as email-summary).
+    """
+    category: Literal["cx", "ux", "content_quality", "other"]
+    message: str = Field(..., min_length=1, max_length=2000)
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    contact_email: Optional[EmailStr] = None
+
+
 class NarrationRecord(BaseModel):
     subject: Subject
     narration_text: str

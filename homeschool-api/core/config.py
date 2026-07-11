@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     # core/audit.py's AuditEvent.SAFEGUARDING).
     parent_email: str = ""
 
+    # ── Beta feedback (optional) ────────────────────────────────────────────────
+    # Where CX/UX/content-quality feedback submitted via POST /feedback (any
+    # authenticated role — parent, child, or a public demo visitor) is routed.
+    # This is the operator's own inbox, deliberately separate from PARENT_EMAIL
+    # above (a family's own address) — reuses the same Resend setup. Leave
+    # unset to disable the feature entirely (POST /feedback returns 404).
+    feedback_email: str = ""
+
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
     algorithm: str = "HS256"

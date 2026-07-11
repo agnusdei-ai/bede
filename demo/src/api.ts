@@ -293,6 +293,31 @@ function stripDataUrlPrefix(dataUrl: string): string {
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)
 }
 
+/**
+ * Pulls text out of a narration file the child already has — e.g. exported
+ * from a smart pen/notebook app like inq (https://inq.shop), whose own AI
+ * already transcribed their handwriting to a .txt/.pdf. There's no public
+ * inq API to integrate against, so this is the realistic integration
+ * surface: the family exports the file themselves and uploads it here. The
+ * returned text is meant to be dropped into the normal chat input for the
+ * child to review/edit before sending — see homeschool-api's
+ * services/document_extraction.py.
+ */
+export async function extractNarrationText(token: string, filename: string, contentBase64: string): Promise<string> {
+  const res = await fetch(`${apiBase()}/tutor/extract-narration`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename, content_base64: contentBase64 }),
+  })
+  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended.')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Could not read that file — try a .txt or .pdf export instead.')
+  }
+  const data = await res.json()
+  return data.text
+}
+
 export async function* streamTutorChat(
   token: string,
   config: SessionConfig,

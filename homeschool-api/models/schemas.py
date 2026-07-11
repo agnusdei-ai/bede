@@ -139,6 +139,14 @@ class TutorRequest(BaseModel):
     drawing_image: Optional[str] = Field(default=None, max_length=8_000_000)
 
 
+class NarrationUploadRequest(BaseModel):
+    """A narration file exported from a smart pen/notebook app (e.g. inq) —
+    see POST /tutor/extract-narration and services/document_extraction.py.
+    No file is stored; extraction happens in memory for one request only."""
+    filename: str = Field(..., min_length=1, max_length=200)
+    content_base64: str = Field(..., min_length=1, max_length=7_000_000)
+
+
 class SpeakRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
 

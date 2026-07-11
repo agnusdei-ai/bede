@@ -21,6 +21,7 @@ from models.schemas import (
     EmailSummaryRequest,
     grade_to_stage,
     GradeStage,
+    NarrationUploadRequest,
     SessionConfig,
     SessionSummaryRequest,
     Subject,
@@ -28,11 +29,13 @@ from models.schemas import (
     TutorRequest,
 )
 from services.ai_service import (
+    _sanitize_parent_field,
     check_safeguarding,
     generate_session_summary,
     SAFEGUARDING_RESPONSE,
     stream_tutor_response,
 )
+from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
 from services.voice_synthesis import synthesis_configured, synthesize_speech
 
@@ -159,6 +162,24 @@ async def get_demo_config(auth: dict = Depends(require_auth)) -> SessionConfig:
     (see _demo_session_config); nothing else is configurable.
     """
     return _demo_session_config(auth.get("code"))
+
+
+@router.post("/extract-narration")
+async def extract_narration(req: NarrationUploadRequest, auth: dict = Depends(require_auth)):
+    """
+    Pulls plain text out of a narration file the child already has — exported
+    from a smart pen/notebook app like inq (https://inq.shop), whose own AI
+    already transcribed their handwriting — so it can be reviewed and sent
+    into the normal chat turn exactly like anything typed or spoken, reusing
+    the whole existing pipeline (streaming, tool calls, assess_narration)
+    with no separate multimodal path. See services/document_extraction.py.
+    Available to parent, child, and the scoped demo role, same as /speak.
+    """
+    try:
+        text = extract_narration_text(req.filename, req.content_base64)
+    except UnsupportedNarrationFileError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return {"text": _sanitize_parent_field(text, max_len=2000) or ""}
 
 
 @router.post("/speak")

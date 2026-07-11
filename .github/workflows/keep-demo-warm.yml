@@ -66,3 +66,33 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -d "$BODY"
           echo "--- end response ---"
+
+          echo "--- checking /tutor/speak: is server-side TTS actually configured? ---"
+          SPEAK_CODE=$(curl -sS --max-time 30 -o /tmp/speak_response.bin -w '%{http_code}' \
+            -X POST "$BASE/tutor/speak" \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"text": "Testing Bede'"'"'s voice."}')
+          echo "HTTP status: $SPEAK_CODE"
+          echo "Response byte count: $(wc -c < /tmp/speak_response.bin)"
+          echo "First 16 bytes (hex, should be a WAV RIFF header if real audio came back):"
+          head -c 16 /tmp/speak_response.bin | xxd || true
+
+          echo "--- generating candidate voice samples for A/B comparison ---"
+          mkdir -p /tmp/voice-samples
+          LINE="Come now, let us look closer together. What do you notice first?"
+          for VOICE in fable onyx sage ballad ash echo; do
+            echo "Generating: $VOICE"
+            curl -sS --max-time 30 -o "/tmp/voice-samples/${VOICE}.wav" \
+              -X POST "$BASE/tutor/speak" \
+              -H 'Content-Type: application/json' \
+              -H "Authorization: Bearer $TOKEN" \
+              -d "$(jq -n --arg text "$LINE" --arg voice "$VOICE" '{text: $text, voice_override: $voice}')"
+            ls -la "/tmp/voice-samples/${VOICE}.wav"
+          done
+      - name: Upload voice samples as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bede-voice-samples
+          path: /tmp/voice-samples/*.wav
+          retention-days: 3

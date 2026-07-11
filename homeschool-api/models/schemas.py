@@ -111,6 +111,9 @@ class TutorRequest(BaseModel):
 
 class SpeakRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
+    # TEMPORARY — for A/B-sampling OpenAI TTS voice presets against the live
+    # deployment before picking a permanent default. Revert once decided.
+    voice_override: str | None = Field(None, max_length=32)
 
 
 class SandboxChatRequest(BaseModel):

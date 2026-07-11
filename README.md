@@ -21,3 +21,13 @@ voice biometrics authenticate children at session start.
 Production (self-hosted, your family's real data) and the public demo
 (stateless, cloud-hosted) are deliberately different setups with different
 security models — don't mix the two up.
+
+## License
+
+Copyright (c) 2026 Agnus Dei Technologies, LLC. All rights reserved.
+
+Bede is proprietary software, not open source. It's made available for
+self-hosted use by your own household or homeschool community — see
+[LICENSE](LICENSE) for the full terms. Resale, redistribution, and
+commercial use are not permitted without written permission from Agnus
+Dei Technologies, LLC.

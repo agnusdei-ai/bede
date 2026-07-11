@@ -200,8 +200,11 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     setIsSpeaking(true)
 
     const text = queueRef.current.shift()!
-    // Strip tool-result prefixes (📖, 🔍, ✨, 🌿) for natural speech
-    const cleanText = text.replace(/^[📖🔍✨🌿⚠️]\s*/, '').replace(/\*[^*]+\*/g, '')
+    // Strip tool-result prefixes (📖, 🔍, ✨, 🌿) for natural speech. No `^`
+    // anchor: callers now batch a whole turn's segments (main text + any
+    // tool cards) into one string before calling speak(), so a marker
+    // emoji can appear mid-string, not just at position 0.
+    const cleanText = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '')
 
     if (cleanText.trim() && !stoppedRef.current) {
       const spokeViaBackend = await speakViaBackend(cleanText)

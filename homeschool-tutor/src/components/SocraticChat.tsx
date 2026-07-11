@@ -78,16 +78,15 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     abortRef.current?.abort()
     abortRef.current = new AbortController()
 
-    // speak() already queues internally (see useTextToSpeech), so calls here
-    // play in the order they're made — but only if we make them in the right
-    // order. Tool cards used to be spoken the instant their chunk arrived,
-    // while the surrounding text was only ever spoken later, once the whole
-    // message finalized — so a tool card could finish playing before Bede's
-    // own opening text even started. Flushing pendingText before every tool
-    // card keeps speech in the same order the words appear on screen.
+    // Speak the whole turn as ONE synthesis call, not one call per chunk.
+    // Separate independently-synthesized clips (main text, then each tool
+    // card) stitched together with a network round-trip gap between them
+    // read as choppy and mechanical even when each clip's own voice quality
+    // is fine — a single continuous take sounds like one person talking.
+    const speechSegments: string[] = []
     let pendingText = ''
     const flush = () => {
-      if (pendingText.trim()) speak(pendingText)
+      if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
     }
     try {
@@ -107,7 +106,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           flush()
           addToolMessage(chunk.tool ?? 'tool', chunk.content)
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
-          speak(chunk.content)
+          speechSegments.push(chunk.content)
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
@@ -115,13 +114,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'subject_complete') {
           flush()
           addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
-          speak(chunk.content ?? '')
+          speechSegments.push(chunk.content ?? '')
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
         }
       }
       flush()
+      if (speechSegments.length) speak(speechSegments.join(' '))
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         addToolMessage('error', `⚠️ ${err.message}`)
@@ -177,11 +177,12 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     abortRef.current?.abort()
     abortRef.current = new AbortController()
 
-    // See sendOpener's comment — flush any accumulated text before speaking a
-    // tool card, so speech plays in the same order it appears on screen.
+    // See sendOpener's comment — the whole turn is spoken as one synthesis
+    // call, not one call per chunk.
+    const speechSegments: string[] = []
     let pendingText = ''
     const flush = () => {
-      if (pendingText.trim()) speak(pendingText)
+      if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
     }
     try {
@@ -203,8 +204,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           flush()
           addToolMessage(chunk.tool ?? 'tool', chunk.content)
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
-          // Speak tool responses too (narration prompts, hints, etc.)
-          speak(chunk.content)
+          speechSegments.push(chunk.content)
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
@@ -212,13 +212,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'subject_complete') {
           flush()
           addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
-          speak(chunk.content ?? '')
+          speechSegments.push(chunk.content ?? '')
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
           break
         }
       }
       flush()
+      if (speechSegments.length) speak(speechSegments.join(' '))
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         addToolMessage('error', `⚠️ ${err.message}`)

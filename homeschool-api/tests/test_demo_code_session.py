@@ -81,3 +81,17 @@ def test_claim_email_send_allows_first_then_blocks_second():
 
 def test_claim_email_send_rejects_unknown_code():
     assert demo_code_session.claim_email_send("000000") is False
+
+
+def test_get_personalization_round_trips_name_and_grade():
+    code = demo_code_session.generate_code(student_name="Ellie", grade="5")
+    assert demo_code_session.get_personalization(code) == ("Ellie", "5")
+
+
+def test_get_personalization_defaults_to_none_when_not_provided():
+    code = demo_code_session.generate_code()
+    assert demo_code_session.get_personalization(code) == (None, None)
+
+
+def test_get_personalization_unknown_code_returns_none_none():
+    assert demo_code_session.get_personalization("000000") == (None, None)

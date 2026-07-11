@@ -11,11 +11,13 @@ from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
+    get_personalization as get_demo_personalization,
     record_message as demo_code_record_message,
 )
 from core.deps import require_auth, require_parent
 from models.schemas import (
     EmailSummaryRequest,
+    grade_to_stage,
     GradeStage,
     SessionConfig,
     SessionSummaryRequest,
@@ -35,17 +37,24 @@ from services.voice_synthesis import synthesis_configured, synthesize_speech
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
 
-def _demo_session_config() -> SessionConfig:
+def _demo_session_config(code: str | None = None) -> SessionConfig:
     """
-    Fixed, server-defined session config for the public demo's demo_code
-    role — never built from client input. All subjects are included so a
-    demo visitor can browse the full curriculum breadth; nothing else about
-    it is configurable.
+    Server-defined session config for the public demo's demo_code role —
+    never built from live client input on /tutor/chat itself. The one
+    exception is student_name/grade, which a visitor can optionally set
+    once, up front, at POST /auth/demo-code (see routers/auth.py) —
+    sanitized and validated there, then looked up here by the code baked
+    into their JWT. Everything else (all subjects included, voice off)
+    stays fixed so a demo visitor can browse the full curriculum breadth
+    without configuring anything else.
     """
+    student_name, grade = (None, None)
+    if code:
+        student_name, grade = get_demo_personalization(code)
     return SessionConfig(
-        student_name=settings.demo_student_name,
-        grade=settings.demo_grade,
-        grade_stage=GradeStage(settings.demo_grade_stage),
+        student_name=student_name or settings.demo_student_name,
+        grade=grade or settings.demo_grade,
+        grade_stage=grade_to_stage(grade) if grade else GradeStage(settings.demo_grade_stage),
         subjects=list(Subject),
         voice_required=False,
     )
@@ -68,8 +77,9 @@ async def chat(
     is_demo_code = role == "demo_code"
     if is_demo_code:
         # Never trust client-supplied session_config for the demo role —
-        # only the subject choice (browsing the curriculum) is theirs to make.
-        req.session_config = _demo_session_config()
+        # only the subject choice (browsing the curriculum) and the
+        # name/grade they set once at /auth/demo-code are theirs to make.
+        req.session_config = _demo_session_config(auth.get("code"))
         db = None
 
     if is_demo_code:
@@ -124,13 +134,14 @@ async def chat(
 
 
 @router.get("/demo-config", response_model=SessionConfig)
-async def get_demo_config(_: dict = Depends(require_auth)) -> SessionConfig:
+async def get_demo_config(auth: dict = Depends(require_auth)) -> SessionConfig:
     """
-    Fixed, server-defined session config for the public demo — the demo
-    frontend fetches this after login instead of running its own setup
-    screen. Not configurable by the demo role itself.
+    Server-defined session config for the public demo — the demo frontend
+    fetches this after login instead of running its own setup screen.
+    Reflects the name/grade the visitor optionally set at /auth/demo-code
+    (see _demo_session_config); nothing else is configurable.
     """
-    return _demo_session_config()
+    return _demo_session_config(auth.get("code"))
 
 
 @router.post("/speak")

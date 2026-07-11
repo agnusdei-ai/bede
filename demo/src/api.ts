@@ -99,8 +99,22 @@ export function decodeExpiry(token: string): number | null {
  * via loginWithCode — the caller never needs to show a separate "enter your
  * code" screen.
  */
-export async function generateDemoCode(): Promise<string> {
-  const res = await fetch(`${apiBase()}/auth/demo-code`, { method: 'POST' })
+/** Grades a visitor can pick at login — mirrors the backend's VALID_GRADES
+ *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
+export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
+
+export async function generateDemoCode(studentName?: string, grade?: string): Promise<string> {
+  const hasBody = (studentName && studentName.trim()) || grade
+  const res = await fetch(`${apiBase()}/auth/demo-code`, {
+    method: 'POST',
+    ...(hasBody && {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_name: studentName?.trim() || undefined,
+        grade: grade || undefined,
+      }),
+    }),
+  })
   if (res.status === 404) throw new Error('The free demo is not enabled on this deployment.')
   if (res.status === 429) throw new Error('Too many demo sessions are active right now — please try again shortly.')
   if (!res.ok) throw new Error('Could not start a session right now — please try again.')

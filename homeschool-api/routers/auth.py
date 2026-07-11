@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 import hmac
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,15 +13,16 @@ from core.demo_code_session import end_session as end_code_session, generate_cod
 from core.deps import require_auth
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
-from models.schemas import DemoCodeResponse, LoginRequest, TokenResponse
+from models.schemas import DemoCodeRequest, DemoCodeResponse, LoginRequest, TokenResponse, VALID_GRADES
 from services import mfa_service
+from services.ai_service import _sanitize_parent_field
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 
 @router.post("/demo-code", response_model=DemoCodeResponse)
-async def create_demo_code():
+async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     """
     Mints a fresh, one-time 6-digit code with no credentials required — the
     sole way into the public demo. Gated on DEMO_PIN being set (the "is the
@@ -30,10 +32,23 @@ async def create_demo_code():
     it inherits the existing per-IP auth rate limit (core/middleware.py)
     automatically. Each code is independent, so unlike the shared-PIN trial
     this once had, concurrent visitors never collide with each other.
+
+    `req` is optional and both its fields are optional — an older client (or
+    one that doesn't want to personalize) can still POST with no body at all,
+    same as before. student_name is sanitized here (HTML/prompt-injection
+    stripping, same as a parent's lesson_focus/faith_emphasis notes) since
+    it's the one new piece of free text an anonymous visitor puts in front of
+    the model; grade is checked against VALID_GRADES rather than sanitized,
+    since anything outside that small allowlist is silently ignored (falls
+    back to the operator's configured DEMO_GRADE) rather than trusted as text.
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
-    code = generate_code()
+
+    student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
+    grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
+
+    code = generate_code(student_name=student_name, grade=grade)
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

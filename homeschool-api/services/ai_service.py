@@ -80,7 +80,15 @@ TUTOR_TOOLS = [
             "never corrected — accuracy comes with practice over the weeks, not correction today), "
             "and how math becomes showing their work. Use it as the natural next step after real "
             "dialogue has surfaced something worth capturing by hand — never as a substitute for "
-            "talking it through first, and never for a child still at the oral-only stage."
+            "talking it through first, and never for a child still at the oral-only stage.\n\n"
+            "Some families already keep a real paper notebook — a smart pen system like inq "
+            "transcribes handwriting to text automatically. If the chat has an upload button "
+            "for this (it does), a child at the written-narration stage may prefer writing in "
+            "their own notebook and uploading the transcript over the on-screen canvas. Feel "
+            "free to mention that option in your `prompt`, briefly and only occasionally — e.g. "
+            "the first time you invite written narration in a session, not every single time — "
+            "phrased as a free choice ('on-screen or in your own notebook, whichever you'd "
+            "rather'), never as a requirement, and never naming inq as the only option."
         ),
         "input_schema": {
             "type": "object",

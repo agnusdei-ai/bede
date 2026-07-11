@@ -29,6 +29,20 @@ def test_process_tool_use_formats_invite_handwriting():
     assert "Write or Draw" in result
 
 
+def test_invite_handwriting_tool_knows_about_the_notebook_upload_option():
+    """Regression for the inq (https://inq.shop) integration — a family
+    that already writes narration by hand with a smart pen should have Bede
+    mention that option occasionally, phrased as a free choice, not a
+    requirement or an every-time ad. See services/document_extraction.py
+    and the frontend's narration-upload button next to the drawing canvas."""
+    tool = next(t for t in TUTOR_TOOLS if t["name"] == "invite_handwriting")
+    description = tool["description"]
+    assert "upload" in description.lower()
+    assert "smart pen" in description.lower()
+    assert "occasionally" in description.lower() or "not every single time" in description.lower()
+    assert "never as a requirement" in description.lower()
+
+
 def test_foundations_stage_keeps_narration_oral_only():
     guidance = _STAGE_GUIDANCE[GradeStage.foundations]
     assert "oral only" in guidance

@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, Timer, Infinity } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, Timer, Infinity } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
-  isFeedbackEnabled, submitFeedback,
+  isFeedbackEnabled, submitFeedback, extractNarrationText,
   TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
   type FeedbackCategory,
@@ -241,6 +241,9 @@ interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
+  // Only used for POST /tutor/extract-narration (see handleNarrationFile
+  // below) — runChat already has its own token baked in via closure.
+  token: string
   speakToken?: string | null // lets voice output use the backend's TTS instead of just the browser's
   header: React.ReactNode
   onSessionInvalid?: () => void // route to the "session ended" screen instead of an inline error
@@ -250,7 +253,7 @@ interface ChatScreenProps {
   sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
 }
 
-function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, runChat, token, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
   const [subject, setSubject] = useState<Subject>(subjects[0] ?? 'living_books')
   const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>([])
   const [messages, setMessages] = useState<DisplayMessage[]>([])
@@ -259,6 +262,8 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
   const [showCanvas, setShowCanvas] = useState(false)
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [ttsEnabled, setTtsEnabled] = useState(true)
+  const [uploadingNarration, setUploadingNarration] = useState(false)
+  const narrationFileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
@@ -401,6 +406,37 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
     else startListening()
   }
 
+  // Lets a child bring narration written offline with a smart pen/notebook
+  // (e.g. inq — its own AI already transcribed the handwriting to a
+  // .txt/.pdf) straight into the chat input, same as anything typed or
+  // spoken — reads the file client-side, sends it to the backend for text
+  // extraction only (nothing is stored), then drops the result into the
+  // input box so the child can review or edit it before sending normally.
+  const handleNarrationFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''  // allow re-selecting the same file next time
+    if (!file) return
+    setUploadingNarration(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Could not read that file'))
+        reader.readAsDataURL(file)
+      })
+      const text = await extractNarrationText(token, file.name, dataUrl.slice(dataUrl.indexOf(',') + 1))
+      setInput((prev) => (prev.trim() ? prev + '\n' + text : text))
+    } catch (err) {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid?.()
+      } else {
+        setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${err instanceof Error ? err.message : 'Could not read that file'}` }])
+      }
+    } finally {
+      setUploadingNarration(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
       <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-2">
@@ -461,6 +497,21 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
         <div className="flex gap-2 items-end">
           <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
+          </button>
+          <input
+            ref={narrationFileInputRef}
+            type="file"
+            accept=".txt,.pdf"
+            onChange={handleNarrationFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => narrationFileInputRef.current?.click()}
+            disabled={isStreaming || uploadingNarration}
+            title="Upload narration from your notebook (e.g. inq)"
+            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
+          >
+            {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
           </button>
           <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-navy-100 text-navy-600' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
@@ -1023,6 +1074,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
         displayName={config.student_name}
         subjects={config.subjects}
         runChat={runChat}
+        token={token}
         speakToken={token}
         onSessionInvalid={onSessionEnded}
         sessionStateRef={sessionStateRef}

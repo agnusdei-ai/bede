@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, Sparkles } from 'lucide-react'
-import { streamTutorChat, updateVoiceNarrationPreference } from '../services/api'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
+import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
@@ -11,6 +11,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
+  const [uploadingNarration, setUploadingNarration] = useState(false)
+  const narrationFileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
@@ -250,6 +252,33 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     else startListening()
   }
 
+  // Lets a child bring narration written offline with a smart pen/notebook
+  // (e.g. inq — its own AI already transcribed the handwriting to a
+  // .txt/.pdf) straight into the chat input, same as anything typed or
+  // spoken — reads the file client-side, sends it to the backend for text
+  // extraction only (nothing is stored), then drops the result into the
+  // input box so the child can review or edit it before sending normally.
+  const handleNarrationFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''  // allow re-selecting the same file next time
+    if (!file || !token) return
+    setUploadingNarration(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Could not read that file'))
+        reader.readAsDataURL(file)
+      })
+      const text = await extractNarrationText(token, file.name, dataUrl.slice(dataUrl.indexOf(',') + 1))
+      setInput((prev) => (prev.trim() ? prev + '\n' + text : text))
+    } catch (err) {
+      addToolMessage('error', `⚠️ ${err instanceof Error ? err.message : 'Could not read that file'}`)
+    } finally {
+      setUploadingNarration(false)
+    }
+  }
+
   const fontClass = gradeStage === 'K-2' ? 'text-lg' : 'text-base'
 
   return (
@@ -306,6 +335,23 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             <PenLine size={18} />
+          </button>
+
+          {/* Upload narration from a smart pen/notebook (e.g. inq) */}
+          <input
+            ref={narrationFileInputRef}
+            type="file"
+            accept=".txt,.pdf"
+            onChange={handleNarrationFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => narrationFileInputRef.current?.click()}
+            disabled={isStreaming || breakActive || uploadingNarration}
+            title="Upload narration from your notebook (e.g. inq)"
+            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
+          >
+            {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
           </button>
 
           {/* TTS toggle */}

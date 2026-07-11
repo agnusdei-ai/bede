@@ -150,18 +150,22 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stoppedRef = useRef(false)
 
-  /** Tries the backend's cloud TTS. Returns true if it played, false to signal fallback. */
-  const speakViaBackend = useCallback(async (text: string): Promise<boolean> => {
-    if (!token) return false
+  /** Tries the backend's cloud TTS. `spoke` is whether it actually played;
+   *  `configured` (from the X-TTS-Configured header) is whether SOME
+   *  backend TTS is set up at all — see processQueue() below for why the
+   *  caller needs both, not just whether this one call succeeded. */
+  const speakViaBackend = useCallback(async (text: string): Promise<{ spoke: boolean; configured: boolean }> => {
+    if (!token) return { spoke: false, configured: false }
     try {
       const res = await fetch('/api/tutor/speak', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text }),
       })
-      if (res.status !== 200) return false // 204 = not configured server-side
+      const configured = res.headers.get('X-TTS-Configured') === 'True'
+      if (res.status !== 200) return { spoke: false, configured } // 204 = synthesis unavailable
       const blob = await res.blob()
-      if (stoppedRef.current) return true // stop() fired while we were fetching
+      if (stoppedRef.current) return { spoke: true, configured } // stop() fired while we were fetching
       const url = URL.createObjectURL(blob)
       await new Promise<void>((resolve) => {
         const audio = new Audio(url)
@@ -172,9 +176,9 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       })
       URL.revokeObjectURL(url)
       audioRef.current = null
-      return true
+      return { spoke: true, configured }
     } catch {
-      return false
+      return { spoke: false, configured: false }
     }
   }, [token])
 
@@ -207,8 +211,12 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     const cleanText = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '')
 
     if (cleanText.trim() && !stoppedRef.current) {
-      const spokeViaBackend = await speakViaBackend(cleanText)
-      if (!spokeViaBackend && !stoppedRef.current) await speakViaBrowser(cleanText)
+      const { spoke, configured } = await speakViaBackend(cleanText)
+      // Only the browser's own voice is a reasonable fallback when NOTHING
+      // is configured server-side — a configured backend that failed this
+      // one call stays silent rather than jarringly switching to a
+      // different, lower-quality voice mid-conversation.
+      if (!spoke && !configured && !stoppedRef.current) await speakViaBrowser(cleanText)
     }
 
     speakingRef.current = false

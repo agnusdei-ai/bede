@@ -148,9 +148,19 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     ephemeral speak-this-line trade the demo already makes for /chat.
     """
     audio = await synthesize_speech(req.text)
+    # TEMPORARY diagnostic headers — confirm what the live deployment is
+    # actually resolving these settings to (Render dashboard overrides can
+    # silently diverge from render.yaml's committed values). Remove once
+    # diagnosed.
+    debug_headers = {
+        "X-Debug-TTS-Model": settings.openai_tts_model,
+        "X-Debug-TTS-Voice": settings.openai_tts_voice,
+        "X-Debug-TTS-Has-Key": str(bool(settings.openai_api_key)),
+        "X-Debug-TTS-Has-Instructions": str(bool(settings.openai_tts_instructions)),
+    }
     if audio is None:
-        return Response(status_code=204)
-    return Response(content=audio, media_type="audio/wav")
+        return Response(status_code=204, headers=debug_headers)
+    return Response(content=audio, media_type="audio/wav", headers=debug_headers)
 
 
 @router.post("/summary")

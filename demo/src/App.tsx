@@ -188,6 +188,19 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
 
 // ── Shared chat screen ────────────────────────────────────────────────────────
 
+// A silent sentinel (never shown as a user bubble), matching '[START]''s
+// existing pattern — see ai_service.py's Sacred Rule 9 for [START] and the
+// matching rule for this one. Sent automatically when the child goes quiet
+// after Bede's turn ends, so a demo session never just sits frozen waiting:
+// Bede offers a fresh angle, an easier rephrasing, or a natural pivot,
+// exactly as a patient human tutor would after a pause, never mentioning
+// the silence itself. Capped at MAX_CONSECUTIVE_AUTO_CONTINUES in a row so
+// this can't loop forever talking to itself if a visitor has actually
+// walked away — it resets the moment the child sends a real message.
+const IDLE_CONTINUE_SENTINEL = '[CONTINUE]'
+const IDLE_CONTINUE_MS = 20_000
+const MAX_CONSECUTIVE_AUTO_CONTINUES = 2
+
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
@@ -214,12 +227,15 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
   const openerFired = useRef<Set<Subject>>(new Set())
+  const inputRef = useRef(input)  // mirrors `input` for the idle-continue timer's closure below
+  const consecutiveAutoContinues = useRef(0)
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
   const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
     useSpeechRecognition((transcript) => setInput((prev) => (prev ? prev + ' ' + transcript : transcript)))
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => { inputRef.current = input }, [input])
 
   // Keep the caller's ref current so it can read a snapshot at "finish demo"
   // time, without lifting message state itself out of this component.
@@ -306,9 +322,29 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
   useEffect(() => {
     if (openerFired.current.has(subject)) return
     openerFired.current.add(subject)
+    consecutiveAutoContinues.current = 0  // fresh subject, fresh idle-continue budget
     runStream('[START]', null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject])
+
+  // Idle re-engagement — a demo session should never just sit frozen once
+  // Bede's turn ends. Waits IDLE_CONTINUE_MS after a turn genuinely finishes
+  // (streaming done AND any spoken audio has finished — never talk over
+  // Bede's own voice) and, if the child still hasn't responded, sends the
+  // silent [CONTINUE] sentinel. Checks inputRef/showCanvas at fire time
+  // (not as effect dependencies) so a child mid-typing or mid-drawing is
+  // never interrupted — those are exactly the moments this must stay quiet.
+  useEffect(() => {
+    if (isStreaming || isSpeaking) return
+    if (consecutiveAutoContinues.current >= MAX_CONSECUTIVE_AUTO_CONTINUES) return
+    const id = setTimeout(() => {
+      if (inputRef.current.trim() || showCanvas) return  // actively composing or drawing — leave them be
+      consecutiveAutoContinues.current += 1
+      runStream(IDLE_CONTINUE_SENTINEL, null)
+    }, IDLE_CONTINUE_MS)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming, isSpeaking, showCanvas, messages])
 
   const send = () => {
     const msg = input.trim()
@@ -316,6 +352,7 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
     stopSpeech()
     stopListening()
     setInput('')
+    consecutiveAutoContinues.current = 0  // a real response — the idle-continue cap starts fresh
     const fullMsg = pendingDrawing ? msg + (msg ? ' ' : '') + '[✏️ Drawing]' : msg
     const drawing = pendingDrawing
     setPendingDrawing(null)

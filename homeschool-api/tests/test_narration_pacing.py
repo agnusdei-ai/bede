@@ -70,3 +70,18 @@ def test_conversation_never_stalls_on_a_questionless_tool_card():
     assert "even when you also use a tool" in prompt
     assert "celebrate_discovery" in prompt and "has no question field" in prompt
     assert "Never let one of these be the very last thing in a turn" in prompt
+
+
+def test_static_prompt_teaches_the_idle_continue_sentinel():
+    """Regression for a real transcript: Bede's own turn always ends with a
+    question now (see the test above), but if the CHILD goes quiet after
+    that, nothing was previously teaching Bede how to pick the thread back
+    up — the demo frontend now sends a silent "[CONTINUE]" sentinel after
+    an idle period (see demo/src/App.tsx), and this rule is what makes
+    Bede respond to it usefully instead of literally discussing the token."""
+    prompt = _build_static_prompt(
+        SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
+    )
+    assert '"[CONTINUE]"' in prompt
+    assert "never mention the pause" in prompt
+    assert "never repeat your last question verbatim" in prompt

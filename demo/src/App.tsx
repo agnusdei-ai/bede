@@ -41,10 +41,10 @@ function ChoiceScreen({ onChooseTrial, onChooseCode }: { onChooseTrial: () => vo
               <Zap size={20} className="text-navy-600 flex-shrink-0 mt-0.5" />
               <div>
                 <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-navy-700 bg-navy-200/70 px-1.5 py-0.5 rounded mb-1">
-                  15-min shared trial
+                  15-min shared trial · 50 messages
                 </span>
                 <div className="font-semibold text-navy-800 text-sm">Try it now — free, 15 minutes</div>
-                <div className="text-xs text-navy-600 mt-0.5">No code needed. One shared trial session, then it logs you out.</div>
+                <div className="text-xs text-navy-600 mt-0.5">No code needed. Ends at 15 minutes or 50 messages, whichever's first.</div>
               </div>
             </button>
             <button
@@ -107,7 +107,7 @@ function TrialPinScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, ex
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>One shared session, 15 minutes, then you're logged out automatically. Nothing you type here is saved after that.</p>
+          <p>One shared session — 15 minutes or 50 messages, whichever comes first, then you're logged out automatically. Nothing you type here is saved after that.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -478,6 +478,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToCode, onLogout, onOp
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
   const [remainingSecs, setRemainingSecs] = useState<number | null>(null)
+  const [remainingMessages, setRemainingMessages] = useState<number | null>(null)
   const [finished, setFinished] = useState(false)
   const lastActivityRef = useRef(Date.now())
   const onActivity = useCallback(() => { lastActivityRef.current = Date.now() }, [])
@@ -504,9 +505,17 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToCode, onLogout, onOp
     return () => clearInterval(id)
   }, [expiresAt, onExpired])
 
+  // Ends at 15 minutes OR this message cap, whichever comes first — the
+  // clock above handles the first half; this effect handles the second,
+  // firing the instant the backend reports the cap was hit (see
+  // core/demo_session.py's record_message).
+  useEffect(() => {
+    if (remainingMessages === 0) onExpired('expired')
+  }, [remainingMessages, onExpired])
+
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal),
+      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, setRemainingMessages),
     [token, config],
   )
 
@@ -548,6 +557,7 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToCode, onLogout, onOp
   }
 
   const lowTime = remainingSecs !== null && remainingSecs <= 60
+  const lowMessages = remainingMessages !== null && remainingMessages <= 5
 
   return (
     <ChatScreen
@@ -564,6 +574,11 @@ function TrialFlow({ token, expiresAt, onExpired, onSwitchToCode, onLogout, onOp
             <div className={`flex items-center gap-1 text-xs font-mono tabular-nums ${lowTime ? 'text-red-500' : 'text-gray-400'}`}>
               <Clock size={12} />
               {String(Math.floor(remainingSecs / 60)).padStart(1, '0')}:{String(remainingSecs % 60).padStart(2, '0')}
+            </div>
+          )}
+          {remainingMessages !== null && (
+            <div className={`text-xs font-mono tabular-nums ${lowMessages ? 'text-red-500' : 'text-gray-400'}`}>
+              {remainingMessages} msgs left
             </div>
           )}
           <button
@@ -844,12 +859,12 @@ function TrialSandboxScreen({ token, onBack, onSessionInvalid }: {
 
 // ── Self-service code flow wrapper ────────────────────────────────────────────
 //
-// Structurally parallel to TrialFlow, but capped by message count (see
-// core/demo_code_session.py) instead of a wall-clock timer/single-active-
-// session lock — each code is already unique to whoever generated it, so
-// that lock doesn't apply here. streamTutorChat's onQuotaHeader callback
-// reads the remaining-messages count off each response's
-// X-Demo-Code-Remaining header to drive the counter in the header below.
+// Structurally parallel to TrialFlow, but capped by message count only (see
+// core/demo_code_session.py) — no wall-clock timer or single-active-session
+// lock, since each code is already unique to whoever generated it, unlike
+// the shared trial's PIN. streamTutorChat's onQuotaHeader callback reads the
+// remaining-messages count off each response's X-Demo-Remaining header to
+// drive the counter in the header below.
 function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   token: string
   code: string
@@ -959,7 +974,7 @@ function TrialEndedScreen({ reason, onSwitchToCode, onRetryTrial }: {
   const headline = reason === 'inactive' ? "Logged out for inactivity" : "Your free trial ended"
   const explanation = reason === 'inactive'
     ? "The shared trial logs out after 5 minutes of no activity, to keep it free for others waiting to try it."
-    : "That's the 15-minute limit on the shared trial."
+    : "That's the shared trial's limit — 15 minutes or 50 messages, whichever came first."
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">

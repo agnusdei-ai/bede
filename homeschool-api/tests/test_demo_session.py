@@ -16,6 +16,7 @@ def setup_function():
     clean slate rather than depending on ordering."""
     demo_session._active_jti = None
     demo_session._last_activity = None
+    demo_session._message_count = 0
     demo_session._email_sent_jti = None
 
 
@@ -70,3 +71,55 @@ def test_claim_email_send_rejects_stale_jti():
 def test_claim_email_send_rejects_never_active_jti():
     demo_session.start_new_session("jti-A")
     assert demo_session.claim_email_send("some-other-jti") is False
+
+
+def test_record_message_allows_up_to_the_cap_then_blocks():
+    demo_session.start_new_session("jti-A")
+    demo_session._MAX_MESSAGES_PER_SESSION = 2
+    try:
+        assert demo_session.record_message("jti-A") is True
+        assert demo_session.record_message("jti-A") is True
+        assert demo_session.record_message("jti-A") is False
+    finally:
+        demo_session._MAX_MESSAGES_PER_SESSION = 50
+
+
+def test_record_message_denied_does_not_consume_quota():
+    demo_session.start_new_session("jti-A")
+    demo_session._MAX_MESSAGES_PER_SESSION = 1
+    try:
+        assert demo_session.record_message("jti-A") is True
+        assert demo_session.record_message("jti-A") is False
+        assert demo_session.record_message("jti-A") is False  # still denied, not further decremented
+    finally:
+        demo_session._MAX_MESSAGES_PER_SESSION = 50
+
+
+def test_record_message_rejects_stale_jti():
+    demo_session.start_new_session("jti-A")
+    demo_session.start_new_session("jti-B")  # supersedes jti-A
+    assert demo_session.record_message("jti-A") is False
+
+
+def test_message_count_resets_on_new_login():
+    demo_session.start_new_session("jti-A")
+    demo_session.record_message("jti-A")
+    demo_session.start_new_session("jti-B")
+    assert demo_session.remaining_messages("jti-B") == demo_session._MAX_MESSAGES_PER_SESSION
+
+
+def test_remaining_messages_counts_down():
+    demo_session.start_new_session("jti-A")
+    demo_session._MAX_MESSAGES_PER_SESSION = 3
+    try:
+        assert demo_session.remaining_messages("jti-A") == 3
+        demo_session.record_message("jti-A")
+        assert demo_session.remaining_messages("jti-A") == 2
+    finally:
+        demo_session._MAX_MESSAGES_PER_SESSION = 50
+
+
+def test_remaining_messages_rejects_stale_jti():
+    demo_session.start_new_session("jti-A")
+    demo_session.start_new_session("jti-B")
+    assert demo_session.remaining_messages("jti-A") == 0

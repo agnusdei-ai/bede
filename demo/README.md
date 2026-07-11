@@ -6,12 +6,12 @@ Anthropic key stays server-side in both cases, never pasted into the browser:
 
 - **"Try it now — free, 15 minutes"** — a shared trial session against a real
   `homeschool-api` backend, gated by a shared `DEMO_PIN`. One active session
-  at a time regardless of how many people know the PIN; logs out after 15
-  minutes or 5 minutes of inactivity, whichever comes first.
+  at a time regardless of how many people know the PIN; ends at 15 minutes,
+  50 messages, or 5 minutes of inactivity — whichever comes first.
 - **"Get your own code"** — one click mints a fresh, one-time 6-digit code
   (`POST /auth/demo-code`) and logs the visitor in immediately with it — no
-  PIN to remember, no key to paste. Capped at 50 messages per code instead of
-  a wall-clock limit; generating a new code starts a fresh allotment.
+  PIN to remember, no key to paste. Capped at 50 messages per code, no wall-
+  clock limit; generating a new code starts a fresh allotment.
 
 Both require `VITE_DEMO_API_BASE` set at build time to a publicly-reachable
 `homeschool-api` deployment with `DEMO_PIN` configured (see the root

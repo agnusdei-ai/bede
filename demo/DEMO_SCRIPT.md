@@ -8,9 +8,10 @@ specific wording, subjects, or behavior may have moved on since.
 ## Before you start
 
 - The landing screen offers two paths, both backend-mediated (no key ever pasted into
-  the browser): a free 15-minute shared trial (shared PIN), or "Get your own code" —
-  one click mints a one-time 6-digit code good for 50 messages. Know which one you're
-  walking through before you start.
+  the browser): a free shared trial (shared PIN, ends at 15 minutes or 50 messages,
+  whichever's first), or "Get your own code" — one click mints a one-time 6-digit
+  code good for 50 messages, no time limit. Know which one you're walking through
+  before you start.
 - Voice output can use OpenAI TTS (see `docs/VOICE_SETUP.md` in the main repo) if the
   backend has it configured, falling back to the browser's own voice automatically if
   not — same for both tiers.

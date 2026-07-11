@@ -27,9 +27,14 @@ allowed to keep using the shared trial," not any real user data.
 import time
 
 _INACTIVITY_TIMEOUT_SECONDS = 5 * 60
+# Same cap as the self-service code tier (core/demo_code_session.py) — the
+# trial ends at 15 minutes OR this many messages, whichever comes first, so
+# a rapid-fire visitor can't run up cost just by staying under the clock.
+_MAX_MESSAGES_PER_SESSION = 50
 
 _active_jti: str | None = None
 _last_activity: float | None = None
+_message_count = 0
 # jti of the demo session that has already sent its one allowed diagnostic
 # email, if any — a shared public trial shouldn't let a single login send
 # unlimited emails through the operator's Resend account.
@@ -38,9 +43,10 @@ _email_sent_jti: str | None = None
 
 def start_new_session(jti: str) -> None:
     """Called on every successful demo login — supersedes any prior session."""
-    global _active_jti, _last_activity, _email_sent_jti
+    global _active_jti, _last_activity, _message_count, _email_sent_jti
     _active_jti = jti
     _last_activity = time.time()
+    _message_count = 0
     _email_sent_jti = None
 
 
@@ -77,6 +83,25 @@ def end_session(jti: str) -> None:
         _active_jti = None
         _last_activity = None
         _email_sent_jti = None
+
+
+def record_message(jti: str) -> bool:
+    """Call once per actual chat message sent. Returns False (and does not
+    increment) once the session's message cap is reached OR jti is no longer
+    the active session, so a denied/stale request never consumes quota."""
+    global _message_count
+    if _active_jti != jti:
+        return False
+    if _message_count >= _MAX_MESSAGES_PER_SESSION:
+        return False
+    _message_count += 1
+    return True
+
+
+def remaining_messages(jti: str) -> int:
+    if _active_jti != jti:
+        return 0
+    return max(0, _MAX_MESSAGES_PER_SESSION - _message_count)
 
 
 def claim_email_send(jti: str) -> bool:

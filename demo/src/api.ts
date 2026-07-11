@@ -232,8 +232,9 @@ export async function* streamTutorChat(
   drawingImageDataUrl: string | null,
   signal?: AbortSignal,
   // Called once per request with the remaining-messages count from the
-  // X-Demo-Code-Remaining response header — only set for the self-service
-  // code tier (null for the shared-PIN trial, which has no message cap).
+  // X-Demo-Remaining response header — set for both demo tiers, since both
+  // now end at "time or messages, whichever comes first" (see
+  // core/demo_session.py / core/demo_code_session.py).
   onQuotaHeader?: (remaining: number | null) => void
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${apiBase()}/tutor/chat`, {
@@ -256,7 +257,7 @@ export async function* streamTutorChat(
   if (!res.ok) throw new Error('Tutor request failed — check your connection')
 
   if (onQuotaHeader) {
-    const h = res.headers.get('X-Demo-Code-Remaining')
+    const h = res.headers.get('X-Demo-Remaining')
     onQuotaHeader(h !== null ? parseInt(h, 10) : null)
   }
 

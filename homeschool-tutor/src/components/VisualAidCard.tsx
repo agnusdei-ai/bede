@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react'
-import { ImageOff, MapPin, Palette } from 'lucide-react'
+import { ImageOff, MapPin, Palette, EyeOff } from 'lucide-react'
 import type { VisualAidData } from '../types'
+
+// Charlotte Mason's picture-study method is specifically: look closely for a
+// while, then the picture is put away, then the child narrates what they
+// remember — WITHOUT looking again. A card that just stays on screen forever
+// defeats the entire exercise, and aid.description below is itself a
+// "notice X" priming hint (see homeschool-api/data/visual_aids.json) meant
+// for the looking phase — left visible during narration, it hands the child
+// the answer instead of testing memory. This only applies to picture_study
+// items; a history map/artifact is reference material for an ongoing
+// discussion, not a memory exercise, so it stays visible the whole time.
+const PICTURE_STUDY_VIEW_MS = 25_000
 
 /**
  * Renders a picture-study artwork or historical map/artifact.
@@ -17,12 +28,14 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [putAway, setPutAway] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setFailed(false)
     setImageUrl(null)
+    setPutAway(false)
 
     fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(aid.wiki_title)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('lookup failed'))))
@@ -38,6 +51,16 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
     return () => { cancelled = true }
   }, [aid.wiki_title])
 
+  const isPictureStudy = aid.category !== 'map'
+
+  // Starts the moment the image actually renders, not from mount — a slow
+  // Wikipedia lookup shouldn't eat into the child's real looking time.
+  useEffect(() => {
+    if (loading || failed || !imageUrl || !isPictureStudy) return
+    const id = setTimeout(() => setPutAway(true), PICTURE_STUDY_VIEW_MS)
+    return () => clearTimeout(id)
+  }, [loading, failed, imageUrl, isPictureStudy])
+
   const Icon = aid.category === 'map' ? MapPin : Palette
   const caption = [aid.title, aid.creator].filter(Boolean).join(' — ') + (aid.year ? ` (${aid.year})` : '')
 
@@ -49,7 +72,7 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
         </div>
       )}
 
-      {!loading && imageUrl && !failed && (
+      {!loading && !putAway && imageUrl && !failed && (
         <img
           src={imageUrl}
           alt={aid.title}
@@ -58,7 +81,14 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
         />
       )}
 
-      {!loading && (failed || !imageUrl) && (
+      {!loading && putAway && (
+        <div className="h-40 bg-gold-50 flex flex-col items-center justify-center gap-1.5 text-gold-600">
+          <EyeOff size={20} />
+          <span className="text-xs font-medium">Picture put away</span>
+        </div>
+      )}
+
+      {!loading && !putAway && (failed || !imageUrl) && (
         <div className="h-28 bg-parchment-100 flex flex-col items-center justify-center gap-1.5 text-gold-600">
           <ImageOff size={20} />
           <span className="text-xs">Picture unavailable right now</span>
@@ -70,7 +100,11 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
           <Icon size={12} />
           {caption}
         </div>
-        <p className="text-sm text-gray-700 leading-relaxed">{aid.description}</p>
+        {putAway ? (
+          <p className="text-sm text-gray-500 italic leading-relaxed">Now tell Bede what you remember, in your own words.</p>
+        ) : (
+          <p className="text-sm text-gray-700 leading-relaxed">{aid.description}</p>
+        )}
       </div>
     </div>
   )

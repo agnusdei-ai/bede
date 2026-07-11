@@ -5,6 +5,7 @@ _demo_session_config) — previously the demo was hardcoded to
 DEMO_STUDENT_NAME/"Guest" and DEMO_GRADE regardless of who was testing it.
 """
 import pytest
+from fastapi import HTTPException
 
 import core.demo_code_session as demo_code_session
 from core.config import settings
@@ -83,3 +84,51 @@ async def test_create_demo_code_ignores_grade_outside_allowlist():
 async def test_create_demo_code_with_no_body_still_works():
     resp = await create_demo_code(None)
     assert demo_code_session.get_personalization(resp.code) == (None, None)
+
+
+# ── BYOK (bring-your-own-Anthropic-key) ──────────────────────────────────────
+
+def test_demo_session_config_uncapped_when_code_has_a_byok_key():
+    code = demo_code_session.generate_code(byok_anthropic_key="sk-ant-visitor-key")
+    config = _demo_session_config(code)
+    assert config.demo_uncapped is True
+
+
+def test_demo_session_config_capped_when_code_has_no_byok_key():
+    code = demo_code_session.generate_code()
+    config = _demo_session_config(code)
+    assert config.demo_uncapped is False
+
+
+def test_demo_session_config_capped_with_no_code_at_all():
+    config = _demo_session_config(None)
+    assert config.demo_uncapped is False
+
+
+@pytest.mark.asyncio
+async def test_create_demo_code_accepts_a_well_formed_byok_key():
+    resp = await create_demo_code(DemoCodeRequest(byok_anthropic_key="sk-ant-api03-" + "x" * 40))
+    assert demo_code_session.get_byok_key(resp.code) == "sk-ant-api03-" + "x" * 40
+
+
+@pytest.mark.asyncio
+async def test_create_demo_code_rejects_a_malformed_byok_key():
+    """An invalid-looking key must be a clear, immediate error, not a silent
+    fallback to a capped session — the visitor explicitly asked for
+    unlimited time and deserves to know it didn't take."""
+    with pytest.raises(HTTPException) as exc_info:
+        await create_demo_code(DemoCodeRequest(byok_anthropic_key="not-a-real-key"))
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_demo_code_rejects_a_key_with_whitespace():
+    with pytest.raises(HTTPException) as exc_info:
+        await create_demo_code(DemoCodeRequest(byok_anthropic_key="sk-ant-api03-abc def ghi"))
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_demo_code_strips_surrounding_whitespace_from_a_valid_key():
+    resp = await create_demo_code(DemoCodeRequest(byok_anthropic_key="  sk-ant-api03-" + "y" * 40 + "  "))
+    assert demo_code_session.get_byok_key(resp.code) == "sk-ant-api03-" + "y" * 40

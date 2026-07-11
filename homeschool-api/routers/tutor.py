@@ -147,7 +147,7 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     endpoint reads no student data and writes nothing; it's the same
     ephemeral speak-this-line trade the demo already makes for /chat.
     """
-    audio = await synthesize_speech(req.text)
+    audio = await synthesize_speech(req.text, req.voice_override)
     if audio is None:
         return Response(status_code=204)
     return Response(content=audio, media_type="audio/wav")

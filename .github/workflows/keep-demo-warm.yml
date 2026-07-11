@@ -111,4 +111,32 @@ jobs:
           print('anthropic version:', anthropic.__version__)
           import anthropic.lib.streaming._messages as m
           print([n for n in dir(m) if 'Event' in n or 'Delta' in n])
+          print('--- MessageStream class attrs ---')
+          print([n for n in dir(m.MessageStream) if not n.startswith('_')])
+          print('--- TextEvent fields ---')
+          print(getattr(m.TextEvent, 'model_fields', None))
+          print('--- InputJsonEvent fields ---')
+          print(getattr(m.InputJsonEvent, 'model_fields', None))
+          print('--- raw event types (anthropic.types) ---')
+          import anthropic.types as t
+          print([n for n in dir(t) if 'Event' in n or 'Delta' in n])
           "
+          echo "--- does event_generator's exact tutor.py pattern double-wrap over real ASGI (not just body_iterator)? ---"
+          pip install --quiet uvicorn
+          cat > /tmp/testapp.py <<'PYEOF'
+          import json
+          from fastapi import FastAPI
+          from sse_starlette.sse import EventSourceResponse
+
+          app = FastAPI()
+
+          @app.post("/tutor/chat")
+          async def chat():
+              async def event_generator():
+                  yield f"data: {json.dumps({'type': 'text', 'content': 'Hello there'})}\n\n"
+                  yield f"data: {json.dumps({'type': 'done'})}\n\n"
+              return EventSourceResponse(event_generator(), media_type="text/event-stream")
+          PYEOF
+          (cd /tmp && python3 -m uvicorn testapp:app --port 8123 &)
+          sleep 3
+          curl -sS -D - -X POST http://127.0.0.1:8123/tutor/chat

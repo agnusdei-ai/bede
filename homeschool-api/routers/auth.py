@@ -21,6 +21,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 
+def _looks_like_anthropic_key(value: str) -> bool:
+    """Loose format check only — catches an obvious paste error (wrong
+    field, truncated copy, a placeholder like "your-key-here") with an
+    immediate, actionable error rather than silently dropping it (unlike
+    grade, an invalid BYOK key isn't safe to just fall back from: the
+    visitor explicitly asked for an unlimited session and deserves to know
+    it didn't take). Real validity (revoked, wrong permissions, no credit)
+    can only be confirmed by an actual API call, which stream_tutor_response
+    already handles gracefully — see its anthropic.APIError handling."""
+    v = value.strip()
+    return v.startswith("sk-ant-") and 20 <= len(v) <= 200 and " " not in v
+
+
 @router.post("/demo-code", response_model=DemoCodeResponse)
 async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     """
@@ -33,14 +46,23 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     automatically. Each code is independent, so unlike the shared-PIN trial
     this once had, concurrent visitors never collide with each other.
 
-    `req` is optional and both its fields are optional — an older client (or
-    one that doesn't want to personalize) can still POST with no body at all,
-    same as before. student_name is sanitized here (HTML/prompt-injection
-    stripping, same as a parent's lesson_focus/faith_emphasis notes) since
-    it's the one new piece of free text an anonymous visitor puts in front of
-    the model; grade is checked against VALID_GRADES rather than sanitized,
-    since anything outside that small allowlist is silently ignored (falls
-    back to the operator's configured DEMO_GRADE) rather than trusted as text.
+    `req` is optional and every one of its fields is optional — an older
+    client (or one that doesn't want to personalize) can still POST with no
+    body at all, same as before. student_name is sanitized here (HTML/
+    prompt-injection stripping, same as a parent's lesson_focus/
+    faith_emphasis notes) since it's the one new piece of free text an
+    anonymous visitor puts in front of the model; grade is checked against
+    VALID_GRADES rather than sanitized, since anything outside that small
+    allowlist is silently ignored (falls back to the operator's configured
+    DEMO_GRADE) rather than trusted as text.
+
+    byok_anthropic_key, if supplied, unlocks an uncapped session using the
+    visitor's OWN Anthropic key instead of the operator's (see
+    core/demo_code_session.py's generate_code docstring for the full
+    ephemeral-handling contract) — format-checked here and rejected outright
+    if it doesn't look like a real key, since silently falling back to a
+    capped session would leave the visitor thinking they got what they asked
+    for when they didn't.
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
@@ -48,7 +70,14 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
 
-    code = generate_code(student_name=student_name, grade=grade)
+    byok_key = req.byok_anthropic_key.strip() if req and req.byok_anthropic_key else None
+    if byok_key and not _looks_like_anthropic_key(byok_key):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That doesn't look like a valid Anthropic API key (should start with sk-ant-)",
+        )
+
+    code = generate_code(student_name=student_name, grade=grade, byok_anthropic_key=byok_key)
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

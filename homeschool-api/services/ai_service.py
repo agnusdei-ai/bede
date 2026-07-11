@@ -533,18 +533,30 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
     (mathematics, art_music, language_arts, morning_time) have no book list —
     they get a curated per-year term plan instead, so they aren't left with only
     generic, grade-agnostic guidance from _SUBJECT_CONTEXT.
+
+    saints additionally gets a Faith and Life (Ignatius Press) grade-level
+    orientation note appended, if this grade is in that series' range (1-8)
+    — a separate, Catholic-specific catechism scope alongside the general
+    church-history living books the Ambleside Online catalog already lists
+    for this subject. Both are metadata/orientation only, never the
+    underlying books' actual text — same rule either catalog follows.
     """
     if config.current_unit:
         return ""  # Parent already specified the unit — catalog note not needed
     try:
-        from services.catalog_service import get_catalog_note, get_subject_plan
+        from services.catalog_service import get_catalog_note, get_catechism_note, get_subject_plan
         year = _infer_year(config)
         _PLAN_SUBJECTS = {Subject.mathematics, Subject.art_music, Subject.language_arts, Subject.morning_time}
         if subject in _PLAN_SUBJECTS:
             plan = get_subject_plan(year, subject.value)
             return f"\n{plan}" if plan else ""
         note = get_catalog_note(year, subject.value)
-        return f"\nCatalog books for this subject: {note}" if note else ""
+        context = f"\nCatalog books for this subject: {note}" if note else ""
+        if subject == Subject.saints:
+            catechism_note = get_catechism_note(config.grade)
+            if catechism_note:
+                context += f"\n{catechism_note}"
+        return context
     except Exception:
         return ""
 

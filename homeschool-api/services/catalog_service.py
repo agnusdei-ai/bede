@@ -8,6 +8,7 @@ Functions:
   get_book(book_id)                         -> single book dict or None
   search_books(query)                       -> full-text search across title/author/tags
   get_catalog_note(year, subject)           -> brief context note for the AI subject prompt
+  get_catechism_note(grade)                 -> Faith and Life grade-level orientation for `saints`
 """
 
 import json
@@ -20,6 +21,7 @@ log = logging.getLogger(__name__)
 
 _DATA_DIR = Path(__file__).parent.parent / "data" / "catalog"
 _VISUAL_AIDS_FILE = Path(__file__).parent.parent / "data" / "visual_aids.json"
+_CATECHISM_FILE = Path(__file__).parent.parent / "data" / "catechism" / "faith_and_life.json"
 
 # _CATALOG: year (int) -> {"year": int, "description": str, "books": list[dict]}
 _CATALOG: dict[int, dict] = {}
@@ -29,6 +31,9 @@ _BOOK_INDEX: dict[str, dict] = {}
 
 # _VISUAL_AIDS: visual_aid id (str) -> entry dict
 _VISUAL_AIDS: dict[str, dict] = {}
+
+# _CATECHISM: grade (str, e.g. "1".."8") -> {"book_title": str, "theme": str, "topics": list[str]}
+_CATECHISM: dict[str, dict] = {}
 
 
 def _load_catalog() -> None:
@@ -73,8 +78,26 @@ def _load_visual_aids() -> None:
         log.warning("Failed to load visual aids file: %s", exc)
 
 
+def _load_catechism() -> None:
+    """Load the Faith and Life grade-level orientation data. See
+    data/catechism/faith_and_life.json's own _comment for the sourcing and
+    scope disclaimer (thematic orientation, not a claimed-exhaustive chapter
+    list, never the book's actual text)."""
+    if not _CATECHISM_FILE.exists():
+        log.info("Catechism data file not found: %s — saints subject won't get Faith and Life context", _CATECHISM_FILE)
+        return
+    try:
+        with _CATECHISM_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        _CATECHISM.update(data.get("grades", {}))
+        log.info("Catechism catalog loaded: %d grades", len(_CATECHISM))
+    except (json.JSONDecodeError, KeyError) as exc:
+        log.warning("Failed to load catechism file %s: %s", _CATECHISM_FILE, exc)
+
+
 _load_catalog()
 _load_visual_aids()
+_load_catechism()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -209,3 +232,26 @@ def get_subject_plan(year: int | None, subject: str) -> str | None:
     if year_data is None:
         return None
     return year_data.get("subject_plans", {}).get(subject)
+
+
+def get_catechism_note(grade: str | None) -> str | None:
+    """
+    Return a brief Faith and Life (Ignatius Press) grade-level orientation
+    note for the `saints` subject, given a grade like "3" or "K". Returns
+    None for an unrecognized/ungraded value (e.g. "K", which the series
+    doesn't cover — it starts at grade 1) so the caller can skip it
+    gracefully, same contract as get_catalog_note(). See data/catechism/
+    faith_and_life.json's _comment for what this is and isn't (thematic
+    orientation, never the book's actual copyrighted text).
+    """
+    if not grade:
+        return None
+    grade = grade.strip()
+    entry = _CATECHISM.get(grade)
+    if entry is None:
+        return None
+    topics = "; ".join(entry.get("topics", []))
+    return (
+        f"Faith and Life Grade {grade} — \"{entry['book_title']}\" ({entry['theme']}). "
+        f"This grade's topics include: {topics}."
+    )

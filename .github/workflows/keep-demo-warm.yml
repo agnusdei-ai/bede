@@ -1,0 +1,37 @@
+name: Keep demo backend warm
+
+# Render's free web-service plan (render.yaml) spins the container down
+# after 15 minutes with no inbound traffic, and the next visitor eats a
+# ~1-minute cold boot (import the full dependency set, run
+# homeschool-api/main.py's lifespan: create_tables() + the ~1.5s PBKDF2
+# encryption-key derivation). This pings /health often enough that a
+# demo visitor never hits that cold boot during the covered window.
+#
+# Deliberately NOT 24/7: Render's free plan grants a shared 750
+# instance-hours/month across the whole workspace, and keeping one
+# service warm around the clock burns ~744 of those in a 31-day month by
+# itself — zero headroom for bede-demo-db or any other free service
+# before the workspace gets suspended for the rest of the month. The
+# window below (12:00-23:50 UTC, ~12h/day) costs roughly half that,
+# leaving real headroom. Widen the `12-23` hour range below if demo
+# traffic falls outside it, or drop this workflow entirely and upgrade
+# bede-demo-api to Render's paid Starter plan (~$7/mo, no spin-down,
+# no shared-hours ceiling) for true 24/7 coverage instead.
+on:
+  schedule:
+    - cron: '*/10 12-23 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the demo API's health endpoint
+        env:
+          DEMO_API_BASE: ${{ vars.VITE_DEMO_API_BASE }}
+        run: |
+          if [ -z "$DEMO_API_BASE" ]; then
+            echo "VITE_DEMO_API_BASE repo variable is not set yet — nothing to ping."
+            exit 0
+          fi
+          curl -sf --max-time 90 "$DEMO_API_BASE/health"

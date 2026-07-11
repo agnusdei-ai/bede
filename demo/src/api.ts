@@ -67,8 +67,9 @@ export interface SessionConfig {
   screen_time_limit_minutes?: number | null
   eye_rest_break_minutes?: number
   // True only when this demo session was minted with the visitor's own
-  // Anthropic key (see generateDemoCode's byokAnthropicKey) — the 15-minute
-  // free-tier cap doesn't apply, since the API cost is on their own account.
+  // Anthropic or OpenAI key (see generateDemoCode's byokAnthropicKey /
+  // byokOpenaiKey) — the 15-minute free-tier cap doesn't apply, since the
+  // API cost is on their own account.
   demo_uncapped?: boolean
 }
 
@@ -107,8 +108,13 @@ export function decodeExpiry(token: string): number | null {
  *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
 export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
 
-export async function generateDemoCode(studentName?: string, grade?: string, byokAnthropicKey?: string): Promise<string> {
-  const hasBody = (studentName && studentName.trim()) || grade || byokAnthropicKey
+export async function generateDemoCode(
+  studentName?: string,
+  grade?: string,
+  byokAnthropicKey?: string,
+  byokOpenaiKey?: string,
+): Promise<string> {
+  const hasBody = (studentName && studentName.trim()) || grade || byokAnthropicKey || byokOpenaiKey
   const res = await fetch(`${apiBase()}/auth/demo-code`, {
     method: 'POST',
     ...(hasBody && {
@@ -117,6 +123,7 @@ export async function generateDemoCode(studentName?: string, grade?: string, byo
         student_name: studentName?.trim() || undefined,
         grade: grade || undefined,
         byok_anthropic_key: byokAnthropicKey?.trim() || undefined,
+        byok_openai_key: byokOpenaiKey?.trim() || undefined,
       }),
     }),
   })
@@ -124,7 +131,7 @@ export async function generateDemoCode(studentName?: string, grade?: string, byo
   if (res.status === 429) throw new Error('Too many demo sessions are active right now — please try again shortly.')
   if (res.status === 400) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'That doesn\'t look like a valid Anthropic API key.')
+    throw new Error(err.detail || 'That doesn\'t look like a valid API key.')
   }
   if (!res.ok) throw new Error('Could not start a session right now — please try again.')
   const data = await res.json()

@@ -1,6 +1,7 @@
 import anthropic
 import json
 import logging
+import random
 import re
 from datetime import datetime, timezone
 from typing import AsyncIterator, List, Optional, TYPE_CHECKING
@@ -25,6 +26,27 @@ _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 # Max conversation turns sent to Claude per request (sliding window)
 _HISTORY_WINDOW = 20
+
+# Tool calls that render a card with no question of their own — see
+# tools_guidance in _build_static_prompt. A prompt instruction telling Claude
+# to always add trailing text+a question after one of these is real, but not
+# a guarantee: tool-calling models have a strong learned tendency to treat a
+# tool call as a natural stopping point for the turn, tool_choice="auto" or
+# not, and this app never feeds a tool_result back for a continuation (these
+# tools are UI directives, not fetch-and-continue calls) — so an occasional
+# turn genuinely ends the moment the tool call itself finishes, no matter how
+# clearly the system prompt asks for more. stream_tutor_response() below
+# tracks whether real text followed the LAST one of these tools and, if not,
+# appends one of these deterministically — a code-level guarantee that a
+# celebration or faith connection never leaves the child with nothing to
+# respond to, instead of hoping the model complies every time.
+_QUESTIONLESS_TOOLS = {"celebrate_discovery", "connect_to_faith"}
+_FALLBACK_CONTINUATION_QUESTIONS = [
+    "What do you think comes next?",
+    "Where does that take your thinking?",
+    "What would you add to that?",
+    "What made you see it that way?",
+]
 
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
@@ -105,11 +127,11 @@ TUTOR_TOOLS = [
             "properties": {
                 "specific_insight": {
                     "type": "string",
-                    "description": "The exact thing the child discovered or reasoned well",
+                    "description": "The exact thing the child discovered or reasoned well — one short clause, not a full sentence",
                 },
                 "encouragement": {
                     "type": "string",
-                    "description": "Warm, specific encouragement connecting to their growth",
+                    "description": "Warm, specific encouragement connecting to their growth — one short sentence, never a paragraph",
                 },
             },
             "required": ["specific_insight", "encouragement"],
@@ -740,12 +762,23 @@ async def stream_tutor_response(
 
     async with _client.messages.stream(
         model=settings.tutor_model,
-        max_tokens=400,  # Keep responses tight — Charlotte Mason lesson brevity
+        # Keep responses tight (Charlotte Mason lesson brevity) but leave real
+        # headroom for a tool call's own content plus trailing text — 400 cut
+        # it too close for a verbose celebrate_discovery/connect_to_faith call
+        # to ever have room left for the question after it. The
+        # ends_on_questionless_tool fallback above is the real fix (guaranteed
+        # regardless of budget); this is a secondary margin, not a substitute.
+        max_tokens=500,
         system=system,
         messages=messages,
         tools=tools_with_cache,
     ) as stream:
         tool_calls_buffer = {}
+        # True only when the most recent visible thing in this turn was a
+        # questionless tool card with no text after it — see
+        # _QUESTIONLESS_TOOLS above. Reset to False the moment real text
+        # streams, so this only reflects what actually happened LAST.
+        ends_on_questionless_tool = False
 
         async for event in stream:
             # Dispatch on the wire-protocol `.type` string, not the SDK's
@@ -772,6 +805,7 @@ async def stream_tutor_response(
 
                 if delta_type == "text_delta":
                     yield json.dumps({'type': 'text', 'content': delta.text})
+                    ends_on_questionless_tool = False
 
                 elif delta_type == "input_json_delta":
                     # Accumulate tool input JSON
@@ -802,13 +836,21 @@ async def stream_tutor_response(
                                     )
                             elif tc["name"] == "suggest_next_subject":
                                 yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
+                                ends_on_questionless_tool = False
                             else:
                                 tool_response = _process_tool_use(tc["name"], tool_input)
                                 if tool_response:
                                     yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
+                                    ends_on_questionless_tool = (
+                                        tc["name"] in _QUESTIONLESS_TOOLS
+                                        and not tool_input.get("reflection_question")
+                                    )
                         except json.JSONDecodeError:
                             pass
                         tool_calls_buffer.pop(block_id, None)
+
+        if ends_on_questionless_tool:
+            yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
 
         yield json.dumps({'type': 'done'})
 
@@ -951,7 +993,7 @@ async def stream_sandbox_response(
 
     async with _client.messages.stream(
         model=settings.tutor_model,
-        max_tokens=800,  # more room than the tutor's 400 — direct answers, not tight Socratic turns
+        max_tokens=800,  # more room than the tutor's 500 — direct answers, not tight Socratic turns
         system=_build_sandbox_prompt(custom_instructions),
         messages=messages,
     ) as stream:

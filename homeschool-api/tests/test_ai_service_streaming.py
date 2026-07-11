@@ -29,14 +29,28 @@ from models.schemas import GradeStage, SessionConfig, Subject
 from services import ai_service
 
 
-def _text_events(text: str):
+def _text_events(text: str, index: int = 0):
     yield RawContentBlockStartEvent.model_validate(
-        {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}}
+        {"type": "content_block_start", "index": index, "content_block": {"type": "text", "text": ""}}
     )
     yield RawContentBlockDeltaEvent.model_validate(
-        {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": text}}
+        {"type": "content_block_delta", "index": index, "delta": {"type": "text_delta", "text": text}}
     )
-    yield RawContentBlockStopEvent.model_validate({"type": "content_block_stop", "index": 0})
+    yield RawContentBlockStopEvent.model_validate({"type": "content_block_stop", "index": index})
+
+
+def _tool_use_events(tool_id: str, name: str, tool_input: dict, index: int = 0):
+    import json as _json
+
+    yield RawContentBlockStartEvent.model_validate({
+        "type": "content_block_start", "index": index,
+        "content_block": {"type": "tool_use", "id": tool_id, "name": name, "input": {}},
+    })
+    yield RawContentBlockDeltaEvent.model_validate({
+        "type": "content_block_delta", "index": index,
+        "delta": {"type": "input_json_delta", "partial_json": _json.dumps(tool_input)},
+    })
+    yield RawContentBlockStopEvent.model_validate({"type": "content_block_stop", "index": index})
 
 
 class _FakeStream:
@@ -56,8 +70,29 @@ async def _fake_messages_stream(**kwargs):
     yield _FakeStream(list(_text_events("Hello there")))
 
 
+def _stream_of(events):
+    @asynccontextmanager
+    async def _fake(**kwargs):
+        yield _FakeStream(list(events))
+    return _fake
+
+
 def _config() -> SessionConfig:
     return SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
+
+
+async def _run_stream(events) -> list[dict]:
+    with patch.object(ai_service._client.messages, "stream", side_effect=_stream_of(events)):
+        chunks = [
+            chunk
+            async for chunk in ai_service.stream_tutor_response(
+                config=_config(),
+                subject=Subject.living_books,
+                history=[],
+                child_message="Tell me about the river.",
+            )
+        ]
+    return [json.loads(c) for c in chunks]
 
 
 @pytest.mark.asyncio
@@ -85,3 +120,79 @@ async def test_stream_tutor_response_emits_text_from_real_sdk_events():
     assert "".join(p["content"] for p in text_chunks) == "Hello there"
 
     assert parsed[-1] == {"type": "done"}
+
+
+# ── Guaranteed continuation after a questionless tool card ──────────────────
+#
+# Regression coverage for a real observed outage: Bede's turn ended right on
+# a celebrate_discovery card with no trailing text at all — a live transcript
+# screenshot showed the conversation just stopping, with nothing for the
+# child to respond to. The system prompt already asks the model to always
+# add a question after one of these tools (see tools_guidance), but that's a
+# request, not a guarantee — tool-calling models have a real tendency to
+# treat a tool call as a natural end of turn. These tests exercise the
+# code-level fallback in stream_tutor_response that fires regardless of
+# whether the model complies.
+
+@pytest.mark.asyncio
+async def test_celebrate_discovery_as_the_last_block_gets_a_fallback_question():
+    events = list(_tool_use_events(
+        "toolu_1", "celebrate_discovery",
+        {"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
+    ))
+    parsed = await _run_stream(events)
+
+    assert parsed[-1] == {"type": "done"}
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert text_chunks, "no fallback question was appended after a questionless tool card"
+    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS
+
+
+@pytest.mark.asyncio
+async def test_no_fallback_appended_when_the_model_already_added_a_question():
+    events = [
+        *_tool_use_events("toolu_1", "celebrate_discovery", {"specific_insight": "x", "encouragement": "y"}, index=0),
+        *_text_events(" What do you notice about the next bend in the river?", index=1),
+    ]
+    parsed = await _run_stream(events)
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert len(text_chunks) == 1, "a fallback was appended even though the model already asked a question"
+    assert "next bend" in text_chunks[0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_connect_to_faith_without_reflection_question_gets_a_fallback():
+    events = list(_tool_use_events(
+        "toolu_1", "connect_to_faith", {"connection": "Just as the river never stops moving, God's care never stops either."},
+    ))
+    parsed = await _run_stream(events)
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert text_chunks, "connect_to_faith with no reflection_question should still get a fallback"
+    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS
+
+
+@pytest.mark.asyncio
+async def test_connect_to_faith_with_reflection_question_gets_no_fallback():
+    events = list(_tool_use_events(
+        "toolu_1", "connect_to_faith",
+        {"connection": "The river never stops moving.", "reflection_question": "What else in creation never stops?"},
+    ))
+    parsed = await _run_stream(events)
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert not text_chunks, "connect_to_faith already had its own reflection_question — no fallback should be added"
+
+
+@pytest.mark.asyncio
+async def test_offer_socratic_hint_as_last_block_gets_no_fallback():
+    """offer_socratic_hint's hint_question already IS the turn's question —
+    it's deliberately not in _QUESTIONLESS_TOOLS."""
+    events = list(_tool_use_events(
+        "toolu_1", "offer_socratic_hint", {"hint_question": "What shape does flowing water tend to carve?"},
+    ))
+    parsed = await _run_stream(events)
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert not text_chunks, "offer_socratic_hint's own question should not trigger a redundant fallback"

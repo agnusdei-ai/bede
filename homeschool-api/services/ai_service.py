@@ -685,9 +685,16 @@ async def stream_tutor_response(
         tool_calls_buffer = {}
 
         async for event in stream:
-            event_type = type(event).__name__
+            # Dispatch on the wire-protocol `.type` string, not the SDK's
+            # Python class name — the class names are an implementation
+            # detail that has changed across anthropic SDK versions (e.g.
+            # "ContentBlockStart" -> "RawContentBlockStartEvent"), silently
+            # breaking every branch below with zero exceptions raised, since
+            # every check just fell through. `.type` mirrors the documented
+            # API event/delta type strings and is stable across SDK versions.
+            event_type = event.type
 
-            if event_type == "ContentBlockStart":
+            if event_type == "content_block_start":
                 block = event.content_block
                 if hasattr(block, "type"):
                     if block.type == "tool_use":
@@ -696,14 +703,14 @@ async def stream_tutor_response(
                             "input_str": "",
                         }
 
-            elif event_type == "ContentBlockDelta":
+            elif event_type == "content_block_delta":
                 delta = event.delta
-                delta_type = type(delta).__name__
+                delta_type = delta.type
 
-                if delta_type == "TextDelta":
-                    yield f"data: {json.dumps({'type': 'text', 'content': delta.text})}\n\n"
+                if delta_type == "text_delta":
+                    yield json.dumps({'type': 'text', 'content': delta.text})
 
-                elif delta_type == "InputJsonDelta":
+                elif delta_type == "input_json_delta":
                     # Accumulate tool input JSON
                     block_id = None
                     for bid, tc in tool_calls_buffer.items():
@@ -711,7 +718,7 @@ async def stream_tutor_response(
                     if block_id:
                         tool_calls_buffer[block_id]["input_str"] += delta.partial_json
 
-            elif event_type == "ContentBlockStop":
+            elif event_type == "content_block_stop":
                 for block_id, tc in list(tool_calls_buffer.items()):
                     if tc["input_str"]:
                         try:
@@ -720,27 +727,27 @@ async def stream_tutor_response(
                                 # Silent server-side save; emit minimal event for frontend
                                 summary = await _save_assessment(db, config.student_name, subject, tool_input)
                                 if summary:
-                                    yield f"data: {json.dumps({'type': 'assessment', 'data': summary})}\n\n"
+                                    yield json.dumps({'type': 'assessment', 'data': summary})
                             elif tc["name"] == "show_visual_aid":
                                 aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
                                 if aid:
-                                    yield f"data: {json.dumps({'type': 'visual_aid', 'visualAid': aid})}\n\n"
+                                    yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
                                 else:
                                     log.warning(
                                         "Bede requested an unknown visual_aid_id: %r",
                                         tool_input.get("visual_aid_id"),
                                     )
                             elif tc["name"] == "suggest_next_subject":
-                                yield f"data: {json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})}\n\n"
+                                yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
                             else:
                                 tool_response = _process_tool_use(tc["name"], tool_input)
                                 if tool_response:
-                                    yield f"data: {json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})}\n\n"
+                                    yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
                         except json.JSONDecodeError:
                             pass
                         tool_calls_buffer.pop(block_id, None)
 
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        yield json.dumps({'type': 'done'})
 
 
 async def generate_session_summary(req: SessionSummaryRequest) -> str:
@@ -886,7 +893,7 @@ async def stream_sandbox_response(
         messages=messages,
     ) as stream:
         async for event in stream:
-            if type(event).__name__ == "ContentBlockDelta" and type(event.delta).__name__ == "TextDelta":
-                yield f"data: {json.dumps({'type': 'text', 'content': event.delta.text})}\n\n"
+            if event.type == "content_block_delta" and event.delta.type == "text_delta":
+                yield json.dumps({'type': 'text', 'content': event.delta.text})
 
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        yield json.dumps({'type': 'done'})

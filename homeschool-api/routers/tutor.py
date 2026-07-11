@@ -106,8 +106,8 @@ async def chat(
                 datetime.now(timezone.utc).isoformat(),
                 trigger_excerpt,
             ))
-            yield f"data: {json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})}\n\n"
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})
+            yield json.dumps({'type': 'done'})
             return
 
         async for chunk in stream_tutor_response(

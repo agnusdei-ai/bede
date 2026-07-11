@@ -39,3 +39,30 @@ jobs:
           # trailing slash here produces ".../onrender.com//health", which
           # this FastAPI backend's router won't match.
           curl -sf --max-time 90 "${DEMO_API_BASE%/}/health"
+
+  # TEMPORARY diagnostic job — not part of the real keep-alive fix. Exercises
+  # the exact demo-code -> login -> /tutor/chat flow the real frontend uses,
+  # to confirm the streaming fix works end-to-end once Render redeploys.
+  # Remove once that's confirmed.
+  debug-chat-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the real demo flow and dump the raw /tutor/chat response
+        env:
+          DEMO_API_BASE: ${{ vars.VITE_DEMO_API_BASE }}
+        run: |
+          set -x
+          BASE="${DEMO_API_BASE%/}"
+          CODE=$(curl -sS --max-time 90 -X POST "$BASE/auth/demo-code" | tee /dev/stderr | jq -r '.code')
+          TOKEN=$(curl -sS --max-time 30 -X POST "$BASE/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d "{\"role\":\"demo_code\",\"credential\":\"$CODE\"}" | tee /dev/stderr | jq -r '.access_token')
+          CONFIG=$(curl -sS --max-time 30 "$BASE/tutor/demo-config" -H "Authorization: Bearer $TOKEN")
+          echo "demo-config: $CONFIG"
+          BODY=$(jq -n --argjson cfg "$CONFIG" '{session_config: $cfg, current_subject: "living_books", conversation_history: [], child_message: "[START]", drawing_image: null}')
+          echo "--- raw /tutor/chat response (status + headers + body) ---"
+          curl -sS --max-time 60 -D - -X POST "$BASE/tutor/chat" \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" \
+            -d "$BODY"
+          echo "--- end response ---"

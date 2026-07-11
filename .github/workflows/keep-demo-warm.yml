@@ -42,8 +42,8 @@ jobs:
 
   # TEMPORARY diagnostic job — not part of the real keep-alive fix. Exercises
   # the exact demo-code -> login -> /tutor/chat flow the real frontend uses,
-  # to see the raw response for the "Bede doesn't respond" report, since this
-  # sandbox can't reach onrender.com directly. Remove before merging.
+  # to confirm the streaming fix works end-to-end once Render redeploys.
+  # Remove once that's confirmed.
   debug-chat-flow:
     runs-on: ubuntu-latest
     steps:
@@ -66,96 +66,3 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -d "$BODY"
           echo "--- end response ---"
-
-  # TEMPORARY — same caveat as debug-chat-flow above. requirements.txt pins
-  # anthropic and sse-starlette with open-ended `>=` floors and no ceiling,
-  # so `pip install -r requirements.txt` resolves to whatever's newest at
-  # build time. Render rebuilds from scratch on every push to main — and we
-  # just merged two PRs — so check what actually gets resolved today and
-  # whether it explains the malformed "data: data: ..." double-prefix seen
-  # in debug-chat-flow's output.
-  debug-deps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install anthropic + sse-starlette fresh and inspect them
-        run: |
-          pip install --quiet 'anthropic>=0.40.0' 'sse-starlette>=2.1.0' fastapi
-          echo "--- resolved versions ---"
-          pip show anthropic sse-starlette | grep -E '^(Name|Version):'
-          echo "--- does EventSourceResponse double-wrap an already-formatted string? ---"
-          python3 <<'PYEOF'
-          import asyncio
-          from sse_starlette.sse import EventSourceResponse
-
-          async def gen():
-              yield 'data: {"type": "done"}\n\n'
-
-          resp = EventSourceResponse(gen())
-
-          async def drain():
-              chunks = []
-              async for chunk in resp.body_iterator:
-                  chunks.append(chunk)
-                  if len(chunks) > 5:
-                      break
-              print("RAW OUTPUT:", repr(chunks))
-
-          asyncio.run(drain())
-          PYEOF
-          echo "--- anthropic streaming event/delta class names in this version ---"
-          python3 -c "
-          import anthropic
-          print('anthropic version:', anthropic.__version__)
-          import anthropic.lib.streaming._messages as m
-          print([n for n in dir(m) if 'Event' in n or 'Delta' in n])
-          print('--- MessageStream class attrs ---')
-          print([n for n in dir(m.MessageStream) if not n.startswith('_')])
-          print('--- TextEvent fields ---')
-          print(getattr(m.TextEvent, 'model_fields', None))
-          print('--- InputJsonEvent fields ---')
-          print(getattr(m.InputJsonEvent, 'model_fields', None))
-          print('--- raw event types (anthropic.types) ---')
-          import anthropic.types as t
-          print([n for n in dir(t) if 'Event' in n or 'Delta' in n])
-          "
-          echo "--- FIXED pattern: plain json.dumps(), no manual data: framing ---"
-          pip install --quiet uvicorn
-          cat > /tmp/testapp2.py <<'PYEOF'
-          import json
-          from fastapi import FastAPI
-          from sse_starlette.sse import EventSourceResponse
-
-          app = FastAPI()
-
-          @app.post("/tutor/chat")
-          async def chat():
-              async def event_generator():
-                  yield json.dumps({'type': 'text', 'content': 'Hello there'})
-                  yield json.dumps({'type': 'done'})
-              return EventSourceResponse(event_generator(), media_type="text/event-stream")
-          PYEOF
-          (cd /tmp && python3 -m uvicorn testapp2:app --port 8124 > /tmp/uvicorn2.log 2>&1 &)
-          sleep 3
-          curl -sS -D - -X POST http://127.0.0.1:8124/tutor/chat
-          echo "--- confirming event.type / event.delta.type against REAL installed anthropic wire-format types ---"
-          python3 -c "
-          from anthropic.types import RawContentBlockStartEvent, RawContentBlockDeltaEvent, RawContentBlockStopEvent
-
-          start = RawContentBlockStartEvent.model_validate({'type': 'content_block_start', 'index': 0, 'content_block': {'type': 'text', 'text': ''}})
-          print('start.type =', repr(start.type))
-
-          delta = RawContentBlockDeltaEvent.model_validate({'type': 'content_block_delta', 'index': 0, 'delta': {'type': 'text_delta', 'text': 'Hi'}})
-          print('delta.type =', repr(delta.type), 'delta.delta.type =', repr(delta.delta.type), 'delta.delta.text =', repr(delta.delta.text))
-
-          tool_start = RawContentBlockStartEvent.model_validate({'type': 'content_block_start', 'index': 0, 'content_block': {'type': 'tool_use', 'id': 'toolu_1', 'name': 'offer_socratic_hint', 'input': {}}})
-          print('tool_start.content_block.type =', repr(tool_start.content_block.type), 'id =', tool_start.content_block.id, 'name =', tool_start.content_block.name)
-
-          json_delta = RawContentBlockDeltaEvent.model_validate({'type': 'content_block_delta', 'index': 0, 'delta': {'type': 'input_json_delta', 'partial_json': '{\"a\":1}'}})
-          print('json_delta.delta.type =', repr(json_delta.delta.type), 'partial_json =', repr(json_delta.delta.partial_json))
-
-          stop = RawContentBlockStopEvent.model_validate({'type': 'content_block_stop', 'index': 0})
-          print('stop.type =', repr(stop.type))
-          "

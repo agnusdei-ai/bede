@@ -36,6 +36,9 @@ There's no rush and no wrong way to think out loud.
 - We'll go through your subjects for the day, one at a time.
 - Sometimes I'll ask you to **tell me back** a story in your own words — that's
   called a *narration*, and it's one of my favorite parts.
+- Sometimes I'll open your writing pad myself and invite you to write or draw
+  something — like sketching what you noticed outside, or writing down what
+  happened first in a story.
 - I might celebrate when you figure something out, or offer a hint if you're stuck.
 - If it's time for a break, take it! Learning works better in short, focused pieces.
 

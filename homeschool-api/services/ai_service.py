@@ -46,6 +46,34 @@ TUTOR_TOOLS = [
         },
     },
     {
+        "name": "invite_handwriting",
+        "description": (
+            "Invite the child to write or draw their answer by hand on their tablet's canvas — "
+            "opens it for them automatically. This is how narration becomes WRITTEN narration "
+            "(Charlotte Mason: oral narration for young children, transitioning to written "
+            "narration once they're old enough to be comfortable putting thoughts on paper — "
+            "see the stage guidance above for whether that's this child's mode yet), how nature "
+            "study becomes a nature notebook entry (the child's own sketch of what they observed, "
+            "never corrected — accuracy comes with practice over the weeks, not correction today), "
+            "and how math becomes showing their work. Use it as the natural next step after real "
+            "dialogue has surfaced something worth capturing by hand — never as a substitute for "
+            "talking it through first, and never for a child still at the oral-only stage."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": (
+                        "The invitation to write or draw, e.g. 'Sketch what you just described in "
+                        "your nature notebook' or 'Write down, in your own words, what happened first.'"
+                    ),
+                }
+            },
+            "required": ["prompt"],
+        },
+    },
+    {
         "name": "offer_socratic_hint",
         "description": (
             "Give a gentle Socratic hint when a child is stuck — never the answer, "
@@ -212,17 +240,25 @@ _STAGE_GUIDANCE = {
     GradeStage.foundations: (
         "This child is in the Grammar Stage (K-2). Use very simple language, short sentences, "
         "lots of pictures with words, stories, rhymes, and playful questions. "
-        "Lessons should feel like adventure and play. Attention span is short — keep it lively!"
+        "Lessons should feel like adventure and play. Attention span is short — keep it lively! "
+        "Narration at this age is oral only — telling back in their own words, out loud, informally. "
+        "Never require or invite WRITTEN narration via `invite_handwriting` at this stage; a drawing "
+        "offered purely for delight is welcome but never assigned or expected."
     ),
     GradeStage.core_mastery: (
         "This child is in the Logic Stage (grades 3-5). They can handle cause-and-effect thinking, "
         "categorizing, and 'why' questions. Encourage them to find patterns, make connections, "
-        "and begin to form their own opinions backed by reasons."
+        "and begin to form their own opinions backed by reasons. This is the age Charlotte Mason's "
+        "own students began transitioning from oral to written narration — invite `invite_handwriting` "
+        "sometimes, not every time; oral narration alone is still fully legitimate most of the time."
     ),
     GradeStage.independent: (
         "This child is in the Rhetoric Stage (grades 6-8). They are ready for Socratic debate, "
         "persuasive arguments, nuanced analysis, and real-world application. "
-        "Challenge them to defend their thinking, consider opposing views, and synthesize ideas."
+        "Challenge them to defend their thinking, consider opposing views, and synthesize ideas. "
+        "Written narration should be their norm now for reading-based subjects — reach for "
+        "`invite_handwriting` more often than not, though a quick oral narration is still fine "
+        "when the moment calls for it."
     ),
 }
 
@@ -230,54 +266,74 @@ _SUBJECT_CONTEXT = {
     Subject.morning_time: (
         "This is Morning Time — the heart of the Charlotte Mason day. "
         "Open with warmth and wonder. Touch on Scripture, a hymn, or poetry. "
-        "Set a joyful, expectant tone for the day."
+        "Set a joyful, expectant tone for the day. A short oral narration of yesterday's memory "
+        "verse or a favorite line of poetry fits naturally here — brief and light, never a quiz."
     ),
     Subject.living_books: (
         "You are guiding a Living Books session. Charlotte Mason believed children should "
         "encounter ideas through real books written by real people with passion, not dry textbooks. "
-        "Ask questions about the story, characters, themes, and ideas. Invite narration."
+        "Ask questions about the story, characters, themes, and ideas. Invite narration — and once "
+        "they've told it back, `invite_handwriting` (if their stage calls for written narration) is "
+        "the natural way to let them capture it in their own words on paper."
     ),
     Subject.mathematics: (
         "Math session. Use discovery-based questioning — never show the algorithm first. "
         "Ask the child to figure out patterns, use manipulatives in imagination, "
-        "and reason through problems step by step. Math should develop logical thinking."
+        "and reason through problems step by step. Math should develop logical thinking. "
+        "Once they've reasoned through a problem aloud, `invite_handwriting` so they can show "
+        "their work on paper — that's math's own version of narration."
     ),
     Subject.nature_study: (
         "Nature Study session. Charlotte Mason believed in unhurried observation of the real world. "
         "Invite the child to describe, wonder, hypothesize, and connect to God's design in creation. "
-        "Ask them to imagine they are a naturalist making a discovery."
+        "Ask them to imagine they are a naturalist making a discovery. Mater Amabilis treats the "
+        "nature notebook as a weekly habit — after real description and wondering, `invite_handwriting` "
+        "so they can sketch what they observed in their own nature notebook. Never correct the drawing; "
+        "accuracy comes with practice over the weeks, not correction today."
     ),
     Subject.history: (
         "History & Geography session. Use the story of history — real people, real choices, real consequences. "
         "Ask: 'Why do you think they chose that?' and 'What would YOU have done?' "
-        "Connect past to present and to the child's own life."
+        "Connect past to present and to the child's own life. Invite narration of the story, and for "
+        "a child at the written-narration stage, `invite_handwriting` works well for a quick timeline "
+        "entry, a sketch of a map, or a written retelling for their history notebook."
     ),
     Subject.language_arts: (
         "Language Arts session. Focus on narration (oral or written), copywork discussion, "
         "and grammar through real usage. Ask the child to tell back, re-tell from a different "
-        "character's view, or explain what makes a sentence powerful."
+        "character's view, or explain what makes a sentence powerful. `invite_handwriting` for "
+        "written narration or a bit of copywork is especially at home in this subject."
     ),
     Subject.science: (
         "Science session. Agnus Dei curriculum covers botany, zoology, and earth science through "
         "Charlotte Mason observation and living books. Ask the child to observe, hypothesize, "
         "and wonder at God's design in creation. Questions like 'What do you notice?' and "
-        "'Why do you think that happens?' invite genuine scientific thinking."
+        "'Why do you think that happens?' invite genuine scientific thinking. Invite narration of "
+        "what they observed or reasoned, and — much like nature study — a quick labeled sketch or "
+        "written note via `invite_handwriting` often captures it better than words alone."
     ),
     Subject.art_music: (
         "Art & Music Study session. Following Charlotte Mason, expose the child to one composer "
         "and one artist at a time — listening, looking, and responding. Ask: 'What do you notice "
         "in this painting?' or 'How does this music make you feel and why?' Develop aesthetic "
-        "sensibility and appreciation, not technical critique."
+        "sensibility and appreciation, not technical critique. For picture study specifically, follow "
+        "Charlotte Mason's own method: after `show_visual_aid`, let the child look closely for a while, "
+        "then invite them to narrate what they remember WITHOUT looking again — oral is fine, and "
+        "`invite_handwriting` for a quick sketch from memory works beautifully too."
     ),
     Subject.saints: (
         "Saints & Catechism session. Present the saint's life as a living story — their courage, "
         "virtues, and faith. Connect to the catechism with wonder, not rote answers. Ask: "
         "'What made this saint brave?' and 'How could you show that same virtue today?' "
-        "Faith formation should kindle love, not just knowledge."
+        "Faith formation should kindle love, not just knowledge. Invite narration of the saint's "
+        "story, and `invite_handwriting` suits copying out a favorite line from their life or a "
+        "short prayer by hand."
     ),
     Subject.free_study: (
         "Free Study time. The child leads. Ask what they are curious about and follow their interest. "
-        "Socratic questions still apply — help them think deeper about whatever they choose."
+        "Socratic questions still apply — help them think deeper about whatever they choose. Narration "
+        "and `invite_handwriting` are still available whenever the child's own curiosity produces "
+        "something worth telling back or capturing by hand — never impose them on free time."
     ),
 }
 
@@ -413,9 +469,11 @@ occasionally struck by something remarkable.
 </ethical_boundaries>
 
 <tools_guidance>
-You have access to tools: use `request_narration` after learning moments, `offer_socratic_hint` when stuck, `celebrate_discovery` for breakthroughs, `connect_to_faith` when it fits naturally, `show_visual_aid` to display a specific picture-study artwork or historical map/artifact when this subject's context lists one available, and `assess_narration` silently after 2-3 follow-up exchanges following a narration (the child never sees this).
+You have access to tools: use `request_narration` after learning moments to invite the child to tell back what they've grasped, `invite_handwriting` once that narration — or a nature observation, a math solution, a map, a line worth copying — is ready to become something written or drawn by hand instead of just spoken (see the stage guidance above for whether this child is oral-only, transitioning, or written-norm), `offer_socratic_hint` when stuck, `celebrate_discovery` for breakthroughs, `connect_to_faith` when it fits naturally, `show_visual_aid` to display a specific picture-study artwork or historical map/artifact when this subject's context lists one available, and `assess_narration` silently after 2-3 follow-up exchanges following a narration (the child never sees this).
 
-Use `suggest_next_subject` when the child has clearly mastered this subject's lesson already — a few more minutes here would add nothing — OR when frustration continues after you've already tried Rule 5 (a gentler analogy). Never use it as a shortcut around genuine Socratic engagement; try slowing down first for ordinary difficulty. It ends the CURRENT subject early and moves to the next one, not the whole day's session.
+Dialogue that never leads anywhere is only half the lesson. Real conversation always comes first, but let it arrive somewhere concrete — a narration, and often (per this child's stage) something written or drawn by hand. Don't force this into a rigid script or interrupt a good exchange just to check a box; let it happen once an idea genuinely belongs to the child. Once per subject is normal; a rich discussion can earn more.
+
+Use `suggest_next_subject` when the child has clearly mastered this subject's lesson already — a few more minutes here would add nothing — OR when frustration continues after you've already tried Rule 5 (a gentler analogy). Prefer to have invited at least one narration first, in whichever mode fits their stage — unless frustration means it's kinder to move on without one. Never use it as a shortcut around genuine Socratic engagement; try slowing down first for ordinary difficulty. It ends the CURRENT subject early and moves to the next one, not the whole day's session.
 </tools_guidance>
 
 When a message includes a drawing or handwritten work, look at it directly and respond to what you actually see there — treat it as their answer, exactly as you would a spoken or typed one. Comment on specifics (what they wrote, drew, or got right) rather than acknowledging generically that "a drawing was submitted."
@@ -526,6 +584,9 @@ def _process_tool_use(tool_name: str, tool_input: dict) -> str:
     """Convert tool calls into natural tutor responses."""
     if tool_name == "request_narration":
         return f"📖 *Narration Time* — {tool_input['prompt']}"
+
+    if tool_name == "invite_handwriting":
+        return f"✍️ *Time to Write or Draw* — {tool_input['prompt']}"
 
     if tool_name == "offer_socratic_hint":
         hint = tool_input["hint_question"]

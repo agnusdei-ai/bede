@@ -160,6 +160,17 @@ export async function logout(token: string): Promise<void> {
  *  speech" apart from "configured but this call failed, stay silent rather
  *  than degrading to a different voice mid-conversation" (see
  *  useTextToSpeech.ts's speak()). */
+// Once a real response confirms the backend has TTS configured, remember it
+// for the rest of the tab session. A network-level exception below (timeout,
+// connection reset, a Render free-tier cold start mid-request) tells us
+// NOTHING about whether TTS is configured — it's a transient failure of this
+// one call, not a fact about the deployment. Treating that exception as
+// "unconfigured" was the actual cause of voice audibly flipping from Fable
+// to the browser's robotic fallback partway through a conversation: the very
+// first hiccupy request lied about the deployment being unconfigured, even
+// though every other request that same session succeeded fine.
+let lastKnownTtsConfigured = false
+
 export async function speakViaBackend(
   token: string,
   text: string,
@@ -171,10 +182,11 @@ export async function speakViaBackend(
       body: JSON.stringify({ text }),
     })
     const configured = res.headers.get('X-TTS-Configured') === 'True'
+    lastKnownTtsConfigured = configured
     if (res.status !== 200) return { audio: null, configured }
     return { audio: await res.blob(), configured }
   } catch {
-    return { audio: null, configured: false }
+    return { audio: null, configured: lastKnownTtsConfigured }
   }
 }
 

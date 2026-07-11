@@ -141,6 +141,18 @@ export function unlockSpeechForSession() {
   }
 }
 
+// Once a real response confirms the backend has TTS configured, remember it
+// for the rest of the tab session. A network-level exception in
+// speakViaBackend below (timeout, connection reset, a transient hiccup) says
+// nothing about whether TTS is configured — it's a failure of that one call,
+// not a fact about the deployment. Treating it as "unconfigured" was the
+// actual cause of voice audibly flipping from the backend voice to the
+// browser's robotic fallback partway through a session: one hiccupy request
+// lied about the deployment being unconfigured even though every other call
+// that session succeeded fine. Module-scoped (not a ref) since it should
+// survive remounts of the hook within the same tab, same as resolvedVoice above.
+let lastKnownTtsConfigured = false
+
 export function useTextToSpeech(token: string | null = null, initialEnabled: boolean = true) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [enabled, setEnabled] = useState(initialEnabled)
@@ -163,6 +175,7 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
         body: JSON.stringify({ text }),
       })
       const configured = res.headers.get('X-TTS-Configured') === 'True'
+      lastKnownTtsConfigured = configured
       if (res.status !== 200) return { spoke: false, configured } // 204 = synthesis unavailable
       const blob = await res.blob()
       if (stoppedRef.current) return { spoke: true, configured } // stop() fired while we were fetching
@@ -178,7 +191,7 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       audioRef.current = null
       return { spoke: true, configured }
     } catch {
-      return { spoke: false, configured: false }
+      return { spoke: false, configured: lastKnownTtsConfigured }
     }
   }, [token])
 

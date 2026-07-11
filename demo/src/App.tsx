@@ -43,11 +43,19 @@ function friendlyErrorMessage(err: unknown, fallback: string): string {
 // collide with each other — unlike the shared-PIN trial this once had,
 // which is why that tier was removed.
 
+// Survives a session-ended retry, an explicit logout, or a page reload
+// within the same tab — none of those should force the visitor to re-type
+// their child's name or re-pick a grade and land back on a "Guest" session
+// they never asked for. Session-only (not localStorage): cleared when the
+// tab closes, same lifetime as every other piece of demo session state.
+const NAME_STORAGE_KEY = 'bede-demo-student-name'
+const GRADE_STORAGE_KEY = 'bede-demo-grade'
+
 function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [studentName, setStudentName] = useState('')
-  const [grade, setGrade] = useState('')
+  const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
+  const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
@@ -56,6 +64,8 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
     try {
       const code = await generateDemoCode(studentName, grade)
       const { token } = await loginWithCode(code)
+      if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
+      if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
       onLoggedIn(token, code)
     } catch (err) {
       setError(friendlyErrorMessage(err, 'Could not start a session'))
@@ -111,7 +121,7 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code just for you. Nothing you type is saved after your session ends.</p>
+          <p>A one-time 6-digit code just for you. This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}

@@ -66,3 +66,49 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -d "$BODY"
           echo "--- end response ---"
+
+  # TEMPORARY — same caveat as debug-chat-flow above. requirements.txt pins
+  # anthropic and sse-starlette with open-ended `>=` floors and no ceiling,
+  # so `pip install -r requirements.txt` resolves to whatever's newest at
+  # build time. Render rebuilds from scratch on every push to main — and we
+  # just merged two PRs — so check what actually gets resolved today and
+  # whether it explains the malformed "data: data: ..." double-prefix seen
+  # in debug-chat-flow's output.
+  debug-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install anthropic + sse-starlette fresh and inspect them
+        run: |
+          pip install --quiet 'anthropic>=0.40.0' 'sse-starlette>=2.1.0' fastapi
+          echo "--- resolved versions ---"
+          pip show anthropic sse-starlette | grep -E '^(Name|Version):'
+          echo "--- does EventSourceResponse double-wrap an already-formatted string? ---"
+          python3 <<'PYEOF'
+          import asyncio
+          from sse_starlette.sse import EventSourceResponse
+
+          async def gen():
+              yield 'data: {"type": "done"}\n\n'
+
+          resp = EventSourceResponse(gen())
+
+          async def drain():
+              chunks = []
+              async for chunk in resp.body_iterator:
+                  chunks.append(chunk)
+                  if len(chunks) > 5:
+                      break
+              print("RAW OUTPUT:", repr(chunks))
+
+          asyncio.run(drain())
+          PYEOF
+          echo "--- anthropic streaming event/delta class names in this version ---"
+          python3 -c "
+          import anthropic
+          print('anthropic version:', anthropic.__version__)
+          import anthropic.lib.streaming._messages as m
+          print([n for n in dir(m) if 'Event' in n or 'Delta' in n])
+          "

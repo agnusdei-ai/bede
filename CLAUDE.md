@@ -57,7 +57,7 @@ core/
   encryption.py      AES-256-GCM; MASTER_SECRET → KEK → DATA_KEY hierarchy; all BYTEA columns encrypted
   audit.py           Encrypted audit log — every security event written independently of request transaction
   deps.py            require_auth / require_parent FastAPI dependencies (JWT + IP/UA fingerprint)
-  middleware.py      SecurityHeaders, RateLimit, ExfiltrationGuard (blocks prompt-injection in SSE)
+  middleware.py      SecurityHeaders, RateLimit, ExfiltrationGuard (blocks known exfiltration endpoints + scans JSON response bodies for leaked key material; SSE streams pass through untouched — see Security Constraints)
   security.py        JWT encode/decode; device fingerprint binding
 routers/
   auth.py            POST /auth/login → JWT; GET /auth/validate
@@ -139,7 +139,7 @@ To change models, update `tutor_model` / `session_model` in `core/config.py`.
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401
 - Auth credential comparisons use `hmac.compare_digest()` (constant-time)
-- `ExfiltrationGuard` middleware strips `data:` lines from SSE that contain prompt-injection markers
+- `ExfiltrationGuard` middleware blocks known exfiltration endpoints (`/export`, `/download`, `/dump`, `/backup`, `/debug`) and, for buffered JSON responses only, scans the body for leaked key material (`embedding` arrays, `data_key`, `device_salt`, the SAGE encrypted-file magic) before returning it — capped at 2MB. It deliberately does NOT buffer or re-scan `text/event-stream` (the `/tutor/chat` SSE stream): prompt-injection defense for that path is applied on the *input* side instead, via `_sanitize_parent_field`/`_INJECTION_PATTERN` in `services/ai_service.py`, which strips injection attempts out of parent/child-supplied free text before it ever reaches the model — there is no server-side secret in Bede's context for a jailbroken turn to leak in the first place.
 - The `sage` container user has no shell; containers run `read_only: true`, `cap_drop: ALL`
 - Voice profiles and student configs are stored as AES-256-GCM BYTEA — the database provider never sees plaintext
 

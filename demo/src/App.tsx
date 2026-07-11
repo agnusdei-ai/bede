@@ -19,6 +19,20 @@ interface DisplayMessage {
   visualAid?: VisualAidData
 }
 
+// A fetch() that fails at the network/connection level (DNS, connection
+// refused, TLS, offline) rejects with a bare TypeError, not an HTTP error —
+// browsers word it differently ("Failed to fetch" in Chrome, "Load failed"
+// in Safari) and neither is meaningful to a visitor. Render's free tier
+// spins the backend down after 15 minutes idle and refuses connections
+// outright while it cold-starts back up, which is exactly this case, so
+// point at that rather than surfacing the raw browser wording.
+function friendlyErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof TypeError) {
+    return "Could not reach the server — it may be waking up after being idle. Wait a few seconds and try again."
+  }
+  return err instanceof Error ? err.message : fallback
+}
+
 // ── Self-service code login — the sole way into the demo ─────────────────────
 //
 // One click mints a fresh, one-time 6-digit code (POST /auth/demo-code) and
@@ -42,7 +56,7 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
       const { token } = await loginWithCode(code)
       onLoggedIn(token, code)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start a session')
+      setError(friendlyErrorMessage(err, 'Could not start a session'))
       setLoading(false)
     }
   }
@@ -376,7 +390,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
           ? err.message
           : err instanceof TrialSessionEndedError
             ? 'Your session has ended, so this could not be sent.'
-            : err instanceof Error ? err.message : 'Could not send the email.'
+            : friendlyErrorMessage(err, 'Could not send the email.')
       )
     }
   }
@@ -498,7 +512,7 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
         onSessionInvalid()
         return
       }
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(friendlyErrorMessage(err, 'Something went wrong'))
       setMessages((prev) => prev.slice(0, -1))
     } finally {
       setStreaming(false)
@@ -616,7 +630,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
 
   useEffect(() => {
-    getDemoConfig(token).then(setConfig).catch((err) => setError(err instanceof Error ? err.message : 'Could not start your session'))
+    getDemoConfig(token).then(setConfig).catch((err) => setError(friendlyErrorMessage(err, 'Could not start your session')))
   }, [token])
 
   const runChat = useCallback(

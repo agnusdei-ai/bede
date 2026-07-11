@@ -39,3 +39,24 @@ jobs:
           # trailing slash here produces ".../onrender.com//health", which
           # this FastAPI backend's router won't match.
           curl -sf --max-time 90 "${DEMO_API_BASE%/}/health"
+
+  # TEMPORARY — checking what the live deployment's /tutor/speak actually
+  # resolves settings.openai_tts_model/voice to, via X-Debug-TTS-* headers.
+  # Remove once diagnosed.
+  debug-tts-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live TTS config via /tutor/speak diagnostic headers
+        env:
+          DEMO_API_BASE: ${{ vars.VITE_DEMO_API_BASE }}
+        run: |
+          set -x
+          BASE="${DEMO_API_BASE%/}"
+          CODE=$(curl -sS --max-time 90 -X POST "$BASE/auth/demo-code" | jq -r '.code')
+          TOKEN=$(curl -sS --max-time 30 -X POST "$BASE/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d "{\"role\":\"demo_code\",\"credential\":\"$CODE\"}" | jq -r '.access_token')
+          curl -sS --max-time 30 -D - -o /dev/null -X POST "$BASE/tutor/speak" \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"text": "diagnostic check"}' | grep -i 'x-debug\|^http'

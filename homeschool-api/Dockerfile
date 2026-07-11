@@ -27,4 +27,12 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -sf http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers with forwarded-allow-ips='*' is required on every hosting
+# platform that fronts this container with its own reverse proxy (Render,
+# Fly.io, Heroku, etc.): the container is never reached directly, so the only
+# peer uvicorn ever sees is that platform's proxy, and uvicorn's own default
+# (forwarded_allow_ips=127.0.0.1) would silently ignore X-Forwarded-For in
+# that setup — collapsing every real visitor's IP into one, which broke the
+# per-IP rate limiter (core/middleware.py) and audit log IP attribution
+# (core/audit.py) for anyone not running this literally on localhost.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

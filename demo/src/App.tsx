@@ -149,20 +149,15 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
     const assistantId = `assistant-${Date.now()}`
     setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }])
     let fullText = ''
-    // Chained so each speak() waits for the previous one to finish instead of
-    // firing concurrently — otherwise a tool card's speak() (queued the
-    // instant its chunk arrives) can finish playing before the main response
-    // text even starts, since that text was only ever spoken once at the very
-    // end. Flushing pendingSpeech before each tool card keeps playback in the
-    // same order the words actually appear on screen: Bede's initial text
-    // first, then the tool card, not the reverse.
-    let speechQueue = Promise.resolve()
+    // Speak the whole turn as ONE synthesis call, not one call per chunk.
+    // Separate independently-synthesized clips (main text, then each tool
+    // card) stitched together with a network round-trip gap between them
+    // read as choppy and mechanical even when each clip's own voice quality
+    // is fine — a single continuous take sounds like one person talking.
+    const speechSegments: string[] = []
     let pendingSpeech = ''
-    const queueSpeak = (text: string) => {
-      speechQueue = speechQueue.then(() => speak(text))
-    }
     const flushPendingSpeech = () => {
-      if (ttsEnabled && pendingSpeech.trim()) queueSpeak(pendingSpeech)
+      if (pendingSpeech.trim()) speechSegments.push(pendingSpeech)
       pendingSpeech = ''
     }
     try {
@@ -175,13 +170,13 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
           flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: chunk.tool }])
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
-          if (ttsEnabled) queueSpeak(chunk.content)
+          speechSegments.push(chunk.content)
         } else if (chunk.type === 'visual_aid') {
           setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
         } else if (chunk.type === 'subject_complete') {
           flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: 'subject_complete' }])
-          if (ttsEnabled) queueSpeak(chunk.content)
+          speechSegments.push(chunk.content)
           setSubjectsCompleted((prev) => (prev.includes(subject) ? prev : [...prev, subject]))
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
@@ -189,6 +184,7 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
         }
       }
       flushPendingSpeech()
+      if (ttsEnabled && speechSegments.length) await speak(speechSegments.join(' '))
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {

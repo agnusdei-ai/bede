@@ -96,7 +96,7 @@ def synthesis_configured() -> bool:
     return model_path.exists() and voices_path.exists()
 
 
-async def _synthesize_openai(text: str, voice_override: Optional[str] = None) -> Optional[bytes]:
+async def _synthesize_openai(text: str) -> Optional[bytes]:
     """OpenAI TTS — returns WAV bytes, or None on any failure (network,
     auth, rate limit) so the caller falls through to Kokoro/browser speech
     instead of breaking the session."""
@@ -104,7 +104,7 @@ async def _synthesize_openai(text: str, voice_override: Optional[str] = None) ->
 
     payload = {
         "model": settings.openai_tts_model,
-        "voice": voice_override or settings.openai_tts_voice,
+        "voice": settings.openai_tts_voice,
         "input": text,
         "response_format": "wav",
     }
@@ -181,7 +181,7 @@ def _synthesize_sync(kokoro, text: str) -> bytes:
     return buf.getvalue()
 
 
-async def synthesize_speech(text: str, voice_override: Optional[str] = None) -> Optional[bytes]:
+async def synthesize_speech(text: str) -> Optional[bytes]:
     """
     Convert text to spoken audio (WAV bytes) using Bede's configured voice.
     Tries OpenAI TTS first if configured (meaningfully more natural), then
@@ -190,7 +190,7 @@ async def synthesize_speech(text: str, voice_override: Optional[str] = None) -> 
     tutoring session; the caller falls back to the browser's own speech.
     """
     if settings.openai_api_key:
-        audio = await _synthesize_openai(text, voice_override)
+        audio = await _synthesize_openai(text)
         if audio is not None:
             return audio
         # Falls through to Kokoro/None below rather than returning — an

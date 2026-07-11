@@ -171,7 +171,10 @@ export function useTextToSpeech(speakToken: string | null = null) {
   }, [])
 
   const speak = useCallback(async (text: string) => {
-    const clean = text.replace(/^[📖🔍✨🌿⚠️]\s*/, '').replace(/\*[^*]+\*/g, '').trim()
+    // No `^` anchor: callers now batch a whole turn's segments (main text +
+    // any tool cards) into one string before calling speak(), so a marker
+    // emoji can appear mid-string, not just at position 0.
+    const clean = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '').trim()
     if (!clean) return
     setIsSpeaking(true)
     const spoke = await speakViaKokoro(clean)

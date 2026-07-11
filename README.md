@@ -31,3 +31,6 @@ self-hosted use by your own household or homeschool community — see
 [LICENSE](LICENSE) for the full terms. Resale, redistribution, and
 commercial use are not permitted without written permission from Agnus
 Dei Technologies, LLC.
+
+Bede™ and the Bede name, logo, and persona are trademarks of Agnus Dei
+Technologies, LLC.

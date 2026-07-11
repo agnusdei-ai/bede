@@ -1,9 +1,11 @@
 Copyright (c) 2026 Agnus Dei Technologies, LLC. All Rights Reserved.
 
-This software and associated documentation files (the "Software") are the
-proprietary property of Agnus Dei Technologies, LLC ("Licensor"). The
-Software is made available for viewing and self-hosted personal, family,
-or homeschool-community use only, subject to the following terms:
+"Bede" and the Bede name, logo, and persona are trademarks of Agnus Dei
+Technologies, LLC ("Licensor"). This software and associated
+documentation files (the "Software") are the proprietary property of
+Licensor. The Software is made available for viewing and self-hosted
+personal, family, or homeschool-community use only, subject to the
+following terms:
 
 1. GRANT OF USE
    Licensor grants a limited, non-exclusive, non-transferable, revocable
@@ -33,8 +35,16 @@ or homeschool-community use only, subject to the following terms:
    Upon termination, you must cease all use of the Software and destroy
    all copies in your possession.
 
-All rights not expressly granted herein are reserved by Agnus Dei
-Technologies, LLC.
+5. TRADEMARK
+   This license grants no rights to use the "Bede" name, logo, or persona
+   for any purpose beyond identifying your own self-hosted deployment of
+   the unmodified Software. You may not use the Bede name or mark in
+   connection with a forked, modified, resold, or competing product or
+   service, or in any way that implies endorsement by or affiliation with
+   Agnus Dei Technologies, LLC without prior written consent.
+
+All rights not expressly granted herein — including all copyright and
+trademark rights — are reserved by Agnus Dei Technologies, LLC.
 
 For licensing inquiries (commercial use, resale, redistribution),
 contact Agnus Dei Technologies, LLC.

@@ -58,6 +58,27 @@ just push to `main` and it redeploys itself.
 3. Open the deployed demo, click **"Generate my code"**, and confirm Bede's
    voice comes through.
 
+## Cold starts (free plan)
+
+Render's free web-service plan spins `bede-demo-api` down after 15 minutes
+with no inbound traffic; the next visitor eats a ~1-minute cold boot before
+Bede responds. `.github/workflows/keep-demo-warm.yml` pings `/health` every
+10 minutes during a 12:00-23:50 UTC window to keep the service warm for
+most demo traffic without it — deliberately not 24/7, since Render's free
+plan grants a shared **750 instance-hours/month across the whole
+workspace**, and keeping one service warm around the clock burns nearly all
+744 of a 31-day month's hours by itself, leaving nothing for `bede-demo-db`
+or any other free service before the workspace gets suspended for the rest
+of the month.
+
+It starts working automatically once `VITE_DEMO_API_BASE` (see below) is
+set — no separate setup. If demo traffic falls outside 12:00-23:50 UTC,
+widen the hour range in that workflow's cron expression. If you want true
+24/7 zero-cold-start coverage instead, skip the keep-alive workflow
+entirely and upgrade `bede-demo-api` to Render's paid Starter plan (~$7/mo)
+in the dashboard — it isn't subject to spin-down or the shared free-hours
+cap at all.
+
 ## Staying up to date
 
 Render auto-deploys on every push to `main` by default — once this is set

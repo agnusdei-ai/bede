@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check } from 'lucide-react'
+import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import SocraticChat from '../components/SocraticChat'
 import SubjectDrawer from '../components/SubjectDrawer'
-import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig } from '../services/api'
+import FeedbackModal from '../components/FeedbackModal'
+import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
 import { SUBJECT_MAP } from '../types'
 import { getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes } from '../utils/gradeTimer'
 import { pickBreakActivity } from '../utils/breakActivities'
@@ -28,6 +29,14 @@ export default function TutorSession() {
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [feedbackEnabled, setFeedbackEnabled] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+
+  useEffect(() => {
+    // Checked once so the button never appears only to fail on submit on a
+    // deployment where FEEDBACK_EMAIL isn't set.
+    isFeedbackEnabled().then(setFeedbackEnabled)
+  }, [])
 
   useEffect(() => {
     if (!token) { navigate('/'); return }
@@ -198,6 +207,16 @@ export default function TutorSession() {
           </div>
         )}
 
+        {feedbackEnabled && (
+          <button
+            onClick={() => setShowFeedback(true)}
+            title="Tell us what's working and what isn't"
+            className="p-2 text-gray-400 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors"
+          >
+            <MessageSquare size={15} />
+          </button>
+        )}
+
         {role === 'parent' && (
           <button
             onClick={handleEndSession}
@@ -217,6 +236,8 @@ export default function TutorSession() {
           <LogOut size={15} />
         </button>
       </header>
+
+      {showFeedback && token && <FeedbackModal token={token} onClose={() => setShowFeedback(false)} />}
 
       {/* ── Full-height chat ── */}
       <main className="flex-1 overflow-hidden relative">

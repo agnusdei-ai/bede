@@ -104,6 +104,68 @@ def build_distress_alert_html(student_name: str, timestamp_iso: str, trigger_exc
 </html>"""
 
 
+_CATEGORY_LABELS = {
+    "cx": "Customer experience",
+    "ux": "Usability / interface",
+    "content_quality": "Content quality (Bede's teaching)",
+    "other": "Other",
+}
+
+
+def build_feedback_email_html(
+    category: str,
+    message: str,
+    role: str,
+    rating: "int | None" = None,
+    contact_email: "str | None" = None,
+) -> str:
+    """Wraps a beta feedback submission (see routers/feedback.py) in a plain
+    HTML email to the operator. Escapes the free-text message — the only
+    field a submitter fully controls — before embedding it."""
+    safe_message = html.escape(message).replace("\n", "<br>")
+    label = _CATEGORY_LABELS.get(category, category)
+    stars = f"{'★' * rating}{'☆' * (5 - rating)}" if rating else "—"
+    reply_line = (
+        f'<p style="margin: 0 0 16px 0;"><strong>Reply-to:</strong> {html.escape(contact_email)}</p>'
+        if contact_email else ""
+    )
+    return f"""\
+<!DOCTYPE html>
+<html>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 20px; margin: 0 0 16px 0;">Bede beta feedback — {html.escape(label)}</h1>
+  <p style="margin: 0 0 8px 0;"><strong>From:</strong> {html.escape(role)}</p>
+  <p style="margin: 0 0 16px 0;"><strong>Rating:</strong> {stars}</p>
+  {reply_line}
+  <div style="font-size: 15px; line-height: 1.6; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+    {safe_message}
+  </div>
+</body>
+</html>"""
+
+
+def feedback_configured() -> bool:
+    return email_configured() and bool(settings.feedback_email)
+
+
+async def send_feedback(
+    category: str,
+    message: str,
+    role: str,
+    rating: "int | None" = None,
+    contact_email: "str | None" = None,
+) -> bool:
+    if not feedback_configured():
+        return False
+    html_body = build_feedback_email_html(category, message, role, rating, contact_email)
+    label = _CATEGORY_LABELS.get(category, category)
+    return await send_email(
+        settings.feedback_email,
+        subject=f"Bede beta feedback: {label}",
+        html_body=html_body,
+    )
+
+
 def email_configured() -> bool:
     return bool(settings.resend_api_key and settings.resend_from_address)
 

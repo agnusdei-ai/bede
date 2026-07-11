@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
+  isFeedbackEnabled, submitFeedback,
   TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
+  type FeedbackCategory,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -670,6 +672,129 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
 // No message cap and no wall-clock timer — a code lasts for its own TTL
 // (see core/demo_code_session.py), and there's no single-active-session
 // lock, since each code is already unique to whoever generated it.
+const FEEDBACK_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
+  { value: 'cx', label: 'Overall experience' },
+  { value: 'ux', label: 'Usability / interface' },
+  { value: 'content_quality', label: "Bede's teaching quality" },
+  { value: 'other', label: 'Something else' },
+]
+
+/** Reachable mid-session (not just at the end) since a rough edge is easiest
+ *  to describe the moment it happens, not after backtracking through memory
+ *  at "Finish demo" time. Routes to the operator's own inbox — see
+ *  homeschool-api/routers/feedback.py — never persisted server-side. */
+function FeedbackModal({ token, onClose }: { token: string; onClose: () => void }) {
+  const [category, setCategory] = useState<FeedbackCategory>('cx')
+  const [rating, setRating] = useState(0)
+  const [message, setMessage] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStatus('sending')
+    setErrorMsg('')
+    try {
+      await submitFeedback(token, category, message.trim(), rating || undefined, contactEmail || undefined)
+      setStatus('sent')
+    } catch (err) {
+      setStatus('error')
+      setErrorMsg(friendlyErrorMessage(err, 'Could not send feedback right now.'))
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-6 relative">
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600" aria-label="Close">
+          <X size={18} />
+        </button>
+
+        {status === 'sent' ? (
+          <div className="text-center py-4">
+            <Check size={28} className="mx-auto mb-3 text-green-600" />
+            <p className="text-sm font-semibold text-gray-800 mb-1">Thank you!</p>
+            <p className="text-xs text-gray-500">Your feedback was sent — it genuinely helps shape what's next.</p>
+            <button onClick={onClose} className="mt-5 w-full py-2.5 bg-navy-100 text-navy-700 rounded-xl font-semibold text-sm hover:bg-navy-200 transition-colors">
+              Close
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="flex items-center gap-1.5 mb-4">
+              <MessageSquare size={16} className="text-navy-500" />
+              <h2 className="text-sm font-display font-bold text-gray-800">Share feedback with the team</h2>
+            </div>
+
+            <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">What's this about?</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as FeedbackCategory)}
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer mb-3 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            >
+              {FEEDBACK_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+
+            <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Rating <span className="font-normal normal-case text-gray-400">(optional)</span>
+            </label>
+            <div className="flex gap-1 mb-3">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  type="button"
+                  key={n}
+                  onClick={() => setRating(rating === n ? 0 : n)}
+                  aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                  className="p-0.5"
+                >
+                  <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-300'} />
+                </button>
+              ))}
+            </div>
+
+            <label htmlFor="feedback-message" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Your feedback
+            </label>
+            <textarea
+              id="feedback-message"
+              required
+              maxLength={2000}
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="What worked, what didn't, what surprised you…"
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+
+            <label htmlFor="feedback-email" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Email <span className="font-normal normal-case text-gray-400">(optional — only if you want a reply)</span>
+            </label>
+            <input
+              id="feedback-email"
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+
+            {status === 'error' && <p className="text-xs text-red-600 mb-3">{errorMsg}</p>}
+
+            <button
+              type="submit"
+              disabled={status === 'sending' || !message.trim()}
+              className="w-full py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send feedback'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   token: string
   code: string
@@ -680,11 +805,16 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
   const [finished, setFinished] = useState(false)
+  const [feedbackEnabled, setFeedbackEnabled] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
   const sessionStartRef = useRef(Date.now())
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
 
   useEffect(() => {
     getDemoConfig(token).then(setConfig).catch((err) => setError(friendlyErrorMessage(err, 'Could not start your session')))
+    // Checked once so the button never appears only to fail on submit on a
+    // deployment where FEEDBACK_EMAIL isn't set.
+    isFeedbackEnabled().then(setFeedbackEnabled)
   }, [token])
 
   const runChat = useCallback(
@@ -730,31 +860,43 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   }
 
   return (
-    <ChatScreen
-      displayName={config.student_name}
-      subjects={config.subjects}
-      runChat={runChat}
-      speakToken={token}
-      onSessionInvalid={onSessionEnded}
-      sessionStateRef={sessionStateRef}
-      header={
-        <>
-          <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">
-            <KeyRound size={12} /> {code}
-          </div>
-          <button
-            onClick={onOpenSandbox}
-            title="Preview the parent-only direct-answer sandbox"
-            className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
-          >
-            <FlaskConical size={12} /> Ask Bede
-          </button>
-          <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
-            Finish demo
-          </button>
-        </>
-      }
-    />
+    <>
+      {showFeedback && <FeedbackModal token={token} onClose={() => setShowFeedback(false)} />}
+      <ChatScreen
+        displayName={config.student_name}
+        subjects={config.subjects}
+        runChat={runChat}
+        speakToken={token}
+        onSessionInvalid={onSessionEnded}
+        sessionStateRef={sessionStateRef}
+        header={
+          <>
+            <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">
+              <KeyRound size={12} /> {code}
+            </div>
+            <button
+              onClick={onOpenSandbox}
+              title="Preview the parent-only direct-answer sandbox"
+              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
+            >
+              <FlaskConical size={12} /> Ask Bede
+            </button>
+            {feedbackEnabled && (
+              <button
+                onClick={() => setShowFeedback(true)}
+                title="Tell us what's working and what isn't"
+                className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline"
+              >
+                <MessageSquare size={12} /> Feedback
+              </button>
+            )}
+            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
+              Finish demo
+            </button>
+          </>
+        }
+      />
+    </>
   )
 }
 

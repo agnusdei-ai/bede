@@ -190,6 +190,46 @@ export async function speakViaBackend(
   }
 }
 
+export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other'
+
+/** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
+ *  showing the feedback button at all, so it never appears only to fail on
+ *  submit. Unauthenticated — see homeschool-api's routers/feedback.py. */
+export async function isFeedbackEnabled(): Promise<boolean> {
+  try {
+    const res = await fetch(`${apiBase()}/feedback/enabled`)
+    if (!res.ok) return false
+    const data = await res.json()
+    return Boolean(data.enabled)
+  } catch {
+    return false
+  }
+}
+
+/** Sends beta CX/UX/content-quality feedback to the operator's own inbox —
+ *  never persisted server-side beyond that one email (see
+ *  homeschool-api/routers/feedback.py). */
+export async function submitFeedback(
+  token: string,
+  category: FeedbackCategory,
+  message: string,
+  rating?: number,
+  contactEmail?: string,
+): Promise<void> {
+  const res = await fetch(`${apiBase()}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      category,
+      message,
+      rating: rating || undefined,
+      contact_email: contactEmail?.trim() || undefined,
+    }),
+  })
+  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended.')
+  if (!res.ok) throw new Error('Could not send feedback right now — please try again later.')
+}
+
 export async function getDemoConfig(token: string): Promise<SessionConfig> {
   const res = await fetch(`${apiBase()}/tutor/demo-config`, {
     headers: { Authorization: `Bearer ${token}` },

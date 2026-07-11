@@ -86,7 +86,8 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
         <div className="text-center mb-6">
           <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
+          <h1 className="text-2xl font-display font-bold text-gray-800">Bede — a Socratic tutor</h1>
+          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each child's potential</p>
           <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
         </div>
 

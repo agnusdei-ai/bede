@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { X, Undo2, Trash2, Check } from 'lucide-react'
+import { X, Undo2, Trash2, Check, Pencil, Eraser } from 'lucide-react'
 
 interface Point {
   x: number
@@ -18,8 +18,32 @@ interface HandwritingCanvasProps {
   onCancel: () => void
 }
 
-const INK_COLOR = '#1b3a6b'
 const PARCHMENT_BG = '#faf8f0'
+
+// A compact MS-Paint/Preview-style swatch row rather than a full color wheel —
+// enough range for a nature-notebook sketch or a math diagram without
+// overwhelming a touch toolbar. First entry is the historical default ink
+// color this canvas always used, kept as the default selection.
+const PALETTE = [
+  { name: 'Ink', value: '#1b3a6b' },
+  { name: 'Black', value: '#1a1a1a' },
+  { name: 'Red', value: '#c0392b' },
+  { name: 'Orange', value: '#d9791b' },
+  { name: 'Gold', value: '#c9971e' },
+  { name: 'Green', value: '#2f7d4f' },
+  { name: 'Sky', value: '#2f7fc0' },
+  { name: 'Purple', value: '#7a4fa3' },
+  { name: 'Brown', value: '#7a5230' },
+] as const
+
+type SizePreset = 'thin' | 'medium' | 'thick'
+const SIZE_PRESETS: Record<SizePreset, { min: number; max: number; base: number; dot: number }> = {
+  thin: { min: 1, max: 3, base: 1.5, dot: 5 },
+  medium: { min: 2, max: 6, base: 3, dot: 9 },
+  thick: { min: 4, max: 12, base: 6, dot: 14 },
+}
+
+type Tool = 'pen' | 'eraser'
 
 export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -31,6 +55,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
 
   // Force re-render when strokes change so undo button updates
   const [strokeCount, setStrokeCount] = useState(0)
+
+  // Paint controls — MS Paint/Preview-style: pick a tool, a size, a color.
+  // Kept as plain state (not refs) so the toolbar re-renders immediately;
+  // the pointer handlers below are plain functions re-created each render,
+  // so they always see the latest selection with no extra plumbing.
+  const [tool, setTool] = useState<Tool>('pen')
+  const [sizePreset, setSizePreset] = useState<SizePreset>('medium')
+  const [color, setColor] = useState<string>(PALETTE[0].value)
 
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -62,7 +94,9 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.scale(dpr, dpr)
 
-    // Replay all strokes
+    // Replay all strokes — an "eraser" stroke is just one whose color is the
+    // background color, so replaying strokes in order naturally covers
+    // whatever ink was under it with no separate erase code path.
     for (const stroke of strokesRef.current) {
       if (stroke.points.length < 2) {
         // Single dot
@@ -87,7 +121,10 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     }
   }, [])
 
-  // Get canvas-relative coordinates from pointer event
+  // Get canvas-relative coordinates from pointer event — works identically
+  // for a Surface Pen, Apple Pencil, a finger, or a mouse, since the
+  // Pointer Events API (not separate mouse/touch handlers) unifies all of
+  // them, pressure included where the hardware reports it.
   const getPos = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
@@ -98,8 +135,12 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     }
   }
 
-  const getStrokeWidth = (pressure: number) =>
-    Math.max(1.5, Math.min(4, pressure * 6 || 2))
+  const getStrokeWidth = (pressure: number) => {
+    const { min, max, base } = SIZE_PRESETS[sizePreset]
+    return Math.max(min, Math.min(max, pressure * max || base))
+  }
+
+  const activeColor = () => (tool === 'eraser' ? PARCHMENT_BG : color)
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault()
@@ -115,7 +156,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     const w = getStrokeWidth(pt.pressure)
     ctx.beginPath()
     ctx.arc(pt.x, pt.y, w / 2, 0, Math.PI * 2)
-    ctx.fillStyle = INK_COLOR
+    ctx.fillStyle = activeColor()
     ctx.fill()
   }
 
@@ -132,7 +173,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     const w = getStrokeWidth(pt.pressure)
 
     ctx.beginPath()
-    ctx.strokeStyle = INK_COLOR
+    ctx.strokeStyle = activeColor()
     ctx.lineWidth = w
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
@@ -152,7 +193,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
       strokesRef.current.push({
         points,
         width: getStrokeWidth(avgPressure),
-        color: INK_COLOR,
+        color: activeColor(),
       })
       setStrokeCount(strokesRef.current.length)
     }
@@ -263,6 +304,81 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
             <Check size={16} />
             <span>Done</span>
           </button>
+        </div>
+      </div>
+
+      {/* Paint controls — tool, size, color. A second row keeps the primary
+          Cancel/Undo/Clear/Done actions above uncluttered on a narrow
+          tablet screen (Surface Pro / iPad portrait width included). */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
+        {/* Pen / eraser */}
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
+          <button
+            onClick={() => setTool('pen')}
+            title="Pen"
+            aria-pressed={tool === 'pen'}
+            className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            onClick={() => setTool('eraser')}
+            title="Eraser"
+            aria-pressed={tool === 'eraser'}
+            className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Eraser size={16} />
+          </button>
+        </div>
+
+        {/* Brush size */}
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
+          {(Object.keys(SIZE_PRESETS) as SizePreset[]).map((preset) => (
+            <button
+              key={preset}
+              onClick={() => setSizePreset(preset)}
+              title={`${preset[0].toUpperCase()}${preset.slice(1)} brush`}
+              aria-pressed={sizePreset === preset}
+              className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${sizePreset === preset ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}
+            >
+              <span
+                className="rounded-full bg-navy-700"
+                style={{ width: SIZE_PRESETS[preset].dot, height: SIZE_PRESETS[preset].dot }}
+              />
+            </button>
+          ))}
+        </div>
+
+        {/* Color palette */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {PALETTE.map((swatch) => (
+            <button
+              key={swatch.value}
+              onClick={() => { setColor(swatch.value); setTool('pen') }}
+              title={swatch.name}
+              aria-pressed={tool === 'pen' && color === swatch.value}
+              className={`w-7 h-7 rounded-full border-2 transition-transform flex-shrink-0 ${
+                tool === 'pen' && color === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
+              }`}
+              style={{ backgroundColor: swatch.value }}
+            />
+          ))}
+          {/* Native color picker — the "more colors" escape hatch, same idea
+              as MS Paint's "Edit Colors..." dialog. Native <input type="color">
+              gives a system color picker on every platform this app targets
+              (including Surface Pro/iPad browsers) with no extra dependency. */}
+          <label
+            title="More colors"
+            className="w-7 h-7 rounded-full border-2 border-white shadow-sm flex-shrink-0 cursor-pointer overflow-hidden relative"
+            style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}
+          >
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => { setColor(e.target.value); setTool('pen') }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </label>
         </div>
       </div>
 

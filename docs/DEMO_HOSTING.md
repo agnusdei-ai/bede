@@ -35,6 +35,14 @@ just push to `main` and it redeploys itself.
      the whole public demo (empty = disabled). Must still satisfy
      `pin_is_strong()` (same rules as `CHILD_PIN`) since `core/config.py`
      validates it the same way regardless.
+   - `RESEND_API_KEY` and `RESEND_FROM_ADDRESS` — optional, but every
+     email-sending feature (the post-session summary email, the safeguarding
+     distress alert, and the beta feedback form) silently no-ops without
+     them. `RESEND_FROM_ADDRESS` must be a sender verified against a domain
+     you've added in [Resend](https://resend.com)'s dashboard, not just any
+     address. `FEEDBACK_EMAIL` (where beta feedback is routed) is already set
+     as a plain, non-secret value in `render.yaml` — it just does nothing
+     until these two are filled in.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
    to remember them) or a fixed non-secret value, including `CORS_ORIGINS`

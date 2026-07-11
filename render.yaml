@@ -51,6 +51,16 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      # Neither of these was ever declared here before — without them,
+      # services/email_service.py's email_configured() is False, which
+      # silently no-ops the post-session summary email, the distress alert,
+      # AND the new beta feedback form below, regardless of FEEDBACK_EMAIL.
+      # RESEND_FROM_ADDRESS must be a sender verified against a domain
+      # you've added in Resend's dashboard, not just any address.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_ADDRESS
+        sync: false
       # This demo instance's parent/child roles are never advertised or used
       # at all — CHILD_PIN still must satisfy pin_is_strong() (see
       # core/config.py), so pick a real compliant PIN rather than a placeholder.
@@ -70,6 +80,15 @@ services:
         generateValue: true
       - key: PARENT_PASSWORD
         generateValue: true
+
+      # Where beta CX/UX/content-quality feedback (POST /feedback, see
+      # routers/feedback.py) is routed. Not a secret — just an inbox address —
+      # but the feature stays inert either way until RESEND_API_KEY and
+      # RESEND_FROM_ADDRESS are also set (dashboard, sync: false — neither is
+      # configured on this Blueprint yet, see the note above about setting
+      # secrets manually after the first deploy).
+      - key: FEEDBACK_EMAIL
+        value: info@agnusdei.ai
 
       # Fixed, non-secret settings.
       - key: DEMO_STUDENT_NAME

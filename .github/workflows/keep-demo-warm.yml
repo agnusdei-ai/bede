@@ -34,4 +34,8 @@ jobs:
             echo "VITE_DEMO_API_BASE repo variable is not set yet — nothing to ping."
             exit 0
           fi
-          curl -sf --max-time 90 "$DEMO_API_BASE/health"
+          # Strip a trailing slash — same fix as demo/src/api.ts's apiBase(),
+          # since VITE_DEMO_API_BASE is shared with that build and a stray
+          # trailing slash here produces ".../onrender.com//health", which
+          # this FastAPI backend's router won't match.
+          curl -sf --max-time 90 "${DEMO_API_BASE%/}/health"

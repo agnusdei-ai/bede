@@ -148,3 +148,24 @@ To change models, update `tutor_model` / `session_model` in `core/config.py`.
 1. `models/schemas.py` — add to `Subject` enum, `SUBJECT_DURATIONS`, `SUBJECT_LABELS`
 2. `services/ai_service.py` — add to `_SUBJECT_CONTEXT` dict
 3. `homeschool-tutor/src/types/index.ts` — add to `Subject` type, `SUBJECTS` array, and `SUBJECT_MAP`
+
+## Standing Workflow: Root-Cause Fixes
+
+When you find and fix a root cause (a bug, a performance issue, etc.) in
+this repo, don't stop at opening a PR and waiting — drive it to done:
+
+1. **Test first.** Verify the fix actually resolves the issue before doing
+   anything else. Prefer a real end-to-end check over a code-reading
+   argument — e.g. for a GitHub Actions workflow, trigger it for real
+   (`workflow_dispatch`) and read the job logs, rather than asserting the
+   YAML "looks right." If a live check isn't reachable from the sandbox,
+   say so explicitly rather than claiming full verification.
+2. **Open a PR** once the fix is confirmed to work, with a test plan in the
+   body describing exactly what was verified and how.
+3. **Merge it automatically** — do not wait for manual approval on this
+   repo. This authorization stands until the user says otherwise.
+4. **Tell the user** once it's merged (and, where applicable, live) so they
+   can do their own testing.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever task prompted it.

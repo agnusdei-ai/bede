@@ -174,6 +174,7 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
         } else if (chunk.type === 'tool') {
           flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: chunk.tool }])
+          if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
           if (ttsEnabled) queueSpeak(chunk.content)
         } else if (chunk.type === 'visual_aid') {
           setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
@@ -332,6 +333,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
     const isCelebration = msg.tool === 'celebrate_discovery'
     const accent: Record<string, string> = {
       request_narration: 'border-l-[3px] border-amber-400 bg-amber-50/70',
+      invite_handwriting: 'border-l-[3px] border-purple-400 bg-purple-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith: 'border-l-[3px] border-gold-400 bg-gold-50/70',

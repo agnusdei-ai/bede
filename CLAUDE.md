@@ -77,7 +77,7 @@ models/
 
 **SSE streaming format:** Each chunk is `data: {"type":"text","content":"..."}`, `data: {"type":"tool","tool":"<name>","content":"..."}`, or `data: {"type":"done"}`. Tool calls are accumulated in a buffer, JSON-parsed at `ContentBlockStop`, then formatted and emitted.
 
-**Four agentic tools:** `request_narration`, `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`. These render as styled cards in the UI (not chat bubbles).
+**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only).
 
 ### Frontend (`homeschool-tutor/src/`)
 

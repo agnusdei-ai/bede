@@ -106,6 +106,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'tool' && chunk.content) {
           flush()
           addToolMessage(chunk.tool ?? 'tool', chunk.content)
+          if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
           speak(chunk.content)
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
@@ -201,6 +202,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'tool' && chunk.content) {
           flush()
           addToolMessage(chunk.tool ?? 'tool', chunk.content)
+          if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
           // Speak tool responses too (narration prompts, hints, etc.)
           speak(chunk.content)
         } else if (chunk.type === 'assessment') {
@@ -410,6 +412,7 @@ function MessageBubble({ msg, studentName }: MsgProps) {
     const isCelebration = msg.tool === 'celebrate_discovery'
     const toolAccent: Record<string, string> = {
       request_narration:   'border-l-[3px] border-amber-400 bg-amber-50/70',
+      invite_handwriting:  'border-l-[3px] border-purple-400 bg-purple-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith:    'border-l-[3px] border-gold-400 bg-gold-50/70',

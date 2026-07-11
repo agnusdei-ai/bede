@@ -66,6 +66,40 @@ just push to `main` and it redeploys itself.
 3. Open the deployed demo, click **"Generate my code"**, and confirm Bede's
    voice comes through.
 
+## Custom domain (optional)
+
+To serve the demo from your own apex domain (e.g. `agnusdei.ai`) instead of
+`agnusdei-ai.github.io/bede/`:
+
+1. **DNS** — at your domain's DNS provider, replace whatever's currently at
+   the apex (`@`) with four `A` records, all pointing at GitHub Pages:
+   `185.199.108.153`, `185.199.109.153`, `185.199.110.153`,
+   `185.199.111.153`. (A `CNAME` record can't be used at a zone apex per
+   DNS rules — that's why it's four `A` records instead of the single
+   `CNAME` a subdomain like `demo.agnusdei.ai` could use instead.) Optionally
+   add a `www` `CNAME` pointing at `<owner>.github.io` if you want
+   `www.yourdomain` to resolve too — GitHub Pages will redirect it to the
+   apex automatically once both are configured.
+2. **Repo** — `demo/public/CNAME` already contains the target domain (Vite
+   copies everything in `public/` verbatim into the build output, so this
+   ships automatically on the next deploy). Update this one-line file if the
+   final domain differs from what's there now.
+3. **GitHub Pages settings** — once DNS has propagated (can take anywhere
+   from minutes to a few hours), go to `agnusdei-ai/bede` → **Settings →
+   Pages** and enter the custom domain in the **Custom domain** field, then
+   save. GitHub verifies the DNS and provisions a free TLS certificate
+   automatically — this step can't be done before DNS is live, since
+   verification will fail against a domain that isn't pointed at GitHub yet.
+4. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists both
+   `agnusdei.ai` and `bede.ai` (plus their `www` variants) ahead of time, so
+   switching the live domain later needs no backend redeploy. Trim it back
+   to just whichever domain is actually in use once that's settled, and drop
+   the `agnusdei-ai.github.io` fallback once the custom domain is confirmed
+   working end to end.
+5. **Confirm** — open the new domain, generate a code, and confirm the chat
+   works (a CORS mismatch here shows up as every `/tutor/chat` request
+   silently failing in the browser console, not a visible error banner).
+
 ## Cold starts (free plan)
 
 Render's free web-service plan spins `bede-demo-api` down after 15 minutes

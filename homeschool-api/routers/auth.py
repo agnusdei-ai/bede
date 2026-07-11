@@ -1,6 +1,5 @@
 from datetime import timedelta
 import hmac
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,7 +9,6 @@ from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import get_db
 from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
-from core.demo_session import end_session, start_new_session
 from core.deps import require_auth
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
@@ -24,13 +22,14 @@ security = HTTPBearer()
 @router.post("/demo-code", response_model=DemoCodeResponse)
 async def create_demo_code():
     """
-    Self-service alternative to the shared DEMO_PIN trial: mints a fresh,
-    one-time 6-digit code with no credentials required. Gated on DEMO_PIN
-    being set — the same "is the public demo enabled at all" switch the
-    shared trial already uses — even though the code itself never touches
-    DEMO_PIN's value. Exchange the returned code for a JWT via POST
-    /auth/login (role="demo_code"). Lives under /auth/ so it inherits the
-    existing per-IP auth rate limit (core/middleware.py) automatically.
+    Mints a fresh, one-time 6-digit code with no credentials required — the
+    sole way into the public demo. Gated on DEMO_PIN being set (the "is the
+    public demo enabled at all" switch — see core/config.py), even though the
+    code itself never touches DEMO_PIN's value. Exchange the returned code
+    for a JWT via POST /auth/login (role="demo_code"). Lives under /auth/ so
+    it inherits the existing per-IP auth rate limit (core/middleware.py)
+    automatically. Each code is independent, so unlike the shared-PIN trial
+    this once had, concurrent visitors never collide with each other.
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
@@ -73,13 +72,6 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             await log_event(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         expires = timedelta(minutes=settings.child_token_expire_minutes)
-    elif req.role == "demo":
-        # Disabled entirely unless a deployment has deliberately set DEMO_PIN —
-        # an empty setting must never match an empty credential.
-        if not settings.demo_pin or not hmac.compare_digest(req.credential, settings.demo_pin):
-            await log_event(AuditEvent.AUTH_FAILURE, role="demo", success=False, **ctx)
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        expires = timedelta(minutes=settings.demo_token_expire_minutes)
     elif req.role == "demo_code":
         # No static secret to compare against — the credential is a code
         # minted moments earlier by POST /auth/demo-code. redeem_code()
@@ -93,15 +85,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown role")
 
     token_data = {"sub": req.role, "role": req.role}
-    if req.role == "demo":
-        # The shared PIN is public by design — this makes each login unique in
-        # the sense that matters: only the most recent one stays usable, so at
-        # most one demo session can be active at a time regardless of how many
-        # people know the PIN. See core/demo_session.py.
-        jti = secrets.token_hex(16)
-        start_new_session(jti)
-        token_data["jti"] = jti
-    elif req.role == "demo_code":
+    if req.role == "demo_code":
         # The code itself is the tracking key for message-quota enforcement
         # (core/demo_code_session.py) — no separate jti needed since each
         # code is already unique to whoever generated it.
@@ -147,17 +131,15 @@ async def validate_token(
 @router.post("/logout")
 async def logout(request: Request, auth: dict = Depends(require_auth)):
     """
-    Explicit logout. For the demo role this immediately invalidates the
-    session's jti server-side, so the token stops working right away instead
-    of riding out its remaining expiry — a real "instant terminate," not just
+    Explicit logout. For the demo_code role this immediately deletes the
+    code server-side, so the token stops working right away instead of
+    riding out its remaining expiry — a real "instant terminate," not just
     the client forgetting the token. Parent/child tokens are stateless JWTs
     with no server-side session to revoke, so this is a no-op for them beyond
     the audit log entry; the client is responsible for discarding the token.
     """
     ctx = audit_from_request(request)
-    if auth.get("role") == "demo":
-        end_session(auth.get("jti", ""))
-    elif auth.get("role") == "demo_code":
+    if auth.get("role") == "demo_code":
         end_code_session(auth.get("code", ""))
     await log_event(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
     return {"success": True}

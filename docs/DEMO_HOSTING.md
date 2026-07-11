@@ -1,9 +1,8 @@
 # Hosting the public demo's backend
 
-Both of the demo's tiers (see `demo/README.md`) — the shared "Try it now —
-free, 15 minutes" trial, and the self-service "Get your own code" — need a
-real `homeschool-api` backend to talk to. There's no fully-static, key-in-
-the-browser path anymore; the operator's Anthropic key always stays
+The demo's self-service "Get your own code" flow (see `demo/README.md`)
+needs a real `homeschool-api` backend to talk to. There's no fully-static,
+key-in-the-browser path anymore; the operator's Anthropic key always stays
 server-side.
 
 This backend is **only** for the public demo — a family's real production
@@ -32,10 +31,10 @@ just push to `main` and it redeploys itself.
      run/repeated block/palindrome — e.g. `602656`, not `111111`). Unused in
      practice (this instance's parent/child roles aren't advertised), but
      the app still validates it at startup.
-   - `DEMO_PIN` — the actual PIN the public "Try it now" screen will ask
-     visitors to type. Same strength rules as `CHILD_PIN`. This is public by
-     design (see `core/demo_session.py`'s docstring) — it's rate-limited to
-     one active session at a time, not meant to be secret.
+   - `DEMO_PIN` — not a credential anyone types; purely the on/off switch for
+     the whole public demo (empty = disabled). Must still satisfy
+     `pin_is_strong()` (same rules as `CHILD_PIN`) since `core/config.py`
+     validates it the same way regardless.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
    to remember them) or a fixed non-secret value, including `CORS_ORIGINS`
@@ -56,8 +55,8 @@ just push to `main` and it redeploys itself.
    select it → **Run workflow**, or just push any change under `demo/`) —
    `VITE_DEMO_API_BASE` is baked in at build time since the demo is a static
    site, so it won't pick up a variable change until the next build.
-3. Open the deployed demo, choose **"Try it now"**, log in with `DEMO_PIN`,
-   and confirm Bede's voice comes through.
+3. Open the deployed demo, click **"Generate my code"**, and confirm Bede's
+   voice comes through.
 
 ## Staying up to date
 

@@ -102,8 +102,8 @@ function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
 }
 
 /**
- * Call synchronously inside a real click/submit handler — e.g. the setup
- * form's submit, or the trial PIN's login button — BEFORE any await. Bede's
+ * Call synchronously inside a real click handler — e.g. the "Generate my
+ * code" button — BEFORE any await. Bede's
  * very first line (the subject opener) is spoken automatically once the
  * chat screen mounts, with no user gesture directly in that call stack: it
  * only exists because an earlier async fetch/stream finished. Strict

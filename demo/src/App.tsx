@@ -1,10 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, Clock, KeyRound, Zap, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import {
-  streamTutorChat, login as trialLogin, logout as trialLogout, getDemoConfig, trialAvailable,
+  streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   TrialSessionEndedError, TrialEmailCappedError,
-  SUBJECTS, SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
+  SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -19,127 +19,17 @@ interface DisplayMessage {
   visualAid?: VisualAidData
 }
 
-// ── Landing choice ────────────────────────────────────────────────────────────
-
-function ChoiceScreen({ onChooseTrial, onChooseCode }: { onChooseTrial: () => void; onChooseCode: () => void }) {
-  const demoOffered = trialAvailable()
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
-        <div className="text-center mb-6">
-          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-36 h-36 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
-          <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
-        </div>
-
-        {demoOffered ? (
-          <div className="space-y-3">
-            <button
-              onClick={onChooseTrial}
-              className="w-full p-4 rounded-xl border-2 border-navy-400 bg-navy-50 hover:bg-navy-100 transition-all hover:scale-[1.02] active:scale-[0.98] text-left flex items-start gap-3"
-            >
-              <Zap size={20} className="text-navy-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-navy-700 bg-navy-200/70 px-1.5 py-0.5 rounded mb-1">
-                  15-min shared trial · 50 messages
-                </span>
-                <div className="font-semibold text-navy-800 text-sm">Try it now — free, 15 minutes</div>
-                <div className="text-xs text-navy-600 mt-0.5">No code needed. Ends at 15 minutes or 50 messages, whichever's first.</div>
-              </div>
-            </button>
-            <button
-              onClick={onChooseCode}
-              className="w-full p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-navy-300 hover:bg-navy-50/40 transition-all hover:scale-[1.02] active:scale-[0.98] text-left flex items-start gap-3"
-            >
-              <KeyRound size={20} className="text-gray-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded mb-1">
-                  Your own code · 50 messages
-                </span>
-                <div className="font-semibold text-gray-800 text-sm">Get your own code</div>
-                <div className="text-xs text-gray-500 mt-0.5">One click, no key to paste — just for you, not shared.</div>
-              </div>
-            </button>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500 text-center">
-            The free demo isn't configured on this deployment yet.
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Free-trial PIN login ──────────────────────────────────────────────────────
-
-function TrialPinScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, expiresAt: number | null) => void; onBack: () => void }) {
-  const [pin, setPin] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
-    setLoading(true)
-    setError('')
-    try {
-      const { token, expiresAt } = await trialLogin(pin.trim())
-      onLoggedIn(token, expiresAt)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not log in')
-      setPin('')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-navy-100 flex items-center justify-center">
-            <Zap size={24} className="text-navy-600" />
-          </div>
-          <h1 className="text-xl font-display font-bold text-gray-800">Free trial</h1>
-          <p className="text-sm text-gray-500 mt-1">Enter the shared trial PIN</p>
-        </div>
-
-        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
-          <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>One shared session — 15 minutes or 50 messages, whichever comes first, then you're logged out automatically. Nothing you type here is saved after that.</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="password" inputMode="numeric" autoFocus
-            className="input text-center text-lg tracking-widest"
-            value={pin} onChange={(e) => setPin(e.target.value)}
-            placeholder="••••••"
-          />
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          <button type="submit" disabled={!pin.trim() || loading} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
-            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Start the trial'}
-          </button>
-        </form>
-
-        <button onClick={onBack} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4">
-          ← Get your own code instead
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ── Self-service code login ───────────────────────────────────────────────────
+// ── Self-service code login — the sole way into the demo ─────────────────────
 //
-// Replaces the old "bring your own Anthropic key" tier: one click mints a
-// fresh, one-time 6-digit code (POST /auth/demo-code) and immediately
-// exchanges it for a session (POST /auth/login) — no key to paste, no PIN
-// to remember, no separate "enter your code" step. The operator's real
-// Anthropic key stays obscured server-side the whole time (see api.ts).
+// One click mints a fresh, one-time 6-digit code (POST /auth/demo-code) and
+// immediately exchanges it for a session (POST /auth/login) — no key to
+// paste, no PIN to remember, no separate "enter your code" step. The
+// operator's real Anthropic key stays obscured server-side the whole time
+// (see api.ts). Each code is independent, so concurrent visitors never
+// collide with each other — unlike the shared-PIN trial this once had,
+// which is why that tier was removed.
 
-function CodeScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, code: string) => void; onBack: () => void }) {
+function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -161,10 +51,8 @@ function CodeScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, code: 
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
         <div className="text-center mb-6">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-emerald-100 flex items-center justify-center">
-            <KeyRound size={24} className="text-emerald-600" />
-          </div>
-          <h1 className="text-xl font-display font-bold text-gray-800">Get your own code</h1>
+          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
+          <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
           <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
         </div>
 
@@ -182,24 +70,19 @@ function CodeScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string, code: 
         >
           {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
         </button>
-
-        <button onClick={onBack} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline mt-4">
-          ← Back
-        </button>
       </div>
     </div>
   )
 }
 
-// ── Shared chat screen — used by both demo tiers ─────────────────────────────
+// ── Shared chat screen ────────────────────────────────────────────────────────
 
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
   speakToken?: string | null // lets voice output use the backend's TTS instead of just the browser's
-  header: React.ReactNode // right-hand header controls (differ between the two demo tiers)
-  onActivity?: () => void // shared-trial tier uses this to drive its 5-minute inactivity timeout
+  header: React.ReactNode
   onSessionInvalid?: () => void // route to the "session ended" screen instead of an inline error
   // Kept up to date with the conversation so far so the end-of-demo email
   // screen can send it, without lifting message state itself out of this
@@ -207,7 +90,7 @@ interface ChatScreenProps {
   sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
 }
 
-function ChatScreen({ displayName, subjects, runChat, speakToken, header, onActivity, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
   const [subject, setSubject] = useState<Subject>(subjects[0] ?? 'living_books')
   const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>([])
   const [messages, setMessages] = useState<DisplayMessage[]>([])
@@ -322,7 +205,6 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onActi
   const send = () => {
     const msg = input.trim()
     if ((!msg && !pendingDrawing) || isStreaming) return
-    onActivity?.()
     stopSpeech()
     stopListening()
     setInput('')
@@ -334,7 +216,6 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onActi
   }
 
   const toggleMic = () => {
-    onActivity?.()
     if (isListening) stopListening()
     else startListening()
   }
@@ -403,7 +284,7 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onActi
           )}
           <textarea
             value={input}
-            onChange={(e) => { setInput(e.target.value); onActivity?.() }}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={isStreaming}
             placeholder={isListening ? 'Listening… speak now' : 'Type or tap the mic to speak…'}
@@ -418,7 +299,7 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onActi
 
       {showCanvas && (
         <HandwritingCanvas
-          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false); onActivity?.() }}
+          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
           onCancel={() => setShowCanvas(false)}
         />
       )}
@@ -461,156 +342,16 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   )
 }
 
-// ── Free-trial flow wrapper ───────────────────────────────────────────────────
-
-// Separate from the 15-minute absolute cap — logs out sooner if the visitor
-// just walks away without using it.
-const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000
-
-function TrialFlow({ token, expiresAt, onExpired, onSwitchToCode, onLogout, onOpenSandbox }: {
-  token: string
-  expiresAt: number | null
-  onExpired: (reason: 'expired' | 'inactive') => void
-  onSwitchToCode: () => void
-  onLogout: () => void
-  onOpenSandbox: () => void
-}) {
-  const [config, setConfig] = useState<SessionConfig | null>(null)
-  const [error, setError] = useState('')
-  const [remainingSecs, setRemainingSecs] = useState<number | null>(null)
-  const [remainingMessages, setRemainingMessages] = useState<number | null>(null)
-  const [finished, setFinished] = useState(false)
-  const lastActivityRef = useRef(Date.now())
-  const onActivity = useCallback(() => { lastActivityRef.current = Date.now() }, [])
-  const trialStartRef = useRef(Date.now())
-  const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
-
-  useEffect(() => {
-    getDemoConfig(token).then(setConfig).catch((err) => setError(err instanceof Error ? err.message : 'Could not start the trial'))
-  }, [token])
-
-  useEffect(() => {
-    const tick = () => {
-      if (Date.now() - lastActivityRef.current >= INACTIVITY_TIMEOUT_MS) {
-        onExpired('inactive')
-        return
-      }
-      if (!expiresAt) return
-      const secs = Math.max(0, Math.round((expiresAt - Date.now()) / 1000))
-      setRemainingSecs(secs)
-      if (secs <= 0) onExpired('expired')
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [expiresAt, onExpired])
-
-  // Ends at 15 minutes OR this message cap, whichever comes first — the
-  // clock above handles the first half; this effect handles the second,
-  // firing the instant the backend reports the cap was hit (see
-  // core/demo_session.py's record_message).
-  useEffect(() => {
-    if (remainingMessages === 0) onExpired('expired')
-  }, [remainingMessages, onExpired])
-
-  const runChat = useCallback(
-    (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, setRemainingMessages),
-    [token, config],
-  )
-
-  const handleLogout = () => {
-    trialLogout(token) // fire-and-forget — invalidates server-side immediately
-    onLogout()
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4 p-8 text-center">
-        <Lock size={32} className="text-gray-400" />
-        <p className="text-gray-700 font-medium">Could not start the trial</p>
-        <p className="text-sm text-gray-500 max-w-sm">{error}</p>
-        <button onClick={onSwitchToCode} className="mt-2 text-sm text-navy-600 underline">Get your own code instead</button>
-      </div>
-    )
-  }
-  if (!config) {
-    return (
-      <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4">
-        <Loader2 size={28} className="text-navy-500 animate-spin" />
-        <p className="text-sm text-gray-500">Loading your trial session…</p>
-      </div>
-    )
-  }
-
-  if (finished) {
-    const elapsedMinutes = Math.max(1, Math.round((Date.now() - trialStartRef.current) / 60000))
-    return (
-      <TrialSummaryScreen
-        token={token}
-        config={config}
-        sessionState={sessionStateRef.current}
-        durationMinutes={elapsedMinutes}
-        onDone={handleLogout}
-      />
-    )
-  }
-
-  const lowTime = remainingSecs !== null && remainingSecs <= 60
-  const lowMessages = remainingMessages !== null && remainingMessages <= 5
-
-  return (
-    <ChatScreen
-      displayName={config.student_name}
-      subjects={config.subjects}
-      runChat={runChat}
-      speakToken={token}
-      onActivity={onActivity}
-      onSessionInvalid={() => onExpired('inactive')}
-      sessionStateRef={sessionStateRef}
-      header={
-        <>
-          {remainingSecs !== null && (
-            <div className={`flex items-center gap-1 text-xs font-mono tabular-nums ${lowTime ? 'text-red-500' : 'text-gray-400'}`}>
-              <Clock size={12} />
-              {String(Math.floor(remainingSecs / 60)).padStart(1, '0')}:{String(remainingSecs % 60).padStart(2, '0')}
-            </div>
-          )}
-          {remainingMessages !== null && (
-            <div className={`text-xs font-mono tabular-nums ${lowMessages ? 'text-red-500' : 'text-gray-400'}`}>
-              {remainingMessages} msgs left
-            </div>
-          )}
-          <button
-            onClick={onOpenSandbox}
-            title="Preview the parent-only direct-answer sandbox"
-            className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
-          >
-            <FlaskConical size={12} /> Ask Bede
-          </button>
-          <button onClick={onSwitchToCode} title="Want more messages? Get your own free code" className="text-xs text-navy-500 hover:text-navy-700 underline">
-            Keep going →
-          </button>
-          <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
-            Finish demo
-          </button>
-        </>
-      }
-    />
-  )
-}
-
 // ── End-of-demo diagnostic notes + email capture ─────────────────────────────
 //
 // Lead-gen mechanic for the demo: at the end of a session, offer to email
 // Bede's informal notes on today's demo to a parent-supplied address. The
 // address is sent once to the backend and never stored — not here, not
 // server-side (see homeschool-api/services/email_service.py) — and these
-// notes are never shown to the student in this browser. Both backend-
-// mediated demo tiers have their own per-session send cap
-// (core/demo_session.py / core/demo_code_session.py), which is what keeps
-// this from being an open door to spam the operator's own Resend/Claude usage.
-function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDone }: {
+// notes are never shown to the student in this browser. Capped to one send
+// per code (core/demo_code_session.py), which is what keeps this from being
+// an open door to spam the operator's own Resend/Claude usage.
+function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDone }: {
   token: string
   config: SessionConfig
   sessionState: { history: ChatMessage[]; subjectsCompleted: Subject[] }
@@ -634,7 +375,7 @@ function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDo
         err instanceof TrialEmailCappedError
           ? err.message
           : err instanceof TrialSessionEndedError
-            ? 'Your trial session has ended, so this could not be sent.'
+            ? 'Your session has ended, so this could not be sent.'
             : err instanceof Error ? err.message : 'Could not send the email.'
       )
     }
@@ -658,7 +399,7 @@ function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDo
           </div>
         ) : (
           <form onSubmit={handleSend} className="mb-6">
-            <label htmlFor="trial-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
+            <label htmlFor="demo-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
               <Mail size={15} />
               Want Bede's notes from today's demo?
             </label>
@@ -668,7 +409,7 @@ function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDo
             </p>
             <div className="flex gap-2">
               <input
-                id="trial-email"
+                id="demo-email"
                 type="email"
                 required
                 value={email}
@@ -701,19 +442,18 @@ function TrialSummaryScreen({ token, config, sessionState, durationMinutes, onDo
 
 // ── Sandbox preview — "what a parent's private Ask Bede tool looks like" ────
 //
-// Reachable from either backend-mediated demo tier (shared-PIN trial or
-// self-service code), since both already gate the regular demo chat the
-// same way this endpoint needs — see homeschool-api/routers/sandbox.py's
-// /demo-chat. Direct answers instead of Socratic, free topic-switching, and
-// a "custom instructions" box just like the real parent-only sandbox —
-// nothing typed here is saved server-side.
+// Reachable from the demo-code session, which already gates the regular
+// demo chat the same way this endpoint needs — see
+// homeschool-api/routers/sandbox.py's /demo-chat. Direct answers instead of
+// Socratic, free topic-switching, and a "custom instructions" box just like
+// the real parent-only sandbox — nothing typed here is saved server-side.
 interface SandboxMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
 }
 
-function TrialSandboxScreen({ token, onBack, onSessionInvalid }: {
+function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
   token: string
   onBack: () => void
   onSessionInvalid: () => void
@@ -857,15 +597,14 @@ function TrialSandboxScreen({ token, onBack, onSessionInvalid }: {
   )
 }
 
-// ── Self-service code flow wrapper ────────────────────────────────────────────
+// ── Demo flow wrapper ─────────────────────────────────────────────────────────
 //
-// Structurally parallel to TrialFlow, but capped by message count only (see
-// core/demo_code_session.py) — no wall-clock timer or single-active-session
-// lock, since each code is already unique to whoever generated it, unlike
-// the shared trial's PIN. streamTutorChat's onQuotaHeader callback reads the
-// remaining-messages count off each response's X-Demo-Remaining header to
-// drive the counter in the header below.
-function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
+// Capped by message count only (see core/demo_code_session.py) — no wall-
+// clock timer, no single-active-session lock, since each code is already
+// unique to whoever generated it. streamTutorChat's onQuotaHeader callback
+// reads the remaining-messages count off each response's X-Demo-Remaining
+// header to drive the counter in the header below.
+function DemoFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   token: string
   code: string
   onExhausted: () => void
@@ -876,7 +615,7 @@ function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   const [error, setError] = useState('')
   const [remaining, setRemaining] = useState<number | null>(null)
   const [finished, setFinished] = useState(false)
-  const trialStartRef = useRef(Date.now())
+  const sessionStartRef = useRef(Date.now())
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
 
   useEffect(() => {
@@ -885,8 +624,7 @@ function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
 
   // The backend never 401s once a code's quota is spent — it keeps replying
   // with a canned "used up" message instead (see routers/tutor.py) — so the
-  // frontend is what notices remaining hit 0 and routes to the exhausted
-  // screen, mirroring how TrialFlow's timer hitting 0 triggers onExpired.
+  // frontend is what notices remaining hit 0 and routes to the exhausted screen.
   useEffect(() => {
     if (remaining === 0) onExhausted()
   }, [remaining, onExhausted])
@@ -898,7 +636,7 @@ function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   )
 
   const handleLogout = () => {
-    trialLogout(token) // fire-and-forget — invalidates server-side immediately
+    logout(token) // fire-and-forget — invalidates server-side immediately
     onLogout()
   }
 
@@ -921,9 +659,9 @@ function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   }
 
   if (finished) {
-    const elapsedMinutes = Math.max(1, Math.round((Date.now() - trialStartRef.current) / 60000))
+    const elapsedMinutes = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 60000))
     return (
-      <TrialSummaryScreen
+      <DemoSummaryScreen
         token={token}
         config={config}
         sessionState={sessionStateRef.current}
@@ -966,35 +704,6 @@ function CodeFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   )
 }
 
-function TrialEndedScreen({ reason, onSwitchToCode, onRetryTrial }: {
-  reason: 'expired' | 'inactive'
-  onSwitchToCode: () => void
-  onRetryTrial: () => void
-}) {
-  const headline = reason === 'inactive' ? "Logged out for inactivity" : "Your free trial ended"
-  const explanation = reason === 'inactive'
-    ? "The shared trial logs out after 5 minutes of no activity, to keep it free for others waiting to try it."
-    : "That's the shared trial's limit — 15 minutes or 50 messages, whichever came first."
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
-        <Clock size={32} className="text-navy-400 mx-auto mb-3" />
-        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{headline}</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          {explanation} Want to keep going? Get your own free one-time code instead —
-          one click, good for 50 more messages.
-        </p>
-        <button onClick={onSwitchToCode} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors mb-2">
-          Get your own code
-        </button>
-        <button onClick={onRetryTrial} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline">
-          Or start another free trial
-        </button>
-      </div>
-    </div>
-  )
-}
-
 function CodeExhaustedScreen({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
@@ -1015,88 +724,32 @@ function CodeExhaustedScreen({ onRetry }: { onRetry: () => void }) {
 // ── Top-level app ──────────────────────────────────────────────────────────────
 
 type Mode =
-  | { kind: 'choice' }
-  | { kind: 'trial-pin' }
-  | { kind: 'trial-chat'; token: string; expiresAt: number | null }
-  | { kind: 'trial-sandbox'; token: string; expiresAt: number | null }
-  | { kind: 'trial-ended'; reason: 'expired' | 'inactive' }
   | { kind: 'code-setup' }
   | { kind: 'code-chat'; token: string; code: string }
   | { kind: 'code-sandbox'; token: string; code: string }
   | { kind: 'code-exhausted' }
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>({ kind: 'choice' })
+  const [mode, setMode] = useState<Mode>({ kind: 'code-setup' })
 
   switch (mode.kind) {
-    case 'choice':
-      return (
-        <ChoiceScreen
-          onChooseTrial={() => setMode({ kind: 'trial-pin' })}
-          onChooseCode={() => setMode({ kind: 'code-setup' })}
-        />
-      )
-
-    case 'trial-pin':
-      return (
-        <TrialPinScreen
-          onLoggedIn={(token, expiresAt) => setMode({ kind: 'trial-chat', token, expiresAt })}
-          onBack={() => setMode({ kind: 'choice' })}
-        />
-      )
-
-    case 'trial-chat':
-      return (
-        <TrialFlow
-          token={mode.token}
-          expiresAt={mode.expiresAt}
-          onExpired={(reason) => setMode({ kind: 'trial-ended', reason })}
-          onSwitchToCode={() => setMode({ kind: 'code-setup' })}
-          onLogout={() => setMode({ kind: 'choice' })}
-          onOpenSandbox={() => setMode({ kind: 'trial-sandbox', token: mode.token, expiresAt: mode.expiresAt })}
-        />
-      )
-
-    case 'trial-sandbox':
-      return (
-        <TrialSandboxScreen
-          token={mode.token}
-          onBack={() => setMode({ kind: 'trial-chat', token: mode.token, expiresAt: mode.expiresAt })}
-          onSessionInvalid={() => setMode({ kind: 'trial-ended', reason: 'inactive' })}
-        />
-      )
-
-    case 'trial-ended':
-      return (
-        <TrialEndedScreen
-          reason={mode.reason}
-          onSwitchToCode={() => setMode({ kind: 'code-setup' })}
-          onRetryTrial={() => setMode({ kind: 'trial-pin' })}
-        />
-      )
-
     case 'code-setup':
-      return (
-        <CodeScreen
-          onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })}
-          onBack={() => setMode({ kind: 'choice' })}
-        />
-      )
+      return <CodeScreen onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })} />
 
     case 'code-chat':
       return (
-        <CodeFlow
+        <DemoFlow
           token={mode.token}
           code={mode.code}
           onExhausted={() => setMode({ kind: 'code-exhausted' })}
-          onLogout={() => setMode({ kind: 'choice' })}
+          onLogout={() => setMode({ kind: 'code-setup' })}
           onOpenSandbox={() => setMode({ kind: 'code-sandbox', token: mode.token, code: mode.code })}
         />
       )
 
     case 'code-sandbox':
       return (
-        <TrialSandboxScreen
+        <DemoSandboxScreen
           token={mode.token}
           onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
           onSessionInvalid={() => setMode({ kind: 'code-exhausted' })}

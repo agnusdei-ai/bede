@@ -56,24 +56,21 @@ async def demo_chat(
 ):
     """
     Public-demo preview of the sandbox above — same direct-answer, relaxed
-    persona, reachable via either public-demo login (shared DEMO_PIN, or the
-    self-service demo_code) instead of a real parent session + SANDBOX_PIN.
-    require_auth already enforces the "demo" role's single-active-session and
-    5-minute-inactivity timeout (see core/deps.py, core/demo_session.py), and
-    the "demo_code" role's message cap is enforced explicitly below (each
-    sandbox message spends the same shared quota as the regular /tutor/chat,
-    same as /tutor/chat itself). Unlike the private /chat above, this keeps
-    the deterministic safeguarding check as a defensive baseline, since
-    anyone who knows the public DEMO_PIN can reach this, not just the
-    deployment's trusted operator.
+    persona, reachable via the self-service demo_code login instead of a
+    real parent session + SANDBOX_PIN. The message cap is enforced
+    explicitly below (each sandbox message spends the same quota as the
+    regular /tutor/chat). Unlike the private /chat above, this keeps the
+    deterministic safeguarding check as a defensive baseline, since anyone
+    who generates a demo_code can reach this, not just the deployment's
+    trusted operator.
     """
     role = auth.get("role")
-    if role not in ("demo", "demo_code"):
+    if role != "demo_code":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This preview is only available through the public demo login",
         )
-    if role == "demo_code" and not demo_code_record_message(auth.get("code", "")):
+    if not demo_code_record_message(auth.get("code", "")):
         quota_message = "You've used all your free messages for this code — generate a new one on the landing page to keep exploring."
 
         async def quota_exhausted():
@@ -85,7 +82,7 @@ async def demo_chat(
         if check_safeguarding(req.message):
             await log_event(
                 AuditEvent.SAFEGUARDING,
-                role="demo",
+                role="demo_code",
                 success=True,
                 detail=f"trigger:{req.message[:80]} (sandbox demo preview)",
                 **audit_from_request(request),

@@ -3,7 +3,7 @@
 # Do NOT use this for a family's real production instance — that should stay
 # self-hosted on a LAN per CLAUDE.md's security model (voice biometrics,
 # AES-256-GCM encrypted student data, tablet-only network exposure). This
-# exists purely to give the demo's "Try it now" trial path (see
+# exists purely to give the demo's self-service "Get your own code" path (see
 # demo/README.md) a real backend to talk to, without self-hosting a full
 # Docker Compose stack just for a public, stateless demo.
 #
@@ -52,14 +52,14 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       # This demo instance's parent/child roles are never advertised or used
-      # (only the DEMO_PIN trial path is) — CHILD_PIN still must satisfy
-      # pin_is_strong() (see core/config.py), so pick a real compliant PIN
-      # rather than a placeholder.
+      # at all — CHILD_PIN still must satisfy pin_is_strong() (see
+      # core/config.py), so pick a real compliant PIN rather than a placeholder.
       - key: CHILD_PIN
         sync: false
-      # The actual PIN the public demo's "Try it now" screen asks visitors
-      # to type — same pin_is_strong() rules apply (6+ digits, no sequential
-      # run/repeated block/palindrome).
+      # No longer a credential anyone types — purely the on/off switch for
+      # the whole public demo (empty = demo disabled). Still must satisfy
+      # pin_is_strong() (6+ digits, no sequential run/repeated block/
+      # palindrome) since core/config.py validates it the same way regardless.
       - key: DEMO_PIN
         sync: false
 
@@ -72,8 +72,6 @@ services:
         generateValue: true
 
       # Fixed, non-secret settings.
-      - key: DEMO_TOKEN_EXPIRE_MINUTES
-        value: "15"
       - key: DEMO_STUDENT_NAME
         value: Guest
       - key: DEMO_GRADE

@@ -6,7 +6,7 @@ in flight at a time; no per-session table needed.
 A challenge is popped (read-and-cleared) the moment it's used, so a captured
 response can't be replayed against a second verify call. Also expires on its
 own after a short TTL in case a ceremony is abandoned mid-flight. Deliberately
-not persisted to the database — like core/demo_session.py, this tracks
+not persisted to the database — like core/demo_code_session.py, this tracks
 nothing but "which challenge is currently outstanding," not any real user
 data, so resetting on restart is harmless.
 """

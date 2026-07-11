@@ -50,7 +50,7 @@ If you're not sure which applies: `make update` always does the right thing
 `make status` to confirm the container came back healthy.
 
 **Demo vs. production are separate deployments — each needs this done
-independently.** `demo/README.md`'s "Try it now" trial path talks to
+independently.** `demo/README.md`'s self-service demo flow talks to
 whatever `homeschool-api` host `VITE_DEMO_API_BASE` points to (a GitHub
 Actions repository variable — Settings → Secrets and variables → Actions →
 Variables), which may or may not be the same host as a family's private

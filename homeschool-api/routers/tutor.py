@@ -14,11 +14,6 @@ from core.demo_code_session import (
     record_message as demo_code_record_message,
     remaining_messages as demo_code_remaining_messages,
 )
-from core.demo_session import (
-    claim_email_send as demo_claim_email_send,
-    record_message as demo_record_message,
-    remaining_messages as demo_remaining_messages,
-)
 from core.deps import require_auth, require_parent
 from models.schemas import (
     EmailSummaryRequest,
@@ -43,9 +38,10 @@ router = APIRouter(prefix="/tutor", tags=["tutor"])
 
 def _demo_session_config() -> SessionConfig:
     """
-    Fixed, server-defined session config for the public demo role — never
-    built from client input. All subjects are included so a demo visitor can
-    browse the full curriculum breadth; nothing else about it is configurable.
+    Fixed, server-defined session config for the public demo's demo_code
+    role — never built from client input. All subjects are included so a
+    demo visitor can browse the full curriculum breadth; nothing else about
+    it is configurable.
     """
     return SessionConfig(
         student_name=settings.demo_student_name,
@@ -65,37 +61,20 @@ async def chat(
 ):
     """
     Stream Socratic tutor responses via Server-Sent Events.
-    Accessible to parent, child, and the two scoped public-demo roles
-    (shared-PIN "demo" and self-service-code "demo_code"). Passes db so Bede
-    can persist narration assessments server-side mid-stream (skipped for
-    both demo roles — see below).
+    Accessible to parent, child, and the scoped public-demo "demo_code"
+    role. Passes db so Bede can persist narration assessments server-side
+    mid-stream (skipped for the demo role — see below).
     """
     role = auth.get("role")
-    is_demo = role == "demo"
     is_demo_code = role == "demo_code"
-    if is_demo or is_demo_code:
-        # Never trust client-supplied session_config for either demo role —
+    if is_demo_code:
+        # Never trust client-supplied session_config for the demo role —
         # only the subject choice (browsing the curriculum) is theirs to make.
         req.session_config = _demo_session_config()
         db = None
 
-    # Both demo roles end at whichever of "time" and "messages" comes first —
-    # the shared trial's 15-minute/5-minute-inactivity clock is enforced
-    # server-side in require_auth (core/demo_session.py); the message cap
-    # below is the other half of that "whichever first" rule, and is the
-    # self-service code's *only* cap (it has no wall-clock limit).
     remaining: int | None = None
-    if is_demo:
-        jti = auth.get("jti", "")
-        if not demo_record_message(jti):
-            quota_message = "This trial has used up its free messages — start another trial or generate your own code on the landing page to keep exploring Bede."
-
-            async def quota_exhausted():
-                yield f"data: {json.dumps({'type': 'text', 'content': quota_message})}\n\n"
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            return EventSourceResponse(quota_exhausted(), media_type="text/event-stream")
-        remaining = demo_remaining_messages(jti)
-    elif is_demo_code:
+    if is_demo_code:
         code = auth.get("code", "")
         if not demo_code_record_message(code):
             quota_message = "You've used all your free messages for this code — generate a new one on the landing page to keep exploring Bede."
@@ -212,32 +191,22 @@ async def email_summary(
     Generate the same end-of-session summary as /summary, then email it once
     to a parent-supplied address via Resend — never shown to the child, never
     written anywhere (see services/email_service.py). Available to the parent
-    role and the two scoped public demo roles; child and parent_pending are
-    not parents, so they're rejected here the same way /summary rejects them
-    by only depending on require_parent.
+    role and the scoped public demo role; child and parent_pending are not
+    parents, so they're rejected here the same way /summary rejects them by
+    only depending on require_parent.
 
-    Both demo roles are additionally capped to exactly one send per session
-    (core/demo_session.claim_email_send / core/demo_code_session.claim_email_send)
-    — the public demo shouldn't let one visitor spam an address or run up the
-    operator's Resend usage.
+    The demo role is additionally capped to exactly one send per session
+    (core/demo_code_session.claim_email_send) — the public demo shouldn't
+    let one visitor spam an address or run up the operator's Resend usage.
     """
     role = auth.get("role")
-    if role not in ("parent", "demo", "demo_code"):
+    if role not in ("parent", "demo_code"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this action")
 
-    if role in ("demo", "demo_code"):
-        # Never trust client-supplied session_config for either demo role —
+    if role == "demo_code":
+        # Never trust client-supplied session_config for the demo role —
         # only the transcript/subjects it already streamed are real; mirrors /chat.
         req.session_config = _demo_session_config()
-
-    if role == "demo":
-        jti = auth.get("jti", "")
-        if not demo_claim_email_send(jti):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="This trial session has already sent its one diagnostic email",
-            )
-    elif role == "demo_code":
         code = auth.get("code", "")
         if not demo_code_claim_email_send(code):
             raise HTTPException(

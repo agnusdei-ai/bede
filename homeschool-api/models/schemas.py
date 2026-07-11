@@ -142,8 +142,8 @@ class SandboxDemoChatRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    role: Literal["parent", "child", "demo", "demo_code"]
-    credential: str   # password for parent, PIN for child/demo, generated code for demo_code
+    role: Literal["parent", "child", "demo_code"]
+    credential: str   # password for parent, PIN for child, generated code for demo_code
 
 
 class DemoCodeResponse(BaseModel):

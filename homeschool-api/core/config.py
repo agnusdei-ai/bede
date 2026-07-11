@@ -95,20 +95,21 @@ class Settings(BaseSettings):
     child_pin: str = "0000"
 
     # ── Public demo mode (optional) ────────────────────────────────────────────
-    # Empty by default: the "demo" login role is entirely disabled unless a
+    # Empty by default: the public demo is entirely disabled unless a
     # deployment deliberately sets DEMO_PIN. Meant only for a dedicated public
-    # demo deployment, never a family's real instance — issues a short-lived,
-    # rights-restricted token against one fixed server-defined student config,
-    # never the real parent_password/child_pin.
+    # demo deployment, never a family's real instance. DEMO_PIN is no longer a
+    # credential anyone types — it's purely the on/off switch for the whole
+    # public demo (POST /auth/demo-code is 404 when this is empty). The
+    # visitor's actual login is a self-service, one-time 6-digit code (see
+    # core/demo_code_session.py), which issues a short-lived, rights-
+    # restricted token against one fixed server-defined student config, never
+    # the real parent_password/child_pin. Each generated code is independent,
+    # so concurrent visitors never collide with each other.
     demo_pin: str = ""
-    demo_token_expire_minutes: int = 15
     demo_student_name: str = "Guest"
     demo_grade: str = "4"
     demo_grade_stage: str = "3-5"
-    # Self-service alternative to the shared DEMO_PIN trial: a visitor
-    # generates their own one-time 6-digit code (POST /auth/demo-code) rather
-    # than typing a shared PIN or pasting their own Anthropic key. Capped by
-    # message count instead of a hard session length (see
+    # Capped by message count instead of a hard session length (see
     # core/demo_code_session.py) — this expiry is just a backstop so a
     # generated token can't be replayed forever if leaked/copied.
     demo_code_token_expire_minutes: int = 120

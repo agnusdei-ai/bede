@@ -1,24 +1,20 @@
 """
-In-memory tracking for self-generated, single-use demo access codes.
+In-memory tracking for self-generated, single-use demo access codes — the
+sole way into the public demo.
 
-Replaces the old "bring your own Anthropic key" tier: a visitor clicks one
-button, the backend mints a fresh 6-digit code instantly (POST /auth/demo-
-code), and the frontend immediately exchanges it for a JWT via the normal
-POST /auth/login (role="demo_code") — no PIN to remember, no key to paste.
-The operator's real Anthropic key stays server-side the whole time, same as
-the shared DEMO_PIN trial.
+A visitor clicks one button, the backend mints a fresh 6-digit code
+instantly (POST /auth/demo-code), and the frontend immediately exchanges it
+for a JWT via the normal POST /auth/login (role="demo_code") — no PIN to
+remember, no key to paste. The operator's real Anthropic key stays
+server-side the whole time. Each code is unique to whoever generated it, so
+unlike a shared PIN, concurrent visitors never collide with or invalidate
+each other's sessions — no single-active-session lock needed here.
 
-This is a different abuse shape than the shared trial in demo_session.py, so
-it's enforced differently:
-  - The shared trial's PIN is public/shared, so many people could run
-    concurrent sessions against it — that's why it needs a single-active-
-    session lock. Each generated code here is unique to whoever generated
-    it, so that lock doesn't apply.
-  - Instead, the risk is unbounded cost via (a) unbounded messages on one
-    code, or (b) unbounded codes. (a) is capped by _MAX_MESSAGES_PER_CODE.
-    (b) is capped by _MAX_ACTIVE_CODES, and POST /auth/demo-code lives under
-    /auth/ so it already inherits the existing per-IP auth rate limit
-    (core/middleware.py) for free.
+The cost-control risk instead is unbounded cost via (a) unbounded messages
+on one code, or (b) unbounded codes. (a) is capped by
+_MAX_MESSAGES_PER_CODE. (b) is capped by _MAX_ACTIVE_CODES, and POST
+/auth/demo-code lives under /auth/ so it already inherits the existing
+per-IP auth rate limit (core/middleware.py) for free.
 
 Deliberately not persisted to the database — a code is a single-sitting
 credential by design (see routers/auth.py), so losing this on restart just
@@ -110,8 +106,7 @@ def end_session(code: str) -> None:
 
 
 def claim_email_send(code: str) -> bool:
-    """Same one-send-per-session cap as demo_session.claim_email_send, keyed
-    by code instead of jti."""
+    """One diagnostic email send allowed per code, ever."""
     info = _codes.get(code)
     if info is None:
         return False

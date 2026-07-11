@@ -76,6 +76,16 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     const state = useSessionStore.getState()
     if (state.isStreaming || !state.token || !state.sessionConfig) return
 
+    // Cuts off any speech still playing/queued from the PREVIOUS subject
+    // before this one starts. isStreaming above guards against overlapping
+    // FETCHES, but speak() below isn't awaited by the turn that queued it —
+    // isStreaming goes back to false as soon as the stream finishes reading,
+    // well before its queued audio has actually finished playing — so
+    // without this, a subject switch can leave the old subject's narration
+    // playing (or queued right behind) the new subject's opener.
+    stopSpeech()
+    stopListening()
+
     state.startAssistantStream()
     abortRef.current?.abort()
     abortRef.current = new AbortController()
@@ -138,7 +148,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         setTimeout(() => nextSubject(), 2500)
       }
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, nextSubject])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, stopSpeech, stopListening, nextSubject])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {

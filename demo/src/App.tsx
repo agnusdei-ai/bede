@@ -297,6 +297,16 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
   }, [messages])
 
   const runStream = useCallback(async (childMessage: string, drawingImage: string | null) => {
+    // Cuts off any speech still playing from a PREVIOUS turn before this one
+    // starts. abortRef.abort() below only cancels an in-flight fetch — it
+    // does nothing for a previous turn whose stream already finished and is
+    // now just playing back audio (e.g. the subject-opener effect firing
+    // while the prior subject's response is still being spoken). Without
+    // this, two turns' audio can play concurrently — "two Bedes talking at
+    // once" — since speakViaKokoro creates a fresh <audio> element per call
+    // rather than replacing whatever's already playing.
+    stopSpeech()
+    stopListening()
     setIsStreaming(true)
     abortRef.current?.abort()
     abortRef.current = new AbortController()
@@ -358,7 +368,7 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
         }, 2500)
       }
     }
-  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, onSessionInvalid])
+  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return

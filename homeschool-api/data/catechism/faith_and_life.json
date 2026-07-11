@@ -1,0 +1,90 @@
+{
+  "_comment": "Grade-level orientation for Ignatius Press's 'Faith and Life' catechetical series (grades 1-8), widely used by Catholic Classical homeschoolers alongside Ambleside Online's living-books catalog. Sourced from Ignatius Press's own public product pages and scope-and-sequence materials (loc.ignatius.com/faithandlife) — book titles are exact; 'topics' are broad thematic threads, NOT a claimed-exhaustive chapter-by-chapter table of contents (different sources disagree on exact chapter counts per printing/edition, so an invented precise numbering would be more likely to mislead than help). This is deliberately the same kind of thing the Ambleside Online catalog already stores for other subjects: metadata and curator context, never the book's actual copyrighted text. A parent should still set SessionConfig.current_unit for chapter-exact precision matching their own copy of the book — Bede favors that over this file whenever it's set (see services/ai_service.py's _get_catalog_context).",
+  "series": "Faith and Life (Ignatius Press, Third Edition)",
+  "grades": {
+    "1": {
+      "book_title": "Our Heavenly Father",
+      "theme": "Creation, the fall, and God's promise of a Savior — a first, wonder-filled introduction to salvation history.",
+      "topics": [
+        "God our Creator, and our home in Heaven lost through original sin",
+        "The world prepares for the Savior",
+        "The Incarnation and the life, death, and Resurrection of Jesus",
+        "The Holy Spirit, the Church, and Mary our Mother"
+      ]
+    },
+    "2": {
+      "book_title": "Jesus Our Life",
+      "theme": "Preparation for First Confession and First Communion, with God's law and salvation history as background.",
+      "topics": [
+        "The Blessed Trinity and God our Creator",
+        "God's law, and obeying God our Father through love",
+        "The Savior promised, born, and revealed — the Holy Family, Jesus our Teacher",
+        "Sin, forgiveness, and the Sacrament of Penance",
+        "The Last Supper, the Passion, and the Resurrection",
+        "The Holy Mass"
+      ]
+    },
+    "3": {
+      "book_title": "Our Life with Jesus",
+      "theme": "Salvation history from Creation through Abraham and Moses, God's law, and deepening participation in the Mass.",
+      "topics": [
+        "God loves us; God created the world",
+        "The promise of a Savior; Abraham, father of God's people",
+        "The prophet Moses and God's laws",
+        "Loving God most of all; purity and truth",
+        "Offering Jesus to the Father; the Bread of Life (the Eucharist)"
+      ]
+    },
+    "4": {
+      "book_title": "Jesus Our Guide",
+      "theme": "The Old Testament story of salvation history in fuller depth, and the Ten Commandments as \"road signs\" toward Heaven.",
+      "topics": [
+        "The Fall, and turning away from God (Cain and Abel)",
+        "Israel's story: Joseph, the Exodus, and the Promised Land",
+        "The Kings of Israel — David, Solomon, and the promise of a new King",
+        "The Ten Commandments as the way to Heaven",
+        "Jesus, Our Guide, and growing in love"
+      ]
+    },
+    "5": {
+      "book_title": "Credo: I Believe",
+      "theme": "A fuller treatment of the Creed, article by article — what Catholics believe, and why.",
+      "topics": [
+        "The Apostles' Creed, article by article",
+        "The Blessed Trinity, creation, and the fall",
+        "The life, death, and Resurrection of Christ",
+        "The Church, the Communion of Saints, and the Last Things"
+      ]
+    },
+    "6": {
+      "book_title": "Following Christ",
+      "theme": "The Ten Commandments in depth, the Mass, and the Last Things, with a focus on living a genuinely Christian life.",
+      "topics": [
+        "The Ten Commandments explored in depth",
+        "The Mass and the sacraments as sources of grace for Christian living",
+        "Virtue and moral decision-making",
+        "Death, judgment, Heaven, and Hell — the Last Things"
+      ]
+    },
+    "7": {
+      "book_title": "The Life of Grace",
+      "theme": "Grace and virtue, and the interplay of faith and reason, building on the doctrinal overview of earlier grades.",
+      "topics": [
+        "Sanctifying and actual grace",
+        "The theological and cardinal virtues",
+        "Faith and reason",
+        "Sin, conversion, and growth in holiness"
+      ]
+    },
+    "8": {
+      "book_title": "Our Life in the Church",
+      "theme": "The Church's history, structure, and mission — the Mystical Body of Christ — and preparation for lived adult Catholic life.",
+      "topics": [
+        "The Church's history and structure",
+        "The Church as the Mystical Body of Christ",
+        "The sacraments of service (Holy Orders and Matrimony)",
+        "Christian life and the Last Things"
+      ]
+    }
+  }
+}

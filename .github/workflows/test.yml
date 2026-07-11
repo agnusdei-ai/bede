@@ -36,6 +36,43 @@ jobs:
         working-directory: homeschool-api
         run: python -m pytest tests/ -v
 
+  demo-concurrency-test:
+    # Separate from api-tests above (which stays fast/no-DB, per the comment
+    # at the top of this file): boots a real uvicorn subprocess against a
+    # real Postgres to exercise proxy-header handling at the ASGI-server
+    # layer, which an in-process TestClient can't reach. See
+    # tests/test_demo_concurrency.py for what this actually verifies — a
+    # regression guard for the missing --proxy-headers trust that once let
+    # every demo visitor collapse onto one shared rate-limit bucket.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bede_concurrency_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: homeschool-api
+        run: pip install -r requirements-dev.txt
+      - name: Run the demo concurrency scaling test
+        working-directory: homeschool-api
+        env:
+          DEMO_CONCURRENCY_TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/bede_concurrency_test
+        run: python -m pytest tests/test_demo_concurrency.py -v
+
   wizard-tests:
     runs-on: ubuntu-latest
     steps:

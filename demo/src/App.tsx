@@ -233,26 +233,33 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
-      <header className="bg-white border-b border-navy-100 shrink-0 min-h-16 flex items-center px-4 py-2 gap-3">
-        <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover" />
-        <div className="flex-1 min-w-[3.5rem] truncate">
-          <span className="text-navy-700 font-semibold text-sm">Bede</span>
-          <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
+      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-2">
+        <div className="flex items-center gap-3">
+          <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover shrink-0" />
+          <div className="flex-1 min-w-0 truncate">
+            <span className="text-navy-700 font-semibold text-sm">Bede</span>
+            <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
+          </div>
+          {header}
         </div>
-        <div className="flex flex-col items-start shrink-0">
-          <label htmlFor="subject-select" className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none mb-1">
+        {/* Full-width row of its own — on a phone, cramming this into the row
+            above (with the icon, name, and the code/Ask Bede/Finish links)
+            pushed it off-screen or squeezed it down to a sliver, needing a
+            horizontal scroll to even see or tap it. Subject switching is
+            core to showing Bede's range, so it gets guaranteed full width. */}
+        <div className="mt-2">
+          <label htmlFor="subject-select" className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none block mb-1">
             Learning Subject
           </label>
           <select
             id="subject-select"
             value={subject}
             onChange={(e) => setSubject(e.target.value as Subject)}
-            className="text-sm font-medium border border-navy-300 rounded-lg pl-3 pr-2 py-2 bg-white text-navy-700 hover:border-navy-400 cursor-pointer transition-colors"
+            className="w-full text-sm font-medium border border-navy-300 rounded-lg pl-3 pr-2 py-2 bg-white text-navy-700 hover:border-navy-400 cursor-pointer transition-colors"
           >
             {subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
           </select>
         </div>
-        {header}
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">

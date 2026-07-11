@@ -74,7 +74,13 @@ export interface SessionConfig {
 
 function apiBase(): string {
   if (!BASE) throw new Error('The free trial is not configured on this deployment.')
-  return BASE
+  // Every call site does `${apiBase()}/some/path` — a trailing slash on the
+  // configured VITE_DEMO_API_BASE would otherwise produce a double slash
+  // (".../onrender.com//auth/login"), which most backends (including this
+  // one's FastAPI routes) won't match. Stripping it here means the exact
+  // value entered for the GitHub Actions variable can never break every
+  // request over one stray character.
+  return BASE.replace(/\/+$/, '')
 }
 
 /** Decodes a JWT's payload without verifying the signature — fine for reading

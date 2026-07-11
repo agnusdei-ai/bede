@@ -184,18 +184,15 @@ def _synthesize_sync(kokoro, text: str) -> bytes:
 async def synthesize_speech(text: str) -> Optional[bytes]:
     """
     Convert text to spoken audio (WAV bytes) using Bede's configured voice.
-    Tries OpenAI TTS first if configured (meaningfully more natural), then
-    Kokoro, then gives up. Returns None if nothing is available or every
-    attempt fails — never raises, so a voice-output hiccup never breaks the
-    tutoring session; the caller falls back to the browser's own speech.
+    When OpenAI TTS is configured, it is the ONLY path — a hiccup returns
+    None (the caller stays silent for that line) rather than silently
+    degrading to Kokoro's noticeably different, lower-quality voice
+    mid-conversation. Kokoro is only ever tried when OpenAI isn't
+    configured at all (a deliberate self-hosted, zero-cloud-dependency
+    choice), never as a fallback for a configured backend that failed.
     """
     if settings.openai_api_key:
-        audio = await _synthesize_openai(text)
-        if audio is not None:
-            return audio
-        # Falls through to Kokoro/None below rather than returning — an
-        # OpenAI hiccup shouldn't lose voice output entirely if Kokoro's
-        # model files also happen to be present.
+        return await _synthesize_openai(text)
 
     kokoro = await _get_model()
     if kokoro is None:

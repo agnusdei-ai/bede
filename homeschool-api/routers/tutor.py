@@ -30,7 +30,7 @@ from services.ai_service import (
     stream_tutor_response,
 )
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
-from services.voice_synthesis import synthesize_speech
+from services.voice_synthesis import synthesis_configured, synthesize_speech
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
@@ -138,9 +138,13 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     """
     Synthesize Bede's spoken voice — OpenAI TTS if configured, else the
     self-hosted Kokoro model, else nothing (see services/voice_synthesis.py).
-    Returns 204 with no body when neither is configured or synthesis fails —
-    the frontend falls back to the browser's own speechSynthesis in that
-    case, so a TTS hiccup never breaks the session.
+    Returns 204 with no body when synthesis fails or nothing is configured.
+
+    The X-TTS-Configured header tells the frontend whether SOME backend TTS
+    is set up at all, so it can tell "nothing configured — the browser's own
+    speech is a reasonable zero-config default" apart from "configured but
+    this call failed — stay silent rather than degrading to a different,
+    lower-quality voice mid-conversation" (see useTextToSpeech's speak()).
 
     Uses require_auth (not require_real_user) so the scoped demo role can
     reach this too — unlike catalog/pod/narration/transcripts/voice, this
@@ -148,19 +152,10 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     ephemeral speak-this-line trade the demo already makes for /chat.
     """
     audio = await synthesize_speech(req.text)
-    # TEMPORARY diagnostic headers — confirm what the live deployment is
-    # actually resolving these settings to (Render dashboard overrides can
-    # silently diverge from render.yaml's committed values). Remove once
-    # diagnosed.
-    debug_headers = {
-        "X-Debug-TTS-Model": settings.openai_tts_model,
-        "X-Debug-TTS-Voice": settings.openai_tts_voice,
-        "X-Debug-TTS-Has-Key": str(bool(settings.openai_api_key)),
-        "X-Debug-TTS-Has-Instructions": str(bool(settings.openai_tts_instructions)),
-    }
+    headers = {"X-TTS-Configured": str(synthesis_configured())}
     if audio is None:
-        return Response(status_code=204, headers=debug_headers)
-    return Response(content=audio, media_type="audio/wav", headers=debug_headers)
+        return Response(status_code=204, headers=headers)
+    return Response(content=audio, media_type="audio/wav", headers=headers)
 
 
 @router.post("/summary")

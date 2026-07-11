@@ -138,10 +138,12 @@ export function useTextToSpeech(speakToken: string | null = null) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const speakViaKokoro = useCallback(async (text: string): Promise<boolean> => {
-    if (!speakToken) return false
-    const blob = await speakViaBackend(speakToken, text)
-    if (!blob) return false
+  // Returns whether it actually played AND whether some backend TTS is
+  // configured at all — see speak() below for why both matter.
+  const speakViaKokoro = useCallback(async (text: string): Promise<{ spoke: boolean; configured: boolean }> => {
+    if (!speakToken) return { spoke: false, configured: false }
+    const { audio: blob, configured } = await speakViaBackend(speakToken, text)
+    if (!blob) return { spoke: false, configured }
     const url = URL.createObjectURL(blob)
     await new Promise<void>((resolve) => {
       const audio = new Audio(url)
@@ -152,7 +154,7 @@ export function useTextToSpeech(speakToken: string | null = null) {
     })
     URL.revokeObjectURL(url)
     audioRef.current = null
-    return true
+    return { spoke: true, configured }
   }, [speakToken])
 
   const speakViaBrowser = useCallback((text: string): Promise<void> => {
@@ -177,8 +179,12 @@ export function useTextToSpeech(speakToken: string | null = null) {
     const clean = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '').trim()
     if (!clean) return
     setIsSpeaking(true)
-    const spoke = await speakViaKokoro(clean)
-    if (!spoke) await speakViaBrowser(clean)
+    const { spoke, configured } = await speakViaKokoro(clean)
+    // Only the browser's own voice is a reasonable fallback when NOTHING is
+    // configured server-side — a configured backend that failed this one
+    // call stays silent rather than jarringly switching to a different,
+    // lower-quality voice mid-conversation.
+    if (!spoke && !configured) await speakViaBrowser(clean)
     setIsSpeaking(false)
   }, [speakViaKokoro, speakViaBrowser])
 

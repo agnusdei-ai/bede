@@ -107,6 +107,24 @@ def test_synthesize_speech_falls_back_to_none_when_openai_fails_and_no_kokoro(mo
     assert result is None
 
 
+def test_synthesize_speech_never_tries_kokoro_when_openai_is_configured(monkeypatch):
+    """Regression: a configured OpenAI TTS that fails must never silently
+    degrade to Kokoro's noticeably different voice mid-conversation — the
+    caller should get None (stay silent for that line), not a surprise
+    switch to a different voice. This asserts Kokoro is never even reached,
+    not just that the end result happens to be None."""
+    settings.openai_api_key = "sk-test"
+    _FakeAsyncClient.response = _FakeResponse(status_code=500)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    async def fail_if_called():
+        raise AssertionError("Kokoro must not be tried when OpenAI is configured")
+    monkeypatch.setattr(vs, "_get_model", fail_if_called)
+
+    result = asyncio.run(vs.synthesize_speech("hello"))
+    assert result is None
+
+
 def test_synthesis_configured_true_when_openai_key_set():
     settings.openai_api_key = "sk-test"
     assert vs.synthesis_configured() is True

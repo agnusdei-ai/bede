@@ -7,8 +7,14 @@ Mater Amabilis-style narration/writing/drawing checkpoint ever occurring.
 See services/ai_service.py's invite_handwriting tool and _STAGE_GUIDANCE /
 _SUBJECT_CONTEXT updates.
 """
-from models.schemas import GradeStage, Subject
-from services.ai_service import _STAGE_GUIDANCE, _SUBJECT_CONTEXT, TUTOR_TOOLS, _process_tool_use
+from models.schemas import GradeStage, Subject, SessionConfig
+from services.ai_service import (
+    _build_static_prompt,
+    _STAGE_GUIDANCE,
+    _SUBJECT_CONTEXT,
+    TUTOR_TOOLS,
+    _process_tool_use,
+)
 
 
 def test_invite_handwriting_tool_exists_with_a_prompt_field():
@@ -51,3 +57,16 @@ def test_nature_study_specifically_invites_a_nature_notebook_sketch():
     assert "invite_handwriting" in context
     assert "nature notebook" in context
     assert "Never correct the drawing" in context
+
+
+def test_conversation_never_stalls_on_a_questionless_tool_card():
+    """Regression for a real transcript: Bede's turn ended on a
+    celebrate_discovery card (no question field in its own schema) with no
+    follow-up, and the session just stopped — nothing to respond to."""
+    prompt = _build_static_prompt(
+        SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
+    )
+    assert "End EVERY turn with exactly one question" in prompt
+    assert "even when you also use a tool" in prompt
+    assert "celebrate_discovery" in prompt and "has no question field" in prompt
+    assert "Never let one of these be the very last thing in a turn" in prompt

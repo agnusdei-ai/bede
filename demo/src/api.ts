@@ -140,20 +140,27 @@ export async function logout(token: string): Promise<void> {
 
 /** Bede's spoken voice via the backend's self-hosted Kokoro model (see
  *  homeschool-api/services/voice_synthesis.py) — the same voice production
- *  uses. Returns null if unconfigured server-side (no model files placed
- *  yet) or the request fails; callers should fall back to the browser's own
- *  speech in that case, same contract as the production app's hook. */
-export async function speakViaBackend(token: string, text: string): Promise<Blob | null> {
+ *  uses. `configured` reflects the X-TTS-Configured header — whether SOME
+ *  backend TTS is set up at all, not just whether this one call succeeded —
+ *  so callers can tell "nothing configured, fall back to the browser's own
+ *  speech" apart from "configured but this call failed, stay silent rather
+ *  than degrading to a different voice mid-conversation" (see
+ *  useTextToSpeech.ts's speak()). */
+export async function speakViaBackend(
+  token: string,
+  text: string,
+): Promise<{ audio: Blob | null; configured: boolean }> {
   try {
     const res = await fetch(`${apiBase()}/tutor/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text }),
     })
-    if (res.status !== 200) return null // 204 = not configured server-side
-    return await res.blob()
+    const configured = res.headers.get('X-TTS-Configured') === 'True'
+    if (res.status !== 200) return { audio: null, configured }
+    return { audio: await res.blob(), configured }
   } catch {
-    return null
+    return { audio: null, configured: false }
   }
 }
 

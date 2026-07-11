@@ -224,7 +224,7 @@ function ChatScreen({ displayName, subjects, runChat, speakToken, header, onSess
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
       <header className="bg-white border-b border-navy-100 shrink-0 min-h-16 flex items-center px-4 py-2 gap-3">
         <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover" />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[3.5rem] truncate">
           <span className="text-navy-700 font-semibold text-sm">Bede</span>
           <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
         </div>

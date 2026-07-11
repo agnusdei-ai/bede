@@ -3,7 +3,7 @@ import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, X, ShieldAlert, 
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
-  TrialSessionEndedError, TrialEmailCappedError,
+  TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
@@ -46,13 +46,15 @@ function friendlyErrorMessage(err: unknown, fallback: string): string {
 function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [studentName, setStudentName] = useState('')
+  const [grade, setGrade] = useState('')
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
     try {
-      const code = await generateDemoCode()
+      const code = await generateDemoCode(studentName, grade)
       const { token } = await loginWithCode(code)
       onLoggedIn(token, code)
     } catch (err) {
@@ -68,6 +70,43 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
           <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — Demo</h1>
           <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
+        </div>
+
+        {/* Both optional — Bede adapts tone, narration pacing (oral vs.
+            written), and vocabulary to the grade via GradeStage either way;
+            leaving these blank just uses the operator's configured
+            default ("Guest", grade 4) instead of a personalized one. */}
+        <div className="space-y-3 mb-5">
+          <div>
+            <label htmlFor="student-name" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Child's name <span className="font-normal normal-case text-gray-400">(optional)</span>
+            </label>
+            <input
+              id="student-name"
+              type="text"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              maxLength={50}
+              placeholder="e.g. Ellie"
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+          </div>
+          <div>
+            <label htmlFor="student-grade" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Grade <span className="font-normal normal-case text-gray-400">(optional)</span>
+            </label>
+            <select
+              id="student-grade"
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy-400"
+            >
+              <option value="">Use the default (grade 4)</option>
+              {DEMO_GRADES.map((g) => (
+                <option key={g} value={g}>{g === 'K' ? 'Kindergarten' : `Grade ${g}`}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">

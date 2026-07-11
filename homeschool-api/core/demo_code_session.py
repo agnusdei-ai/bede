@@ -44,9 +44,12 @@ def _evict_expired() -> None:
         del _codes[c]
 
 
-def generate_code() -> str | None:
-    """Mints a fresh 6-digit code. Returns None if _MAX_ACTIVE_CODES is
-    already reached — callers should surface that as a 429."""
+def generate_code(student_name: str | None = None, grade: str | None = None) -> str | None:
+    """Mints a fresh 6-digit code, optionally carrying the visitor's chosen
+    personalization (see routers/auth.py's /auth/demo-code and models.schemas
+    DemoCodeRequest) through to the session config built once the code is
+    redeemed (routers/tutor.py's _demo_session_config). Returns None if
+    _MAX_ACTIVE_CODES is already reached — callers should surface that as a 429."""
     _evict_expired()
     if len(_codes) >= _MAX_ACTIVE_CODES:
         return None
@@ -54,8 +57,23 @@ def generate_code() -> str | None:
         code = f"{secrets.randbelow(1_000_000):06d}"
         if code not in _codes:
             break
-    _codes[code] = {"created_at": time.time(), "message_count": 0, "redeemed": False}
+    _codes[code] = {
+        "created_at": time.time(),
+        "message_count": 0,
+        "redeemed": False,
+        "student_name": student_name,
+        "grade": grade,
+    }
     return code
+
+
+def get_personalization(code: str) -> tuple[str | None, str | None]:
+    """(student_name, grade) as submitted at /auth/demo-code, or (None, None)
+    for an unknown code or a code minted with neither field set."""
+    info = _codes.get(code)
+    if info is None:
+        return None, None
+    return info.get("student_name"), info.get("grade")
 
 
 def redeem_code(code: str) -> bool:

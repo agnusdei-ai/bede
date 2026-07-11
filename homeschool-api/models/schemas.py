@@ -10,6 +10,27 @@ class GradeStage(str, Enum):
     independent = "6-8"        # Rhetoric stage: application & mastery
 
 
+# Valid grade values a visitor can pick, in display order — mirrors
+# services/ai_service.py's _GRADE_DESCRIPTORS keys.
+VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+
+
+def grade_to_stage(grade: str) -> GradeStage:
+    """Maps a grade string to its Mater Amabilis-aligned stage (see
+    services/ai_service.py's _STAGE_GUIDANCE for what each stage means for
+    narration pacing). Unrecognized input defaults to foundations — the
+    gentlest, least presumptuous stage — rather than raising, since this
+    only ever drives tone/pacing, never a security-relevant decision."""
+    g = grade.strip().upper()
+    if g in ("K", "0", "1", "2"):
+        return GradeStage.foundations
+    if g in ("3", "4", "5"):
+        return GradeStage.core_mastery
+    if g in ("6", "7", "8"):
+        return GradeStage.independent
+    return GradeStage.foundations
+
+
 class Subject(str, Enum):
     morning_time = "morning_time"       # Bible, hymn, poetry, prayer
     living_books = "living_books"       # Charlotte Mason literature
@@ -144,6 +165,17 @@ class SandboxDemoChatRequest(BaseModel):
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo_code"]
     credential: str   # password for parent, PIN for child, generated code for demo_code
+
+
+class DemoCodeRequest(BaseModel):
+    """Optional personalization for a demo session — see POST /auth/demo-code.
+    Both fields are optional; omitting either keeps the operator's configured
+    DEMO_STUDENT_NAME/DEMO_GRADE default for that field. student_name is
+    sanitized server-side (see routers/tutor.py's _demo_session_config) since
+    it's the one new piece of free text an anonymous visitor can put in front
+    of the model."""
+    student_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    grade: Optional[str] = Field(None, max_length=2)
 
 
 class DemoCodeResponse(BaseModel):

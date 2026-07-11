@@ -212,9 +212,6 @@ export async function* streamTutorChat(
   childMessage: string,
   drawingImageDataUrl: string | null,
   signal?: AbortSignal,
-  // Called once per request with the remaining-messages count from the
-  // X-Demo-Remaining response header (see core/demo_code_session.py).
-  onQuotaHeader?: (remaining: number | null) => void
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${apiBase()}/tutor/chat`, {
     method: 'POST',
@@ -234,11 +231,6 @@ export async function* streamTutorChat(
 
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — generate a new code to keep going.')
   if (!res.ok) throw new Error('Tutor request failed — check your connection')
-
-  if (onQuotaHeader) {
-    const h = res.headers.get('X-Demo-Remaining')
-    onQuotaHeader(h !== null ? parseInt(h, 10) : null)
-  }
 
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
@@ -269,8 +261,8 @@ export async function* streamTutorChat(
  * Preview of the parent-only "Ask Bede" sandbox (direct answers, not
  * Socratic, free topic-switching) — reachable from the demo-code session,
  * since it needs the same server-side session that gates the regular demo
- * chat, including its message cap. Nothing said here is saved server-side
- * either — see homeschool-api/routers/sandbox.py's /demo-chat.
+ * chat. Nothing said here is saved server-side either — see
+ * homeschool-api/routers/sandbox.py's /demo-chat.
  */
 export async function* streamSandboxDemoChat(
   token: string,

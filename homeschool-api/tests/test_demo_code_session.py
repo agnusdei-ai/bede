@@ -63,45 +63,14 @@ def test_end_session_on_unknown_code_is_a_no_op():
     demo_code_session.end_session("999999")  # must not raise
 
 
-def test_record_message_allows_up_to_the_cap_then_blocks():
+def test_record_message_has_no_cap():
     code = demo_code_session.generate_code()
-    demo_code_session._MAX_MESSAGES_PER_CODE = 2
-    try:
+    for _ in range(200):
         assert demo_code_session.record_message(code) is True
-        assert demo_code_session.record_message(code) is True
-        assert demo_code_session.record_message(code) is False
-    finally:
-        demo_code_session._MAX_MESSAGES_PER_CODE = 50
-
-
-def test_record_message_denied_does_not_consume_quota():
-    code = demo_code_session.generate_code()
-    demo_code_session._MAX_MESSAGES_PER_CODE = 1
-    try:
-        assert demo_code_session.record_message(code) is True
-        assert demo_code_session.record_message(code) is False
-        assert demo_code_session.record_message(code) is False  # still denied, not further decremented
-    finally:
-        demo_code_session._MAX_MESSAGES_PER_CODE = 50
 
 
 def test_record_message_rejects_unknown_code():
     assert demo_code_session.record_message("000000") is False
-
-
-def test_remaining_messages_counts_down():
-    code = demo_code_session.generate_code()
-    demo_code_session._MAX_MESSAGES_PER_CODE = 3
-    try:
-        assert demo_code_session.remaining_messages(code) == 3
-        demo_code_session.record_message(code)
-        assert demo_code_session.remaining_messages(code) == 2
-    finally:
-        demo_code_session._MAX_MESSAGES_PER_CODE = 50
-
-
-def test_remaining_messages_unknown_code_is_zero():
-    assert demo_code_session.remaining_messages("000000") == 0
 
 
 def test_claim_email_send_allows_first_then_blocks_second():

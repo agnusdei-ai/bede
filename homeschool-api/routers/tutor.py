@@ -12,7 +12,6 @@ from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
     record_message as demo_code_record_message,
-    remaining_messages as demo_code_remaining_messages,
 )
 from core.deps import require_auth, require_parent
 from models.schemas import (
@@ -73,17 +72,9 @@ async def chat(
         req.session_config = _demo_session_config()
         db = None
 
-    remaining: int | None = None
     if is_demo_code:
-        code = auth.get("code", "")
-        if not demo_code_record_message(code):
-            quota_message = "You've used all your free messages for this code — generate a new one on the landing page to keep exploring Bede."
-
-            async def quota_exhausted():
-                yield f"data: {json.dumps({'type': 'text', 'content': quota_message})}\n\n"
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            return EventSourceResponse(quota_exhausted(), media_type="text/event-stream")
-        remaining = demo_code_remaining_messages(code)
+        # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
+        demo_code_record_message(auth.get("code", ""))
 
     await log_event(
         AuditEvent.TUTOR_CHAT,
@@ -129,8 +120,7 @@ async def chat(
         ):
             yield chunk
 
-    headers = {"X-Demo-Remaining": str(remaining)} if remaining is not None else None
-    return EventSourceResponse(event_generator(), media_type="text/event-stream", headers=headers)
+    return EventSourceResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.get("/demo-config", response_model=SessionConfig)

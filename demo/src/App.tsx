@@ -58,7 +58,7 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code just for you, good for 50 messages. Nothing you type is saved after your session ends.</p>
+          <p>A one-time 6-digit code just for you. Nothing you type is saved after your session ends.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
@@ -599,21 +599,18 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
 
 // ── Demo flow wrapper ─────────────────────────────────────────────────────────
 //
-// Capped by message count only (see core/demo_code_session.py) — no wall-
-// clock timer, no single-active-session lock, since each code is already
-// unique to whoever generated it. streamTutorChat's onQuotaHeader callback
-// reads the remaining-messages count off each response's X-Demo-Remaining
-// header to drive the counter in the header below.
-function DemoFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
+// No message cap and no wall-clock timer — a code lasts for its own TTL
+// (see core/demo_code_session.py), and there's no single-active-session
+// lock, since each code is already unique to whoever generated it.
+function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   token: string
   code: string
-  onExhausted: () => void
+  onSessionEnded: () => void
   onLogout: () => void
   onOpenSandbox: () => void
 }) {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
-  const [remaining, setRemaining] = useState<number | null>(null)
   const [finished, setFinished] = useState(false)
   const sessionStartRef = useRef(Date.now())
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
@@ -622,16 +619,9 @@ function DemoFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
     getDemoConfig(token).then(setConfig).catch((err) => setError(err instanceof Error ? err.message : 'Could not start your session'))
   }, [token])
 
-  // The backend never 401s once a code's quota is spent — it keeps replying
-  // with a canned "used up" message instead (see routers/tutor.py) — so the
-  // frontend is what notices remaining hit 0 and routes to the exhausted screen.
-  useEffect(() => {
-    if (remaining === 0) onExhausted()
-  }, [remaining, onExhausted])
-
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, setRemaining),
+      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal),
     [token, config],
   )
 
@@ -671,23 +661,19 @@ function DemoFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
     )
   }
 
-  const lowQuota = remaining !== null && remaining <= 5
-
   return (
     <ChatScreen
       displayName={config.student_name}
       subjects={config.subjects}
       runChat={runChat}
       speakToken={token}
-      onSessionInvalid={onExhausted}
+      onSessionInvalid={onSessionEnded}
       sessionStateRef={sessionStateRef}
       header={
         <>
-          {remaining !== null && (
-            <div className={`flex items-center gap-1 text-xs font-mono tabular-nums ${lowQuota ? 'text-red-500' : 'text-gray-400'}`}>
-              <KeyRound size={12} /> {code} · {remaining} left
-            </div>
-          )}
+          <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">
+            <KeyRound size={12} /> {code}
+          </div>
           <button
             onClick={onOpenSandbox}
             title="Preview the parent-only direct-answer sandbox"
@@ -704,14 +690,14 @@ function DemoFlow({ token, code, onExhausted, onLogout, onOpenSandbox }: {
   )
 }
 
-function CodeExhaustedScreen({ onRetry }: { onRetry: () => void }) {
+function SessionEndedScreen({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
         <KeyRound size={32} className="text-navy-400 mx-auto mb-3" />
-        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">That code is used up</h1>
+        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">Your session has ended</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Each generated code is good for 50 messages. Generate a new one to keep exploring Bede.
+          Generate a new code to keep exploring Bede.
         </p>
         <button onClick={onRetry} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
           Generate a new code
@@ -727,7 +713,7 @@ type Mode =
   | { kind: 'code-setup' }
   | { kind: 'code-chat'; token: string; code: string }
   | { kind: 'code-sandbox'; token: string; code: string }
-  | { kind: 'code-exhausted' }
+  | { kind: 'session-ended' }
 
 export default function App() {
   const [mode, setMode] = useState<Mode>({ kind: 'code-setup' })
@@ -741,7 +727,7 @@ export default function App() {
         <DemoFlow
           token={mode.token}
           code={mode.code}
-          onExhausted={() => setMode({ kind: 'code-exhausted' })}
+          onSessionEnded={() => setMode({ kind: 'session-ended' })}
           onLogout={() => setMode({ kind: 'code-setup' })}
           onOpenSandbox={() => setMode({ kind: 'code-sandbox', token: mode.token, code: mode.code })}
         />
@@ -752,11 +738,11 @@ export default function App() {
         <DemoSandboxScreen
           token={mode.token}
           onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
-          onSessionInvalid={() => setMode({ kind: 'code-exhausted' })}
+          onSessionInvalid={() => setMode({ kind: 'session-ended' })}
         />
       )
 
-    case 'code-exhausted':
-      return <CodeExhaustedScreen onRetry={() => setMode({ kind: 'code-setup' })} />
+    case 'session-ended':
+      return <SessionEndedScreen onRetry={() => setMode({ kind: 'code-setup' })} />
   }
 }

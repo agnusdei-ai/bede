@@ -57,12 +57,10 @@ async def demo_chat(
     """
     Public-demo preview of the sandbox above — same direct-answer, relaxed
     persona, reachable via the self-service demo_code login instead of a
-    real parent session + SANDBOX_PIN. The message cap is enforced
-    explicitly below (each sandbox message spends the same quota as the
-    regular /tutor/chat). Unlike the private /chat above, this keeps the
-    deterministic safeguarding check as a defensive baseline, since anyone
-    who generates a demo_code can reach this, not just the deployment's
-    trusted operator.
+    real parent session + SANDBOX_PIN. Unlike the private /chat above, this
+    keeps the deterministic safeguarding check as a defensive baseline,
+    since anyone who generates a demo_code can reach this, not just the
+    deployment's trusted operator.
     """
     role = auth.get("role")
     if role != "demo_code":
@@ -70,13 +68,8 @@ async def demo_chat(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This preview is only available through the public demo login",
         )
-    if not demo_code_record_message(auth.get("code", "")):
-        quota_message = "You've used all your free messages for this code — generate a new one on the landing page to keep exploring."
-
-        async def quota_exhausted():
-            yield f"data: {json.dumps({'type': 'text', 'content': quota_message})}\n\n"
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        return EventSourceResponse(quota_exhausted(), media_type="text/event-stream")
+    # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
+    demo_code_record_message(auth.get("code", ""))
 
     async def event_generator():
         if check_safeguarding(req.message):

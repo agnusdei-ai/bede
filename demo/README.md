@@ -5,10 +5,10 @@ One click gets you in — no PIN to remember, no key to paste. The operator's
 Anthropic key stays server-side, never pasted into the browser:
 
 - **"Generate my code"** — one click mints a fresh, one-time 6-digit code
-  (`POST /auth/demo-code`) and logs the visitor in immediately with it.
-  Capped at 50 messages per code, no wall-clock limit; generating a new code
-  starts a fresh allotment. Each code is independent, so concurrent visitors
-  never collide with each other.
+  (`POST /auth/demo-code`) and logs the visitor in immediately with it. No
+  message cap, no wall-clock limit — a code is good for its own TTL (see
+  `core/demo_code_session.py`). Each code is independent, so concurrent
+  visitors never collide with each other.
 
 This requires `VITE_DEMO_API_BASE` set at build time to a publicly-reachable
 `homeschool-api` deployment with `DEMO_PIN` configured (see the root
@@ -22,17 +22,16 @@ The operator's key never reaches the browser: `core/deps.py`'s
 that reads or writes real student data (pod configs, narration history,
 transcripts, voice enrollment, admin) — the handful of ephemeral, per-request
 endpoints it *can* reach (chat, voice output, the one-time diagnostic email,
-and the sandbox preview below) use `require_auth` directly instead, and each
-still enforces the same 50-message cap on top. Nothing is persisted
-(`db=None` in `routers/tutor.py`). Voice output uses OpenAI TTS if the
-backend has it configured, falling back to the browser's own speech
+and the sandbox preview below) use `require_auth` directly instead. Nothing
+is persisted (`db=None` in `routers/tutor.py`). Voice output uses OpenAI TTS
+if the backend has it configured, falling back to the browser's own speech
 otherwise.
 
 An **"Ask Bede"** button during the session previews the parent-only sandbox
 from the real app — direct answers instead of Socratic, free
 topic-switching, and a "custom instructions" box, so a prospective parent
-can see what their own private sandbox would feel like. Same message cap as
-the rest of the demo; nothing typed there is saved either.
+can see what their own private sandbox would feel like. Nothing typed there
+is saved either.
 
 **This is a demo, not the real app.** See `DEMO_SCRIPT.md` for a guided walkthrough
 with reference prompts, and the table there for exactly what's different from the

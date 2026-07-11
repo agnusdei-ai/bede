@@ -8,7 +8,7 @@ specific wording, subjects, or behavior may have moved on since.
 ## Before you start
 
 - One click gets you in — "Generate my code" mints a one-time 6-digit code (no key
-  ever pasted into the browser), good for 50 messages, no time limit.
+  ever pasted into the browser), no message cap, no time limit.
 - Voice output can use OpenAI TTS (see `docs/VOICE_SETUP.md` in the main repo) if the
   backend has it configured, falling back to the browser's own voice automatically if
   not.
@@ -57,8 +57,8 @@ Pick 3–4 of these depending on time. Each is chosen to show a specific capabil
 ### 4. If something goes wrong live
 - **A fetch/network error appears**: you may be on a restricted network, or the
   backend deployment is briefly unavailable. Don't panic — try again in a moment.
-- **"That code is used up"**: the 50-message cap was reached — generate a fresh
-  code, it's instant.
+- **"Your session has ended"**: the code's several-hour TTL expired, or it was
+  logged out elsewhere — generate a fresh code, it's instant.
 - **Voice input doesn't work well**: this demo has no fallback transcription (the real
   app does, for exactly this reason). Just type instead and mention that.
 - **Response feels generic for a subject**: you're probably not on grade K, 4, or 8 —

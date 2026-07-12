@@ -195,7 +195,7 @@ Deliverable: `dina_likelihood`/`dino_likelihood`/`gdina_likelihood`, `CdmParams`
 
 Verified anchors: slip/guess sanity confirmed directly against hand-computed values for all three models; posterior provably increases on correct evidence, decreases on incorrect, and is provably unchanged at confidence=0; repeated evidence converges mastery toward the extremes (>0.95 after 10 corrects, <0.05 after 10 incorrects) without diverging outside [0,1].
 
-**1.5** · branch `diagnostic/1.5` · PR: _(this iteration)_
+**1.5** · branch `diagnostic/1.5` · PR: https://github.com/agnusdei-ai/bede/pull/36 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/ -v`): 68/68 passed (51 prior + 17 new), all green on the first pass — no bug surfaced this unit.
 

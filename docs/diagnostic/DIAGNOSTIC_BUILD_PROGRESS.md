@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (6/8 units) | — |
+| 1 — Core package (pure Python) | **in progress** (7/8 units) | — |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.7 — `services/diagnostic/mastery.py`
+**Current next unit:** 1.8 — `services/diagnostic/__init__.py` facade
 
 ---
 
@@ -31,7 +31,7 @@
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[x]` |
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[x]` |
 | 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[x]` |
-| 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[ ]` |
+| 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[x]` |
 | 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | S6–S8 | end-to-end in-memory round trip | `[ ]` |
 
 ## Phase 2 — Persistence
@@ -212,3 +212,15 @@ Two test setups failed on first run, not the implementation: they assumed master
 Deliverable: `select_next_probes` and `should_stop_probing`. Two deliberate spec deviations, both logged: (1) function name is plural (`select_next_probes`) and computes the fringe internally via `kst.fringe()` rather than taking it as a parameter — matches `DIAGNOSTIC_LOOP.md`'s pseudocode and this progress table's own unit list, which disagree with the design doc's singular `select_next_probe(vector, theta, grade_band, calibration)` naming; following the two documents that agree, and not making the caller responsible for keeping an externally-passed fringe in sync. (2) Ranks by Bernoulli entropy of the CDM posterior, not true Fisher information — nothing in the codebase defines per-probe item difficulty/discrimination (a, b) parameters `irt.py` (unit 1.3) would need, and the design doc's own §4.6 docstring explicitly allows entropy as an alternative ("maximum Fisher information (or posterior entropy)"). `should_stop_probing`'s "standard error" is `sqrt(p*(1-p))` — the actual standard deviation of a Bernoulli(p) posterior — since no separate IRT-estimated SE is threaded through this signature either.
 
 Verified anchors: probe selection demonstrably prefers the fringe skill closest to p=0.5 (max entropy); band filtering correctly falls back to the full fringe when nothing is on-band rather than returning empty; calibration mode demonstrably widens to include off-band skills; an already-mastered skill never appears (fringe's own exclusion, not a separate check); the stopping rule is symmetric near 0 and 1, requires *every* skill in a multi-skill check to be confident, and treats an untracked skill_id as maximally uncertain rather than skipping it.
+
+**1.7** · branch `diagnostic/1.7` · PR: _(this iteration)_ · **Phase 1 acceptance unit**
+
+Check output (`pytest tests/diagnostic/ -v`): 100/100 passed (84 prior + 16 new), all green on the first implementation — including the acceptance test.
+
+Deliverable: `MasteryVector` type alias, `MasteryUpdate` dataclass, `new_vector` (band-relative cold-start priors: 0.5 on-band, lower above, higher below — an unrecognized band degrades to flat 0.5 everywhere rather than raising), `bayesian_update` (composes qmatrix -> cdm -> kst.propagate_prerequisites into one cycle, returns a new vector plus a `MasteryUpdate` per touched skill — the only thing meant to ever be optionally persisted, design doc §5.3), and `aggregate_for_parent` (domain rollup + level classification + gaps + `kst.fringe()`-derived next steps).
+
+**The Phase 1 acceptance test** (`test_synthetic_stream_converges_and_never_leaves_prerequisites_behind`): walks a real 5-skill prerequisite chain (`cc.rote_count_20 -> cc.count_objects_20 -> oa.add_within_20 -> oa.multiplication_facts -> oa.division_facts`) with repeated correct evidence, checking the core invariant — no skill is ever "secure" (>=0.8) while a direct prerequisite sits below "developing" (0.4) — after *every single update*, not just at the end. All five skills converge to secure; the invariant never breaks once across the whole stream.
+
+Verified anchors: `new_vector`'s below/above/on-band priors confirmed directly against `skills_in_band()`; `bayesian_update` never mutates its input, stays within [0,1] even under repeated calibration-boosted updates, and demonstrably raises a skill's prerequisites once it crosses the secure threshold; `aggregate_for_parent`'s gaps list and next_steps are cross-checked directly against `_classify()`'s own thresholds and `kst.fringe()` respectively, not re-derived independently in the test.
+
+7/8 Phase 1 units done. Unit 1.8 (the `__init__.py` façade, `process_evidence`/`get_next_probe_hint`) is next and last before the actual Phase 1 gate — not reached yet, correcting an earlier draft of this entry that claimed it prematurely.

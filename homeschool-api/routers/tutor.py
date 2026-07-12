@@ -11,7 +11,6 @@ from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
-    get_byok_key as get_demo_byok_key,
     get_personalization as get_demo_personalization,
     record_message as demo_code_record_message,
 )
@@ -45,12 +44,12 @@ def _demo_session_config(code: str | None = None) -> SessionConfig:
     """
     Server-defined session config for the public demo's demo_code role —
     never built from live client input on /tutor/chat itself. The one
-    exception is student_name/grade/byok_anthropic_key, which a visitor can
-    optionally set once, up front, at POST /auth/demo-code (see
-    routers/auth.py) — sanitized and validated there, then looked up here by
-    the code baked into their JWT. Everything else (all subjects included,
-    voice off) stays fixed so a demo visitor can browse the full curriculum
-    breadth without configuring anything else.
+    exception is student_name/grade, which a visitor can optionally set
+    once, up front, at POST /auth/demo-code (see routers/auth.py) —
+    sanitized and validated there, then looked up here by the code baked
+    into their JWT. Everything else (all subjects included, voice off)
+    stays fixed so a demo visitor can browse the full curriculum breadth
+    without configuring anything else.
     """
     student_name, grade = (None, None)
     if code:
@@ -61,7 +60,6 @@ def _demo_session_config(code: str | None = None) -> SessionConfig:
         grade_stage=grade_to_stage(grade) if grade else GradeStage(settings.demo_grade_stage),
         subjects=list(Subject),
         voice_required=False,
-        demo_uncapped=bool(code and get_demo_byok_key(code)),
     )
 
 
@@ -80,17 +78,12 @@ async def chat(
     """
     role = auth.get("role")
     is_demo_code = role == "demo_code"
-    byok_anthropic_key = None
     if is_demo_code:
         # Never trust client-supplied session_config for the demo role —
         # only the subject choice (browsing the curriculum) and the
         # name/grade they set once at /auth/demo-code are theirs to make.
         req.session_config = _demo_session_config(auth.get("code"))
         db = None
-        # A visitor's own key, if they supplied one at /auth/demo-code —
-        # stream_tutor_response uses it instead of the operator's key for
-        # this one call only, never persisted here either.
-        byok_anthropic_key = get_demo_byok_key(auth.get("code", ""))
 
     if is_demo_code:
         # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
@@ -137,7 +130,6 @@ async def chat(
             child_message=req.child_message,
             db=db,
             drawing_image=req.drawing_image,
-            anthropic_api_key=byok_anthropic_key,
         ):
             yield chunk
 

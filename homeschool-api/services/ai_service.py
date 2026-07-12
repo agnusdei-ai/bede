@@ -818,21 +818,11 @@ async def stream_tutor_response(
     child_message: str,
     db: Optional["AsyncSession"] = None,
     drawing_image: Optional[str] = None,
-    anthropic_api_key: Optional[str] = None,
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
     Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
-
-    anthropic_api_key: when set (a public demo visitor's own BYOK key — see
-    routers/tutor.py's chat()), a fresh client is built with THAT key instead
-    of the shared module-level _client, so this one call is billed to the
-    visitor's own account, not the operator's. Never cached/reused across
-    calls — the anthropic SDK client itself holds no state worth pooling
-    beyond the API key, so building a new one per BYOK request is cheap and
-    keeps the key from ever being written to a shared, longer-lived object.
     """
-    client = anthropic.AsyncAnthropic(api_key=anthropic_api_key) if anthropic_api_key else _client
     # Build message list and apply sliding window to cap per-turn input tokens
     messages = [{"role": m.role, "content": m.content} for m in history]
     if drawing_image:
@@ -869,39 +859,7 @@ async def stream_tutor_response(
         {**TUTOR_TOOLS[-1], "cache_control": {"type": "ephemeral"}},
     ]
 
-    try:
-        async for chunk in _stream_tutor_events(client, config, subject, db, messages, system, tools_with_cache):
-            yield chunk
-    except anthropic.APIError:
-        # Covers both a BYOK visitor's key being invalid/revoked/out of
-        # credit and the operator's own key hitting a transient rate limit
-        # or outage — either way, the child sees a warm, in-persona message
-        # instead of a broken/dead stream. Never leaks which case it was, or
-        # any API error detail, into the child-facing chat.
-        log.exception(
-            "Anthropic API error during tutor response stream (byok=%s)",
-            bool(anthropic_api_key),
-        )
-        yield json.dumps({
-            'type': 'text',
-            'content': "Oh dear — I seem to have lost my train of thought. Could you ask that again?",
-        })
-        yield json.dumps({'type': 'done'})
-
-
-async def _stream_tutor_events(
-    client: "anthropic.AsyncAnthropic",
-    config: SessionConfig,
-    subject: Subject,
-    db: Optional["AsyncSession"],
-    messages: list,
-    system: list,
-    tools_with_cache: list,
-) -> AsyncIterator[str]:
-    """Raw Claude stream -> SSE chunk translation, split out from
-    stream_tutor_response() purely so that function can wrap this whole body
-    in one try/except for anthropic.APIError without re-indenting it."""
-    async with client.messages.stream(
+    async with _client.messages.stream(
         model=settings.tutor_model,
         # Keep responses tight (Charlotte Mason lesson brevity) but leave real
         # headroom for a tool call's own content plus trailing text — 400 cut

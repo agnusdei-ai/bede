@@ -66,10 +66,6 @@ export interface SessionConfig {
   voice_required?: boolean
   screen_time_limit_minutes?: number | null
   eye_rest_break_minutes?: number
-  // True only when this demo session was minted with the visitor's own
-  // Anthropic key (see generateDemoCode's byokAnthropicKey) — the 15-minute
-  // free-tier cap doesn't apply, since the API cost is on their own account.
-  demo_uncapped?: boolean
 }
 
 function apiBase(): string {
@@ -107,8 +103,8 @@ export function decodeExpiry(token: string): number | null {
  *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
 export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
 
-export async function generateDemoCode(studentName?: string, grade?: string, byokAnthropicKey?: string): Promise<string> {
-  const hasBody = (studentName && studentName.trim()) || grade || byokAnthropicKey
+export async function generateDemoCode(studentName?: string, grade?: string): Promise<string> {
+  const hasBody = (studentName && studentName.trim()) || grade
   const res = await fetch(`${apiBase()}/auth/demo-code`, {
     method: 'POST',
     ...(hasBody && {
@@ -116,16 +112,11 @@ export async function generateDemoCode(studentName?: string, grade?: string, byo
       body: JSON.stringify({
         student_name: studentName?.trim() || undefined,
         grade: grade || undefined,
-        byok_anthropic_key: byokAnthropicKey?.trim() || undefined,
       }),
     }),
   })
   if (res.status === 404) throw new Error('The free demo is not enabled on this deployment.')
   if (res.status === 429) throw new Error('Too many demo sessions are active right now — please try again shortly.')
-  if (res.status === 400) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'That doesn\'t look like a valid Anthropic API key.')
-  }
   if (!res.ok) throw new Error('Could not start a session right now — please try again.')
   const data = await res.json()
   return data.code

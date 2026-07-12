@@ -95,23 +95,3 @@ def test_get_personalization_defaults_to_none_when_not_provided():
 
 def test_get_personalization_unknown_code_returns_none_none():
     assert demo_code_session.get_personalization("000000") == (None, None)
-
-
-def test_get_byok_key_round_trips():
-    code = demo_code_session.generate_code(byok_anthropic_key="sk-ant-visitor-key")
-    assert demo_code_session.get_byok_key(code) == "sk-ant-visitor-key"
-
-
-def test_get_byok_key_defaults_to_none_when_not_provided():
-    code = demo_code_session.generate_code()
-    assert demo_code_session.get_byok_key(code) is None
-
-
-def test_get_byok_key_unknown_code_returns_none():
-    assert demo_code_session.get_byok_key("000000") is None
-
-
-def test_end_session_wipes_the_byok_key_too():
-    code = demo_code_session.generate_code(byok_anthropic_key="sk-ant-visitor-key")
-    demo_code_session.end_session(code)
-    assert demo_code_session.get_byok_key(code) is None

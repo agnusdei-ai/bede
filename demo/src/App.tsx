@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, Timer, Infinity } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, Timer } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -58,19 +58,13 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
-  const [showByok, setShowByok] = useState(false)
-  // Deliberately NOT cached in sessionStorage like name/grade above — this is
-  // a real secret, not a display preference, and re-entering it each time is
-  // the right tradeoff (same "never persist a secret client-side" rule the
-  // rest of this app already follows for every other credential).
-  const [byokKey, setByokKey] = useState('')
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
     try {
-      const code = await generateDemoCode(studentName, grade, byokKey)
+      const code = await generateDemoCode(studentName, grade)
       const { token } = await loginWithCode(code)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
@@ -128,48 +122,9 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
           </div>
         </div>
 
-        {showByok ? (
-          <div className="mb-5">
-            <label htmlFor="byok-key" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Your Anthropic API key
-            </label>
-            <input
-              id="byok-key"
-              type="password"
-              autoComplete="off"
-              value={byokKey}
-              onChange={(e) => setByokKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400 font-mono"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Used only for your own session's requests, never saved anywhere. Get one at{' '}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="underline hover:text-navy-500">
-                console.anthropic.com
-              </a>.{' '}
-              <button type="button" onClick={() => { setShowByok(false); setByokKey('') }} className="underline hover:text-navy-500">
-                Never mind
-              </button>
-            </p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowByok(true)}
-            className="text-xs text-navy-500 hover:text-navy-700 underline mb-5 block"
-          >
-            Have your own Anthropic API key? Skip the 15-minute cap
-          </button>
-        )}
-
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>
-            {byokKey.trim()
-              ? 'A one-time 6-digit code just for you — unlimited time with your own key.'
-              : 'A one-time 6-digit code just for you, capped at 15 minutes.'}
-            {' '}This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.
-          </p>
+          <p>A one-time 6-digit code just for you, capped at 15 minutes. This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
@@ -985,19 +940,15 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
 
   // The 15-minute free-tier cap — ticks once a second so the header badge
   // reads as a real countdown, not a static number; ends the demo exactly
-  // like the visitor clicking "Finish demo" once time runs out. Skipped
-  // entirely for a BYOK session (config.demo_uncapped) — the visitor's own
-  // key means the API cost isn't the operator's to cap. Waits for config to
-  // load first since demo_uncapped lives on it, not on anything known at mount.
+  // like the visitor clicking "Finish demo" once time runs out.
   useEffect(() => {
-    if (!config || config.demo_uncapped) return
     const id = setInterval(() => {
       const left = DEMO_SESSION_CAP_MS - (Date.now() - sessionStartRef.current)
       setRemainingMs(left)
       if (left <= 0) setFinished(true)
     }, 1000)
     return () => clearInterval(id)
-  }, [config])
+  }, [])
 
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
@@ -1054,27 +1005,18 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
         sessionStateRef={sessionStateRef}
         header={
           <>
-            {config.demo_uncapped ? (
-              <div
-                title={`Free demo code: ${code} — unlimited time with your own Anthropic key`}
-                className="flex items-center gap-1 text-xs font-mono text-sage-600 shrink-0 whitespace-nowrap"
-              >
-                <Infinity size={12} /> No cap
-              </div>
-            ) : (
-              <div
-                title={`Free demo code: ${code} — sessions are capped at 15 minutes`}
-                className={`flex items-center gap-1 text-xs font-mono tabular-nums shrink-0 whitespace-nowrap ${
-                  remainingMs <= DEMO_SESSION_WARNING_MS ? 'text-red-500 font-semibold' : 'text-gray-400'
-                }`}
-              >
-                <Timer size={12} /> {fmtCountdown(remainingMs)}
-              </div>
-            )}
+            <div
+              title={`Free demo code: ${code} — sessions are capped at 15 minutes`}
+              className={`flex items-center gap-1 text-xs font-mono tabular-nums ${
+                remainingMs <= DEMO_SESSION_WARNING_MS ? 'text-red-500 font-semibold' : 'text-gray-400'
+              }`}
+            >
+              <Timer size={12} /> {fmtCountdown(remainingMs)}
+            </div>
             <button
               onClick={onOpenSandbox}
               title="Preview the parent-only direct-answer sandbox"
-              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
               <FlaskConical size={12} /> Ask Bede
             </button>
@@ -1082,12 +1024,12 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
               <button
                 onClick={() => setShowFeedback(true)}
                 title="Tell us what's working and what isn't"
-                className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline shrink-0 whitespace-nowrap"
+                className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline"
               >
                 <MessageSquare size={12} /> Feedback
               </button>
             )}
-            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline shrink-0 whitespace-nowrap">
+            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
               Finish demo
             </button>
           </>

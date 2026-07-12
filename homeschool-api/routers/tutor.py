@@ -89,13 +89,20 @@ async def chat(
         # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
         demo_code_record_message(auth.get("code", ""))
 
-    await log_event(
+    # Fire-and-forget — log_event() runs in its own independent DB session
+    # and already swallows its own failures (see core/audit.py), so there's
+    # no reason to make every single chat message pay for a full encrypt +
+    # INSERT + COMMIT round-trip before Bede's response even starts
+    # streaming. This was the single biggest per-message latency cost once
+    # the demo started routing every message through this backend instead
+    # of straight to Anthropic.
+    asyncio.create_task(log_event(
         AuditEvent.TUTOR_CHAT,
         role=auth.get("role"),
         student_name=req.session_config.student_name,
         success=True,
         **audit_from_request(request),
-    )
+    ))
 
     async def event_generator():
         # Deterministic safeguarding check — bypasses LLM entirely for crisis signals

@@ -52,6 +52,8 @@ def test_mastery_profile_defaults():
 
 def test_diagnostic_evidence_log_defaults():
     assert DiagnosticEvidenceLog.__table__.c.subject_area.default.arg == "mathematics"
+    assert callable(DiagnosticEvidenceLog.__table__.c.observed_at.default.arg)
+    assert callable(DiagnosticEvidenceLog.__table__.c.created_at.default.arg)
 
 
 def test_registered_on_the_real_base_used_by_create_tables():

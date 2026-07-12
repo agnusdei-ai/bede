@@ -1,8 +1,9 @@
 import asyncio
 import json
+import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +33,7 @@ from services.ai_service import (
     _sanitize_parent_field,
     check_safeguarding,
     generate_session_summary,
+    refresh_learner_profile_if_stale,
     SAFEGUARDING_RESPONSE,
     stream_tutor_response,
 )
@@ -40,6 +42,7 @@ from services.email_service import build_summary_email_html, send_distress_alert
 from services.voice_synthesis import synthesis_configured, synthesize_speech
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
+log = logging.getLogger(__name__)
 
 
 def _demo_session_config(code: str | None = None) -> SessionConfig:
@@ -211,9 +214,20 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
 async def session_summary(
     req: SessionSummaryRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     auth: dict = Depends(require_parent),   # parent only
+    db: AsyncSession = Depends(get_db),
 ):
-    """Generate end-of-session parent report. Parent role required."""
+    """Generate end-of-session parent report. Parent role required.
+
+    Also fire-and-forgets a learner-profile refresh (see
+    services/ai_service.refresh_learner_profile_if_stale) so the profile
+    Bede reads back at the next session's [START] is never more than one
+    session stale — a parent should never have to remember to visit
+    Progress and click "build profile" for that to stay current. A
+    background-task failure here must never affect the parent's summary
+    response, so no exception from it can propagate to the request.
+    """
     await log_event(
         AuditEvent.SESSION_END,
         role="parent",
@@ -222,7 +236,17 @@ async def session_summary(
         **audit_from_request(request),
     )
     summary = await generate_session_summary(req)
+    background_tasks.add_task(
+        _refresh_learner_profile_background, db, req.session_config.student_name
+    )
     return {"summary": summary}
+
+
+async def _refresh_learner_profile_background(db: AsyncSession, student_name: str) -> None:
+    try:
+        await refresh_learner_profile_if_stale(db, student_name)
+    except Exception:
+        log.warning("Background learner-profile refresh failed for %s", student_name, exc_info=True)
 
 
 @router.post("/email-summary")

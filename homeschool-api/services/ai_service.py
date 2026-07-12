@@ -1285,6 +1285,58 @@ Return ONLY a JSON object with keys: trivium_stage, processing_style, narration_
     return json.loads(text)
 
 
+async def refresh_learner_profile_if_stale(
+    db: "AsyncSession",
+    student_name: str,
+) -> Optional[dict]:
+    """
+    Re-synthesizes and persists the learner profile if new narration
+    assessments have accrued since the last synthesis — the automatic
+    counterpart to routers/narration.py's parent-triggered build_profile.
+    Called fire-and-forget from routers/tutor.py's /summary (real
+    session end), so freshness never depends on a parent remembering to
+    visit the Progress page.
+
+    Skips the Haiku call entirely (returns None) when nothing's changed
+    since the last synthesis, so a session with no new narration doesn't
+    spend an API call rewriting an identical profile.
+    """
+    from sqlalchemy import select
+    from core.database import LearnerProfile, NarrationAssessment
+    from core.encryption import decrypt_json, encrypt_json
+
+    result = await db.execute(
+        select(NarrationAssessment)
+        .where(NarrationAssessment.student_name == student_name)
+        .order_by(NarrationAssessment.session_date.desc())
+        .limit(30)
+    )
+    rows = result.scalars().all()
+    if not rows:
+        return None
+
+    existing = await db.execute(
+        select(LearnerProfile).where(LearnerProfile.student_name == student_name)
+    )
+    profile_row = existing.scalar_one_or_none()
+    if profile_row is not None and profile_row.session_count >= len(rows):
+        return None  # no new assessments since the last synthesis
+
+    assessments = [decrypt_json(row.assessment_enc) for row in rows]
+    profile = await synthesize_learner_profile(student_name, assessments, len(rows))
+    profile["session_count_assessed"] = len(rows)
+    profile["assessed_at"] = datetime.now(timezone.utc).isoformat()
+
+    enc = encrypt_json(profile)
+    if profile_row is None:
+        db.add(LearnerProfile(student_name=student_name, session_count=len(rows), profile_enc=enc))
+    else:
+        profile_row.profile_enc = enc
+        profile_row.session_count = len(rows)
+    await db.commit()
+    return profile
+
+
 # ── Sandbox mode (parent-only, direct-answer, nothing persisted) ────────────
 # See routers/sandbox.py. Deliberately separate from stream_tutor_response
 # above rather than a mode flag on it — the two have almost nothing in

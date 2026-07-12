@@ -242,6 +242,37 @@ TUTOR_TOOLS = [
         },
     },
     {
+        "name": "record_skill_evidence",
+        "description": (
+            "SILENTLY record diagnostic evidence about a specific MATH sub-skill after a "
+            "reasoning exchange reveals how well the child understands it. The child never "
+            "sees this. Call it when a Socratic exchange has genuinely surfaced the child's "
+            "grasp (or gap) on one of the math skills listed in this subject's context — not "
+            "after every turn, only when you have real signal. Choose probe_id ONLY from the "
+            "list provided in the subject context; never invent one."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "probe_id": {
+                    "type": "string",
+                    "description": "The exact probe archetype id from this subject's context list",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": "How the child performed: correct=solid unaided, partial=some grasp, "
+                                   "incorrect=misconception, hint_dependent=only after heavy scaffolding",
+                },
+                "confidence": {
+                    "type": "number", "minimum": 0, "maximum": 1,
+                    "description": "Your certainty this exchange was genuinely diagnostic (default 1.0)",
+                },
+            },
+            "required": ["probe_id", "outcome"],
+        },
+    },
+    {
         "name": "suggest_next_subject",
         "description": (
             "End the CURRENT subject early and move to the next one — for clear mastery "
@@ -812,6 +843,36 @@ async def _save_assessment(
         return None
 
 
+async def _record_skill_evidence(
+    db: Optional["AsyncSession"],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently persist math-skill diagnostic evidence via
+    services.diagnostic.process_evidence. Mirrors _save_assessment's
+    db-is-None demo-role guard and try/except-log-swallow contract, but
+    returns nothing at all — record_skill_evidence must be fully silent,
+    stricter than assess_narration's minimal (child-ignored) SSE event.
+    """
+    if db is None:  # demo role — routers/tutor.py's chat() sets db=None
+        return
+    if subject != Subject.mathematics:  # Phase 1 diagnostic scope: math only
+        return
+    try:
+        from models.schemas import RecordSkillEvidenceInput
+        from services.diagnostic import process_evidence
+
+        ev = RecordSkillEvidenceInput(**tool_input)
+        await process_evidence(
+            db, config.student_name, ev.probe_id, ev.outcome, ev.confidence,
+            config.grade_stage.value,
+        )
+    except Exception as exc:
+        log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
+
+
 async def stream_tutor_response(
     config: SessionConfig,
     subject: Subject,
@@ -935,15 +996,21 @@ async def _dispatch_completed_tool_call(
     of this function. Returns (sse_chunk_json_or_None, ends_on_questionless_tool)
     — see _QUESTIONLESS_TOOLS for what that second value means. The second
     value is None (rather than True/False) for assess_narration/
-    show_visual_aid specifically: neither is really "the visible end of a
-    turn" the way a rendered tool card is, so the caller should leave
-    whatever ends_on_questionless_tool state it already had alone rather
-    than have either of these silently clear it.
+    show_visual_aid/record_skill_evidence specifically: none of these is
+    really "the visible end of a turn" the way a rendered tool card is, so
+    the caller should leave whatever ends_on_questionless_tool state it
+    already had alone rather than have any of them silently clear it.
     """
     if tool_name == "assess_narration":
         # Silent server-side save; emit minimal event for frontend
         summary = await _save_assessment(db, config.student_name, subject, tool_input)
         return (json.dumps({'type': 'assessment', 'data': summary}) if summary else None), None
+
+    if tool_name == "record_skill_evidence":
+        # Fully silent, server-side only — no SSE chunk at all, unlike
+        # assess_narration's (child-ignored) minimal event above.
+        await _record_skill_evidence(db, config, subject, tool_input)
+        return None, None
 
     if tool_name == "show_visual_aid":
         aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))

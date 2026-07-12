@@ -330,3 +330,43 @@ class LearnerProfileData(BaseModel):
     session_count_assessed: int
     bede_profile_notes:    str
     assessed_at:           str
+
+# ── Diagnostic engine (mastery profile) ──────────────────────────────────────
+
+class MasteryLevel(str, Enum):
+    gap        = "gap"          # P(mastery) < 0.4
+    developing = "developing"   # 0.4 <= P < 0.8
+    secure     = "secure"       # P >= 0.8
+
+class SkillMasteryView(BaseModel):
+    """One sub-skill's rolled-up view for the parent dashboard."""
+    skill_id:     str
+    label:        str
+    domain:       str
+    grade_band:   str
+    probability:  float = Field(..., ge=0.0, le=1.0)
+    level:        MasteryLevel
+
+class DomainMasteryView(BaseModel):
+    domain:              str
+    average_probability: float = Field(..., ge=0.0, le=1.0)
+    level:               MasteryLevel
+    skills:              List[SkillMasteryView]
+
+class MasteryProfileSummary(BaseModel):
+    """Render-only parent summary. No raw evidence, no transcript."""
+    student_name:   str
+    subject_area:   str = "mathematics"
+    evidence_count: int
+    calibration:    bool                       # still in cold-start widening phase
+    domains:        List[DomainMasteryView]
+    gaps:           List[SkillMasteryView]     # level == gap, worst first
+    next_steps:     List[SkillMasteryView]     # KST fringe — learnable now
+    updated_at:     str
+
+class RecordSkillEvidenceInput(BaseModel):
+    """Server-side validation of the silent record_skill_evidence tool's
+    input (Phase 3). Never leaves the server; not part of any response body."""
+    probe_id:   str = Field(..., max_length=80)
+    outcome:    Literal["correct", "partial", "incorrect", "hint_dependent"]
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, Timer } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -124,7 +124,7 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code just for you, capped at 15 minutes. This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.</p>
+          <p>A one-time 6-digit code just for you. This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
@@ -894,27 +894,6 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
   )
 }
 
-// Free-tier demo sessions are capped at a flat 15 minutes — a shared,
-// operator-funded key has to have SOME hard ceiling regardless of how
-// engaged a visitor is, and 15 minutes is enough to see Bede's range across
-// a couple of subjects without one long conversation eating disproportionate
-// API cost. Purely client-enforced (no server-side timer), same pattern
-// homeschool-tutor's own grade-based session caps already use — the JWT's
-// own 2-hour expiry remains the real backstop either way. Reaching zero
-// calls setFinished(true) below, which routes to the SAME "Finish demo" flow
-// as if the visitor had ended it themselves — a graceful summary/email offer,
-// not a cold error screen, since running out of free time is an expected,
-// unsurprising outcome, not a fault.
-const DEMO_SESSION_CAP_MS = 15 * 60 * 1000
-const DEMO_SESSION_WARNING_MS = 2 * 60 * 1000
-
-function fmtCountdown(ms: number): string {
-  const totalSecs = Math.max(0, Math.ceil(ms / 1000))
-  const m = Math.floor(totalSecs / 60)
-  const s = totalSecs % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
 function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   token: string
   code: string
@@ -929,7 +908,6 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   const [showFeedback, setShowFeedback] = useState(false)
   const sessionStartRef = useRef(Date.now())
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
-  const [remainingMs, setRemainingMs] = useState(DEMO_SESSION_CAP_MS)
 
   useEffect(() => {
     getDemoConfig(token).then(setConfig).catch((err) => setError(friendlyErrorMessage(err, 'Could not start your session')))
@@ -937,18 +915,6 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
     // deployment where FEEDBACK_EMAIL isn't set.
     isFeedbackEnabled().then(setFeedbackEnabled)
   }, [token])
-
-  // The 15-minute free-tier cap — ticks once a second so the header badge
-  // reads as a real countdown, not a static number; ends the demo exactly
-  // like the visitor clicking "Finish demo" once time runs out.
-  useEffect(() => {
-    const id = setInterval(() => {
-      const left = DEMO_SESSION_CAP_MS - (Date.now() - sessionStartRef.current)
-      setRemainingMs(left)
-      if (left <= 0) setFinished(true)
-    }, 1000)
-    return () => clearInterval(id)
-  }, [])
 
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
@@ -1005,13 +971,8 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
         sessionStateRef={sessionStateRef}
         header={
           <>
-            <div
-              title={`Free demo code: ${code} — sessions are capped at 15 minutes`}
-              className={`flex items-center gap-1 text-xs font-mono tabular-nums ${
-                remainingMs <= DEMO_SESSION_WARNING_MS ? 'text-red-500 font-semibold' : 'text-gray-400'
-              }`}
-            >
-              <Timer size={12} /> {fmtCountdown(remainingMs)}
+            <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">
+              <KeyRound size={12} /> {code}
             </div>
             <button
               onClick={onOpenSandbox}

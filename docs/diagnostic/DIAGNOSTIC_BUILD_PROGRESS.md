@@ -175,7 +175,7 @@ Deliverable: `ProbeArchetype` frozen dataclass, `EvidenceObservation` TypedDict 
 
 Verified anchors: `q_row`/`probes_for_skill` follow `skill_map.py`'s established degrade-to-empty contract (`[]`, never raise) for untrusted/unknown ids; `Q_MATRIX.get(unknown) is None` also holds, satisfying the progress table's literal "unknown id → None" wording at the dict level in addition to `q_row`'s own `list[str]`-typed empty-list contract.
 
-**1.3** · branch `diagnostic/1.3` · PR: _(this iteration)_
+**1.3** · branch `diagnostic/1.3` · PR: https://github.com/agnusdei-ai/bede/pull/34 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/ -v`): 32/32 passed (19 from 1.1+1.2 + 13 new for `irt.py`).
 

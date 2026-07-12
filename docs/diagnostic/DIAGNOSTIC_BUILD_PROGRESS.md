@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (2/8 units) | — |
+| 1 — Core package (pure Python) | **in progress** (3/8 units) | — |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.3 — `services/diagnostic/irt.py`
+**Current next unit:** 1.4 — `services/diagnostic/cdm.py`
 
 ---
 
@@ -27,7 +27,7 @@
 |---|---|---|---|---|
 | 1.1 | `skill_map.py` — K-8 math DAG | S1 (fringe prereqs) | DAG acyclic; prereqs resolve; every skill has a band | `[x]` |
 | 1.2 | `qmatrix.py` — probes, `q_row`, `EvidenceObservation` | S5/S6 | every probe maps to ≥1 attribute; unknown id → None | `[x]` |
-| 1.3 | `irt.py` — 1PL/2PL/3PL, Fisher info, θ update | S6 | known P values; Fisher monotonicity; θ converges | `[ ]` |
+| 1.3 | `irt.py` — 1PL/2PL/3PL, Fisher info, θ update | S6 | known P values; Fisher monotonicity; θ converges | `[x]` |
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[ ]` |
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[ ]` |
 | 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[ ]` |
@@ -174,3 +174,13 @@ Check output (`pytest tests/diagnostic/ -v`): 19/19 passed (11 from 1.1 + 8 new 
 Deliverable: `ProbeArchetype` frozen dataclass, `EvidenceObservation` TypedDict (design doc §3.4), `Q_MATRIX` dict, and `q_row`/`probes_for_skill`/`outcome_to_score` accessors. One probe per skill (42 probes, 1:1 Q-matrix) rather than the design doc's example multi-skill pairings — see Decisions Log.
 
 Verified anchors: `q_row`/`probes_for_skill` follow `skill_map.py`'s established degrade-to-empty contract (`[]`, never raise) for untrusted/unknown ids; `Q_MATRIX.get(unknown) is None` also holds, satisfying the progress table's literal "unknown id → None" wording at the dict level in addition to `q_row`'s own `list[str]`-typed empty-list contract.
+
+**1.3** · branch `diagnostic/1.3` · PR: _(this iteration)_
+
+Check output (`pytest tests/diagnostic/ -v`): 32/32 passed (19 from 1.1+1.2 + 13 new for `irt.py`).
+
+A real bug surfaced and was fixed during B3 verification, not after: the first implementation computed `math.exp(-a*(theta-b))` directly, which raises `OverflowError` for large-magnitude theta (e.g. theta=-1000, a=5). Rewrote `p_1pl`/`p_2pl`/`p_3pl` to share a numerically-stable `_sigmoid()` helper (branches on the sign of the exponent so it never exponentiates a large positive number) instead of patching the one call site that happened to be tested — `estimate_theta_mle`'s own internal logistic computation had the identical unguarded pattern and would have hit the same failure under an extreme synthetic stream.
+
+Deliverable: `p_1pl`/`p_2pl`/`p_3pl` (Rasch/2PL/3PL logistic item response functions), `fisher_information`, and `estimate_theta_mle` (Fisher-scoring MAP ability estimate + standard error). Stdlib `math` only.
+
+Verified anchors: known-value checks confirm P=0.5 exactly at theta==b for 1PL/2PL regardless of discrimination; P=(1+c)/2 at theta==b for 3PL; Fisher information strictly increases with discrimination `a` at matched difficulty and peaks near theta==b; theta estimation demonstrably moves in the correct direction on synthetic all-correct/all-incorrect/mixed streams, and standard error shrinks with more evidence.

@@ -238,7 +238,7 @@ Deliverable: `process_evidence` (async, in-memory — see module docstring for w
 
 Verified anchors: full round trip confirmed end-to-end — cold-start a vector, feed real evidence through `process_evidence`, and `get_next_probe_hint`'s guidance demonstrably changes (stops mentioning a skill once evidence has secured it), composing every one of units 1.1-1.7 together in one test.
 
-**2.1** · branch `diagnostic/2.1` · PR: (filled in after PR creation, see follow-up commit)
+**2.1** · branch `diagnostic/2.1` · PR: https://github.com/agnusdei-ai/bede/pull/40 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/test_database_models.py -v`): 8/8 passed. Full `pytest tests/diagnostic/ -v`: 116/116 passed (108 prior + 8 new), no regressions. Full backend suite (`pytest -q`, excluding 3 files with pre-existing sandbox dependency gaps — `pypdf`/`numpy` not installed here, unrelated to this unit): 250 passed, 7 skipped, 1 pre-existing failure (`test_voice_synthesis.py::test_resolve_voice_blend`, missing `numpy`) — none introduced by this change.
 

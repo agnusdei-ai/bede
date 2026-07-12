@@ -43,11 +43,11 @@ conversations).
 | 2 | Checks curriculum | ✅ Implemented | `services/catalog_service.py` — Ambleside Online-derived book lists and term plans per grade year, plus a Catholic catechism scope note, injected via `_get_catalog_context()` |
 | 3 | Checks parent's philosophy | 🟡 Partial | Hardcoded to Charlotte Mason in the static system prompt (`ai_service.py`); not a per-parent configurable philosophy check |
 | 4 | Checks grade level | ✅ Implemented | `GradeStage` enum + `grade_to_stage()`, drives narration pacing and UI timers |
-| 5 | Checks previous lessons | 🟡 Partial | Current-subject history is sliced into every request (`getApiMessages`); `SessionTranscript` and `NarrationAssessment` tables persist past sessions, but nothing yet actively re-surfaces prior lessons into a new session's context |
+| 5 | Checks previous lessons | ✅ Implemented (beta) | `_get_previous_lesson_context()` surfaces the most recent same-subject `NarrationAssessment` at `[START]` (signal + concepts + one-sentence observation, short-summary only, no raw scores). Not yet benchmarked/validated — see step 9's open item |
 | 6 | Checks family travel plans | ⬜ Not started | No schema, no storage, no UI |
 | 7 | Checks co-op schedule | ⬜ Not started | No schema, no storage, no UI. `PodConfigsRequest` models a single family's up-to-10 students, not a multi-family co-op |
 | 8 | Produces response | ✅ Implemented | Core tutoring loop, SSE streaming, agentic tool cards |
-| 9 | Updates learning graph | 🟡 Foundation exists | `NarrationAssessment` (per-narration encrypted rubric, `adaptive_signal`, versioned via `rubric_version`) and `LearnerProfile` (now a history table — one row per synthesis, not an overwritten snapshot) are real, persisted, encrypted tables — a relational precursor to a graph, not a graph structure itself. Profile freshness is now automatic (session-end fire-and-forget refresh), not dependent on a parent remembering to click "build." Still not injected into Bede's own prompt context — that's the remaining Phase A work. |
+| 9 | Updates learning graph | 🟡 Phase A done, Phase B not started | `NarrationAssessment` + `LearnerProfile` (history table, versioned, auto-refreshed, injected into prompt context) — Phase A is complete. Still a relational precursor, not a literal graph of concept relationships (Phase B), and still not benchmarked/validated as a diagnostic |
 
 ## Phased plan for the four target steps (2, 6, 7, 9)
 

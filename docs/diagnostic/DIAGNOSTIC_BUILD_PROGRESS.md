@@ -203,7 +203,7 @@ Deliverable: `surmise_closure`, `is_valid_knowledge_state`, `propagate_prerequis
 
 Verified anchors: every function tested against a small, hand-traceable real slice of the skill map (`cc.rote_count_20 <- cc.count_objects_20 <- {cc.compare_quantities, oa.add_within_20 <- {oa.subtract_within_20, oa.multiplication_facts <- oa.division_facts}}`), including the acceptance-style `test_fringe_correct_on_a_small_hand_verified_map` combining mastered/fringe/blocked/gap skills in one vector and asserting the exact expected fringe set.
 
-**1.6** · branch `diagnostic/1.6` · PR: _(this iteration)_
+**1.6** · branch `diagnostic/1.6` · PR: https://github.com/agnusdei-ai/bede/pull/37 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/ -v`): 84/84 passed (68 prior + 16 new).
 

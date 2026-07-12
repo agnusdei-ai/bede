@@ -145,7 +145,7 @@ Verified anchors:
 - `numpy>=1.26.0` confirmed present in `requirements.txt` (not imported by this unit regardless — see Decisions Log).
 - No existing `homeschool-api/tests/__init__.py` at the top level (flat test-file convention); `tests/diagnostic/__init__.py` added per the unit spec's explicit fallback instruction.
 
-**1.1 (fix)** · branch `diagnostic/1.1-fixes` · PR: _(opened this iteration)_
+**1.1 (fix)** · branch `diagnostic/1.1-fixes` · PR: https://github.com/agnusdei-ai/bede/pull/32 (squash-merged to main)
 
 Code review of `57ea785` (8-angle, 10 verified findings — see decisions log) run post-merge; user approved fixing the 3 correctness findings + the `dependents_of()` spec-deviation now, before Unit 1.2. Check output (`pytest tests/diagnostic/test_skill_map.py -v`):
 ```

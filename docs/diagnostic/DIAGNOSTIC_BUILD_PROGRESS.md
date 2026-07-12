@@ -101,6 +101,8 @@ Checked at B4 for every data/persistence/prompt unit:
 | 2026-07-12 | — | Appendix A / §5 line-number citations in `ai_service.py`/`core/database.py` are stale | Same-day, unrelated edits (previous-lesson-context + learner-profile-history work, this same repo session) shifted ~60–80 lines. Function names/structure unaffected. Flagged in both design docs; must be re-verified before any Phase 3 unit relies on them — Phase 1/2 do not depend on these citations |
 | 2026-07-12 | 1.1 | `numpy>=1.26.0` IS already a bede dependency (`requirements.txt`), pulled in transitively (voice/Resemblyzer), not used by anything in `services/`. Units 1.3/1.4 will still NOT import it. | The build loop's own hard rule (§6 driver prompt) says "NO numpy" unconditionally, independent of whether it happens to already be installed — keeps the diagnostic core's "full IP ownership, no supply-chain risk" intent (design doc §1.3) from silently piggybacking on an unrelated dependency |
 | 2026-07-12 | 1.1 | Added Measurement & Data, Geometry, and Statistics & Probability skill breakdowns (not detailed in design doc §2.3's skeleton, which only fleshed out 8 of the 11 §2.2 domains) | Task spec required "at least the major domains" with §2.2's full domain list; skeleton was explicitly labeled representative/extensible, not exhaustive |
+| 2026-07-12 | 1.1 (fix) | Detailed code review (8-angle, 10 verified findings) run post-merge on 57ea785, per user request that review now happens before every future merge. 4 findings fixed immediately (see below); 6 acknowledged but explicitly deferred, not silently dropped: (1) `GradeBand` duplicates `GradeStage` with no automated equivalence check — real drift risk over time, though today's runtime comparison works fine (verified directly, corrected a wrong claim from one finder pass); (2) `domain` is a free-form string, not an enum — a typo could create a silent phantom domain; (3) the 42-skill catalog is hand-written Python source rather than a JSON/YAML file like `catalog_service.py`'s established pattern — undercuts this module's own "parent can extend it without touching engine logic" claim and risks an import-time crash on a syntax mistake; (4) `Skill` has no mid-tier "skill" grouping field per the design doc's 3-level domain→skill→sub-skill hierarchy (§4.1) — will need retrofitting before Phase 4's parent dashboard groups skills for display; (5) `PREREQUISITES` duplicates data already in `SKILL_MAP[id].prerequisites`; (6) the `_s()` wrapper and `field(default_factory=tuple)` are minor unnecessary indirection. None of these are fixed in this pass — revisit before Phase 1 sign-off or when a later unit (1.5 kst.py, 4.2 dashboard) actually needs the missing piece. | Scoped the immediate fix to what the user explicitly approved (the 3 prerequisite gaps + `dependents_of()`); the rest need either a real design decision (data-file format, enum migration) or aren't blocking Phase 1's own gate, so recording them here rather than fixing unprompted |
+| 2026-07-12 | 1.1 (fix) | Fixed 3 prerequisite-gap findings: `ns.integers` now requires `nbt.long_division` (pulls in the full 3-5 arithmetic chain) in addition to `nbt.subtract_within_100`; `sp.mean_median_mode` now requires `oa.division_facts` in addition to `nbt.standard_multiplication`; `geo.coordinate_plane` now requires `nbt.place_value_tens` in addition to `cc.compare_quantities`. Added `dependents_of()` (design doc §4.1's missing accessor) as a precomputed reverse index, `DEPENDENTS`. Added a regression-guard test (`test_six_eight_band_skills_do_not_skip_the_three_five_band_entirely`) asserting every 6-8 band skill's transitive prerequisite closure includes at least one 3-5/6-8 skill, so this class of gap can't silently recur as more skills are added later. | Code-review findings 1, 2, 3 (correctness) and 4 (spec-deviation) from the 57ea785 review — see PR for this fix |
 
 ---
 
@@ -142,3 +144,23 @@ Verified anchors:
 - `GradeStage` values confirmed at `models/schemas.py:7-10` (`foundations="K-2"`, `core_mastery="3-5"`, `independent="6-8"`) — `GradeBand`'s string values mirror these exactly.
 - `numpy>=1.26.0` confirmed present in `requirements.txt` (not imported by this unit regardless — see Decisions Log).
 - No existing `homeschool-api/tests/__init__.py` at the top level (flat test-file convention); `tests/diagnostic/__init__.py` added per the unit spec's explicit fallback instruction.
+
+**1.1 (fix)** · branch `diagnostic/1.1-fixes` · PR: _(opened this iteration)_
+
+Code review of `57ea785` (8-angle, 10 verified findings — see decisions log) run post-merge; user approved fixing the 3 correctness findings + the `dependents_of()` spec-deviation now, before Unit 1.2. Check output (`pytest tests/diagnostic/test_skill_map.py -v`):
+```
+tests/diagnostic/test_skill_map.py::test_prerequisite_graph_is_acyclic PASSED
+tests/diagnostic/test_skill_map.py::test_no_dangling_prerequisites PASSED
+tests/diagnostic/test_skill_map.py::test_every_skill_has_a_band_and_domain PASSED
+tests/diagnostic/test_skill_map.py::test_get_skill_returns_none_for_unknown_id PASSED
+tests/diagnostic/test_skill_map.py::test_get_skill_returns_the_skill_for_known_id PASSED
+tests/diagnostic/test_skill_map.py::test_skills_in_band_partitions_all_skills_and_is_non_empty_per_band PASSED
+tests/diagnostic/test_skill_map.py::test_skills_in_domain_covers_every_declared_domain PASSED
+tests/diagnostic/test_skill_map.py::test_all_skill_ids_matches_skill_map_keys PASSED
+tests/diagnostic/test_skill_map.py::test_dependents_of_is_the_inverse_of_prerequisites_of PASSED
+tests/diagnostic/test_skill_map.py::test_dependents_of_returns_empty_list_for_unknown_id PASSED
+tests/diagnostic/test_skill_map.py::test_six_eight_band_skills_do_not_skip_the_three_five_band_entirely PASSED
+======================= 11 passed in 0.04s =======================
+```
+
+Verified anchor: re-ran the full acyclicity check after adding the new prerequisite edges (`nbt.long_division` → `ns.integers`, `oa.division_facts` → `sp.mean_median_mode`, `nbt.place_value_tens` → `geo.coordinate_plane`) — no cycle introduced, confirmed by `test_prerequisite_graph_is_acyclic` staying green.

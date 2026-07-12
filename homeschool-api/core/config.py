@@ -163,6 +163,13 @@ class Settings(BaseSettings):
     voice_threshold_high: float = 0.82    # auto-pass
     voice_threshold_medium: float = 0.68  # parent override available
 
+    # ── Diagnostic engine (optional) ──────────────────────────────────────────
+    # Off by default — the strictest reading of "never persist raw evidence"
+    # (docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §5.3). When False, only the
+    # encrypted MasteryProfile vector is written; DiagnosticEvidenceLog (the
+    # derived-delta audit trail) stays empty even though the table exists.
+    diagnostic_evidence_log_enabled: bool = False
+
     # ── CORS ──────────────────────────────────────────────────────────────────
     # Explicit whitelist — no wildcards
     cors_origins: str = "http://localhost:5173,http://localhost:80"

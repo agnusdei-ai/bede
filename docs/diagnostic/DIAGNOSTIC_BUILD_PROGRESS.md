@@ -255,7 +255,7 @@ Deliverable: `MasteryProfile` ORM (composite PK `student_name`+`subject_area`, f
 
 Verified anchors: both new tables appear in `Base.metadata.tables` — the same metadata object `create_tables()` calls `create_all()` against, not a shadow/parallel registry; both `_enc` columns are `LargeBinary`, never a plaintext `String`; `Base.metadata.create_all()` succeeds against a real (if throwaway) SQLite engine, producing both table names in `inspect(engine).get_table_names()`; `settings.diagnostic_evidence_log_enabled is False` confirmed directly against the live `Settings` singleton, not a re-declared test double.
 
-**2.2** · branch `diagnostic/2.2` · PR: (filled in after PR creation, see follow-up commit)
+**2.2** · branch `diagnostic/2.2` · PR: https://github.com/agnusdei-ai/bede/pull/41 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/test_facade_persisted.py -v`): 9/9 passed (8 original + 1 added during the post-review fix pass) — real round trip against a genuine async SQLite engine (`aiosqlite`), with `core.encryption.initialize_encryption()` run for real so every encrypt/decrypt is genuine AES-256-GCM. Full `pytest tests/diagnostic/ -v`: 125/125 passed (116 prior + 9 new), no regressions. Full backend suite: 259 passed, 7 skipped, 1 pre-existing unrelated failure (`numpy` missing) — none introduced by this change.
 

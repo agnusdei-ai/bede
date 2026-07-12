@@ -17,6 +17,7 @@ voice biometrics authenticate children at session start.
 | Host the public demo | [docs/DEMO_HOSTING.md](docs/DEMO_HOSTING.md) — a Render Blueprint is included |
 | Work on the codebase itself | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — local dev for each app, project layout |
 | Understand the architecture in depth | [CLAUDE.md](CLAUDE.md) — request flow, prompt structure, streaming state machine |
+| See where Bede is headed vs. what's shipped | [docs/ROADMAP.md](docs/ROADMAP.md) — North Star orchestration flow, tracked against implemented/partial/not-started status |
 
 Production (self-hosted, your family's real data) and the public demo
 (stateless, cloud-hosted) are deliberately different setups with different

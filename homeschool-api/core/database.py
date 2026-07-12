@@ -154,6 +154,64 @@ class LearnerProfile(Base):
     )
 
 
+class MasteryProfile(Base):
+    """
+    Per-student CDM/IRT/KST mastery vector for a subject area (K-8 math
+    first — see docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md). profile_enc
+    holds encrypt_json({skill_id: probability, ...}) — the plain
+    MasteryVector from services.diagnostic.mastery, nothing more (no
+    theta/calibration state — that's explicitly deferred, see
+    docs/diagnostic/DIAGNOSTIC_BUILD_PROGRESS.md's decisions log). Never
+    a transcript, never a raw probe outcome. Composite PK future-proofs
+    this same table for reading/ELA/science vectors later (design doc
+    §13) without a schema change — subject_area="reading" is a new row,
+    not a new table.
+    """
+    __tablename__ = "mastery_profiles"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    subject_area: Mapped[str] = mapped_column(String(30), primary_key=True, default="mathematics")
+    evidence_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    profile_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class DiagnosticEvidenceLog(Base):
+    """
+    One row per mastery update — ONLY derived deltas (skill_id,
+    prior->posterior, probe_id, model_used, timestamp), matching
+    services.diagnostic.mastery.MasteryUpdate exactly. Never a
+    transcript, never the child's words, never probe prose — the same
+    privacy class as NarrationAssessment (derived scores, not raw
+    content). Opt-in and off by default
+    (settings.diagnostic_evidence_log_enabled) — the strictest reading of
+    "never persist raw evidence"; when disabled, only MasteryProfile is
+    written and this table stays empty.
+    """
+    __tablename__ = "diagnostic_evidence_log"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    subject_area: Mapped[str] = mapped_column(String(30), nullable=False, default="mathematics")
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+    delta_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class SessionTranscript(Base):
     """Encrypted full session transcript saved at session end for parent review."""
     __tablename__ = "session_transcripts"

@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **all 8 units green — awaiting sign-off** | pause for user sign-off before Phase 2 |
-| 2 — Persistence | not started | — |
+| 1 — Core package (pure Python) | done (8/8 units) | user sign-off received — proceed to Phase 2 |
+| 2 — Persistence | in progress (1/3 units) | V-only persistence (no θ/C) — user-approved design |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current status:** Phase 1 gate reached — paused for user sign-off before Phase 2 (persistence)
+**Current status:** Unit 2.1 (`MasteryProfile` + `DiagnosticEvidenceLog` ORM + config flag) merged. Next: unit 2.2 (real DB round trip).
 
 ---
 
@@ -38,7 +38,7 @@
 
 | Unit | Deliverable | Realizes | Real check | Status |
 |---|---|---|---|---|
-| 2.1 | `MasteryProfile` + `DiagnosticEvidenceLog` ORM; config flag | S8 | `create_tables()` picks up; `LargeBinary` encrypted | `[ ]` |
+| 2.1 | `MasteryProfile` + `DiagnosticEvidenceLog` ORM; config flag | S8 | `create_tables()` picks up; `LargeBinary` encrypted | `[x]` |
 | 2.2 | `process_evidence` load→update→encrypt→store round trip | S8 | round-trip vs test Postgres; decrypt == in-memory | `[ ]` |
 | 2.3 | Pydantic schemas in `models/schemas.py` | S6/S9 | validation passes | `[ ]` |
 
@@ -83,7 +83,7 @@ Checked at B4 for every data/persistence/prompt unit:
 
 | Item | Where | Resolved? |
 |---|---|---|
-| `settings.diagnostic_evidence_log_enabled` flag in `core/config.py` | Unit 2.1 | `[ ]` |
+| `settings.diagnostic_evidence_log_enabled` flag in `core/config.py` | Unit 2.1 | `[x]` — see Completed-Unit Audit 2.1 |
 | `AuditEvent.DIAGNOSTIC_VIEW` enum member in `core/audit.py` | Unit 4.1 | `[ ]` |
 | Best host page for dashboard link (`PodDashboard` vs `Progress`) | Unit 4.2 | `[ ]` |
 | `numpy` already a bede dependency? (decide stdlib-`math`-only if not) | Unit 1.3/1.4 | `[x]` — see Decisions Log 2026-07-12 (unit 1.1) |
@@ -105,6 +105,9 @@ Checked at B4 for every data/persistence/prompt unit:
 | 2026-07-12 | 1.1 (fix) | Fixed 3 prerequisite-gap findings: `ns.integers` now requires `nbt.long_division` (pulls in the full 3-5 arithmetic chain) in addition to `nbt.subtract_within_100`; `sp.mean_median_mode` now requires `oa.division_facts` in addition to `nbt.standard_multiplication`; `geo.coordinate_plane` now requires `nbt.place_value_tens` in addition to `cc.compare_quantities`. Added `dependents_of()` (design doc §4.1's missing accessor) as a precomputed reverse index, `DEPENDENTS`. Added a regression-guard test (`test_six_eight_band_skills_do_not_skip_the_three_five_band_entirely`) asserting every 6-8 band skill's transitive prerequisite closure includes at least one 3-5/6-8 skill, so this class of gap can't silently recur as more skills are added later. | Code-review findings 1, 2, 3 (correctness) and 4 (spec-deviation) from the 57ea785 review — see PR for this fix |
 | 2026-07-12 | — | User authorized proceeding through remaining Phase 1 units (1.2-1.8) autonomously, chaining B1-B7 without a "next"/"go" per unit | Still pausing at the Phase 1 → Phase 2 boundary (the build loop's own explicit phase-gate rule) since that transition introduces real DB persistence — a materially higher-stakes change for a system handling children's data than another pure-Python unit. Will also stop immediately for any B3 verification failure that doesn't resolve in 2 retries, or a genuine design ambiguity the docs don't already resolve. |
 | 2026-07-12 | 1.2 | One probe per skill (1:1 Q-matrix, 42 probes) instead of hand-pairing related skills into multi-attribute probes like the design doc's own 4 examples | Keeps the DINA baseline's conjunctive "all required skills needed" semantics trivial for a first pass — every observation is unambiguous evidence for exactly one attribute. Multi-skill probes are a data change (add skills to an existing ProbeArchetype), not an engine change, so this can be revisited once the core S1-S9 pipeline is proven, per this module's own docstring |
+| 2026-07-12 | Phase 1→2 gate | User reviewed Phase 1 (108/108 tests) and signed off. Presented with a real gap ahead of Phase 2: Phase 1 only built the mastery vector `V`, not the θ/C calibration state `DIAGNOSTIC_LOOP.md` specifies as the full persisted runtime state. Given the choice of persisting only `V` (option 1) vs. building θ/C now (option 2), user chose **option 1 — V-only persistence.** | User's explicit "Let's go with option 1." θ/C calibration state is deferred to a later unit/phase if the runtime loop ends up needing it; `MasteryProfile.profile_enc` holds only the plain `MasteryVector`, nothing else, and this is documented directly in the ORM class docstring so the omission is legible to a future reader, not silently missing |
+| 2026-07-12 | 2.1 | No live Postgres available in this sandbox (Docker CLI present, daemon not running) — used `create_engine("sqlite:///:memory:")` + `Base.metadata.create_all()` as an honest, explicitly-caveated structural validation instead: proves the table/column/constraint definitions are valid SQL DDL and that both new models are registered on the real `Base.metadata` `create_tables()` uses, but does NOT prove Postgres/asyncpg-specific behavior. Documented in both the test file's module docstring and here so this limitation isn't silently forgotten by unit 2.2, which will face the identical constraint | Standing rule: real check over "looks right" — SQLite is a genuine partial substitute, not a mock, and the gap is called out rather than glossed over |
+| 2026-07-12 | 2.1 (review) | 8-angle detailed code review run before merge, per the standing "review before every merge" instruction. 2 findings fixed immediately: (1) `test_diagnostic_evidence_log_defaults` only checked `subject_area`'s default, unlike its sibling `test_mastery_profile_defaults` — added assertions for `observed_at`/`created_at`'s defaults too, so a future accidental drop of either lambda default is caught here instead of surfacing later as a Postgres `NOT NULL` violation in unit 2.2+; (2) the audit entry below originally read "PR: (filled in after PR creation) (squash-merged to main)" — self-contradictory (claiming squash-merge before the PR even existed) — reworded to defer the merge claim to the follow-up commit that fills in the real PR link, matching what actually happened rather than what was expected to happen. 5 findings acknowledged but explicitly deferred, not silently dropped, because they're either forward-looking design concerns for units that don't exist yet or pre-existing codebase patterns this unit only extended, not introduced: (a) `MasteryProfile.evidence_count` will need to stay in sync with `DiagnosticEvidenceLog` row counts once units 2.2/3.1 start writing both — no shared writer function enforces this yet, since 2.1 is ORM-only; revisit when 2.2 designs the actual write path. (b) `diagnostic_evidence_log_enabled` is a bare flag with no single enforcement point (unlike `NarrationAssessment`'s `_save_assessment()` pattern) — same reason, ORM-only unit, no writer exists yet to enforce it at. (c) `subject_area`'s Python-side `default=` (not `server_default=`) means an ORM-path insert that forgets to pass it silently lands in the `"mathematics"` row instead of failing loudly — a real risk only once a second subject (e.g. reading) actually starts writing rows, which hasn't been built. (d) No shared `TimestampMixin` factors out the `default=lambda: datetime.now(timezone.utc)` boilerplate this unit's two new classes repeat — pre-existing duplication across `VoiceProfile`/`StudentConfig`/`NarrationAssessment`/`LearnerProfile` already in the file before this diff, not a new pattern. (e) `DiagnosticEvidenceLog` indexes `student_name` and `observed_at` separately rather than a composite `(student_name, subject_area, observed_at)` index — matches the exact same split-index convention already used by `NarrationAssessment`/`SessionTranscript`, so fixing it here alone would be inconsistent; revisit for all three tables together once a real query is written against any of them (unit 2.2 or 4.1). | Scoped fixes to what's cheap, clearly correct, and blocking-free (a test gap and a doc accuracy issue); the rest are genuine unit-2.2/3.1/4.1-scoped design questions or pre-existing convention this unit didn't originate, consistent with how the 1.1 code review's deferred findings were handled |
 
 ---
 
@@ -235,8 +238,18 @@ Deliverable: `process_evidence` (async, in-memory — see module docstring for w
 
 Verified anchors: full round trip confirmed end-to-end — cold-start a vector, feed real evidence through `process_evidence`, and `get_next_probe_hint`'s guidance demonstrably changes (stops mentioning a skill once evidence has secured it), composing every one of units 1.1-1.7 together in one test.
 
+**2.1** · branch `diagnostic/2.1` · PR: (filled in after PR creation, see follow-up commit)
+
+Check output (`pytest tests/diagnostic/test_database_models.py -v`): 8/8 passed. Full `pytest tests/diagnostic/ -v`: 116/116 passed (108 prior + 8 new), no regressions. Full backend suite (`pytest -q`, excluding 3 files with pre-existing sandbox dependency gaps — `pypdf`/`numpy` not installed here, unrelated to this unit): 250 passed, 7 skipped, 1 pre-existing failure (`test_voice_synthesis.py::test_resolve_voice_blend`, missing `numpy`) — none introduced by this change.
+
+No live Postgres available in this sandbox — see Decisions Log 2026-07-12 (unit 2.1) for the SQLite-structural-validation substitute and its documented limits.
+
+Deliverable: `MasteryProfile` ORM (composite PK `student_name`+`subject_area`, future-proofing the same table for reading/ELA/science vectors per design doc §13 without a schema change; `profile_enc` holds only `encrypt_json(MasteryVector)` — no θ/C, per the option-1 decision above) and `DiagnosticEvidenceLog` ORM (opt-in derived-delta audit trail, `delta_enc` matching `mastery.MasteryUpdate` exactly, never a transcript or raw probe outcome — same privacy class as `NarrationAssessment`); both inserted into `core/database.py` right before `SessionTranscript`. `diagnostic_evidence_log_enabled: bool = False` added to `core/config.py`'s `Settings`, off by default per the "never persist raw evidence" strictest reading (design doc §5.3).
+
+Verified anchors: both new tables appear in `Base.metadata.tables` — the same metadata object `create_tables()` calls `create_all()` against, not a shadow/parallel registry; both `_enc` columns are `LargeBinary`, never a plaintext `String`; `Base.metadata.create_all()` succeeds against a real (if throwaway) SQLite engine, producing both table names in `inspect(engine).get_table_names()`; `settings.diagnostic_evidence_log_enabled is False` confirmed directly against the live `Settings` singleton, not a re-declared test double.
+
 ---
 
 ## PHASE 1 GATE REACHED
 
-All 8 Phase 1 units green (108/108 tests passing). The pure core works standalone — no DB, no LLM, no wiring into the live app. Per the build loop's own §7 gate summary and the decision logged above (2026-07-12, "Still pausing at the Phase 1 → Phase 2 boundary... since that transition introduces real DB persistence"), **pausing here for explicit user sign-off before Phase 2 begins.**
+All 8 Phase 1 units green (108/108 tests passing). The pure core works standalone — no DB, no LLM, no wiring into the live app. Per the build loop's own §7 gate summary and the decision logged above (2026-07-12, "Still pausing at the Phase 1 → Phase 2 boundary... since that transition introduces real DB persistence"), pausing was honored — user reviewed and signed off (2026-07-12, "Let's proceed and let me evaluate the effective design and interface" / "Let's go with option 1"). **Phase 2 is now underway.**

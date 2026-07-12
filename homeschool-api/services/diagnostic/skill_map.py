@@ -115,7 +115,7 @@ _SKILLS: tuple[Skill, ...] = (
     _s("geo.classify_shapes_by_attributes", "Classifies shapes by attributes", "Geometry",
        GradeBand.K_2, ("geo.identify_shapes",)),
     _s("geo.coordinate_plane", "Plots points on the coordinate plane", "Geometry",
-       GradeBand.THREE_5, ("cc.compare_quantities",)),
+       GradeBand.THREE_5, ("cc.compare_quantities", "nbt.place_value_tens")),
     _s("geo.area_of_polygons", "Finds the area of polygons", "Geometry",
        GradeBand.THREE_5, ("md.area_perimeter",)),
     _s("geo.volume", "Finds the volume of solids", "Geometry",
@@ -131,7 +131,7 @@ _SKILLS: tuple[Skill, ...] = (
 
     # ── The Number System ─────────────────────────────────────────────────
     _s("ns.integers", "Operates with positive and negative integers", "The Number System",
-       GradeBand.SIX_8, ("nbt.subtract_within_100",)),
+       GradeBand.SIX_8, ("nbt.subtract_within_100", "nbt.long_division")),
     _s("ns.rational_operations", "Operates with rational numbers", "The Number System",
        GradeBand.SIX_8, ("ns.integers", "fr.multiply_fractions")),
 
@@ -145,7 +145,7 @@ _SKILLS: tuple[Skill, ...] = (
 
     # ── Statistics & Probability ──────────────────────────────────────────
     _s("sp.mean_median_mode", "Computes mean, median, and mode", "Statistics & Probability",
-       GradeBand.SIX_8, ("nbt.standard_multiplication",)),
+       GradeBand.SIX_8, ("nbt.standard_multiplication", "oa.division_facts")),
     _s("sp.data_distribution", "Describes the distribution of a data set",
        "Statistics & Probability", GradeBand.SIX_8, ("sp.mean_median_mode",)),
     _s("sp.basic_probability", "Computes basic probabilities", "Statistics & Probability",
@@ -165,6 +165,21 @@ SKILL_MAP: dict[str, Skill] = {s.id: s for s in _SKILLS}
 PREREQUISITES: dict[str, tuple[str, ...]] = {s.id: s.prerequisites for s in _SKILLS}
 
 
+def _build_dependents_index() -> dict[str, tuple[str, ...]]:
+    """Inverse of PREREQUISITES: skill -> the skills that list it as a direct
+    prerequisite. Precomputed once at module load (per design doc §4.1) so
+    kst.py (unit 1.5) doesn't need to rebuild a reverse-adjacency map itself
+    to walk 'up' the DAG."""
+    index: dict[str, list[str]] = {skill_id: [] for skill_id in SKILL_MAP}
+    for skill in _SKILLS:
+        for prereq_id in skill.prerequisites:
+            index.setdefault(prereq_id, []).append(skill.id)
+    return {skill_id: tuple(dependents) for skill_id, dependents in index.items()}
+
+
+DEPENDENTS: dict[str, tuple[str, ...]] = _build_dependents_index()
+
+
 def get_skill(skill_id: str) -> Skill | None:
     return SKILL_MAP.get(skill_id)
 
@@ -173,6 +188,12 @@ def prerequisites_of(skill_id: str) -> list[str]:
     """Direct prerequisites only — not the transitive surmise closure
     (that's kst.surmise_closure, unit 1.5)."""
     return list(PREREQUISITES.get(skill_id, ()))
+
+
+def dependents_of(skill_id: str) -> list[str]:
+    """Direct dependents only — the skills that list skill_id as one of
+    their own direct prerequisites. Inverse of prerequisites_of."""
+    return list(DEPENDENTS.get(skill_id, ()))
 
 
 def skills_in_band(band: GradeBand) -> list[str]:

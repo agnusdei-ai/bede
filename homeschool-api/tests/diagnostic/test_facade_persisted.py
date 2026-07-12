@@ -122,6 +122,33 @@ async def test_unknown_probe_id_is_a_true_no_op_no_row_created(db_session):
 
 
 @pytest.mark.asyncio
+async def test_corrupted_existing_row_degrades_to_cold_start_instead_of_raising(db_session):
+    """Mirrors ai_service.py's _save_assessment defensiveness: a row that
+    fails to decrypt (wrong key, truncated blob, bit rot) must not crash
+    the caller — and must not collide with the existing PK on the
+    self-healing write that follows (see the None-vs-existing-row
+    distinction in process_evidence's own try/except)."""
+    from sqlalchemy import select
+
+    db_session.add(MasteryProfile(
+        student_name="Zoe", subject_area="mathematics",
+        evidence_count=3, profile_enc=b"not a valid SAGE envelope",
+    ))
+    await db_session.commit()
+
+    result_vector = await process_evidence(
+        db_session, "Zoe", "probe.cc.rote_count_20", "correct", 1.0, "K-2",
+    )
+    assert result_vector["cc.rote_count_20"] > 0.5  # apply_evidence still ran on a cold-start vector
+
+    rows = (await db_session.execute(
+        select(MasteryProfile).where(MasteryProfile.student_name == "Zoe")
+    )).scalars().all()
+    assert len(rows) == 1  # updated in place, not a duplicate PK row
+    assert decrypt_json(rows[0].profile_enc) == result_vector
+
+
+@pytest.mark.asyncio
 async def test_evidence_log_stays_empty_when_flag_is_off_by_default(db_session):
     from sqlalchemy import select
 

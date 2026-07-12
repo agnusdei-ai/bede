@@ -76,21 +76,41 @@ async def process_evidence(
     Returns the new vector (not None, unlike the design doc's sketch) so
     Phase 3's dispatcher/prompt-injection code can reuse it in the same
     turn without a second DB round trip.
+
+    Defensive like ai_service.py's _save_assessment, which this mirrors:
+    a corrupted/undecryptable existing row is treated as a cold start
+    (logged, not raised) rather than permanently blocking evidence for
+    that student, and a persistence failure still returns the in-memory
+    updated vector so a diagnostic hiccup never breaks the child's
+    tutoring turn — this function doesn't rely on every future caller
+    (e.g. Phase 3's _record_skill_evidence) to supply that protection.
     """
+    import logging
+
     from sqlalchemy import select
 
     from core.config import settings
     from core.database import DiagnosticEvidenceLog, MasteryProfile
     from core.encryption import decrypt_json, encrypt_json
 
-    result = await db.execute(
-        select(MasteryProfile).where(
-            MasteryProfile.student_name == student_name,
-            MasteryProfile.subject_area == subject_area,
+    log = logging.getLogger(__name__)
+    row = None
+
+    try:
+        result = await db.execute(
+            select(MasteryProfile).where(
+                MasteryProfile.student_name == student_name,
+                MasteryProfile.subject_area == subject_area,
+            )
         )
-    )
-    row = result.scalar_one_or_none()
-    vector = decrypt_json(row.profile_enc) if row is not None else new_vector(grade_band)
+        row = result.scalar_one_or_none()
+        vector = decrypt_json(row.profile_enc) if row is not None else new_vector(grade_band)
+    except Exception as exc:
+        log.warning(
+            "Mastery profile load failed for %s/%s, treating as cold-start: %s",
+            student_name, subject_area, exc,
+        )
+        vector = new_vector(grade_band)
 
     updated_vector, updates = await apply_evidence(
         vector, probe_id, outcome, confidence,
@@ -98,38 +118,48 @@ async def process_evidence(
     )
 
     if not updates:
+        await db.rollback()
         return updated_vector
 
-    profile_enc = encrypt_json(updated_vector)
-    if row is None:
-        db.add(MasteryProfile(
-            student_name=student_name,
-            subject_area=subject_area,
-            evidence_count=1,
-            profile_enc=profile_enc,
-        ))
-    else:
-        row.profile_enc = profile_enc
-        row.evidence_count += 1
+    try:
+        profile_enc = encrypt_json(updated_vector)
+        if row is None:
+            db.add(MasteryProfile(
+                student_name=student_name,
+                subject_area=subject_area,
+                evidence_count=1,
+                profile_enc=profile_enc,
+            ))
+        else:
+            row.profile_enc = profile_enc
+            row.evidence_count += 1
 
-    if settings.diagnostic_evidence_log_enabled:
-        delta_payload = [
-            {
-                "skill_id": update.skill_id,
-                "prior": update.prior,
-                "posterior": update.posterior,
-                "probe_id": update.probe_id,
-                "model_used": update.model_used,
-            }
-            for update in updates
-        ]
-        db.add(DiagnosticEvidenceLog(
-            student_name=student_name,
-            subject_area=subject_area,
-            delta_enc=encrypt_json(delta_payload),
-        ))
+        if settings.diagnostic_evidence_log_enabled:
+            # Explicit allowlist, not dataclasses.asdict(update) minus
+            # observed_at — this is the one thing standing between a
+            # future MasteryUpdate field and it silently landing in the
+            # persisted evidence log (design doc §5.3's core guarantee).
+            delta_payload = [
+                {
+                    "skill_id": update.skill_id,
+                    "prior": update.prior,
+                    "posterior": update.posterior,
+                    "probe_id": update.probe_id,
+                    "model_used": update.model_used,
+                }
+                for update in updates
+            ]
+            db.add(DiagnosticEvidenceLog(
+                student_name=student_name,
+                subject_area=subject_area,
+                delta_enc=encrypt_json(delta_payload),
+            ))
 
-    await db.commit()
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        log.warning("Mastery profile persist failed for %s/%s: %s", student_name, subject_area, exc)
+
     return updated_vector
 
 

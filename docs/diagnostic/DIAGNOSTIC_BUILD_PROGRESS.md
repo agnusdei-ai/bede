@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (4/8 units) | — |
+| 1 — Core package (pure Python) | **in progress** (5/8 units) | — |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.5 — `services/diagnostic/kst.py`
+**Current next unit:** 1.6 — `services/diagnostic/cat.py`
 
 ---
 
@@ -29,7 +29,7 @@
 | 1.2 | `qmatrix.py` — probes, `q_row`, `EvidenceObservation` | S5/S6 | every probe maps to ≥1 attribute; unknown id → None | `[x]` |
 | 1.3 | `irt.py` — 1PL/2PL/3PL, Fisher info, θ update | S6 | known P values; Fisher monotonicity; θ converges | `[x]` |
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[x]` |
-| 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[ ]` |
+| 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[x]` |
 | 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[ ]` |
 | 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[ ]` |
 | 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | S6–S8 | end-to-end in-memory round trip | `[ ]` |
@@ -194,3 +194,11 @@ Check output (`pytest tests/diagnostic/ -v`): 51/51 passed (32 prior + 19 new: 1
 Deliverable: `dina_likelihood`/`dino_likelihood`/`gdina_likelihood`, `CdmParams` (slip=0.1, guess=0.2 defaults per design doc §4.4), and `update_attribute_posteriors` — matches the design doc's exact signature (`observation: EvidenceObservation`, not a decomposed param list), internally calling `qmatrix.q_row`/`outcome_to_score`. For attributes beyond the one a probe directly names, the posterior computation marginalizes over every other required skill's current prior probability (weighted expectation over all 2^n hypothesized patterns) — with today's 1:1 Q-matrix this reduces to a single term, but the math is written generally for when multi-skill probes exist.
 
 Verified anchors: slip/guess sanity confirmed directly against hand-computed values for all three models; posterior provably increases on correct evidence, decreases on incorrect, and is provably unchanged at confidence=0; repeated evidence converges mastery toward the extremes (>0.95 after 10 corrects, <0.05 after 10 incorrects) without diverging outside [0,1].
+
+**1.5** · branch `diagnostic/1.5` · PR: _(this iteration)_
+
+Check output (`pytest tests/diagnostic/ -v`): 68/68 passed (51 prior + 17 new), all green on the first pass — no bug surfaced this unit.
+
+Deliverable: `surmise_closure`, `is_valid_knowledge_state`, `propagate_prerequisites` (threshold=0.8 default), and `fringe` (lo=0.2, hi=0.8 defaults) — matching the design doc's exact signatures, operating directly against the real skill map (`skill_map.prerequisites_of`), not a generic injected graph, per the design doc's own framing. `fringe` interpreted as: a skill's full transitive prerequisite closure must be mastered (every prereq >= hi, vacuously true for a no-prerequisite skill), and the skill's own probability must be in `[lo, hi)` — not already mastered, and not a confirmed gap either (a firmly-missed skill under `lo` needs prerequisite review, not re-offering as "next up"). `propagate_prerequisites` raises a matched skill's transitive prerequisites to the same threshold that triggered it (not higher), only for prerequisite ids already present in the input vector — never silently adds new tracked skills.
+
+Verified anchors: every function tested against a small, hand-traceable real slice of the skill map (`cc.rote_count_20 <- cc.count_objects_20 <- {cc.compare_quantities, oa.add_within_20 <- {oa.subtract_within_20, oa.multiplication_facts <- oa.division_facts}}`), including the acceptance-style `test_fringe_correct_on_a_small_hand_verified_map` combining mastered/fringe/blocked/gap skills in one vector and asserting the exact expected fringe set.

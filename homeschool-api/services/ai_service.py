@@ -671,6 +671,72 @@ def _get_visual_aids_context(subject: Subject) -> str:
         return ""
 
 
+async def _get_previous_lesson_context(
+    db: Optional["AsyncSession"],
+    student_name: str,
+    subject: Subject,
+) -> str:
+    """
+    Give Bede a brief memory of the last time this student narrated in
+    THIS subject — closes the roadmap's "checks previous lessons" gap
+    (step 5/9A). Same degrade-gracefully contract as _get_catalog_context:
+    no DB, no prior narration in this subject, or any failure all just
+    return "" rather than surfacing an error to the child.
+
+    Deliberately narrow, by design decision (not oversight):
+    - Only the single most recent NarrationAssessment for THIS subject —
+      no cross-subject blending, no multi-session trend. That's LearnerProfile's
+      job (a separate, standing signal), not this one.
+    - adaptive_signal + concepts_demonstrated + the one-sentence
+      bede_observation are surfaced. misconceptions is deliberately left
+      out — feeding a model its own record of a child's past mistakes
+      risks anchoring it on what went wrong last time instead of meeting
+      the child fresh today; adaptive_signal already carries the pacing
+      signal (repeat/review_prerequisite) without the itemized detail.
+    """
+    if db is None:
+        return ""
+    try:
+        from sqlalchemy import select
+        from core.database import NarrationAssessment
+        from core.encryption import decrypt_json
+
+        result = await db.execute(
+            select(NarrationAssessment)
+            .where(
+                NarrationAssessment.student_name == student_name,
+                NarrationAssessment.subject == subject.value,
+            )
+            .order_by(NarrationAssessment.session_date.desc())
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return ""
+
+        data = decrypt_json(row.assessment_enc)
+        signal = data.get("adaptive_signal")
+        signal_guidance = {
+            "advance": "they were ready to move forward",
+            "repeat": "this could use more practice before moving on",
+            "review_prerequisite": "a prerequisite concept may need review before this one lands",
+        }.get(signal, "")
+        if not signal_guidance:
+            return ""
+
+        concepts = data.get("concepts_demonstrated") or []
+        concepts_note = f" They showed real grasp of {', '.join(concepts[:2])}." if concepts else ""
+        observation = data.get("bede_observation", "")
+        observation_note = f" {observation}" if observation else ""
+
+        return (
+            f"\nLast time in this subject, {signal_guidance}.{concepts_note}"
+            f"{observation_note}"
+        )
+    except Exception:
+        return ""
+
+
 def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     """
     Tells Bede whether this is the day's first or last configured subject —
@@ -688,8 +754,19 @@ def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     return "".join(notes)
 
 
-def _build_subject_prompt(config: SessionConfig, subject: Subject) -> str:
-    """Subject-specific context block — changes between subjects, not cached."""
+def _build_subject_prompt(
+    config: SessionConfig,
+    subject: Subject,
+    previous_lesson_note: str = "",
+) -> str:
+    """
+    Subject-specific context block — changes between subjects, not cached.
+
+    previous_lesson_note: computed by the async caller (see
+    _get_previous_lesson_context) before this function runs, since this
+    function itself stays synchronous and the note requires a DB read.
+    Empty string when there's no prior narration in this subject yet.
+    """
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
     lesson_raw = _sanitize_parent_field(config.lesson_focus)
     unit_raw = _sanitize_parent_field(config.current_unit)
@@ -701,7 +778,7 @@ def _build_subject_prompt(config: SessionConfig, subject: Subject) -> str:
     session_position_note = _session_position_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{previous_lesson_note}{visual_aids_note}{session_position_note}"""
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:
@@ -886,6 +963,7 @@ async def stream_tutor_response(
 
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
+    previous_lesson_note = await _get_previous_lesson_context(db, config.student_name, subject)
     system = [
         {
             "type": "text",
@@ -894,7 +972,7 @@ async def stream_tutor_response(
         },
         {
             "type": "text",
-            "text": _build_subject_prompt(config, subject),
+            "text": _build_subject_prompt(config, subject, previous_lesson_note),
         },
     ]
 
@@ -1103,7 +1181,8 @@ async def _stream_tutor_events_openai(
     family hasn't been human-verified, only that the mechanics (streaming,
     tool calls, the ends_on_questionless_tool guarantee) work correctly.
     """
-    system_prompt = f"{_build_static_prompt(config)}\n\n{_build_subject_prompt(config, subject)}"
+    previous_lesson_note = await _get_previous_lesson_context(db, config.student_name, subject)
+    system_prompt = f"{_build_static_prompt(config)}\n\n{_build_subject_prompt(config, subject, previous_lesson_note)}"
     messages: list = [{"role": "system", "content": system_prompt}]
     for m in history[-_HISTORY_WINDOW:]:
         messages.append({"role": m.role, "content": m.content})

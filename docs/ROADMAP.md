@@ -114,10 +114,16 @@ not because it needs to be built from scratch.
     time. No longer depends on a parent remembering to visit Progress
     and click "build profile" — that button still exists as a manual
     override, but isn't the only path to freshness anymore.
-  - ⬜ Still open: actually reading this back into Bede's own prompt
-    context at `[START]` — the original point of "checks previous
-    lessons" (step 5). Everything above is the freshness/history
-    prerequisite; the injection itself hasn't been built yet.
+  - ✅ Wired into Bede's own prompt context: `_get_previous_lesson_context()`
+    reads the most recent `NarrationAssessment` for the *current subject*
+    at `[START]` and surfaces `adaptive_signal` + up to two
+    `concepts_demonstrated` + the one-sentence `bede_observation` —
+    deliberately excludes `misconceptions` (risk of anchoring the model
+    on a child's past mistakes rather than meeting them fresh) and stays
+    same-subject only (no cross-subject blending — that's `LearnerProfile`'s
+    job, a separate standing signal, not this one). Degrades to nothing
+    when there's no prior narration in that subject yet, same contract as
+    the existing catalog-context note.
   - ⬜ Still open: benchmarking/validation. `rubric_version` makes the
     rubric *safe to evolve*, but there's still no ground-truth
     validation of what these scores actually predict — the assessment

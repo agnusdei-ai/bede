@@ -213,7 +213,7 @@ Deliverable: `select_next_probes` and `should_stop_probing`. Two deliberate spec
 
 Verified anchors: probe selection demonstrably prefers the fringe skill closest to p=0.5 (max entropy); band filtering correctly falls back to the full fringe when nothing is on-band rather than returning empty; calibration mode demonstrably widens to include off-band skills; an already-mastered skill never appears (fringe's own exclusion, not a separate check); the stopping rule is symmetric near 0 and 1, requires *every* skill in a multi-skill check to be confident, and treats an untracked skill_id as maximally uncertain rather than skipping it.
 
-**1.7** · branch `diagnostic/1.7` · PR: _(this iteration)_ · **Phase 1 acceptance unit**
+**1.7** · branch `diagnostic/1.7` · PR: https://github.com/agnusdei-ai/bede/pull/38 (squash-merged to main) · **Phase 1 acceptance unit**
 
 Check output (`pytest tests/diagnostic/ -v`): 100/100 passed (84 prior + 16 new), all green on the first implementation — including the acceptance test.
 

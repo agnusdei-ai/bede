@@ -171,6 +171,9 @@ export interface NarrationAssessmentData {
   adaptive_signal: 'advance' | 'repeat' | 'review_prerequisite'
   bede_observation: string
   assessed_at: string
+  // Present on the API response for traceability, deliberately not
+  // rendered anywhere in the UI — see Progress.tsx's short-summary design.
+  rubric_version?: string | null
 }
 
 export interface LearnerProfileData {
@@ -181,4 +184,5 @@ export interface LearnerProfileData {
   session_count_assessed: number
   bede_profile_notes: string
   assessed_at: string
+  rubric_version?: string | null
 }

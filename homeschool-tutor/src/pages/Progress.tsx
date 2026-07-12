@@ -63,30 +63,6 @@ function attentionLabel(profile: LearnerProfileData['attention_profile']): strin
   return { short_blocks: 'Short Blocks', sustained: 'Sustained Focus', variable: 'Variable Attention' }[profile]
 }
 
-// ── Score bar — total_score / 25 ─────────────────────────────────────────────
-
-function ScoreBar({ score }: { score: number }) {
-  const pct = Math.round((score / 25) * 100)
-  const color =
-    score >= 20
-      ? 'bg-emerald-400'
-      : score >= 14
-      ? 'bg-sage-400'
-      : score >= 8
-      ? 'bg-amber-400'
-      : 'bg-red-300'
-  return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-gray-500 tabular-nums w-10 text-right shrink-0">
-        {score}/25
-      </span>
-    </div>
-  )
-}
-
 // ── Profile card ─────────────────────────────────────────────────────────────
 
 function ProfileBadge({ label }: { label: string }) {
@@ -218,8 +194,6 @@ function AssessmentHistory({ assessments }: { assessments: NarrationAssessmentDa
               <div className="row-span-2 flex items-center">
                 {signalBadge(a.adaptive_signal)}
               </div>
-              {/* Row 2: score bar */}
-              <ScoreBar score={a.total_score} />
               {/* Observation note if present */}
               {a.bede_observation && (
                 <p className="col-span-2 text-xs text-gray-400 italic mt-0.5 leading-relaxed">
@@ -239,16 +213,15 @@ function AssessmentHistory({ assessments }: { assessments: NarrationAssessmentDa
 function ConceptCoverage({ assessments }: { assessments: NarrationAssessmentData[] }) {
   if (!assessments.length) return null
 
-  // Group concepts by subject
+  // Group concepts by subject. misconceptions is deliberately not surfaced
+  // here — production shows a short, encouraging summary, not an itemized
+  // list of a child's gaps (see docs/ROADMAP.md's benchmarking note: this
+  // diagnostic isn't validated enough yet to present that clinically).
   const bySubject: Record<string, Set<string>> = {}
-  const allMisconceptions: string[] = []
 
   for (const a of assessments) {
     if (!bySubject[a.subject]) bySubject[a.subject] = new Set()
     for (const c of a.concepts_demonstrated) bySubject[a.subject].add(c)
-    for (const m of a.misconceptions) {
-      if (!allMisconceptions.includes(m)) allMisconceptions.push(m)
-    }
   }
 
   const subjects = Object.keys(bySubject).filter((s) => bySubject[s].size > 0)
@@ -280,24 +253,6 @@ function ConceptCoverage({ assessments }: { assessments: NarrationAssessmentData
           )
         })}
       </div>
-
-      {allMisconceptions.length > 0 && (
-        <div className="mt-5 pt-4 border-t border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            Areas to revisit
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {allMisconceptions.map((m) => (
-              <span
-                key={m}
-                className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-full"
-              >
-                {m}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

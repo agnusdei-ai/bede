@@ -185,7 +185,7 @@ Deliverable: `p_1pl`/`p_2pl`/`p_3pl` (Rasch/2PL/3PL logistic item response funct
 
 Verified anchors: known-value checks confirm P=0.5 exactly at theta==b for 1PL/2PL regardless of discrimination; P=(1+c)/2 at theta==b for 3PL; Fisher information strictly increases with discrimination `a` at matched difficulty and peaks near theta==b; theta estimation demonstrably moves in the correct direction on synthetic all-correct/all-incorrect/mixed streams, and standard error shrinks with more evidence.
 
-**1.4** · branch `diagnostic/1.4` · PR: _(this iteration)_
+**1.4** · branch `diagnostic/1.4` · PR: https://github.com/agnusdei-ai/bede/pull/35 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/ -v`): 51/51 passed (32 prior + 19 new: 14 for `cdm.py`, 5 more added after the cross-unit fix below).
 

@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from fastapi import Depends
-from sqlalchemy import BigInteger, DateTime, LargeBinary, String
+from sqlalchemy import BigInteger, DateTime, LargeBinary, String, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -132,6 +132,12 @@ class NarrationAssessment(Base):
         nullable=False,
     )
     assessment_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # Nullable: rows written before rubric versioning existed have no value
+    # here rather than a backfilled guess — see models.schemas.RUBRIC_VERSION.
+    # New tables get this column via create_all; existing deployments get it
+    # via the explicit ALTER TABLE in create_tables() below, since
+    # CREATE TABLE IF NOT EXISTS never alters an already-existing table.
+    rubric_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -140,16 +146,36 @@ class NarrationAssessment(Base):
 
 
 class LearnerProfile(Base):
-    """Stable learner-type profile per student — synthesized after session 3+."""
-    __tablename__ = "learner_profiles"
+    """
+    One synthesized learner-type profile per row, forming a growing history
+    per student rather than a single overwritten snapshot — each session-end
+    refresh (or parent-triggered rebuild) appends a new row instead of
+    updating in place, so a parent can see how the profile evolved over
+    time (GET /narration/{student}/profile/history) and each entry stays
+    attributable to the rubric_version that produced it.
 
-    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    Table name deliberately differs from the original "learner_profiles"
+    (single-row-per-student) table this replaces: since there's no
+    migration framework here (create_tables() only does idempotent
+    CREATE TABLE IF NOT EXISTS, never ALTER), reusing the old name and
+    changing student_name from a primary key to a plain indexed column
+    would require a real migration this codebase has no mechanism to run
+    safely. A fresh table name sidesteps that; any existing
+    "learner_profiles" row from before this change is orphaned, not
+    deleted, and should be backfilled manually as this table's first
+    history entry per student if that data matters for a given deployment.
+    """
+    __tablename__ = "learner_profile_history"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     session_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    rubric_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     profile_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        index=True,
         nullable=False,
     )
 
@@ -221,9 +247,21 @@ class ParentTotpConfig(Base):
 
 
 async def create_tables() -> None:
-    """Idempotent table creation — safe to call on every startup."""
+    """
+    Idempotent table creation — safe to call on every startup.
+
+    create_all only creates missing tables; it never alters an existing
+    one. narration_assessments predates rubric_version, so a plain
+    ADD COLUMN IF NOT EXISTS runs alongside it to bring already-deployed
+    databases up to date without a real migration framework. This is safe
+    to run every startup and a no-op once the column exists.
+    """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text(
+            "ALTER TABLE narration_assessments "
+            "ADD COLUMN IF NOT EXISTS rubric_version VARCHAR(20)"
+        ))
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:

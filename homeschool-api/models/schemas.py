@@ -291,6 +291,15 @@ class NarrationRecord(BaseModel):
 
 # ── Narration assessment (Phase 1 — mastery engine) ───────────────────────────
 
+# Bumped whenever the assess_narration rubric or synthesize_learner_profile
+# prompt changes in a way that could shift scores/characteristics — stamped
+# onto every NarrationAssessment and LearnerProfile row at write time so
+# historical entries never silently blend two incompatible methodologies.
+# Rows written before this field existed have rubric_version=None ("legacy",
+# pre-versioning) rather than a guessed value.
+RUBRIC_VERSION = "1.0"
+
+
 class TriviumStage(str, Enum):
     grammar  = "grammar"    # K-5: absorption, story, wonder
     logic    = "logic"      # 6-8: questioning, patterns, cause-effect
@@ -320,9 +329,15 @@ class NarrationAssessmentData(BaseModel):
     adaptive_signal:        Literal["advance", "repeat", "review_prerequisite"]
     bede_observation:       str
     assessed_at:            str
+    rubric_version:         Optional[str] = None
 
 class LearnerProfileData(BaseModel):
-    """Stable learner-type profile synthesized from accumulated assessments."""
+    """
+    A learner-type profile synthesized from accumulated assessments, as of
+    a point in time. One entry in a growing history per student, not a
+    single overwritten snapshot — see core.database.LearnerProfile (the
+    learner_profile_history table) and GET /narration/{student}/profile/history.
+    """
     trivium_stage:         TriviumStage
     processing_style:      ProcessingStyle
     narration_mode:        NarrationMode
@@ -330,3 +345,4 @@ class LearnerProfileData(BaseModel):
     session_count_assessed: int
     bede_profile_notes:    str
     assessed_at:           str
+    rubric_version:        Optional[str] = None

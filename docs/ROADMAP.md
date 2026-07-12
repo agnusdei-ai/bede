@@ -47,7 +47,7 @@ conversations).
 | 6 | Checks family travel plans | ⬜ Not started | No schema, no storage, no UI |
 | 7 | Checks co-op schedule | ⬜ Not started | No schema, no storage, no UI. `PodConfigsRequest` models a single family's up-to-10 students, not a multi-family co-op |
 | 8 | Produces response | ✅ Implemented | Core tutoring loop, SSE streaming, agentic tool cards |
-| 9 | Updates learning graph | 🟡 Foundation exists | `NarrationAssessment` (per-narration encrypted rubric, `adaptive_signal`) and `LearnerProfile` (synthesized trivium stage / processing style / narration mode / attention profile) are real, persisted, encrypted tables — a relational precursor to a graph, not a graph structure itself |
+| 9 | Updates learning graph | 🟡 Foundation exists | `NarrationAssessment` (per-narration encrypted rubric, `adaptive_signal`, versioned via `rubric_version`) and `LearnerProfile` (now a history table — one row per synthesis, not an overwritten snapshot) are real, persisted, encrypted tables — a relational precursor to a graph, not a graph structure itself. Profile freshness is now automatic (session-end fire-and-forget refresh), not dependent on a parent remembering to click "build." Still not injected into Bede's own prompt context — that's the remaining Phase A work. |
 
 ## Phased plan for the four target steps (2, 6, 7, 9)
 
@@ -97,9 +97,33 @@ not because it needs to be built from scratch.
 - **Today:** `NarrationAssessment` + `LearnerProfile` already capture
   per-student mastery signals and a synthesized profile — this is real,
   shipped groundwork, not a green field.
-- **Phase A:** connect `SessionTranscript` + `NarrationAssessment` history
-  into "checks previous lessons" (step 5) so a new session's opener can
-  reference what actually happened last time, closing that loop first.
+- **Phase A progress:**
+  - ✅ `rubric_version` stamped on every new `NarrationAssessment` and
+    `LearnerProfile` row (`models/schemas.RUBRIC_VERSION`), so the rubric
+    can evolve later without silently blending incompatible historical
+    scores. Existing rows predate this and carry `rubric_version=None`
+    ("legacy"), not a backfilled guess.
+  - ✅ `LearnerProfile` converted from a single overwritten snapshot
+    (`student_name` as primary key) into a proper history table
+    (`learner_profile_history`) — every synthesis appends a row. New:
+    `GET /narration/{student}/profile/history` for a parent to see how
+    the profile evolved, not just its current state.
+  - ✅ Profile freshness is now automatic: `POST /tutor/summary` (real
+    session end) fire-and-forgets `refresh_learner_profile_if_stale`,
+    which re-synthesizes only if new assessments accrued since last
+    time. No longer depends on a parent remembering to visit Progress
+    and click "build profile" — that button still exists as a manual
+    override, but isn't the only path to freshness anymore.
+  - ⬜ Still open: actually reading this back into Bede's own prompt
+    context at `[START]` — the original point of "checks previous
+    lessons" (step 5). Everything above is the freshness/history
+    prerequisite; the injection itself hasn't been built yet.
+  - ⬜ Still open: benchmarking/validation. `rubric_version` makes the
+    rubric *safe to evolve*, but there's still no ground-truth
+    validation of what these scores actually predict — the assessment
+    is an LLM judgment call, not a validated diagnostic. Worth its own
+    design pass before this is presented to parents as more than a
+    beta signal.
 - **Phase B:** model relationships between concepts/units (not just a flat
   per-subject score) — this is where "graph" becomes literal rather than
   a relational stand-in. Needs a concrete decision on whether this lives

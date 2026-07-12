@@ -6,14 +6,21 @@ plaintext narration scores or profile notes.
 
 Routes:
   GET  /narration/{student}/assessments     — parent: score history
-  GET  /narration/{student}/profile         — parent or child: current learner profile
-  POST /narration/{student}/profile         — trigger profile synthesis (after session 1+)
+  GET  /narration/{student}/profile         — parent or child: most recent learner profile
+  GET  /narration/{student}/profile/history — parent: every past profile, most recent first
+  POST /narration/{student}/profile         — trigger a fresh profile synthesis (after session 1+)
 
 Synthesis is available from the very first session on purpose — parents
 should have an initial read on how their child learns (and Bede's first
 recommendations) right away, not after waiting three sessions. It's simply
 lower-confidence with fewer data points; the profile can (and should) be
 rebuilt again after each additional session as more narrations accumulate.
+
+Each synthesis appends a new LearnerProfile row rather than overwriting
+the last one (see core.database.LearnerProfile) — same automatic
+refresh services.ai_service.refresh_learner_profile_if_stale performs at
+session end. This endpoint's build_profile is the parent-forced version:
+same underlying synthesis, always runs regardless of staleness.
 """
 
 from datetime import datetime, timezone
@@ -25,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import LearnerProfile, NarrationAssessment, get_db
 from core.deps import require_parent, require_real_user
 from core.encryption import decrypt_json, encrypt_json
+from models.schemas import RUBRIC_VERSION
 from services.ai_service import synthesize_learner_profile
 
 router = APIRouter(prefix="/narration", tags=["narration"])
@@ -54,9 +62,12 @@ async def get_profile(
     _: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Return the current learner profile for a student (parent or child token)."""
+    """Return the most recent learner profile for a student (parent or child token)."""
     result = await db.execute(
-        select(LearnerProfile).where(LearnerProfile.student_name == student_name)
+        select(LearnerProfile)
+        .where(LearnerProfile.student_name == student_name)
+        .order_by(LearnerProfile.created_at.desc())
+        .limit(1)
     )
     row = result.scalar_one_or_none()
     if row is None:
@@ -67,6 +78,25 @@ async def get_profile(
     return decrypt_json(row.profile_enc)
 
 
+@router.get("/{student_name}/profile/history")
+async def get_profile_history(
+    student_name: str,
+    limit: int = Query(default=20, le=100),
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Parent retrieves every past learner profile, most recent first — how
+    the profile evolved over time rather than only its current state."""
+    result = await db.execute(
+        select(LearnerProfile)
+        .where(LearnerProfile.student_name == student_name)
+        .order_by(LearnerProfile.created_at.desc())
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    return [decrypt_json(row.profile_enc) for row in rows]
+
+
 @router.post("/{student_name}/profile")
 async def build_profile(
     student_name: str,
@@ -75,7 +105,13 @@ async def build_profile(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
-    Synthesize (or refresh) the learner profile from accumulated assessments.
+    Synthesize the learner profile from accumulated assessments and append
+    it as a new history entry — the parent-forced counterpart to
+    services.ai_service.refresh_learner_profile_if_stale, which does the
+    same thing automatically at session end but skips when nothing's
+    changed. This endpoint always runs, regardless of staleness, since a
+    parent clicking "refresh" expects a fresh read right now.
+
     Frontend calls this at the end of the very first session (an initial,
     lower-confidence read parents can act on immediately) and again after
     each subsequent session as more narrations accumulate.
@@ -98,21 +134,13 @@ async def build_profile(
     profile = await synthesize_learner_profile(student_name, assessments, session_count)
     profile["session_count_assessed"] = session_count
     profile["assessed_at"] = datetime.now(timezone.utc).isoformat()
+    profile["rubric_version"] = RUBRIC_VERSION
 
-    enc = encrypt_json(profile)
-    existing = await db.execute(
-        select(LearnerProfile).where(LearnerProfile.student_name == student_name)
-    )
-    row = existing.scalar_one_or_none()
-    if row is None:
-        db.add(LearnerProfile(
-            student_name=student_name,
-            session_count=session_count,
-            profile_enc=enc,
-        ))
-    else:
-        row.profile_enc = enc
-        row.session_count = session_count
-
+    db.add(LearnerProfile(
+        student_name=student_name,
+        session_count=session_count,
+        rubric_version=RUBRIC_VERSION,
+        profile_enc=encrypt_json(profile),
+    ))
     await db.commit()
     return profile

@@ -776,6 +776,7 @@ async def _save_assessment(
     try:
         from core.database import NarrationAssessment
         from core.encryption import encrypt_json
+        from models.schemas import RUBRIC_VERSION
 
         total = (
             tool_input.get("completeness", 0)
@@ -798,11 +799,13 @@ async def _save_assessment(
             "adaptive_signal":        tool_input.get("adaptive_signal"),
             "bede_observation":       tool_input.get("bede_observation", ""),
             "assessed_at":            now.isoformat(),
+            "rubric_version":         RUBRIC_VERSION,
         }
         db.add(NarrationAssessment(
             student_name=student_name,
             subject=subject.value,
             session_date=now,
+            rubric_version=RUBRIC_VERSION,
             assessment_enc=encrypt_json(data),
         ))
         await db.commit()
@@ -1300,10 +1303,16 @@ async def refresh_learner_profile_if_stale(
     Skips the Haiku call entirely (returns None) when nothing's changed
     since the last synthesis, so a session with no new narration doesn't
     spend an API call rewriting an identical profile.
+
+    Every refresh — automatic or manual — appends a new LearnerProfile row
+    rather than overwriting the last one, so a parent can see how the
+    profile evolved over time (GET /narration/{student}/profile/history)
+    instead of only ever seeing the latest snapshot.
     """
     from sqlalchemy import select
     from core.database import LearnerProfile, NarrationAssessment
     from core.encryption import decrypt_json, encrypt_json
+    from models.schemas import RUBRIC_VERSION
 
     result = await db.execute(
         select(NarrationAssessment)
@@ -1315,24 +1324,28 @@ async def refresh_learner_profile_if_stale(
     if not rows:
         return None
 
-    existing = await db.execute(
-        select(LearnerProfile).where(LearnerProfile.student_name == student_name)
+    latest = await db.execute(
+        select(LearnerProfile)
+        .where(LearnerProfile.student_name == student_name)
+        .order_by(LearnerProfile.created_at.desc())
+        .limit(1)
     )
-    profile_row = existing.scalar_one_or_none()
-    if profile_row is not None and profile_row.session_count >= len(rows):
+    latest_row = latest.scalar_one_or_none()
+    if latest_row is not None and latest_row.session_count >= len(rows):
         return None  # no new assessments since the last synthesis
 
     assessments = [decrypt_json(row.assessment_enc) for row in rows]
     profile = await synthesize_learner_profile(student_name, assessments, len(rows))
     profile["session_count_assessed"] = len(rows)
     profile["assessed_at"] = datetime.now(timezone.utc).isoformat()
+    profile["rubric_version"] = RUBRIC_VERSION
 
-    enc = encrypt_json(profile)
-    if profile_row is None:
-        db.add(LearnerProfile(student_name=student_name, session_count=len(rows), profile_enc=enc))
-    else:
-        profile_row.profile_enc = enc
-        profile_row.session_count = len(rows)
+    db.add(LearnerProfile(
+        student_name=student_name,
+        session_count=len(rows),
+        rubric_version=RUBRIC_VERSION,
+        profile_enc=encrypt_json(profile),
+    ))
     await db.commit()
     return profile
 

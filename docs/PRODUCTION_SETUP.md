@@ -77,6 +77,13 @@ make start        # docker compose up -d
 make stop         # docker compose down
 make restart      # pick up .env changes only (no code changes)
 make update       # git pull + rebuild + restart — use this after pulling new commits
+                   # (schema changes are additive/idempotent on restart — new
+                   # tables and the narration_assessments.rubric_version
+                   # column appear automatically; a pre-existing single-row
+                   # "learner_profiles" snapshot from before the learner
+                   # profile became a history table is left in place,
+                   # unread by the new code, not deleted — back it up
+                   # yourself first if that data matters to you)
 make logs         # all services
 make logs-api     # FastAPI only
 make status       # container health + /api/health check

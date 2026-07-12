@@ -124,6 +124,15 @@ not because it needs to be built from scratch.
     job, a separate standing signal, not this one). Degrades to nothing
     when there's no prior narration in that subject yet, same contract as
     the existing catalog-context note.
+  - ✅ Production scope decision: given this diagnostic isn't benchmarked
+    yet, both parent-facing surfaces (Progress page, and the prompt
+    context above) show a short, plain-language summary only — no raw
+    per-dimension scores, no misconceptions list, no `rubric_version`/
+    technical metadata. `_get_previous_lesson_context()` already met this
+    bar by design; the Progress page's total_score bar and "Areas to
+    revisit" misconceptions list were removed to match. Nothing here
+    persists across prompt/context calls beyond the single request it's
+    built for — see the Postgres-vs-context distinction two bullets up.
   - ⬜ Still open: benchmarking/validation. `rubric_version` makes the
     rubric *safe to evolve*, but there's still no ground-truth
     validation of what these scores actually predict — the assessment

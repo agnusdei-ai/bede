@@ -1,44 +1,49 @@
 """
 Real check for Diagnostic build-loop unit 1.8 (services/diagnostic/__init__.py
 facade) — see docs/diagnostic/DIAGNOSTIC_BUILD_PROGRESS.md. An end-to-end
-in-memory round trip through process_evidence and get_next_probe_hint,
+in-memory round trip through apply_evidence and get_next_probe_hint,
 composing every prior Phase 1 unit together.
+
+Unit 2.2 renamed this module's old process_evidence(vector, ...) to
+apply_evidence — process_evidence itself now means the real db-backed
+entry point (see test_facade_persisted.py). apply_evidence's behavior is
+otherwise unchanged from what unit 1.8 originally shipped and verified.
 """
 
 import inspect
 
 import pytest
 
-from services.diagnostic import get_next_probe_hint, process_evidence
+from services.diagnostic import apply_evidence, get_next_probe_hint
 from services.diagnostic.mastery import new_vector
 
 
-def test_process_evidence_is_a_coroutine_function():
-    assert inspect.iscoroutinefunction(process_evidence)
+def test_apply_evidence_is_a_coroutine_function():
+    assert inspect.iscoroutinefunction(apply_evidence)
 
 
 @pytest.mark.asyncio
-async def test_process_evidence_correct_outcome_increases_the_probed_skill():
+async def test_apply_evidence_correct_outcome_increases_the_probed_skill():
     vector = new_vector("K-2")
-    new, updates = await process_evidence(vector, "probe.cc.rote_count_20", "correct", confidence=1.0)
+    new, updates = await apply_evidence(vector, "probe.cc.rote_count_20", "correct", confidence=1.0)
     assert new["cc.rote_count_20"] > vector["cc.rote_count_20"]
     assert len(updates) == 1
     assert updates[0].skill_id == "cc.rote_count_20"
 
 
 @pytest.mark.asyncio
-async def test_process_evidence_unknown_probe_returns_vector_unchanged():
+async def test_apply_evidence_unknown_probe_returns_vector_unchanged():
     vector = new_vector("K-2")
-    new, updates = await process_evidence(vector, "not.a.real.probe", "correct", confidence=1.0)
+    new, updates = await apply_evidence(vector, "not.a.real.probe", "correct", confidence=1.0)
     assert new == vector
     assert updates == []
 
 
 @pytest.mark.asyncio
-async def test_process_evidence_does_not_mutate_input_vector():
+async def test_apply_evidence_does_not_mutate_input_vector():
     vector = new_vector("K-2")
     original = dict(vector)
-    await process_evidence(vector, "probe.cc.rote_count_20", "correct", confidence=1.0)
+    await apply_evidence(vector, "probe.cc.rote_count_20", "correct", confidence=1.0)
     assert vector == original
 
 
@@ -63,7 +68,7 @@ def test_get_next_probe_hint_mentions_a_real_skill_description():
 @pytest.mark.asyncio
 async def test_end_to_end_round_trip_hint_reflects_accumulated_evidence():
     """The full Phase 1 composition in one pass: cold-start a vector,
-    feed real evidence through process_evidence, and confirm
+    feed real evidence through apply_evidence, and confirm
     get_next_probe_hint's guidance actually reflects what's been learned
     — it should stop suggesting a skill once evidence has secured it."""
     vector = new_vector("K-2")
@@ -72,7 +77,7 @@ async def test_end_to_end_round_trip_hint_reflects_accumulated_evidence():
     assert "rote counts to 20" in hint_before.lower()
 
     for _ in range(8):
-        vector, _ = await process_evidence(
+        vector, _ = await apply_evidence(
             vector, "probe.cc.rote_count_20", "correct", confidence=1.0, calibration_weight=2.0
         )
 

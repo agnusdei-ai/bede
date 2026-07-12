@@ -108,7 +108,7 @@ Checked at B4 for every data/persistence/prompt unit:
 
 _Format per row: `unit-id · branch · PR link · check output (1 line) · verified anchors`_
 
-**1.1** · branch `diagnostic/1.1` · PR: _(opened this iteration, see B5)_
+**1.1** · branch `diagnostic/1.1` · PR: https://github.com/agnusdei-ai/bede/pull/31 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/test_skill_map.py -v`):
 ```

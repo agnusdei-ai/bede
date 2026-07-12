@@ -271,7 +271,7 @@ Deliverable: `process_evidence(db, student_name, probe_id, outcome, confidence, 
 
 Verified anchors: `test_persisted_vector_matches_the_in_memory_computation_exactly` directly satisfies the progress table's own "decrypt == in-memory" acceptance criterion; a second call against the same student updates the existing row rather than creating a duplicate (`evidence_count` reaches 2, still exactly one row); different `subject_area` values for the same `student_name` produce independent rows, exercising the composite PK unit 2.1 added; the evidence-log row's decrypted contents are asserted to contain only `{skill_id, prior, posterior, probe_id, model_used}` — never the raw outcome/confidence/probe text, directly checking design doc §5.3's core privacy claim, not just trusting the docstring.
 
-**2.3** · branch `diagnostic/2.3` · PR: (filled in after PR creation, see follow-up commit)
+**2.3** · branch `diagnostic/2.3` · PR: https://github.com/agnusdei-ai/bede/pull/42 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/test_schemas.py -v`): 11/11 passed. Full `pytest tests/diagnostic/ -v`: 136/136 passed (125 prior + 11 new), no regressions. Full backend suite: 270 passed, 7 skipped, 1 pre-existing unrelated failure (`numpy` missing).
 

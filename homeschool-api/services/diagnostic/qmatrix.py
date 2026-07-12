@@ -56,10 +56,19 @@ Q_MATRIX: dict[str, ProbeArchetype] = {p.id: p for p in _PROBES}
 
 _OUTCOME_SCORES: dict[str, float] = {
     "correct": 1.0,
-    "partial": 0.5,
-    "hint_dependent": 0.25,
+    "partial": 0.65,
+    "hint_dependent": 0.35,
     "incorrect": 0.0,
 }
+# Deliberately not partial=0.5: cdm.update_attribute_posteriors (unit 1.4)
+# treats each outcome as a soft Bernoulli-style label, and a score of
+# exactly 0.5 is a fixed point of that blend — score*p + (1-score)*(1-p)
+# equals 0.5 identically for ANY p when score==0.5, so it would carry zero
+# evidential weight regardless of slip/guess. partial/hint_dependent sit
+# symmetrically on either side of 0.5 instead, so "some grasp" nudges
+# mastery estimates up and "only after heavy scaffolding" nudges them
+# down, matching the tool's own description in ai_service.py's eventual
+# record_skill_evidence definition (design doc §7.1).
 
 
 def q_row(probe_id: str) -> list[str]:

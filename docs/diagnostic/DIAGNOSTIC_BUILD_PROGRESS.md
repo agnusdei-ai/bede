@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (1/8 units) | — |
+| 1 — Core package (pure Python) | **in progress** (2/8 units) | — |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.2 — `services/diagnostic/qmatrix.py`
+**Current next unit:** 1.3 — `services/diagnostic/irt.py`
 
 ---
 
@@ -26,7 +26,7 @@
 | Unit | Deliverable | Realizes runtime step | Real check | Status |
 |---|---|---|---|---|
 | 1.1 | `skill_map.py` — K-8 math DAG | S1 (fringe prereqs) | DAG acyclic; prereqs resolve; every skill has a band | `[x]` |
-| 1.2 | `qmatrix.py` — probes, `q_row`, `EvidenceObservation` | S5/S6 | every probe maps to ≥1 attribute; unknown id → None | `[ ]` |
+| 1.2 | `qmatrix.py` — probes, `q_row`, `EvidenceObservation` | S5/S6 | every probe maps to ≥1 attribute; unknown id → None | `[x]` |
 | 1.3 | `irt.py` — 1PL/2PL/3PL, Fisher info, θ update | S6 | known P values; Fisher monotonicity; θ converges | `[ ]` |
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[ ]` |
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[ ]` |
@@ -104,6 +104,7 @@ Checked at B4 for every data/persistence/prompt unit:
 | 2026-07-12 | 1.1 (fix) | Detailed code review (8-angle, 10 verified findings) run post-merge on 57ea785, per user request that review now happens before every future merge. 4 findings fixed immediately (see below); 6 acknowledged but explicitly deferred, not silently dropped: (1) `GradeBand` duplicates `GradeStage` with no automated equivalence check — real drift risk over time, though today's runtime comparison works fine (verified directly, corrected a wrong claim from one finder pass); (2) `domain` is a free-form string, not an enum — a typo could create a silent phantom domain; (3) the 42-skill catalog is hand-written Python source rather than a JSON/YAML file like `catalog_service.py`'s established pattern — undercuts this module's own "parent can extend it without touching engine logic" claim and risks an import-time crash on a syntax mistake; (4) `Skill` has no mid-tier "skill" grouping field per the design doc's 3-level domain→skill→sub-skill hierarchy (§4.1) — will need retrofitting before Phase 4's parent dashboard groups skills for display; (5) `PREREQUISITES` duplicates data already in `SKILL_MAP[id].prerequisites`; (6) the `_s()` wrapper and `field(default_factory=tuple)` are minor unnecessary indirection. None of these are fixed in this pass — revisit before Phase 1 sign-off or when a later unit (1.5 kst.py, 4.2 dashboard) actually needs the missing piece. | Scoped the immediate fix to what the user explicitly approved (the 3 prerequisite gaps + `dependents_of()`); the rest need either a real design decision (data-file format, enum migration) or aren't blocking Phase 1's own gate, so recording them here rather than fixing unprompted |
 | 2026-07-12 | 1.1 (fix) | Fixed 3 prerequisite-gap findings: `ns.integers` now requires `nbt.long_division` (pulls in the full 3-5 arithmetic chain) in addition to `nbt.subtract_within_100`; `sp.mean_median_mode` now requires `oa.division_facts` in addition to `nbt.standard_multiplication`; `geo.coordinate_plane` now requires `nbt.place_value_tens` in addition to `cc.compare_quantities`. Added `dependents_of()` (design doc §4.1's missing accessor) as a precomputed reverse index, `DEPENDENTS`. Added a regression-guard test (`test_six_eight_band_skills_do_not_skip_the_three_five_band_entirely`) asserting every 6-8 band skill's transitive prerequisite closure includes at least one 3-5/6-8 skill, so this class of gap can't silently recur as more skills are added later. | Code-review findings 1, 2, 3 (correctness) and 4 (spec-deviation) from the 57ea785 review — see PR for this fix |
 | 2026-07-12 | — | User authorized proceeding through remaining Phase 1 units (1.2-1.8) autonomously, chaining B1-B7 without a "next"/"go" per unit | Still pausing at the Phase 1 → Phase 2 boundary (the build loop's own explicit phase-gate rule) since that transition introduces real DB persistence — a materially higher-stakes change for a system handling children's data than another pure-Python unit. Will also stop immediately for any B3 verification failure that doesn't resolve in 2 retries, or a genuine design ambiguity the docs don't already resolve. |
+| 2026-07-12 | 1.2 | One probe per skill (1:1 Q-matrix, 42 probes) instead of hand-pairing related skills into multi-attribute probes like the design doc's own 4 examples | Keeps the DINA baseline's conjunctive "all required skills needed" semantics trivial for a first pass — every observation is unambiguous evidence for exactly one attribute. Multi-skill probes are a data change (add skills to an existing ProbeArchetype), not an engine change, so this can be revisited once the core S1-S9 pipeline is proven, per this module's own docstring |
 
 ---
 
@@ -165,3 +166,11 @@ tests/diagnostic/test_skill_map.py::test_six_eight_band_skills_do_not_skip_the_t
 ```
 
 Verified anchor: re-ran the full acyclicity check after adding the new prerequisite edges (`nbt.long_division` → `ns.integers`, `oa.division_facts` → `sp.mean_median_mode`, `nbt.place_value_tens` → `geo.coordinate_plane`) — no cycle introduced, confirmed by `test_prerequisite_graph_is_acyclic` staying green.
+
+**1.2** · branch `diagnostic/1.2` · PR: _(this iteration)_
+
+Check output (`pytest tests/diagnostic/ -v`): 19/19 passed (11 from 1.1 + 8 new for `qmatrix.py`), including `test_evidence_observation_shape`, `test_every_probe_maps_to_at_least_one_real_attribute`, `test_unknown_probe_id_resolves_to_nothing`, `test_every_skill_has_at_least_one_probe`, `test_probes_for_skill_is_the_inverse_of_q_row`, `test_outcome_to_score_is_monotonic_and_bounded`, `test_outcome_to_score_unknown_outcome_defaults_to_zero`, `test_no_duplicate_probe_ids`.
+
+Deliverable: `ProbeArchetype` frozen dataclass, `EvidenceObservation` TypedDict (design doc §3.4), `Q_MATRIX` dict, and `q_row`/`probes_for_skill`/`outcome_to_score` accessors. One probe per skill (42 probes, 1:1 Q-matrix) rather than the design doc's example multi-skill pairings — see Decisions Log.
+
+Verified anchors: `q_row`/`probes_for_skill` follow `skill_map.py`'s established degrade-to-empty contract (`[]`, never raise) for untrusted/unknown ids; `Q_MATRIX.get(unknown) is None` also holds, satisfying the progress table's literal "unknown id → None" wording at the dict level in addition to `q_row`'s own `list[str]`-typed empty-list contract.

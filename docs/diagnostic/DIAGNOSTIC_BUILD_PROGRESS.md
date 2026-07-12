@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (5/8 units) | — |
+| 1 — Core package (pure Python) | **in progress** (6/8 units) | — |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.6 — `services/diagnostic/cat.py`
+**Current next unit:** 1.7 — `services/diagnostic/mastery.py`
 
 ---
 
@@ -30,7 +30,7 @@
 | 1.3 | `irt.py` — 1PL/2PL/3PL, Fisher info, θ update | S6 | known P values; Fisher monotonicity; θ converges | `[x]` |
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[x]` |
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[x]` |
-| 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[ ]` |
+| 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[x]` |
 | 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[ ]` |
 | 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | S6–S8 | end-to-end in-memory round trip | `[ ]` |
 
@@ -202,3 +202,13 @@ Check output (`pytest tests/diagnostic/ -v`): 68/68 passed (51 prior + 17 new), 
 Deliverable: `surmise_closure`, `is_valid_knowledge_state`, `propagate_prerequisites` (threshold=0.8 default), and `fringe` (lo=0.2, hi=0.8 defaults) — matching the design doc's exact signatures, operating directly against the real skill map (`skill_map.prerequisites_of`), not a generic injected graph, per the design doc's own framing. `fringe` interpreted as: a skill's full transitive prerequisite closure must be mastered (every prereq >= hi, vacuously true for a no-prerequisite skill), and the skill's own probability must be in `[lo, hi)` — not already mastered, and not a confirmed gap either (a firmly-missed skill under `lo` needs prerequisite review, not re-offering as "next up"). `propagate_prerequisites` raises a matched skill's transitive prerequisites to the same threshold that triggered it (not higher), only for prerequisite ids already present in the input vector — never silently adds new tracked skills.
 
 Verified anchors: every function tested against a small, hand-traceable real slice of the skill map (`cc.rote_count_20 <- cc.count_objects_20 <- {cc.compare_quantities, oa.add_within_20 <- {oa.subtract_within_20, oa.multiplication_facts <- oa.division_facts}}`), including the acceptance-style `test_fringe_correct_on_a_small_hand_verified_map` combining mastered/fringe/blocked/gap skills in one vector and asserting the exact expected fringe set.
+
+**1.6** · branch `diagnostic/1.6` · PR: _(this iteration)_
+
+Check output (`pytest tests/diagnostic/ -v`): 84/84 passed (68 prior + 16 new).
+
+Two test setups failed on first run, not the implementation: they assumed mastering a mid-chain skill (e.g. `oa.division_facts`) was enough to unlock a dependent's fringe eligibility, without its own transitive prerequisites being tracked — but `kst.fringe()` (unit 1.5) correctly requires the *full* transitive closure to be mastered, not just the direct prerequisite. Fixed the test data (mastered the whole chain), not the code.
+
+Deliverable: `select_next_probes` and `should_stop_probing`. Two deliberate spec deviations, both logged: (1) function name is plural (`select_next_probes`) and computes the fringe internally via `kst.fringe()` rather than taking it as a parameter — matches `DIAGNOSTIC_LOOP.md`'s pseudocode and this progress table's own unit list, which disagree with the design doc's singular `select_next_probe(vector, theta, grade_band, calibration)` naming; following the two documents that agree, and not making the caller responsible for keeping an externally-passed fringe in sync. (2) Ranks by Bernoulli entropy of the CDM posterior, not true Fisher information — nothing in the codebase defines per-probe item difficulty/discrimination (a, b) parameters `irt.py` (unit 1.3) would need, and the design doc's own §4.6 docstring explicitly allows entropy as an alternative ("maximum Fisher information (or posterior entropy)"). `should_stop_probing`'s "standard error" is `sqrt(p*(1-p))` — the actual standard deviation of a Bernoulli(p) posterior — since no separate IRT-estimated SE is threaded through this signature either.
+
+Verified anchors: probe selection demonstrably prefers the fringe skill closest to p=0.5 (max entropy); band filtering correctly falls back to the full fringe when nothing is on-band rather than returning empty; calibration mode demonstrably widens to include off-band skills; an already-mastered skill never appears (fringe's own exclusion, not a separate check); the stopping rule is symmetric near 0 and 1, requires *every* skill in a multi-skill check to be confident, and treats an untracked skill_id as maximally uncertain rather than skipping it.

@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (3/8 units) | — |
+| 1 — Core package (pure Python) | **in progress** (4/8 units) | — |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.4 — `services/diagnostic/cdm.py`
+**Current next unit:** 1.5 — `services/diagnostic/kst.py`
 
 ---
 
@@ -28,7 +28,7 @@
 | 1.1 | `skill_map.py` — K-8 math DAG | S1 (fringe prereqs) | DAG acyclic; prereqs resolve; every skill has a band | `[x]` |
 | 1.2 | `qmatrix.py` — probes, `q_row`, `EvidenceObservation` | S5/S6 | every probe maps to ≥1 attribute; unknown id → None | `[x]` |
 | 1.3 | `irt.py` — 1PL/2PL/3PL, Fisher info, θ update | S6 | known P values; Fisher monotonicity; θ converges | `[x]` |
-| 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[ ]` |
+| 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[x]` |
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[ ]` |
 | 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[ ]` |
 | 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[ ]` |
@@ -184,3 +184,13 @@ A real bug surfaced and was fixed during B3 verification, not after: the first i
 Deliverable: `p_1pl`/`p_2pl`/`p_3pl` (Rasch/2PL/3PL logistic item response functions), `fisher_information`, and `estimate_theta_mle` (Fisher-scoring MAP ability estimate + standard error). Stdlib `math` only.
 
 Verified anchors: known-value checks confirm P=0.5 exactly at theta==b for 1PL/2PL regardless of discrimination; P=(1+c)/2 at theta==b for 3PL; Fisher information strictly increases with discrimination `a` at matched difficulty and peaks near theta==b; theta estimation demonstrably moves in the correct direction on synthetic all-correct/all-incorrect/mixed streams, and standard error shrinks with more evidence.
+
+**1.4** · branch `diagnostic/1.4` · PR: _(this iteration)_
+
+Check output (`pytest tests/diagnostic/ -v`): 51/51 passed (32 prior + 19 new: 14 for `cdm.py`, 5 more added after the cross-unit fix below).
+
+**A real cross-unit bug surfaced via this unit's own tests, not a re-review of 1.2:** `qmatrix.py`'s `outcome_to_score("partial")` was exactly `0.5` — which is a mathematical fixed point of `update_attribute_posteriors`'s soft-label likelihood blend (`score*p + (1-score)*(1-p) == 0.5` identically for *any* `p` when `score==0.5`), so a "partial" outcome carried **zero evidential weight** regardless of slip/guess — silently a no-op. Fixed by moving `partial`/`hint_dependent` off the exact midpoint (0.65/0.35, symmetric around 0.5) so partial credit reads as mild evidence *for* mastery and hint-dependence reads as mild evidence *against* it, matching the tool's own intended semantics. Added a regression test (`test_a_raw_score_of_exactly_half_is_structurally_uninformative`) asserting no real outcome maps to exactly 0.5, so this can't silently recur.
+
+Deliverable: `dina_likelihood`/`dino_likelihood`/`gdina_likelihood`, `CdmParams` (slip=0.1, guess=0.2 defaults per design doc §4.4), and `update_attribute_posteriors` — matches the design doc's exact signature (`observation: EvidenceObservation`, not a decomposed param list), internally calling `qmatrix.q_row`/`outcome_to_score`. For attributes beyond the one a probe directly names, the posterior computation marginalizes over every other required skill's current prior probability (weighted expectation over all 2^n hypothesized patterns) — with today's 1:1 Q-matrix this reduces to a single term, but the math is written generally for when multi-skill probes exist.
+
+Verified anchors: slip/guess sanity confirmed directly against hand-computed values for all three models; posterior provably increases on correct evidence, decreases on incorrect, and is provably unchanged at confidence=0; repeated evidence converges mastery toward the extremes (>0.95 after 10 corrects, <0.05 after 10 incorrects) without diverging outside [0,1].

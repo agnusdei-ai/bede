@@ -225,7 +225,7 @@ Verified anchors: `new_vector`'s below/above/on-band priors confirmed directly a
 
 7/8 Phase 1 units done. Unit 1.8 (the `__init__.py` façade, `process_evidence`/`get_next_probe_hint`) is next and last before the actual Phase 1 gate — not reached yet, correcting an earlier draft of this entry that claimed it prematurely.
 
-**1.8** · branch `diagnostic/1.8` · PR: _(this iteration)_
+**1.8** · branch `diagnostic/1.8` · PR: https://github.com/agnusdei-ai/bede/pull/39 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/ -v`): 108/108 passed (100 prior + 8 new).
 

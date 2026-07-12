@@ -1,5 +1,4 @@
 import anthropic
-import httpx
 import json
 import logging
 import random
@@ -820,15 +819,10 @@ async def stream_tutor_response(
     db: Optional["AsyncSession"] = None,
     drawing_image: Optional[str] = None,
     anthropic_api_key: Optional[str] = None,
-    openai_api_key: Optional[str] = None,
 ) -> AsyncIterator[str]:
     """
-    Stream the Socratic tutor response token by token — Claude Sonnet by
-    default, or a visitor's own OpenAI account when openai_api_key is set
-    (see _stream_tutor_events_openai). Uses agentic tool calls when
-    appropriate (narration, hints, celebration, faith) either way — the
-    tool set and the child-facing behavior are identical across providers;
-    only the wire protocol underneath differs.
+    Stream the Socratic tutor response token by token using Claude Sonnet.
+    Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
 
     anthropic_api_key: when set (a public demo visitor's own BYOK key — see
     routers/tutor.py's chat()), a fresh client is built with THAT key instead
@@ -837,33 +831,7 @@ async def stream_tutor_response(
     calls — the anthropic SDK client itself holds no state worth pooling
     beyond the API key, so building a new one per BYOK request is cheap and
     keeps the key from ever being written to a shared, longer-lived object.
-
-    openai_api_key: same BYOK contract, routed entirely to
-    _stream_tutor_events_openai instead — mutually exclusive with
-    anthropic_api_key in practice (the frontend only ever lets a visitor
-    supply one provider's key at a time), checked first since a visitor who
-    went to the trouble of supplying an OpenAI key clearly wants GPT
-    tutoring, not Claude.
     """
-    if openai_api_key:
-        try:
-            async for chunk in _stream_tutor_events_openai(
-                openai_api_key, config, subject, db, history, child_message, drawing_image
-            ):
-                yield chunk
-        except httpx.HTTPError:
-            # Same contract as the Anthropic path below — an invalid/revoked/
-            # depleted BYOK key degrades to a warm, in-persona message
-            # instead of a broken stream, with no error detail leaked to
-            # the child-facing chat.
-            log.exception("OpenAI API error during tutor response stream (byok=True)")
-            yield json.dumps({
-                'type': 'text',
-                'content': "Oh dear — I seem to have lost my train of thought. Could you ask that again?",
-            })
-            yield json.dumps({'type': 'done'})
-        return
-
     client = anthropic.AsyncAnthropic(api_key=anthropic_api_key) if anthropic_api_key else _client
     # Build message list and apply sliding window to cap per-turn input tokens
     messages = [{"role": m.role, "content": m.content} for m in history]
@@ -919,48 +887,6 @@ async def stream_tutor_response(
             'content': "Oh dear — I seem to have lost my train of thought. Could you ask that again?",
         })
         yield json.dumps({'type': 'done'})
-
-
-async def _dispatch_completed_tool_call(
-    tool_name: str,
-    tool_input: dict,
-    db: Optional["AsyncSession"],
-    config: SessionConfig,
-    subject: Subject,
-) -> tuple[Optional[str], Optional[bool]]:
-    """
-    Shared by every provider's streaming path (Anthropic and OpenAI) — the
-    tool-call handling itself has nothing provider-specific about it, only
-    the wire format used to accumulate the tool call's JSON differs upstream
-    of this function. Returns (sse_chunk_json_or_None, ends_on_questionless_tool)
-    — see _QUESTIONLESS_TOOLS for what that second value means. The second
-    value is None (rather than True/False) for assess_narration/
-    show_visual_aid specifically: neither is really "the visible end of a
-    turn" the way a rendered tool card is, so the caller should leave
-    whatever ends_on_questionless_tool state it already had alone rather
-    than have either of these silently clear it.
-    """
-    if tool_name == "assess_narration":
-        # Silent server-side save; emit minimal event for frontend
-        summary = await _save_assessment(db, config.student_name, subject, tool_input)
-        return (json.dumps({'type': 'assessment', 'data': summary}) if summary else None), None
-
-    if tool_name == "show_visual_aid":
-        aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
-        if aid:
-            return json.dumps({'type': 'visual_aid', 'visualAid': aid}), None
-        log.warning("Bede requested an unknown visual_aid_id: %r", tool_input.get("visual_aid_id"))
-        return None, None
-
-    if tool_name == "suggest_next_subject":
-        chunk = json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
-        return chunk, False
-
-    tool_response = _process_tool_use(tool_name, tool_input)
-    if not tool_response:
-        return None, None
-    ends_on_questionless = tool_name in _QUESTIONLESS_TOOLS and not tool_input.get("reflection_question")
-    return json.dumps({'type': 'tool', 'tool': tool_name, 'content': tool_response}), ends_on_questionless
 
 
 async def _stream_tutor_events(
@@ -1035,13 +961,31 @@ async def _stream_tutor_events(
                     if tc["input_str"]:
                         try:
                             tool_input = json.loads(tc["input_str"])
-                            chunk, ends_questionless = await _dispatch_completed_tool_call(
-                                tc["name"], tool_input, db, config, subject
-                            )
-                            if chunk:
-                                yield chunk
-                            if ends_questionless is not None:
-                                ends_on_questionless_tool = ends_questionless
+                            if tc["name"] == "assess_narration":
+                                # Silent server-side save; emit minimal event for frontend
+                                summary = await _save_assessment(db, config.student_name, subject, tool_input)
+                                if summary:
+                                    yield json.dumps({'type': 'assessment', 'data': summary})
+                            elif tc["name"] == "show_visual_aid":
+                                aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
+                                if aid:
+                                    yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
+                                else:
+                                    log.warning(
+                                        "Bede requested an unknown visual_aid_id: %r",
+                                        tool_input.get("visual_aid_id"),
+                                    )
+                            elif tc["name"] == "suggest_next_subject":
+                                yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
+                                ends_on_questionless_tool = False
+                            else:
+                                tool_response = _process_tool_use(tc["name"], tool_input)
+                                if tool_response:
+                                    yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
+                                    ends_on_questionless_tool = (
+                                        tc["name"] in _QUESTIONLESS_TOOLS
+                                        and not tool_input.get("reflection_question")
+                                    )
                         except json.JSONDecodeError:
                             pass
                         tool_calls_buffer.pop(block_id, None)
@@ -1050,148 +994,6 @@ async def _stream_tutor_events(
             yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
 
         yield json.dumps({'type': 'done'})
-
-
-# A capable, modern model with solid function-calling — a BYOK visitor
-# brings their own account/cost, so this favors quality over the cheapest
-# option. Not configurable today; revisit if a visitor ever needs a
-# specific model for cost or capability reasons.
-_OPENAI_TUTOR_MODEL = "gpt-4o"
-_OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
-
-
-def _tools_to_openai_format(tools: list) -> list:
-    """Translate TUTOR_TOOLS' Anthropic-shaped schema (name/description/
-    input_schema) into OpenAI's function-calling envelope — the same
-    underlying JSON schema either way, just wrapped differently."""
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": t["name"],
-                "description": t["description"],
-                "parameters": t["input_schema"],
-            },
-        }
-        for t in tools
-    ]
-
-
-async def _stream_tutor_events_openai(
-    api_key: str,
-    config: SessionConfig,
-    subject: Subject,
-    db: Optional["AsyncSession"],
-    history: List[ChatMessage],
-    child_message: str,
-    drawing_image: Optional[str],
-) -> AsyncIterator[str]:
-    """
-    OpenAI Chat Completions equivalent of _stream_tutor_events — routes a
-    demo visitor's own OpenAI key to GPT tutoring instead of Claude (see
-    stream_tutor_response's openai_api_key param). Implemented via raw
-    httpx streaming rather than the official openai SDK, matching how
-    services/voice_synthesis.py already talks to OpenAI's TTS API directly
-    — this is still a secondary, opt-in path, not worth a new dependency for.
-
-    Persona note: this sends Bede's exact same system prompt and tool set as
-    the Claude path — no GPT-specific prompt tuning has been done, so
-    whether Bede's persona reads identically well on a different model
-    family hasn't been human-verified, only that the mechanics (streaming,
-    tool calls, the ends_on_questionless_tool guarantee) work correctly.
-    """
-    system_prompt = f"{_build_static_prompt(config)}\n\n{_build_subject_prompt(config, subject)}"
-    messages: list = [{"role": "system", "content": system_prompt}]
-    for m in history[-_HISTORY_WINDOW:]:
-        messages.append({"role": m.role, "content": m.content})
-    if drawing_image:
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": child_message},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{drawing_image}"}},
-            ],
-        })
-    else:
-        messages.append({"role": "user", "content": child_message})
-
-    payload = {
-        "model": _OPENAI_TUTOR_MODEL,
-        "messages": messages,
-        "tools": _tools_to_openai_format(TUTOR_TOOLS),
-        "max_tokens": 500,
-        "stream": True,
-    }
-
-    # index -> {"name": str, "input_str": str} — OpenAI accumulates tool call
-    # argument deltas by position in the response, not by a stable id the
-    # way Anthropic's content_block events do.
-    tool_calls_buffer: dict = {}
-    ends_on_questionless_tool = False
-
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        async with client.stream(
-            "POST", _OPENAI_CHAT_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json=payload,
-        ) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line.startswith("data: "):
-                    continue
-                data_str = line[len("data: "):].strip()
-                if not data_str or data_str == "[DONE]":
-                    continue
-                try:
-                    event = json.loads(data_str)
-                except json.JSONDecodeError:
-                    continue
-                choices = event.get("choices") or []
-                if not choices:
-                    continue
-                choice = choices[0]
-                delta = choice.get("delta", {})
-
-                content = delta.get("content")
-                if content:
-                    yield json.dumps({'type': 'text', 'content': content})
-                    ends_on_questionless_tool = False
-
-                for tc_delta in delta.get("tool_calls") or []:
-                    idx = tc_delta.get("index", 0)
-                    if idx not in tool_calls_buffer:
-                        tool_calls_buffer[idx] = {"name": "", "input_str": ""}
-                    fn = tc_delta.get("function") or {}
-                    if fn.get("name"):
-                        tool_calls_buffer[idx]["name"] = fn["name"]
-                    if fn.get("arguments"):
-                        tool_calls_buffer[idx]["input_str"] += fn["arguments"]
-
-                # OpenAI marks the whole response's completion with exactly
-                # one finish_reason-populated chunk at the end (unlike
-                # Anthropic's per-block content_block_stop events) — every
-                # buffered tool call is complete by the time this fires.
-                if choice.get("finish_reason"):
-                    for tc in tool_calls_buffer.values():
-                        if not tc["name"] or not tc["input_str"]:
-                            continue
-                        try:
-                            tool_input = json.loads(tc["input_str"])
-                        except json.JSONDecodeError:
-                            continue
-                        chunk, ends_questionless = await _dispatch_completed_tool_call(
-                            tc["name"], tool_input, db, config, subject
-                        )
-                        if chunk:
-                            yield chunk
-                        if ends_questionless is not None:
-                            ends_on_questionless_tool = ends_questionless
-                    tool_calls_buffer = {}
-
-    if ends_on_questionless_tool:
-        yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
-
-    yield json.dumps({'type': 'done'})
 
 
 async def generate_session_summary(req: SessionSummaryRequest) -> str:

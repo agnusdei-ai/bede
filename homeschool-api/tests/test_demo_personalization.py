@@ -108,7 +108,7 @@ def test_demo_session_config_capped_with_no_code_at_all():
 @pytest.mark.asyncio
 async def test_create_demo_code_accepts_a_well_formed_byok_key():
     resp = await create_demo_code(DemoCodeRequest(byok_anthropic_key="sk-ant-api03-" + "x" * 40))
-    assert demo_code_session.get_byok_anthropic_key(resp.code) == "sk-ant-api03-" + "x" * 40
+    assert demo_code_session.get_byok_key(resp.code) == "sk-ant-api03-" + "x" * 40
 
 
 @pytest.mark.asyncio
@@ -131,38 +131,4 @@ async def test_create_demo_code_rejects_a_key_with_whitespace():
 @pytest.mark.asyncio
 async def test_create_demo_code_strips_surrounding_whitespace_from_a_valid_key():
     resp = await create_demo_code(DemoCodeRequest(byok_anthropic_key="  sk-ant-api03-" + "y" * 40 + "  "))
-    assert demo_code_session.get_byok_anthropic_key(resp.code) == "sk-ant-api03-" + "y" * 40
-
-
-# ── BYOK (bring-your-own-OpenAI-key) ─────────────────────────────────────────
-
-def test_demo_session_config_uncapped_when_code_has_a_byok_openai_key():
-    code = demo_code_session.generate_code(byok_openai_key="sk-visitor-openai-key")
-    config = _demo_session_config(code)
-    assert config.demo_uncapped is True
-
-
-@pytest.mark.asyncio
-async def test_create_demo_code_accepts_a_well_formed_byok_openai_key():
-    resp = await create_demo_code(DemoCodeRequest(byok_openai_key="sk-" + "x" * 40))
-    assert demo_code_session.get_byok_openai_key(resp.code) == "sk-" + "x" * 40
-
-
-@pytest.mark.asyncio
-async def test_create_demo_code_rejects_a_malformed_byok_openai_key():
-    with pytest.raises(HTTPException) as exc_info:
-        await create_demo_code(DemoCodeRequest(byok_openai_key="not-a-real-key"))
-    assert exc_info.value.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_create_demo_code_rejects_an_openai_key_with_whitespace():
-    with pytest.raises(HTTPException) as exc_info:
-        await create_demo_code(DemoCodeRequest(byok_openai_key="sk-abc def ghi"))
-    assert exc_info.value.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_create_demo_code_strips_surrounding_whitespace_from_a_valid_openai_key():
-    resp = await create_demo_code(DemoCodeRequest(byok_openai_key="  sk-" + "y" * 40 + "  "))
-    assert demo_code_session.get_byok_openai_key(resp.code) == "sk-" + "y" * 40
+    assert demo_code_session.get_byok_key(resp.code) == "sk-ant-api03-" + "y" * 40

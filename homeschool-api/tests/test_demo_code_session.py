@@ -99,39 +99,19 @@ def test_get_personalization_unknown_code_returns_none_none():
 
 def test_get_byok_key_round_trips():
     code = demo_code_session.generate_code(byok_anthropic_key="sk-ant-visitor-key")
-    assert demo_code_session.get_byok_anthropic_key(code) == "sk-ant-visitor-key"
+    assert demo_code_session.get_byok_key(code) == "sk-ant-visitor-key"
 
 
 def test_get_byok_key_defaults_to_none_when_not_provided():
     code = demo_code_session.generate_code()
-    assert demo_code_session.get_byok_anthropic_key(code) is None
+    assert demo_code_session.get_byok_key(code) is None
 
 
 def test_get_byok_key_unknown_code_returns_none():
-    assert demo_code_session.get_byok_anthropic_key("000000") is None
+    assert demo_code_session.get_byok_key("000000") is None
 
 
 def test_end_session_wipes_the_byok_key_too():
     code = demo_code_session.generate_code(byok_anthropic_key="sk-ant-visitor-key")
     demo_code_session.end_session(code)
-    assert demo_code_session.get_byok_anthropic_key(code) is None
-
-
-def test_get_byok_openai_key_round_trips():
-    code = demo_code_session.generate_code(byok_openai_key="sk-visitor-openai-key")
-    assert demo_code_session.get_byok_openai_key(code) == "sk-visitor-openai-key"
-
-
-def test_get_byok_openai_key_defaults_to_none_when_not_provided():
-    code = demo_code_session.generate_code()
-    assert demo_code_session.get_byok_openai_key(code) is None
-
-
-def test_get_byok_openai_key_unknown_code_returns_none():
-    assert demo_code_session.get_byok_openai_key("000000") is None
-
-
-def test_end_session_wipes_the_byok_openai_key_too():
-    code = demo_code_session.generate_code(byok_openai_key="sk-visitor-openai-key")
-    demo_code_session.end_session(code)
-    assert demo_code_session.get_byok_openai_key(code) is None
+    assert demo_code_session.get_byok_key(code) is None

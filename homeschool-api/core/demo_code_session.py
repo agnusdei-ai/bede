@@ -48,7 +48,6 @@ def generate_code(
     student_name: str | None = None,
     grade: str | None = None,
     byok_anthropic_key: str | None = None,
-    byok_openai_key: str | None = None,
 ) -> str | None:
     """Mints a fresh 6-digit code, optionally carrying the visitor's chosen
     personalization (see routers/auth.py's /auth/demo-code and models.schemas
@@ -56,10 +55,9 @@ def generate_code(
     redeemed (routers/tutor.py's _demo_session_config). Returns None if
     _MAX_ACTIVE_CODES is already reached — callers should surface that as a 429.
 
-    byok_anthropic_key/byok_openai_key held here exactly like everything else
-    in this dict — in memory only, never written to the database, gone the
-    moment this code is evicted or the process restarts. See
-    get_byok_anthropic_key() / get_byok_openai_key()."""
+    byok_anthropic_key held here exactly like everything else in this dict —
+    in memory only, never written to the database, gone the moment this code
+    is evicted or the process restarts. See get_byok_key()."""
     _evict_expired()
     if len(_codes) >= _MAX_ACTIVE_CODES:
         return None
@@ -74,7 +72,6 @@ def generate_code(
         "student_name": student_name,
         "grade": grade,
         "byok_anthropic_key": byok_anthropic_key,
-        "byok_openai_key": byok_openai_key,
     }
     return code
 
@@ -88,7 +85,7 @@ def get_personalization(code: str) -> tuple[str | None, str | None]:
     return info.get("student_name"), info.get("grade")
 
 
-def get_byok_anthropic_key(code: str) -> str | None:
+def get_byok_key(code: str) -> str | None:
     """The visitor's own Anthropic API key as submitted at /auth/demo-code,
     or None for an unknown code or one minted without a key — see
     generate_code()'s docstring for the full handling contract."""
@@ -96,16 +93,6 @@ def get_byok_anthropic_key(code: str) -> str | None:
     if info is None:
         return None
     return info.get("byok_anthropic_key")
-
-
-def get_byok_openai_key(code: str) -> str | None:
-    """The visitor's own OpenAI API key as submitted at /auth/demo-code, or
-    None for an unknown code or one minted without a key — see
-    generate_code()'s docstring for the full handling contract."""
-    info = _codes.get(code)
-    if info is None:
-        return None
-    return info.get("byok_openai_key")
 
 
 def redeem_code(code: str) -> bool:

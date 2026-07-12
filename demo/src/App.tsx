@@ -58,21 +58,19 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
-  const [showByokAnthropic, setShowByokAnthropic] = useState(false)
-  const [showByokOpenai, setShowByokOpenai] = useState(false)
-  // Deliberately NOT cached in sessionStorage like name/grade above — these
-  // are real secrets, not display preferences, and re-entering them each
-  // time is the right tradeoff (same "never persist a secret client-side"
-  // rule the rest of this app already follows for every other credential).
-  const [byokAnthropicKey, setByokAnthropicKey] = useState('')
-  const [byokOpenaiKey, setByokOpenaiKey] = useState('')
+  const [showByok, setShowByok] = useState(false)
+  // Deliberately NOT cached in sessionStorage like name/grade above — this is
+  // a real secret, not a display preference, and re-entering it each time is
+  // the right tradeoff (same "never persist a secret client-side" rule the
+  // rest of this app already follows for every other credential).
+  const [byokKey, setByokKey] = useState('')
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
     try {
-      const code = await generateDemoCode(studentName, grade, byokAnthropicKey, byokOpenaiKey)
+      const code = await generateDemoCode(studentName, grade, byokKey)
       const { token } = await loginWithCode(code)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
@@ -89,7 +87,8 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
         <div className="text-center mb-6">
           <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — a Socratic tutor</h1>
-          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each child's faith and learning</p>
+          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each child's potential</p>
+          <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
         </div>
 
         {/* Both optional — Bede adapts tone, narration pacing (oral vs.
@@ -129,17 +128,17 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
           </div>
         </div>
 
-        {showByokAnthropic ? (
-          <div className="mb-3">
-            <label htmlFor="byok-anthropic-key" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+        {showByok ? (
+          <div className="mb-5">
+            <label htmlFor="byok-key" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
               Your Anthropic API key
             </label>
             <input
-              id="byok-anthropic-key"
+              id="byok-key"
               type="password"
               autoComplete="off"
-              value={byokAnthropicKey}
-              onChange={(e) => setByokAnthropicKey(e.target.value)}
+              value={byokKey}
+              onChange={(e) => setByokKey(e.target.value)}
               placeholder="sk-ant-..."
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400 font-mono"
             />
@@ -148,7 +147,7 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
               <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="underline hover:text-navy-500">
                 console.anthropic.com
               </a>.{' '}
-              <button type="button" onClick={() => { setShowByokAnthropic(false); setByokAnthropicKey('') }} className="underline hover:text-navy-500">
+              <button type="button" onClick={() => { setShowByok(false); setByokKey('') }} className="underline hover:text-navy-500">
                 Never mind
               </button>
             </p>
@@ -156,52 +155,17 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
         ) : (
           <button
             type="button"
-            onClick={() => setShowByokAnthropic(true)}
-            className="text-xs text-navy-500 hover:text-navy-700 underline mb-3 block"
-          >
-            Have your own Anthropic API key? Skip the 15-minute cap
-          </button>
-        )}
-
-        {showByokOpenai ? (
-          <div className="mb-5">
-            <label htmlFor="byok-openai-key" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Your OpenAI API key
-            </label>
-            <input
-              id="byok-openai-key"
-              type="password"
-              autoComplete="off"
-              value={byokOpenaiKey}
-              onChange={(e) => setByokOpenaiKey(e.target.value)}
-              placeholder="sk-..."
-              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400 font-mono"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Bede tutors on GPT instead of Claude for this session. Used only for your own
-              requests, never saved anywhere. Get one at{' '}
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="underline hover:text-navy-500">
-                platform.openai.com
-              </a>.{' '}
-              <button type="button" onClick={() => { setShowByokOpenai(false); setByokOpenaiKey('') }} className="underline hover:text-navy-500">
-                Never mind
-              </button>
-            </p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowByokOpenai(true)}
+            onClick={() => setShowByok(true)}
             className="text-xs text-navy-500 hover:text-navy-700 underline mb-5 block"
           >
-            Have your own OpenAI API key instead? Use GPT, skip the cap
+            Have your own Anthropic API key? Skip the 15-minute cap
           </button>
         )}
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
           <p>
-            {byokAnthropicKey.trim() || byokOpenaiKey.trim()
+            {byokKey.trim()
               ? 'A one-time 6-digit code just for you — unlimited time with your own key.'
               : 'A one-time 6-digit code just for you, capped at 15 minutes.'}
             {' '}This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.

@@ -111,12 +111,11 @@ class SessionConfig(BaseModel):
     voice_narration_enabled: bool = True
 
     # True only for a public demo session where the visitor supplied their
-    # own Anthropic or OpenAI API key (see DemoCodeRequest.byok_anthropic_key
-    # / byok_openai_key) — tells the demo frontend to skip the 15-minute
-    # free-tier session cap, since the API cost is on the visitor's own
-    # account. Always False for parent/child roles; never set from client
-    # input (routers/tutor.py's _demo_session_config is the only place that
-    # sets it).
+    # own Anthropic API key (see DemoCodeRequest.byok_anthropic_key) — tells
+    # the demo frontend to skip the 15-minute free-tier session cap, since
+    # the API cost is on the visitor's own account. Always False for parent/
+    # child roles; never set from client input (routers/tutor.py's
+    # _demo_session_config is the only place that sets it).
     demo_uncapped: bool = False
 
 
@@ -194,26 +193,16 @@ class DemoCodeRequest(BaseModel):
 
     byok_anthropic_key: a visitor's own Anthropic API key, used ONLY for that
     visitor's own Anthropic calls for that session (see
-    core/demo_code_session.py's get_byok_anthropic_key and
-    services/ai_service.py's stream_tutor_response) — never the operator's
-    key, never logged, never written to the database, held only in the same
-    in-memory, ephemeral _codes dict as everything else about a demo code.
-    Supplying one skips the 15-minute free-tier session cap (routers/tutor.py
-    sets SessionConfig.demo_uncapped), since the API cost is now on the
-    visitor's own account, not the operator's.
-
-    byok_openai_key: the same idea, but for a visitor who'd rather use their
-    own OpenAI account and have Bede tutor on GPT instead of Claude (see
-    core/demo_code_session.py's get_byok_openai_key and
-    services/ai_service.py's _stream_tutor_events_openai). Mutually
-    exclusive in practice with byok_anthropic_key — the frontend only shows
-    one BYOK field at a time — but nothing here enforces that; routers/
-    tutor.py prefers an OpenAI key over an Anthropic one if a caller somehow
-    supplies both."""
+    core/demo_code_session.py's get_byok_key and services/ai_service.py's
+    stream_tutor_response) — never the operator's key, never logged, never
+    written to the database, held only in the same in-memory, ephemeral
+    _codes dict as everything else about a demo code. Supplying one skips the
+    15-minute free-tier session cap (routers/tutor.py sets
+    SessionConfig.demo_uncapped), since the API cost is now on the visitor's
+    own account, not the operator's."""
     student_name: Optional[str] = Field(None, min_length=1, max_length=50)
     grade: Optional[str] = Field(None, max_length=2)
     byok_anthropic_key: Optional[str] = Field(None, min_length=10, max_length=200)
-    byok_openai_key: Optional[str] = Field(None, min_length=10, max_length=200)
 
 
 class DemoCodeResponse(BaseModel):

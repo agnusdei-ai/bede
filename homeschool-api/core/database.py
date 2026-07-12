@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from fastapi import Depends
-from sqlalchemy import BigInteger, DateTime, LargeBinary, String
+from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -195,7 +195,17 @@ class DiagnosticEvidenceLog(Base):
     """
     __tablename__ = "diagnostic_evidence_log"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # BigInteger().with_variant(Integer(), "sqlite"): on Postgres this is a
+    # real BIGINT/BIGSERIAL identity column, unchanged from before. Plain
+    # BigInteger doesn't get SQLite's "INTEGER PRIMARY KEY" rowid-alias
+    # autoincrement (SQLite only special-cases the exact type name
+    # "INTEGER") — this table is the one currently exercised by a real
+    # insert under a SQLite test engine (see tests/diagnostic's unit 2.2
+    # round-trip tests), so it needs the per-dialect variant to actually
+    # autoincrement there; Postgres behavior is unaffected either way.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
     student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     subject_area: Mapped[str] = mapped_column(String(30), nullable=False, default="mathematics")
     observed_at: Mapped[datetime] = mapped_column(

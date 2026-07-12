@@ -167,7 +167,7 @@ tests/diagnostic/test_skill_map.py::test_six_eight_band_skills_do_not_skip_the_t
 
 Verified anchor: re-ran the full acyclicity check after adding the new prerequisite edges (`nbt.long_division` → `ns.integers`, `oa.division_facts` → `sp.mean_median_mode`, `nbt.place_value_tens` → `geo.coordinate_plane`) — no cycle introduced, confirmed by `test_prerequisite_graph_is_acyclic` staying green.
 
-**1.2** · branch `diagnostic/1.2` · PR: _(this iteration)_
+**1.2** · branch `diagnostic/1.2` · PR: https://github.com/agnusdei-ai/bede/pull/33 (squash-merged to main)
 
 Check output (`pytest tests/diagnostic/ -v`): 19/19 passed (11 from 1.1 + 8 new for `qmatrix.py`), including `test_evidence_observation_shape`, `test_every_probe_maps_to_at_least_one_real_attribute`, `test_unknown_probe_id_resolves_to_nothing`, `test_every_skill_has_at_least_one_probe`, `test_probes_for_skill_is_the_inverse_of_q_row`, `test_outcome_to_score_is_monotonic_and_bounded`, `test_outcome_to_score_unknown_outcome_defaults_to_zero`, `test_no_duplicate_probe_ids`.
 

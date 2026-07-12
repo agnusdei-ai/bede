@@ -11,13 +11,13 @@
 | Phase | Status | Gate |
 |---|---|---|
 | 0 — Approval | done | Design doc + runtime loop + build loop signed off |
-| 1 — Core package (pure Python) | **in progress** (7/8 units) | — |
+| 1 — Core package (pure Python) | **all 8 units green — awaiting sign-off** | pause for user sign-off before Phase 2 |
 | 2 — Persistence | not started | — |
 | 3 — Loop integration | not started | — |
 | 4 — Parent surface | not started | — |
 | 5 — Validation & tuning | not started | — |
 
-**Current next unit:** 1.8 — `services/diagnostic/__init__.py` facade
+**Current status:** Phase 1 gate reached — paused for user sign-off before Phase 2 (persistence)
 
 ---
 
@@ -32,7 +32,7 @@
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[x]` |
 | 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[x]` |
 | 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[x]` |
-| 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | S6–S8 | end-to-end in-memory round trip | `[ ]` |
+| 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | S6–S8 | end-to-end in-memory round trip | `[x]` |
 
 ## Phase 2 — Persistence
 
@@ -224,3 +224,19 @@ Deliverable: `MasteryVector` type alias, `MasteryUpdate` dataclass, `new_vector`
 Verified anchors: `new_vector`'s below/above/on-band priors confirmed directly against `skills_in_band()`; `bayesian_update` never mutates its input, stays within [0,1] even under repeated calibration-boosted updates, and demonstrably raises a skill's prerequisites once it crosses the secure threshold; `aggregate_for_parent`'s gaps list and next_steps are cross-checked directly against `_classify()`'s own thresholds and `kst.fringe()` respectively, not re-derived independently in the test.
 
 7/8 Phase 1 units done. Unit 1.8 (the `__init__.py` façade, `process_evidence`/`get_next_probe_hint`) is next and last before the actual Phase 1 gate — not reached yet, correcting an earlier draft of this entry that claimed it prematurely.
+
+**1.8** · branch `diagnostic/1.8` · PR: _(this iteration)_
+
+Check output (`pytest tests/diagnostic/ -v`): 108/108 passed (100 prior + 8 new).
+
+A real test-infrastructure gap surfaced, not a code bug: `pytest-asyncio` (a genuine, already-declared project dev dependency in `requirements-dev.txt`, matching the `@pytest.mark.asyncio` convention already used throughout `tests/test_ai_service_streaming.py` etc.) wasn't installed in this sandbox — only a minimal subset of packages had been manually installed earlier this session. Installed it (matching the project's own declared dependency, not inventing a new async-test convention) rather than switching to `anyio`'s marker style, which would have been inconsistent with the rest of the codebase.
+
+Deliverable: `process_evidence` (async, in-memory — see module docstring for why it doesn't take `db` yet, deferred explicitly to Phase 2's unit 2.2) and `get_next_probe_hint` (renders `cat.select_next_probes()`'s top picks into the human-readable prose Phase 3's prompt injection will use). `process_evidence` is `async def` with no actual awaits yet, deliberately, so Phase 2 can add real DB I/O without changing the call signature every caller is written against.
+
+Verified anchors: full round trip confirmed end-to-end — cold-start a vector, feed real evidence through `process_evidence`, and `get_next_probe_hint`'s guidance demonstrably changes (stops mentioning a skill once evidence has secured it), composing every one of units 1.1-1.7 together in one test.
+
+---
+
+## PHASE 1 GATE REACHED
+
+All 8 Phase 1 units green (108/108 tests passing). The pure core works standalone — no DB, no LLM, no wiring into the live app. Per the build loop's own §7 gate summary and the decision logged above (2026-07-12, "Still pausing at the Phase 1 → Phase 2 boundary... since that transition introduces real DB persistence"), **pausing here for explicit user sign-off before Phase 2 begins.**

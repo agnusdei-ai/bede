@@ -156,7 +156,7 @@ function CodeScreen({ onLoggedIn }: {
 // this can't loop forever talking to itself if a visitor has actually
 // walked away — it resets the moment the child sends a real message.
 const IDLE_CONTINUE_SENTINEL = '[CONTINUE]'
-const IDLE_CONTINUE_MS = 20_000
+const IDLE_CONTINUE_MS = 60_000
 const MAX_CONSECUTIVE_AUTO_CONTINUES = 2
 
 interface ChatScreenProps {

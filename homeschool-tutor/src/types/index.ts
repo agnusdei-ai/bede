@@ -36,7 +36,35 @@ export interface SessionConfig {
   // above, which is about login voice-biometric verification, not TTS
   // output. Defaults true when absent (configs saved before this field existed).
   voice_narration_enabled?: boolean
+  // ── Term schedule & outcomes ────────────────────────────────────────────
+  // Mater Amabilis default is a 3-term (trimester) year; quarterly gives 4.
+  term_schedule?: TermSchedule
+  current_term?: number
+  // Parent's mastery outcomes for the current term: up to 3 topics per core
+  // area (keys from CORE_AREAS). Exposure to all is expected across the
+  // term; mastery of these named topics is the outcome. Bede records
+  // per-topic evidence via assess_narration (term_topic fields below).
+  term_mastery_topics?: Partial<Record<CoreArea, string[]>>
 }
+
+export type TermSchedule = 'trimester' | 'quarterly'
+
+// Foundational core areas tracked term-by-term — mirrors
+// homeschool-api/models/schemas.py CORE_AREAS.
+export type CoreArea =
+  | 'phonics_language'
+  | 'mathematics'
+  | 'reading_literature'
+  | 'science'
+  | 'writing_composition'
+
+export const CORE_AREAS: Array<{ id: CoreArea; label: string }> = [
+  { id: 'phonics_language',    label: 'Phonics & Language' },
+  { id: 'mathematics',         label: 'Math' },
+  { id: 'reading_literature',  label: 'Reading & Literature' },
+  { id: 'science',             label: 'Science' },
+  { id: 'writing_composition', label: 'Writing & Composition' },
+]
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -171,6 +199,10 @@ export interface NarrationAssessmentData {
   adaptive_signal: 'advance' | 'repeat' | 'review_prerequisite'
   bede_observation: string
   assessed_at: string
+  // Term-outcome evidence — present only when the exchange demonstrated one
+  // of the parent's term mastery topics (see SessionConfig.term_mastery_topics).
+  term_topic?: string | null
+  term_topic_level?: 'introduced' | 'developing' | 'mastered' | null
 }
 
 export interface LearnerProfileData {

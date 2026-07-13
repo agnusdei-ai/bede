@@ -724,9 +724,9 @@ The child who discovers is the child who remembers; the child who reasons is the
 
 
 def _diagnostic_guidance(config: SessionConfig) -> str:
-    """Subject-agnostic <diagnostic_guidance> block — only ever included
-    when is_demo=True (see _build_static_prompt). Depends only on
-    config.student_name, already part of the cached static block, so
+    """Subject-agnostic <diagnostic_guidance> block — unconditionally
+    included in the static prompt (see _build_static_prompt). Depends only
+    on config.student_name, already part of the cached static block, so
     including it doesn't change per-turn cache safety."""
     return f"""
 <diagnostic_guidance>

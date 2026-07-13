@@ -159,6 +159,11 @@ const IDLE_CONTINUE_SENTINEL = '[CONTINUE]'
 const IDLE_CONTINUE_MS = 60_000
 const MAX_CONSECUTIVE_AUTO_CONTINUES = 2
 
+// Mirrors MAX_UPLOAD_BYTES in homeschool-api/models/schemas.py — checked
+// client-side so an oversized handwriting-canvas drawing gets a clear
+// message instead of a round trip that ends in a raw 422.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
@@ -470,7 +475,16 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
 
       {showCanvas && (
         <HandwritingCanvas
-          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
+          onSubmit={(dataUrl) => {
+            const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+            if ((base64.length * 3) / 4 > MAX_UPLOAD_BYTES) {
+              setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ That drawing is too large (over ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB) — try a simpler sketch or fewer strokes.` }])
+              setShowCanvas(false)
+              return
+            }
+            setPendingDrawing(dataUrl)
+            setShowCanvas(false)
+          }}
           onCancel={() => setShowCanvas(false)}
         />
       )}

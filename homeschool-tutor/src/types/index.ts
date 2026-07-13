@@ -1,6 +1,11 @@
 import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
+// Mirrors MAX_UPLOAD_BYTES in homeschool-api/models/schemas.py — checked
+// client-side so an oversized handwriting-canvas drawing or narration file
+// gets a clear message instead of a round trip that ends in a raw 422.
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
 export type GradeStage = 'K-2' | '3-5' | '6-8'
 
 export type Subject =

@@ -6,6 +6,7 @@ import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
+import { MAX_UPLOAD_BYTES } from '../types'
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const [input, setInput] = useState('')
@@ -164,6 +165,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   }, [displayMessages])
 
   const handleDrawingSubmit = (imageDataUrl: string) => {
+    // Rough base64 → byte-size estimate (padding aside, close enough for a
+    // size check) — reject client-side rather than round-tripping a request
+    // the backend's own MAX_UPLOAD_BASE64_CHARS cap would bounce anyway.
+    const base64 = imageDataUrl.slice(imageDataUrl.indexOf(',') + 1)
+    if ((base64.length * 3) / 4 > MAX_UPLOAD_BYTES) {
+      addToolMessage('error', `⚠️ That drawing is too large (over ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB) — try a simpler sketch or fewer strokes.`)
+      return
+    }
     setPendingDrawing(imageDataUrl)
     setShowCanvas(false)
   }
@@ -272,6 +281,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     const file = e.target.files?.[0]
     e.target.value = ''  // allow re-selecting the same file next time
     if (!file || !token) return
+    if (file.size > MAX_UPLOAD_BYTES) {
+      addToolMessage('error', `⚠️ That file is too large (over ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB) — try a shorter narration export.`)
+      return
+    }
     setUploadingNarration(true)
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {

@@ -15,6 +15,25 @@ class GradeStage(str, Enum):
 VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 
 
+# ── Upload size ceiling — shared by every base64 file field below ───────────
+# 5MB raw before base64 encoding (base64 inflates ~4/3x, hence the ~7M char
+# cap on the encoded string). One number for both the handwriting canvas PNG
+# and a narration file upload, chosen so that:
+#   - it sits well inside nginx's client_max_body_size 12m proxy ceiling
+#     (homeschool-tutor/nginx.conf), leaving headroom for the rest of the
+#     JSON payload (conversation history, tool schemas);
+#   - it comfortably covers a real canvas drawing or scanned notebook page
+#     without letting a single upload balloon a turn's token/context cost —
+#     Claude's vision input is downscaled beyond ~1568-2576px long edge
+#     anyway (see docs/), so bytes past a well-compressed image buy nothing.
+# Nothing is persisted server-side across a session (images go straight to
+# the model and are never written to the database), so there's no separate
+# "cumulative per-session storage" concern to guard against here — only the
+# per-upload ceiling matters.
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_UPLOAD_BASE64_CHARS = 7_000_000  # ~5MB raw, accounting for base64's ~4/3 inflation
+
+
 def grade_to_stage(grade: str) -> GradeStage:
     """Maps a grade string to its Mater Amabilis-aligned stage (see
     services/ai_service.py's _STAGE_GUIDANCE for what each stage means for
@@ -126,8 +145,8 @@ class TutorRequest(BaseModel):
     child_message: str = Field(..., min_length=1, max_length=2000)
     # Base64 PNG (no "data:image/..." prefix) from the handwriting canvas, sent to
     # Claude as an image so Bede reads the child's actual work instead of a text
-    # placeholder. ~8MB base64 ceiling comfortably covers a canvas drawing.
-    drawing_image: Optional[str] = Field(default=None, max_length=8_000_000)
+    # placeholder. See MAX_UPLOAD_BYTES above for the size-limit rationale.
+    drawing_image: Optional[str] = Field(default=None, max_length=MAX_UPLOAD_BASE64_CHARS)
 
 
 class NarrationUploadRequest(BaseModel):
@@ -135,7 +154,7 @@ class NarrationUploadRequest(BaseModel):
     see POST /tutor/extract-narration and services/document_extraction.py.
     No file is stored; extraction happens in memory for one request only."""
     filename: str = Field(..., min_length=1, max_length=200)
-    content_base64: str = Field(..., min_length=1, max_length=7_000_000)
+    content_base64: str = Field(..., min_length=1, max_length=MAX_UPLOAD_BASE64_CHARS)
 
 
 class SpeakRequest(BaseModel):

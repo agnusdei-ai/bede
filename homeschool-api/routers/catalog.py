@@ -1,5 +1,5 @@
 """
-Catalog router — Ambleside Online Year 1-3 reading list.
+Catalog router — Mater Amabilis Year 1-3 reading list.
 
 All routes require authentication (parent or child). The catalog is static
 in-memory data loaded from data/catalog/ JSON files — no database queries.
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 async def list_years(
     _: dict = Depends(require_real_user),
 ) -> list[int]:
-    """Return the sorted list of available Ambleside Online curriculum years."""
+    """Return the sorted list of available Mater Amabilis curriculum years."""
     return get_years()
 
 

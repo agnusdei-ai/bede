@@ -43,6 +43,7 @@ class AuditEvent:
     SUSPICIOUS_REQUEST       = "suspicious_request"
     SAFEGUARDING             = "safeguarding.alert"
     SUMMARY_EMAILED          = "summary.emailed"
+    DIAGNOSTIC_VIEW          = "diagnostic.view"
     FEEDBACK_SUBMITTED       = "feedback.submitted"
 
 

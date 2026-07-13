@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, Timer, Infinity } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
+  fetchDiagnosticSummary, streamDiagnosticChat,
   TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
-  type FeedbackCategory,
+  type FeedbackCategory, type MasteryProfileSummary,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -53,26 +54,20 @@ function friendlyErrorMessage(err: unknown, fallback: string): string {
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
 
-function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) => void }) {
+function CodeScreen({ onLoggedIn }: {
+  onLoggedIn: (token: string, code: string) => void
+}) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
-  const [showByokAnthropic, setShowByokAnthropic] = useState(false)
-  const [showByokOpenai, setShowByokOpenai] = useState(false)
-  // Deliberately NOT cached in sessionStorage like name/grade above — these
-  // are real secrets, not display preferences, and re-entering them each
-  // time is the right tradeoff (same "never persist a secret client-side"
-  // rule the rest of this app already follows for every other credential).
-  const [byokAnthropicKey, setByokAnthropicKey] = useState('')
-  const [byokOpenaiKey, setByokOpenaiKey] = useState('')
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
     try {
-      const code = await generateDemoCode(studentName, grade, byokAnthropicKey, byokOpenaiKey)
+      const code = await generateDemoCode(studentName, grade)
       const { token } = await loginWithCode(code)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
@@ -89,7 +84,8 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
         <div className="text-center mb-6">
           <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — a Socratic tutor</h1>
-          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each child's faith and learning</p>
+          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each child's potential</p>
+          <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
         </div>
 
         {/* Both optional — Bede adapts tone, narration pacing (oral vs.
@@ -129,83 +125,9 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
           </div>
         </div>
 
-        {showByokAnthropic ? (
-          <div className="mb-3">
-            <label htmlFor="byok-anthropic-key" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Your Anthropic API key
-            </label>
-            <input
-              id="byok-anthropic-key"
-              type="password"
-              autoComplete="off"
-              value={byokAnthropicKey}
-              onChange={(e) => setByokAnthropicKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400 font-mono"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Used only for your own session's requests, never saved anywhere. Get one at{' '}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="underline hover:text-navy-500">
-                console.anthropic.com
-              </a>.{' '}
-              <button type="button" onClick={() => { setShowByokAnthropic(false); setByokAnthropicKey('') }} className="underline hover:text-navy-500">
-                Never mind
-              </button>
-            </p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowByokAnthropic(true)}
-            className="text-xs text-navy-500 hover:text-navy-700 underline mb-3 block"
-          >
-            Have your own Anthropic API key? Skip the 15-minute cap
-          </button>
-        )}
-
-        {showByokOpenai ? (
-          <div className="mb-5">
-            <label htmlFor="byok-openai-key" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Your OpenAI API key
-            </label>
-            <input
-              id="byok-openai-key"
-              type="password"
-              autoComplete="off"
-              value={byokOpenaiKey}
-              onChange={(e) => setByokOpenaiKey(e.target.value)}
-              placeholder="sk-..."
-              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400 font-mono"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Bede tutors on GPT instead of Claude for this session. Used only for your own
-              requests, never saved anywhere. Get one at{' '}
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="underline hover:text-navy-500">
-                platform.openai.com
-              </a>.{' '}
-              <button type="button" onClick={() => { setShowByokOpenai(false); setByokOpenaiKey('') }} className="underline hover:text-navy-500">
-                Never mind
-              </button>
-            </p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowByokOpenai(true)}
-            className="text-xs text-navy-500 hover:text-navy-700 underline mb-5 block"
-          >
-            Have your own OpenAI API key instead? Use GPT, skip the cap
-          </button>
-        )}
-
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>
-            {byokAnthropicKey.trim() || byokOpenaiKey.trim()
-              ? 'A one-time 6-digit code just for you — unlimited time with your own key.'
-              : 'A one-time 6-digit code just for you, capped at 15 minutes.'}
-            {' '}This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.
-          </p>
+          <p>A one-time 6-digit code just for you. This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
@@ -234,7 +156,7 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
 // this can't loop forever talking to itself if a visitor has actually
 // walked away — it resets the moment the child sends a real message.
 const IDLE_CONTINUE_SENTINEL = '[CONTINUE]'
-const IDLE_CONTINUE_MS = 20_000
+const IDLE_CONTINUE_MS = 60_000
 const MAX_CONSECUTIVE_AUTO_CONTINUES = 2
 
 interface ChatScreenProps {
@@ -847,6 +769,211 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
   )
 }
 
+// ── Diagnostic preview (demo-scoped, no separate login) ───────────────────────
+//
+// Reachable straight from the "Mastery preview" link in the chat header,
+// using the exact same demo_code token the session already has — same
+// precedent as the "Ask Bede" sandbox link right next to it. Single-session
+// only: nothing here survives past this demo code's own lifetime. See
+// homeschool-api/routers/diagnostic.py.
+
+const _LEVEL_STYLES: Record<string, string> = {
+  secure: 'bg-emerald-100 text-emerald-700',
+  developing: 'bg-amber-100 text-amber-700',
+  gap: 'bg-red-100 text-red-700',
+}
+
+function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
+  token: string
+  onBack: () => void
+  onSessionInvalid: () => void
+}) {
+  const [summary, setSummary] = useState<MasteryProfileSummary | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [messages, setMessages] = useState<SandboxMessage[]>([])
+  const [input, setInput] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [chatError, setChatError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const loadSummary = useCallback(async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      setSummary(await fetchDiagnosticSummary(token))
+    } catch (err) {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid()
+        return
+      }
+      setLoadError(friendlyErrorMessage(err, 'Could not load the mastery summary'))
+    } finally {
+      setLoading(false)
+    }
+  }, [token, onSessionInvalid])
+
+  useEffect(() => { loadSummary() }, [loadSummary])
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || streaming) return
+    setChatError('')
+    const history: ChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }))
+    setMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: 'user', content: text },
+      { id: `assistant-${Date.now()}`, role: 'assistant', content: '' },
+    ])
+    setInput('')
+    setStreaming(true)
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    try {
+      let assembled = ''
+      for await (const chunk of streamDiagnosticChat(token, history, text, abortRef.current.signal)) {
+        if (chunk.type === 'text' && chunk.content) {
+          assembled += chunk.content
+          setMessages((prev) => {
+            const next = [...prev]
+            next[next.length - 1] = { ...next[next.length - 1], content: assembled }
+            return next
+          })
+        }
+      }
+    } catch (err) {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid()
+        return
+      }
+      setChatError(friendlyErrorMessage(err, 'Something went wrong'))
+      setMessages((prev) => prev.slice(0, -1))
+    } finally {
+      setStreaming(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-parchment-50">
+      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-3 flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="Back to the demo">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="w-8 h-8 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
+          <GraduationCap size={16} className="text-sage-600" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Diagnostic Preview</h1>
+          <p className="text-xs text-gray-500 leading-tight">Single-session only — nothing here is saved</p>
+        </div>
+        <button
+          onClick={loadSummary}
+          disabled={loading}
+          className="text-xs text-navy-500 hover:text-navy-700 underline disabled:opacity-40"
+        >
+          Refresh
+        </button>
+      </header>
+
+      <main className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {loading && (
+            <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-navy-400" /></div>
+          )}
+          {!loading && loadError && (
+            <p className="text-sm text-red-600 text-center">{loadError}</p>
+          )}
+          {!loading && !loadError && !summary && (
+            <p className="text-sm text-gray-400 text-center mt-8">
+              No mastery data yet — this builds up once some math tutoring happens in this demo session.
+              Try again with Refresh once the child has worked through a math question or two.
+            </p>
+          )}
+          {!loading && summary && (
+            <div className="bg-white rounded-xl border border-navy-100 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-800">{summary.student_name} — {summary.subject_area}</h2>
+                <span className="text-xs text-gray-400">{summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'}</span>
+              </div>
+              {summary.calibration && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                  Bede is still getting to know how {summary.student_name} thinks about math — early estimates.
+                </p>
+              )}
+              <div className="space-y-2 mb-3">
+                {summary.domains.map((d) => (
+                  <div key={d.domain}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-gray-600">{d.domain}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${_LEVEL_STYLES[d.level] ?? ''}`}>{d.level}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-navy-400" style={{ width: `${Math.round(d.average_probability * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {summary.gaps.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Gaps</p>
+                  <p className="text-xs text-gray-600">{summary.gaps.map((s) => s.label).join(', ')}</p>
+                </div>
+              )}
+              {summary.next_steps.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Next steps</p>
+                  <p className="text-xs text-gray-600">{summary.next_steps.map((s) => s.label).join(', ')}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {messages.map((m, i) => (
+              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                  m.role === 'user' ? 'bg-navy-500 text-white' : 'bg-white border border-sage-100 text-gray-800'
+                }`}>
+                  {m.content || (streaming && i === messages.length - 1 && (
+                    <Loader2 size={14} className="animate-spin text-gray-400" />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {chatError && (
+              <p className="text-xs text-red-600 flex items-center gap-1 justify-center">
+                <AlertCircle size={12} /> {chatError}
+              </p>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <div className="shrink-0 border-t border-navy-100 bg-white p-3">
+        <div className="max-w-2xl mx-auto flex items-end gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            placeholder="Ask about this child's math understanding, or homeschooling in general…"
+            rows={1}
+            disabled={streaming}
+            className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-sage-300 disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={streaming || !input.trim()}
+            className="p-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-600 transition-colors disabled:opacity-40"
+          >
+            {streaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Demo flow wrapper ─────────────────────────────────────────────────────────
 //
 // No message cap and no wall-clock timer — a code lasts for its own TTL
@@ -975,33 +1102,13 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
   )
 }
 
-// Free-tier demo sessions are capped at a flat 15 minutes — a shared,
-// operator-funded key has to have SOME hard ceiling regardless of how
-// engaged a visitor is, and 15 minutes is enough to see Bede's range across
-// a couple of subjects without one long conversation eating disproportionate
-// API cost. Purely client-enforced (no server-side timer), same pattern
-// homeschool-tutor's own grade-based session caps already use — the JWT's
-// own 2-hour expiry remains the real backstop either way. Reaching zero
-// calls setFinished(true) below, which routes to the SAME "Finish demo" flow
-// as if the visitor had ended it themselves — a graceful summary/email offer,
-// not a cold error screen, since running out of free time is an expected,
-// unsurprising outcome, not a fault.
-const DEMO_SESSION_CAP_MS = 15 * 60 * 1000
-const DEMO_SESSION_WARNING_MS = 2 * 60 * 1000
-
-function fmtCountdown(ms: number): string {
-  const totalSecs = Math.max(0, Math.ceil(ms / 1000))
-  const m = Math.floor(totalSecs / 60)
-  const s = totalSecs % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
+function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpenDiagnostic }: {
   token: string
   code: string
   onSessionEnded: () => void
   onLogout: () => void
   onOpenSandbox: () => void
+  onOpenDiagnostic: () => void
 }) {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
@@ -1010,7 +1117,6 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
   const [showFeedback, setShowFeedback] = useState(false)
   const sessionStartRef = useRef(Date.now())
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
-  const [remainingMs, setRemainingMs] = useState(DEMO_SESSION_CAP_MS)
 
   useEffect(() => {
     getDemoConfig(token).then(setConfig).catch((err) => setError(friendlyErrorMessage(err, 'Could not start your session')))
@@ -1018,22 +1124,6 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
     // deployment where FEEDBACK_EMAIL isn't set.
     isFeedbackEnabled().then(setFeedbackEnabled)
   }, [token])
-
-  // The 15-minute free-tier cap — ticks once a second so the header badge
-  // reads as a real countdown, not a static number; ends the demo exactly
-  // like the visitor clicking "Finish demo" once time runs out. Skipped
-  // entirely for a BYOK session (config.demo_uncapped) — the visitor's own
-  // key means the API cost isn't the operator's to cap. Waits for config to
-  // load first since demo_uncapped lives on it, not on anything known at mount.
-  useEffect(() => {
-    if (!config || config.demo_uncapped) return
-    const id = setInterval(() => {
-      const left = DEMO_SESSION_CAP_MS - (Date.now() - sessionStartRef.current)
-      setRemainingMs(left)
-      if (left <= 0) setFinished(true)
-    }, 1000)
-    return () => clearInterval(id)
-  }, [config])
 
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
@@ -1090,40 +1180,33 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
         sessionStateRef={sessionStateRef}
         header={
           <>
-            {config.demo_uncapped ? (
-              <div
-                title={`Free demo code: ${code} — unlimited time with your own Anthropic key`}
-                className="flex items-center gap-1 text-xs font-mono text-sage-600 shrink-0 whitespace-nowrap"
-              >
-                <Infinity size={12} /> No cap
-              </div>
-            ) : (
-              <div
-                title={`Free demo code: ${code} — sessions are capped at 15 minutes`}
-                className={`flex items-center gap-1 text-xs font-mono tabular-nums shrink-0 whitespace-nowrap ${
-                  remainingMs <= DEMO_SESSION_WARNING_MS ? 'text-red-500 font-semibold' : 'text-gray-400'
-                }`}
-              >
-                <Timer size={12} /> {fmtCountdown(remainingMs)}
-              </div>
-            )}
+            <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">
+              <KeyRound size={12} /> {code}
+            </div>
             <button
               onClick={onOpenSandbox}
               title="Preview the parent-only direct-answer sandbox"
-              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
               <FlaskConical size={12} /> Ask Bede
+            </button>
+            <button
+              onClick={onOpenDiagnostic}
+              title="Preview live mastery tracking for this session"
+              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
+            >
+              <GraduationCap size={12} /> Mastery preview
             </button>
             {feedbackEnabled && (
               <button
                 onClick={() => setShowFeedback(true)}
                 title="Tell us what's working and what isn't"
-                className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline shrink-0 whitespace-nowrap"
+                className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline"
               >
                 <MessageSquare size={12} /> Feedback
               </button>
             )}
-            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline shrink-0 whitespace-nowrap">
+            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
               Finish demo
             </button>
           </>
@@ -1156,6 +1239,7 @@ type Mode =
   | { kind: 'code-setup' }
   | { kind: 'code-chat'; token: string; code: string }
   | { kind: 'code-sandbox'; token: string; code: string }
+  | { kind: 'diagnostic-view'; token: string; code: string }
   | { kind: 'session-ended' }
 
 export default function App() {
@@ -1173,12 +1257,22 @@ export default function App() {
           onSessionEnded={() => setMode({ kind: 'session-ended' })}
           onLogout={() => setMode({ kind: 'code-setup' })}
           onOpenSandbox={() => setMode({ kind: 'code-sandbox', token: mode.token, code: mode.code })}
+          onOpenDiagnostic={() => setMode({ kind: 'diagnostic-view', token: mode.token, code: mode.code })}
         />
       )
 
     case 'code-sandbox':
       return (
         <DemoSandboxScreen
+          token={mode.token}
+          onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
+          onSessionInvalid={() => setMode({ kind: 'session-ended' })}
+        />
+      )
+
+    case 'diagnostic-view':
+      return (
+        <DiagnosticViewScreen
           token={mode.token}
           onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
           onSessionInvalid={() => setMode({ kind: 'session-ended' })}

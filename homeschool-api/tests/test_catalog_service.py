@@ -1,8 +1,8 @@
 """
 Regression tests for services/catalog_service.py's get_catechism_note() —
 grade-level orientation for Ignatius Press's Faith and Life catechetical
-series, used by the `saints` subject alongside the existing Ambleside
-Online book-list catalog. See data/catechism/faith_and_life.json's own
+series, used by the `saints` subject alongside the existing Mater Amabilis
+book-list catalog. See data/catechism/faith_and_life.json's own
 _comment for why this is thematic orientation, not a claimed-exhaustive
 chapter list or the books' actual copyrighted text.
 """

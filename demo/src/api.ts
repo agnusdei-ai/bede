@@ -66,11 +66,6 @@ export interface SessionConfig {
   voice_required?: boolean
   screen_time_limit_minutes?: number | null
   eye_rest_break_minutes?: number
-  // True only when this demo session was minted with the visitor's own
-  // Anthropic or OpenAI key (see generateDemoCode's byokAnthropicKey /
-  // byokOpenaiKey) — the 15-minute free-tier cap doesn't apply, since the
-  // API cost is on their own account.
-  demo_uncapped?: boolean
 }
 
 function apiBase(): string {
@@ -108,13 +103,8 @@ export function decodeExpiry(token: string): number | null {
  *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
 export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
 
-export async function generateDemoCode(
-  studentName?: string,
-  grade?: string,
-  byokAnthropicKey?: string,
-  byokOpenaiKey?: string,
-): Promise<string> {
-  const hasBody = (studentName && studentName.trim()) || grade || byokAnthropicKey || byokOpenaiKey
+export async function generateDemoCode(studentName?: string, grade?: string): Promise<string> {
+  const hasBody = (studentName && studentName.trim()) || grade
   const res = await fetch(`${apiBase()}/auth/demo-code`, {
     method: 'POST',
     ...(hasBody && {
@@ -122,17 +112,11 @@ export async function generateDemoCode(
       body: JSON.stringify({
         student_name: studentName?.trim() || undefined,
         grade: grade || undefined,
-        byok_anthropic_key: byokAnthropicKey?.trim() || undefined,
-        byok_openai_key: byokOpenaiKey?.trim() || undefined,
       }),
     }),
   })
   if (res.status === 404) throw new Error('The free demo is not enabled on this deployment.')
   if (res.status === 429) throw new Error('Too many demo sessions are active right now — please try again shortly.')
-  if (res.status === 400) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'That doesn\'t look like a valid API key.')
-  }
   if (!res.ok) throw new Error('Could not start a session right now — please try again.')
   const data = await res.json()
   return data.code
@@ -401,6 +385,97 @@ export async function* streamSandboxDemoChat(
 
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — generate a new code to keep going.')
   if (!res.ok) throw new Error('Sandbox request failed — check your connection')
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const jsonStr = line.slice(6).trim()
+      if (!jsonStr) continue
+      try {
+        const chunk: StreamChunk = JSON.parse(jsonStr)
+        yield chunk
+        if (chunk.type === 'done') return
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
+}
+
+// ── Diagnostic preview (demo-scoped, no separate login) ───────────────────────
+//
+// Reachable with the exact same demo_code token the current session
+// already has — no separate login, same precedent as the "Ask Bede"
+// sandbox preview. See routers/diagnostic.py. Single-session only: nothing
+// here survives past that demo code's own lifetime, same as everything
+// else about it.
+
+export type MasteryLevel = 'gap' | 'developing' | 'secure'
+
+export interface SkillMasteryView {
+  skill_id: string
+  label: string
+  domain: string
+  grade_band: string
+  probability: number
+  level: MasteryLevel
+}
+
+export interface DomainMasteryView {
+  domain: string
+  average_probability: number
+  level: MasteryLevel
+  skills: SkillMasteryView[]
+}
+
+export interface MasteryProfileSummary {
+  student_name: string
+  subject_area: string
+  evidence_count: number
+  calibration: boolean
+  domains: DomainMasteryView[]
+  gaps: SkillMasteryView[]
+  next_steps: SkillMasteryView[]
+  updated_at: string
+}
+
+export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {
+  const res = await fetch(`${apiBase()}/diagnostic/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 404) return null
+  if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
+  if (!res.ok) throw new Error('Could not load the mastery summary right now.')
+  return res.json()
+}
+
+export async function* streamDiagnosticChat(
+  token: string,
+  history: ChatMessage[],
+  message: string,
+  signal?: AbortSignal
+): AsyncGenerator<StreamChunk> {
+  const res = await fetch(`${apiBase()}/diagnostic/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ conversation_history: history, message }),
+    signal,
+  })
+
+  if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
+  if (!res.ok) throw new Error('Diagnostic chat request failed — check your connection')
 
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()

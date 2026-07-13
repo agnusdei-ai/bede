@@ -1,6 +1,6 @@
 {
   "year": 1,
-  "description": "Ambleside Online Year 1 — Charlotte Mason living books curriculum for grades K-1. Emphasis on oral narration, nature observation, and wonder-filled discovery through short, rich lessons.",
+  "description": "Mater Amabilis Year 1 living books curriculum for grades K-1. Emphasis on oral narration, nature observation, and wonder-filled discovery through short, rich lessons.",
   "books": [
     {
       "id": "y1-aesop",
@@ -67,7 +67,7 @@
         "character"
       ],
       "anti_twaddle": true,
-      "notes": "Charlotte Mason loved literature that illuminated character. Focus on Pooh's friendship with Piglet. One chapter per session."
+      "notes": "Mater Amabilis prizes literature that illuminates character. Focus on Pooh's friendship with Piglet. One chapter per session."
     },
     {
       "id": "y1-50-famous-stories",
@@ -155,7 +155,7 @@
         "character"
       ],
       "anti_twaddle": true,
-      "notes": "A timid city girl discovers competence and freedom on a Vermont farm. Rich in Charlotte Mason values — independence, real work, nature. Best for late Year 1 or early Year 2."
+      "notes": "A timid city girl discovers competence and freedom on a Vermont farm. Rich in Mater Amabilis values — independence, real work, nature. Best for late Year 1 or early Year 2."
     },
     {
       "id": "y1-child-history-world",
@@ -271,7 +271,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade K/1 scope (Common Core domains K.CC, K.OA, K.G, K.MD): counting and cardinality to 20 and beyond; one-to-one correspondence; comparing quantities (more/fewer/equal); simple addition and subtraction within 10 using real objects, never abstract algorithms first; recognizing and naming 2D/3D shapes; measurable attributes (longer/shorter, heavier/lighter). Charlotte Mason approach: manipulatives (buttons, blocks, fingers, nature-study specimens) and real-life counting (setting the table, counting steps) before any worksheet or written number sentence.",
+    "mathematics": "Grade K/1 scope (Common Core domains K.CC, K.OA, K.G, K.MD): counting and cardinality to 20 and beyond; one-to-one correspondence; comparing quantities (more/fewer/equal); simple addition and subtraction within 10 using real objects, never abstract algorithms first; recognizing and naming 2D/3D shapes; measurable attributes (longer/shorter, heavier/lighter). Mater Amabilis approach: manipulatives (buttons, blocks, fingers, nature-study specimens) and real-life counting (setting the table, counting steps) before any worksheet or written number sentence.",
     "art_music": "Composer: Wolfgang Amadeus Mozart — joyful, clear melodic lines, an ideal first composer for young ears. Listen to short, contrasting pieces (a symphony movement, a piano sonata, an aria) across the term, always the same composer, so the child begins to recognize his 'voice.' Artist: Vincent van Gogh — bold color and texture children respond to immediately (Sunflowers, The Starry Night, Wheatfield with Cypresses). Look at one picture per sitting, in silence first, then narrate what is seen before any facts are given. Poet: Christina Rossetti — short, musical poems written with children in mind (Sing-Song). Read aloud for rhythm and delight; memorization of a favorite stanza is welcome, analysis is not.",
     "language_arts": "Grade K/1: oral narration only — never require written composition at this age. Copywork is a single short sentence or a few words, hand-picked from that day's living book, focused on letter formation and the pleasure of beautiful handwriting rather than length. Phonemic awareness and reading practice happen alongside, not through this tutoring session. 'Tell it back to me in your own words' is the whole of narration at this stage.",
     "morning_time": "Opens with a short Scripture passage read aloud (a Gospel story or Psalm verse is ideal at this age), a simple hymn or folk song sung together, and a few lines of that term's poet (Christina Rossetti). Keep each element brief — a few minutes each — and warm rather than instructional."

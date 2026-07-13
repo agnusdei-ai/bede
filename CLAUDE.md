@@ -77,7 +77,7 @@ models/
 
 **SSE streaming format:** Each chunk is `data: {"type":"text","content":"..."}`, `data: {"type":"tool","tool":"<name>","content":"..."}`, or `data: {"type":"done"}`. Tool calls are accumulated in a buffer, JSON-parsed at `ContentBlockStop`, then formatted and emitted.
 
-**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`, `record_skill_evidence`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only); `record_skill_evidence` is stricter still — it emits nothing to the SSE stream at all (`(None, None)` from the dispatcher), silently persisting math-skill diagnostic evidence via `services/diagnostic/` (see `docs/diagnostic/`).
+**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`, `record_skill_evidence`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only); `record_skill_evidence` is stricter still — it emits nothing to the SSE stream at all, silently persisting math-skill diagnostic evidence via `_record_skill_evidence` (`services/ai_service.py`), which routes to exactly one of two backends: the real, db-backed `services/diagnostic/` (parent/child sessions) or the demo's in-memory `services/diagnostic_demo.py` (demo_code sessions only) — see `docs/diagnostic/`.
 
 ### Frontend (`homeschool-tutor/src/`)
 
@@ -129,7 +129,7 @@ finalizeAssistantMessage() → promotes placeholder to a real message, sets isSt
 
 ## Models
 
-- **Tutor:** `claude-sonnet-4-6` (streaming, `max_tokens: 400`, tight for Charlotte Mason brevity)
+- **Tutor:** `claude-sonnet-4-6` (streaming, `max_tokens: 400`, tight for Mater Amabilis brevity)
 - **Summary:** `claude-haiku-4-5-20251001` (non-streaming, `max_tokens: 600`, end-of-session parent report)
 
 To change models, update `tutor_model` / `session_model` in `core/config.py`.

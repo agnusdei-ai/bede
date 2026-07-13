@@ -287,7 +287,7 @@ Deliverable: `MasteryLevel`, `SkillMasteryView`, `DomainMasteryView`, `MasteryPr
 
 Verified anchors: `test_mastery_level_values_match_mastery_classify_exactly` cross-checks `MasteryLevel`'s three values against `mastery._MASTERY_LEVELS`'s actual level names rather than assuming they match by inspection; every `RecordSkillEvidenceInput` boundary (probe_id length, outcome literal, confidence range) is exercised with both valid and invalid values, including confirming an invented outcome (e.g. `"mastered"`) is rejected — matching the future tool description's own "never invent one" rule for `probe_id` extended here to `outcome` as well.
 
-**3.1** · branch `diagnostic/3.1` · PR: (filled in after PR creation, see follow-up commit) · **first Phase 3 unit — touches live child-facing code**
+**3.1** · branch `diagnostic/3.1` · PR: https://github.com/agnusdei-ai/bede/pull/43 (squash-merged to main) · **first Phase 3 unit — touches live child-facing code; reconciled with a concurrent session's demo diagnostic work, see decisions log**
 
 Check output (initial, pre-reconciliation): `pytest tests/test_record_skill_evidence.py -v` 7/7 passed; full backend suite 277 passed. **Post-reconciliation** (see the post-merge reconciliation decisions log entries for the full story): `pytest tests/test_record_skill_evidence.py tests/test_diagnostic_prompt_injection.py -v` 17/17 passed; `pytest tests/diagnostic/ -q` 145/145 passed (up from 136, +9 from the concurrent session's `test_diagnostic_demo.py`); full backend suite 284 passed, 7 skipped, 1 pre-existing unrelated failure (`numpy` missing) — no regressions anywhere, including the concurrent session's own tests.
 

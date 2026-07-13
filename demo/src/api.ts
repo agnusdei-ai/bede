@@ -302,6 +302,33 @@ export async function extractNarrationText(token: string, filename: string, cont
   return data.text
 }
 
+/** Shared line-buffered SSE parser used by the tutor, sandbox, and diagnostic chat streams. */
+async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const jsonStr = line.slice(6).trim()
+      if (!jsonStr) continue
+      try {
+        const chunk: StreamChunk = JSON.parse(jsonStr)
+        yield chunk
+        if (chunk.type === 'done') return
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
+}
+
 export async function* streamTutorChat(
   token: string,
   config: SessionConfig,
@@ -330,29 +357,7 @@ export async function* streamTutorChat(
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — generate a new code to keep going.')
   if (!res.ok) throw new Error('Tutor request failed — check your connection')
 
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const jsonStr = line.slice(6).trim()
-      if (!jsonStr) continue
-      try {
-        const chunk: StreamChunk = JSON.parse(jsonStr)
-        yield chunk
-        if (chunk.type === 'done') return
-      } catch {
-        // skip malformed chunk
-      }
-    }
-  }
+  yield* parseSSEStream(res)
 }
 
 /**
@@ -386,29 +391,7 @@ export async function* streamSandboxDemoChat(
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — generate a new code to keep going.')
   if (!res.ok) throw new Error('Sandbox request failed — check your connection')
 
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const jsonStr = line.slice(6).trim()
-      if (!jsonStr) continue
-      try {
-        const chunk: StreamChunk = JSON.parse(jsonStr)
-        yield chunk
-        if (chunk.type === 'done') return
-      } catch {
-        // skip malformed chunk
-      }
-    }
-  }
+  yield* parseSSEStream(res)
 }
 
 // ── Diagnostic preview (demo-scoped, no separate login) ───────────────────────
@@ -477,27 +460,5 @@ export async function* streamDiagnosticChat(
   if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
   if (!res.ok) throw new Error('Diagnostic chat request failed — check your connection')
 
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const jsonStr = line.slice(6).trim()
-      if (!jsonStr) continue
-      try {
-        const chunk: StreamChunk = JSON.parse(jsonStr)
-        yield chunk
-        if (chunk.type === 'done') return
-      } catch {
-        // skip malformed chunk
-      }
-    }
-  }
+  yield* parseSSEStream(res)
 }

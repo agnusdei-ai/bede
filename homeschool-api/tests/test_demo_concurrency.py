@@ -70,6 +70,22 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+async def _truncate_demo_tables(database_url: str) -> None:
+    """Wipes demo_code_sessions/diagnostic_preview_uses on the target
+    Postgres before this module's tests run — see the call site's own
+    comment for why this became necessary once those tables stopped being
+    an in-memory dict this subprocess could just let die with it."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from core.database import normalize_database_url
+
+    engine = create_async_engine(normalize_database_url(database_url))
+    async with engine.begin() as conn:
+        await conn.execute(text("TRUNCATE TABLE demo_code_sessions, diagnostic_preview_uses"))
+    await engine.dispose()
+
+
 @pytest.fixture(scope="module")
 def demo_api_base_url():
     port = _free_port()
@@ -128,6 +144,19 @@ def demo_api_base_url():
             "Could not start homeschool-api for the demo concurrency test "
             f"(is Postgres reachable at {env['DATABASE_URL']}?). Server output:\n{output}"
         )
+
+    # demo_code_sessions/diagnostic_preview_uses now persist in Postgres
+    # (see core/demo_code_session.py's move off in-memory storage) instead
+    # of living in a dict this subprocess wiped on exit — without this,
+    # codes minted by an earlier run of this file stick around for their
+    # full 6h TTL and count against _MAX_ACTIVE_CODES, so a second run
+    # within that window can start failing generate_code with 429s purely
+    # from prior-run leftovers, not a real regression. Table creation is
+    # guaranteed to have already happened by the time /health returned 200
+    # above (main.py's lifespan runs create_tables() before the app starts
+    # serving), so it's safe to truncate here rather than guard for
+    # "table doesn't exist yet."
+    asyncio.run(_truncate_demo_tables(env["DATABASE_URL"]))
 
     yield base_url
 

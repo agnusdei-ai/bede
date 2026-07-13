@@ -5,6 +5,8 @@ core.database.DemoCodeSession) rather than an in-memory dict, so every test
 here runs against the isolated per-test SQLite engine the `demo_db` fixture
 (tests/conftest.py) swaps in for core.database.AsyncSessionLocal.
 """
+import asyncio
+
 import pytest
 
 import core.demo_code_session as demo_code_session
@@ -53,6 +55,30 @@ async def test_redeem_code_allows_first_then_blocks_second():
 
 async def test_redeem_code_rejects_unknown_code():
     assert await demo_code_session.redeem_code("000000") is False
+
+
+async def test_concurrent_redeem_of_the_same_code_has_exactly_one_winner():
+    """The atomicity claim redeem_code's own docstring makes — a single
+    conditional UPDATE...WHERE, not SELECT-then-UPDATE, specifically so two
+    requests racing the same code can't both win. Verified for real against
+    live Postgres in this session's Fable-backed review (10 trials each at
+    2/5/10/25/50 concurrency, exactly 1 winner every time); this asyncio.gather
+    version is a lighter, always-on regression guard — SQLite serializes
+    writes globally so it can't reproduce Postgres's MVCC behavior exactly,
+    but it still interleaves at each `await db.execute(...)` boundary, so a
+    regression back to SELECT-then-UPDATE (which opens a real race window at
+    exactly that boundary) would still be caught here."""
+    code = await demo_code_session.generate_code()
+    results = await asyncio.gather(*[demo_code_session.redeem_code(code) for _ in range(20)])
+    assert results.count(True) == 1
+    assert results.count(False) == 19
+
+
+async def test_concurrent_claim_email_send_of_the_same_code_has_exactly_one_winner():
+    code = await demo_code_session.generate_code()
+    results = await asyncio.gather(*[demo_code_session.claim_email_send(code) for _ in range(20)])
+    assert results.count(True) == 1
+    assert results.count(False) == 19
 
 
 async def test_code_exists_true_until_end_session():

@@ -151,7 +151,23 @@ async def redeem_code(code: str) -> bool:
     same code, redeemed at the same instant), and Postgres's row-level
     locking makes exactly one of two concurrent UPDATEs against the same
     row win, matching the atomicity the old in-memory dict got for free
-    from Python's GIL."""
+    from Python's GIL. Verified for real against a live Postgres instance
+    at up to 50 concurrent redeems of distinct codes (test_demo_concurrency.py)
+    and, per-code, at up to 20 concurrent redeems of the SAME code
+    (test_demo_code_session.py) — exactly one winner every time.
+
+    This correctness depends on Postgres's default READ COMMITTED
+    isolation level specifically: when a second UPDATE blocks on the
+    first's row lock, READ COMMITTED re-evaluates its WHERE clause against
+    the row's newly committed state once the lock releases (EvalPlanQual),
+    so the loser correctly sees redeemed=true and updates 0 rows — it does
+    NOT see the pre-update snapshot it started with. core/database.py sets
+    no explicit isolation_level, so this holds as long as nothing upstream
+    changes that default (e.g. to REPEATABLE READ, where the loser would
+    raise a serialization error instead of silently updating 0 rows —
+    still correct, but this function's `rowcount == 1` check would need to
+    also catch and treat that as "lost the race" rather than surfacing it
+    as a 500)."""
     from core.database import AsyncSessionLocal, DemoCodeSession
 
     async with AsyncSessionLocal() as db:

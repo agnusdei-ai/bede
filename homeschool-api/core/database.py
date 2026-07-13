@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 
 from fastapi import Depends
-from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String
+from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String, UniqueConstraint
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -353,6 +353,18 @@ class DiagnosticPreviewUse(Base):
     queryable, must not be reversible."
     """
     __tablename__ = "diagnostic_preview_uses"
+    __table_args__ = (
+        # record_use() already checks-then-inserts to stay idempotent per
+        # (ip_hash, code), but that check isn't atomic with the insert — two
+        # concurrent record_use calls for the same brand-new (ip, code) pair
+        # could both pass the check and both insert. A duplicate row there
+        # is harmless on its own (has_quota reads distinct codes into a
+        # set), but the constraint closes the race outright rather than
+        # relying on that being true forever; core.diagnostic_preview_quota
+        # treats a violation as "someone else already recorded this" and
+        # swallows it.
+        UniqueConstraint("ip_hash", "code", name="uq_diagnostic_preview_uses_ip_hash_code"),
+    )
 
     id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True

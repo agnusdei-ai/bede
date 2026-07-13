@@ -155,6 +155,6 @@ async def logout(request: Request, auth: dict = Depends(require_auth)):
     """
     ctx = audit_from_request(request)
     if auth.get("role") == "demo_code":
-        end_code_session(auth.get("code", ""))
+        await end_code_session(auth.get("code", ""))
     await log_event(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
     return {"success": True}

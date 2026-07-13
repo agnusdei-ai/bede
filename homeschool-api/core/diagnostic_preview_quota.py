@@ -36,6 +36,7 @@ import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 
 from core.config import settings
 
@@ -122,4 +123,15 @@ async def record_use(ip: str, code: str) -> None:
         )).scalar_one_or_none()
         if existing is None:
             db.add(DiagnosticPreviewUse(ip_hash=ip_hash, code=code))
-        await db.commit()
+            try:
+                await db.commit()
+            except IntegrityError:
+                # Lost a race against a concurrent record_use for this
+                # exact (ip, code) pair — the uq_diagnostic_preview_uses_
+                # ip_hash_code constraint caught it, which means the use is
+                # already recorded either way. Not an error from the
+                # caller's perspective (see this function's own docstring:
+                # idempotent per (ip, code)).
+                await db.rollback()
+        else:
+            await db.commit()

@@ -1,4 +1,3 @@
-import anthropic
 import json
 import logging
 import random
@@ -17,12 +16,9 @@ from models.schemas import (
     SUBJECT_LABELS,
     SessionSummaryRequest,
 )
-from core.config import settings
+from services.model_providers import TextDelta, ToolCall, get_provider
 
 log = logging.getLogger(__name__)
-
-# Single shared async client — avoids re-initialising on every request
-_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 # Max conversation turns sent to Claude per request (sliding window)
 _HISTORY_WINDOW = 20
@@ -1091,8 +1087,18 @@ async def stream_tutor_response(
         {**TUTOR_TOOLS[-1], "cache_control": {"type": "ephemeral"}},
     ]
 
-    async with _client.messages.stream(
-        model=settings.tutor_model,
+    provider = get_provider()
+
+    # True only when the most recent visible thing in this turn was a
+    # questionless tool card with no text after it — see
+    # _QUESTIONLESS_TOOLS above. Reset to False the moment real text
+    # streams, so this only reflects what actually happened LAST.
+    ends_on_questionless_tool = False
+
+    async for event in provider.stream(
+        system=system,
+        messages=messages,
+        tools=tools_with_cache,
         # Keep responses tight (Mater Amabilis lesson brevity) but leave real
         # headroom for a tool call's own content plus trailing text — 400 cut
         # it too close for a verbose celebrate_discovery/connect_to_faith call
@@ -1100,96 +1106,49 @@ async def stream_tutor_response(
         # ends_on_questionless_tool fallback above is the real fix (guaranteed
         # regardless of budget); this is a secondary margin, not a substitute.
         max_tokens=500,
-        system=system,
-        messages=messages,
-        tools=tools_with_cache,
-    ) as stream:
-        tool_calls_buffer = {}
-        # True only when the most recent visible thing in this turn was a
-        # questionless tool card with no text after it — see
-        # _QUESTIONLESS_TOOLS above. Reset to False the moment real text
-        # streams, so this only reflects what actually happened LAST.
-        ends_on_questionless_tool = False
+    ):
+        if isinstance(event, TextDelta):
+            yield json.dumps({'type': 'text', 'content': event.text})
+            ends_on_questionless_tool = False
 
-        async for event in stream:
-            # Dispatch on the wire-protocol `.type` string, not the SDK's
-            # Python class name — the class names are an implementation
-            # detail that has changed across anthropic SDK versions (e.g.
-            # "ContentBlockStart" -> "RawContentBlockStartEvent"), silently
-            # breaking every branch below with zero exceptions raised, since
-            # every check just fell through. `.type` mirrors the documented
-            # API event/delta type strings and is stable across SDK versions.
-            event_type = event.type
+        elif isinstance(event, ToolCall):
+            tool_name, tool_input = event.name, event.input
+            if tool_name == "assess_narration":
+                # Silent server-side save; emit minimal event for frontend
+                summary = await _save_assessment(db, config.student_name, subject, tool_input)
+                if summary:
+                    yield json.dumps({'type': 'assessment', 'data': summary})
+            elif tool_name == "show_visual_aid":
+                aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
+                if aid:
+                    yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
+                else:
+                    log.warning(
+                        "Bede requested an unknown visual_aid_id: %r",
+                        tool_input.get("visual_aid_id"),
+                    )
+            elif tool_name == "suggest_next_subject":
+                yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
+                ends_on_questionless_tool = False
+            elif tool_name == "record_skill_evidence":
+                # Fully silent — no SSE chunk at all, stricter than
+                # assess_narration's minimal event. See
+                # _record_skill_evidence_demo's own docstring for
+                # why this only ever does anything for demo_code.
+                await _record_skill_evidence_demo(demo_code, config, subject, tool_input)
+            else:
+                tool_response = _process_tool_use(tool_name, tool_input)
+                if tool_response:
+                    yield json.dumps({'type': 'tool', 'tool': tool_name, 'content': tool_response})
+                    ends_on_questionless_tool = (
+                        tool_name in _QUESTIONLESS_TOOLS
+                        and not tool_input.get("reflection_question")
+                    )
 
-            if event_type == "content_block_start":
-                block = event.content_block
-                if hasattr(block, "type"):
-                    if block.type == "tool_use":
-                        tool_calls_buffer[block.id] = {
-                            "name": block.name,
-                            "input_str": "",
-                        }
+    if ends_on_questionless_tool:
+        yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
 
-            elif event_type == "content_block_delta":
-                delta = event.delta
-                delta_type = delta.type
-
-                if delta_type == "text_delta":
-                    yield json.dumps({'type': 'text', 'content': delta.text})
-                    ends_on_questionless_tool = False
-
-                elif delta_type == "input_json_delta":
-                    # Accumulate tool input JSON
-                    block_id = None
-                    for bid, tc in tool_calls_buffer.items():
-                        block_id = bid
-                    if block_id:
-                        tool_calls_buffer[block_id]["input_str"] += delta.partial_json
-
-            elif event_type == "content_block_stop":
-                for block_id, tc in list(tool_calls_buffer.items()):
-                    if tc["input_str"]:
-                        try:
-                            tool_input = json.loads(tc["input_str"])
-                            if tc["name"] == "assess_narration":
-                                # Silent server-side save; emit minimal event for frontend
-                                summary = await _save_assessment(db, config.student_name, subject, tool_input)
-                                if summary:
-                                    yield json.dumps({'type': 'assessment', 'data': summary})
-                            elif tc["name"] == "show_visual_aid":
-                                aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
-                                if aid:
-                                    yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
-                                else:
-                                    log.warning(
-                                        "Bede requested an unknown visual_aid_id: %r",
-                                        tool_input.get("visual_aid_id"),
-                                    )
-                            elif tc["name"] == "suggest_next_subject":
-                                yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
-                                ends_on_questionless_tool = False
-                            elif tc["name"] == "record_skill_evidence":
-                                # Fully silent — no SSE chunk at all, stricter than
-                                # assess_narration's minimal event. See
-                                # _record_skill_evidence_demo's own docstring for
-                                # why this only ever does anything for demo_code.
-                                await _record_skill_evidence_demo(demo_code, config, subject, tool_input)
-                            else:
-                                tool_response = _process_tool_use(tc["name"], tool_input)
-                                if tool_response:
-                                    yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
-                                    ends_on_questionless_tool = (
-                                        tc["name"] in _QUESTIONLESS_TOOLS
-                                        and not tool_input.get("reflection_question")
-                                    )
-                        except json.JSONDecodeError:
-                            pass
-                        tool_calls_buffer.pop(block_id, None)
-
-        if ends_on_questionless_tool:
-            yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
-
-        yield json.dumps({'type': 'done'})
+    yield json.dumps({'type': 'done'})
 
 
 async def generate_session_summary(req: SessionSummaryRequest) -> str:
@@ -1197,8 +1156,6 @@ async def generate_session_summary(req: SessionSummaryRequest) -> str:
     Generate a parent-facing session summary using the faster Haiku model.
     Lists what was covered, narrations recorded, and suggested follow-up.
     """
-    client = _client
-
     conversation_text = "\n".join(
         f"{m.role.upper()}: {m.content}" for m in req.conversation_history[-40:]
     )
@@ -1226,13 +1183,11 @@ Write a parent summary with these sections:
 
 Keep it warm, specific, and under 300 words. Address the parent directly."""
 
-    response = await client.messages.create(
-        model=settings.session_model,
-        max_tokens=600,
+    return await get_provider().complete(
+        system=None,
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=600,
     )
-
-    return response.content[0].text
 
 
 async def synthesize_learner_profile(
@@ -1271,13 +1226,13 @@ Also write bede_profile_notes: 2-3 warm, specific sentences describing how Bede 
 
 Return ONLY a JSON object with keys: trivium_stage, processing_style, narration_mode, attention_profile, bede_profile_notes. No markdown, no other text."""
 
-    response = await _client.messages.create(
-        model=settings.session_model,
-        max_tokens=400,
+    response_text = await get_provider().complete(
+        system=None,
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=400,
     )
 
-    text = response.content[0].text.strip()
+    text = response_text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
     return json.loads(text)
@@ -1328,14 +1283,13 @@ async def stream_sandbox_response(
     messages.append({"role": "user", "content": message})
     messages = messages[-_HISTORY_WINDOW:]
 
-    async with _client.messages.stream(
-        model=settings.tutor_model,
-        max_tokens=800,  # more room than the tutor's 500 — direct answers, not tight Socratic turns
+    async for event in get_provider().stream(
         system=_build_sandbox_prompt(custom_instructions),
         messages=messages,
-    ) as stream:
-        async for event in stream:
-            if event.type == "content_block_delta" and event.delta.type == "text_delta":
-                yield json.dumps({'type': 'text', 'content': event.delta.text})
+        tools=None,
+        max_tokens=800,  # more room than the tutor's 500 — direct answers, not tight Socratic turns
+    ):
+        if isinstance(event, TextDelta):
+            yield json.dumps({'type': 'text', 'content': event.text})
 
-        yield json.dumps({'type': 'done'})
+    yield json.dumps({'type': 'done'})

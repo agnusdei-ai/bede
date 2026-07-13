@@ -12,6 +12,19 @@ class Settings(BaseSettings):
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 
+    # ── Tutor model provider (pluggable) ──────────────────────────────────────
+    # "anthropic" (default, hosted Claude — best tutoring quality) or "local"
+    # (any OpenAI-compatible chat-completions server: Ollama, vLLM, llama.cpp
+    # server, LM Studio). Local is for a fully air-gapped deployment, or as a
+    # hedge against a compromised/poisoned hosted model — see
+    # docs/MODEL_PROVIDERS.md for the setup and its honest limits (this app
+    # can check the server answers as the configured model name; it cannot
+    # verify the weight file itself wasn't tampered with — that's an
+    # operator-side checksum step before pointing LOCAL_MODEL_BASE_URL at it).
+    model_provider: str = "anthropic"
+    local_model_base_url: str = "http://localhost:11434/v1"
+    local_model_name: str = ""
+
     # ── Voice output — self-hosted Kokoro TTS (undocumented internal fallback) ─
     # Not part of the documented setup path (docs/VOICE_SETUP.md covers only
     # OpenAI TTS below) — kept here purely as a code-level fallback for
@@ -186,6 +199,18 @@ class Settings(BaseSettings):
         "change-me-master-secret-32-chars-min",
         "0000",
     }
+
+    @model_validator(mode="after")
+    def require_local_model_name_when_selected(self) -> "Settings":
+        """MODEL_PROVIDER=local with no LOCAL_MODEL_NAME would silently send
+        every request with model="" to whatever's listening on
+        LOCAL_MODEL_BASE_URL — a misconfiguration, not a valid "use the
+        server's default" mode, since most OpenAI-compatible servers require
+        an explicit model id. Reject regardless of production mode, same as
+        the PIN-reuse check above."""
+        if self.model_provider == "local" and not self.local_model_name.strip():
+            raise ValueError("LOCAL_MODEL_NAME must be set when MODEL_PROVIDER=local")
+        return self
 
     @model_validator(mode="after")
     def reject_demo_pin_reuse(self) -> "Settings":

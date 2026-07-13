@@ -70,3 +70,19 @@ def test_unset_sandbox_pin_never_blocks_production_startup():
         master_secret="b" * 40,
     )
     assert s.sandbox_pin == ""
+
+
+# ── MODEL_PROVIDER / LOCAL_MODEL_NAME ────────────────────────────────────────
+
+def test_local_provider_without_model_name_rejected():
+    with pytest.raises(ValueError, match="LOCAL_MODEL_NAME"):
+        Settings(model_provider="local", local_model_name="")
+
+
+def test_local_provider_with_model_name_accepted():
+    s = Settings(model_provider="local", local_model_name="llama3.1:8b")
+    assert s.local_model_name == "llama3.1:8b"
+
+
+def test_anthropic_provider_default_never_requires_local_model_name():
+    assert Settings().model_provider == "anthropic"

@@ -67,6 +67,10 @@ routers/
   admin.py           GET /admin/status; GET /admin/audit
 services/
   ai_service.py      stream_tutor_response() + generate_session_summary()
+  model_providers/   Pluggable tutor-model backend (get_provider()) — AnthropicProvider (hosted Claude,
+                     default) or LocalProvider (any OpenAI-compatible self-hosted server: Ollama, vLLM,
+                     llama.cpp, LM Studio), for an air-gapped deployment or as a hedge against a
+                     compromised upstream model. See docs/MODEL_PROVIDERS.md.
   voice_auth.py      Resemblyzer speaker embedding + MFCC similarity scoring
   transcription.py   Whisper transcription for voice enrollment phrases
 models/

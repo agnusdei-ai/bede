@@ -1,80 +1,28 @@
 """
-Regression test for a live outage: stream_tutor_response() dispatched on
-type(event).__name__ against old anthropic SDK class names, and pre-formatted
-each chunk as a complete "data: ...\\n\\n" string yielded into
-EventSourceResponse. requirements.txt pins anthropic/sse-starlette with no
-upper bound, and a routine dependency-version bump silently broke both:
-event-type checks stopped matching (zero text/tool content ever streamed),
-and sse-starlette's real ASGI encoding re-wraps an already-"data: "-prefixed
-string, producing invalid "data: data: {...}" that the frontend's JSON.parse
-silently drops.
-
-This constructs the fake Claude stream from real anthropic.types objects
-(via model_validate on realistic wire-format payloads) rather than plain
-dicts/mocks, so a future SDK schema change fails this test loudly instead of
-being silently absorbed the way the class-name check was.
+Business-logic tests for stream_tutor_response()'s per-tool dispatch and its
+guaranteed-continuation fallback — independent of which model provider
+answered. These mock get_provider() directly with normalized TextDelta/
+ToolCall events; the raw-anthropic-SDK-event regression coverage this file
+used to carry now lives in tests/model_providers/test_anthropic_provider.py,
+against AnthropicProvider itself.
 """
 import json
-from contextlib import asynccontextmanager
 from unittest.mock import patch
 
 import pytest
-from anthropic.types import (
-    RawContentBlockDeltaEvent,
-    RawContentBlockStartEvent,
-    RawContentBlockStopEvent,
-)
 
 from models.schemas import GradeStage, SessionConfig, Subject
 from services import ai_service
+from services.model_providers.base import TextDelta, ToolCall
 
 
-def _text_events(text: str, index: int = 0):
-    yield RawContentBlockStartEvent.model_validate(
-        {"type": "content_block_start", "index": index, "content_block": {"type": "text", "text": ""}}
-    )
-    yield RawContentBlockDeltaEvent.model_validate(
-        {"type": "content_block_delta", "index": index, "delta": {"type": "text_delta", "text": text}}
-    )
-    yield RawContentBlockStopEvent.model_validate({"type": "content_block_stop", "index": index})
-
-
-def _tool_use_events(tool_id: str, name: str, tool_input: dict, index: int = 0):
-    import json as _json
-
-    yield RawContentBlockStartEvent.model_validate({
-        "type": "content_block_start", "index": index,
-        "content_block": {"type": "tool_use", "id": tool_id, "name": name, "input": {}},
-    })
-    yield RawContentBlockDeltaEvent.model_validate({
-        "type": "content_block_delta", "index": index,
-        "delta": {"type": "input_json_delta", "partial_json": _json.dumps(tool_input)},
-    })
-    yield RawContentBlockStopEvent.model_validate({"type": "content_block_stop", "index": index})
-
-
-class _FakeStream:
+class _FakeProvider:
     def __init__(self, events):
         self._events = events
 
-    def __aiter__(self):
-        return self._aiter()
-
-    async def _aiter(self):
+    async def stream(self, **kwargs):
         for event in self._events:
             yield event
-
-
-@asynccontextmanager
-async def _fake_messages_stream(**kwargs):
-    yield _FakeStream(list(_text_events("Hello there")))
-
-
-def _stream_of(events):
-    @asynccontextmanager
-    async def _fake(**kwargs):
-        yield _FakeStream(list(events))
-    return _fake
 
 
 def _config() -> SessionConfig:
@@ -82,7 +30,7 @@ def _config() -> SessionConfig:
 
 
 async def _run_stream(events) -> list[dict]:
-    with patch.object(ai_service._client.messages, "stream", side_effect=_stream_of(events)):
+    with patch.object(ai_service, "get_provider", return_value=_FakeProvider(events)):
         chunks = [
             chunk
             async for chunk in ai_service.stream_tutor_response(
@@ -96,29 +44,12 @@ async def _run_stream(events) -> list[dict]:
 
 
 @pytest.mark.asyncio
-async def test_stream_tutor_response_emits_text_from_real_sdk_events():
-    with patch.object(ai_service._client.messages, "stream", side_effect=_fake_messages_stream):
-        chunks = [
-            chunk
-            async for chunk in ai_service.stream_tutor_response(
-                config=_config(),
-                subject=Subject.living_books,
-                history=[],
-                child_message="[START]",
-            )
-        ]
-
-    assert len(chunks) >= 2, "expected at least a text chunk and a done chunk"
-
-    # Every yielded chunk must be plain JSON with no "data: " framing —
-    # EventSourceResponse owns that framing; a pre-formatted "data: ..."
-    # string here would come out double-wrapped and unparseable client-side.
-    parsed = [json.loads(c) for c in chunks]
+async def test_stream_tutor_response_emits_text():
+    parsed = await _run_stream([TextDelta("Hello there")])
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
-    assert text_chunks, "no text chunk was emitted — event-type dispatch is broken"
+    assert text_chunks, "no text chunk was emitted"
     assert "".join(p["content"] for p in text_chunks) == "Hello there"
-
     assert parsed[-1] == {"type": "done"}
 
 
@@ -136,10 +67,10 @@ async def test_stream_tutor_response_emits_text_from_real_sdk_events():
 
 @pytest.mark.asyncio
 async def test_celebrate_discovery_as_the_last_block_gets_a_fallback_question():
-    events = list(_tool_use_events(
-        "toolu_1", "celebrate_discovery",
-        {"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
-    ))
+    events = [ToolCall(
+        id="toolu_1", name="celebrate_discovery",
+        input={"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
+    )]
     parsed = await _run_stream(events)
 
     assert parsed[-1] == {"type": "done"}
@@ -151,8 +82,8 @@ async def test_celebrate_discovery_as_the_last_block_gets_a_fallback_question():
 @pytest.mark.asyncio
 async def test_no_fallback_appended_when_the_model_already_added_a_question():
     events = [
-        *_tool_use_events("toolu_1", "celebrate_discovery", {"specific_insight": "x", "encouragement": "y"}, index=0),
-        *_text_events(" What do you notice about the next bend in the river?", index=1),
+        ToolCall(id="toolu_1", name="celebrate_discovery", input={"specific_insight": "x", "encouragement": "y"}),
+        TextDelta(" What do you notice about the next bend in the river?"),
     ]
     parsed = await _run_stream(events)
 
@@ -163,9 +94,10 @@ async def test_no_fallback_appended_when_the_model_already_added_a_question():
 
 @pytest.mark.asyncio
 async def test_connect_to_faith_without_reflection_question_gets_a_fallback():
-    events = list(_tool_use_events(
-        "toolu_1", "connect_to_faith", {"connection": "Just as the river never stops moving, God's care never stops either."},
-    ))
+    events = [ToolCall(
+        id="toolu_1", name="connect_to_faith",
+        input={"connection": "Just as the river never stops moving, God's care never stops either."},
+    )]
     parsed = await _run_stream(events)
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
@@ -175,10 +107,10 @@ async def test_connect_to_faith_without_reflection_question_gets_a_fallback():
 
 @pytest.mark.asyncio
 async def test_connect_to_faith_with_reflection_question_gets_no_fallback():
-    events = list(_tool_use_events(
-        "toolu_1", "connect_to_faith",
-        {"connection": "The river never stops moving.", "reflection_question": "What else in creation never stops?"},
-    ))
+    events = [ToolCall(
+        id="toolu_1", name="connect_to_faith",
+        input={"connection": "The river never stops moving.", "reflection_question": "What else in creation never stops?"},
+    )]
     parsed = await _run_stream(events)
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
@@ -189,10 +121,45 @@ async def test_connect_to_faith_with_reflection_question_gets_no_fallback():
 async def test_offer_socratic_hint_as_last_block_gets_no_fallback():
     """offer_socratic_hint's hint_question already IS the turn's question —
     it's deliberately not in _QUESTIONLESS_TOOLS."""
-    events = list(_tool_use_events(
-        "toolu_1", "offer_socratic_hint", {"hint_question": "What shape does flowing water tend to carve?"},
-    ))
+    events = [ToolCall(
+        id="toolu_1", name="offer_socratic_hint",
+        input={"hint_question": "What shape does flowing water tend to carve?"},
+    )]
     parsed = await _run_stream(events)
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert not text_chunks, "offer_socratic_hint's own question should not trigger a redundant fallback"
+
+
+@pytest.mark.asyncio
+async def test_show_visual_aid_emits_visual_aid_event_for_known_id():
+    with patch.object(ai_service, "_lookup_visual_aid", return_value={"id": "mona-lisa", "title": "Mona Lisa"}):
+        events = [ToolCall(id="toolu_1", name="show_visual_aid", input={"visual_aid_id": "mona-lisa"})]
+        parsed = await _run_stream(events)
+
+    visual_events = [p for p in parsed if p["type"] == "visual_aid"]
+    assert visual_events == [{"type": "visual_aid", "visualAid": {"id": "mona-lisa", "title": "Mona Lisa"}}]
+
+
+@pytest.mark.asyncio
+async def test_show_visual_aid_silently_drops_unknown_id():
+    with patch.object(ai_service, "_lookup_visual_aid", return_value=None):
+        events = [ToolCall(id="toolu_1", name="show_visual_aid", input={"visual_aid_id": "made-up"})]
+        parsed = await _run_stream(events)
+
+    assert not any(p["type"] == "visual_aid" for p in parsed)
+    assert parsed[-1] == {"type": "done"}
+
+
+@pytest.mark.asyncio
+async def test_suggest_next_subject_emits_subject_complete_event():
+    events = [ToolCall(
+        id="toolu_1", name="suggest_next_subject",
+        input={"reason": "mastery", "message": "You've got this — let's move on!"},
+    )]
+    parsed = await _run_stream(events)
+
+    complete_events = [p for p in parsed if p["type"] == "subject_complete"]
+    assert complete_events == [{
+        "type": "subject_complete", "reason": "mastery", "content": "You've got this — let's move on!",
+    }]

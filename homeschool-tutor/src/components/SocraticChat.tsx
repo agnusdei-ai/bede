@@ -414,7 +414,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
-            <div className="flex items-center gap-2 text-navy-500 text-sm animate-pulse-soft">
+            <div className="flex items-center gap-2 text-sage-700 text-sm animate-pulse-soft">
               <Loader2 size={14} className="animate-spin" />
               <span>Bede is thinking…</span>
             </div>
@@ -422,14 +422,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         {/* Interim speech-to-text preview */}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-navy-200/60 text-navy-800 italic border border-navy-200 animate-pulse-soft">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft">
               {interim}…
             </div>
           </div>
         )}
         {isTranscribing && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-navy-200/60 text-navy-800 italic border border-navy-200 animate-pulse-soft flex items-center gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
               <Loader2 size={12} className="animate-spin" /> Transcribing…
             </div>
           </div>
@@ -439,9 +439,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
       {/* Drawing preview */}
       {pendingDrawing && (
-        <div className="px-4 pb-2 flex items-center gap-2 bg-white border-t border-parchment-200 pt-2">
-          <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-navy-200 shadow-sm" />
-          <div className="flex-1 text-xs text-navy-700">Drawing ready. Add a note, or just send it.</div>
+        <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
+          <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
+          <div className="flex-1 text-xs text-sage-800">Drawing ready. Add a note, or just send it.</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600">
             <X size={14} />
           </button>
@@ -449,14 +449,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       )}
 
       {/* Input bar */}
-      <div className="px-4 py-3 bg-white border-t border-parchment-200">
+      <div className="px-4 py-3 bg-parchment-50 border-t border-sage-200">
         <div className="flex gap-2 items-end">
           {/* Pen/drawing button */}
           <button
             onClick={() => setShowCanvas(true)}
             disabled={isStreaming || breakActive}
             title="Draw or write by hand"
-            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
+            className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             <PenLine size={18} />
           </button>
@@ -473,7 +473,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             onClick={() => narrationFileInputRef.current?.click()}
             disabled={isStreaming || breakActive || uploadingNarration}
             title="Upload narration from your notebook (e.g. inq)"
-            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
+            className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
           </button>
@@ -485,7 +485,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               title={ttsEnabled ? 'Mute Bede' : 'Unmute Bede'}
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
                 ttsEnabled
-                  ? 'bg-navy-100 text-navy-600 hover:bg-navy-200'
+                  ? 'bg-sage-100 text-sage-700 hover:bg-sage-200'
                   : 'bg-gray-100 text-gray-400 hover:text-gray-600'
               }`}
             >
@@ -515,7 +515,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
                   ? isListening
                     ? 'bg-red-500 text-white animate-pulse'
                     : 'bg-red-500 text-white'
-                  : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'
+                  : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'
               }`}
             >
               {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : voiceMode ? <MicOff size={18} /> : <Mic size={18} />}
@@ -539,13 +539,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
                 : 'Share your thoughts or answer Bede\'s question…'
             }
             rows={2}
-            className="flex-1 resize-none rounded-lg border border-navy-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white placeholder-gray-400 disabled:bg-gray-50"
+            className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white placeholder-gray-400 disabled:bg-gray-50"
           />
 
           <button
             onClick={() => send()}
             disabled={isStreaming || breakActive || (!input.trim() && !pendingDrawing)}
-            className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0"
+            className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0"
           >
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
@@ -619,12 +619,12 @@ function MessageBubble({ msg, studentName }: MsgProps) {
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? 'bg-navy-500 text-white rounded-br-sm'
-            : 'bg-white border border-navy-100 text-gray-800 rounded-bl-sm shadow-sm'
+            ? 'bg-sage-600 text-white rounded-br-sm'
+            : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'
         }`}
       >
-        {!isUser && <div className="text-xs font-semibold text-navy-600 mb-1">Bede</div>}
-        {isUser && <div className="text-xs font-semibold text-navy-100 mb-1">{studentName}</div>}
+        {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
+        {isUser && <div className="text-xs font-semibold text-sage-100 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>

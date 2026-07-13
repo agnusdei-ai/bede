@@ -371,8 +371,12 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40">
-      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-2">
+    // Chat mode leaves the plain white behind for a nature palette — warm
+    // parchment tan flowing into light sage, with leaf-green accents on the
+    // speaking surfaces (user bubbles, send button). All from the existing
+    // parchment/sage scales, i.e. colors that exist in nature.
+    <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100">
+      <header className="bg-parchment-50 border-b border-sage-200 shrink-0 px-4 py-2">
         <div className="flex items-center gap-3">
           <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover shrink-0" />
           <div className="flex-1 min-w-0 truncate">
@@ -394,7 +398,7 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
             id="subject-select"
             value={subject}
             onChange={(e) => setSubject(e.target.value as Subject)}
-            className="w-full text-sm font-medium border border-navy-300 rounded-lg pl-3 pr-2 py-2 bg-white text-navy-700 hover:border-navy-400 cursor-pointer transition-colors"
+            className="w-full text-sm font-medium border border-sage-300 rounded-lg pl-3 pr-2 py-2 bg-white text-sage-800 hover:border-sage-400 cursor-pointer transition-colors"
           >
             {subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
           </select>
@@ -406,29 +410,29 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
           <MessageBubble key={msg.id} msg={msg} studentName={displayName} />
         ))}
         {isStreaming && messages.at(-1)?.content === '' && !messages.at(-1)?.visualAid && (
-          <div className="flex items-center gap-2 text-navy-500 text-sm">
+          <div className="flex items-center gap-2 text-sage-700 text-sm">
             <Loader2 size={14} className="animate-spin" /> <span>Bede is thinking…</span>
           </div>
         )}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-navy-200/60 text-navy-800 italic border border-navy-200">{interim}…</div>
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200">{interim}…</div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
       {pendingDrawing && (
-        <div className="px-4 pb-2 flex items-center gap-2 bg-white border-t border-parchment-200 pt-2">
-          <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-navy-200 shadow-sm" />
-          <div className="flex-1 text-xs text-navy-700">Drawing ready. Add a note, or just send it.</div>
+        <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
+          <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
+          <div className="flex-1 text-xs text-sage-800">Drawing ready. Add a note, or just send it.</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
         </div>
       )}
 
-      <div className="px-4 py-3 bg-white border-t border-parchment-200">
+      <div className="px-4 py-3 bg-parchment-50 border-t border-sage-200">
         <div className="flex gap-2 items-end">
-          <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
+          <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
           </button>
           <input
@@ -442,15 +446,15 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
             onClick={() => narrationFileInputRef.current?.click()}
             disabled={isStreaming || uploadingNarration}
             title="Upload narration from your notebook (e.g. inq)"
-            className="p-2.5 rounded-lg bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
+            className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
           </button>
-          <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-navy-100 text-navy-600' : 'bg-gray-100 text-gray-400'}`}>
+          <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleMic} disabled={isStreaming} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'}`}>
+            <button onClick={toggleMic} disabled={isStreaming} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
               {isListening ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
@@ -461,9 +465,9 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
             disabled={isStreaming}
             placeholder={isListening ? 'Listening… speak now' : 'Type or tap the mic to speak…'}
             rows={2}
-            className="flex-1 resize-none rounded-lg border border-navy-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white"
+            className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />
-          <button onClick={send} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
+          <button onClick={send} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
@@ -507,9 +511,9 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   const isUser = msg.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? 'bg-navy-500 text-white rounded-br-sm' : 'bg-white border border-navy-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
-        {!isUser && <div className="text-xs font-semibold text-navy-600 mb-1">Bede</div>}
-        {isUser && <div className="text-xs font-semibold text-navy-100 mb-1">{studentName}</div>}
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? 'bg-sage-600 text-white rounded-br-sm' : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+        {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
+        {isUser && <div className="text-xs font-semibold text-sage-100 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>

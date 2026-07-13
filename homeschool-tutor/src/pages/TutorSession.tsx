@@ -173,9 +173,13 @@ export default function TutorSession() {
   const subjectInfo = SUBJECT_MAP[currentSubject]
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40 overflow-hidden">
+    // Chat mode leaves the plain white behind for a nature palette — warm
+    // parchment tan flowing into light sage, with leaf-green accents on the
+    // speaking surfaces (see SocraticChat). All from the existing
+    // parchment/sage scales, i.e. colors that exist in nature.
+    <div className="h-screen flex flex-col bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100 overflow-hidden">
       {/* ── Minimal header ── */}
-      <header className="pt-safe bg-white border-b border-navy-100 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
+      <header className="pt-safe bg-parchment-50 border-b border-sage-200 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
         <img src="/bede-icon.png" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
 
         <span className="text-navy-700 font-semibold text-sm truncate max-w-[100px]">
@@ -187,10 +191,10 @@ export default function TutorSession() {
           onClick={() => setDrawerOpen(true)}
           className="flex flex-col items-start shrink-0"
         >
-          <span className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none mb-1">
+          <span className="text-[10px] font-semibold text-sage-600 uppercase tracking-wide leading-none mb-1">
             Learning Subject
           </span>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-navy-50 text-navy-700 text-sm font-medium border border-navy-200 hover:bg-navy-100 transition-colors">
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sage-100 text-sage-800 text-sm font-medium border border-sage-300 hover:bg-sage-200 transition-colors">
             {subjectInfo && <subjectInfo.Icon size={16} />}
             <span className="max-w-[140px] truncate">{subjectInfo?.label}</span>
             <ChevronDown size={14} />

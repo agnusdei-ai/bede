@@ -13,13 +13,35 @@ import { useState, useRef, useCallback, useEffect } from 'react'
  * in both paths prefers a male voice, never a gender-ambiguous or female one.
  */
 
+// Confirmed-female voices that carry no gender word in their name at all
+// — the exact case priority 4 below ("not explicitly labeled female") was
+// meant to guard against, and exactly where that heuristic used to fail.
+// "Google US English" is Chrome's own default English voice on desktop
+// (and often the ONLY English voice available at all on Linux/ChromeOS
+// Chrome installs with no extra OS voices) — a name that reads as
+// gender-neutral but is an audibly female voice, so it used to sail
+// through priority 4's "not explicitly female" check as a false "safe
+// pick." This is the confirmed, reported cause of voice output reverting
+// to a woman's voice specifically on Chrome even though every prior
+// priority was already trying not to pick one.
+const KNOWN_FEMALE_VOICE_NAMES = new Set([
+  'Google US English',
+  'Google UK English Female',
+  'Samantha', 'Victoria', 'Karen', 'Moira', 'Tessa', 'Fiona', 'Kate',
+  'Microsoft Zira - English (United States)',
+  'Microsoft Jenny - English (United States)',
+  'Microsoft Aria - English (United States)',
+  'Microsoft Hazel - English (United Kingdom)',
+  'Microsoft Susan - English (United Kingdom)',
+])
+
 // A name containing "female" also contains "male" as a literal substring
 // ("fe-MALE") — naively checking name.includes('male') alone matches female
 // voices too. Every male check below excludes isFemale() explicitly to
 // avoid this exact bug (a real, confirmed cause of picking a female voice
 // on at least one Android/Chrome device that labels voices "...Female").
 function isFemaleVoiceName(name: string): boolean {
-  return name.toLowerCase().includes('female')
+  return name.toLowerCase().includes('female') || KNOWN_FEMALE_VOICE_NAMES.has(name)
 }
 function isMaleVoiceName(name: string): boolean {
   return name.toLowerCase().includes('male') && !isFemaleVoiceName(name)

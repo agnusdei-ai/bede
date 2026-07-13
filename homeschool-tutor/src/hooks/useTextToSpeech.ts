@@ -161,12 +161,25 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
   const speakingRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stoppedRef = useRef(false)
+  // Bumped by stop() only (never by speak() — a second queued item within
+  // the same still-active turn must NOT invalidate an earlier one still
+  // mid-flight; see queueRef above). Each processQueue() pass captures the
+  // current value once and threads it through as myGeneration. Without
+  // this, a slow /api/tutor/speak response from an OLD turn could resolve
+  // AFTER a NEWER turn's own stop()-then-speak() sequence had already
+  // reset stoppedRef back to false, sail past that check, and start
+  // playing on top of (and clobbering audioRef for) the new turn's own
+  // audio — two Bedes talking at once. This is the actual bug a plain
+  // boolean can't catch: stoppedRef only remembers "was stop() the LAST
+  // thing that happened," not "is this SPECIFIC in-flight call still the
+  // one that should be allowed to play."
+  const generationRef = useRef(0)
 
   /** Tries the backend's cloud TTS. `spoke` is whether it actually played;
    *  `configured` (from the X-TTS-Configured header) is whether SOME
    *  backend TTS is set up at all — see processQueue() below for why the
    *  caller needs both, not just whether this one call succeeded. */
-  const speakViaBackend = useCallback(async (text: string): Promise<{ spoke: boolean; configured: boolean }> => {
+  const speakViaBackend = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean }> => {
     if (!token) return { spoke: false, configured: false }
     try {
       const res = await fetch('/api/tutor/speak', {
@@ -178,7 +191,12 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       lastKnownTtsConfigured = configured
       if (res.status !== 200) return { spoke: false, configured } // 204 = synthesis unavailable
       const blob = await res.blob()
-      if (stoppedRef.current) return { spoke: true, configured } // stop() fired while we were fetching
+      // A newer stop() has superseded this call while we were fetching —
+      // see generationRef's own comment for why stoppedRef alone can't
+      // catch this. Nothing between here and audio.play() below awaits
+      // anything, so one check here is sufficient — there's no gap left
+      // for another stop()/speak() to interleave into.
+      if (stoppedRef.current || generationRef.current !== myGeneration) return { spoke: true, configured }
       const url = URL.createObjectURL(blob)
       await new Promise<void>((resolve) => {
         const audio = new Audio(url)
@@ -188,17 +206,18 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
         audio.play().catch(() => resolve())
       })
       URL.revokeObjectURL(url)
-      audioRef.current = null
+      if (generationRef.current === myGeneration) audioRef.current = null
       return { spoke: true, configured }
     } catch {
       return { spoke: false, configured: lastKnownTtsConfigured }
     }
   }, [token])
 
-  const speakViaBrowser = useCallback((text: string): Promise<void> => {
+  const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
     return new Promise((resolve) => {
       if (!isSupported) { resolve(); return }
       resolveVoice().then((voice) => {
+        if (generationRef.current !== myGeneration) { resolve(); return }
         const utterance = new SpeechSynthesisUtterance(text)
         if (voice) utterance.voice = voice
         utterance.rate = 0.88     // slightly slower for children
@@ -222,14 +241,15 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     // tool cards) into one string before calling speak(), so a marker
     // emoji can appear mid-string, not just at position 0.
     const cleanText = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '')
+    const myGeneration = generationRef.current
 
     if (cleanText.trim() && !stoppedRef.current) {
-      const { spoke, configured } = await speakViaBackend(cleanText)
+      const { spoke, configured } = await speakViaBackend(cleanText, myGeneration)
       // Only the browser's own voice is a reasonable fallback when NOTHING
       // is configured server-side — a configured backend that failed this
       // one call stays silent rather than jarringly switching to a
       // different, lower-quality voice mid-conversation.
-      if (!spoke && !configured && !stoppedRef.current) await speakViaBrowser(cleanText)
+      if (!spoke && !configured && !stoppedRef.current) await speakViaBrowser(cleanText, myGeneration)
     }
 
     speakingRef.current = false
@@ -246,6 +266,7 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
 
   const stop = useCallback(() => {
     stoppedRef.current = true
+    generationRef.current += 1
     queueRef.current = []
     speakingRef.current = false
     setIsSpeaking(false)
@@ -261,9 +282,21 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     setEnabled((v) => !v)
   }, [enabled, stop])
 
+  // Cleans up on unmount too, not just when a caller explicitly calls
+  // stop() — navigating away from a screen that's mid-speech (e.g. this
+  // component unmounting because the app switched views) must not leave
+  // its audio playing in the background indefinitely, which the original
+  // version only did for the speechSynthesis fallback, never for the
+  // backend-audio path (audioRef).
   useEffect(() => {
-    if (!isSupported) return
-    return () => { window.speechSynthesis.cancel() }
+    return () => {
+      generationRef.current += 1
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+      if (isSupported) window.speechSynthesis.cancel()
+    }
   }, [isSupported])
 
   // Voice output works via the backend even in browsers without speechSynthesis

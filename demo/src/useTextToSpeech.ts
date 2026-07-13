@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { speakViaBackend } from './api'
 
 // Tries the backend's self-hosted Kokoro voice first (same one production
@@ -137,13 +137,28 @@ export function unlockSpeechForSession() {
 export function useTextToSpeech(speakToken: string | null = null) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Unlike homeschool-tutor's version of this hook, speak() here has no
+  // queue at all — every call is a fresh, standalone utterance that fully
+  // supersedes whatever came before it (callers already batch a whole
+  // turn into one joined string before calling speak() once). So this is
+  // bumped on EVERY speak() call, not just stop(): the moment a new
+  // speak() starts, any earlier call's still-in-flight backend request
+  // must never be allowed to start playing once it finally resolves —
+  // without this, a slow response from an OLD turn could land after a
+  // NEWER turn's own speak() had already started, and since nothing else
+  // here tracked that, it would just play on top of it — two Bedes
+  // talking at once.
+  const generationRef = useRef(0)
 
   // Returns whether it actually played AND whether some backend TTS is
   // configured at all — see speak() below for why both matter.
-  const speakViaKokoro = useCallback(async (text: string): Promise<{ spoke: boolean; configured: boolean }> => {
+  const speakViaKokoro = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean }> => {
     if (!speakToken) return { spoke: false, configured: false }
     const { audio: blob, configured } = await speakViaBackend(speakToken, text)
     if (!blob) return { spoke: false, configured }
+    // A newer speak() or stop() has superseded this call while we were
+    // waiting on the network — see generationRef's own comment.
+    if (generationRef.current !== myGeneration) return { spoke: true, configured }
     const url = URL.createObjectURL(blob)
     await new Promise<void>((resolve) => {
       const audio = new Audio(url)
@@ -153,14 +168,15 @@ export function useTextToSpeech(speakToken: string | null = null) {
       audio.play().catch(() => resolve())
     })
     URL.revokeObjectURL(url)
-    audioRef.current = null
+    if (generationRef.current === myGeneration) audioRef.current = null
     return { spoke: true, configured }
   }, [speakToken])
 
-  const speakViaBrowser = useCallback((text: string): Promise<void> => {
+  const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return }
       resolveVoice().then((voice) => {
+        if (generationRef.current !== myGeneration) { resolve(); return }
         const utterance = new SpeechSynthesisUtterance(text)
         if (voice) utterance.voice = voice
         utterance.rate = 0.88
@@ -172,26 +188,42 @@ export function useTextToSpeech(speakToken: string | null = null) {
     })
   }, [])
 
+  const stop = useCallback(() => {
+    generationRef.current += 1
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    setIsSpeaking(false)
+  }, [])
+
   const speak = useCallback(async (text: string) => {
     // No `^` anchor: callers now batch a whole turn's segments (main text +
     // any tool cards) into one string before calling speak(), so a marker
     // emoji can appear mid-string, not just at position 0.
     const clean = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '').trim()
     if (!clean) return
+    generationRef.current += 1
+    const myGeneration = generationRef.current
     setIsSpeaking(true)
-    const { spoke, configured } = await speakViaKokoro(clean)
+    const { spoke, configured } = await speakViaKokoro(clean, myGeneration)
     // Only the browser's own voice is a reasonable fallback when NOTHING is
     // configured server-side — a configured backend that failed this one
     // call stays silent rather than jarringly switching to a different,
     // lower-quality voice mid-conversation.
-    if (!spoke && !configured) await speakViaBrowser(clean)
-    setIsSpeaking(false)
+    if (!spoke && !configured && generationRef.current === myGeneration) await speakViaBrowser(clean, myGeneration)
+    if (generationRef.current === myGeneration) setIsSpeaking(false)
   }, [speakViaKokoro, speakViaBrowser])
 
-  const stop = useCallback(() => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
-    setIsSpeaking(false)
+  // Unmount cleanup — a screen switch (e.g. main chat -> Mastery preview)
+  // unmounts this hook's owning component; without this, any audio that
+  // was still playing at that moment keeps playing in the background with
+  // nothing left able to stop it, since stop() is a function on an
+  // instance that no longer exists once unmounted.
+  useEffect(() => {
+    return () => {
+      generationRef.current += 1
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    }
   }, [])
 
   return { speak, stop, isSpeaking }

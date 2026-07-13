@@ -11,11 +11,18 @@ from services.diagnostic_demo import get_mastery_summary_demo
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 
 
-def _require_diagnostic_parent(auth: dict = Depends(require_auth)) -> dict:
-    if auth.get("role") != "diagnostic_parent":
+def _require_demo_code(auth: dict = Depends(require_auth)) -> dict:
+    """
+    No separate login — reachable with the exact same demo_code token the
+    child's own session already has (like the "Ask Bede" sandbox preview),
+    since this is single-session, non-sensitive preview data, not a real
+    family's data. Still not reachable by parent/child (production) — see
+    homeschool-tutor isolation note on get_diagnostic_summary below.
+    """
+    if auth.get("role") != "demo_code":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This preview is only available through the diagnostic login",
+            detail="This preview is only available through the public demo login",
         )
     return auth
 
@@ -23,13 +30,14 @@ def _require_diagnostic_parent(auth: dict = Depends(require_auth)) -> dict:
 @router.get("/summary", response_model=MasteryProfileSummary)
 async def get_diagnostic_summary(
     request: Request,
-    auth: dict = Depends(_require_diagnostic_parent),
+    auth: dict = Depends(_require_demo_code),
 ) -> MasteryProfileSummary:
     """
-    Render-only mastery summary for the demo code this diagnostic_parent
-    token is tied to — built entirely from that code's in-memory session
-    state (services/diagnostic_demo.py), never a database. 404 until the
-    child's demo session has actually produced some real math evidence.
+    Render-only mastery summary for the current demo session — built
+    entirely from that code's in-memory state (services/diagnostic_demo.py),
+    never a database. 404 until the session has actually produced some
+    real math evidence. demo_code-only, so this never reaches
+    homeschool-tutor/production data.
     """
     code = auth.get("code", "")
     student_name, _grade = get_personalization(code)
@@ -41,7 +49,7 @@ async def get_diagnostic_summary(
         )
     await log_event(
         AuditEvent.DIAGNOSTIC_VIEW,
-        role="diagnostic_parent",
+        role="demo_code",
         student_name=student_name,
         success=True,
         **audit_from_request(request),
@@ -52,15 +60,16 @@ async def get_diagnostic_summary(
 @router.post("/chat")
 async def diagnostic_chat(
     req: DiagnosticChatRequest,
-    auth: dict = Depends(_require_diagnostic_parent),
+    auth: dict = Depends(_require_demo_code),
 ):
     """
     Direct-answer chat for the diagnostic preview — same relaxed,
     non-Socratic persona as the SANDBOX_PIN sandbox (routers/sandbox.py),
     reused via stream_sandbox_response, with the current mastery summary
-    (if any) woven in as context so the parent can ask about their child's
-    actual gaps/next-steps, not just generic homeschooling questions.
-    Nothing here is persisted — same as the sandbox it's modeled on.
+    (if any) woven in as context so whoever's viewing the preview can ask
+    about the actual gaps/next-steps, not just generic homeschooling
+    questions. Nothing here is persisted — same as the sandbox it's
+    modeled on.
     """
     code = auth.get("code", "")
     student_name, _grade = get_personalization(code)

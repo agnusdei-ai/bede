@@ -411,14 +411,13 @@ export async function* streamSandboxDemoChat(
   }
 }
 
-// ── Diagnostic preview (parent-only, demo-scoped) ─────────────────────────────
+// ── Diagnostic preview (demo-scoped, no separate login) ───────────────────────
 //
-// A separate login from the child's own demo session — a parent supplies
-// the same 6-digit demo code the child is using, plus DIAGNOSTIC_PIN, to
-// view a live mastery-tracking preview for that one session. See
-// homeschool-api/routers/auth.py's /auth/diagnostic-login and
-// routers/diagnostic.py. Single-session only: nothing here survives past
-// that demo code's own lifetime, same as everything else about it.
+// Reachable with the exact same demo_code token the current session
+// already has — no separate login, same precedent as the "Ask Bede"
+// sandbox preview. See routers/diagnostic.py. Single-session only: nothing
+// here survives past that demo code's own lifetime, same as everything
+// else about it.
 
 export type MasteryLevel = 'gap' | 'developing' | 'secure'
 
@@ -447,22 +446,6 @@ export interface MasteryProfileSummary {
   gaps: SkillMasteryView[]
   next_steps: SkillMasteryView[]
   updated_at: string
-}
-
-export async function diagnosticLogin(code: string, pin: string): Promise<string> {
-  const res = await fetch(`${apiBase()}/auth/diagnostic-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, pin }),
-  })
-  if (res.status === 404) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail || 'That demo code or the diagnostic preview could not be found.')
-  }
-  if (res.status === 401) throw new Error('Incorrect diagnostic PIN.')
-  if (!res.ok) throw new Error('Could not log in right now — please try again.')
-  const data = await res.json()
-  return data.access_token
 }
 
 export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {

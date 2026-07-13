@@ -133,17 +133,6 @@ class Settings(BaseSettings):
     # narration assessments, no session records, no audit-logged content.
     sandbox_pin: str = ""
 
-    # ── Diagnostic preview (optional, demo-only) ──────────────────────────────
-    # Same "empty = disabled" pattern as SANDBOX_PIN. Gates a PARENT-only login
-    # into the demo's mastery-tracking preview (routers/diagnostic.py) —
-    # separate from the child's own demo_code session, and separate from
-    # SANDBOX_PIN, since this is reachable by anyone who has a demo code, not
-    # just an already-authenticated real parent. Demo-scoped only: the
-    # resulting mastery data lives in the same in-memory, single-session
-    # store as everything else about a demo code (core/demo_code_session.py)
-    # — nothing here touches homeschool-tutor (production) or the database.
-    diagnostic_pin: str = ""
-
     # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
     # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
     # as DEMO_PIN) — a family only needs to set these if they want to enroll a
@@ -217,13 +206,6 @@ class Settings(BaseSettings):
             or (self.demo_pin and hmac.compare_digest(self.sandbox_pin, self.demo_pin))
         ):
             raise ValueError("SANDBOX_PIN must not match PARENT_PASSWORD, CHILD_PIN, or DEMO_PIN")
-        if self.diagnostic_pin and (
-            hmac.compare_digest(self.diagnostic_pin, self.parent_password)
-            or hmac.compare_digest(self.diagnostic_pin, self.child_pin)
-            or (self.demo_pin and hmac.compare_digest(self.diagnostic_pin, self.demo_pin))
-            or (self.sandbox_pin and hmac.compare_digest(self.diagnostic_pin, self.sandbox_pin))
-        ):
-            raise ValueError("DIAGNOSTIC_PIN must not match PARENT_PASSWORD, CHILD_PIN, DEMO_PIN, or SANDBOX_PIN")
         return self
 
     @model_validator(mode="after")
@@ -253,12 +235,6 @@ class Settings(BaseSettings):
         if self.sandbox_pin and not pin_is_strong(self.sandbox_pin):
             problems.append(
                 f"SANDBOX_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
-                "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
-            )
-        if self.diagnostic_pin and not pin_is_strong(self.diagnostic_pin):
-            problems.append(
-                f"DIAGNOSTIC_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
                 "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
             )

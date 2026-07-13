@@ -43,11 +43,6 @@ just push to `main` and it redeploys itself.
      address. `FEEDBACK_EMAIL` (where beta feedback is routed) is already set
      as a plain, non-secret value in `render.yaml` — it just does nothing
      until these two are filled in.
-   - `DIAGNOSTIC_PIN` — optional, off by default (empty = disabled). Gates a
-     separate parent-only login (not the child's demo session — the "Parent
-     diagnostic preview" link on the demo's landing screen) into a live,
-     single-session preview of the mastery-tracking diagnostic feature.
-     Same strength rules as `CHILD_PIN`/`DEMO_PIN` if you do set it.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
    to remember them) or a fixed non-secret value, including `CORS_ORIGINS`

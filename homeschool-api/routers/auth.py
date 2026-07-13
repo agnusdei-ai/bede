@@ -9,23 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import get_db
-from core.demo_code_session import (
-    code_exists as demo_code_exists,
-    end_session as end_code_session,
-    generate_code,
-    redeem_code,
-)
+from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
 from core.deps import require_auth
 from core.middleware import compute_fingerprint
 from core.security import create_access_token, decode_token, validate_fingerprint
-from models.schemas import (
-    DemoCodeRequest,
-    DemoCodeResponse,
-    DiagnosticLoginRequest,
-    LoginRequest,
-    TokenResponse,
-    VALID_GRADES,
-)
+from models.schemas import DemoCodeRequest, DemoCodeResponse, LoginRequest, TokenResponse, VALID_GRADES
 from services import mfa_service
 from services.ai_service import _sanitize_parent_field
 
@@ -125,42 +113,6 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     )
     await log_event(AuditEvent.AUTH_SUCCESS, role=req.role, success=True, **ctx)
     return TokenResponse(access_token=token, role=req.role)
-
-
-@router.post("/diagnostic-login", response_model=TokenResponse)
-async def diagnostic_login(req: DiagnosticLoginRequest, request: Request):
-    """
-    Parent-only login into the demo's mastery-tracking preview — separate
-    from the child's own demo_code session, reachable by anyone who knows
-    both a live demo code and DIAGNOSTIC_PIN (e.g. a parent watching their
-    child use the demo). Gated on DIAGNOSTIC_PIN being set (empty =
-    disabled, same pattern as DEMO_PIN/SANDBOX_PIN). Unlike SANDBOX_PIN
-    (an extra check layered on an already-authenticated parent session),
-    this issues its own token, since there's no real parent session to
-    layer onto here — the demo has none.
-
-    Once logged in, guidance is unrestricted (direct answers, not
-    Socratic) — same relaxed-persona precedent as the SANDBOX_PIN sandbox,
-    see routers/diagnostic.py.
-    """
-    ctx = audit_from_request(request)
-    if not settings.diagnostic_pin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The diagnostic preview is not enabled on this deployment")
-    if not hmac.compare_digest(req.pin, settings.diagnostic_pin):
-        await log_event(AuditEvent.AUTH_FAILURE, role="diagnostic_parent", success=False, **ctx)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect diagnostic PIN")
-    if not demo_code_exists(req.code):
-        await log_event(AuditEvent.AUTH_FAILURE, role="diagnostic_parent", success=False, detail="unknown demo code", **ctx)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="That demo code doesn't exist or has ended")
-
-    fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
-    token = create_access_token(
-        {"sub": "diagnostic_parent", "role": "diagnostic_parent", "code": req.code},
-        fingerprint=fp,
-        expires_delta=timedelta(minutes=settings.demo_code_token_expire_minutes),
-    )
-    await log_event(AuditEvent.AUTH_SUCCESS, role="diagnostic_parent", success=True, **ctx)
-    return TokenResponse(access_token=token, role="diagnostic_parent")
 
 
 @router.get("/validate")

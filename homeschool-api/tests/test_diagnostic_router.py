@@ -1,18 +1,18 @@
 """
 Router-level tests for the demo's diagnostic-preview endpoints:
-POST /auth/diagnostic-login, GET /diagnostic/summary, POST /diagnostic/chat.
-Called directly (same pattern as test_extract_narration_router.py/
-test_feedback.py) rather than through a full TestClient, since
-require_auth's JWT/fingerprint plumbing isn't what's under test here.
+GET /diagnostic/summary, POST /diagnostic/chat. No separate login — these
+are reachable with the exact same demo_code token the child's own session
+already has (like the "Ask Bede" sandbox preview), since this is
+single-session, non-sensitive preview data. Called directly (same pattern
+as test_extract_narration_router.py/test_feedback.py) rather than through
+a full TestClient, since require_auth's JWT/fingerprint plumbing isn't
+what's under test here.
 """
 import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
 import core.demo_code_session as demo_code_session
-from core.config import settings
-from models.schemas import DiagnosticLoginRequest
-from routers.auth import diagnostic_login
 from routers.diagnostic import get_diagnostic_summary
 from services.diagnostic_demo import get_mastery_summary_demo, record_skill_evidence_demo
 
@@ -31,45 +31,10 @@ def setup_function():
 
 
 @pytest.mark.asyncio
-async def test_diagnostic_login_404s_when_pin_not_configured(monkeypatch):
-    monkeypatch.setattr(settings, "diagnostic_pin", "")
-    code = demo_code_session.generate_code()
-    with pytest.raises(HTTPException) as exc_info:
-        await diagnostic_login(DiagnosticLoginRequest(code=code, pin="384756"), _fake_request())
-    assert exc_info.value.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_diagnostic_login_rejects_wrong_pin(monkeypatch):
-    monkeypatch.setattr(settings, "diagnostic_pin", "384756")
-    code = demo_code_session.generate_code()
-    with pytest.raises(HTTPException) as exc_info:
-        await diagnostic_login(DiagnosticLoginRequest(code=code, pin="000000"), _fake_request())
-    assert exc_info.value.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_diagnostic_login_rejects_unknown_demo_code(monkeypatch):
-    monkeypatch.setattr(settings, "diagnostic_pin", "384756")
-    with pytest.raises(HTTPException) as exc_info:
-        await diagnostic_login(DiagnosticLoginRequest(code="000000", pin="384756"), _fake_request())
-    assert exc_info.value.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_diagnostic_login_succeeds_and_issues_a_diagnostic_parent_token(monkeypatch):
-    monkeypatch.setattr(settings, "diagnostic_pin", "384756")
-    code = demo_code_session.generate_code()
-    resp = await diagnostic_login(DiagnosticLoginRequest(code=code, pin="384756"), _fake_request())
-    assert resp.role == "diagnostic_parent"
-    assert resp.access_token
-
-
-@pytest.mark.asyncio
 async def test_diagnostic_summary_404s_before_any_evidence():
     code = demo_code_session.generate_code("Ellie", "3")
     with pytest.raises(HTTPException) as exc_info:
-        await get_diagnostic_summary(_fake_request(), auth={"role": "diagnostic_parent", "code": code})
+        await get_diagnostic_summary(_fake_request(), auth={"role": "demo_code", "code": code})
     assert exc_info.value.status_code == 404
 
 
@@ -78,17 +43,18 @@ async def test_diagnostic_summary_reflects_recorded_evidence():
     code = demo_code_session.generate_code("Ellie", "3")
     await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
 
-    summary = await get_diagnostic_summary(_fake_request(), auth={"role": "diagnostic_parent", "code": code})
+    summary = await get_diagnostic_summary(_fake_request(), auth={"role": "demo_code", "code": code})
     assert summary.student_name == "Ellie"
     assert summary.evidence_count == 1
 
 
 @pytest.mark.asyncio
-async def test_diagnostic_summary_rejects_non_diagnostic_parent_role():
-    from routers.diagnostic import _require_diagnostic_parent
-    with pytest.raises(HTTPException) as exc_info:
-        _require_diagnostic_parent(auth={"role": "demo_code", "code": "123456"})
-    assert exc_info.value.status_code == 403
+async def test_diagnostic_summary_rejects_non_demo_code_roles():
+    from routers.diagnostic import _require_demo_code
+    for role in ("parent", "child", None):
+        with pytest.raises(HTTPException) as exc_info:
+            _require_demo_code(auth={"role": role, "code": "123456"})
+        assert exc_info.value.status_code == 403
 
 
 @pytest.mark.asyncio

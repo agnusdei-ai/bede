@@ -4,7 +4,7 @@ import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
-  diagnosticLogin, fetchDiagnosticSummary, streamDiagnosticChat,
+  fetchDiagnosticSummary, streamDiagnosticChat,
   TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
   type FeedbackCategory, type MasteryProfileSummary,
@@ -54,9 +54,8 @@ function friendlyErrorMessage(err: unknown, fallback: string): string {
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
 
-function CodeScreen({ onLoggedIn, onOpenDiagnostic }: {
+function CodeScreen({ onLoggedIn }: {
   onLoggedIn: (token: string, code: string) => void
-  onOpenDiagnostic: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -139,13 +138,6 @@ function CodeScreen({ onLoggedIn, onOpenDiagnostic }: {
           className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
-        </button>
-
-        <button
-          onClick={onOpenDiagnostic}
-          className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 underline flex items-center justify-center gap-1"
-        >
-          <GraduationCap size={12} /> Parent diagnostic preview
         </button>
       </div>
     </div>
@@ -777,92 +769,13 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
   )
 }
 
-// ── Diagnostic preview (parent-only, demo-scoped) ─────────────────────────────
+// ── Diagnostic preview (demo-scoped, no separate login) ───────────────────────
 //
-// A separate login from the child's own demo session — enter the same
-// 6-digit code the child is using, plus the deployment's DIAGNOSTIC_PIN, to
-// preview the mastery-tracking feature for that one session live. See
-// homeschool-api/routers/diagnostic.py. Single-session only: nothing here
-// survives past that demo code's own lifetime.
-
-function DiagnosticLoginScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string) => void; onBack: () => void }) {
-  const [code, setCode] = useState('')
-  const [pin, setPin] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async () => {
-    if (!code.trim() || !pin.trim() || loading) return
-    setLoading(true)
-    setError('')
-    try {
-      const token = await diagnosticLogin(code.trim(), pin.trim())
-      onLoggedIn(token)
-    } catch (err) {
-      setError(friendlyErrorMessage(err, 'Could not log in'))
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-full bg-sage-100 flex items-center justify-center mx-auto mb-3">
-            <GraduationCap size={26} className="text-sage-600" />
-          </div>
-          <h1 className="text-xl font-display font-bold text-gray-800">Diagnostic Preview</h1>
-          <p className="text-sm text-gray-500 mt-1">Parent-only — a live look at mastery tracking as it builds</p>
-        </div>
-
-        <div className="space-y-3 mb-5">
-          <div>
-            <label htmlFor="diag-code" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Demo code
-            </label>
-            <input
-              id="diag-code"
-              type="text"
-              inputMode="numeric"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="The same code the child used"
-              maxLength={6}
-              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
-            />
-          </div>
-          <div>
-            <label htmlFor="diag-pin" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Diagnostic PIN
-            </label>
-            <input
-              id="diag-pin"
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit() }}
-              placeholder="Set by this deployment's operator"
-              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
-            />
-          </div>
-        </div>
-
-        {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading || !code.trim() || !pin.trim()}
-          className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
-        >
-          {loading ? <Loader2 size={18} className="animate-spin" /> : 'View mastery preview'}
-        </button>
-        <button onClick={onBack} className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 underline">
-          Back to the demo
-        </button>
-      </div>
-    </div>
-  )
-}
+// Reachable straight from the "Mastery preview" link in the chat header,
+// using the exact same demo_code token the session already has — same
+// precedent as the "Ask Bede" sandbox link right next to it. Single-session
+// only: nothing here survives past this demo code's own lifetime. See
+// homeschool-api/routers/diagnostic.py.
 
 const _LEVEL_STYLES: Record<string, string> = {
   secure: 'bg-emerald-100 text-emerald-700',
@@ -1189,12 +1102,13 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
   )
 }
 
-function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
+function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpenDiagnostic }: {
   token: string
   code: string
   onSessionEnded: () => void
   onLogout: () => void
   onOpenSandbox: () => void
+  onOpenDiagnostic: () => void
 }) {
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
@@ -1276,6 +1190,13 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox }: {
             >
               <FlaskConical size={12} /> Ask Bede
             </button>
+            <button
+              onClick={onOpenDiagnostic}
+              title="Preview live mastery tracking for this session"
+              className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
+            >
+              <GraduationCap size={12} /> Mastery preview
+            </button>
             {feedbackEnabled && (
               <button
                 onClick={() => setShowFeedback(true)}
@@ -1318,21 +1239,15 @@ type Mode =
   | { kind: 'code-setup' }
   | { kind: 'code-chat'; token: string; code: string }
   | { kind: 'code-sandbox'; token: string; code: string }
+  | { kind: 'diagnostic-view'; token: string; code: string }
   | { kind: 'session-ended' }
-  | { kind: 'diagnostic-login' }
-  | { kind: 'diagnostic-view'; token: string }
 
 export default function App() {
   const [mode, setMode] = useState<Mode>({ kind: 'code-setup' })
 
   switch (mode.kind) {
     case 'code-setup':
-      return (
-        <CodeScreen
-          onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })}
-          onOpenDiagnostic={() => setMode({ kind: 'diagnostic-login' })}
-        />
-      )
+      return <CodeScreen onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })} />
 
     case 'code-chat':
       return (
@@ -1342,6 +1257,7 @@ export default function App() {
           onSessionEnded={() => setMode({ kind: 'session-ended' })}
           onLogout={() => setMode({ kind: 'code-setup' })}
           onOpenSandbox={() => setMode({ kind: 'code-sandbox', token: mode.token, code: mode.code })}
+          onOpenDiagnostic={() => setMode({ kind: 'diagnostic-view', token: mode.token, code: mode.code })}
         />
       )
 
@@ -1354,20 +1270,12 @@ export default function App() {
         />
       )
 
-    case 'diagnostic-login':
-      return (
-        <DiagnosticLoginScreen
-          onLoggedIn={(token) => setMode({ kind: 'diagnostic-view', token })}
-          onBack={() => setMode({ kind: 'code-setup' })}
-        />
-      )
-
     case 'diagnostic-view':
       return (
         <DiagnosticViewScreen
           token={mode.token}
-          onBack={() => setMode({ kind: 'diagnostic-login' })}
-          onSessionInvalid={() => setMode({ kind: 'diagnostic-login' })}
+          onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
+          onSessionInvalid={() => setMode({ kind: 'session-ended' })}
         />
       )
 

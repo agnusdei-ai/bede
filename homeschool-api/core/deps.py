@@ -74,16 +74,12 @@ async def require_auth(
             detail="Second-factor verification required to finish logging in",
         )
 
-    if payload.get("role") in ("demo_code", "diagnostic_parent"):
-        # diagnostic_parent's session is tied 1:1 to the same underlying
-        # demo code (see routers/auth.py's /auth/diagnostic-login) — if
-        # that code is evicted or logged out, this token must die with it,
-        # same as demo_code's own token does.
+    if payload.get("role") == "demo_code":
         code = payload.get("code", "")
         if not demo_code_exists(code):
             await log_event(
                 AuditEvent.TOKEN_INVALID,
-                role=payload.get("role"),
+                role="demo_code",
                 success=False,
                 detail="code was logged out or forgotten (long abandoned)",
                 **ctx,
@@ -127,16 +123,16 @@ async def require_mfa_pending(
 
 async def require_real_user(auth: dict = Depends(require_auth)) -> dict:
     """
-    Same as require_auth, but rejects the scoped "demo_code" and
-    "diagnostic_parent" roles — for every endpoint beyond the fixed demo
-    chat/TTS and the diagnostic preview itself (catalog browsing, student
-    configs, narration history, transcripts, voice enrollment/verification).
-    Parent and child both pass through unchanged.
+    Same as require_auth, but rejects the scoped "demo_code" role — for
+    every endpoint beyond the fixed demo chat/TTS and the diagnostic
+    preview itself (catalog browsing, student configs, narration history,
+    transcripts, voice enrollment/verification). Parent and child both
+    pass through unchanged.
     """
-    if auth.get("role") in ("demo_code", "diagnostic_parent"):
+    if auth.get("role") == "demo_code":
         await log_event(
             AuditEvent.ACCESS_DENIED,
-            role=auth.get("role"),
+            role="demo_code",
             success=False,
             detail="Not available in demo mode",
         )

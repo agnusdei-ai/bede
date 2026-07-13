@@ -17,6 +17,23 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
 
+  // ── Voice command mode ────────────────────────────────────────────────────
+  // Tapping the mic used to just drop the transcript into the text box,
+  // leaving the child to then manually hit Send — an awkward extra step for
+  // a voice-first interaction. While voice mode is on, a finished transcript
+  // sends itself immediately, and once Bede's reply (text + any spoken
+  // narration) finishes, the mic re-activates on its own — a hands-free
+  // loop until the child taps the mic again to turn it off. Typing, Send,
+  // drawing, and file upload all keep working normally alongside it; voice
+  // mode only changes what the mic button itself does.
+  const [voiceMode, setVoiceMode] = useState(false)
+  const voiceModeRef = useRef(false)
+  useEffect(() => { voiceModeRef.current = voiceMode }, [voiceMode])
+  // Tracks whether a turn (streaming and/or Bede's spoken reply) is in
+  // flight, so the effect below can detect the moment it fully ends —
+  // see its own comment for why this needs both isStreaming and isSpeaking.
+  const turnActiveRef = useRef(false)
+
   const {
     token,
     sessionConfig,
@@ -64,7 +81,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } = useHybridVoiceInput({
     token,
     onFinal: (transcript) => {
-      setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+      if (voiceModeRef.current) {
+        send(transcript)
+      } else {
+        setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+      }
     },
   })
 
@@ -169,8 +190,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   }
   const handleDrawingCancel = () => setShowCanvas(false)
 
-  const send = useCallback(async () => {
-    const msg = input.trim()
+  const send = useCallback(async (overrideMsg?: string) => {
+    // overrideMsg lets voice mode's onFinal send a transcript directly,
+    // without a setInput()-then-read round trip through React state.
+    const msg = (overrideMsg ?? input).trim()
     if ((!msg && !pendingDrawing) || isStreaming || !token || !sessionConfig) return
 
     stopSpeech()      // stop any ongoing speech when child replies
@@ -258,9 +281,51 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   }
 
   const toggleMic = () => {
-    if (isListening) stopListening()
-    else startListening()
+    if (voiceMode) {
+      setVoiceMode(false)
+      stopListening()
+    } else {
+      setVoiceMode(true)
+      startListening()
+    }
   }
+
+  // Voice mode's hands-free loop: once a turn is fully over — the stream
+  // has finished AND (if TTS is going to speak the reply) Bede's own voice
+  // has stopped playing — restart listening automatically. Keyed off BOTH
+  // isStreaming and isSpeaking transitioning together rather than either
+  // alone, since whether TTS actually queues audio for a given turn (empty
+  // response, TTS off/unsupported, or the backend having nothing configured)
+  // isn't known in advance — this way the mic never has to guess, and never
+  // restarts while Bede's own voice is still playing (which would otherwise
+  // let the mic pick up Bede's reply as if the child said it).
+  useEffect(() => {
+    const turnActiveNow = isStreaming || isSpeaking
+    if (turnActiveNow) {
+      turnActiveRef.current = true
+      return
+    }
+    if (turnActiveRef.current) {
+      turnActiveRef.current = false
+      if (voiceModeRef.current && !breakActive && !isListening) {
+        startListening()
+      }
+    }
+  }, [isStreaming, isSpeaking, breakActive, isListening, startListening])
+
+  // A break can end mid-"turn-just-ended" window (the effect above skips
+  // restarting while breakActive is true and doesn't get a second chance
+  // once turnActiveRef has already been cleared) — resume voice mode's
+  // loop separately once the break itself ends, so it doesn't get silently
+  // stuck off until the child notices and taps the mic again.
+  const prevBreakActiveRef = useRef(breakActive)
+  useEffect(() => {
+    const breakJustEnded = prevBreakActiveRef.current && !breakActive
+    prevBreakActiveRef.current = breakActive
+    if (breakJustEnded && voiceModeRef.current && !isStreaming && !isSpeaking && !isListening) {
+      startListening()
+    }
+  }, [breakActive, isStreaming, isSpeaking, isListening, startListening])
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a
@@ -383,19 +448,28 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             </button>
           )}
 
-          {/* Mic button */}
+          {/* Mic button — toggles voice mode on/off; disabled only when
+              trying to TURN ON during a busy state, never when turning off */}
           {sttSupported && (
             <button
               onClick={toggleMic}
-              disabled={isStreaming || breakActive || isTranscribing}
-              title={isListening ? 'Stop listening' : isTranscribing ? 'Transcribing…' : 'Speak your answer'}
+              disabled={!voiceMode && (isStreaming || breakActive || isTranscribing)}
+              title={
+                voiceMode
+                  ? 'Voice mode on — tap to turn off'
+                  : isTranscribing
+                  ? 'Transcribing…'
+                  : 'Turn on voice mode'
+              }
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
-                isListening
-                  ? 'bg-red-500 text-white animate-pulse'
+                voiceMode
+                  ? isListening
+                    ? 'bg-red-500 text-white animate-pulse'
+                    : 'bg-red-500 text-white'
                   : 'bg-navy-100 text-navy-600 hover:bg-navy-200 disabled:opacity-40'
               }`}
             >
-              {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : isListening ? <MicOff size={18} /> : <Mic size={18} />}
+              {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : voiceMode ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
 
@@ -409,6 +483,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
                 ? 'On a break — Bede will be here when you return'
                 : isListening
                 ? 'Listening… speak now'
+                : voiceMode
+                ? 'Voice mode on — waiting for Bede…'
                 : sttSupported
                 ? 'Type or tap the mic to speak…'
                 : 'Share your thoughts or answer Bede\'s question…'
@@ -418,7 +494,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           />
 
           <button
-            onClick={send}
+            onClick={() => send()}
             disabled={isStreaming || breakActive || (!input.trim() && !pendingDrawing)}
             className="p-2.5 rounded-lg bg-navy-500 text-white hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0"
           >
@@ -426,7 +502,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
-          {sttSupported ? 'Enter to send · mic for voice input' : 'Press Enter to send · Shift+Enter for new line'}
+          {voiceMode
+            ? 'Voice mode on — just speak, Bede will hear and reply automatically. Tap the mic to turn it off.'
+            : sttSupported
+            ? 'Enter to send · mic for voice input'
+            : 'Press Enter to send · Shift+Enter for new line'}
         </p>
       </div>
 

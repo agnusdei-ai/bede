@@ -437,9 +437,16 @@ export interface MasteryProfileSummary {
   updated_at: string
 }
 
-const DIAGNOSTIC_QUOTA_MESSAGE =
-  "You've reached the diagnostic preview limit for this demo. It's meant for a quick evaluation, " +
-  'not ongoing tutoring — set up your own deployment for real, unlimited use.'
+// Reads the backend's own detail message (routers/diagnostic.py's
+// _require_diagnostic_quota — mentions the real contact info) rather than
+// duplicating a hardcoded copy here that would silently drift out of sync
+// the next time that message is updated server-side.
+async function diagnosticQuotaError(res: Response): Promise<DiagnosticPreviewQuotaExceededError> {
+  const body = await res.json().catch(() => ({}))
+  return new DiagnosticPreviewQuotaExceededError(
+    body.detail || "You've reached the diagnostic preview limit for this demo."
+  )
+}
 
 export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {
   const res = await fetch(`${apiBase()}/diagnostic/summary`, {
@@ -447,7 +454,7 @@ export async function fetchDiagnosticSummary(token: string): Promise<MasteryProf
   })
   if (res.status === 404) return null
   if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
-  if (res.status === 429) throw new DiagnosticPreviewQuotaExceededError(DIAGNOSTIC_QUOTA_MESSAGE)
+  if (res.status === 429) throw await diagnosticQuotaError(res)
   if (!res.ok) throw new Error('Could not load the mastery summary right now.')
   return res.json()
 }
@@ -469,7 +476,7 @@ export async function* streamDiagnosticChat(
   })
 
   if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
-  if (res.status === 429) throw new DiagnosticPreviewQuotaExceededError(DIAGNOSTIC_QUOTA_MESSAGE)
+  if (res.status === 429) throw await diagnosticQuotaError(res)
   if (!res.ok) throw new Error('Diagnostic chat request failed — check your connection')
 
   yield* parseSSEStream(res)

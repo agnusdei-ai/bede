@@ -84,7 +84,7 @@ function CodeScreen({ onLoggedIn }: {
         <div className="text-center mb-6">
           <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
           <h1 className="text-2xl font-display font-bold text-gray-800">Bede — a Socratic tutor</h1>
-          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each child's potential</p>
+          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each learner's potential</p>
           <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
         </div>
 
@@ -95,7 +95,7 @@ function CodeScreen({ onLoggedIn }: {
         <div className="space-y-3 mb-5">
           <div>
             <label htmlFor="student-name" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Child's name <span className="font-normal normal-case text-gray-400">(optional)</span>
+              Learner's name <span className="font-normal normal-case text-gray-400">(optional)</span>
             </label>
             <input
               id="student-name"

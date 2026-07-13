@@ -8,6 +8,8 @@ as test_extract_narration_router.py/test_feedback.py) rather than through
 a full TestClient, since require_auth's JWT/fingerprint plumbing isn't
 what's under test here.
 """
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
@@ -61,16 +63,47 @@ async def test_diagnostic_summary_rejects_non_demo_code_roles():
 
 
 @pytest.mark.asyncio
-async def test_render_mastery_context_mentions_gaps_and_next_steps():
-    from routers.diagnostic import _render_mastery_context
+async def test_templated_diagnostic_reply_mentions_gaps_and_next_steps():
+    from routers.diagnostic import _templated_diagnostic_reply
 
     code = demo_code_session.generate_code("Ellie", "3")
     await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
     summary = get_mastery_summary_demo(code, "Ellie")
 
-    context = _render_mastery_context(summary)
-    assert "Ellie" in context
-    assert "direct answers, not Socratic" in context
+    reply = _templated_diagnostic_reply(summary)
+    assert "Ellie" in reply
+    assert "monthly/annual plans" in reply
+
+
+@pytest.mark.asyncio
+async def test_templated_diagnostic_reply_handles_no_evidence_without_a_summary():
+    from routers.diagnostic import _templated_diagnostic_reply
+
+    reply = _templated_diagnostic_reply(None)
+    assert "No math evidence" in reply
+    assert "monthly/annual plans" not in reply  # this branch's own shorter CTA, not the full one
+    assert "We'd love to talk" in reply
+
+
+@pytest.mark.asyncio
+async def test_diagnostic_chat_never_calls_the_live_model(monkeypatch):
+    """The whole point of this unit: the demo/free tier's diagnostic chat
+    must consume zero API usage — assert stream_sandbox_response is never
+    even imported/called from this path anymore."""
+    import services.ai_service as ai_service
+
+    mock_stream = AsyncMock(side_effect=AssertionError("must not call the live model"))
+    monkeypatch.setattr(ai_service, "stream_sandbox_response", mock_stream)
+
+    code = demo_code_session.generate_code("Ellie", "3")
+    await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
+    req = DiagnosticChatRequest(message="How is Ellie doing?")
+
+    response = await diagnostic_chat(req, _fake_request(), auth={"role": "demo_code", "code": code})
+
+    body_chunks = [chunk async for chunk in response.body_iterator]
+    assert any("Ellie" in str(chunk) for chunk in body_chunks)
+    mock_stream.assert_not_called()
 
 
 # ── Diagnostic preview quota (per-IP cap, see core/diagnostic_preview_quota.py) ──

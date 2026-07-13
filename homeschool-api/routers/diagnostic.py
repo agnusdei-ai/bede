@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sse_starlette.sse import EventSourceResponse
 
@@ -6,10 +8,13 @@ from core.demo_code_session import get_personalization
 from core.deps import require_auth
 from core.diagnostic_preview_quota import has_quota, record_use
 from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
-from services.ai_service import stream_sandbox_response
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
+
+# TODO: replace with the real contact destination before shipping this to
+# a live deployment — placeholder pending the actual link/email.
+CONTACT_CTA = "reach out at hello@example.com"
 
 
 def _require_demo_code(auth: dict = Depends(require_auth)) -> dict:
@@ -49,9 +54,9 @@ def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_de
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                "You've reached the diagnostic preview limit for this demo. "
-                "It's meant for a quick evaluation, not ongoing tutoring — "
-                "set up your own deployment for real, unlimited use."
+                "You've used up this demo's diagnostic preview for now — it's meant to give you "
+                "a taste, not replace a full account. We'd love to show you the full-featured "
+                f"version and our monthly/annual plans — {CONTACT_CTA}."
             ),
         )
     return auth
@@ -99,13 +104,18 @@ async def diagnostic_chat(
     auth: dict = Depends(_require_diagnostic_quota),
 ):
     """
-    Direct-answer chat for the diagnostic preview — same relaxed,
-    non-Socratic persona as the SANDBOX_PIN sandbox (routers/sandbox.py),
-    reused via stream_sandbox_response, with the current mastery summary
-    (if any) woven in as context so whoever's viewing the preview can ask
-    about the actual gaps/next-steps, not just generic homeschooling
-    questions. Nothing here is persisted — same as the sandbox it's
-    modeled on.
+    "Chat" for the diagnostic preview — deliberately templated from the
+    already-computed mastery summary, NOT a live model call. The demo/free
+    tier must never consume real API usage: get_diagnostic_summary above
+    was already free (pure data rendering), and this used to be the one
+    exception (a full stream_sandbox_response conversation per message).
+    Ignores req.message's actual content by design — there's no live
+    understanding to answer with at this tier; a real conversational
+    advisor is exactly the upsell _templated_diagnostic_reply below steers
+    toward. Still streamed as SSE (one text chunk + done) so the frontend
+    can reuse the exact same consumer it already had for the old live-chat
+    version — req.conversation_history is accepted for API-shape
+    compatibility but unused, same reason.
 
     Quota is only spent when there's real evidence to discuss — same rule
     as get_diagnostic_summary above, so asking before any math tutoring
@@ -116,36 +126,44 @@ async def diagnostic_chat(
     summary = get_mastery_summary_demo(code, student_name or "Guest")
     if summary:
         record_use(audit_from_request(request)["ip"], code)
-    context = _render_mastery_context(summary) if summary else (
-        "No math evidence has been recorded in this demo session yet — "
-        "answer generally about homeschooling and how this diagnostic preview works."
-    )
+    reply = _templated_diagnostic_reply(summary)
 
     async def event_generator():
-        async for chunk in stream_sandbox_response(
-            conversation_history=req.conversation_history,
-            message=req.message,
-            custom_instructions=context,
-        ):
-            yield chunk
+        yield json.dumps({"type": "text", "content": reply})
+        yield json.dumps({"type": "done"})
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")
 
 
-def _render_mastery_context(summary: dict) -> str:
+def _templated_diagnostic_reply(summary: dict | None) -> str:
+    """Zero-API-cost stand-in for a real conversational answer — built
+    entirely from summary's already-computed fields, same shape as the
+    old _render_mastery_context but written as a direct answer to the
+    parent rather than instructions to a model."""
+    if not summary:
+        return (
+            "No math evidence has been recorded in this demo session yet — try working through "
+            "a question or two in the Mathematics subject, then come back and check again.\n\n"
+            f"This preview shows a snapshot only. Want a real conversation about your child's "
+            f"progress, plus full-featured tutoring? We'd love to talk — {CONTACT_CTA}."
+        )
+
     lines = [
-        f"Here is {summary['student_name']}'s current mastery snapshot for {summary['subject_area']} "
-        f"in this demo session ({summary['evidence_count']} pieces of evidence recorded so far"
-        + (", still calibrating" if summary["calibration"] else "") + "):",
+        f"Here's where {summary['student_name']} stands in {summary['subject_area']} so far "
+        f"({summary['evidence_count']} observation{'' if summary['evidence_count'] == 1 else 's'}"
+        + (", still getting calibrated" if summary["calibration"] else "") + "):",
+        "",
     ]
     for domain in summary["domains"]:
-        lines.append(f"- {domain['domain']}: {domain['level']} ({domain['average_probability']:.0%})")
+        lines.append(f"• {domain['domain']}: {domain['level']} ({domain['average_probability']:.0%})")
     if summary["gaps"]:
-        lines.append("Gaps: " + ", ".join(s["label"] for s in summary["gaps"]))
+        lines.append("")
+        lines.append("Gaps to focus on: " + ", ".join(s["label"] for s in summary["gaps"]))
     if summary["next_steps"]:
         lines.append("Suggested next steps: " + ", ".join(s["label"] for s in summary["next_steps"]))
+    lines.append("")
     lines.append(
-        "Use this to answer the parent's questions about their child's math understanding "
-        "and general homeschooling guidance — direct answers, not Socratic questions."
+        f"This preview shows a snapshot only. Want a real conversation about {summary['student_name']}'s "
+        f"progress, plus full-featured tutoring? We'd love to talk about our monthly/annual plans — {CONTACT_CTA}."
     )
     return "\n".join(lines)

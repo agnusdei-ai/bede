@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { BookOpen } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
+import TextSizeControl from '../components/TextSizeControl'
 
 const VALIDATE_INTERVAL_MS = 5 * 60 * 1000   // re-validate token every 5 min
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000  // 30 min of no interaction → re-auth
@@ -88,9 +89,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!ready) return <SplashScreen />
-
-  return <>{children}</>
+  return (
+    <>
+      {ready ? children : <SplashScreen />}
+      <TextSizeControl />
+    </>
+  )
 }
 
 function SplashScreen() {

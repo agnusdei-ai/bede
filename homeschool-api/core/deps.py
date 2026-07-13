@@ -76,7 +76,7 @@ async def require_auth(
 
     if payload.get("role") == "demo_code":
         code = payload.get("code", "")
-        if not demo_code_exists(code):
+        if not await demo_code_exists(code):
             await log_event(
                 AuditEvent.TOKEN_INVALID,
                 role="demo_code",

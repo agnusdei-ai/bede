@@ -31,7 +31,7 @@ def _require_demo_code(auth: dict = Depends(require_auth)) -> dict:
     return auth
 
 
-def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_demo_code)) -> dict:
+async def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_demo_code)) -> dict:
     """
     Blocks entry once core/diagnostic_preview_quota.py's per-IP cap is
     exhausted — see that module's docstring for why the diagnostic
@@ -48,7 +48,7 @@ def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_de
     """
     ip = audit_from_request(request)["ip"]
     code = auth.get("code", "")
-    if not has_quota(ip, code):
+    if not await has_quota(ip, code):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
@@ -67,24 +67,24 @@ async def get_diagnostic_summary(
 ) -> MasteryProfileSummary:
     """
     Render-only mastery summary for the current demo session — built
-    entirely from that code's in-memory state (services/diagnostic_demo.py),
-    never a database. 404 until the session has actually produced some
-    real math evidence. demo_code-only, so this never reaches
-    homeschool-tutor/production data.
+    entirely from that code's own single-session state (services/diagnostic_demo.py),
+    never the production mastery_profiles table. 404 until the session has
+    actually produced some real math evidence. demo_code-only, so this
+    never reaches homeschool-tutor/production data.
 
     Quota (core/diagnostic_preview_quota.py) is only actually spent below,
     once real evidence exists to show — a 404 (nothing to evaluate yet)
     doesn't burn one of the visitor's uses for nothing.
     """
     code = auth.get("code", "")
-    student_name, _grade = get_personalization(code)
-    summary = get_mastery_summary_demo(code, student_name or "Guest")
+    student_name, _grade = await get_personalization(code)
+    summary = await get_mastery_summary_demo(code, student_name or "Guest")
     if summary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No mastery data yet. This builds up once some math tutoring happens in this demo session.",
         )
-    record_use(audit_from_request(request)["ip"], code)
+    await record_use(audit_from_request(request)["ip"], code)
     await log_event(
         AuditEvent.DIAGNOSTIC_VIEW,
         role="demo_code",
@@ -120,10 +120,10 @@ async def diagnostic_chat(
     has happened (a generic, no-evidence answer) doesn't burn a use.
     """
     code = auth.get("code", "")
-    student_name, _grade = get_personalization(code)
-    summary = get_mastery_summary_demo(code, student_name or "Guest")
+    student_name, _grade = await get_personalization(code)
+    summary = await get_mastery_summary_demo(code, student_name or "Guest")
     if summary:
-        record_use(audit_from_request(request)["ip"], code)
+        await record_use(audit_from_request(request)["ip"], code)
     reply = _templated_diagnostic_reply(summary)
 
     async def event_generator():

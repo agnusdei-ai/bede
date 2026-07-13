@@ -10,7 +10,7 @@ Startup sequence (main.py lifespan):
 """
 
 from datetime import datetime, timezone
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from fastapi import Depends
 from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String
@@ -284,6 +284,76 @@ class ParentTotpConfig(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class DemoCodeSession(Base):
+    """
+    Postgres-backed replacement for core/demo_code_session.py's old
+    in-memory `_codes` dict — the single per-code store backing the entire
+    public demo (POST /auth/demo-code, POST /auth/login role=demo_code).
+    Moving this here means an in-flight demo/diagnostic session survives a
+    backend restart or redeploy, not just the JWT's own device-fingerprint
+    binding — a lost tab or a network blip was already recoverable (the
+    code/JWT still worked); a restart wasn't, since the whole store lived
+    in one process's memory.
+
+    student_name/grade stay plaintext, matching the existing convention
+    for the analogous columns on StudentConfig/MasteryProfile (a lookup
+    key, not encrypted "data") — a self-chosen demo alias, not a real
+    family's identity. mastery_vector_enc is the one field that holds
+    anything resembling the mastery.MasteryVector shape a real session's
+    MasteryProfile.profile_enc would, so it's encrypted the same way for
+    consistency, even though a demo vector never touches that table.
+
+    No separate TTL/expiry column — core/demo_code_session.py enforces
+    _CODE_TTL_SECONDS the same way the old in-memory version did (filter
+    on created_at at read/write time), just against a query instead of a
+    dict comprehension.
+    """
+    __tablename__ = "demo_code_sessions"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+    message_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    redeemed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    student_name: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    grade: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    mastery_vector_enc: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    mastery_evidence_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    email_sent: Mapped[bool] = mapped_column(nullable=False, default=False)
+
+
+class DiagnosticPreviewUse(Base):
+    """
+    Postgres-backed replacement for core/diagnostic_preview_quota.py's old
+    in-memory `_usage` dict — one row per distinct (ip, code) pair a
+    visitor has opened the diagnostic preview for, within that module's
+    rolling window.
+
+    ip is stored in plaintext, not encrypted: has_quota()/record_use()
+    need it equality-filterable in a WHERE clause to scale past a
+    full-table decrypt-and-scan, and it already lived in plaintext in this
+    module's old in-memory dict and in core/middleware.py's RateLimit — no
+    new exposure, the same accepted tradeoff carried over.
+    """
+    __tablename__ = "diagnostic_preview_uses"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    ip: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    code: Mapped[str] = mapped_column(String(6), nullable=False)
+    used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
         nullable=False,
     )
 

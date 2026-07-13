@@ -37,6 +37,8 @@ from core.database import Base, MasteryProfile
 from models.schemas import GradeStage, SessionConfig, Subject
 from services.ai_service import TUTOR_TOOLS, _load_mastery_vector_readonly, _record_skill_evidence
 
+pytestmark = pytest.mark.usefixtures("demo_db")
+
 
 @pytest_asyncio.fixture
 async def db_session():
@@ -55,10 +57,6 @@ async def db_session():
         yield session
 
     await engine.dispose()
-
-
-def setup_function():
-    demo_code_session._codes = {}
 
 
 def _config(**overrides):
@@ -94,7 +92,7 @@ async def test_non_math_subject_reaches_neither_backend(db_session, monkeypatch)
     monkeypatch.setattr("services.diagnostic.process_evidence", mock_process_evidence)
     monkeypatch.setattr("services.diagnostic_demo.record_skill_evidence_demo", mock_demo)
 
-    code = demo_code_session.generate_code("Sam", "3")
+    code = await demo_code_session.generate_code("Sam", "3")
     await _record_skill_evidence(
         db_session, None, _config(), Subject.history,
         {"probe_id": "probe.cc.rote_count_20", "outcome": "correct"},
@@ -115,7 +113,7 @@ async def test_demo_code_routes_to_the_demo_backend_only(db_session, monkeypatch
     mock_process_evidence = AsyncMock()
     monkeypatch.setattr("services.diagnostic.process_evidence", mock_process_evidence)
 
-    code = demo_code_session.generate_code("Sam", "3")
+    code = await demo_code_session.generate_code("Sam", "3")
     await _record_skill_evidence(
         None, code, _config(student_name="Sam", grade="3", grade_stage=GradeStage.core_mastery),
         Subject.mathematics,
@@ -123,20 +121,20 @@ async def test_demo_code_routes_to_the_demo_backend_only(db_session, monkeypatch
     )
 
     mock_process_evidence.assert_not_called()
-    assert demo_code_session.get_mastery_vector(code) is not None
+    assert await demo_code_session.get_mastery_vector(code) is not None
 
 
 @pytest.mark.asyncio
 async def test_demo_backend_never_writes_for_a_different_code():
-    code_a = demo_code_session.generate_code("Sam", "3")
-    code_b = demo_code_session.generate_code("Alex", "3")
+    code_a = await demo_code_session.generate_code("Sam", "3")
+    code_b = await demo_code_session.generate_code("Alex", "3")
     await _record_skill_evidence(
         None, code_a, _config(student_name="Sam", grade="3", grade_stage=GradeStage.core_mastery),
         Subject.mathematics,
         {"probe_id": "probe.oa.multiplication_facts", "outcome": "correct"},
     )
-    assert demo_code_session.get_mastery_vector(code_a) is not None
-    assert demo_code_session.get_mastery_vector(code_b) is None
+    assert await demo_code_session.get_mastery_vector(code_a) is not None
+    assert await demo_code_session.get_mastery_vector(code_b) is None
 
 
 @pytest.mark.asyncio

@@ -48,7 +48,7 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
 
-    code = generate_code(student_name=student_name, grade=grade)
+    code = await generate_code(student_name=student_name, grade=grade)
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -92,7 +92,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # minted moments earlier by POST /auth/demo-code. redeem_code()
         # rejects an unknown or already-redeemed code, so the same code can
         # never be exchanged for two independent JWTs/quotas.
-        if not settings.demo_pin or not redeem_code(req.credential):
+        if not settings.demo_pin or not await redeem_code(req.credential):
             await log_event(AuditEvent.AUTH_FAILURE, role="demo_code", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or already-used code")
         expires = timedelta(minutes=settings.demo_code_token_expire_minutes)

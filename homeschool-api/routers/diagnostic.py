@@ -12,9 +12,7 @@ from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 
-# TODO: replace with the real contact destination before shipping this to
-# a live deployment — placeholder pending the actual link/email.
-CONTACT_CTA = "reach out at hello@example.com"
+CONTACT_CTA = "reach out at info@agnusdei.ai"
 
 
 def _require_demo_code(auth: dict = Depends(require_auth)) -> dict:

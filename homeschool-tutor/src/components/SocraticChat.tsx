@@ -162,14 +162,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     } finally {
       finalizeAssistantMessage()
       setStreaming(false)
-      if (advanceSubjectRef.current) {
-        advanceSubjectRef.current = false
-        // Brief pause so the child can read Bede's transition line before the
-        // subject switches and the next opener fires.
-        setTimeout(() => nextSubject(), 2500)
-      }
+      // advanceSubjectRef, if set, is picked up by the turn-completion effect
+      // above once streaming AND any queued speech have both finished.
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, stopSpeech, stopListening, nextSubject])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, stopSpeech, stopListening])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -262,15 +258,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     } finally {
       finalizeAssistantMessage()
       setStreaming(false)
-      if (advanceSubjectRef.current) {
-        advanceSubjectRef.current = false
-        setTimeout(() => nextSubject(), 2500)
-      }
+      // advanceSubjectRef, if set, is picked up by the turn-completion effect
+      // above once streaming AND any queued speech have both finished.
     }
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
     addUserMessage, appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage,
-    setStreaming, stopSpeech, stopListening, speak, nextSubject,
+    setStreaming, stopSpeech, stopListening, speak,
   ])
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -310,8 +304,17 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       if (voiceModeRef.current && !breakActive && !isListening) {
         startListening()
       }
+      // Subject transitions used to fire on a flat 2.5s timeout regardless of
+      // how long Bede's spoken transition line actually took — long lines got
+      // cut off mid-sentence, short ones (or TTS off) left a dead pause. Now
+      // that we know the turn (streaming + any speech) has truly finished,
+      // switch after one short settling beat instead of guessing.
+      if (advanceSubjectRef.current) {
+        advanceSubjectRef.current = false
+        setTimeout(() => nextSubject(), 1200)
+      }
     }
-  }, [isStreaming, isSpeaking, breakActive, isListening, startListening])
+  }, [isStreaming, isSpeaking, breakActive, isListening, startListening, nextSubject])
 
   // A break can end mid-"turn-just-ended" window (the effect above skips
   // restarting while breakActive is true and doesn't get a second chance

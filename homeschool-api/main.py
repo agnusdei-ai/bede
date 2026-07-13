@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from core.config import settings
 from core.database import AsyncSessionLocal, create_tables, engine
@@ -84,8 +85,14 @@ app = FastAPI(
 )
 
 # ── Middleware (applied in reverse declaration order) ─────────────────────────
-# Outermost → SecurityHeaders → ExfiltrationGuard → RateLimit → CORS → routes
+# Outermost → GZip → SecurityHeaders → ExfiltrationGuard → RateLimit → CORS → routes
+#
+# GZip is outermost so it compresses the final response body after
+# ExfiltrationGuard has already scanned/rebuilt it. Starlette's GZipMiddleware
+# auto-excludes text/event-stream by content-type, so /tutor/chat's SSE stream
+# passes through uncompressed and unbuffered, same as before.
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ExfiltrationGuard)
 app.add_middleware(RateLimitMiddleware)

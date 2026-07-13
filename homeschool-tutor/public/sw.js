@@ -1,5 +1,5 @@
-const CACHE_NAME = 'bede-v1'
-const STATIC_ASSETS = ['/', '/index.html', '/agnus-dei.png', '/manifest.json']
+const CACHE_NAME = 'bede-v2'
+const STATIC_ASSETS = ['/', '/index.html', '/manifest.json']
 const API_PREFIXES = ['/api/', '/auth/', '/tutor/', '/narration/', '/pod/', '/voice/', '/transcripts/', '/catalog/']
 
 self.addEventListener('install', (e) => {

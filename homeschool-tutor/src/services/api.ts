@@ -107,6 +107,36 @@ function stripDataUrlPrefix(dataUrl: string): string {
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)
 }
 
+/** Shared line-buffered SSE parser used by both the tutor and sandbox chat streams. */
+async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const jsonStr = line.slice(6).trim()
+        if (!jsonStr) continue
+        try {
+          const chunk: StreamChunk = JSON.parse(jsonStr)
+          yield chunk
+          if (chunk.type === 'done') return
+        } catch {
+          // skip malformed chunk
+        }
+      }
+    }
+  }
+}
+
 export async function* streamTutorChat(
   token: string,
   config: SessionConfig,
@@ -136,32 +166,7 @@ export async function* streamTutorChat(
     throw new Error('Tutor request failed — check your connection')
   }
 
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const jsonStr = line.slice(6).trim()
-        if (!jsonStr) continue
-        try {
-          const chunk: StreamChunk = JSON.parse(jsonStr)
-          yield chunk
-          if (chunk.type === 'done') return
-        } catch {
-          // skip malformed chunk
-        }
-      }
-    }
-  }
+  yield* parseSSEStream(res)
 }
 
 /**
@@ -217,32 +222,7 @@ export async function* streamSandboxChat(
   if (res.status === 404) throw new Error('Sandbox mode is not enabled on this deployment')
   if (!res.ok) throw new Error('Sandbox request failed — check your connection')
 
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const jsonStr = line.slice(6).trim()
-        if (!jsonStr) continue
-        try {
-          const chunk: StreamChunk = JSON.parse(jsonStr)
-          yield chunk
-          if (chunk.type === 'done') return
-        } catch {
-          // skip malformed chunk
-        }
-      }
-    }
-  }
+  yield* parseSSEStream(res)
 }
 
 // ── Admin ────────────────────────────────────────────────────────────────────

@@ -1026,9 +1026,7 @@ async def _save_assessment(
         return None
 
 
-async def _load_mastery_vector_readonly(
-    db: "AsyncSession", student_name: str, grade_band: str,
-) -> Optional[dict]:
+async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> Optional[dict]:
     """
     Read-only load of a student's real (db-backed) mastery vector, for
     prompt injection only — never writes, unlike
@@ -1144,7 +1142,7 @@ async def stream_tutor_response(
     # (demo/no evidence yet) or the subject isn't mathematics.
     db_vector = None
     if db is not None and subject == Subject.mathematics:
-        db_vector = await _load_mastery_vector_readonly(db, config.student_name, config.grade_stage.value)
+        db_vector = await _load_mastery_vector_readonly(db, config.student_name)
 
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.

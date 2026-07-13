@@ -43,7 +43,7 @@ async def _quota_codes(ip: str) -> list[str]:
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            select(DiagnosticPreviewUse.code).where(DiagnosticPreviewUse.ip == ip)
+            select(DiagnosticPreviewUse.code).where(DiagnosticPreviewUse.ip_hash == quota._hash_ip(ip))
         )
         return [row[0] for row in result.all()]
 

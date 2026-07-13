@@ -337,18 +337,27 @@ class DiagnosticPreviewUse(Base):
     visitor has opened the diagnostic preview for, within that module's
     rolling window.
 
-    ip is stored in plaintext, not encrypted: has_quota()/record_use()
-    need it equality-filterable in a WHERE clause to scale past a
-    full-table decrypt-and-scan, and it already lived in plaintext in this
-    module's old in-memory dict and in core/middleware.py's RateLimit — no
-    new exposure, the same accepted tradeoff carried over.
+    ip_hash, not ip: moving this off an ephemeral in-memory dict (wiped on
+    every restart, never touched disk) onto a durable Postgres row is a
+    real, new increase in exposure for a raw visitor IP specifically — a
+    plaintext column would sit there indefinitely, readable by anyone with
+    DB access, in a way the old dict never did. A keyed HMAC-SHA256 of the
+    IP (core.diagnostic_preview_quota._hash_ip, keyed on settings.secret_key)
+    stays exactly as equality-filterable in a WHERE clause as plaintext
+    would (same input always hashes the same), while being unreversible —
+    a DB compromise gets a set of opaque per-visitor tokens, not their
+    actual IP addresses. AES-256-GCM (this app's usual encrypt-at-rest,
+    e.g. MasteryProfile.profile_enc) isn't an option here specifically
+    because its random-nonce-per-call design makes it non-equality-
+    filterable; a keyed hash is the standard tool for "must stay
+    queryable, must not be reversible."
     """
     __tablename__ = "diagnostic_preview_uses"
 
     id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
     )
-    ip: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    ip_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     code: Mapped[str] = mapped_column(String(6), nullable=False)
     used_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -21,11 +21,35 @@ restart no longer resets everyone's quota, closing the same "in-flight
 session data lost on restart" gap for this feature too. Every function
 here follows core/audit.py's self-contained-session convention: each opens
 its own AsyncSessionLocal() rather than taking a `db` parameter.
+
+IP addresses are never written to the table in plaintext — see
+DiagnosticPreviewUse's own docstring in core/database.py for why moving
+this off an ephemeral in-memory dict onto a durable row made that a real
+new exposure worth closing, not just carrying over. _hash_ip() below is
+applied at every call site that touches the DB; has_quota()/record_use()'s
+own `ip` parameter stays a real IP string throughout — callers
+(routers/diagnostic.py) never need to know hashing happens at all.
 """
 
+import hashlib
+import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, select
+
+from core.config import settings
+
+
+def _hash_ip(ip: str) -> str:
+    """Keyed HMAC-SHA256, not a bare hash — an unkeyed hash of an IP is
+    reversible in practice (the input space is tiny; a rainbow table over
+    every IPv4 address is trivial), which would defeat the point. Keyed on
+    settings.secret_key (already a strong, server-only secret used for JWT
+    signing elsewhere) so only this deployment can ever produce or match
+    these tokens."""
+    return hmac_module.new(
+        settings.secret_key.encode("utf-8"), ip.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
 
 # One "use" = the first time a given IP opens the diagnostic preview
 # (summary or chat) for a particular demo code. Every subsequent call for
@@ -55,10 +79,11 @@ async def has_quota(ip: str, code: str) -> bool:
     already pays for a write."""
     from core.database import AsyncSessionLocal, DiagnosticPreviewUse
 
+    ip_hash = _hash_ip(ip)
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(DiagnosticPreviewUse.code).where(
-                DiagnosticPreviewUse.ip == ip,
+                DiagnosticPreviewUse.ip_hash == ip_hash,
                 DiagnosticPreviewUse.used_at >= _window_start(),
             )
         )
@@ -77,23 +102,24 @@ async def record_use(ip: str, code: str) -> None:
     together)."""
     from core.database import AsyncSessionLocal, DiagnosticPreviewUse
 
+    ip_hash = _hash_ip(ip)
     async with AsyncSessionLocal() as db:
         # Opportunistic cleanup of this IP's own stale rows — same lazy
         # eviction shape as the old in-memory _prune(), just piggybacked
         # onto the one call site that already pays for a write.
         await db.execute(
             delete(DiagnosticPreviewUse).where(
-                DiagnosticPreviewUse.ip == ip,
+                DiagnosticPreviewUse.ip_hash == ip_hash,
                 DiagnosticPreviewUse.used_at < _window_start(),
             )
         )
         existing = (await db.execute(
             select(DiagnosticPreviewUse.id).where(
-                DiagnosticPreviewUse.ip == ip,
+                DiagnosticPreviewUse.ip_hash == ip_hash,
                 DiagnosticPreviewUse.code == code,
                 DiagnosticPreviewUse.used_at >= _window_start(),
             )
         )).scalar_one_or_none()
         if existing is None:
-            db.add(DiagnosticPreviewUse(ip=ip, code=code))
+            db.add(DiagnosticPreviewUse(ip_hash=ip_hash, code=code))
         await db.commit()

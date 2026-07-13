@@ -25,7 +25,7 @@ async def _row_count(ip: str) -> int:
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            select(DiagnosticPreviewUse).where(DiagnosticPreviewUse.ip == ip)
+            select(DiagnosticPreviewUse).where(DiagnosticPreviewUse.ip_hash == quota._hash_ip(ip))
         )
         return len(result.scalars().all())
 
@@ -86,7 +86,7 @@ async def test_entries_older_than_the_window_are_pruned_and_free_up_quota():
     stale_at = datetime.now(timezone.utc) - timedelta(seconds=quota._WINDOW_SECONDS + 1)
     async with AsyncSessionLocal() as db:
         for i in range(quota.DIAGNOSTIC_PREVIEW_QUOTA):
-            db.add(DiagnosticPreviewUse(ip=ip, code=f"{i:06d}", used_at=stale_at))
+            db.add(DiagnosticPreviewUse(ip_hash=quota._hash_ip(ip), code=f"{i:06d}", used_at=stale_at))
         await db.commit()
 
     assert await quota.has_quota(ip, "999999") is True
@@ -101,7 +101,7 @@ async def test_recording_a_new_use_prunes_that_ips_stale_rows():
     ip = "1.2.3.4"
     stale_at = datetime.now(timezone.utc) - timedelta(seconds=quota._WINDOW_SECONDS + 1)
     async with AsyncSessionLocal() as db:
-        db.add(DiagnosticPreviewUse(ip=ip, code="111111", used_at=stale_at))
+        db.add(DiagnosticPreviewUse(ip_hash=quota._hash_ip(ip), code="111111", used_at=stale_at))
         await db.commit()
 
     await quota.record_use(ip, "999999")

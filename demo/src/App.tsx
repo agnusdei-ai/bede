@@ -31,7 +31,7 @@ interface DisplayMessage {
 // point at that rather than surfacing the raw browser wording.
 function friendlyErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof TypeError) {
-    return "Could not reach the server — it may be waking up after being idle. Wait a few seconds and try again."
+    return "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
   }
   return err instanceof Error ? err.message : fallback
 }
@@ -83,9 +83,9 @@ function CodeScreen({ onLoggedIn }: {
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
         <div className="text-center mb-6">
           <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Bede — a Socratic tutor</h1>
+          <h1 className="text-2xl font-display font-bold text-gray-800">Bede, a Socratic tutor</h1>
           <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each learner's potential</p>
-          <p className="text-sm text-gray-500 mt-1">One click — no account, no key to paste</p>
+          <p className="text-sm text-gray-500 mt-1">One click. No account or key needed.</p>
         </div>
 
         {/* Both optional — Bede adapts tone, narration pacing (oral vs.
@@ -127,7 +127,7 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code just for you. This browser remembers the name and grade for next time — nothing is stored on our server, and it's gone once you close this tab.</p>
+          <p>A one-time 6-digit code, just for you. This browser remembers the name and grade for next time. Nothing is stored on our server, and it's gone once you close this tab.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
@@ -420,7 +420,7 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-white border-t border-parchment-200 pt-2">
           <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-navy-200 shadow-sm" />
-          <div className="flex-1 text-xs text-navy-700">Drawing ready — add a note or send</div>
+          <div className="flex-1 text-xs text-navy-700">Drawing ready. Add a note, or just send it.</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
         </div>
       )}
@@ -576,8 +576,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
               Want Bede's notes from today's demo?
             </label>
             <p className="text-xs text-gray-500 mb-2.5">
-              An informal impression based on this one short session, not an official evaluation —
-              sent once to the address below, never stored, and never shown to {config.student_name}.
+              An informal impression from this one short session, not an official evaluation. Sent once
+              to the address below. Never stored, and never shown to {config.student_name}.
             </p>
             <div className="flex gap-2">
               <input
@@ -687,9 +687,9 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
           <FlaskConical size={16} className="text-sage-600" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Ask Bede — Sandbox Preview</h1>
+          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Ask Bede: Sandbox Preview</h1>
           <p className="text-xs text-gray-500 leading-tight">
-            What a parent sees on their own deployment — direct answers, not Socratic
+            What a parent sees on their own deployment. Direct answers, not Socratic questions.
           </p>
         </div>
       </header>
@@ -705,7 +705,7 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
         {settingsOpen && (
           <div className="px-4 pb-4 max-w-2xl">
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              Custom instructions <span className="font-normal text-gray-400">(your own test lesson content — never saved)</span>
+              Custom instructions <span className="font-normal text-gray-400">(your own test lesson content, never saved)</span>
             </label>
             <textarea
               value={customInstructions}
@@ -722,7 +722,7 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 && (
             <p className="text-sm text-gray-400 text-center mt-12">
-              Ask Bede anything — no need to guess through questions, and you can switch topics freely.
+              Ask Bede anything. No need to guess through questions, and you can switch topics freely.
               A real parent gets this on their own private deployment, gated behind their own PIN.
             </p>
           )}
@@ -887,7 +887,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Diagnostic Preview</h1>
-          <p className="text-xs text-gray-500 leading-tight">Single-session only — nothing here is saved</p>
+          <p className="text-xs text-gray-500 leading-tight">Single-session only. Nothing here is saved.</p>
         </div>
         <button
           onClick={loadSummary}
@@ -918,7 +918,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
           )}
           {!loading && !loadError && !summary && (
             <p className="text-sm text-gray-400 text-center mt-8">
-              No mastery data yet — this builds up once some math tutoring happens in this demo session.
+              No mastery data yet. This builds up once some math tutoring happens in this demo session.
               Try again with Refresh once the child has worked through a math question or two.
             </p>
           )}
@@ -930,7 +930,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
               </div>
               {summary.calibration && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-                  Bede is still getting to know how {summary.student_name} thinks about math — early estimates.
+                  Bede is still getting to know how {summary.student_name} thinks about math. These are early estimates.
                 </p>
               )}
               <div className="space-y-2 mb-3">
@@ -1085,7 +1085,7 @@ function FeedbackModal({ token, onClose, initialCategory = 'cx' }: {
             <p className="text-xs text-gray-500">
               {isPlans
                 ? "We'll follow up soon about the full-featured version and our monthly/annual plans."
-                : 'Your feedback was sent — it genuinely helps shape what\'s next.'}
+                : 'Your feedback was sent. It genuinely helps shape what\'s next.'}
             </p>
             <button onClick={onClose} className="mt-5 w-full py-2.5 bg-navy-100 text-navy-700 rounded-xl font-semibold text-sm hover:bg-navy-200 transition-colors">
               Close
@@ -1141,15 +1141,15 @@ function FeedbackModal({ token, onClose, initialCategory = 'cx' }: {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={isPlans
-                ? 'Pricing, timeline, features you need — anything that helps us follow up well…'
-                : "What worked, what didn't, what surprised you…"}
+                ? 'Pricing, timeline, features you need. Anything that helps us follow up well.'
+                : "What worked, what didn't, what surprised you."}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-navy-400"
             />
 
             <label htmlFor="feedback-email" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
               Email {isPlans
                 ? <span className="font-normal normal-case text-gray-400">(so we can follow up)</span>
-                : <span className="font-normal normal-case text-gray-400">(optional — only if you want a reply)</span>}
+                : <span className="font-normal normal-case text-gray-400">(optional, only if you want a reply)</span>}
             </label>
             <input
               id="feedback-email"

@@ -50,11 +50,12 @@ async def record_skill_evidence_demo(
     child's tutoring turn.
 
     calibration_weight decays with this code's own evidence count so far
-    (mastery.calibration_weight_for(), parameterized by this module's own
-    CALIBRATION_THRESHOLD — deliberately not production's number, see the
-    module docstring) — matching process_evidence's real-backend behavior,
-    not just this module's own calibration banner in
-    get_mastery_summary_demo below."""
+    (mastery.calibration_weight_for(), parameterized by this module's own,
+    separately-declared CALIBRATION_THRESHOLD above — which happens to
+    also be 5 right now, but is not imported from production and is free
+    to diverge, per that constant's own docstring) — matching
+    process_evidence's real-backend behavior, not just this module's own
+    calibration banner in get_mastery_summary_demo below."""
     vector = get_mastery_vector(code)
     evidence_count_before = get_mastery_evidence_count(code)
     if vector is None:

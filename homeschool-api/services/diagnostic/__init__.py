@@ -104,6 +104,7 @@ async def process_evidence(
 
     log = logging.getLogger(__name__)
     row = None
+    vector_is_cold_start = False
 
     try:
         result = await db.execute(
@@ -113,15 +114,24 @@ async def process_evidence(
             )
         )
         row = result.scalar_one_or_none()
-        vector = decrypt_json(row.profile_enc) if row is not None else new_vector(grade_band)
+        if row is None:
+            vector = new_vector(grade_band)
+            vector_is_cold_start = True
+        else:
+            vector = decrypt_json(row.profile_enc)
     except Exception as exc:
         log.warning(
             "Mastery profile load failed for %s/%s, treating as cold-start: %s",
             student_name, subject_area, exc,
         )
         vector = new_vector(grade_band)
+        vector_is_cold_start = True
 
-    evidence_count_before = row.evidence_count if row is not None else 0
+    # A corrupted row that failed to decrypt gets a fresh vector above —
+    # its calibration_weight should reflect that same true cold start
+    # (evidence_count effectively 0 for this vector), not the stale
+    # row.evidence_count the old, now-unrecoverable vector had earned.
+    evidence_count_before = 0 if vector_is_cold_start else row.evidence_count
     updated_vector, updates = await apply_evidence(
         vector, probe_id, outcome, confidence,
         calibration_weight=calibration_weight_for(evidence_count_before), model=model,

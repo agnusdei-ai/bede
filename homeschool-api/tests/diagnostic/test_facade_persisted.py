@@ -204,34 +204,38 @@ async def test_evidence_log_row_never_contains_the_raw_outcome_or_confidence(db_
 
 
 @pytest.mark.asyncio
-async def test_calibration_weight_decays_as_evidence_count_grows(db_session):
-    """Unit 3.3: process_evidence computes calibration_weight internally
-    from the row's own evidence_count before this call — a cold-start
-    student's very first observation should move a skill further than a
-    student who's already accumulated CALIBRATION_THRESHOLD+ pieces of
-    evidence for the identical outcome."""
-    from services.diagnostic.mastery import CALIBRATION_THRESHOLD
+async def test_process_evidence_uses_calibration_weight_for_evidence_count(db_session, monkeypatch):
+    """Unit 3.3's Fable-backed review found the original version of this
+    test didn't actually distinguish the new weight-decay behavior from
+    the old, fixed calibration_weight=1.0 — mutation-verified: reverting
+    process_evidence's weight computation back to a flat 1.0 still made
+    the old assertions (an "early vs. late delta" comparison, which
+    shrinks near the [0,1] clamp regardless of weight) pass.
 
-    first_call_vector = await process_evidence(
+    Pins the wiring directly instead: monkeypatch calibration_weight_for
+    to a distinctive, unmistakable constant and confirm process_evidence's
+    persisted output matches apply_evidence called with that exact weight
+    — not apply_evidence's own flat-1.0 default. A regression to a fixed
+    weight (or an accidental fallback to the default) fails this
+    immediately, at any evidence_count, not just a saturating boundary."""
+    import services.diagnostic.mastery as mastery_module
+    from services.diagnostic.mastery import new_vector
+
+    monkeypatch.setattr(mastery_module, "calibration_weight_for", lambda evidence_count, threshold=None: 5.0)
+
+    expected, _ = await apply_evidence(
+        new_vector("K-2"), "probe.cc.rote_count_20", "correct", 1.0, calibration_weight=5.0,
+    )
+    unweighted, _ = await apply_evidence(
+        new_vector("K-2"), "probe.cc.rote_count_20", "correct", 1.0, calibration_weight=1.0,
+    )
+    assert expected != unweighted  # sanity: the distinctive weight actually changes the result
+
+    actual = await process_evidence(
         db_session, "Grace", "probe.cc.rote_count_20", "correct", 1.0, "K-2",
     )
-    first_call_delta = first_call_vector["cc.rote_count_20"] - 0.5
-
-    for _ in range(CALIBRATION_THRESHOLD):
-        await process_evidence(db_session, "Grace", "probe.cc.rote_count_20", "correct", 1.0, "K-2")
-
-    before = (await process_evidence(
-        db_session, "Grace", "probe.cc.rote_count_20", "incorrect", 1.0, "K-2",
-    ))["cc.rote_count_20"]
-    after = (await process_evidence(
-        db_session, "Grace", "probe.cc.rote_count_20", "incorrect", 1.0, "K-2",
-    ))["cc.rote_count_20"]
-    late_call_delta = before - after
-
-    assert first_call_delta > 0  # sanity: the first call did move the skill up
-    # Once past threshold, calibration_weight is a flat 1.0 (a normal
-    # Bayesian step) — smaller in magnitude than the doubled cold-start push.
-    assert abs(late_call_delta) < first_call_delta
+    assert actual == expected
+    assert actual != unweighted
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ docs/diagnostic/DIAGNOSTIC_BUILD_PROGRESS.md's sign-off scope.
 import pytest
 
 import core.demo_code_session as demo_code_session
+from services.diagnostic import apply_evidence
 from services.diagnostic_demo import get_mastery_summary_demo, record_skill_evidence_demo
 
 
@@ -92,28 +93,36 @@ async def test_calibration_is_true_below_threshold_and_false_at_or_above():
 
 
 @pytest.mark.asyncio
-async def test_calibration_weight_decays_as_evidence_count_grows():
-    """Unit 3.3: record_skill_evidence_demo now passes a decaying
-    calibration_weight (mastery.calibration_weight_for, parameterized by
-    this module's own CALIBRATION_THRESHOLD) instead of apply_evidence's
-    flat 1.0 default — mirrors process_evidence's real-backend behavior."""
-    from services.diagnostic_demo import CALIBRATION_THRESHOLD
+async def test_record_skill_evidence_demo_uses_calibration_weight_for_evidence_count(monkeypatch):
+    """Unit 3.3's Fable-backed review found the original version of this
+    test didn't actually distinguish the new weight-decay behavior from
+    apply_evidence's flat 1.0 default — mutation-verified: reverting
+    record_skill_evidence_demo's weight computation still made the old
+    "early vs. late delta shrinks" assertions pass, since that shrinkage
+    also happens as the posterior saturates near the [0,1] clamp,
+    independent of calibration weighting. Pins the wiring directly:
+    monkeypatch calibration_weight_for to a distinctive, unmistakable
+    constant and confirm the persisted vector matches apply_evidence
+    called with that exact weight — not the flat-1.0 default."""
+    import services.diagnostic_demo as demo_module
+    from services.diagnostic.mastery import new_vector
+
+    monkeypatch.setattr(demo_module, "calibration_weight_for", lambda evidence_count, threshold: 5.0)
+
+    expected, _ = await apply_evidence(
+        new_vector("3-5"), "probe.oa.multiplication_facts", "correct", 1.0, calibration_weight=5.0,
+    )
+    unweighted, _ = await apply_evidence(
+        new_vector("3-5"), "probe.oa.multiplication_facts", "correct", 1.0, calibration_weight=1.0,
+    )
+    assert expected != unweighted  # sanity: the distinctive weight actually changes the result
 
     code = demo_code_session.generate_code("Ellie", "3")
-
     await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
-    first_call_delta = demo_code_session.get_mastery_vector(code)["oa.multiplication_facts"] - 0.5
 
-    for _ in range(CALIBRATION_THRESHOLD):
-        await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
-
-    before = demo_code_session.get_mastery_vector(code)["oa.multiplication_facts"]
-    await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "incorrect")
-    after = demo_code_session.get_mastery_vector(code)["oa.multiplication_facts"]
-    late_call_delta = before - after
-
-    assert first_call_delta > 0
-    assert abs(late_call_delta) < first_call_delta
+    actual = demo_code_session.get_mastery_vector(code)
+    assert actual == expected
+    assert actual != unweighted
 
 
 @pytest.mark.asyncio

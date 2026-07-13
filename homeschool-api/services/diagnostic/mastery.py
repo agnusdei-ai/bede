@@ -37,8 +37,10 @@ _BAND_INDEX = {band.value: index for index, band in enumerate(_BAND_ORDER)}
 # scalar, not a per-skill count — see DIAGNOSTIC_BUILD_PROGRESS.md's unit
 # 2.2 review) below which a student is still "calibrating": design doc
 # §8.3's own explicit "[to verify final N]" flag — this is a placeholder,
-# matching services/diagnostic_demo.py's separately-declared demo number,
-# not yet tuned against real sessions. Revisit at Phase 5.
+# not yet tuned against real sessions. Coincidentally the same value as
+# services/diagnostic_demo.py's own, separately-declared CALIBRATION_
+# THRESHOLD today, but the two are not coupled — this one is free to
+# change at Phase 5's tuning pass without touching the demo's number.
 CALIBRATION_THRESHOLD = 5
 
 

@@ -25,16 +25,16 @@ class _FakeProvider:
             yield event
 
 
-def _config() -> SessionConfig:
-    return SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
+def _config(grade_stage: GradeStage = GradeStage.core_mastery) -> SessionConfig:
+    return SessionConfig(student_name="Guest", grade="4", grade_stage=grade_stage)
 
 
-async def _run_stream(events) -> list[dict]:
+async def _run_stream(events, grade_stage: GradeStage = GradeStage.core_mastery) -> list[dict]:
     with patch.object(ai_service, "get_provider", return_value=_FakeProvider(events)):
         chunks = [
             chunk
             async for chunk in ai_service.stream_tutor_response(
-                config=_config(),
+                config=_config(grade_stage),
                 subject=Subject.living_books,
                 history=[],
                 child_message="Tell me about the river.",
@@ -76,7 +76,7 @@ async def test_celebrate_discovery_as_the_last_block_gets_a_fallback_question():
     assert parsed[-1] == {"type": "done"}
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert text_chunks, "no fallback question was appended after a questionless tool card"
-    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS
+    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS[GradeStage.core_mastery]
 
 
 @pytest.mark.asyncio
@@ -102,7 +102,7 @@ async def test_connect_to_faith_without_reflection_question_gets_a_fallback():
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert text_chunks, "connect_to_faith with no reflection_question should still get a fallback"
-    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS
+    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS[GradeStage.core_mastery]
 
 
 @pytest.mark.asyncio
@@ -163,3 +163,34 @@ async def test_suggest_next_subject_emits_subject_complete_event():
     assert complete_events == [{
         "type": "subject_complete", "reason": "mastery", "content": "You've got this — let's move on!",
     }]
+
+
+# ── Age-calibrated fallback question ─────────────────────────────────────────
+#
+# "Where does that take your thinking?" asks a child to reflect on their own
+# thought process as an object — too abstract for a Foundations-stage (K-2)
+# or even a Logic-stage (core_mastery, grades 3-5) child, who thinks in
+# concrete terms. It's reserved for the Rhetoric stage (independent) only.
+
+@pytest.mark.asyncio
+async def test_foundations_stage_gets_a_concrete_fallback_question():
+    events = [ToolCall(
+        id="toolu_1", name="celebrate_discovery",
+        input={"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
+    )]
+    parsed = await _run_stream(events, grade_stage=GradeStage.foundations)
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert text_chunks
+    question = text_chunks[-1]["content"].strip()
+    assert question in ai_service._FALLBACK_CONTINUATION_QUESTIONS[GradeStage.foundations]
+    assert question != "Where does that take your thinking?"
+
+
+def test_abstract_metacognitive_question_reserved_for_independent_stage():
+    """Direct check on the source data, not just one sampled draw: the
+    abstract phrasing must never appear in the younger stages' lists."""
+    abstract_phrase = "Where does that take your thinking?"
+    assert abstract_phrase not in ai_service._FALLBACK_CONTINUATION_QUESTIONS[GradeStage.foundations]
+    assert abstract_phrase not in ai_service._FALLBACK_CONTINUATION_QUESTIONS[GradeStage.core_mastery]
+    assert abstract_phrase in ai_service._FALLBACK_CONTINUATION_QUESTIONS[GradeStage.independent]

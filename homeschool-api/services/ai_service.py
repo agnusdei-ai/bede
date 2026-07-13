@@ -37,12 +37,41 @@ _HISTORY_WINDOW = 20
 # celebration or faith connection never leaves the child with nothing to
 # respond to, instead of hoping the model complies every time.
 _QUESTIONLESS_TOOLS = {"celebrate_discovery", "connect_to_faith"}
-_FALLBACK_CONTINUATION_QUESTIONS = [
-    "What do you think comes next?",
-    "Where does that take your thinking?",
-    "What would you add to that?",
-    "What made you see it that way?",
-]
+
+# Age-calibrated, not a single flat list: "Where does that take your
+# thinking?" asks a child to reflect on their own thought process as an
+# object — a Rhetoric-stage (independent) skill. A Foundations-stage (K-2)
+# child, and still a Logic-stage (core_mastery, grades 3-5) one, thinks in
+# concrete terms and needs a concrete question, not an abstract metacognitive
+# one — so that phrasing is reserved for the oldest stage only.
+_FALLBACK_CONTINUATION_QUESTIONS = {
+    GradeStage.foundations: [
+        "What was your favorite part of that?",
+        "What did you notice most?",
+        "What happens next?",
+        "Can you tell me more about that?",
+    ],
+    GradeStage.core_mastery: [
+        "What do you think comes next?",
+        "Why do you think that happened?",
+        "What would you add to that?",
+        "What made you see it that way?",
+    ],
+    GradeStage.independent: [
+        "Where does that take your thinking?",
+        "What would you add to that?",
+        "What made you see it that way?",
+        "How does that connect to what you already knew?",
+    ],
+}
+
+
+def _fallback_continuation_question(grade_stage: GradeStage) -> str:
+    """The guaranteed continuation question appended after a questionless
+    tool card (see _QUESTIONLESS_TOOLS above), picked for this child's stage
+    rather than one generic list — see _FALLBACK_CONTINUATION_QUESTIONS'
+    comment for why the phrasing itself needs to vary by stage."""
+    return random.choice(_FALLBACK_CONTINUATION_QUESTIONS[grade_stage])
 
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
@@ -1146,7 +1175,7 @@ async def stream_tutor_response(
                     )
 
     if ends_on_questionless_tool:
-        yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
+        yield json.dumps({'type': 'text', 'content': f" {_fallback_continuation_question(config.grade_stage)}"})
 
     yield json.dumps({'type': 'done'})
 

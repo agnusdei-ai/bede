@@ -11,6 +11,7 @@ import {
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
+import { renderEmphasis } from './renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 
@@ -498,7 +499,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
     return (
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-base leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
-        {msg.content}
+        {renderEmphasis(msg.content)}
       </div>
     )
   }
@@ -508,7 +509,7 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
       <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? 'bg-navy-500 text-white rounded-br-sm' : 'bg-white border border-navy-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
         {!isUser && <div className="text-xs font-semibold text-navy-600 mb-1">Bede</div>}
         {isUser && <div className="text-xs font-semibold text-navy-100 mb-1">{studentName}</div>}
-        <div className="whitespace-pre-wrap">{msg.content}</div>
+        <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>
   )
@@ -731,7 +732,7 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
                 m.role === 'user' ? 'bg-navy-500 text-white' : 'bg-white border border-sage-100 text-gray-800'
               }`}>
-                {m.content || (streaming && i === messages.length - 1 && (
+                {m.content ? renderEmphasis(m.content) : (streaming && i === messages.length - 1 && (
                   <Loader2 size={14} className="animate-spin text-gray-400" />
                 ))}
               </div>
@@ -967,7 +968,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
                 <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
                   m.role === 'user' ? 'bg-navy-500 text-white' : 'bg-white border border-sage-100 text-gray-800'
                 }`}>
-                  {m.content || (streaming && i === messages.length - 1 && (
+                  {m.content ? renderEmphasis(m.content) : (streaming && i === messages.length - 1 && (
                     <Loader2 size={14} className="animate-spin text-gray-400" />
                   ))}
                 </div>

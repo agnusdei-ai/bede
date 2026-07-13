@@ -917,7 +917,7 @@ def _process_tool_use(tool_name: str, tool_input: dict) -> str:
     if tool_name == "celebrate_discovery":
         insight = tool_input["specific_insight"]
         encouragement = tool_input["encouragement"]
-        return f"✨ {encouragement} I noticed you saw that {insight} — that's genuine thinking!"
+        return f"✨ {encouragement} I noticed you saw that {insight}."
 
     if tool_name == "connect_to_faith":
         connection = tool_input["connection"]

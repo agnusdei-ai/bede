@@ -18,11 +18,13 @@ interface HandwritingCanvasProps {
   onSubmit: (imageDataUrl: string) => void
   onCancel: () => void
   // Picks the printed/drawn paper style below — mathematics gets graph
-  // paper (for showing work, plotting, keeping columns aligned);
-  // everything else (written narration, nature-notebook sketches, etc.,
-  // per invite_handwriting's own scope) gets composition paper, the
-  // classic ruled handwriting-practice sheet. Optional/undefined falls
-  // back to composition paper.
+  // paper (for showing work, plotting, keeping columns aligned); Art &
+  // Music gets staff paper (five-line musical staves for copying a hymn
+  // line, notating a melody, or first composition exercises); everything
+  // else (written narration, nature-notebook sketches, etc., per
+  // invite_handwriting's own scope) gets composition paper, the classic
+  // ruled handwriting-practice sheet. Optional/undefined falls back to
+  // composition paper.
   subject?: Subject
 }
 
@@ -36,16 +38,27 @@ const GRAPH_SPACING = 24
 // between one baseline and the next, matching the classic elementary
 // composition-paper layout (top space, dashed midline, solid baseline).
 const COMPOSITION_LINE_HEIGHT = 42
+// Musical staff paper: five lines per staff. The line gap is generous
+// (beginner manuscript paper, not engraver-tight) so a child can place
+// note heads between lines with a stylus or pencil after printing.
+const STAFF_LINE_GAP = 12
+// Top of one staff to the top of the next — leaves clear space between
+// staves for lyrics, solfège syllables, or ledger lines.
+const STAFF_GROUP_SPACING = 96
+const STAFF_TOP_MARGIN = 48
 
-type PaperStyle = 'composition' | 'graph'
+type PaperStyle = 'composition' | 'graph' | 'staff'
 
 function paperStyleFor(subject?: Subject): PaperStyle {
-  return subject === 'mathematics' ? 'graph' : 'composition'
+  if (subject === 'mathematics') return 'graph'
+  if (subject === 'art_music') return 'staff'
+  return 'composition'
 }
 
 const PAPER_LABEL: Record<PaperStyle, string> = {
   composition: 'Composition Paper',
   graph: 'Graph Paper',
+  staff: 'Staff Paper',
 }
 
 // Fills the page background and its ruling — called any time the canvas is
@@ -71,6 +84,24 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
       ctx.moveTo(0, y + 0.5)
       ctx.lineTo(width, y + 0.5)
       ctx.stroke()
+    }
+    return
+  }
+
+  if (style === 'staff') {
+    ctx.strokeStyle = COMPOSITION_RULE_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    // Whole staves only — a staff that would run off the bottom edge is
+    // omitted rather than drawn partially (four lines is not a staff).
+    for (let top = STAFF_TOP_MARGIN; top + 4 * STAFF_LINE_GAP <= height; top += STAFF_GROUP_SPACING) {
+      for (let line = 0; line < 5; line++) {
+        const y = top + line * STAFF_LINE_GAP
+        ctx.beginPath()
+        ctx.moveTo(0, y + 0.5)
+        ctx.lineTo(width, y + 0.5)
+        ctx.stroke()
+      }
     }
     return
   }

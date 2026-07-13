@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -15,6 +16,7 @@ from core.demo_code_session import (
     record_message as demo_code_record_message,
 )
 from core.deps import require_auth, require_parent
+from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import (
     EmailSummaryRequest,
     grade_to_stage,
@@ -36,6 +38,8 @@ from services.ai_service import (
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
 from services.voice_synthesis import synthesis_configured, synthesize_speech
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
@@ -130,16 +134,44 @@ async def chat(
             yield json.dumps({'type': 'done'})
             return
 
-        async for chunk in stream_tutor_response(
-            config=req.session_config,
-            subject=req.current_subject,
-            history=req.conversation_history,
-            child_message=req.child_message,
-            db=db,
-            drawing_image=req.drawing_image,
-            demo_code=auth.get("code") if is_demo_code else None,
-        ):
-            yield chunk
+        # Wrapped in with_stall_timeout + try/except so this generator is
+        # GUARANTEED to terminate with a real {"type": "done"} the child's
+        # own reader.read() loop can see — without this, an upstream stall
+        # (or any other mid-stream exception) left the SSE connection open
+        # with nothing more ever coming, and neither side had a timeout of
+        # its own: the child's send button just spun forever with no way to
+        # recover short of reloading the page.
+        try:
+            async for chunk in with_stall_timeout(
+                stream_tutor_response(
+                    config=req.session_config,
+                    subject=req.current_subject,
+                    history=req.conversation_history,
+                    child_message=req.child_message,
+                    db=db,
+                    drawing_image=req.drawing_image,
+                    demo_code=auth.get("code") if is_demo_code else None,
+                ),
+                timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,
+            ):
+                yield chunk
+        except asyncio.TimeoutError:
+            log.warning(
+                "Tutor stream stalled past %.0fs for %s — closing with a recoverable error",
+                STREAM_STALL_TIMEOUT_SECONDS, req.session_config.student_name,
+            )
+            yield json.dumps({
+                'type': 'text',
+                'content': "Sorry, that took too long to come through. Could you try sending that again?",
+            })
+            yield json.dumps({'type': 'done'})
+        except Exception:
+            log.exception("Tutor stream failed mid-turn for %s", req.session_config.student_name)
+            yield json.dumps({
+                'type': 'text',
+                'content': "Something went wrong on my end. Could you try sending that again?",
+            })
+            yield json.dumps({'type': 'done'})
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")
 

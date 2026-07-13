@@ -57,8 +57,22 @@ let msgIdCounter = 0
 const nextId = () => `msg-${++msgIdCounter}`
 
 /**
- * Derive API-format ChatMessage[] from a displayMessages slice.
- * Excludes system messages, tool messages, and the streaming placeholder.
+ * Derive API-format ChatMessage[] from a displayMessages slice. Excludes
+ * system messages, the streaming placeholder, and any turn left with no
+ * text at all once the mapping below runs.
+ *
+ * Tool-card and visual-aid messages are NOT dropped (real bug this fixes):
+ * doing so used to erase Bede's own memory of anything it did outside
+ * typed prose — a turn where it only called show_visual_aid, with no other
+ * text, looked to Bede like it had said nothing at all last turn. In Art &
+ * Music this meant a child saying "I see the picture" right after Bede
+ * showed one read, from Bede's side, as an unprompted remark following its
+ * own silence — the natural conclusion being "my last attempt didn't
+ * work," so it would show the very same image again. Tool-card content is
+ * already real natural-language text Bede said to the child, so it's
+ * folded back in as ordinary assistant text here; visual aids have no
+ * natural text of their own, so they get a short synthesized description
+ * instead of the blank string they used to leave behind.
  *
  * @param msgs  - full displayMessages array
  * @param from  - start index (defaults to 0 = full session)
@@ -66,13 +80,18 @@ const nextId = () => `msg-${++msgIdCounter}`
 export function getApiMessages(msgs: DisplayMessage[], from = 0): ChatMessage[] {
   return msgs
     .slice(from)
-    .filter(
-      (m) =>
-        (m.role === 'user' || m.role === 'assistant') &&
-        !m.tool &&
-        m.id !== 'streaming-response',
-    )
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+    .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.id !== 'streaming-response')
+    .map((m): ChatMessage | null => {
+      if (m.visualAid) {
+        return {
+          role: m.role as 'user' | 'assistant',
+          content: `[Showed a picture: "${m.visualAid.title}" by ${m.visualAid.creator} (${m.visualAid.year})]`,
+        }
+      }
+      if (!m.content.trim()) return null
+      return { role: m.role as 'user' | 'assistant', content: m.content }
+    })
+    .filter((m): m is ChatMessage => m !== null)
 }
 
 export const useSessionStore = create<SessionState>()(

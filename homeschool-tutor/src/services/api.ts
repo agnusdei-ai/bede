@@ -107,6 +107,21 @@ function stripDataUrlPrefix(dataUrl: string): string {
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)
 }
 
+// How long a gap between consecutive SSE chunks this client will tolerate
+// before giving up on the stream. The backend has its own matching
+// server-side stall guard (core/sse_utils.py) that normally closes a
+// stuck stream with a clean, recoverable error chunk well before this —
+// this is the client's own backstop for the case that guard can't catch:
+// a network path that goes silent without properly closing the
+// connection (a black-holed proxy, a dropped wifi/cellular handoff),
+// where the server-side fix alone can't help since the server itself may
+// still think it's fine. Without this, reader.read() below just waits
+// forever with nothing to time it out, and the send button spins
+// indefinitely with no way to recover short of reloading the page.
+const SSE_STALL_TIMEOUT_MS = 60_000
+
+class StreamStallError extends Error {}
+
 /** Shared line-buffered SSE parser used by both the tutor and sandbox chat streams. */
 async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
   const reader = res.body!.getReader()
@@ -114,7 +129,23 @@ async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
   let buffer = ''
 
   while (true) {
-    const { done, value } = await reader.read()
+    let timeoutId: ReturnType<typeof setTimeout>
+    const stallTimeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
+    })
+    let done: boolean, value: Uint8Array | undefined
+    try {
+      ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
+    } catch (err) {
+      // Release the underlying connection rather than leaving it dangling
+      // in the background — reader.read() itself is still pending at this
+      // point (that's exactly what stalled), so this is what actually
+      // frees it up instead of just abandoning the promise.
+      reader.cancel().catch(() => {})
+      throw err
+    } finally {
+      clearTimeout(timeoutId!)
+    }
     if (done) break
 
     buffer += decoder.decode(value, { stream: true })

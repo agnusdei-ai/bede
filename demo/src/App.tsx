@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
@@ -23,6 +23,33 @@ interface DisplayMessage {
   visualAid?: VisualAidData
 }
 
+// Real bug this fixes: history sent back to Claude on every subsequent turn
+// used to drop tool-card and visual-aid messages entirely (`!m.tool &&
+// !m.visualAid`) — so from Bede's own perspective, a turn where it only
+// called show_visual_aid (no other text) looked like it said NOTHING at
+// all. In Art & Music, this meant a child saying "I see the picture" after
+// Bede showed one looked to Bede like an unprompted remark following its
+// own silence — and the most natural read of that is "my last attempt must
+// not have worked," so it would show the same image again ("Here it is
+// properly"). The same blank-turn gap applied to every other tool
+// (hints, narration prompts, celebrations, faith connections), just less
+// visibly than a repeated picture. Tool-card content is already real
+// natural-language text Bede said to the child, so folding it back in as
+// ordinary assistant text — plus a synthesized description for visual aids,
+// which have no natural text of their own — gives Bede real continuity
+// instead of a blank spot for everything it did outside of typed prose.
+function toApiMessage(m: DisplayMessage): ChatMessage | null {
+  if (m.role === 'system') return null
+  if (m.visualAid) {
+    return {
+      role: m.role,
+      content: `[Showed a picture: "${m.visualAid.title}" by ${m.visualAid.creator} (${m.visualAid.year})]`,
+    }
+  }
+  if (!m.content.trim()) return null
+  return { role: m.role, content: m.content }
+}
+
 // A fetch() that fails at the network/connection level (DNS, connection
 // refused, TLS, offline) rejects with a bare TypeError, not an HTTP error —
 // browsers word it differently ("Failed to fetch" in Chrome, "Load failed"
@@ -35,6 +62,89 @@ function friendlyErrorMessage(err: unknown, fallback: string): string {
     return "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
   }
   return err instanceof Error ? err.message : fallback
+}
+
+// ── Session persistence (survives an app-switch / backgrounded-tab reload) ───
+//
+// Real bug this fixes: every piece of demo session state — token, code,
+// mode, the whole conversation — lived only in React's in-memory state,
+// with no sessionStorage backing at all. iOS Safari (and other mobile
+// browsers under memory pressure) reclaims memory from a backgrounded tab
+// and reloads it from scratch the next time it's foregrounded — wiping
+// every bit of that state instantly. A child switching to another app
+// mid-lesson (to look something up, say) and coming back saw the whole
+// demo reset to "Generate my code," conversation and all, with zero
+// warning. sessionStorage (not localStorage) matches this session's own
+// existing lifetime convention — gone once the tab actually closes, same
+// as NAME_STORAGE_KEY/GRADE_STORAGE_KEY above — a reload is not a close.
+const AUTH_STORAGE_KEY = 'bede-demo-auth'
+const CHAT_STORAGE_PREFIX = 'bede-demo-chat-'
+
+interface StoredAuth {
+  token: string
+  code: string
+}
+
+function loadStoredAuth(): StoredAuth | null {
+  try {
+    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (typeof parsed?.token !== 'string' || typeof parsed?.code !== 'string') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveStoredAuth(token: string, code: string): void {
+  try {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, code }))
+  } catch {
+    // best-effort — a failed save just means a reload can't resume this session, same as before this fix
+  }
+}
+
+function clearStoredAuth(): void {
+  try {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY)
+  } catch {
+    // best-effort
+  }
+}
+
+interface PersistedChatState {
+  subject: Subject
+  subjectsCompleted: Subject[]
+  messages: DisplayMessage[]
+}
+
+function loadChatState(code: string): PersistedChatState | null {
+  try {
+    const raw = sessionStorage.getItem(CHAT_STORAGE_PREFIX + code)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed?.messages) || typeof parsed?.subject !== 'string') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveChatState(code: string, state: PersistedChatState): void {
+  try {
+    sessionStorage.setItem(CHAT_STORAGE_PREFIX + code, JSON.stringify(state))
+  } catch {
+    // best-effort
+  }
+}
+
+function clearChatState(code: string): void {
+  try {
+    sessionStorage.removeItem(CHAT_STORAGE_PREFIX + code)
+  } catch {
+    // best-effort
+  }
 }
 
 // ── Self-service code login — the sole way into the demo ─────────────────────
@@ -167,6 +277,11 @@ interface ChatScreenProps {
   // Only used for POST /tutor/extract-narration (see handleNarrationFile
   // below) — runChat already has its own token baked in via closure.
   token: string
+  // Persistence key for the sessionStorage restore/save below (see
+  // "Session persistence" at the top of this file) — the same code
+  // DemoFlow already threads through as this session's one stable
+  // identifier, reused here rather than inventing a second one.
+  code: string
   speakToken?: string | null // lets voice output use the backend's TTS instead of just the browser's
   header: React.ReactNode
   onSessionInvalid?: () => void // route to the "session ended" screen instead of an inline error
@@ -176,10 +291,18 @@ interface ChatScreenProps {
   sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
 }
 
-function ChatScreen({ displayName, subjects, runChat, token, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
-  const [subject, setSubject] = useState<Subject>(subjects[0] ?? 'living_books')
-  const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>([])
-  const [messages, setMessages] = useState<DisplayMessage[]>([])
+function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
+  // Read once, on mount, before any state below initializes from it — a
+  // reload mid-conversation (see "Session persistence" above) should pick
+  // right back up where it left off, not silently drop back to a blank
+  // subject opener as if nothing had happened yet.
+  const restored = useMemo(() => loadChatState(code), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [subject, setSubject] = useState<Subject>(() =>
+    restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
+  )
+  const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>(() => restored?.subjectsCompleted ?? [])
+  const [messages, setMessages] = useState<DisplayMessage[]>(() => restored?.messages ?? [])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
@@ -190,7 +313,13 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
-  const openerFired = useRef<Set<Subject>>(new Set())
+  // Only the restored subject is pre-marked as fired, not every subject
+  // that may have been visited before an earlier reload — messages here
+  // aren't tagged with which subject they belong to, so there's no
+  // reliable way to reconstruct the full fired-set from history alone.
+  // Worst case, switching to an earlier subject after a restore re-fires
+  // its opener once more — a minor re-greeting, not a lost conversation.
+  const openerFired = useRef<Set<Subject>>(new Set(restored ? [restored.subject] : []))
   const inputRef = useRef(input)  // mirrors `input` for the idle-continue timer's closure below
   const consecutiveAutoContinues = useRef(0)
 
@@ -201,22 +330,31 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { inputRef.current = input }, [input])
 
+  // Debounced (not on every streamed token — see the module docstring
+  // above) — persists the live conversation so a reload from a
+  // backgrounded-tab app-switch can pick back up mid-lesson instead of
+  // starting over.
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      saveChatState(code, { subject, subjectsCompleted, messages })
+    }, 400)
+    return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current) }
+  }, [code, subject, subjectsCompleted, messages])
+
   // Keep the caller's ref current so it can read a snapshot at "finish demo"
   // time, without lifting message state itself out of this component.
   useEffect(() => {
     if (!sessionStateRef) return
     sessionStateRef.current = {
-      history: messages
-        .filter((m) => m.role !== 'system' && !m.tool && !m.visualAid)
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      history: messages.map(toApiMessage).filter((m): m is ChatMessage => m !== null),
       subjectsCompleted,
     }
   }, [messages, subjectsCompleted, sessionStateRef])
 
   const historyForApi = useCallback((): ChatMessage[] => {
-    return messages
-      .filter((m) => m.role !== 'system' && !m.tool && !m.visualAid)
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+    return messages.map(toApiMessage).filter((m): m is ChatMessage => m !== null)
   }, [messages])
 
   const runStream = useCallback(async (childMessage: string, drawingImage: string | null) => {
@@ -1210,6 +1348,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
 
   const handleLogout = () => {
     logout(token) // fire-and-forget — invalidates server-side immediately
+    clearChatState(code)
     onLogout()
   }
 
@@ -1252,6 +1391,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
         subjects={config.subjects}
         runChat={runChat}
         token={token}
+        code={code}
         speakToken={token}
         onSessionInvalid={onSessionEnded}
         sessionStateRef={sessionStateRef}
@@ -1320,19 +1460,29 @@ type Mode =
   | { kind: 'session-ended' }
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>({ kind: 'code-setup' })
+  // Resumes a code-chat session straight away if one survived in
+  // sessionStorage (see "Session persistence" above) — a reload from a
+  // backgrounded-tab app-switch lands back in the conversation instead of
+  // at "Generate my code." A stale/invalid token restored this way still
+  // fails safely: the first request it makes (getDemoConfig inside
+  // DemoFlow) 401s exactly like any other expired token would, routing to
+  // the normal "session ended" screen rather than anything silently broken.
+  const [mode, setMode] = useState<Mode>(() => {
+    const stored = loadStoredAuth()
+    return stored ? { kind: 'code-chat', token: stored.token, code: stored.code } : { kind: 'code-setup' }
+  })
 
   switch (mode.kind) {
     case 'code-setup':
-      return <CodeScreen onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })} />
+      return <CodeScreen onLoggedIn={(token, code) => { saveStoredAuth(token, code); setMode({ kind: 'code-chat', token, code }) }} />
 
     case 'code-chat':
       return (
         <DemoFlow
           token={mode.token}
           code={mode.code}
-          onSessionEnded={() => setMode({ kind: 'session-ended' })}
-          onLogout={() => setMode({ kind: 'code-setup' })}
+          onSessionEnded={() => { clearStoredAuth(); setMode({ kind: 'session-ended' }) }}
+          onLogout={() => { clearStoredAuth(); setMode({ kind: 'code-setup' }) }}
           onOpenSandbox={() => setMode({ kind: 'code-sandbox', token: mode.token, code: mode.code })}
           onOpenDiagnostic={() => setMode({ kind: 'diagnostic-view', token: mode.token, code: mode.code })}
         />
@@ -1343,7 +1493,7 @@ export default function App() {
         <DemoSandboxScreen
           token={mode.token}
           onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
-          onSessionInvalid={() => setMode({ kind: 'session-ended' })}
+          onSessionInvalid={() => { clearStoredAuth(); setMode({ kind: 'session-ended' }) }}
         />
       )
 
@@ -1352,11 +1502,11 @@ export default function App() {
         <DiagnosticViewScreen
           token={mode.token}
           onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
-          onSessionInvalid={() => setMode({ kind: 'session-ended' })}
+          onSessionInvalid={() => { clearStoredAuth(); setMode({ kind: 'session-ended' }) }}
         />
       )
 
     case 'session-ended':
-      return <SessionEndedScreen onRetry={() => setMode({ kind: 'code-setup' })} />
+      return <SessionEndedScreen onRetry={() => { clearStoredAuth(); setMode({ kind: 'code-setup' }) }} />
   }
 }

@@ -795,6 +795,13 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [chatError, setChatError] = useState('')
+  // Set alongside loadError/chatError specifically for
+  // DiagnosticPreviewQuotaExceededError — drives the "Get in touch" CTA
+  // below, which opens FeedbackModal pre-set to the "plans" category so
+  // the visitor can actually reach the operator, not just read a message
+  // telling them to (see FeedbackModal's initialCategory prop).
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
+  const [showContactModal, setShowContactModal] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   const loadSummary = useCallback(async () => {
@@ -812,11 +819,12 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
       // (see core/diagnostic_preview_quota.py), so this stays on-screen
       // as an inline message rather than routing to the "session ended"
       // screen like TrialSessionEndedError above.
-      setLoadError(
-        err instanceof DiagnosticPreviewQuotaExceededError
-          ? err.message
-          : friendlyErrorMessage(err, 'Could not load the mastery summary')
-      )
+      if (err instanceof DiagnosticPreviewQuotaExceededError) {
+        setQuotaExceeded(true)
+        setLoadError(err.message)
+      } else {
+        setLoadError(friendlyErrorMessage(err, 'Could not load the mastery summary'))
+      }
     } finally {
       setLoading(false)
     }
@@ -856,11 +864,12 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
         onSessionInvalid()
         return
       }
-      setChatError(
-        err instanceof DiagnosticPreviewQuotaExceededError
-          ? err.message
-          : friendlyErrorMessage(err, 'Something went wrong')
-      )
+      if (err instanceof DiagnosticPreviewQuotaExceededError) {
+        setQuotaExceeded(true)
+        setChatError(err.message)
+      } else {
+        setChatError(friendlyErrorMessage(err, 'Something went wrong'))
+      }
       setMessages((prev) => prev.slice(0, -1))
     } finally {
       setStreaming(false)
@@ -895,7 +904,17 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
             <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-navy-400" /></div>
           )}
           {!loading && loadError && (
-            <p className="text-sm text-red-600 text-center">{loadError}</p>
+            <div className="text-center">
+              <p className="text-sm text-red-600">{loadError}</p>
+              {quotaExceeded && (
+                <button
+                  onClick={() => setShowContactModal(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-navy-500 text-white rounded-xl text-sm font-semibold hover:bg-navy-600 transition-colors"
+                >
+                  <Mail size={14} /> Get in touch
+                </button>
+              )}
+            </div>
           )}
           {!loading && !loadError && !summary && (
             <p className="text-sm text-gray-400 text-center mt-8">
@@ -955,9 +974,19 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
               </div>
             ))}
             {chatError && (
-              <p className="text-xs text-red-600 flex items-center gap-1 justify-center">
-                <AlertCircle size={12} /> {chatError}
-              </p>
+              <div className="text-center">
+                <p className="text-xs text-red-600 flex items-center gap-1 justify-center">
+                  <AlertCircle size={12} /> {chatError}
+                </p>
+                {quotaExceeded && (
+                  <button
+                    onClick={() => setShowContactModal(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-navy-500 text-white rounded-xl text-sm font-semibold hover:bg-navy-600 transition-colors"
+                  >
+                    <Mail size={14} /> Get in touch
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -983,6 +1012,10 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
           </button>
         </div>
       </div>
+
+      {showContactModal && (
+        <FeedbackModal token={token} initialCategory="plans" onClose={() => setShowContactModal(false)} />
+      )}
     </div>
   )
 }
@@ -996,20 +1029,32 @@ const FEEDBACK_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
   { value: 'cx', label: 'Overall experience' },
   { value: 'ux', label: 'Usability / interface' },
   { value: 'content_quality', label: "Bede's teaching quality" },
+  { value: 'plans', label: 'Interested in plans' },
   { value: 'other', label: 'Something else' },
 ]
 
 /** Reachable mid-session (not just at the end) since a rough edge is easiest
  *  to describe the moment it happens, not after backtracking through memory
  *  at "Finish demo" time. Routes to the operator's own inbox — see
- *  homeschool-api/routers/feedback.py — never persisted server-side. */
-function FeedbackModal({ token, onClose }: { token: string; onClose: () => void }) {
-  const [category, setCategory] = useState<FeedbackCategory>('cx')
+ *  homeschool-api/routers/feedback.py — never persisted server-side.
+ *
+ *  initialCategory lets a caller open this pre-set to "plans" (see
+ *  DiagnosticViewScreen's "Get in touch" button, shown once the
+ *  diagnostic-preview quota is exceeded) — same form, same pipeline, just
+ *  a different starting category and tailored copy/required fields so it
+ *  reads as a real contact form rather than a beta-feedback survey. */
+function FeedbackModal({ token, onClose, initialCategory = 'cx' }: {
+  token: string
+  onClose: () => void
+  initialCategory?: FeedbackCategory
+}) {
+  const [category, setCategory] = useState<FeedbackCategory>(initialCategory)
   const [rating, setRating] = useState(0)
   const [message, setMessage] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const isPlans = category === 'plans'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1020,7 +1065,7 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
       setStatus('sent')
     } catch (err) {
       setStatus('error')
-      setErrorMsg(friendlyErrorMessage(err, 'Could not send feedback right now.'))
+      setErrorMsg(friendlyErrorMessage(err, 'Could not send this right now.'))
     }
   }
 
@@ -1034,8 +1079,14 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
         {status === 'sent' ? (
           <div className="text-center py-4">
             <Check size={28} className="mx-auto mb-3 text-green-600" />
-            <p className="text-sm font-semibold text-gray-800 mb-1">Thank you!</p>
-            <p className="text-xs text-gray-500">Your feedback was sent — it genuinely helps shape what's next.</p>
+            <p className="text-sm font-semibold text-gray-800 mb-1">
+              {isPlans ? "You're on our radar!" : 'Thank you!'}
+            </p>
+            <p className="text-xs text-gray-500">
+              {isPlans
+                ? "We'll follow up soon about the full-featured version and our monthly/annual plans."
+                : 'Your feedback was sent — it genuinely helps shape what\'s next.'}
+            </p>
             <button onClick={onClose} className="mt-5 w-full py-2.5 bg-navy-100 text-navy-700 rounded-xl font-semibold text-sm hover:bg-navy-200 transition-colors">
               Close
             </button>
@@ -1044,7 +1095,9 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
           <form onSubmit={handleSubmit}>
             <div className="flex items-center gap-1.5 mb-4">
               <MessageSquare size={16} className="text-navy-500" />
-              <h2 className="text-sm font-display font-bold text-gray-800">Share feedback with the team</h2>
+              <h2 className="text-sm font-display font-bold text-gray-800">
+                {isPlans ? 'Interested in the full version?' : 'Share feedback with the team'}
+              </h2>
             </div>
 
             <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">What's this about?</label>
@@ -1056,25 +1109,29 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
               {FEEDBACK_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
 
-            <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Rating <span className="font-normal normal-case text-gray-400">(optional)</span>
-            </label>
-            <div className="flex gap-1 mb-3">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  type="button"
-                  key={n}
-                  onClick={() => setRating(rating === n ? 0 : n)}
-                  aria-label={`${n} star${n > 1 ? 's' : ''}`}
-                  className="p-0.5"
-                >
-                  <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-300'} />
-                </button>
-              ))}
-            </div>
+            {!isPlans && (
+              <>
+                <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+                  Rating <span className="font-normal normal-case text-gray-400">(optional)</span>
+                </label>
+                <div className="flex gap-1 mb-3">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      type="button"
+                      key={n}
+                      onClick={() => setRating(rating === n ? 0 : n)}
+                      aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                      className="p-0.5"
+                    >
+                      <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-300'} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
             <label htmlFor="feedback-message" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Your feedback
+              {isPlans ? 'What would you like to know?' : 'Your feedback'}
             </label>
             <textarea
               id="feedback-message"
@@ -1083,16 +1140,21 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
               rows={4}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="What worked, what didn't, what surprised you…"
+              placeholder={isPlans
+                ? 'Pricing, timeline, features you need — anything that helps us follow up well…'
+                : "What worked, what didn't, what surprised you…"}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-navy-400"
             />
 
             <label htmlFor="feedback-email" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Email <span className="font-normal normal-case text-gray-400">(optional — only if you want a reply)</span>
+              Email {isPlans
+                ? <span className="font-normal normal-case text-gray-400">(so we can follow up)</span>
+                : <span className="font-normal normal-case text-gray-400">(optional — only if you want a reply)</span>}
             </label>
             <input
               id="feedback-email"
               type="email"
+              required={isPlans}
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               placeholder="you@example.com"
@@ -1103,10 +1165,10 @@ function FeedbackModal({ token, onClose }: { token: string; onClose: () => void 
 
             <button
               type="submit"
-              disabled={status === 'sending' || !message.trim()}
+              disabled={status === 'sending' || !message.trim() || (isPlans && !contactEmail.trim())}
               className="w-full py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send feedback'}
+              {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : (isPlans ? 'Get in touch' : 'Send feedback')}
             </button>
           </form>
         )}

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -19,6 +20,27 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+async def _warm_voice_models():
+    """
+    Pre-load the local voice models (Resemblyzer speaker verification, Whisper
+    fallback STT, Kokoro TTS) in a background thread so the first child of the
+    day doesn't pay the multi-second model-load latency at login or first mic
+    use. Purely best-effort: each loader logs-and-degrades on its own when a
+    package/model isn't installed, and all of them stay lazy anyway — this
+    task just fires them early, off the event loop, without delaying boot.
+    """
+    from services import transcription, voice_auth, voice_synthesis
+
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, voice_auth.preload)
+        await loop.run_in_executor(None, transcription.preload)
+        await voice_synthesis.preload()
+        log.info("Voice model warm-up finished")
+    except Exception:
+        log.warning("Voice model warm-up failed — models will load lazily on first use", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -27,8 +49,9 @@ async def lifespan(app: FastAPI):
       2. Load or generate device_salt and DATA_KEY from the DB
          PBKDF2 key derivation runs in a thread pool so the event loop
          is not blocked during the ~1.5 s CPU-bound operation.
+      3. Kick off the voice-model warm-up in the background (non-blocking).
     Shutdown:
-      3. Dispose the connection pool cleanly.
+      4. Dispose the connection pool cleanly.
     """
     try:
         await create_tables()
@@ -39,7 +62,11 @@ async def lifespan(app: FastAPI):
         log.critical("FATAL: %s", exc)
         sys.exit(1)
 
+    warmup_task = asyncio.create_task(_warm_voice_models())
+
     yield
+
+    warmup_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

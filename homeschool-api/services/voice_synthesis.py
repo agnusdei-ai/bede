@@ -87,6 +87,15 @@ async def _get_model():
         return _kokoro
 
 
+async def preload() -> None:
+    """Best-effort Kokoro warm-up so Bede's first spoken line doesn't pay the
+    ONNX model load (see main.py's startup warm-up task). No-op when OpenAI
+    TTS is configured (nothing local to load) or the model files are absent —
+    _get_model() already logs-and-degrades on its own."""
+    if not settings.openai_api_key:
+        await _get_model()
+
+
 def synthesis_configured() -> bool:
     """Best-effort, non-blocking check for whether some backend TTS is likely
     usable — the authoritative check happens lazily in synthesize_speech()."""

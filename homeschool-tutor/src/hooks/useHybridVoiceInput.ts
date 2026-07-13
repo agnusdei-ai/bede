@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useVoiceRecorder } from './useVoiceRecorder'
 import { transcribeFallback } from '../services/voiceApi'
@@ -24,7 +24,15 @@ interface Options {
 type Mode = 'idle' | 'native' | 'recording' | 'transcribing'
 
 export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
-  const [mode, setMode] = useState<Mode>('idle')
+  const [mode, _setMode] = useState<Mode>('idle')
+  // Mirrored in a ref so callbacks fired from browser events (recognition
+  // onend, the watchdog timer) see the CURRENT mode, not a stale closure —
+  // startFallback below relies on this to dedupe.
+  const modeRef = useRef<Mode>('idle')
+  const setMode = useCallback((m: Mode) => {
+    modeRef.current = m
+    _setMode(m)
+  }, [])
   const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stoppedByUserRef = useRef(false)
 
@@ -44,10 +52,15 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   })
 
   const startFallback = useCallback(() => {
+    // The watchdog and native recognition's own onend/onerror can BOTH ask
+    // for the fallback on the same attempt (stopping native recognition
+    // fires its onend a tick later) — only the first should start the
+    // recorder, or two overlapping MediaRecorder sessions get opened.
+    if (modeRef.current === 'recording' || modeRef.current === 'transcribing') return
     clearWatchdog()
     setMode('recording')
     recorder.startRecording()
-  }, [clearWatchdog, recorder])
+  }, [clearWatchdog, recorder, setMode])
 
   const native = useSpeechRecognition({
     language,
@@ -63,6 +76,18 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       if (!stoppedByUserRef.current) startFallback()
     },
   })
+
+  // Interim results prove native recognition is alive and hearing the child —
+  // the watchdog only exists for Safari's "accepts the tap, then total
+  // silence" stall, so disarm it as soon as ANY result arrives. Without this,
+  // Chrome (which streams interim results while the child is still talking
+  // but only delivers the FINAL transcript after they stop) had native
+  // recognition killed mid-utterance at the 4s mark and was dumped into the
+  // far slower record-then-server-Whisper fallback for any answer longer
+  // than a short phrase.
+  useEffect(() => {
+    if (modeRef.current === 'native' && native.interim) clearWatchdog()
+  }, [native.interim, clearWatchdog])
 
   const start = useCallback(() => {
     if (mode !== 'idle') return

@@ -9,35 +9,59 @@ Model sizes vs speed (single inference on CPU):
   small  ~244M params  ~3s    – best accuracy/speed trade-off for 2h session
 
 We default to 'tiny' so the first download is fast and CPU usage stays low.
+
+Everything CPU-bound here (model load AND inference) runs in a thread-pool
+executor, never on the asyncio event loop. FastAPI serves every request —
+including the /tutor/chat SSE stream — from one event loop; a synchronous
+Whisper call used to freeze the entire app (every tablet's chat stream, every
+login) for the full duration of a model load + transcription.
 """
+import asyncio
 import io
 import logging
-from functools import lru_cache
+import threading
 
 logger = logging.getLogger(__name__)
 
 _WHISPER_MODEL_SIZE = "tiny"
 
+_model = None
+_model_load_attempted = False
+# A real lock (not lru_cache) so two concurrent first requests can't both
+# load the model — the second waits for the first instead of doubling memory.
+_model_lock = threading.Lock()
 
-@lru_cache(maxsize=1)
+
 def _get_model():
-    try:
-        import whisper  # type: ignore
+    """Blocking — only call from a worker thread (or preload())."""
+    global _model, _model_load_attempted
+    if _model is not None or _model_load_attempted:
+        return _model
+    with _model_lock:
+        if _model is not None or _model_load_attempted:
+            return _model
+        try:
+            import whisper  # type: ignore
 
-        logger.info("Loading Whisper model '%s'…", _WHISPER_MODEL_SIZE)
-        model = whisper.load_model(_WHISPER_MODEL_SIZE)
-        logger.info("Whisper model ready")
-        return model
-    except ImportError:
-        logger.warning("openai-whisper not installed — fallback STT unavailable")
-        return None
+            logger.info("Loading Whisper model '%s'…", _WHISPER_MODEL_SIZE)
+            _model = whisper.load_model(_WHISPER_MODEL_SIZE)
+            logger.info("Whisper model ready")
+        except ImportError:
+            logger.warning("openai-whisper not installed — fallback STT unavailable")
+        finally:
+            _model_load_attempted = True
+        return _model
 
 
-async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> dict:
-    """
-    Transcribe audio bytes to text using Whisper.
-    Returns {text, language, segments}.
-    """
+def preload() -> None:
+    """Best-effort warm-up so the first child to use the mic fallback doesn't
+    pay the model-load latency. Blocking — run in an executor (see main.py's
+    startup warm-up task)."""
+    _get_model()
+
+
+def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
+    """Blocking load + inference — run in an executor, never on the event loop."""
     model = _get_model()
     if model is None:
         return {"text": "", "error": "Whisper not available", "language": language}
@@ -86,3 +110,12 @@ async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> dict:
         return {"text": "", "error": str(e), "language": language}
     finally:
         os.unlink(tmp_path)
+
+
+async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> dict:
+    """
+    Transcribe audio bytes to text using Whisper.
+    Returns {text, language, segments}.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _transcribe_sync, audio_bytes, language)

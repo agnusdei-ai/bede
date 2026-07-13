@@ -9,7 +9,7 @@ from core.config import settings
 from core.database import AsyncSessionLocal, create_tables, engine
 from core.encryption import initialize_encryption
 from core.middleware import ExfiltrationGuard, RateLimitMiddleware, SecurityHeadersMiddleware
-from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, parent_agreement, pod, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,6 +79,7 @@ app.include_router(transcripts.router)
 app.include_router(voice.router)
 app.include_router(admin.router)
 app.include_router(pod.router)
+app.include_router(parent_agreement.router)
 app.include_router(catalog.router)
 app.include_router(sandbox.router)
 app.include_router(feedback.router)

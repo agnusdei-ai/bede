@@ -446,3 +446,29 @@ export async function buildLearnerProfile(
   if (!res.ok) throw new Error(`Failed to build learner profile for ${studentName}`)
   return res.json()
 }
+
+// ── Parent agreement (platform-scope disclaimer/waiver) ─────────────────────
+
+export interface ParentAgreementSection {
+  heading: string
+  body: string
+}
+
+export interface ParentAgreementStatus {
+  version: string
+  sections: ParentAgreementSection[]
+  accepted: boolean
+  accepted_at: string | null
+}
+
+export async function fetchParentAgreementStatus(token: string): Promise<ParentAgreementStatus> {
+  const res = await fetch(`${BASE}/parent-agreement/status`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Failed to load the parent agreement')
+  return res.json()
+}
+
+export async function acceptParentAgreement(token: string): Promise<{ accepted: boolean; version: string }> {
+  return postJson('/parent-agreement/accept', token)
+}

@@ -288,6 +288,32 @@ class ParentTotpConfig(Base):
     )
 
 
+class ParentAgreement(Base):
+    """
+    Single row (key="agreement") recording whether the parent has accepted
+    the platform-scope disclaimer/waiver in core/parent_agreement.py — no
+    diagnosis/screening, reduced-supervision session format. Same
+    single-row-keyed-by-fixed-string pattern as ParentTotpConfig above:
+    this is a single-family app, so there's exactly one parent to consent,
+    not a per-user table. accepted_version is compared against
+    core.parent_agreement.CURRENT_VERSION on every check — bumping that
+    constant when the wording changes materially forces re-acceptance,
+    rather than treating "accepted once, ever" as good forever. Plaintext
+    (not AES-256-GCM like most tables here): a version string and a
+    timestamp carry no personal or child data to protect.
+    """
+    __tablename__ = "parent_agreement"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    accepted_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 async def create_tables() -> None:
     """Idempotent table creation — safe to call on every startup."""
     async with engine.begin() as conn:

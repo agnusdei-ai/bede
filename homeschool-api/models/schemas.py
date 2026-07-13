@@ -329,6 +329,24 @@ class LearnerProfileData(BaseModel):
     bede_profile_notes:    str
     assessed_at:           str
 
+# ── Parent agreement (platform-scope disclaimer/waiver) ──────────────────────
+
+class ParentAgreementSection(BaseModel):
+    heading: str
+    body: str
+
+class ParentAgreementStatus(BaseModel):
+    """GET /parent-agreement/status — the current agreement text plus
+    whether this deployment's parent has accepted the current version yet."""
+    version:      str
+    sections:     List[ParentAgreementSection]
+    accepted:     bool
+    accepted_at:  Optional[str] = None
+
+class ParentAgreementAcceptResponse(BaseModel):
+    accepted: bool
+    version:  str
+
 # ── Diagnostic engine (mastery profile) ──────────────────────────────────────
 
 class MasteryLevel(str, Enum):

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import AppShell from './guards/AppShell'
+import RequireParentAgreement from './guards/RequireParentAgreement'
 import Login from './pages/Login'
 import ParentSetup from './pages/ParentSetup'
 import PodDashboard from './pages/PodDashboard'
@@ -68,7 +69,9 @@ export default function App() {
             path="/setup"
             element={
               <RequireAuth allowedRole="parent">
-                <ParentSetup />
+                <RequireParentAgreement>
+                  <ParentSetup />
+                </RequireParentAgreement>
               </RequireAuth>
             }
           />
@@ -76,7 +79,9 @@ export default function App() {
             path="/pod"
             element={
               <RequireAuth allowedRole="parent">
-                <PodDashboard />
+                <RequireParentAgreement>
+                  <PodDashboard />
+                </RequireParentAgreement>
               </RequireAuth>
             }
           />
@@ -84,7 +89,9 @@ export default function App() {
             path="/progress"
             element={
               <RequireAuth allowedRole="parent">
-                <Progress />
+                <RequireParentAgreement>
+                  <Progress />
+                </RequireParentAgreement>
               </RequireAuth>
             }
           />
@@ -100,7 +107,9 @@ export default function App() {
             path="/sandbox"
             element={
               <RequireAuth allowedRole="parent">
-                <Sandbox />
+                <RequireParentAgreement>
+                  <Sandbox />
+                </RequireParentAgreement>
               </RequireAuth>
             }
           />

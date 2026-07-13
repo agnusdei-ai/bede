@@ -45,6 +45,7 @@ class AuditEvent:
     SUMMARY_EMAILED          = "summary.emailed"
     DIAGNOSTIC_VIEW          = "diagnostic.view"
     FEEDBACK_SUBMITTED       = "feedback.submitted"
+    PARENT_AGREEMENT_ACCEPTED = "parent.agreement_accepted"
 
 
 # ── Write ────────────────────────────────────────────────────────────────────

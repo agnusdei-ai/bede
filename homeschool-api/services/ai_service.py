@@ -54,7 +54,7 @@ TUTOR_TOOLS = [
         "name": "request_narration",
         "description": (
             "Prompt the child to narrate (tell back in their own words) what they just learned. "
-            "Use this after a discovery moment. Charlotte Mason narration builds memory and comprehension."
+            "Use this after a discovery moment. Mater Amabilis narration builds memory and comprehension."
         ),
         "input_schema": {
             "type": "object",
@@ -72,7 +72,7 @@ TUTOR_TOOLS = [
         "description": (
             "Invite the child to write or draw their answer by hand on their tablet's canvas — "
             "opens it for them automatically. This is how narration becomes WRITTEN narration "
-            "(Charlotte Mason: oral narration for young children, transitioning to written "
+            "(Mater Amabilis: oral narration for young children, transitioning to written "
             "narration once they're old enough to be comfortable putting thoughts on paper — "
             "see the stage guidance above for whether that's this child's mode yet), how nature "
             "study becomes a nature notebook entry (the child's own sketch of what they observed, "
@@ -311,8 +311,8 @@ _STAGE_GUIDANCE = {
     GradeStage.core_mastery: (
         "This child is in the Logic Stage (grades 3-5). They can handle cause-and-effect thinking, "
         "categorizing, and 'why' questions. Encourage them to find patterns, make connections, "
-        "and begin to form their own opinions backed by reasons. This is the age Charlotte Mason's "
-        "own students began transitioning from oral to written narration — invite `invite_handwriting` "
+        "and begin to form their own opinions backed by reasons. This is the age at which Mater Amabilis "
+        "has students begin transitioning from oral to written narration — invite `invite_handwriting` "
         "sometimes, not every time; oral narration alone is still fully legitimate most of the time."
     ),
     GradeStage.independent: (
@@ -327,13 +327,13 @@ _STAGE_GUIDANCE = {
 
 _SUBJECT_CONTEXT = {
     Subject.morning_time: (
-        "This is Morning Time — the heart of the Charlotte Mason day. "
+        "This is Morning Time — the heart of the Mater Amabilis day. "
         "Open with warmth and wonder. Touch on Scripture, a hymn, or poetry. "
         "Set a joyful, expectant tone for the day. A short oral narration of yesterday's memory "
         "verse or a favorite line of poetry fits naturally here — brief and light, never a quiz."
     ),
     Subject.living_books: (
-        "You are guiding a Living Books session. Charlotte Mason believed children should "
+        "You are guiding a Living Books session. Mater Amabilis holds that children should "
         "encounter ideas through real books written by real people with passion, not dry textbooks. "
         "Ask questions about the story, characters, themes, and ideas. Invite narration — and once "
         "they've told it back, `invite_handwriting` (if their stage calls for written narration) is "
@@ -347,7 +347,7 @@ _SUBJECT_CONTEXT = {
         "their work on paper — that's math's own version of narration."
     ),
     Subject.nature_study: (
-        "Nature Study session. Charlotte Mason believed in unhurried observation of the real world. "
+        "Nature Study session. Mater Amabilis holds to unhurried observation of the real world. "
         "Invite the child to describe, wonder, hypothesize, and connect to God's design in creation. "
         "Ask them to imagine they are a naturalist making a discovery. Mater Amabilis treats the "
         "nature notebook as a weekly habit — after real description and wondering, `invite_handwriting` "
@@ -369,18 +369,18 @@ _SUBJECT_CONTEXT = {
     ),
     Subject.science: (
         "Science session. Agnus Dei curriculum covers botany, zoology, and earth science through "
-        "Charlotte Mason observation and living books. Ask the child to observe, hypothesize, "
+        "Mater Amabilis observation and living books. Ask the child to observe, hypothesize, "
         "and wonder at God's design in creation. Questions like 'What do you notice?' and "
         "'Why do you think that happens?' invite genuine scientific thinking. Invite narration of "
         "what they observed or reasoned, and — much like nature study — a quick labeled sketch or "
         "written note via `invite_handwriting` often captures it better than words alone."
     ),
     Subject.art_music: (
-        "Art & Music Study session. Following Charlotte Mason, expose the child to one composer "
+        "Art & Music Study session. Following Mater Amabilis, expose the child to one composer "
         "and one artist at a time — listening, looking, and responding. Ask: 'What do you notice "
         "in this painting?' or 'How does this music make you feel and why?' Develop aesthetic "
         "sensibility and appreciation, not technical critique. For picture study specifically, follow "
-        "Charlotte Mason's own method: after `show_visual_aid`, let the child look closely for a while, "
+        "Mater Amabilis's own method: after `show_visual_aid`, let the child look closely for a while, "
         "then invite them to narrate what they remember WITHOUT looking again — oral is fine, and "
         "`invite_handwriting` for a quick sketch from memory works beautifully too."
     ),
@@ -729,9 +729,9 @@ conversation warrants.
 
 def _infer_year(config: SessionConfig) -> "int | None":
     """
-    Rough heuristic: map grade string to Ambleside Online year.
-    AO Year 1 ~ grades K-1, Year 2 ~ grades 1-2, Year 3 ~ grades 2-3;
-    from Year 4 on, AO years track grade level 1:1.
+    Rough heuristic: map grade string to Mater Amabilis year.
+    Year 1 ~ grades K-1, Year 2 ~ grades 1-2, Year 3 ~ grades 2-3;
+    from Year 4 on, years track grade level 1:1.
     Returns None if the grade cannot be mapped, or if no catalog file exists
     for that year — get_catalog_note() degrades gracefully in that case.
     """
@@ -759,7 +759,7 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
     saints additionally gets a Faith and Life (Ignatius Press) grade-level
     orientation note appended, if this grade is in that series' range (1-8)
     — a separate, Catholic-specific catechism scope alongside the general
-    church-history living books the Ambleside Online catalog already lists
+    church-history living books the Mater Amabilis catalog already lists
     for this subject. Both are metadata/orientation only, never the
     underlying books' actual text — same rule either catalog follows.
     """
@@ -1081,7 +1081,7 @@ async def stream_tutor_response(
 
     async with _client.messages.stream(
         model=settings.tutor_model,
-        # Keep responses tight (Charlotte Mason lesson brevity) but leave real
+        # Keep responses tight (Mater Amabilis lesson brevity) but leave real
         # headroom for a tool call's own content plus trailing text — 400 cut
         # it too close for a verbose celebrate_discovery/connect_to_faith call
         # to ever have room left for the question after it. The

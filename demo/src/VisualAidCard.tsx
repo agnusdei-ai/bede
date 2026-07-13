@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ImageOff, MapPin, Palette, EyeOff } from 'lucide-react'
 import type { VisualAidData } from './api'
 
-// Charlotte Mason's picture-study method is specifically: look closely for a
+// Mater Amabilis's picture-study method is specifically: look closely for a
 // while, then the picture is put away, then the child narrates what they
 // remember — WITHOUT looking again. A card that just stays on screen forever
 // defeats the entire exercise, and aid.description below is itself a

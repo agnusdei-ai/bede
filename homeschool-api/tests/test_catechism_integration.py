@@ -1,7 +1,7 @@
 """
 Regression tests for _get_catalog_context()'s saints-specific wiring to
 Faith and Life (see services/catalog_service.py's get_catechism_note) —
-previously the `saints` subject only ever got the general Ambleside Online
+previously the `saints` subject only ever got the general Mater Amabilis
 church-history book list, with no Catholic-catechism-specific awareness at
 all.
 """
@@ -40,7 +40,7 @@ def test_saints_context_skipped_entirely_once_parent_sets_current_unit():
 
 def test_other_subjects_never_get_the_faith_and_life_note():
     """The catechism note is saints-specific — history, for instance,
-    already gets its own Ambleside Online book note and shouldn't also
+    already gets its own Mater Amabilis book note and shouldn't also
     pick up Faith and Life content."""
     context = _get_catalog_context(_config("5"), Subject.history)
     assert "Faith and Life" not in context

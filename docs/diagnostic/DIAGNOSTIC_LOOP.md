@@ -12,7 +12,7 @@
 |---|---|
 | **Granularity** | One iteration = one Socratic tutoring turn within a subject session |
 | **Embedding** | Woven into bede's existing `stream_tutor_response` SSE turn; does **not** replace tutoring |
-| **Visibility** | Fully silent to the child. The child experiences normal Charlotte Mason tutoring. |
+| **Visibility** | Fully silent to the child. The child experiences normal Mater Amabilis tutoring. |
 | **Persistence window** | Raw evidence exists in memory only during Steps 5→7; only derived probabilities are persisted (Step 8) |
 | **Termination** | Never hard-stops. Per-skill stopping rule removes skills from the *active probe set*; the loop continues until the math map is resolved, then drops to refresh/maintenance cadence |
 | **Cold start** | Calibration mode (widened probe spread, higher update weight) until each skill has ≥ N observations |

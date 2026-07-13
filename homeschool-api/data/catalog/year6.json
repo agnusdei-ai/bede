@@ -1,6 +1,6 @@
 {
   "year": 6,
-  "description": "Ambleside Online Year 6 — Charlotte Mason living books curriculum for grade 6. The Logic Stage is in full swing: Plutarch continues, American history moves toward the Republic, and literary analysis vocabulary begins alongside longer, more demanding novels.",
+  "description": "Mater Amabilis Year 6 living books curriculum for grade 6. The Logic Stage is in full swing: Plutarch continues, American history moves toward the Republic, and literary analysis vocabulary begins alongside longer, more demanding novels.",
   "books": [
     {
       "id": "y6-kim",
@@ -40,7 +40,7 @@
     },
     {
       "id": "y6-plutarchs-lives",
-      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "title": "Plutarch's Lives (selected passages, continuing rotation)",
       "author": "Plutarch",
       "subject": "history",
       "type": "spine",
@@ -100,7 +100,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 6 scope (Common Core domains 6.RP, 6.NS, 6.EE, 6.G, 6.SP): ratios and proportional reasoning; dividing fractions by fractions and operating with the full set of rational numbers, including negatives; writing and evaluating algebraic expressions and equations; area, surface area, and volume; an introduction to statistical thinking (measures of center, variability). Charlotte Mason approach: the student justifies each step, not just performs it.",
+    "mathematics": "Grade 6 scope (Common Core domains 6.RP, 6.NS, 6.EE, 6.G, 6.SP): ratios and proportional reasoning; dividing fractions by fractions and operating with the full set of rational numbers, including negatives; writing and evaluating algebraic expressions and equations; area, surface area, and volume; an introduction to statistical thinking (measures of center, variability). Mater Amabilis approach: the student justifies each step, not just performs it.",
     "art_music": "Composer: Frédéric Chopin — Romantic-era piano music, intimate and emotionally direct (a nocturne is an ideal entry point). Artist: Katsushika Hokusai — bold, graphic Japanese woodblock prints (The Great Wave off Kanagawa), a deliberate step outside the Western tradition studied so far. Poet: Emily Dickinson — compact, puzzling poems that reward re-reading and pattern-finding, well matched to the Logic Stage.",
     "language_arts": "Grade 6: literary analysis vocabulary is introduced (simile, metaphor, plot structure, characterization) and used in discussing that term's living books. Multi-paragraph written composition is now expected as the norm. Grammar review shifts toward how the student actually uses language in their own writing, rather than isolated drills.",
     "morning_time": "Scripture with real discussion of its meaning and context, a hymn or folk song, and Dickinson for poetry. Connect briefly to this term's history (the founding era, or Kim's India) when it fits naturally."

@@ -129,7 +129,7 @@ finalizeAssistantMessage() → promotes placeholder to a real message, sets isSt
 
 ## Models
 
-- **Tutor:** `claude-sonnet-4-6` (streaming, `max_tokens: 400`, tight for Charlotte Mason brevity)
+- **Tutor:** `claude-sonnet-4-6` (streaming, `max_tokens: 400`, tight for Mater Amabilis brevity)
 - **Summary:** `claude-haiku-4-5-20251001` (non-streaming, `max_tokens: 600`, end-of-session parent report)
 
 To change models, update `tutor_model` / `session_model` in `core/config.py`.

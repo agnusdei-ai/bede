@@ -1,5 +1,5 @@
 """
-Catalog service — loads Ambleside Online Year 1-3 book lists from JSON seed files
+Catalog service — loads Mater Amabilis Year 1-3 book lists from JSON seed files
 at import time. Static in-memory data; no database required.
 
 Functions:
@@ -183,7 +183,7 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
     if not spine_books and not supplemental_books:
         return None
 
-    lines = [f"Ambleside Online Year {year} — {subject.replace('_', ' ').title()} books:"]
+    lines = [f"Mater Amabilis Year {year} — {subject.replace('_', ' ').title()} books:"]
 
     if spine_books:
         titles = ", ".join(

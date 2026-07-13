@@ -1,6 +1,6 @@
 {
   "year": 3,
-  "description": "Ambleside Online Year 3 — Charlotte Mason living books curriculum for grades 2-3. Introduction to longer novels, biography, and Plutarch's lives. Richer Socratic discussion and written narration begins.",
+  "description": "Mater Amabilis Year 3 living books curriculum for grades 2-3. Introduction to longer novels, biography, and Plutarch's lives. Richer Socratic discussion and written narration begins.",
   "books": [
     {
       "id": "y3-little-women",
@@ -40,7 +40,7 @@
     },
     {
       "id": "y3-plutarchs-lives",
-      "title": "Plutarch's Lives (Ambleside selections, North translation)",
+      "title": "Plutarch's Lives (selected passages, North translation)",
       "author": "Plutarch / Thomas North",
       "subject": "history",
       "type": "spine",
@@ -48,7 +48,7 @@
       "terms": [1, 2, 3],
       "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "character", "leadership", "courage"],
       "anti_twaddle": true,
-      "notes": "Charlotte Mason considered Plutarch's Lives essential. Use the Ambleside-selected passages. Read slowly, discuss each moral dilemma. 'What made Publicola a good leader?' Written narration begins here."
+      "notes": "Mater Amabilis considers Plutarch's Lives essential. Use age-appropriate selected passages. Read slowly, discuss each moral dilemma. 'What made Publicola a good leader?' Written narration begins here."
     },
     {
       "id": "y3-parables-from-nature",
@@ -60,7 +60,7 @@
       "terms": [1, 2, 3],
       "concept_tags": ["nature", "faith", "insects", "metamorphosis", "wonder", "allegory", "creation", "seasons"],
       "anti_twaddle": true,
-      "notes": "Nature stories with rich theological and moral depth — in the tradition of Charlotte Mason's nature-faith integration. Ask: 'What does the caterpillar's transformation teach us?'"
+      "notes": "Nature stories with rich theological and moral depth — in the Mater Amabilis tradition of nature-faith integration. Ask: 'What does the caterpillar's transformation teach us?'"
     },
     {
       "id": "y3-our-island-story",
@@ -160,7 +160,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 3 scope (Common Core domains 3.OA, 3.NBT, 3.NF, 3.MD, 3.G): multiplication and division fact fluency and the relationship between them; understanding unit fractions and simple fraction comparison; area and perimeter of rectangles; measuring time, liquid volume, and mass; classifying quadrilaterals by their properties. Charlotte Mason approach: keep reasoning aloud — 'why does that work?' — ahead of speed drills.",
+    "mathematics": "Grade 3 scope (Common Core domains 3.OA, 3.NBT, 3.NF, 3.MD, 3.G): multiplication and division fact fluency and the relationship between them; understanding unit fractions and simple fraction comparison; area and perimeter of rectangles; measuring time, liquid volume, and mass; classifying quadrilaterals by their properties. Mater Amabilis approach: keep reasoning aloud — 'why does that work?' — ahead of speed drills.",
     "art_music": "Composer: Antonio Vivaldi — vivid, programmatic music that paints a picture (The Four Seasons is an ideal entry point at this age). Artist: Pieter Bruegel the Elder — busy, story-filled scenes of everyday village life, excellent for 'what do you notice first, and what do you notice after looking longer?' Poet: Robert Frost — accessible, image-rich poems that reward a second reading.",
     "language_arts": "Grade 3: written narration begins in earnest this year (a paragraph, in the child's own hand, following the oral habit built in Years 1-2). Dictation of short studied passages continues. Grammar now names what the child has been noticing — parts of speech, simple sentence structure — through real sentences from that term's living books.",
     "morning_time": "Scripture with brief discussion of its meaning, a hymn or folk song, and a Frost poem. A good place to connect the week's history reading (Our Island Story, Plutarch) to the growing timeline."

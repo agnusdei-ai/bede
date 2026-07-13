@@ -33,7 +33,7 @@ def grade_to_stage(grade: str) -> GradeStage:
 
 class Subject(str, Enum):
     morning_time = "morning_time"       # Bible, hymn, poetry, prayer
-    living_books = "living_books"       # Charlotte Mason literature
+    living_books = "living_books"       # Mater Amabilis literature
     mathematics = "mathematics"         # Discovery-based math
     nature_study = "nature_study"       # Observation, nature journal
     history = "history"                 # Story-based history & geography

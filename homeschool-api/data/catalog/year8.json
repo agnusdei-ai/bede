@@ -1,6 +1,6 @@
 {
   "year": 8,
-  "description": "Ambleside Online Year 8 — Charlotte Mason living books curriculum for grade 8. Demanding literature, layered historical analysis, and mature written narration as the Rhetoric stage begins.",
+  "description": "Mater Amabilis Year 8 living books curriculum for grade 8. Demanding literature, layered historical analysis, and mature written narration as the Rhetoric stage begins.",
   "books": [
     {
       "id": "y8-new-world-churchill",
@@ -27,7 +27,7 @@
     },
     {
       "id": "y8-plutarchs-lives",
-      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "title": "Plutarch's Lives (selected passages, continuing rotation)",
       "author": "Plutarch",
       "subject": "history",
       "type": "spine",
@@ -177,7 +177,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 8 scope (Common Core domains 8.NS, 8.EE, 8.F, 8.G, 8.SP): the real number system including irrational numbers; linear equations and systems of equations; an introduction to functions; geometric transformations and the Pythagorean theorem; scatter plots and bivariate data. Charlotte Mason approach at this stage (Rhetoric): the student should be able to justify each step of an argument, not just execute it — push for 'prove it' and 'is there another way to see this?'",
+    "mathematics": "Grade 8 scope (Common Core domains 8.NS, 8.EE, 8.F, 8.G, 8.SP): the real number system including irrational numbers; linear equations and systems of equations; an introduction to functions; geometric transformations and the Pythagorean theorem; scatter plots and bivariate data. Mater Amabilis approach at this stage (Rhetoric): the student should be able to justify each step of an argument, not just execute it — push for 'prove it' and 'is there another way to see this?'",
     "art_music": "Composer: Ludwig van Beethoven — emotionally complex, biographically compelling (composing through encroaching deafness). Good subject for discussing how adversity shaped an artist's work, fitting the Rhetoric stage's capacity for nuance. Artist: Michelangelo — Renaissance mastery across sculpture, painting, and architecture (David, the Sistine Chapel ceiling); rich material for discussing technical skill alongside spiritual and human themes. Poet: William Wordsworth — philosophical Romantic poetry on nature, memory, and the sublime; pairs naturally with this age's capacity for abstraction and this curriculum's nature-study emphasis.",
     "language_arts": "Grade 8: advanced grammar and composition, essay-length written narration expected as the default (not the exception), literary analysis vocabulary (theme, motif, irony, characterization), and early persuasive/rhetorical writing — the student should begin defending a position with evidence, not just summarizing a text.",
     "morning_time": "Scripture with real theological discussion, not just the passage's plain narrative; hymn and folksong from the term's rotation; Wordsworth for poetry, ideally followed by the student's own brief written or spoken response rather than passive listening only."

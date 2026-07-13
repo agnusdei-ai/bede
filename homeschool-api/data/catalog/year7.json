@@ -1,6 +1,6 @@
 {
   "year": 7,
-  "description": "Ambleside Online Year 7 — Charlotte Mason living books curriculum for grade 7. The Logic Stage's final year before Rhetoric begins: demanding 19th-century literature, the French Revolution and its aftermath, and the first steps into persuasive, evidence-based writing.",
+  "description": "Mater Amabilis Year 7 living books curriculum for grade 7. The Logic Stage's final year before Rhetoric begins: demanding 19th-century literature, the French Revolution and its aftermath, and the first steps into persuasive, evidence-based writing.",
   "books": [
     {
       "id": "y7-tale-of-two-cities",
@@ -28,7 +28,7 @@
     },
     {
       "id": "y7-plutarchs-lives",
-      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "title": "Plutarch's Lives (selected passages, continuing rotation)",
       "author": "Plutarch",
       "subject": "history",
       "type": "spine",
@@ -88,7 +88,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 7 scope (Common Core domains 7.RP, 7.NS, 7.EE, 7.G, 7.SP): proportional relationships and unit rates; operations with all rational numbers, including negative fractions and decimals; multi-step algebraic expressions and equations; scale drawings, angle relationships, circles, and surface area/volume; an introduction to probability and sampling. Charlotte Mason approach: 'is there another way to see this?' stays ahead of speed.",
+    "mathematics": "Grade 7 scope (Common Core domains 7.RP, 7.NS, 7.EE, 7.G, 7.SP): proportional relationships and unit rates; operations with all rational numbers, including negative fractions and decimals; multi-step algebraic expressions and equations; scale drawings, angle relationships, circles, and surface area/volume; an introduction to probability and sampling. Mater Amabilis approach: 'is there another way to see this?' stays ahead of speed.",
     "art_music": "Composer: Pyotr Ilyich Tchaikovsky — dramatic, narrative orchestral and ballet music (the 1812 Overture ties directly to this year's Napoleonic-era history). Artist: Eugène Delacroix — Romantic, dramatic historical painting (Liberty Leading the People connects straight to the French Revolution unit). Poet: John Keats — rich, sensory Romantic-era verse, a natural pairing with Tchaikovsky and Delacroix's shared era and emotional register.",
     "language_arts": "Grade 7: sustained multi-paragraph essays are expected, and the student takes first steps into persuasive/argumentative writing that must cite evidence from the text, not just assert an opinion. Literary vocabulary expands (foreshadowing, symbolism, tone). Grammar instruction shifts toward sentence variety and style rather than rules in isolation.",
     "morning_time": "Scripture with real theological discussion, a hymn or folk song, and Keats for poetry. Connect to the French Revolution unit when it fits, and invite a brief spoken or written response rather than passive listening."

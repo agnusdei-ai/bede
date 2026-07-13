@@ -1,6 +1,6 @@
 {
   "year": 4,
-  "description": "Ambleside Online Year 4 — Charlotte Mason living books curriculum for grade 4. First encounters with Plutarch's Lives and Shakespeare; broader world history spanning the 17th–18th centuries; richer, more analytical narration.",
+  "description": "Mater Amabilis Year 4 living books curriculum for grade 4. First encounters with Plutarch's Lives and Shakespeare; broader world history spanning the 17th–18th centuries; richer, more analytical narration.",
   "books": [
     {
       "id": "y4-george-washingtons-world",
@@ -50,7 +50,7 @@
     },
     {
       "id": "y4-plutarchs-lives",
-      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "title": "Plutarch's Lives (selected passages, continuing rotation)",
       "author": "Plutarch",
       "subject": "history",
       "type": "spine",
@@ -134,7 +134,7 @@
         "drama"
       ],
       "anti_twaddle": true,
-      "notes": "First taste of Shakespeare, in the Lambs' gentle prose retelling before the full play comes later in the Charlotte Mason rotation. 'Was Portia's solution fair to everyone?'"
+      "notes": "First taste of Shakespeare, in the Lambs' gentle prose retelling before the full play comes later in the Mater Amabilis rotation. 'Was Portia's solution fair to everyone?'"
     },
     {
       "id": "y4-madam-how-lady-why",
@@ -236,7 +236,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 4 scope (Common Core domains 4.OA, 4.NBT, 4.NF, 4.MD, 4.G): multi-digit multiplication and division with understanding of the standard algorithm's reasoning, not just its steps; fraction equivalence and comparison; adding and subtracting fractions with like denominators; measurement problems involving area and perimeter; classifying two-dimensional shapes by angles and line properties. Charlotte Mason approach: pose real problems the child must reason through aloud before showing any procedure — 'why does this work?' matters more than speed.",
+    "mathematics": "Grade 4 scope (Common Core domains 4.OA, 4.NBT, 4.NF, 4.MD, 4.G): multi-digit multiplication and division with understanding of the standard algorithm's reasoning, not just its steps; fraction equivalence and comparison; adding and subtracting fractions with like denominators; measurement problems involving area and perimeter; classifying two-dimensional shapes by angles and line properties. Mater Amabilis approach: pose real problems the child must reason through aloud before showing any procedure — 'why does this work?' matters more than speed.",
     "art_music": "Composer: Johann Sebastian Bach — structured, mathematical, foundational Baroque music that rewards close listening (a Brandenburg Concerto, a fugue, a chorale). Discuss the patterns the child can hear repeating. Artist: Rembrandt van Rijn — dramatic light and shadow, deeply observed portraits and biblical scenes. Ask what the light draws the eye toward first. Poet: Henry Wadsworth Longfellow — narrative poems with strong rhythm and historical imagination (Paul Revere's Ride fits naturally alongside this year's American history), good for a child ready for longer, story-driven verse.",
     "language_arts": "Grade 4: studied dictation begins this year — the child studies a passage first, then writes it from memory, building spelling and punctuation instinct rather than rote copying. Formal grammar starts (parts of speech, sentence structure) taught through real sentences from that term's living books, not isolated drill. Narration shifts from purely oral toward including some written narration.",
     "morning_time": "A longer Scripture passage with brief discussion of its meaning, a hymn and folk song from that term's rotation, and Longfellow for poetry. This is also a good place to touch on the term's history timeline (George Washington's World) in a few connecting sentences."

@@ -1,6 +1,6 @@
 {
   "year": 5,
-  "description": "Ambleside Online Year 5 — Charlotte Mason living books curriculum for grade 5. The Plutarch rotation continues, American history moves from the colonies toward the founding era, and written narration becomes the primary mode across most subjects.",
+  "description": "Mater Amabilis Year 5 living books curriculum for grade 5. The Plutarch rotation continues, American history moves from the colonies toward the founding era, and written narration becomes the primary mode across most subjects.",
   "books": [
     {
       "id": "y5-adam-of-the-road",
@@ -40,7 +40,7 @@
     },
     {
       "id": "y5-plutarchs-lives",
-      "title": "Plutarch's Lives (Ambleside selections, continuing rotation)",
+      "title": "Plutarch's Lives (selected passages, continuing rotation)",
       "author": "Plutarch",
       "subject": "history",
       "type": "spine",
@@ -112,7 +112,7 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 5 scope (Common Core domains 5.OA, 5.NBT, 5.NF, 5.MD, 5.G): decimal place value and operations with decimals to hundredths; adding and subtracting fractions with unlike denominators, and multiplying/dividing fractions; volume of rectangular prisms; plotting points on a coordinate plane. Charlotte Mason approach: real-world problems (recipes, measurements, maps) before the abstract notation.",
+    "mathematics": "Grade 5 scope (Common Core domains 5.OA, 5.NBT, 5.NF, 5.MD, 5.G): decimal place value and operations with decimals to hundredths; adding and subtracting fractions with unlike denominators, and multiplying/dividing fractions; volume of rectangular prisms; plotting points on a coordinate plane. Mater Amabilis approach: real-world problems (recipes, measurements, maps) before the abstract notation.",
     "art_music": "Composer: Franz Schubert — lyrical, singable melodies (try 'The Trout' quintet), a warm middle ground between Classical clarity and Romantic feeling. Artist: Albrecht Dürer — precise, richly detailed engravings and woodcuts that reward slow, close looking. Ask what the child notices only on a second look. Poet: Alfred, Lord Tennyson — narrative and historical poems with strong rhythm (The Charge of the Light Brigade), pairing naturally with this year's history reading.",
     "language_arts": "Grade 5: written narration is now the primary mode for most subjects, not the exception. Dictation passages grow longer and more complex. Grammar covers more sophisticated sentence structures (compound and complex sentences), and the student begins a simple outline before narrating a longer passage.",
     "morning_time": "Scripture with more substantive discussion of its meaning, a hymn or folk song, and Tennyson for poetry. Connect briefly to this term's history rotation — the colonies, or Adam of the Road's medieval England."

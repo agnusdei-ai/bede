@@ -8,6 +8,7 @@ import FeedbackModal from '../components/FeedbackModal'
 import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
 import { SUBJECT_MAP } from '../types'
 import { getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes } from '../utils/gradeTimer'
+import { renderEmphasis } from '../utils/renderEmphasis'
 import { pickBreakActivity } from '../utils/breakActivities'
 import { Coffee, Eye } from 'lucide-react'
 
@@ -346,7 +347,7 @@ function SessionSummaryView({
         ) : (
           <>
             <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap bg-parchment-50 rounded-xl p-5 border border-parchment-200 font-serif text-sm">
-              {summary}
+              {renderEmphasis(summary)}
             </div>
 
             <div className="mt-6 pt-6 border-t border-navy-100">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, FlaskConical, Send, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { streamSandboxChat } from '../services/api'
+import { renderEmphasis } from '../utils/renderEmphasis'
 import type { ChatMessage } from '../types'
 
 // Nothing on this page is persisted anywhere — no sessionStorage, no
@@ -136,7 +137,7 @@ export default function Sandbox() {
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 && (
             <p className="text-sm text-gray-400 text-center mt-12">
-              Ask Bede anything — no need to guess through questions, and you can switch topics freely.
+              Ask Bede anything. No need to guess through questions, and you can switch topics freely.
             </p>
           )}
           {messages.map((m, i) => (
@@ -148,7 +149,7 @@ export default function Sandbox() {
                     : 'bg-white border border-sage-100 text-gray-800'
                 }`}
               >
-                {m.content || (streaming && i === messages.length - 1 && (
+                {m.content ? renderEmphasis(m.content) : (streaming && i === messages.length - 1 && (
                   <Loader2 size={14} className="animate-spin text-gray-400" />
                 ))}
               </div>

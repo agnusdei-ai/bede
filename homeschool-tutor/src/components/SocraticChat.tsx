@@ -4,6 +4,7 @@ import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText }
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 
@@ -607,7 +608,7 @@ function MessageBubble({ msg, studentName }: MsgProps) {
     return (
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
-        {msg.content}
+        {renderEmphasis(msg.content)}
       </div>
     )
   }
@@ -624,7 +625,7 @@ function MessageBubble({ msg, studentName }: MsgProps) {
       >
         {!isUser && <div className="text-xs font-semibold text-navy-600 mb-1">Bede</div>}
         {isUser && <div className="text-xs font-semibold text-navy-100 mb-1">{studentName}</div>}
-        <div className="whitespace-pre-wrap">{msg.content}</div>
+        <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>
   )

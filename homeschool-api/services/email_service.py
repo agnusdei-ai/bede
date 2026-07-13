@@ -108,8 +108,18 @@ _CATEGORY_LABELS = {
     "cx": "Customer experience",
     "ux": "Usability / interface",
     "content_quality": "Content quality (Bede's teaching)",
+    "plans": "🎯 Interested in plans",
     "other": "Other",
 }
+
+
+def _feedback_prefix(category: str) -> str:
+    """"plans" is a demo lead, not product feedback — reads oddly under a
+    "beta feedback" heading, so it gets its own prefix even though it
+    shares every other part of this pipeline (same inbox, same template,
+    same one-outbound-email contract) with routers/feedback.py's original
+    cx/ux/content_quality/other categories."""
+    return "Bede demo lead" if category == "plans" else "Bede beta feedback"
 
 
 def build_feedback_email_html(
@@ -133,7 +143,7 @@ def build_feedback_email_html(
 <!DOCTYPE html>
 <html>
 <body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
-  <h1 style="font-size: 20px; margin: 0 0 16px 0;">Bede beta feedback — {html.escape(label)}</h1>
+  <h1 style="font-size: 20px; margin: 0 0 16px 0;">{_feedback_prefix(category)} — {html.escape(label)}</h1>
   <p style="margin: 0 0 8px 0;"><strong>From:</strong> {html.escape(role)}</p>
   <p style="margin: 0 0 16px 0;"><strong>Rating:</strong> {stars}</p>
   {reply_line}
@@ -161,7 +171,7 @@ async def send_feedback(
     label = _CATEGORY_LABELS.get(category, category)
     return await send_email(
         settings.feedback_email,
-        subject=f"Bede beta feedback: {label}",
+        subject=f"{_feedback_prefix(category)}: {label}",
         html_body=html_body,
     )
 

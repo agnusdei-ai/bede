@@ -75,6 +75,31 @@ async def test_submit_feedback_502s_when_send_fails(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_plans_category_reuses_the_exact_same_pipeline(monkeypatch):
+    """The demo's "interested in plans" contact form (surfaced from the
+    diagnostic preview's quota-exceeded state) is just this category value
+    — no separate endpoint, no separate config, same FEEDBACK_EMAIL."""
+    monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
+
+    sent_calls = []
+
+    async def fake_send_feedback(**kwargs):
+        sent_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr("routers.feedback.send_feedback", fake_send_feedback)
+
+    result = await submit_feedback(
+        FeedbackRequest(category="plans", message="Would love to hear about pricing", contact_email="parent@example.com"),
+        _fake_request(),
+        auth={"role": "demo_code", "code": "123456"},
+    )
+    assert result == {"sent": True}
+    assert sent_calls[0]["category"] == "plans"
+    assert sent_calls[0]["contact_email"] == "parent@example.com"
+
+
+@pytest.mark.asyncio
 async def test_feedback_enabled_reflects_configuration(monkeypatch):
     monkeypatch.setattr(settings, "resend_api_key", "")
     monkeypatch.setattr(settings, "feedback_email", "")

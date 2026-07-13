@@ -255,8 +255,15 @@ class FeedbackRequest(BaseModel):
     Nothing here is persisted server-side beyond the outbound email itself;
     the audit log records only that feedback was submitted, never its content
     or contact_email (same "never log the address" rule as email-summary).
+
+    "plans" reuses this exact same pipeline for a different intent: a demo
+    visitor asking about the full-featured version / monthly-annual plans
+    (surfaced from the diagnostic preview's quota-exceeded state) rather
+    than product feedback — same operator inbox (FEEDBACK_EMAIL), same
+    one-outbound-email-and-nothing-persisted contract, just a different
+    category label on the email subject so it's easy to triage at a glance.
     """
-    category: Literal["cx", "ux", "content_quality", "other"]
+    category: Literal["cx", "ux", "content_quality", "plans", "other"]
     message: str = Field(..., min_length=1, max_length=2000)
     rating: Optional[int] = Field(None, ge=1, le=5)
     contact_email: Optional[EmailStr] = None

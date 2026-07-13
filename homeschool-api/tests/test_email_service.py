@@ -8,6 +8,7 @@ real HTML into the outgoing email.
 import asyncio
 
 from services.email_service import (
+    _feedback_prefix,
     build_distress_alert_html,
     build_feedback_email_html,
     build_summary_email_html,
@@ -111,6 +112,28 @@ def test_feedback_html_escapes_malicious_message():
     html = build_feedback_email_html("other", "<script>alert(1)</script>", "child")
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
+
+
+def test_plans_category_gets_a_lead_heading_not_a_feedback_heading():
+    """The demo's "interested in plans" contact form reuses this exact
+    pipeline (see models.schemas.FeedbackRequest's docstring) but reads
+    oddly under "Bede beta feedback" — it should read as a lead, not
+    product feedback."""
+    html = build_feedback_email_html("plans", "Tell me about pricing", "demo_code", contact_email="mom@example.com")
+    assert "Bede demo lead" in html
+    assert "Bede beta feedback" not in html
+
+
+def test_other_categories_still_get_the_beta_feedback_heading():
+    html = build_feedback_email_html("ux", "hard to find the button", "parent")
+    assert "Bede beta feedback" in html
+    assert "Bede demo lead" not in html
+
+
+def test_feedback_prefix_only_treats_plans_specially():
+    assert _feedback_prefix("plans") == "Bede demo lead"
+    for category in ("cx", "ux", "content_quality", "other", "anything-unrecognized"):
+        assert _feedback_prefix(category) == "Bede beta feedback"
 
 
 def test_feedback_configured_requires_both_resend_and_feedback_email(monkeypatch):

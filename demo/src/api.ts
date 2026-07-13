@@ -122,8 +122,8 @@ export async function generateDemoCode(studentName?: string, grade?: string): Pr
     }),
   })
   if (res.status === 404) throw new Error('The free demo is not enabled on this deployment.')
-  if (res.status === 429) throw new Error('Too many demo sessions are active right now — please try again shortly.')
-  if (!res.ok) throw new Error('Could not start a session right now — please try again.')
+  if (res.status === 429) throw new Error('Too many demo sessions are active right now. Please try again shortly.')
+  if (!res.ok) throw new Error('Could not start a session right now. Please try again.')
   const data = await res.json()
   return data.code
 }
@@ -233,14 +233,14 @@ export async function submitFeedback(
     }),
   })
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended.')
-  if (!res.ok) throw new Error('Could not send feedback right now — please try again later.')
+  if (!res.ok) throw new Error('Could not send feedback right now. Please try again later.')
 }
 
 export async function getDemoConfig(token: string): Promise<SessionConfig> {
   const res = await fetch(`${apiBase()}/tutor/demo-config`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error('Could not load your session — please generate a new code')
+  if (!res.ok) throw new Error('Could not load your session. Please generate a new code.')
   return res.json()
 }
 
@@ -275,7 +275,7 @@ export async function emailTrialSummary(
   })
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended.')
   if (res.status === 429) throw new TrialEmailCappedError('This session has already sent its one email.')
-  if (!res.ok) throw new Error('Could not send the email — please try again later.')
+  if (!res.ok) throw new Error('Could not send the email. Please try again later.')
 }
 
 function stripDataUrlPrefix(dataUrl: string): string {
@@ -302,7 +302,7 @@ export async function extractNarrationText(token: string, filename: string, cont
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended.')
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'Could not read that file — try a .txt or .pdf export instead.')
+    throw new Error(err.detail || 'Could not read that file. Try a .txt or .pdf export instead.')
   }
   const data = await res.json()
   return data.text
@@ -360,8 +360,8 @@ export async function* streamTutorChat(
     signal,
   })
 
-  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — generate a new code to keep going.')
-  if (!res.ok) throw new Error('Tutor request failed — check your connection')
+  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended. Generate a new code to keep going.')
+  if (!res.ok) throw new Error('Tutor request failed. Check your connection.')
 
   yield* parseSSEStream(res)
 }
@@ -394,8 +394,8 @@ export async function* streamSandboxDemoChat(
     signal,
   })
 
-  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended — generate a new code to keep going.')
-  if (!res.ok) throw new Error('Sandbox request failed — check your connection')
+  if (res.status === 401) throw new TrialSessionEndedError('Your session has ended. Generate a new code to keep going.')
+  if (!res.ok) throw new Error('Sandbox request failed. Check your connection.')
 
   yield* parseSSEStream(res)
 }
@@ -477,7 +477,7 @@ export async function* streamDiagnosticChat(
 
   if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
   if (res.status === 429) throw await diagnosticQuotaError(res)
-  if (!res.ok) throw new Error('Diagnostic chat request failed — check your connection')
+  if (!res.ok) throw new Error('Diagnostic chat request failed. Check your connection.')
 
   yield* parseSSEStream(res)
 }

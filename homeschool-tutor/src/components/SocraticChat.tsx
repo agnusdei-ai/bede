@@ -440,7 +440,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-white border-t border-parchment-200 pt-2">
           <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-navy-200 shadow-sm" />
-          <div className="flex-1 text-xs text-navy-700">Drawing ready — add a note or send</div>
+          <div className="flex-1 text-xs text-navy-700">Drawing ready. Add a note, or just send it.</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600">
             <X size={14} />
           </button>
@@ -504,7 +504,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               disabled={!voiceMode && (isStreaming || breakActive || isTranscribing)}
               title={
                 voiceMode
-                  ? 'Voice mode on — tap to turn off'
+                  ? 'Voice mode on. Tap to turn off.'
                   : isTranscribing
                   ? 'Transcribing…'
                   : 'Turn on voice mode'
@@ -528,11 +528,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             disabled={isStreaming || breakActive}
             placeholder={
               breakActive
-                ? 'On a break — Bede will be here when you return'
+                ? 'On a break. Bede will be here when you return.'
                 : isListening
                 ? 'Listening… speak now'
                 : voiceMode
-                ? 'Voice mode on — waiting for Bede…'
+                ? 'Voice mode on. Waiting for Bede…'
                 : sttSupported
                 ? 'Type or tap the mic to speak…'
                 : 'Share your thoughts or answer Bede\'s question…'
@@ -551,7 +551,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
           {voiceMode
-            ? 'Voice mode on — just speak, Bede will hear and reply automatically. Tap the mic to turn it off.'
+            ? 'Voice mode on. Just speak, and Bede will hear and reply automatically. Tap the mic to turn it off.'
             : sttSupported
             ? 'Enter to send · mic for voice input'
             : 'Press Enter to send · Shift+Enter for new line'}

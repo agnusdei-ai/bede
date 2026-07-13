@@ -52,9 +52,9 @@ def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_de
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                "You've used up this demo's diagnostic preview for now — it's meant to give you "
-                "a taste, not replace a full account. We'd love to show you the full-featured "
-                f"version and our monthly/annual plans — {CONTACT_CTA}."
+                "You've used up this demo's diagnostic preview for now. It's meant to give you a "
+                "taste, not replace a full account. We'd love to show you the full-featured "
+                f"version and our monthly/annual plans. Please {CONTACT_CTA}."
             ),
         )
     return auth
@@ -82,7 +82,7 @@ async def get_diagnostic_summary(
     if summary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No mastery data yet — this builds up once some math tutoring happens in this demo session",
+            detail="No mastery data yet. This builds up once some math tutoring happens in this demo session.",
         )
     record_use(audit_from_request(request)["ip"], code)
     await log_event(
@@ -140,10 +140,10 @@ def _templated_diagnostic_reply(summary: dict | None) -> str:
     parent rather than instructions to a model."""
     if not summary:
         return (
-            "No math evidence has been recorded in this demo session yet — try working through "
+            "No math evidence has been recorded in this demo session yet. Try working through "
             "a question or two in the Mathematics subject, then come back and check again.\n\n"
             f"This preview shows a snapshot only. Want a real conversation about your child's "
-            f"progress, plus full-featured tutoring? We'd love to talk — {CONTACT_CTA}."
+            f"progress, plus full-featured tutoring? We'd love to talk. Please {CONTACT_CTA}."
         )
 
     lines = [
@@ -162,6 +162,7 @@ def _templated_diagnostic_reply(summary: dict | None) -> str:
     lines.append("")
     lines.append(
         f"This preview shows a snapshot only. Want a real conversation about {summary['student_name']}'s "
-        f"progress, plus full-featured tutoring? We'd love to talk about our monthly/annual plans — {CONTACT_CTA}."
+        f"progress, plus full-featured tutoring? We'd love to talk about our monthly/annual plans. "
+        f"Please {CONTACT_CTA}."
     )
     return "\n".join(lines)

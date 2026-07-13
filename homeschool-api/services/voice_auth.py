@@ -15,8 +15,10 @@ table — one row per student. Embeddings never appear in plaintext outside this
 module and are never returned to API callers.
 """
 
+import asyncio
 import io
 import logging
+import threading
 from typing import Optional
 
 import numpy as np
@@ -31,16 +33,39 @@ from core.encryption import decrypt_json, encrypt_json
 logger = logging.getLogger(__name__)
 
 # ── Try resemblyzer; fall back to MFCC ──────────────────────────────────────
+# Loaded lazily, NOT at import time: constructing VoiceEncoder() loads a torch
+# model, and this module is imported (via routers/voice.py) before uvicorn can
+# accept its first request — an import-time load added the full model-load
+# latency to every API boot, even for deployments that never use voice auth.
 _encoder = None
-_USE_RESEMBLYZER = False
+_encoder_load_attempted = False
+_encoder_lock = threading.Lock()
 
-try:
-    from resemblyzer import VoiceEncoder, preprocess_wav as _rz_preprocess  # type: ignore
-    _encoder = VoiceEncoder()
-    _USE_RESEMBLYZER = True
-    logger.info("Voice auth: using resemblyzer (GE2E model)")
-except Exception:
-    logger.info("Voice auth: resemblyzer unavailable, using librosa MFCC fallback")
+
+def _get_encoder():
+    """Blocking on first call — only call from a worker thread (or preload())."""
+    global _encoder, _encoder_load_attempted
+    if _encoder is not None or _encoder_load_attempted:
+        return _encoder
+    with _encoder_lock:
+        if _encoder is not None or _encoder_load_attempted:
+            return _encoder
+        try:
+            from resemblyzer import VoiceEncoder  # type: ignore
+            _encoder = VoiceEncoder()
+            logger.info("Voice auth: using resemblyzer (GE2E model)")
+        except Exception:
+            logger.info("Voice auth: resemblyzer unavailable, using librosa MFCC fallback")
+        finally:
+            _encoder_load_attempted = True
+        return _encoder
+
+
+def preload() -> None:
+    """Best-effort warm-up so the first voice verification of the day doesn't
+    pay the model-load latency. Blocking — run in an executor (see main.py's
+    startup warm-up task)."""
+    _get_encoder()
 
 THRESHOLD_HIGH   = settings.voice_threshold_high
 THRESHOLD_MEDIUM = settings.voice_threshold_medium
@@ -75,10 +100,6 @@ def _load_wav(audio_bytes: bytes, target_sr: int = 16000) -> np.ndarray:
 
 # ── Feature extraction ───────────────────────────────────────────────────────
 
-def _extract_embedding_resemblyzer(audio: np.ndarray) -> np.ndarray:
-    return _encoder.embed_utterance(audio)  # type: ignore
-
-
 def _extract_embedding_mfcc(audio: np.ndarray, sr: int = 16000) -> np.ndarray:
     import librosa  # type: ignore
     mfcc   = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=20)
@@ -92,11 +113,38 @@ def _extract_embedding_mfcc(audio: np.ndarray, sr: int = 16000) -> np.ndarray:
 
 
 def _extract_embedding(audio: np.ndarray) -> np.ndarray:
-    return _extract_embedding_resemblyzer(audio) if _USE_RESEMBLYZER else _extract_embedding_mfcc(audio)
+    """Blocking (torch/librosa inference) — only call from a worker thread."""
+    encoder = _get_encoder()
+    if encoder is not None:
+        return encoder.embed_utterance(audio)
+    return _extract_embedding_mfcc(audio)
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
+
+
+def _embed_samples_sync(audio_samples: list[bytes]) -> list[np.ndarray]:
+    """Blocking decode + embedding for enrollment — run in an executor."""
+    embeddings = []
+    for idx, raw in enumerate(audio_samples):
+        try:
+            audio = _load_wav(raw)
+            embeddings.append(_extract_embedding(audio))
+        except Exception as exc:
+            logger.warning("Sample %d failed to process: %s", idx, exc)
+    return embeddings
+
+
+def _score_against_profile_sync(audio_bytes: bytes, stored: np.ndarray) -> float:
+    """Blocking decode + embedding + similarity for verification — run in an
+    executor. Like transcription.py, none of this may run on the event loop:
+    it used to freeze every in-flight request (chat streams included) for the
+    duration of each voice check."""
+    audio = _load_wav(audio_bytes)
+    embedding = _extract_embedding(audio)
+    embedding = embedding / (np.linalg.norm(embedding) + 1e-9)
+    return _cosine_similarity(embedding, stored)
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
@@ -141,14 +189,8 @@ async def enroll_student(
     if not audio_samples:
         raise ValueError("At least one audio sample is required")
 
-    embeddings = []
-    for idx, raw in enumerate(audio_samples):
-        try:
-            audio = _load_wav(raw)
-            emb   = _extract_embedding(audio)
-            embeddings.append(emb)
-        except Exception as exc:
-            logger.warning("Sample %d failed to process: %s", idx, exc)
+    loop = asyncio.get_running_loop()
+    embeddings = await loop.run_in_executor(None, _embed_samples_sync, audio_samples)
 
     if not embeddings:
         raise ValueError("No samples could be processed")
@@ -159,7 +201,7 @@ async def enroll_student(
     profile = {
         "embedding":   mean_embedding.tolist(),
         "num_samples": len(embeddings),
-        "method":      "resemblyzer" if _USE_RESEMBLYZER else "mfcc",
+        "method":      "resemblyzer" if _get_encoder() is not None else "mfcc",
     }
     await _save_profile(db, student_name, profile)
 
@@ -188,10 +230,8 @@ async def verify_student(
     stored = np.array(profile["embedding"])
 
     try:
-        audio     = _load_wav(audio_bytes)
-        embedding = _extract_embedding(audio)
-        embedding = embedding / (np.linalg.norm(embedding) + 1e-9)
-        score     = _cosine_similarity(embedding, stored)
+        loop  = asyncio.get_running_loop()
+        score = await loop.run_in_executor(None, _score_against_profile_sync, audio_bytes, stored)
     except Exception as exc:
         logger.error("Verification failed: %s", exc)
         return {

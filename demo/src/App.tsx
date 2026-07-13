@@ -473,6 +473,7 @@ function ChatScreen({ displayName, subjects, runChat, token, speakToken, header,
         <HandwritingCanvas
           onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
           onCancel={() => setShowCanvas(false)}
+          subject={subject}
         />
       )}
     </div>

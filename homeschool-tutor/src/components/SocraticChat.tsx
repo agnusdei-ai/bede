@@ -561,7 +561,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
       {/* Handwriting overlay */}
       {showCanvas && (
-        <HandwritingCanvas onSubmit={handleDrawingSubmit} onCancel={handleDrawingCancel} />
+        <HandwritingCanvas onSubmit={handleDrawingSubmit} onCancel={handleDrawingCancel} subject={currentSubject} />
       )}
     </div>
   )

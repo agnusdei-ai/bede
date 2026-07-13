@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { X, Undo2, Trash2, Check, Pencil, Eraser } from 'lucide-react'
+import { X, Undo2, Trash2, Check, Pencil, Eraser, Printer } from 'lucide-react'
+import type { Subject } from './api'
 
 interface Point {
   x: number
@@ -16,9 +17,89 @@ interface Stroke {
 interface HandwritingCanvasProps {
   onSubmit: (imageDataUrl: string) => void
   onCancel: () => void
+  // Picks the printed/drawn paper style below — mathematics gets graph
+  // paper (for showing work, plotting, keeping columns aligned);
+  // everything else (written narration, nature-notebook sketches, etc.,
+  // per invite_handwriting's own scope) gets composition paper, the
+  // classic ruled handwriting-practice sheet. Optional/undefined falls
+  // back to composition paper.
+  subject?: Subject
 }
 
 const PARCHMENT_BG = '#faf8f0'
+const GRAPH_LINE_COLOR = '#c9d6e8'
+const COMPOSITION_RULE_COLOR = '#a9c3dc'
+const COMPOSITION_MIDLINE_COLOR = '#c7d8ea'
+
+const GRAPH_SPACING = 24
+// Distance between baselines — the dashed guide midline sits halfway
+// between one baseline and the next, matching the classic elementary
+// composition-paper layout (top space, dashed midline, solid baseline).
+const COMPOSITION_LINE_HEIGHT = 42
+
+type PaperStyle = 'composition' | 'graph'
+
+function paperStyleFor(subject?: Subject): PaperStyle {
+  return subject === 'mathematics' ? 'graph' : 'composition'
+}
+
+const PAPER_LABEL: Record<PaperStyle, string> = {
+  composition: 'Composition Paper',
+  graph: 'Graph Paper',
+}
+
+// Fills the page background and its ruling — called any time the canvas is
+// (re)initialized, resized, cleared, or redrawn from the stroke history, so
+// the paper style never needs separate "erase to blank" handling from
+// "erase to ruled/gridded" handling.
+function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle) {
+  ctx.fillStyle = PARCHMENT_BG
+  ctx.fillRect(0, 0, width, height)
+
+  if (style === 'graph') {
+    ctx.strokeStyle = GRAPH_LINE_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    for (let x = GRAPH_SPACING; x < width; x += GRAPH_SPACING) {
+      ctx.beginPath()
+      ctx.moveTo(x + 0.5, 0)
+      ctx.lineTo(x + 0.5, height)
+      ctx.stroke()
+    }
+    for (let y = GRAPH_SPACING; y < height; y += GRAPH_SPACING) {
+      ctx.beginPath()
+      ctx.moveTo(0, y + 0.5)
+      ctx.lineTo(width, y + 0.5)
+      ctx.stroke()
+    }
+    return
+  }
+
+  for (let y = COMPOSITION_LINE_HEIGHT; y < height; y += COMPOSITION_LINE_HEIGHT) {
+    const midY = y - COMPOSITION_LINE_HEIGHT / 2
+    ctx.strokeStyle = COMPOSITION_MIDLINE_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash([6, 6])
+    ctx.beginPath()
+    ctx.moveTo(0, midY + 0.5)
+    ctx.lineTo(width, midY + 0.5)
+    ctx.stroke()
+
+    ctx.strokeStyle = COMPOSITION_RULE_COLOR
+    ctx.setLineDash([])
+    ctx.beginPath()
+    ctx.moveTo(0, y + 0.5)
+    ctx.lineTo(width, y + 0.5)
+    ctx.stroke()
+  }
+}
+
+// The only exportable surface in this app — a deliberate, narrow exception
+// to having no export/download functionality anywhere else. This is
+// entirely client-side: it prints the already-rendered canvas bitmap via
+// the browser's own print dialog, with no new backend endpoint and
+// nothing sent anywhere.
+const PRINT_AREA_ID = 'handwriting-print-area'
 
 // A compact MS-Paint/Preview-style swatch row rather than a full color wheel —
 // enough range for a nature-notebook sketch or a math diagram without
@@ -45,7 +126,8 @@ const SIZE_PRESETS: Record<SizePreset, { min: number; max: number; base: number;
 
 type Tool = 'pen' | 'eraser'
 
-export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCanvasProps) {
+export default function HandwritingCanvas({ onSubmit, onCancel, subject }: HandwritingCanvasProps) {
+  const paperStyle = paperStyleFor(subject)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawingRef = useRef(false)
@@ -73,9 +155,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     canvas.height = canvas.offsetHeight * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    ctx.fillStyle = PARCHMENT_BG
-    ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
-  }, [])
+    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle)
+  }, [paperStyle])
 
   useEffect(() => {
     initCanvas()
@@ -88,11 +169,10 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     const ctx = canvas.getContext('2d')!
     const dpr = dprRef.current
 
-    // Clear to parchment
+    // Clear to paper (background + ruling/grid)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.fillStyle = PARCHMENT_BG
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.scale(dpr, dpr)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle)
 
     // Replay all strokes — an "eraser" stroke is just one whose color is the
     // background color, so replaying strokes in order naturally covers
@@ -119,7 +199,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
       }
       ctx.stroke()
     }
-  }, [])
+  }, [paperStyle])
 
   // Get canvas-relative coordinates from pointer event — works identically
   // for a Surface Pen, Apple Pencil, a finger, or a mouse, since the
@@ -140,6 +220,13 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     return Math.max(min, Math.min(max, pressure * max || base))
   }
 
+  // Eraser paints flat parchment, same trick redrawAll's own comment
+  // describes for ink — on ruled/gridded paper this also erases whatever
+  // ruling was under the stroke (a flat patch with no lines in it), same
+  // as scribbling over a real ruled sheet with white-out. Redrawing the
+  // ruling underneath the erased patch would need a separate ink layer
+  // composited over the paper background; not worth the added complexity
+  // for a homeschool sketch/practice tool.
   const activeColor = () => (tool === 'eraser' ? PARCHMENT_BG : color)
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -222,15 +309,24 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
     const ctx = canvas.getContext('2d')!
     const dpr = dprRef.current
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.fillStyle = PARCHMENT_BG
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.scale(dpr, dpr)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle)
   }
 
   const handleDone = () => {
     const canvas = canvasRef.current
     if (!canvas) return
     onSubmit(canvas.toDataURL('image/png'))
+  }
+
+  // The only exportable/printable surface in this app (see PRINT_AREA_ID's
+  // own comment above) — purely client-side, the browser's native print
+  // dialog against the already-rendered canvas bitmap wrapped in
+  // #handwriting-print-area below. Works on blank paper too (no strokes
+  // required), so a visitor can print composition or graph paper on its
+  // own, not only paper they've already drawn on.
+  const handlePrint = () => {
+    window.print()
   }
 
   // Handle window resize
@@ -273,7 +369,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
 
         {/* Center label */}
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-navy-700">Draw</span>
+          <span className="text-sm font-semibold text-navy-700">{PAPER_LABEL[paperStyle]}</span>
         </div>
 
         {/* Right actions */}
@@ -295,6 +391,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
           >
             <Trash2 size={16} />
             <span className="hidden sm:inline">Clear</span>
+          </button>
+          <button
+            onClick={handlePrint}
+            title={`Print this ${PAPER_LABEL[paperStyle].toLowerCase()}`}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+          >
+            <Printer size={16} />
+            <span className="hidden sm:inline">Print</span>
           </button>
           <button
             onClick={handleDone}
@@ -382,18 +486,45 @@ export default function HandwritingCanvas({ onSubmit, onCancel }: HandwritingCan
         </div>
       </div>
 
-      {/* Canvas container */}
-      <div ref={containerRef} className="flex-1 relative">
+      {/* Canvas container — id'd so the print stylesheet below can isolate
+          just the paper itself (background + ruling + strokes), not the
+          toolbar, when handlePrint() triggers window.print(). */}
+      <div ref={containerRef} id={PRINT_AREA_ID} className="flex-1 relative">
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
-          style={{ touchAction: 'none', cursor: 'crosshair' }}
+          style={{
+            touchAction: 'none',
+            cursor: 'crosshair',
+            // Chrome/Edge/Firefox all default print rendering to omit
+            // background colors/light strokes to save ink — this asks them
+            // not to, though the user's own "background graphics" print
+            // option (off by default in most browsers) still wins if set.
+            printColorAdjust: 'exact',
+            WebkitPrintColorAdjust: 'exact',
+          } as React.CSSProperties}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerLeave}
         />
       </div>
+
+      {/* Scoped to this component's own overlay — isolates the paper
+          (#handwriting-print-area) as the only thing that prints, hiding
+          the toolbar and everything else on the page behind it. */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #${PRINT_AREA_ID}, #${PRINT_AREA_ID} * { visibility: visible !important; }
+          #${PRINT_AREA_ID} {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+          }
+        }
+      `}</style>
     </div>
   )
 }

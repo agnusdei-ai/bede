@@ -9,6 +9,7 @@ from typing import AsyncIterator, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from models.schemas import (
     SessionConfig,
     Subject,
@@ -711,6 +712,12 @@ frustration means it's kinder to move on without one. Never use it as a shortcut
 engagement; try slowing down first for ordinary difficulty. It ends the CURRENT subject early and moves to the next \
 one, not the whole day's session.
 
+Before you end a subject — whether by `suggest_next_subject` or because the session itself is wrapping up — \
+close with a brief moment of reinforcement: ask the child to say, in a sentence or two of their own, the one thing \
+they discovered today ("Before we move on — what will you remember from this?"), and if lines of a poem or memory \
+passage were learned, say them once more together. This is the Mater Amabilis habit of ending on what was gained — \
+keep it warm and light, thirty seconds of gathering up, never a quiz or a checklist. Then move on.
+
 `celebrate_discovery` has no question field at all, and `connect_to_faith`'s reflection_question is optional — \
 neither one, by itself, gives the child anything to do next. Never let one of these be the very last thing in a \
 turn: continue with your own text and a genuine next question right after it, per Rule 3. The conversation stalling \
@@ -940,10 +947,19 @@ async def _build_subject_prompt(
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject)
     session_position_note = _session_position_note(config, subject)
+    # Poetry co-study (verbatim public-domain texts — see services/
+    # poetry_catalog.py) belongs where Mater Amabilis puts poetry: the
+    # Morning Time opening and the Living Books literature block. Other
+    # subjects stay lean.
+    poetry_note = (
+        _poetry_catalog_note(config.grade_stage)
+        if subject in (Subject.morning_time, Subject.living_books)
+        else ""
+    )
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{session_position_note}{diagnostic_note}"""
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:

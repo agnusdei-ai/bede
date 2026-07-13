@@ -109,6 +109,22 @@ function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
   return voiceResolutionPromise
 }
 
+// One <audio> element, reused for every turn's backend TTS playback rather
+// than a fresh `new Audio()` per call — module-scoped so it survives hook
+// remounts within the same tab, same as resolvedVoice/lastKnownTtsConfigured
+// below. Confirmed on a Samsung Android tablet (Chrome): a brand-new media
+// element created well after the page's initial unlock gesture can be
+// silently refused by the browser's autoplay policy even though the page
+// itself is otherwise "unlocked" — re-using the SAME element that was
+// blessed by a real play() at login is the standard mitigation for that
+// class of platform quirk (desktop Chrome and iOS Safari don't need it, but
+// reusing one element costs nothing there either).
+let sharedAudioEl: HTMLAudioElement | null = null
+function getSharedAudioElement(): HTMLAudioElement {
+  if (!sharedAudioEl) sharedAudioEl = new Audio()
+  return sharedAudioEl
+}
+
 /**
  * Call synchronously inside a real click/submit handler — e.g. the login
  * form's submit — BEFORE any await. Bede's very first line (the subject
@@ -131,11 +147,10 @@ export function unlockSpeechForSession() {
     }
   }
   try {
-    const silent = new Audio(
-      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
-    )
-    silent.volume = 0
-    silent.play().then(() => silent.pause()).catch(() => {})
+    const audio = getSharedAudioElement()
+    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.volume = 0
+    audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
   } catch {
     // best-effort
   }
@@ -162,12 +177,18 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stoppedRef = useRef(false)
 
-  /** Tries the backend's cloud TTS. `spoke` is whether it actually played;
-   *  `configured` (from the X-TTS-Configured header) is whether SOME
-   *  backend TTS is set up at all — see processQueue() below for why the
-   *  caller needs both, not just whether this one call succeeded. */
-  const speakViaBackend = useCallback(async (text: string): Promise<{ spoke: boolean; configured: boolean }> => {
-    if (!token) return { spoke: false, configured: false }
+  /** Tries the backend's cloud TTS. `spoke` is whether audio actually
+   *  started playing — NOT just whether the fetch succeeded; a caught
+   *  play() rejection or an 'error' event used to be reported as spoke:
+   *  true unconditionally, which permanently masked real playback
+   *  failures (see the module comment on getSharedAudioElement). `configured`
+   *  (from the X-TTS-Configured header) is whether SOME backend TTS is set
+   *  up at all. `fetchedAudio` distinguishes "the /tutor/speak request
+   *  itself failed" from "we got real audio bytes back but this browser
+   *  refused to play them" — see processQueue() below for why the caller
+   *  needs all three, not just whether this one call succeeded. */
+  const speakViaBackend = useCallback(async (text: string): Promise<{ spoke: boolean; configured: boolean; fetchedAudio: boolean }> => {
+    if (!token) return { spoke: false, configured: false, fetchedAudio: false }
     try {
       const res = await fetch('/api/tutor/speak', {
         method: 'POST',
@@ -176,22 +197,26 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       })
       const configured = res.headers.get('X-TTS-Configured') === 'True'
       lastKnownTtsConfigured = configured
-      if (res.status !== 200) return { spoke: false, configured } // 204 = synthesis unavailable
+      if (res.status !== 200) return { spoke: false, configured, fetchedAudio: false } // 204 = synthesis unavailable
       const blob = await res.blob()
-      if (stoppedRef.current) return { spoke: true, configured } // stop() fired while we were fetching
+      if (stoppedRef.current) return { spoke: true, configured, fetchedAudio: true } // stop() fired while we were fetching
       const url = URL.createObjectURL(blob)
+      const audio = getSharedAudioElement()
+      audioRef.current = audio
+      let played = false
       await new Promise<void>((resolve) => {
-        const audio = new Audio(url)
-        audioRef.current = audio
         audio.onended = () => resolve()
         audio.onerror = () => resolve()
-        audio.play().catch(() => resolve())
+        audio.src = url
+        audio.play()
+          .then(() => { played = true })
+          .catch(() => resolve()) // autoplay-blocked or decode error — playback never started
       })
       URL.revokeObjectURL(url)
       audioRef.current = null
-      return { spoke: true, configured }
+      return { spoke: played, configured, fetchedAudio: true }
     } catch {
-      return { spoke: false, configured: lastKnownTtsConfigured }
+      return { spoke: false, configured: lastKnownTtsConfigured, fetchedAudio: false }
     }
   }, [token])
 
@@ -224,12 +249,18 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     const cleanText = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '')
 
     if (cleanText.trim() && !stoppedRef.current) {
-      const { spoke, configured } = await speakViaBackend(cleanText)
-      // Only the browser's own voice is a reasonable fallback when NOTHING
-      // is configured server-side — a configured backend that failed this
-      // one call stays silent rather than jarringly switching to a
-      // different, lower-quality voice mid-conversation.
-      if (!spoke && !configured && !stoppedRef.current) await speakViaBrowser(cleanText)
+      const { spoke, configured, fetchedAudio } = await speakViaBackend(cleanText)
+      // Two distinct failure classes get different treatment:
+      //  - the /tutor/speak request itself failed (network hiccup, backend
+      //    error, nothing configured) — stay silent for this one line
+      //    rather than jarringly switching to a different, lower-quality
+      //    voice mid-conversation (the original PR that added this rule).
+      //  - real audio bytes came back but this browser refused to play
+      //    them (confirmed on a Samsung Android tablet: Chrome can
+      //    silently block audio.play() outside a fresh gesture) — that has
+      //    nothing to do with backend configuration, so browser speech is
+      //    strictly better than the total silence this used to produce.
+      if (!spoke && (fetchedAudio || !configured) && !stoppedRef.current) await speakViaBrowser(cleanText)
     }
 
     speakingRef.current = false

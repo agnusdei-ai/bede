@@ -40,7 +40,7 @@ from services.voice_synthesis import synthesis_configured, synthesize_speech
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
 
-def _demo_session_config(code: str | None = None) -> SessionConfig:
+async def _demo_session_config(code: str | None = None) -> SessionConfig:
     """
     Server-defined session config for the public demo's demo_code role —
     never built from live client input on /tutor/chat itself. The one
@@ -53,7 +53,7 @@ def _demo_session_config(code: str | None = None) -> SessionConfig:
     """
     student_name, grade = (None, None)
     if code:
-        student_name, grade = get_demo_personalization(code)
+        student_name, grade = await get_demo_personalization(code)
     return SessionConfig(
         student_name=student_name or settings.demo_student_name,
         grade=grade or settings.demo_grade,
@@ -82,12 +82,12 @@ async def chat(
         # Never trust client-supplied session_config for the demo role —
         # only the subject choice (browsing the curriculum) and the
         # name/grade they set once at /auth/demo-code are theirs to make.
-        req.session_config = _demo_session_config(auth.get("code"))
+        req.session_config = await _demo_session_config(auth.get("code"))
         db = None
 
     if is_demo_code:
         # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
-        demo_code_record_message(auth.get("code", ""))
+        await demo_code_record_message(auth.get("code", ""))
 
     # Fire-and-forget — log_event() runs in its own independent DB session
     # and already swallows its own failures (see core/audit.py), so there's
@@ -152,7 +152,7 @@ async def get_demo_config(auth: dict = Depends(require_auth)) -> SessionConfig:
     Reflects the name/grade the visitor optionally set at /auth/demo-code
     (see _demo_session_config); nothing else is configurable.
     """
-    return _demo_session_config(auth.get("code"))
+    return await _demo_session_config(auth.get("code"))
 
 
 @router.post("/extract-narration")
@@ -241,9 +241,9 @@ async def email_summary(
     if role == "demo_code":
         # Never trust client-supplied session_config for the demo role —
         # only the transcript/subjects it already streamed are real; mirrors /chat.
-        req.session_config = _demo_session_config()
+        req.session_config = await _demo_session_config()
         code = auth.get("code", "")
-        if not demo_code_claim_email_send(code):
+        if not await demo_code_claim_email_send(code):
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="This session has already sent its one diagnostic email",

@@ -584,7 +584,7 @@ def _build_static_prompt(config: SessionConfig) -> str:
 
     <diagnostic_guidance> below is unconditional now — record_skill_evidence
     has a real, persistent backend for parent/child sessions
-    (services.diagnostic.process_evidence), not just the demo's in-memory
+    (services.diagnostic.process_evidence), not just the demo's single-session
     preview (services/diagnostic_demo.py), so there's no longer a reason to
     gate it on an is_demo flag (removed as a parameter here; it was only
     ever load-bearing for this one line). Depends only on
@@ -842,7 +842,7 @@ def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     return "".join(notes)
 
 
-def _diagnostic_context(
+async def _diagnostic_context(
     config: SessionConfig,
     subject: Subject,
     demo_code: Optional[str],
@@ -852,7 +852,7 @@ def _diagnostic_context(
     """
     Per-turn math-skill diagnostic note for record_skill_evidence. Exactly
     one of demo_code/db_vector is ever meaningful per call — demo_code
-    reads the demo's in-memory single-session vector
+    reads the demo's own single-session vector
     (core.demo_code_session), db_vector/db_evidence_count are the real,
     already-loaded (see stream_tutor_response's
     _load_mastery_vector_readonly — this function itself stays sync, no
@@ -895,8 +895,8 @@ def _diagnostic_context(
         if demo_code is not None:
             from core.demo_code_session import get_mastery_evidence_count, get_mastery_vector
             from services.diagnostic_demo import CALIBRATION_THRESHOLD as demo_threshold
-            vector = get_mastery_vector(demo_code)
-            evidence_count = get_mastery_evidence_count(demo_code)
+            vector = await get_mastery_vector(demo_code)
+            evidence_count = await get_mastery_evidence_count(demo_code)
             threshold = demo_threshold
         else:
             vector = db_vector
@@ -923,7 +923,7 @@ def _diagnostic_context(
         return ""
 
 
-def _build_subject_prompt(
+async def _build_subject_prompt(
     config: SessionConfig,
     subject: Subject,
     demo_code: Optional[str] = None,
@@ -940,7 +940,7 @@ def _build_subject_prompt(
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject)
     session_position_note = _session_position_note(config, subject)
-    diagnostic_note = _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
+    diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
 {_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}{diagnostic_note}"""
@@ -1098,7 +1098,7 @@ async def _record_skill_evidence(
 ) -> None:
     """
     Silently record math-skill diagnostic evidence. Routes to exactly one
-    backend: demo_code drives the demo's in-memory, single-session preview
+    backend: demo_code drives the demo's own single-session preview
     (services/diagnostic_demo.py); db drives the real, persistent
     parent/child path (services.diagnostic.process_evidence). The two are
     mutually exclusive at every call site (routers/tutor.py sets db=None
@@ -1143,7 +1143,7 @@ async def stream_tutor_response(
     Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
 
     demo_code is set only by the demo role (routers/tutor.py) and drives
-    the demo's in-memory mastery-tracking preview (record_skill_evidence
+    the demo's own single-session mastery-tracking preview (record_skill_evidence
     — see services/diagnostic_demo.py) — None for every parent/child call
     site. db is set for parent/child (None for demo) and drives the real,
     persistent mastery-tracking path (services.diagnostic.process_evidence)
@@ -1177,6 +1177,9 @@ async def stream_tutor_response(
 
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
+    subject_prompt_text = await _build_subject_prompt(
+        config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
+    )
     system = [
         {
             "type": "text",
@@ -1185,9 +1188,7 @@ async def stream_tutor_response(
         },
         {
             "type": "text",
-            "text": _build_subject_prompt(
-                config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
-            ),
+            "text": subject_prompt_text,
         },
     ]
 

@@ -69,7 +69,7 @@ async def demo_chat(
             detail="This preview is only available through the public demo login",
         )
     # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
-    demo_code_record_message(auth.get("code", ""))
+    await demo_code_record_message(auth.get("code", ""))
 
     async def event_generator():
         if check_safeguarding(req.message):

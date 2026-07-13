@@ -7,6 +7,16 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 
+// How long Bede waits, in silence, after a turn ends before gently picking
+// the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
+// on it) rather than leaving the child sitting in dead air indefinitely.
+// Capped at MAX_CONSECUTIVE_CONTINUES in a row so this can't loop forever
+// talking to itself if the child has actually walked away — it resets the
+// moment they send a real response or a new subject opener fires. Mirrors
+// demo/src/App.tsx's IDLE_CONTINUE_MS/MAX_CONSECUTIVE_AUTO_CONTINUES.
+const INACTIVITY_TIMEOUT_MS = 60_000
+const MAX_CONSECUTIVE_CONTINUES = 2
+
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
@@ -16,6 +26,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const consecutiveContinuesRef = useRef(0)
+  // Mirrors `input` for the inactivity timer's callback, which reads it at
+  // fire time rather than closing over it — avoids re-arming the timer on
+  // every keystroke while still correctly skipping a child mid-typing.
+  const inputRef = useRef('')
+  useEffect(() => { inputRef.current = input }, [input])
 
   // ── Voice command mode ────────────────────────────────────────────────────
   // Tapping the mic used to just drop the transcript into the text box,
@@ -92,30 +109,20 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
 
-  // sendOpener reads live store state to avoid stale-closure issues during streaming
-  const sendOpener = useCallback(async () => {
-    const state = useSessionStore.getState()
-    if (state.isStreaming || !state.token || !state.sessionConfig) return
+  const clearInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+    inactivityTimerRef.current = null
+  }, [])
 
-    // Cuts off any speech still playing/queued from the PREVIOUS subject
-    // before this one starts. isStreaming above guards against overlapping
-    // FETCHES, but speak() below isn't awaited by the turn that queued it —
-    // isStreaming goes back to false as soon as the stream finishes reading,
-    // well before its queued audio has actually finished playing — so
-    // without this, a subject switch can leave the old subject's narration
-    // playing (or queued right behind) the new subject's opener.
-    stopSpeech()
-    stopListening()
-
-    state.startAssistantStream()
-    abortRef.current?.abort()
-    abortRef.current = new AbortController()
-
-    // Speak the whole turn as ONE synthesis call, not one call per chunk.
-    // Separate independently-synthesized clips (main text, then each tool
-    // card) stitched together with a network round-trip gap between them
-    // read as choppy and mechanical even when each clip's own voice quality
-    // is fine — a single continuous take sounds like one person talking.
+  // Shared by sendOpener/send/sendContinue below — each just sets up the
+  // request differently (history, message text, whether a user bubble gets
+  // added), then hands the resulting stream here. Speaks the whole turn as
+  // ONE synthesis call, not one call per chunk: separate independently-
+  // synthesized clips (main text, then each tool card) stitched together
+  // with a network round-trip gap between them read as choppy and
+  // mechanical even when each clip's own voice quality is fine — a single
+  // continuous take sounds like one person talking.
+  const consumeTurnStream = useCallback(async (stream: ReturnType<typeof streamTutorChat>) => {
     const speechSegments: string[] = []
     let pendingText = ''
     const flush = () => {
@@ -123,14 +130,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       pendingText = ''
     }
     try {
-      const stream = streamTutorChat(
-        state.token,
-        state.sessionConfig,
-        state.currentSubject,
-        [],          // no prior history — clean slate for each subject opener
-        '[START]',
-        abortRef.current.signal,
-      )
       for await (const chunk of stream) {
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
@@ -163,15 +162,81 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       finalizeAssistantMessage()
       setStreaming(false)
       // advanceSubjectRef, if set, is picked up by the turn-completion effect
-      // above once streaming AND any queued speech have both finished.
+      // below once streaming AND any queued speech have both finished.
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, stopSpeech, stopListening])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak])
+
+  // sendOpener reads live store state to avoid stale-closure issues during streaming
+  const sendOpener = useCallback(async () => {
+    const state = useSessionStore.getState()
+    if (state.isStreaming || !state.token || !state.sessionConfig) return
+
+    // Cuts off any speech still playing/queued from the PREVIOUS subject
+    // before this one starts. isStreaming above guards against overlapping
+    // FETCHES, but speak() below isn't awaited by the turn that queued it —
+    // isStreaming goes back to false as soon as the stream finishes reading,
+    // well before its queued audio has actually finished playing — so
+    // without this, a subject switch can leave the old subject's narration
+    // playing (or queued right behind) the new subject's opener.
+    stopSpeech()
+    stopListening()
+
+    state.startAssistantStream()
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    const stream = streamTutorChat(
+      state.token,
+      state.sessionConfig,
+      state.currentSubject,
+      [],          // no prior history — clean slate for each subject opener
+      '[START]',
+      abortRef.current.signal,
+    )
+    await consumeTurnStream(stream)
+  }, [consumeTurnStream, stopSpeech, stopListening])
+
+  // Fires after the child has gone quiet for INACTIVITY_TIMEOUT_MS following
+  // Bede's last turn — sends the [CONTINUE] sentinel (see ai_service.py's
+  // rule 11) so Bede gently picks the thread back up instead of the session
+  // just sitting in dead air until the child happens to speak or type.
+  // Silent by design, same as the opener: no user bubble, no mention of the
+  // pause on Bede's end either (that's the backend's job).
+  const sendContinue = useCallback(async () => {
+    const state = useSessionStore.getState()
+    if (state.isStreaming || !state.token || !state.sessionConfig) return
+    // Don't interrupt a child who's mid-drawing, has a drawing ready to
+    // send, is uploading narration, or has unsent text sitting in the box —
+    // the whole point is to fire only once they've genuinely gone quiet.
+    if (showCanvas || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
+    if (consecutiveContinuesRef.current >= MAX_CONSECUTIVE_CONTINUES) return
+    consecutiveContinuesRef.current += 1
+
+    stopSpeech()
+    stopListening()
+
+    const apiHistory = getApiMessages(state.displayMessages, state.subjectStart)
+    state.startAssistantStream()
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    const stream = streamTutorChat(
+      state.token,
+      state.sessionConfig,
+      state.currentSubject,
+      apiHistory,
+      '[CONTINUE]',
+      abortRef.current.signal,
+    )
+    await consumeTurnStream(stream)
+  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
     if (!sessionConfig || !token) return
     if (openerFiredRef.current.has(currentSubject)) return
     openerFiredRef.current.add(currentSubject)
+    consecutiveContinuesRef.current = 0  // fresh subject, fresh idle-continue budget
     sendOpener()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSubject, !!sessionConfig, !!token])
@@ -195,6 +260,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     stopSpeech()      // stop any ongoing speech when child replies
     stopListening()
     setInput('')
+    consecutiveContinuesRef.current = 0  // a real response — the idle-continue cap starts fresh
 
     // Append drawing indicator to message if a drawing is pending
     const fullMsg = pendingDrawing ? msg + (msg ? ' ' : '') + '[✏️ Drawing]' : msg
@@ -208,63 +274,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     abortRef.current?.abort()
     abortRef.current = new AbortController()
 
-    // See sendOpener's comment — the whole turn is spoken as one synthesis
-    // call, not one call per chunk.
-    const speechSegments: string[] = []
-    let pendingText = ''
-    const flush = () => {
-      if (pendingText.trim()) speechSegments.push(pendingText)
-      pendingText = ''
-    }
-    try {
-      const stream = streamTutorChat(
-        token,
-        sessionConfig,
-        currentSubject,
-        apiHistory,
-        fullMsg,
-        abortRef.current.signal,
-        drawingToSend
-      )
-
-      for await (const chunk of stream) {
-        if (chunk.type === 'text' && chunk.content) {
-          appendAssistantChunk(chunk.content)
-          pendingText += chunk.content
-        } else if (chunk.type === 'tool' && chunk.content) {
-          flush()
-          addToolMessage(chunk.tool ?? 'tool', chunk.content)
-          if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
-          speechSegments.push(chunk.content)
-        } else if (chunk.type === 'assessment') {
-          // Silent server-side narration score — no UI change for child
-        } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
-          addVisualAidMessage(chunk.visualAid)
-        } else if (chunk.type === 'subject_complete') {
-          flush()
-          addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
-          speechSegments.push(chunk.content ?? '')
-          advanceSubjectRef.current = true
-        } else if (chunk.type === 'done') {
-          break
-        }
-      }
-      flush()
-      if (speechSegments.length) speak(speechSegments.join(' '))
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        addToolMessage('error', `⚠️ ${err.message}`)
-      }
-    } finally {
-      finalizeAssistantMessage()
-      setStreaming(false)
-      // advanceSubjectRef, if set, is picked up by the turn-completion effect
-      // above once streaming AND any queued speech have both finished.
-    }
+    const stream = streamTutorChat(
+      token,
+      sessionConfig,
+      currentSubject,
+      apiHistory,
+      fullMsg,
+      abortRef.current.signal,
+      drawingToSend
+    )
+    await consumeTurnStream(stream)
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
-    addUserMessage, appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage,
-    setStreaming, stopSpeech, stopListening, speak,
+    addUserMessage, stopSpeech, stopListening, consumeTurnStream,
   ])
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -297,6 +319,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     const turnActiveNow = isStreaming || isSpeaking
     if (turnActiveNow) {
       turnActiveRef.current = true
+      // A new turn starting (the child responded, or Bede is already
+      // mid-reply) means the previous silence is over — the timer armed
+      // below no longer applies.
+      clearInactivityTimer()
       return
     }
     if (turnActiveRef.current) {
@@ -312,23 +338,42 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       if (advanceSubjectRef.current) {
         advanceSubjectRef.current = false
         setTimeout(() => nextSubject(), 1200)
+        return  // sendOpener is about to fire for the new subject — no need to arm a silence timer
+      }
+      // The child has gone quiet after Bede's turn — give them a full
+      // minute to think, type, speak, or draw before Bede gently picks the
+      // thread back up (see sendContinue), rather than either resuming the
+      // instant the mic happens to time out or sitting silent forever.
+      if (!breakActive) {
+        clearInactivityTimer()
+        inactivityTimerRef.current = setTimeout(() => {
+          sendContinue()
+        }, INACTIVITY_TIMEOUT_MS)
       }
     }
-  }, [isStreaming, isSpeaking, breakActive, isListening, startListening, nextSubject])
+  }, [isStreaming, isSpeaking, breakActive, isListening, startListening, nextSubject, clearInactivityTimer, sendContinue])
+
+  // Clear any pending silence timer on unmount so a stray [CONTINUE] never
+  // fires into a session the child has already left.
+  useEffect(() => clearInactivityTimer, [clearInactivityTimer])
 
   // A break can end mid-"turn-just-ended" window (the effect above skips
   // restarting while breakActive is true and doesn't get a second chance
   // once turnActiveRef has already been cleared) — resume voice mode's
-  // loop separately once the break itself ends, so it doesn't get silently
-  // stuck off until the child notices and taps the mic again.
+  // loop, and re-arm the silence timer, separately once the break itself
+  // ends, so neither gets silently stuck off until the child notices.
   const prevBreakActiveRef = useRef(breakActive)
   useEffect(() => {
     const breakJustEnded = prevBreakActiveRef.current && !breakActive
     prevBreakActiveRef.current = breakActive
-    if (breakJustEnded && voiceModeRef.current && !isStreaming && !isSpeaking && !isListening) {
-      startListening()
+    if (breakJustEnded && !isStreaming && !isSpeaking) {
+      if (voiceModeRef.current && !isListening) startListening()
+      clearInactivityTimer()
+      inactivityTimerRef.current = setTimeout(() => {
+        sendContinue()
+      }, INACTIVITY_TIMEOUT_MS)
     }
-  }, [breakActive, isStreaming, isSpeaking, isListening, startListening])
+  }, [breakActive, isStreaming, isSpeaking, isListening, startListening, clearInactivityTimer, sendContinue])
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a

@@ -564,7 +564,7 @@ machine contribution stays clear.
 </ai_literacy_guardrails>"""
 
 
-def _build_static_prompt(config: SessionConfig, is_demo: bool = False) -> str:
+def _build_static_prompt(config: SessionConfig) -> str:
     """Tutor persona, grade stage, and rules — constant within a session. Prompt-cacheable.
 
     Bede is a Socratic classical tutor for Catholic homeschoolers, formed on the
@@ -582,12 +582,14 @@ def _build_static_prompt(config: SessionConfig, is_demo: bool = False) -> str:
     models are trained to respect structural tags more reliably than prose
     alone.
 
-    is_demo defaults False and every parent/child call site leaves it
-    unset, so this function's output for production is byte-identical to
-    before the diagnostic preview existed — see services/diagnostic_demo.py
-    for why that isolation matters here specifically. Depends only on
-    config.student_name (already used elsewhere in this block), so adding
-    it doesn't change per-turn cache safety.
+    <diagnostic_guidance> below is unconditional now — record_skill_evidence
+    has a real, persistent backend for parent/child sessions
+    (services.diagnostic.process_evidence), not just the demo's in-memory
+    preview (services/diagnostic_demo.py), so there's no longer a reason to
+    gate it on an is_demo flag (removed as a parameter here; it was only
+    ever load-bearing for this one line). Depends only on
+    config.student_name (already used elsewhere in this block), so
+    including it unconditionally doesn't change per-turn cache safety.
     """
     return f"""<persona>
 You are Bede — a monk-scholar of Jarrow in the spirit of the Venerable Bede (c. 673–735), given to the twin \
@@ -711,7 +713,7 @@ on a celebration or a faith connection with nothing to respond to is exactly the
 question), and `suggest_next_subject` are each a fine, natural place to end a turn on their own — they already \
 invite the child's next move.
 </tools_guidance>
-{_diagnostic_guidance(config) if is_demo else ""}
+{_diagnostic_guidance(config)}
 When a message includes a drawing or handwritten work, look at it directly and respond to what you actually see \
 there — treat it as their answer, exactly as you would a spoken or typed one. Comment on specifics (what they \
 wrote, drew, or got right) rather than acknowledging generically that "a drawing was submitted."
@@ -834,28 +836,35 @@ def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     return "".join(notes)
 
 
-def _diagnostic_context(config: SessionConfig, subject: Subject, demo_code: Optional[str]) -> str:
+def _diagnostic_context(
+    config: SessionConfig,
+    subject: Subject,
+    demo_code: Optional[str],
+    db_vector: Optional[dict] = None,
+) -> str:
     """
-    Per-turn math-skill diagnostic note for record_skill_evidence — demo
-    only (see services/diagnostic_demo.py's module docstring for why this
-    doesn't touch homeschool-tutor/production in this phase). demo_code is
-    None for every parent/child call site, so this is a true no-op there,
-    not just an empty-vector edge case.
+    Per-turn math-skill diagnostic note for record_skill_evidence. Exactly
+    one of demo_code/db_vector is ever meaningful per call — demo_code
+    reads the demo's in-memory single-session vector
+    (core.demo_code_session), db_vector is the real, already-loaded (see
+    stream_tutor_response's _load_mastery_vector_readonly — this function
+    itself stays sync, no I/O here) vector for a parent/child session.
+    Both None means either a non-diagnostic subject (handled by the early
+    return below) or a cold-start real session with no evidence yet.
 
     Lists the available probe ids for this child's grade band (so Bede
     never has to invent one) plus a short "still needs evidence / secure
-    already" hint rendered from the live in-memory vector, if one exists
-    yet for this code — cold-start (no evidence recorded) gets the plain
-    probe list with no hint rather than a fabricated one.
+    already" hint rendered from the live vector, if one exists yet —
+    cold-start (no evidence recorded) gets the plain probe list with no
+    hint rather than a fabricated one.
     """
-    if demo_code is None or subject != Subject.mathematics:
+    if subject != Subject.mathematics:
         return ""
     try:
         from services.diagnostic.mastery import new_vector
         from services.diagnostic.qmatrix import Q_MATRIX, probes_for_skill
         from services.diagnostic.skill_map import GradeBand, skills_in_band
         from services.diagnostic import get_next_probe_hint
-        from core.demo_code_session import get_mastery_vector
 
         band = GradeBand(config.grade_stage.value)
         probe_lines = []
@@ -867,7 +876,12 @@ def _diagnostic_context(config: SessionConfig, subject: Subject, demo_code: Opti
         if not probe_lines:
             return ""
 
-        vector = get_mastery_vector(demo_code)
+        if demo_code is not None:
+            from core.demo_code_session import get_mastery_vector
+            vector = get_mastery_vector(demo_code)
+        else:
+            vector = db_vector
+
         calibration = vector is None or len(vector) == 0
         hint = get_next_probe_hint(vector or new_vector(band.value), theta={}, grade_band=band.value, calibration=calibration)
 
@@ -882,7 +896,12 @@ def _diagnostic_context(config: SessionConfig, subject: Subject, demo_code: Opti
         return ""
 
 
-def _build_subject_prompt(config: SessionConfig, subject: Subject, demo_code: Optional[str] = None) -> str:
+def _build_subject_prompt(
+    config: SessionConfig,
+    subject: Subject,
+    demo_code: Optional[str] = None,
+    db_vector: Optional[dict] = None,
+) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
     lesson_raw = _sanitize_parent_field(config.lesson_focus)
@@ -893,7 +912,7 @@ def _build_subject_prompt(config: SessionConfig, subject: Subject, demo_code: Op
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject)
     session_position_note = _session_position_note(config, subject)
-    diagnostic_note = _diagnostic_context(config, subject, demo_code)
+    diagnostic_note = _diagnostic_context(config, subject, demo_code, db_vector)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
 {_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}{diagnostic_note}"""
@@ -1007,33 +1026,76 @@ async def _save_assessment(
         return None
 
 
-async def _record_skill_evidence_demo(
+async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> Optional[dict]:
+    """
+    Read-only load of a student's real (db-backed) mastery vector, for
+    prompt injection only — never writes, unlike
+    services.diagnostic.process_evidence. Returns None when no
+    MasteryProfile row exists yet (cold start) rather than a synthesized
+    vector, matching services/diagnostic_demo.py's own
+    "vector is None means calibrating" convention exactly, so
+    _diagnostic_context's calibration heuristic works identically for
+    both backends. Defensive like _save_assessment: any DB/decrypt
+    failure degrades to None (cold-start prompt text) rather than
+    raising into stream_tutor_response.
+    """
+    try:
+        from sqlalchemy import select
+
+        from core.database import MasteryProfile
+        from core.encryption import decrypt_json
+
+        result = await db.execute(
+            select(MasteryProfile).where(
+                MasteryProfile.student_name == student_name,
+                MasteryProfile.subject_area == "mathematics",
+            )
+        )
+        row = result.scalar_one_or_none()
+        return decrypt_json(row.profile_enc) if row is not None else None
+    except Exception as exc:
+        log.warning("Mastery vector prompt-load failed for %s: %s", student_name, exc)
+        return None
+
+
+async def _record_skill_evidence(
+    db: Optional["AsyncSession"],
     demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
 ) -> None:
     """
-    Demo-only handler for record_skill_evidence — see
-    services/diagnostic_demo.py's module docstring for the full scope
-    rationale. A true no-op whenever demo_code is None (every parent/child
-    call site) or the subject isn't mathematics, so this cannot affect
-    homeschool-tutor/production in this phase, structurally, not just by
-    convention. Defensive like _save_assessment, which this mirrors: a
-    diagnostic hiccup must never break the child's tutoring turn.
+    Silently record math-skill diagnostic evidence. Routes to exactly one
+    backend: demo_code drives the demo's in-memory, single-session preview
+    (services/diagnostic_demo.py); db drives the real, persistent
+    parent/child path (services.diagnostic.process_evidence). The two are
+    mutually exclusive at every call site (routers/tutor.py sets db=None
+    whenever demo_code is set, and vice versa) — this never does both,
+    and does neither once subject != mathematics. Defensive like
+    _save_assessment, which this mirrors: a diagnostic hiccup must never
+    break the child's tutoring turn.
     """
-    if demo_code is None or subject != Subject.mathematics:
+    if subject != Subject.mathematics:
         return
     try:
         from models.schemas import RecordSkillEvidenceInput
-        from services.diagnostic_demo import record_skill_evidence_demo
 
         ev = RecordSkillEvidenceInput(**tool_input)  # validate/clamp
-        await record_skill_evidence_demo(
-            demo_code, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
-        )
+
+        if demo_code is not None:
+            from services.diagnostic_demo import record_skill_evidence_demo
+            await record_skill_evidence_demo(
+                demo_code, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
+            )
+        elif db is not None:
+            from services.diagnostic import process_evidence
+            await process_evidence(
+                db, config.student_name, ev.probe_id, ev.outcome, ev.confidence,
+                config.grade_stage.value,
+            )
     except Exception as exc:
-        log.warning("Demo skill-evidence record failed for %s: %s", config.student_name, exc)
+        log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def stream_tutor_response(
@@ -1049,11 +1111,14 @@ async def stream_tutor_response(
     Stream the Socratic tutor response token by token using Claude Sonnet.
     Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
 
-    demo_code is set only by the demo role (routers/tutor.py) and enables
-    the demo-only mastery-tracking preview (record_skill_evidence — see
-    services/diagnostic_demo.py). None for every parent/child call site,
-    which is also what keeps this phase of that feature from touching
-    homeschool-tutor/production at all.
+    demo_code is set only by the demo role (routers/tutor.py) and drives
+    the demo's in-memory mastery-tracking preview (record_skill_evidence
+    — see services/diagnostic_demo.py) — None for every parent/child call
+    site. db is set for parent/child (None for demo) and drives the real,
+    persistent mastery-tracking path (services.diagnostic.process_evidence)
+    for those same sessions. The two are mutually exclusive at every call
+    site (routers/tutor.py), so exactly one backend is ever live per
+    request — never both, never neither once subject == mathematics.
     """
     # Build message list and apply sliding window to cap per-turn input tokens
     messages = [{"role": m.role, "content": m.content} for m in history]
@@ -1071,17 +1136,25 @@ async def stream_tutor_response(
         messages.append({"role": "user", "content": child_message})
     messages = messages[-_HISTORY_WINDOW:]
 
+    # Loaded ahead of building `system` (not inside _build_subject_prompt,
+    # which stays sync) since a real DB read needs an await — see
+    # _load_mastery_vector_readonly's docstring. None whenever db is None
+    # (demo/no evidence yet) or the subject isn't mathematics.
+    db_vector = None
+    if db is not None and subject == Subject.mathematics:
+        db_vector = await _load_mastery_vector_readonly(db, config.student_name)
+
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
     system = [
         {
             "type": "text",
-            "text": _build_static_prompt(config, is_demo=demo_code is not None),
+            "text": _build_static_prompt(config),
             "cache_control": {"type": "ephemeral"},
         },
         {
             "type": "text",
-            "text": _build_subject_prompt(config, subject, demo_code=demo_code),
+            "text": _build_subject_prompt(config, subject, demo_code=demo_code, db_vector=db_vector),
         },
     ]
 
@@ -1171,9 +1244,9 @@ async def stream_tutor_response(
                             elif tc["name"] == "record_skill_evidence":
                                 # Fully silent — no SSE chunk at all, stricter than
                                 # assess_narration's minimal event. See
-                                # _record_skill_evidence_demo's own docstring for
-                                # why this only ever does anything for demo_code.
-                                await _record_skill_evidence_demo(demo_code, config, subject, tool_input)
+                                # _record_skill_evidence's own docstring for which
+                                # backend (demo_code vs db) actually persists it.
+                                await _record_skill_evidence(db, demo_code, config, subject, tool_input)
                             else:
                                 tool_response = _process_tool_use(tc["name"], tool_input)
                                 if tool_response:

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import { SUBJECT_MAP } from '../types'
-import type { NarrationAssessmentData, LearnerProfileData } from '../types'
+import { SUBJECT_MAP, CORE_AREAS } from '../types'
+import type { NarrationAssessmentData, LearnerProfileData, SessionConfig } from '../types'
 import {
   fetchNarrationAssessments,
   fetchLearnerProfile,
@@ -236,6 +236,102 @@ function AssessmentHistory({ assessments }: { assessments: NarrationAssessmentDa
 
 // ── Concept coverage ──────────────────────────────────────────────────────────
 
+type TopicStatus = 'not_started' | 'introduced' | 'developing' | 'mastered'
+
+const TOPIC_STATUS_RANK: Record<Exclude<TopicStatus, 'not_started'>, number> = {
+  introduced: 1,
+  developing: 2,
+  mastered: 3,
+}
+
+const TOPIC_STATUS_STYLE: Record<TopicStatus, { label: string; cls: string }> = {
+  not_started: { label: 'Not started', cls: 'bg-gray-100 text-gray-500' },
+  introduced:  { label: 'Introduced',  cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  developing:  { label: 'Developing',  cls: 'bg-sky-50 text-sky-700 border border-sky-200' },
+  mastered:    { label: 'Mastered',    cls: 'bg-sage-100 text-sage-800 border border-sage-300' },
+}
+
+/**
+ * Term mastery outcomes per foundational core area — the parent's chosen
+ * topics (SessionConfig.term_mastery_topics) against the per-topic evidence
+ * Bede records silently via assess_narration's term_topic fields. Exposure
+ * to all topics is expected across the term; mastery is the outcome. Areas
+ * with topics still untouched are flagged so the parent can see at a glance
+ * where a learner is behind.
+ */
+function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessments: NarrationAssessmentData[] }) {
+  const topics = config?.term_mastery_topics
+  if (!config || !topics || Object.keys(topics).length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">Term Mastery Outcomes</h2>
+        <p className="text-xs text-gray-500">
+          No mastery topics set for this term yet. Add up to 3 topics per core area in Setup —
+          Bede will weave them into lessons and track each learner's progress here.
+        </p>
+      </div>
+    )
+  }
+
+  const termWord = config.term_schedule === 'quarterly' ? 'Quarter' : 'Term'
+
+  const statusFor = (topic: string): TopicStatus => {
+    let best: TopicStatus = 'not_started'
+    for (const a of assessments) {
+      if (a.term_topic !== topic || !a.term_topic_level) continue
+      if (best === 'not_started' || TOPIC_STATUS_RANK[a.term_topic_level] > TOPIC_STATUS_RANK[best as Exclude<TopicStatus, 'not_started'>]) {
+        best = a.term_topic_level
+      }
+    }
+    return best
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-700">Term Mastery Outcomes</h2>
+        <span className="text-xs text-gray-400">
+          {termWord} {config.current_term ?? 1}
+        </span>
+      </div>
+      <div className="space-y-4">
+        {CORE_AREAS.map(({ id, label }) => {
+          const areaTopics = topics[id]
+          if (!areaTopics || areaTopics.length === 0) return null
+          const statuses = areaTopics.map((t) => ({ topic: t, status: statusFor(t) }))
+          const mastered = statuses.filter((s) => s.status === 'mastered').length
+          const untouched = statuses.filter((s) => s.status === 'not_started').length
+          return (
+            <div key={id}>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-semibold text-navy-700">{label}</p>
+                <p className="text-xs text-gray-400">
+                  {mastered} of {statuses.length} mastered
+                  {untouched > 0 && (
+                    <span className="ml-2 text-amber-600 font-medium">
+                      {untouched} not yet started
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="space-y-1">
+                {statuses.map(({ topic, status }) => (
+                  <div key={topic} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-600 truncate">{topic}</span>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TOPIC_STATUS_STYLE[status].cls}`}>
+                      {TOPIC_STATUS_STYLE[status].label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function ConceptCoverage({ assessments }: { assessments: NarrationAssessmentData[] }) {
   if (!assessments.length) return null
 
@@ -444,6 +540,10 @@ export default function Progress() {
               token={token}
               studentName={activeStudent}
               onProfileBuilt={(p) => setProfile(p)}
+            />
+            <TermOutcomes
+              config={podStudents.find((s) => s.student_name === activeStudent)}
+              assessments={assessments}
             />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />

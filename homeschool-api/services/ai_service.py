@@ -9,6 +9,7 @@ from typing import AsyncIterator, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from models.schemas import (
     SessionConfig,
     Subject,
@@ -215,6 +216,22 @@ TUTOR_TOOLS = [
                 "synthesis": {
                     "type": "integer", "minimum": 1, "maximum": 5,
                     "description": "Connections to prior learning. 1=isolated recall, 5=genuine synthesis",
+                },
+                "term_topic": {
+                    "type": "string",
+                    "description": (
+                        "OPTIONAL — only when this narration/exchange clearly demonstrated one of the "
+                        "parent's term mastery topics listed in <term_outcomes> for this subject. Must "
+                        "match one of those topic strings EXACTLY. Omit when no listed topic applies."
+                    ),
+                },
+                "term_topic_level": {
+                    "type": "string", "enum": ["introduced", "developing", "mastered"],
+                    "description": (
+                        "OPTIONAL, only with term_topic: how firmly the child holds it. 'introduced' = "
+                        "met it for the first time; 'developing' = working with help; 'mastered' = "
+                        "demonstrated independently and confidently."
+                    ),
                 },
                 "concepts_demonstrated": {
                     "type": "array", "items": {"type": "string"},
@@ -711,6 +728,12 @@ frustration means it's kinder to move on without one. Never use it as a shortcut
 engagement; try slowing down first for ordinary difficulty. It ends the CURRENT subject early and moves to the next \
 one, not the whole day's session.
 
+Before you end a subject — whether by `suggest_next_subject` or because the session itself is wrapping up — \
+close with a brief moment of reinforcement: ask the child to say, in a sentence or two of their own, the one thing \
+they discovered today ("Before we move on — what will you remember from this?"), and if lines of a poem or memory \
+passage were learned, say them once more together. This is the Mater Amabilis habit of ending on what was gained — \
+keep it warm and light, thirty seconds of gathering up, never a quiz or a checklist. Then move on.
+
 `celebrate_discovery` has no question field at all, and `connect_to_faith`'s reflection_question is optional — \
 neither one, by itself, gives the child anything to do next. Never let one of these be the very last thing in a \
 turn: continue with your own text and a genuine next question right after it, per Rule 3. The conversation stalling \
@@ -923,6 +946,41 @@ async def _diagnostic_context(
         return ""
 
 
+def _term_outcomes_note(config: SessionConfig, subject: Subject) -> str:
+    """Term-outcomes block for subjects mapped to a foundational core area
+    (models.schemas.SUBJECT_CORE_AREAS). Lists the parent's mastery topics
+    for this term so Bede (a) ensures exposure to every listed topic across
+    the term, (b) steers un-mastered topics into sessions, and (c) records
+    per-topic evidence via assess_narration's term_topic fields — which is
+    what keeps the parent's Progress view current."""
+    from models.schemas import CORE_AREAS, SUBJECT_CORE_AREAS
+
+    areas = SUBJECT_CORE_AREAS.get(subject, [])
+    lines = []
+    for area in areas:
+        topics = config.term_mastery_topics.get(area) or []
+        clean = [t for t in (_sanitize_parent_field(topic, max_len=120) for topic in topics) if t]
+        if clean:
+            lines.append(f"{CORE_AREAS[area]}: " + "; ".join(clean))
+    if not lines:
+        return ""
+    term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
+    topic_lines = "\n".join(lines)
+    return f"""
+
+<term_outcomes>
+This is {term_word} {config.current_term} of the family's {config.term_schedule.value} year. The parent's
+mastery outcomes for this subject's core area(s) this {term_word} — the child should be EXPOSED to all of
+these across the {term_word}, and reach MASTERY of them by its end:
+{topic_lines}
+When a session naturally allows it, steer toward a listed topic the child has not yet mastered — woven into
+the lesson, never announced as an objective. When a narration or exchange clearly demonstrates one of these
+topics, include term_topic (the exact topic string above) and term_topic_level in your assess_narration
+call, so the parent's progress view stays current. Never mention these topics, levels, or tracking to the
+child.
+</term_outcomes>"""
+
+
 async def _build_subject_prompt(
     config: SessionConfig,
     subject: Subject,
@@ -940,10 +998,20 @@ async def _build_subject_prompt(
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject)
     session_position_note = _session_position_note(config, subject)
+    # Poetry co-study (verbatim public-domain texts — see services/
+    # poetry_catalog.py) belongs where Mater Amabilis puts poetry: the
+    # Morning Time opening and the Living Books literature block. Other
+    # subjects stay lean.
+    poetry_note = (
+        _poetry_catalog_note(config.grade_stage, config.term_schedule, config.current_term)
+        if subject in (Subject.morning_time, Subject.living_books)
+        else ""
+    )
+    term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{diagnostic_note}"""
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:
@@ -1034,6 +1102,11 @@ async def _save_assessment(
             "detail":                 tool_input.get("detail"),
             "language_quality":       tool_input.get("language_quality"),
             "synthesis":              tool_input.get("synthesis"),
+            # Term-outcome evidence (see _term_outcomes_note / models.schemas
+            # CORE_AREAS) — present only when the exchange demonstrated one of
+            # the parent's term mastery topics.
+            "term_topic":             tool_input.get("term_topic"),
+            "term_topic_level":       tool_input.get("term_topic_level"),
             "total_score":            total,
             "concepts_demonstrated":  tool_input.get("concepts_demonstrated", []),
             "misconceptions":         tool_input.get("misconceptions", []),

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2 } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import type { Subject, GradeStage, SessionConfig } from '../types'
-import { SUBJECTS } from '../types'
+import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea } from '../types'
+import { SUBJECTS, CORE_AREAS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import { listVoiceProfiles } from '../services/voiceApi'
@@ -27,6 +27,10 @@ interface StudentForm {
   screen_time_limit_enabled: boolean
   screen_time_limit_minutes: number
   eye_rest_break_minutes: number
+  term_schedule: TermSchedule
+  current_term: number
+  // Comma-separated per area in the form; parsed to string[] on save.
+  term_topics: Record<CoreArea, string>
   expandedContext: boolean
   showEnrollment: boolean
 }
@@ -43,6 +47,12 @@ const blankStudent = (): StudentForm => ({
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
+  term_schedule: 'trimester',
+  current_term: 1,
+  term_topics: {
+    phonics_language: '', mathematics: '', reading_literature: '',
+    science: '', writing_composition: '',
+  },
   expandedContext: false,
   showEnrollment: false,
 })
@@ -106,6 +116,14 @@ export default function ParentSetup() {
       voice_required: s.voice_required,
       screen_time_limit_minutes: s.screen_time_limit_enabled ? s.screen_time_limit_minutes : null,
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
+      term_schedule: s.term_schedule,
+      current_term: Math.min(s.current_term, s.term_schedule === 'trimester' ? 3 : 4),
+      term_mastery_topics: Object.fromEntries(
+        CORE_AREAS.map(({ id }) => [
+          id,
+          s.term_topics[id].split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3),
+        ]).filter(([, topics]) => (topics as string[]).length > 0),
+      ),
     }))
     try {
       await savePodConfigs(token, configs)
@@ -453,6 +471,65 @@ function StudentCard({
             </button>
           </div>
         )}
+
+        {/* Term & mastery outcomes */}
+        <div className="p-3 bg-gray-50 rounded-xl space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Term & mastery outcomes</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {student.term_schedule === 'trimester'
+                  ? 'Mater Amabilis 3-term year'
+                  : '4-quarter year'} · exposure to all topics, mastery of up to 3 per area
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <select
+                value={student.term_schedule}
+                onChange={(e) => {
+                  const term_schedule = e.target.value as TermSchedule
+                  onUpdate({
+                    term_schedule,
+                    current_term: Math.min(student.current_term, term_schedule === 'trimester' ? 3 : 4),
+                  })
+                }}
+                className="input !w-auto text-xs py-1.5"
+              >
+                <option value="trimester">Terms (3/yr)</option>
+                <option value="quarterly">Quarters (4/yr)</option>
+              </select>
+              <select
+                value={student.current_term}
+                onChange={(e) => onUpdate({ current_term: Number(e.target.value) })}
+                className="input !w-auto text-xs py-1.5"
+              >
+                {Array.from({ length: student.term_schedule === 'trimester' ? 3 : 4 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {student.term_schedule === 'trimester' ? 'Term' : 'Quarter'} {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {CORE_AREAS.map(({ id, label }) => (
+              <div key={id}>
+                <label className="label text-xs">{label}</label>
+                <input
+                  type="text"
+                  value={student.term_topics[id]}
+                  onChange={(e) => onUpdate({ term_topics: { ...student.term_topics, [id]: e.target.value } })}
+                  placeholder="Up to 3 mastery topics, comma-separated"
+                  className="input text-xs"
+                />
+              </div>
+            ))}
+            <p className="text-xs text-gray-400">
+              Bede weaves these into lessons, tracks each learner's progress on them, and shows
+              you where they stand on the Progress page — the child never sees them as objectives.
+            </p>
+          </div>
+        </div>
 
         {/* Optional context — collapsed by default */}
         <div>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import model_validator, BaseModel, EmailStr, Field
 from typing import List, Optional, Literal
 from enum import Enum
 from datetime import date
@@ -29,6 +29,32 @@ def grade_to_stage(grade: str) -> GradeStage:
     if g in ("6", "7", "8"):
         return GradeStage.independent
     return GradeStage.foundations
+
+
+class TermSchedule(str, Enum):
+    """Mater Amabilis is organized around a 3-term (trimester) year; some
+    families run a 4-quarter year instead. The schedule choice drives the
+    poetry/term rotation length and how term outcomes are framed."""
+    trimester = "trimester"   # 3 terms per year (Mater Amabilis default)
+    quarterly = "quarterly"   # 4 quarters per year
+
+
+# Foundational core areas the parent tracks term-by-term. Every learner is
+# expected to be EXPOSED to all of a term's topics and to reach MASTERY of
+# the parent's chosen topics (up to 3 per area per term) — see
+# SessionConfig.term_mastery_topics and services/ai_service.py's
+# _term_outcomes_note.
+CORE_AREAS = {
+    "phonics_language":    "Phonics & Language",
+    "mathematics":         "Math",
+    "reading_literature":  "Reading & Literature",
+    "science":             "Science",
+    "writing_composition": "Writing & Composition",
+}
+
+# Which subjects gauge which core areas — a subject's sessions produce the
+# narration evidence that feeds that area's term-mastery picture.
+SUBJECT_CORE_AREAS = {}  # populated after Subject is defined below
 
 
 class Subject(str, Enum):
@@ -76,6 +102,15 @@ class ChatMessage(BaseModel):
     content: str
 
 
+SUBJECT_CORE_AREAS.update({
+    Subject.language_arts: ["phonics_language", "writing_composition"],
+    Subject.mathematics:   ["mathematics"],
+    Subject.living_books:  ["reading_literature", "writing_composition"],
+    Subject.science:       ["science"],
+    Subject.nature_study:  ["science"],
+})
+
+
 class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
     grade: str = Field(..., description="e.g. '3' or 'K'")
@@ -109,6 +144,33 @@ class SessionConfig(BaseModel):
     # output. Updated via PATCH /pod/configs/{student_name}/voice-narration
     # (routers/pod.py), reachable by the child themselves, not just the parent.
     voice_narration_enabled: bool = True
+
+    # ── Term schedule & outcomes ──────────────────────────────────────────
+    # Mater Amabilis default is a 3-term year; quarterly gives 4. current_term
+    # is 1-based and capped by the schedule (validated below).
+    term_schedule: TermSchedule = TermSchedule.trimester
+    current_term: int = Field(default=1, ge=1, le=4)
+    # Parent's chosen mastery outcomes for the current term: up to 3 topics
+    # per core area (keys from CORE_AREAS). Exposure to every listed topic is
+    # expected across the term; mastery of these named topics is the outcome.
+    # Bede steers sessions toward them and records per-topic evidence via
+    # assess_narration's term_topic fields.
+    term_mastery_topics: dict[str, list[str]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validate_term(self):
+        max_term = 3 if self.term_schedule == TermSchedule.trimester else 4
+        if self.current_term > max_term:
+            self.current_term = max_term
+        cleaned: dict[str, list[str]] = {}
+        for area, topics in (self.term_mastery_topics or {}).items():
+            if area not in CORE_AREAS:
+                continue
+            kept = [t.strip()[:120] for t in topics if t and t.strip()][:3]
+            if kept:
+                cleaned[area] = kept
+        self.term_mastery_topics = cleaned
+        return self
 
 
 class VoiceNarrationPreferenceRequest(BaseModel):

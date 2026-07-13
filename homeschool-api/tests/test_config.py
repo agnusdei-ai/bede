@@ -70,3 +70,74 @@ def test_unset_sandbox_pin_never_blocks_production_startup():
         master_secret="b" * 40,
     )
     assert s.sandbox_pin == ""
+
+
+# ── DIAGNOSTIC_PIN — same rules as SANDBOX_PIN, plus must also differ from it ──
+
+def test_diagnostic_pin_matching_parent_password_rejected():
+    with pytest.raises(ValueError, match="DIAGNOSTIC_PIN"):
+        Settings(diagnostic_pin="602656", parent_password="602656")
+
+
+def test_diagnostic_pin_matching_child_pin_rejected():
+    with pytest.raises(ValueError, match="DIAGNOSTIC_PIN"):
+        Settings(diagnostic_pin="602656", child_pin="602656")
+
+
+def test_diagnostic_pin_matching_demo_pin_rejected():
+    with pytest.raises(ValueError, match="DIAGNOSTIC_PIN"):
+        Settings(diagnostic_pin="602656", demo_pin="602656")
+
+
+def test_diagnostic_pin_matching_sandbox_pin_rejected():
+    with pytest.raises(ValueError, match="DIAGNOSTIC_PIN"):
+        Settings(diagnostic_pin="602656", sandbox_pin="602656")
+
+
+def test_diagnostic_pin_distinct_from_everything_is_accepted():
+    s = Settings(
+        diagnostic_pin="602656", parent_password="x", child_pin="111222",
+        demo_pin="333444", sandbox_pin="555666",
+    )
+    assert s.diagnostic_pin == "602656"
+
+
+def test_diagnostic_pin_empty_by_default():
+    assert Settings().diagnostic_pin == ""
+
+
+def test_weak_diagnostic_pin_rejected_in_production():
+    with pytest.raises(ValueError, match="DIAGNOSTIC_PIN"):
+        Settings(
+            production="true",
+            secret_key="a" * 40,
+            parent_password="a-strong-password",
+            child_pin="602656",
+            master_secret="b" * 40,
+            diagnostic_pin="111111",
+        )
+
+
+def test_strong_diagnostic_pin_accepted_in_production():
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        diagnostic_pin="749283",
+    )
+    assert s.diagnostic_pin == "749283"
+
+
+def test_unset_diagnostic_pin_never_blocks_production_startup():
+    """Empty = disabled, same as DEMO_PIN/SANDBOX_PIN — must not itself
+    trigger a weak-default failure just because it's unset."""
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+    )
+    assert s.diagnostic_pin == ""

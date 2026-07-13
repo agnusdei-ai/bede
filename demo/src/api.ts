@@ -410,3 +410,111 @@ export async function* streamSandboxDemoChat(
     }
   }
 }
+
+// ── Diagnostic preview (parent-only, demo-scoped) ─────────────────────────────
+//
+// A separate login from the child's own demo session — a parent supplies
+// the same 6-digit demo code the child is using, plus DIAGNOSTIC_PIN, to
+// view a live mastery-tracking preview for that one session. See
+// homeschool-api/routers/auth.py's /auth/diagnostic-login and
+// routers/diagnostic.py. Single-session only: nothing here survives past
+// that demo code's own lifetime, same as everything else about it.
+
+export type MasteryLevel = 'gap' | 'developing' | 'secure'
+
+export interface SkillMasteryView {
+  skill_id: string
+  label: string
+  domain: string
+  grade_band: string
+  probability: number
+  level: MasteryLevel
+}
+
+export interface DomainMasteryView {
+  domain: string
+  average_probability: number
+  level: MasteryLevel
+  skills: SkillMasteryView[]
+}
+
+export interface MasteryProfileSummary {
+  student_name: string
+  subject_area: string
+  evidence_count: number
+  calibration: boolean
+  domains: DomainMasteryView[]
+  gaps: SkillMasteryView[]
+  next_steps: SkillMasteryView[]
+  updated_at: string
+}
+
+export async function diagnosticLogin(code: string, pin: string): Promise<string> {
+  const res = await fetch(`${apiBase()}/auth/diagnostic-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, pin }),
+  })
+  if (res.status === 404) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || 'That demo code or the diagnostic preview could not be found.')
+  }
+  if (res.status === 401) throw new Error('Incorrect diagnostic PIN.')
+  if (!res.ok) throw new Error('Could not log in right now — please try again.')
+  const data = await res.json()
+  return data.access_token
+}
+
+export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {
+  const res = await fetch(`${apiBase()}/diagnostic/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 404) return null
+  if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
+  if (!res.ok) throw new Error('Could not load the mastery summary right now.')
+  return res.json()
+}
+
+export async function* streamDiagnosticChat(
+  token: string,
+  history: ChatMessage[],
+  message: string,
+  signal?: AbortSignal
+): AsyncGenerator<StreamChunk> {
+  const res = await fetch(`${apiBase()}/diagnostic/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ conversation_history: history, message }),
+    signal,
+  })
+
+  if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
+  if (!res.ok) throw new Error('Diagnostic chat request failed — check your connection')
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const jsonStr = line.slice(6).trim()
+      if (!jsonStr) continue
+      try {
+        const chunk: StreamChunk = JSON.parse(jsonStr)
+        yield chunk
+        if (chunk.type === 'done') return
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
+}

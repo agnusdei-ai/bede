@@ -137,6 +137,7 @@ async def chat(
             child_message=req.child_message,
             db=db,
             drawing_image=req.drawing_image,
+            demo_code=auth.get("code") if is_demo_code else None,
         ):
             yield chunk
 

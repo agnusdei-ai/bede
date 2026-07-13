@@ -63,6 +63,14 @@ def generate_code(student_name: str | None = None, grade: str | None = None) -> 
         "redeemed": False,
         "student_name": student_name,
         "grade": grade,
+        # Opaque to this module by design — see services/diagnostic_demo.py,
+        # which is the only thing that knows a mastery.MasteryVector's shape
+        # or how to build one. Kept here, not there, purely because this is
+        # the single per-code store everything about a demo session lives
+        # in; never persisted, gone the moment the code is evicted, same as
+        # message_count/student_name above.
+        "mastery_vector": None,
+        "mastery_evidence_count": 0,
     }
     return code
 
@@ -74,6 +82,33 @@ def get_personalization(code: str) -> tuple[str | None, str | None]:
     if info is None:
         return None, None
     return info.get("student_name"), info.get("grade")
+
+
+def get_mastery_vector(code: str) -> dict | None:
+    """Raw mastery vector (skill_id -> probability) for this code, or None
+    for an unknown code or one with no evidence recorded yet. Opaque dict —
+    see services/diagnostic_demo.py for anything that actually interprets
+    or builds one."""
+    info = _codes.get(code)
+    if info is None:
+        return None
+    return info.get("mastery_vector")
+
+
+def set_mastery_vector(code: str, vector: dict, evidence_count: int) -> None:
+    """Overwrite this code's in-memory mastery vector and evidence count.
+    No-op for an unknown/evicted code — a diagnostic write racing a logout
+    should lose silently, not raise."""
+    info = _codes.get(code)
+    if info is None:
+        return
+    info["mastery_vector"] = vector
+    info["mastery_evidence_count"] = evidence_count
+
+
+def get_mastery_evidence_count(code: str) -> int:
+    info = _codes.get(code)
+    return info.get("mastery_evidence_count", 0) if info else 0
 
 
 def redeem_code(code: str) -> bool:

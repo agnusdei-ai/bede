@@ -192,6 +192,24 @@ class DemoCodeResponse(BaseModel):
     code: str
 
 
+class DiagnosticLoginRequest(BaseModel):
+    """Parent-only login into the demo's mastery-tracking preview — see
+    POST /auth/diagnostic-login. Two credentials, not one: the specific
+    demo code whose in-memory session to view (the same code the child's
+    demo session is using), plus DIAGNOSTIC_PIN itself. Doesn't fit
+    LoginRequest's single-credential shape, hence its own model."""
+    code: str = Field(..., min_length=6, max_length=6)
+    pin: str = Field(..., min_length=1, max_length=100)
+
+
+class DiagnosticChatRequest(BaseModel):
+    """Direct-answer chat for the diagnostic preview's parent-only login —
+    same shape as SandboxDemoChatRequest, gated by diagnostic_parent's own
+    auth instead of a PIN checked per-request. See routers/diagnostic.py."""
+    conversation_history: List[ChatMessage] = []
+    message: str = Field(..., min_length=1, max_length=4000)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

@@ -73,6 +73,12 @@ services:
       - key: DEMO_PIN
         sync: false
 
+      # Optional — gates the demo's mastery-tracking diagnostic preview
+      # (routers/diagnostic.py). Leave unset/empty to keep that preview
+      # disabled; the rest of the demo works identically either way.
+      - key: DIAGNOSTIC_PIN
+        sync: false
+
       # Auto-generated — random by design, nobody needs to remember these.
       - key: SECRET_KEY
         generateValue: true

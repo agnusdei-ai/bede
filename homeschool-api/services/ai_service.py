@@ -263,6 +263,39 @@ TUTOR_TOOLS = [
             "required": ["reason", "message"],
         },
     },
+    {
+        "name": "record_skill_evidence",
+        "description": (
+            "SILENTLY record diagnostic evidence about a specific MATH sub-skill after a "
+            "reasoning exchange reveals how well the child understands it. The child never "
+            "sees this. Call it when a Socratic exchange has genuinely surfaced the child's "
+            "grasp (or gap) on one of the math skills listed in this subject's context — not "
+            "after every turn, only when you have real signal. Choose probe_id ONLY from the "
+            "list provided in the subject context; never invent one."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "probe_id": {
+                    "type": "string",
+                    "description": "The exact probe archetype id from this subject's context list",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How the child performed: correct=solid unaided, partial=some grasp, "
+                        "incorrect=misconception, hint_dependent=only after heavy scaffolding"
+                    ),
+                },
+                "confidence": {
+                    "type": "number", "minimum": 0, "maximum": 1,
+                    "description": "Your certainty this exchange was genuinely diagnostic (default 1.0)",
+                },
+            },
+            "required": ["probe_id", "outcome"],
+        },
+    },
 ]
 
 
@@ -519,13 +552,20 @@ machine contribution stays clear.
 </ai_literacy_guardrails>"""
 
 
-def _build_static_prompt(config: SessionConfig) -> str:
+def _build_static_prompt(config: SessionConfig, is_demo: bool = False) -> str:
     """Tutor persona, grade stage, and rules — constant within a session. Prompt-cacheable.
 
     Wrapped in XML tags as defense-in-depth against prompt injection — Claude
     models are trained to respect structural tags more reliably than prose
     alone. The rule text itself is unchanged; the tags just make the
-    boundary explicit."""
+    boundary explicit.
+
+    is_demo defaults False and every parent/child call site leaves it
+    unset, so this function's output for production is byte-identical to
+    before the diagnostic preview existed — see services/diagnostic_demo.py
+    for why that isolation matters here specifically. Depends only on
+    config.student_name (already used elsewhere in this block), so adding
+    it doesn't change per-turn cache safety."""
     return f"""<persona>
 You are Bede — a Benedictine monk-scholar in the spirit of the Venerable Bede of Jarrow (c. 673–735), \
 given to the twin monastery of Wearmouth-Jarrow in Northumbria as a boy of seven, placed in the care of Abbot \
@@ -586,10 +626,28 @@ Use `suggest_next_subject` when the child has clearly mastered this subject's le
 
 `celebrate_discovery` has no question field at all, and `connect_to_faith`'s reflection_question is optional — neither one, by itself, gives the child anything to do next. Never let one of these be the very last thing in a turn: continue with your own text and a genuine next question right after it, per Rule 3. The conversation stalling on a celebration or a faith connection with nothing to respond to is exactly the failure Rule 3 exists to prevent. `request_narration`, `invite_handwriting`, `offer_socratic_hint` (its hint_question already IS the turn's question), and `suggest_next_subject` are each a fine, natural place to end a turn on their own — they already invite the child's next move.
 </tools_guidance>
-
+{_diagnostic_guidance(config) if is_demo else ""}
 When a message includes a drawing or handwritten work, look at it directly and respond to what you actually see there — treat it as their answer, exactly as you would a spoken or typed one. Comment on specifics (what they wrote, drew, or got right) rather than acknowledging generically that "a drawing was submitted."
 
 Remember: your goal is to kindle delight in learning, not to transfer information. The child who discovers is the child who remembers."""
+
+
+def _diagnostic_guidance(config: SessionConfig) -> str:
+    """Subject-agnostic <diagnostic_guidance> block — only ever included
+    when is_demo=True (see _build_static_prompt). Depends only on
+    config.student_name, already part of the cached static block, so
+    including it doesn't change per-turn cache safety."""
+    return f"""
+<diagnostic_guidance>
+As you tutor, you quietly notice how well {config.student_name} grasps specific math skills. When a
+Socratic exchange genuinely reveals their understanding of a math skill — not a guess, real
+signal — call `record_skill_evidence` with the matching probe_id from the subject context and
+an honest outcome. This is silent; {config.student_name} never sees it and it never interrupts the
+lesson. Never turn the conversation into a test to generate evidence: evidence is a by-product
+of good Socratic dialogue, never its goal. Probe a skill at most as often as natural
+conversation warrants.
+</diagnostic_guidance>
+"""
 
 
 def _infer_year(config: SessionConfig) -> "int | None":
@@ -687,7 +745,55 @@ def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     return "".join(notes)
 
 
-def _build_subject_prompt(config: SessionConfig, subject: Subject) -> str:
+def _diagnostic_context(config: SessionConfig, subject: Subject, demo_code: Optional[str]) -> str:
+    """
+    Per-turn math-skill diagnostic note for record_skill_evidence — demo
+    only (see services/diagnostic_demo.py's module docstring for why this
+    doesn't touch homeschool-tutor/production in this phase). demo_code is
+    None for every parent/child call site, so this is a true no-op there,
+    not just an empty-vector edge case.
+
+    Lists the available probe ids for this child's grade band (so Bede
+    never has to invent one) plus a short "still needs evidence / secure
+    already" hint rendered from the live in-memory vector, if one exists
+    yet for this code — cold-start (no evidence recorded) gets the plain
+    probe list with no hint rather than a fabricated one.
+    """
+    if demo_code is None or subject != Subject.mathematics:
+        return ""
+    try:
+        from services.diagnostic.mastery import new_vector
+        from services.diagnostic.qmatrix import Q_MATRIX, probes_for_skill
+        from services.diagnostic.skill_map import GradeBand, skills_in_band
+        from services.diagnostic import get_next_probe_hint
+        from core.demo_code_session import get_mastery_vector
+
+        band = GradeBand(config.grade_stage.value)
+        probe_lines = []
+        for skill_id in skills_in_band(band):
+            for probe_id in probes_for_skill(skill_id):
+                probe = Q_MATRIX.get(probe_id)
+                if probe:
+                    probe_lines.append(f"- {probe_id} — {probe.description}")
+        if not probe_lines:
+            return ""
+
+        vector = get_mastery_vector(demo_code)
+        calibration = vector is None or len(vector) == 0
+        hint = get_next_probe_hint(vector or new_vector(band.value), theta={}, grade_band=band.value, calibration=calibration)
+
+        return (
+            "\n\nMATH SKILL DIAGNOSTIC (silent — for your own probing choices only, "
+            f"never mentioned to {config.student_name}):"
+            "\nProbe archetypes available (use exact ids with record_skill_evidence):\n"
+            + "\n".join(probe_lines)
+            + f"\n{hint}"
+        )
+    except Exception:
+        return ""
+
+
+def _build_subject_prompt(config: SessionConfig, subject: Subject, demo_code: Optional[str] = None) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
     lesson_raw = _sanitize_parent_field(config.lesson_focus)
@@ -698,9 +804,10 @@ def _build_subject_prompt(config: SessionConfig, subject: Subject) -> str:
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject)
     session_position_note = _session_position_note(config, subject)
+    diagnostic_note = _diagnostic_context(config, subject, demo_code)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}{diagnostic_note}"""
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:
@@ -811,6 +918,35 @@ async def _save_assessment(
         return None
 
 
+async def _record_skill_evidence_demo(
+    demo_code: Optional[str],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Demo-only handler for record_skill_evidence — see
+    services/diagnostic_demo.py's module docstring for the full scope
+    rationale. A true no-op whenever demo_code is None (every parent/child
+    call site) or the subject isn't mathematics, so this cannot affect
+    homeschool-tutor/production in this phase, structurally, not just by
+    convention. Defensive like _save_assessment, which this mirrors: a
+    diagnostic hiccup must never break the child's tutoring turn.
+    """
+    if demo_code is None or subject != Subject.mathematics:
+        return
+    try:
+        from models.schemas import RecordSkillEvidenceInput
+        from services.diagnostic_demo import record_skill_evidence_demo
+
+        ev = RecordSkillEvidenceInput(**tool_input)  # validate/clamp
+        await record_skill_evidence_demo(
+            demo_code, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
+        )
+    except Exception as exc:
+        log.warning("Demo skill-evidence record failed for %s: %s", config.student_name, exc)
+
+
 async def stream_tutor_response(
     config: SessionConfig,
     subject: Subject,
@@ -818,10 +954,17 @@ async def stream_tutor_response(
     child_message: str,
     db: Optional["AsyncSession"] = None,
     drawing_image: Optional[str] = None,
+    demo_code: Optional[str] = None,
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
     Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
+
+    demo_code is set only by the demo role (routers/tutor.py) and enables
+    the demo-only mastery-tracking preview (record_skill_evidence — see
+    services/diagnostic_demo.py). None for every parent/child call site,
+    which is also what keeps this phase of that feature from touching
+    homeschool-tutor/production at all.
     """
     # Build message list and apply sliding window to cap per-turn input tokens
     messages = [{"role": m.role, "content": m.content} for m in history]
@@ -844,12 +987,12 @@ async def stream_tutor_response(
     system = [
         {
             "type": "text",
-            "text": _build_static_prompt(config),
+            "text": _build_static_prompt(config, is_demo=demo_code is not None),
             "cache_control": {"type": "ephemeral"},
         },
         {
             "type": "text",
-            "text": _build_subject_prompt(config, subject),
+            "text": _build_subject_prompt(config, subject, demo_code=demo_code),
         },
     ]
 
@@ -936,6 +1079,12 @@ async def stream_tutor_response(
                             elif tc["name"] == "suggest_next_subject":
                                 yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
                                 ends_on_questionless_tool = False
+                            elif tc["name"] == "record_skill_evidence":
+                                # Fully silent — no SSE chunk at all, stricter than
+                                # assess_narration's minimal event. See
+                                # _record_skill_evidence_demo's own docstring for
+                                # why this only ever does anything for demo_code.
+                                await _record_skill_evidence_demo(demo_code, config, subject, tool_input)
                             else:
                                 tool_response = _process_tool_use(tc["name"], tool_input)
                                 if tool_response:

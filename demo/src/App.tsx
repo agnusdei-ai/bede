@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
+  diagnosticLogin, fetchDiagnosticSummary, streamDiagnosticChat,
   TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
-  type FeedbackCategory,
+  type FeedbackCategory, type MasteryProfileSummary,
 } from './api'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -53,7 +54,10 @@ function friendlyErrorMessage(err: unknown, fallback: string): string {
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
 
-function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) => void }) {
+function CodeScreen({ onLoggedIn, onOpenDiagnostic }: {
+  onLoggedIn: (token: string, code: string) => void
+  onOpenDiagnostic: () => void
+}) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
@@ -135,6 +139,13 @@ function CodeScreen({ onLoggedIn }: { onLoggedIn: (token: string, code: string) 
           className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
+        </button>
+
+        <button
+          onClick={onOpenDiagnostic}
+          className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 underline flex items-center justify-center gap-1"
+        >
+          <GraduationCap size={12} /> Parent diagnostic preview
         </button>
       </div>
     </div>
@@ -766,6 +777,290 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
   )
 }
 
+// ── Diagnostic preview (parent-only, demo-scoped) ─────────────────────────────
+//
+// A separate login from the child's own demo session — enter the same
+// 6-digit code the child is using, plus the deployment's DIAGNOSTIC_PIN, to
+// preview the mastery-tracking feature for that one session live. See
+// homeschool-api/routers/diagnostic.py. Single-session only: nothing here
+// survives past that demo code's own lifetime.
+
+function DiagnosticLoginScreen({ onLoggedIn, onBack }: { onLoggedIn: (token: string) => void; onBack: () => void }) {
+  const [code, setCode] = useState('')
+  const [pin, setPin] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async () => {
+    if (!code.trim() || !pin.trim() || loading) return
+    setLoading(true)
+    setError('')
+    try {
+      const token = await diagnosticLogin(code.trim(), pin.trim())
+      onLoggedIn(token)
+    } catch (err) {
+      setError(friendlyErrorMessage(err, 'Could not log in'))
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 rounded-full bg-sage-100 flex items-center justify-center mx-auto mb-3">
+            <GraduationCap size={26} className="text-sage-600" />
+          </div>
+          <h1 className="text-xl font-display font-bold text-gray-800">Diagnostic Preview</h1>
+          <p className="text-sm text-gray-500 mt-1">Parent-only — a live look at mastery tracking as it builds</p>
+        </div>
+
+        <div className="space-y-3 mb-5">
+          <div>
+            <label htmlFor="diag-code" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Demo code
+            </label>
+            <input
+              id="diag-code"
+              type="text"
+              inputMode="numeric"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="The same code the child used"
+              maxLength={6}
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+          </div>
+          <div>
+            <label htmlFor="diag-pin" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              Diagnostic PIN
+            </label>
+            <input
+              id="diag-pin"
+              type="password"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit() }}
+              placeholder="Set by this deployment's operator"
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !code.trim() || !pin.trim()}
+          className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+        >
+          {loading ? <Loader2 size={18} className="animate-spin" /> : 'View mastery preview'}
+        </button>
+        <button onClick={onBack} className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 underline">
+          Back to the demo
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const _LEVEL_STYLES: Record<string, string> = {
+  secure: 'bg-emerald-100 text-emerald-700',
+  developing: 'bg-amber-100 text-amber-700',
+  gap: 'bg-red-100 text-red-700',
+}
+
+function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
+  token: string
+  onBack: () => void
+  onSessionInvalid: () => void
+}) {
+  const [summary, setSummary] = useState<MasteryProfileSummary | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [messages, setMessages] = useState<SandboxMessage[]>([])
+  const [input, setInput] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [chatError, setChatError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const loadSummary = useCallback(async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      setSummary(await fetchDiagnosticSummary(token))
+    } catch (err) {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid()
+        return
+      }
+      setLoadError(friendlyErrorMessage(err, 'Could not load the mastery summary'))
+    } finally {
+      setLoading(false)
+    }
+  }, [token, onSessionInvalid])
+
+  useEffect(() => { loadSummary() }, [loadSummary])
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || streaming) return
+    setChatError('')
+    const history: ChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }))
+    setMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: 'user', content: text },
+      { id: `assistant-${Date.now()}`, role: 'assistant', content: '' },
+    ])
+    setInput('')
+    setStreaming(true)
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    try {
+      let assembled = ''
+      for await (const chunk of streamDiagnosticChat(token, history, text, abortRef.current.signal)) {
+        if (chunk.type === 'text' && chunk.content) {
+          assembled += chunk.content
+          setMessages((prev) => {
+            const next = [...prev]
+            next[next.length - 1] = { ...next[next.length - 1], content: assembled }
+            return next
+          })
+        }
+      }
+    } catch (err) {
+      if (err instanceof TrialSessionEndedError) {
+        onSessionInvalid()
+        return
+      }
+      setChatError(friendlyErrorMessage(err, 'Something went wrong'))
+      setMessages((prev) => prev.slice(0, -1))
+    } finally {
+      setStreaming(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-parchment-50">
+      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-3 flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="Back to the demo">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="w-8 h-8 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
+          <GraduationCap size={16} className="text-sage-600" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Diagnostic Preview</h1>
+          <p className="text-xs text-gray-500 leading-tight">Single-session only — nothing here is saved</p>
+        </div>
+        <button
+          onClick={loadSummary}
+          disabled={loading}
+          className="text-xs text-navy-500 hover:text-navy-700 underline disabled:opacity-40"
+        >
+          Refresh
+        </button>
+      </header>
+
+      <main className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {loading && (
+            <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-navy-400" /></div>
+          )}
+          {!loading && loadError && (
+            <p className="text-sm text-red-600 text-center">{loadError}</p>
+          )}
+          {!loading && !loadError && !summary && (
+            <p className="text-sm text-gray-400 text-center mt-8">
+              No mastery data yet — this builds up once some math tutoring happens in this demo session.
+              Try again with Refresh once the child has worked through a math question or two.
+            </p>
+          )}
+          {!loading && summary && (
+            <div className="bg-white rounded-xl border border-navy-100 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-800">{summary.student_name} — {summary.subject_area}</h2>
+                <span className="text-xs text-gray-400">{summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'}</span>
+              </div>
+              {summary.calibration && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                  Bede is still getting to know how {summary.student_name} thinks about math — early estimates.
+                </p>
+              )}
+              <div className="space-y-2 mb-3">
+                {summary.domains.map((d) => (
+                  <div key={d.domain}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-gray-600">{d.domain}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${_LEVEL_STYLES[d.level] ?? ''}`}>{d.level}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-navy-400" style={{ width: `${Math.round(d.average_probability * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {summary.gaps.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Gaps</p>
+                  <p className="text-xs text-gray-600">{summary.gaps.map((s) => s.label).join(', ')}</p>
+                </div>
+              )}
+              {summary.next_steps.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Next steps</p>
+                  <p className="text-xs text-gray-600">{summary.next_steps.map((s) => s.label).join(', ')}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {messages.map((m, i) => (
+              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                  m.role === 'user' ? 'bg-navy-500 text-white' : 'bg-white border border-sage-100 text-gray-800'
+                }`}>
+                  {m.content || (streaming && i === messages.length - 1 && (
+                    <Loader2 size={14} className="animate-spin text-gray-400" />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {chatError && (
+              <p className="text-xs text-red-600 flex items-center gap-1 justify-center">
+                <AlertCircle size={12} /> {chatError}
+              </p>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <div className="shrink-0 border-t border-navy-100 bg-white p-3">
+        <div className="max-w-2xl mx-auto flex items-end gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            placeholder="Ask about this child's math understanding, or homeschooling in general…"
+            rows={1}
+            disabled={streaming}
+            className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-sage-300 disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={streaming || !input.trim()}
+            className="p-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-600 transition-colors disabled:opacity-40"
+          >
+            {streaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Demo flow wrapper ─────────────────────────────────────────────────────────
 //
 // No message cap and no wall-clock timer — a code lasts for its own TTL
@@ -1024,13 +1319,20 @@ type Mode =
   | { kind: 'code-chat'; token: string; code: string }
   | { kind: 'code-sandbox'; token: string; code: string }
   | { kind: 'session-ended' }
+  | { kind: 'diagnostic-login' }
+  | { kind: 'diagnostic-view'; token: string }
 
 export default function App() {
   const [mode, setMode] = useState<Mode>({ kind: 'code-setup' })
 
   switch (mode.kind) {
     case 'code-setup':
-      return <CodeScreen onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })} />
+      return (
+        <CodeScreen
+          onLoggedIn={(token, code) => setMode({ kind: 'code-chat', token, code })}
+          onOpenDiagnostic={() => setMode({ kind: 'diagnostic-login' })}
+        />
+      )
 
     case 'code-chat':
       return (
@@ -1049,6 +1351,23 @@ export default function App() {
           token={mode.token}
           onBack={() => setMode({ kind: 'code-chat', token: mode.token, code: mode.code })}
           onSessionInvalid={() => setMode({ kind: 'session-ended' })}
+        />
+      )
+
+    case 'diagnostic-login':
+      return (
+        <DiagnosticLoginScreen
+          onLoggedIn={(token) => setMode({ kind: 'diagnostic-view', token })}
+          onBack={() => setMode({ kind: 'code-setup' })}
+        />
+      )
+
+    case 'diagnostic-view':
+      return (
+        <DiagnosticViewScreen
+          token={mode.token}
+          onBack={() => setMode({ kind: 'diagnostic-login' })}
+          onSessionInvalid={() => setMode({ kind: 'diagnostic-login' })}
         />
       )
 

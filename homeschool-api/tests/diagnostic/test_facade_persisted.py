@@ -71,11 +71,19 @@ async def test_first_call_cold_starts_and_persists_a_mastery_profile_row(db_sess
 
 @pytest.mark.asyncio
 async def test_persisted_vector_matches_the_in_memory_computation_exactly(db_session):
-    """The acceptance criterion from the progress tracker: decrypt == in-memory."""
-    from services.diagnostic.mastery import new_vector
+    """The acceptance criterion from the progress tracker: decrypt == in-memory.
+
+    Unit 3.3: process_evidence now computes calibration_weight internally
+    from the row's own evidence_count (0 here, a true cold start), so the
+    in-memory comparison must apply the same weight explicitly rather than
+    apply_evidence's own default of 1.0."""
+    from services.diagnostic.mastery import calibration_weight_for, new_vector
 
     cold_start = new_vector("K-2")
-    expected_vector, _ = await apply_evidence(cold_start, "probe.cc.rote_count_20", "correct", 1.0)
+    expected_vector, _ = await apply_evidence(
+        cold_start, "probe.cc.rote_count_20", "correct", 1.0,
+        calibration_weight=calibration_weight_for(0),
+    )
 
     persisted_vector = await process_evidence(
         db_session, "Liam", "probe.cc.rote_count_20", "correct", 1.0, "K-2",
@@ -193,6 +201,41 @@ async def test_evidence_log_row_never_contains_the_raw_outcome_or_confidence(db_
     deltas = decrypt_json(row.delta_enc)
     for delta in deltas:
         assert set(delta.keys()) == {"skill_id", "prior", "posterior", "probe_id", "model_used"}
+
+
+@pytest.mark.asyncio
+async def test_process_evidence_uses_calibration_weight_for_evidence_count(db_session, monkeypatch):
+    """Unit 3.3's Fable-backed review found the original version of this
+    test didn't actually distinguish the new weight-decay behavior from
+    the old, fixed calibration_weight=1.0 — mutation-verified: reverting
+    process_evidence's weight computation back to a flat 1.0 still made
+    the old assertions (an "early vs. late delta" comparison, which
+    shrinks near the [0,1] clamp regardless of weight) pass.
+
+    Pins the wiring directly instead: monkeypatch calibration_weight_for
+    to a distinctive, unmistakable constant and confirm process_evidence's
+    persisted output matches apply_evidence called with that exact weight
+    — not apply_evidence's own flat-1.0 default. A regression to a fixed
+    weight (or an accidental fallback to the default) fails this
+    immediately, at any evidence_count, not just a saturating boundary."""
+    import services.diagnostic.mastery as mastery_module
+    from services.diagnostic.mastery import new_vector
+
+    monkeypatch.setattr(mastery_module, "calibration_weight_for", lambda evidence_count, threshold=None: 5.0)
+
+    expected, _ = await apply_evidence(
+        new_vector("K-2"), "probe.cc.rote_count_20", "correct", 1.0, calibration_weight=5.0,
+    )
+    unweighted, _ = await apply_evidence(
+        new_vector("K-2"), "probe.cc.rote_count_20", "correct", 1.0, calibration_weight=1.0,
+    )
+    assert expected != unweighted  # sanity: the distinctive weight actually changes the result
+
+    actual = await process_evidence(
+        db_session, "Grace", "probe.cc.rote_count_20", "correct", 1.0, "K-2",
+    )
+    assert actual == expected
+    assert actual != unweighted
 
 
 @pytest.mark.asyncio

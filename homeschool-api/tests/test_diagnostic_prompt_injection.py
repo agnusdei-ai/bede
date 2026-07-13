@@ -114,3 +114,44 @@ def test_demo_code_path_ignores_any_db_vector_passed_alongside_it():
     text_demo_only = _build_subject_prompt(_config(), Subject.mathematics, demo_code=code)
 
     assert text_with_conflicting_db_vector == text_demo_only
+
+
+# ── calibration (unit 3.3) ───────────────────────────────────────────────────
+
+
+def test_db_path_calibration_note_present_below_threshold_even_with_a_nonempty_vector():
+    """The bug unit 3.3 fixed: calibration used to be `vector is None or
+    empty`, so a db_vector with 1+ skills already touched silently looked
+    "done calibrating" even at evidence_count=1. It must now be keyed off
+    db_evidence_count against CALIBRATION_THRESHOLD, matching
+    calibration_weight_for's own threshold exactly."""
+    from services.diagnostic.mastery import CALIBRATION_THRESHOLD
+
+    text = _build_subject_prompt(
+        _config(), Subject.mathematics,
+        db_vector={"cc.rote_count_20": 0.6}, db_evidence_count=CALIBRATION_THRESHOLD - 1,
+    )
+    assert "still getting to know how Sam thinks about math" in text
+
+
+def test_db_path_calibration_note_absent_at_or_above_threshold():
+    from services.diagnostic.mastery import CALIBRATION_THRESHOLD
+
+    text = _build_subject_prompt(
+        _config(), Subject.mathematics,
+        db_vector={"cc.rote_count_20": 0.6}, db_evidence_count=CALIBRATION_THRESHOLD,
+    )
+    assert "still getting to know" not in text
+
+
+def test_demo_path_calibration_note_tracks_the_demo_codes_own_threshold():
+    from services.diagnostic_demo import CALIBRATION_THRESHOLD as demo_threshold
+
+    code = demo_code_session.generate_code("Sam", "3")
+    demo_code_session.set_mastery_vector(code, {"cc.rote_count_20": 0.6}, demo_threshold - 1)
+    still_calibrating = _build_subject_prompt(_config(), Subject.mathematics, demo_code=code)
+    assert "still getting to know how Sam thinks about math" in still_calibrating
+
+    demo_code_session.set_mastery_vector(code, {"cc.rote_count_20": 0.6}, demo_threshold)
+    done_calibrating = _build_subject_prompt(_config(), Subject.mathematics, demo_code=code)
+    assert "still getting to know" not in done_calibrating

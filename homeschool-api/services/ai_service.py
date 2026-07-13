@@ -843,27 +843,37 @@ def _diagnostic_context(
     subject: Subject,
     demo_code: Optional[str],
     db_vector: Optional[dict] = None,
+    db_evidence_count: int = 0,
 ) -> str:
     """
     Per-turn math-skill diagnostic note for record_skill_evidence. Exactly
     one of demo_code/db_vector is ever meaningful per call — demo_code
     reads the demo's in-memory single-session vector
-    (core.demo_code_session), db_vector is the real, already-loaded (see
-    stream_tutor_response's _load_mastery_vector_readonly — this function
-    itself stays sync, no I/O here) vector for a parent/child session.
-    Both None means either a non-diagnostic subject (handled by the early
-    return below) or a cold-start real session with no evidence yet.
+    (core.demo_code_session), db_vector/db_evidence_count are the real,
+    already-loaded (see stream_tutor_response's
+    _load_mastery_vector_readonly — this function itself stays sync, no
+    I/O here) state for a parent/child session. Both None/0 means either a
+    non-diagnostic subject (handled by the early return below) or a
+    cold-start real session with no evidence yet.
 
     Lists the available probe ids for this child's grade band (so Bede
     never has to invent one) plus a short "still needs evidence / secure
     already" hint rendered from the live vector, if one exists yet —
     cold-start (no evidence recorded) gets the plain probe list with no
     hint rather than a fabricated one.
+
+    calibration (design doc §8.3) is now evidence_count < that backend's
+    own threshold — matching each backend's own calibration_weight_for()
+    decay and (for the demo backend) get_mastery_summary_demo's existing
+    calibration banner exactly, rather than the previous "vector is empty"
+    heuristic, which silently disagreed with that banner the moment a
+    session had 1-4 pieces of evidence (non-empty vector, but still
+    genuinely calibrating by every other measure in the system).
     """
     if subject != Subject.mathematics:
         return ""
     try:
-        from services.diagnostic.mastery import new_vector
+        from services.diagnostic.mastery import CALIBRATION_THRESHOLD, new_vector
         from services.diagnostic.qmatrix import Q_MATRIX, probes_for_skill
         from services.diagnostic.skill_map import GradeBand, skills_in_band
         from services.diagnostic import get_next_probe_hint
@@ -879,13 +889,23 @@ def _diagnostic_context(
             return ""
 
         if demo_code is not None:
-            from core.demo_code_session import get_mastery_vector
+            from core.demo_code_session import get_mastery_evidence_count, get_mastery_vector
+            from services.diagnostic_demo import CALIBRATION_THRESHOLD as demo_threshold
             vector = get_mastery_vector(demo_code)
+            evidence_count = get_mastery_evidence_count(demo_code)
+            threshold = demo_threshold
         else:
             vector = db_vector
+            evidence_count = db_evidence_count
+            threshold = CALIBRATION_THRESHOLD
 
-        calibration = vector is None or len(vector) == 0
+        calibration = evidence_count < threshold
         hint = get_next_probe_hint(vector or new_vector(band.value), theta={}, grade_band=band.value, calibration=calibration)
+        calibration_note = (
+            f"\nYou are still getting to know how {config.student_name} thinks about math — let your "
+            "questions roam a little more widely across topics than usual, still as natural conversation, "
+            "never a test."
+        ) if calibration else ""
 
         return (
             "\n\nMATH SKILL DIAGNOSTIC (silent — for your own probing choices only, "
@@ -893,6 +913,7 @@ def _diagnostic_context(
             "\nProbe archetypes available (use exact ids with record_skill_evidence):\n"
             + "\n".join(probe_lines)
             + f"\n{hint}"
+            + calibration_note
         )
     except Exception:
         return ""
@@ -903,6 +924,7 @@ def _build_subject_prompt(
     subject: Subject,
     demo_code: Optional[str] = None,
     db_vector: Optional[dict] = None,
+    db_evidence_count: int = 0,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -914,7 +936,7 @@ def _build_subject_prompt(
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject)
     session_position_note = _session_position_note(config, subject)
-    diagnostic_note = _diagnostic_context(config, subject, demo_code, db_vector)
+    diagnostic_note = _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
 {_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{session_position_note}{diagnostic_note}"""
@@ -1028,18 +1050,19 @@ async def _save_assessment(
         return None
 
 
-async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> Optional[dict]:
+async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
     """
-    Read-only load of a student's real (db-backed) mastery vector, for
-    prompt injection only — never writes, unlike
-    services.diagnostic.process_evidence. Returns None when no
+    Read-only load of a student's real (db-backed) mastery vector and its
+    evidence_count, for prompt injection only — never writes, unlike
+    services.diagnostic.process_evidence. Returns (None, 0) when no
     MasteryProfile row exists yet (cold start) rather than a synthesized
-    vector, matching services/diagnostic_demo.py's own
-    "vector is None means calibrating" convention exactly, so
-    _diagnostic_context's calibration heuristic works identically for
-    both backends. Defensive like _save_assessment: any DB/decrypt
-    failure degrades to None (cold-start prompt text) rather than
-    raising into stream_tutor_response.
+    vector. evidence_count (not vector-emptiness) is what
+    _diagnostic_context now compares against CALIBRATION_THRESHOLD, so
+    this stays in step with services.diagnostic.process_evidence's own
+    calibration_weight_for(row.evidence_count) — the same field driving
+    both. Defensive like _save_assessment: any DB/decrypt failure degrades
+    to (None, 0) (cold-start prompt text) rather than raising into
+    stream_tutor_response.
     """
     try:
         from sqlalchemy import select
@@ -1054,10 +1077,12 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
             )
         )
         row = result.scalar_one_or_none()
-        return decrypt_json(row.profile_enc) if row is not None else None
+        if row is None:
+            return None, 0
+        return decrypt_json(row.profile_enc), row.evidence_count
     except Exception as exc:
         log.warning("Mastery vector prompt-load failed for %s: %s", student_name, exc)
-        return None
+        return None, 0
 
 
 async def _record_skill_evidence(
@@ -1140,11 +1165,11 @@ async def stream_tutor_response(
 
     # Loaded ahead of building `system` (not inside _build_subject_prompt,
     # which stays sync) since a real DB read needs an await — see
-    # _load_mastery_vector_readonly's docstring. None whenever db is None
-    # (demo/no evidence yet) or the subject isn't mathematics.
-    db_vector = None
+    # _load_mastery_vector_readonly's docstring. (None, 0) whenever db is
+    # None (demo/no evidence yet) or the subject isn't mathematics.
+    db_vector, db_evidence_count = None, 0
     if db is not None and subject == Subject.mathematics:
-        db_vector = await _load_mastery_vector_readonly(db, config.student_name)
+        db_vector, db_evidence_count = await _load_mastery_vector_readonly(db, config.student_name)
 
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
@@ -1156,7 +1181,9 @@ async def stream_tutor_response(
         },
         {
             "type": "text",
-            "text": _build_subject_prompt(config, subject, demo_code=demo_code, db_vector=db_vector),
+            "text": _build_subject_prompt(
+                config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
+            ),
         },
     ]
 

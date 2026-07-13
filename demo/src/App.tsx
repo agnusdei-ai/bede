@@ -5,7 +5,7 @@ import {
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
   fetchDiagnosticSummary, streamDiagnosticChat,
-  TrialSessionEndedError, TrialEmailCappedError, DEMO_GRADES,
+  TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
   type FeedbackCategory, type MasteryProfileSummary,
 } from './api'
@@ -807,7 +807,16 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
         onSessionInvalid()
         return
       }
-      setLoadError(friendlyErrorMessage(err, 'Could not load the mastery summary'))
+      // Quota exceeded is NOT a session-ended condition — the demo chat
+      // itself is still fine, only this preview specifically is capped
+      // (see core/diagnostic_preview_quota.py), so this stays on-screen
+      // as an inline message rather than routing to the "session ended"
+      // screen like TrialSessionEndedError above.
+      setLoadError(
+        err instanceof DiagnosticPreviewQuotaExceededError
+          ? err.message
+          : friendlyErrorMessage(err, 'Could not load the mastery summary')
+      )
     } finally {
       setLoading(false)
     }
@@ -847,7 +856,11 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
         onSessionInvalid()
         return
       }
-      setChatError(friendlyErrorMessage(err, 'Something went wrong'))
+      setChatError(
+        err instanceof DiagnosticPreviewQuotaExceededError
+          ? err.message
+          : friendlyErrorMessage(err, 'Something went wrong')
+      )
       setMessages((prev) => prev.slice(0, -1))
     } finally {
       setStreaming(false)

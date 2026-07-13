@@ -7,9 +7,11 @@ behind — the whole pipeline (qmatrix -> cdm -> kst) composed together.
 """
 
 from services.diagnostic.mastery import (
+    CALIBRATION_THRESHOLD,
     MasteryUpdate,
     aggregate_for_parent,
     bayesian_update,
+    calibration_weight_for,
     new_vector,
 )
 from services.diagnostic.skill_map import (
@@ -105,6 +107,37 @@ def test_bayesian_update_result_stays_within_unit_interval():
             vector, {"probe_id": "probe.cc.rote_count_20", "outcome": "correct", "confidence": 1.0}, calibration_weight=3.0
         )
     assert 0.0 <= vector["cc.rote_count_20"] <= 1.0
+
+
+# ── calibration_weight_for (unit 3.3) ───────────────────────────────────────
+
+
+def test_calibration_weight_is_maximum_at_zero_evidence():
+    assert calibration_weight_for(0) == 2.0
+
+
+def test_calibration_weight_is_exactly_one_at_threshold():
+    assert calibration_weight_for(CALIBRATION_THRESHOLD) == 1.0
+
+
+def test_calibration_weight_is_exactly_one_past_threshold():
+    assert calibration_weight_for(CALIBRATION_THRESHOLD + 50) == 1.0
+
+
+def test_calibration_weight_decreases_monotonically_toward_threshold():
+    weights = [calibration_weight_for(n) for n in range(CALIBRATION_THRESHOLD + 1)]
+    assert weights == sorted(weights, reverse=True)
+    assert weights[0] > weights[-1]
+
+
+def test_calibration_weight_never_drops_below_one():
+    for n in range(0, CALIBRATION_THRESHOLD * 3):
+        assert calibration_weight_for(n) >= 1.0
+
+
+def test_calibration_weight_respects_a_caller_supplied_threshold():
+    # services/diagnostic_demo.py's own (deliberately different) threshold.
+    assert calibration_weight_for(3, threshold=5) > calibration_weight_for(3, threshold=3)
 
 
 def test_bayesian_update_propagates_prerequisites_once_a_skill_is_secure():

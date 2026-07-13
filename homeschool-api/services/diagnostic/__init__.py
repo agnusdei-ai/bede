@@ -56,7 +56,6 @@ async def process_evidence(
     confidence: float,
     grade_band: str,
     subject_area: str = "mathematics",
-    calibration_weight: float = 1.0,
     model: str = "dina",
 ) -> MasteryVector:
     """
@@ -68,6 +67,15 @@ async def process_evidence(
     append one DiagnosticEvidenceLog row holding this call's MasteryUpdate
     deltas. Never persists the raw outcome or probe text, only the
     resulting vector and (optionally) the derived deltas.
+
+    calibration_weight (design doc §8.3) is computed internally from the
+    existing row's evidence_count — the count of evidence already
+    gathered before this call, so it's still 0 (maximum calibration push)
+    on a true cold start — via mastery.calibration_weight_for(), not a
+    caller-supplied param: nothing in this codebase has ever needed to
+    override it, and a settable-but-unused param is exactly the kind of
+    dead surface unit 3.1's post-merge review caught once already (see
+    that unit's decisions log entry on the dropped grade_band param).
 
     An unknown probe_id is a true no-op: apply_evidence returns no
     MasteryUpdate, so nothing is written and evidence_count doesn't move
@@ -92,6 +100,7 @@ async def process_evidence(
     from core.config import settings
     from core.database import DiagnosticEvidenceLog, MasteryProfile
     from core.encryption import decrypt_json, encrypt_json
+    from services.diagnostic.mastery import calibration_weight_for
 
     log = logging.getLogger(__name__)
     row = None
@@ -112,9 +121,10 @@ async def process_evidence(
         )
         vector = new_vector(grade_band)
 
+    evidence_count_before = row.evidence_count if row is not None else 0
     updated_vector, updates = await apply_evidence(
         vector, probe_id, outcome, confidence,
-        calibration_weight=calibration_weight, model=model,
+        calibration_weight=calibration_weight_for(evidence_count_before), model=model,
     )
 
     if not updates:

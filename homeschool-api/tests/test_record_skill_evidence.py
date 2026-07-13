@@ -35,7 +35,7 @@ import core.demo_code_session as demo_code_session
 from core.config import settings
 from core.database import Base, MasteryProfile
 from models.schemas import GradeStage, SessionConfig, Subject
-from services.ai_service import TUTOR_TOOLS, _record_skill_evidence
+from services.ai_service import TUTOR_TOOLS, _load_mastery_vector_readonly, _record_skill_evidence
 
 
 @pytest_asyncio.fixture
@@ -200,3 +200,29 @@ async def test_valid_math_evidence_genuinely_persists_end_to_end_via_db(db_sessi
     )).scalar_one_or_none()
     assert row is not None
     assert row.evidence_count == 1
+
+
+@pytest.mark.asyncio
+async def test_load_mastery_vector_readonly_returns_none_zero_on_cold_start(db_session):
+    """Unit 3.3: the return shape changed from Optional[dict] to
+    tuple[Optional[dict], int] so callers can key calibration off the
+    real evidence_count, not vector-emptiness."""
+    vector, evidence_count = await _load_mastery_vector_readonly(db_session, "NoSuchStudent")
+    assert vector is None
+    assert evidence_count == 0
+
+
+@pytest.mark.asyncio
+async def test_load_mastery_vector_readonly_returns_the_real_evidence_count(db_session):
+    await _record_skill_evidence(
+        db_session, None, _config(student_name="Noor"), Subject.mathematics,
+        {"probe_id": "probe.cc.rote_count_20", "outcome": "correct"},
+    )
+    await _record_skill_evidence(
+        db_session, None, _config(student_name="Noor"), Subject.mathematics,
+        {"probe_id": "probe.cc.rote_count_20", "outcome": "correct"},
+    )
+
+    vector, evidence_count = await _load_mastery_vector_readonly(db_session, "Noor")
+    assert vector is not None
+    assert evidence_count == 2

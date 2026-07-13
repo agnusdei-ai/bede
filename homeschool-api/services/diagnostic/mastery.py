@@ -33,6 +33,28 @@ _MASTERY_LEVELS = (
 _BAND_ORDER = (GradeBand.K_2, GradeBand.THREE_5, GradeBand.SIX_8)
 _BAND_INDEX = {band.value: index for index, band in enumerate(_BAND_ORDER)}
 
+# Per-subject evidence-point count (MasteryProfile.evidence_count's own
+# scalar, not a per-skill count — see DIAGNOSTIC_BUILD_PROGRESS.md's unit
+# 2.2 review) below which a student is still "calibrating": design doc
+# §8.3's own explicit "[to verify final N]" flag — this is a placeholder,
+# matching services/diagnostic_demo.py's separately-declared demo number,
+# not yet tuned against real sessions. Revisit at Phase 5.
+CALIBRATION_THRESHOLD = 5
+
+
+def calibration_weight_for(evidence_count: int, threshold: int = CALIBRATION_THRESHOLD) -> float:
+    """
+    Linear decay from a doubled posterior push at evidence_count==0 down to
+    a normal 1.0 blend once evidence_count reaches threshold — design doc
+    §8.3: "higher calibration_weight... early evidence moves the posterior
+    more — faster cold-start convergence." Never below 1.0 (bayesian_update
+    itself clamps the result to [0,1] regardless, but this keeps the
+    caller's own semantics: calibration only ever pushes harder than a
+    normal update, never softer)."""
+    if evidence_count >= threshold:
+        return 1.0
+    return 2.0 - (evidence_count / threshold)
+
 
 @dataclass
 class MasteryUpdate:

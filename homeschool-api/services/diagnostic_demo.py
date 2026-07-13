@@ -16,7 +16,7 @@ by this module entirely.
 """
 
 from services.diagnostic import apply_evidence
-from services.diagnostic.mastery import _classify, aggregate_for_parent, new_vector
+from services.diagnostic.mastery import _classify, aggregate_for_parent, calibration_weight_for, new_vector
 from services.diagnostic.skill_map import get_skill
 
 from core.demo_code_session import (
@@ -47,17 +47,27 @@ async def record_skill_evidence_demo(
     same code. An unknown probe_id is a true no-op (apply_evidence returns
     no updates), matching process_evidence's own contract. Never touches a
     database, never raises — a diagnostic hiccup must not break the
-    child's tutoring turn."""
+    child's tutoring turn.
+
+    calibration_weight decays with this code's own evidence count so far
+    (mastery.calibration_weight_for(), parameterized by this module's own
+    CALIBRATION_THRESHOLD — deliberately not production's number, see the
+    module docstring) — matching process_evidence's real-backend behavior,
+    not just this module's own calibration banner in
+    get_mastery_summary_demo below."""
     vector = get_mastery_vector(code)
+    evidence_count_before = get_mastery_evidence_count(code)
     if vector is None:
         vector = new_vector(grade_band)
 
-    updated_vector, updates = await apply_evidence(vector, probe_id, outcome, confidence)
+    updated_vector, updates = await apply_evidence(
+        vector, probe_id, outcome, confidence,
+        calibration_weight=calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
+    )
     if not updates:
         return
 
-    evidence_count = get_mastery_evidence_count(code) + 1
-    set_mastery_vector(code, updated_vector, evidence_count)
+    set_mastery_vector(code, updated_vector, evidence_count_before + 1)
 
 
 def get_mastery_summary_demo(code: str, student_name: str, subject_area: str = "mathematics") -> dict | None:

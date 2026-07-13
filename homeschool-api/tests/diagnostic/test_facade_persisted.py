@@ -71,11 +71,19 @@ async def test_first_call_cold_starts_and_persists_a_mastery_profile_row(db_sess
 
 @pytest.mark.asyncio
 async def test_persisted_vector_matches_the_in_memory_computation_exactly(db_session):
-    """The acceptance criterion from the progress tracker: decrypt == in-memory."""
-    from services.diagnostic.mastery import new_vector
+    """The acceptance criterion from the progress tracker: decrypt == in-memory.
+
+    Unit 3.3: process_evidence now computes calibration_weight internally
+    from the row's own evidence_count (0 here, a true cold start), so the
+    in-memory comparison must apply the same weight explicitly rather than
+    apply_evidence's own default of 1.0."""
+    from services.diagnostic.mastery import calibration_weight_for, new_vector
 
     cold_start = new_vector("K-2")
-    expected_vector, _ = await apply_evidence(cold_start, "probe.cc.rote_count_20", "correct", 1.0)
+    expected_vector, _ = await apply_evidence(
+        cold_start, "probe.cc.rote_count_20", "correct", 1.0,
+        calibration_weight=calibration_weight_for(0),
+    )
 
     persisted_vector = await process_evidence(
         db_session, "Liam", "probe.cc.rote_count_20", "correct", 1.0, "K-2",
@@ -193,6 +201,37 @@ async def test_evidence_log_row_never_contains_the_raw_outcome_or_confidence(db_
     deltas = decrypt_json(row.delta_enc)
     for delta in deltas:
         assert set(delta.keys()) == {"skill_id", "prior", "posterior", "probe_id", "model_used"}
+
+
+@pytest.mark.asyncio
+async def test_calibration_weight_decays_as_evidence_count_grows(db_session):
+    """Unit 3.3: process_evidence computes calibration_weight internally
+    from the row's own evidence_count before this call — a cold-start
+    student's very first observation should move a skill further than a
+    student who's already accumulated CALIBRATION_THRESHOLD+ pieces of
+    evidence for the identical outcome."""
+    from services.diagnostic.mastery import CALIBRATION_THRESHOLD
+
+    first_call_vector = await process_evidence(
+        db_session, "Grace", "probe.cc.rote_count_20", "correct", 1.0, "K-2",
+    )
+    first_call_delta = first_call_vector["cc.rote_count_20"] - 0.5
+
+    for _ in range(CALIBRATION_THRESHOLD):
+        await process_evidence(db_session, "Grace", "probe.cc.rote_count_20", "correct", 1.0, "K-2")
+
+    before = (await process_evidence(
+        db_session, "Grace", "probe.cc.rote_count_20", "incorrect", 1.0, "K-2",
+    ))["cc.rote_count_20"]
+    after = (await process_evidence(
+        db_session, "Grace", "probe.cc.rote_count_20", "incorrect", 1.0, "K-2",
+    ))["cc.rote_count_20"]
+    late_call_delta = before - after
+
+    assert first_call_delta > 0  # sanity: the first call did move the skill up
+    # Once past threshold, calibration_weight is a flat 1.0 (a normal
+    # Bayesian step) — smaller in magnitude than the doubled cold-start push.
+    assert abs(late_call_delta) < first_call_delta
 
 
 @pytest.mark.asyncio

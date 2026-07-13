@@ -92,6 +92,31 @@ async def test_calibration_is_true_below_threshold_and_false_at_or_above():
 
 
 @pytest.mark.asyncio
+async def test_calibration_weight_decays_as_evidence_count_grows():
+    """Unit 3.3: record_skill_evidence_demo now passes a decaying
+    calibration_weight (mastery.calibration_weight_for, parameterized by
+    this module's own CALIBRATION_THRESHOLD) instead of apply_evidence's
+    flat 1.0 default — mirrors process_evidence's real-backend behavior."""
+    from services.diagnostic_demo import CALIBRATION_THRESHOLD
+
+    code = demo_code_session.generate_code("Ellie", "3")
+
+    await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
+    first_call_delta = demo_code_session.get_mastery_vector(code)["oa.multiplication_facts"] - 0.5
+
+    for _ in range(CALIBRATION_THRESHOLD):
+        await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "correct")
+
+    before = demo_code_session.get_mastery_vector(code)["oa.multiplication_facts"]
+    await record_skill_evidence_demo(code, "3-5", "probe.oa.multiplication_facts", "incorrect")
+    after = demo_code_session.get_mastery_vector(code)["oa.multiplication_facts"]
+    late_call_delta = before - after
+
+    assert first_call_delta > 0
+    assert abs(late_call_delta) < first_call_delta
+
+
+@pytest.mark.asyncio
 async def test_two_different_codes_never_share_a_vector():
     code_a = demo_code_session.generate_code("Ellie", "3")
     code_b = demo_code_session.generate_code("Sam", "5")

@@ -55,6 +55,12 @@ const BASE = import.meta.env.VITE_DEMO_API_BASE as string | undefined
  *  showing an inline error bubble on a dead chat. */
 export class TrialSessionEndedError extends Error {}
 
+/** Thrown when this IP has used up its diagnostic-preview quota (see
+ *  homeschool-api/core/diagnostic_preview_quota.py) — distinct from
+ *  TrialSessionEndedError since the demo session itself is still fine,
+ *  only the diagnostic preview specifically is capped. */
+export class DiagnosticPreviewQuotaExceededError extends Error {}
+
 export interface SessionConfig {
   student_name: string
   grade: string
@@ -431,12 +437,17 @@ export interface MasteryProfileSummary {
   updated_at: string
 }
 
+const DIAGNOSTIC_QUOTA_MESSAGE =
+  "You've reached the diagnostic preview limit for this demo. It's meant for a quick evaluation, " +
+  'not ongoing tutoring — set up your own deployment for real, unlimited use.'
+
 export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {
   const res = await fetch(`${apiBase()}/diagnostic/summary`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (res.status === 404) return null
   if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
+  if (res.status === 429) throw new DiagnosticPreviewQuotaExceededError(DIAGNOSTIC_QUOTA_MESSAGE)
   if (!res.ok) throw new Error('Could not load the mastery summary right now.')
   return res.json()
 }
@@ -458,6 +469,7 @@ export async function* streamDiagnosticChat(
   })
 
   if (res.status === 401) throw new TrialSessionEndedError('This diagnostic session has ended.')
+  if (res.status === 429) throw new DiagnosticPreviewQuotaExceededError(DIAGNOSTIC_QUOTA_MESSAGE)
   if (!res.ok) throw new Error('Diagnostic chat request failed — check your connection')
 
   yield* parseSSEStream(res)

@@ -4,6 +4,7 @@ from sse_starlette.sse import EventSourceResponse
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.demo_code_session import get_personalization
 from core.deps import require_auth
+from core.diagnostic_preview_quota import has_quota, record_use
 from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
 from services.ai_service import stream_sandbox_response
 from services.diagnostic_demo import get_mastery_summary_demo
@@ -27,10 +28,39 @@ def _require_demo_code(auth: dict = Depends(require_auth)) -> dict:
     return auth
 
 
+def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_demo_code)) -> dict:
+    """
+    Blocks entry once core/diagnostic_preview_quota.py's per-IP cap is
+    exhausted — see that module's docstring for why the diagnostic
+    preview specifically (not the base demo chat) is capped by IP across
+    a rolling 30-day window, not per demo code. 429, matching the
+    existing per-code email cap's status code (routers/tutor.py's
+    /email-summary) — this is a quota, not a permissions rejection.
+
+    Deliberately does NOT call record_use itself — that only happens once
+    an endpoint actually delivers real diagnostic content (see
+    get_diagnostic_summary/diagnostic_chat below), so a summary request
+    that 404s for having no evidence yet doesn't silently burn one of the
+    visitor's 3 uses for nothing to show.
+    """
+    ip = audit_from_request(request)["ip"]
+    code = auth.get("code", "")
+    if not has_quota(ip, code):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                "You've reached the diagnostic preview limit for this demo. "
+                "It's meant for a quick evaluation, not ongoing tutoring — "
+                "set up your own deployment for real, unlimited use."
+            ),
+        )
+    return auth
+
+
 @router.get("/summary", response_model=MasteryProfileSummary)
 async def get_diagnostic_summary(
     request: Request,
-    auth: dict = Depends(_require_demo_code),
+    auth: dict = Depends(_require_diagnostic_quota),
 ) -> MasteryProfileSummary:
     """
     Render-only mastery summary for the current demo session — built
@@ -38,6 +68,10 @@ async def get_diagnostic_summary(
     never a database. 404 until the session has actually produced some
     real math evidence. demo_code-only, so this never reaches
     homeschool-tutor/production data.
+
+    Quota (core/diagnostic_preview_quota.py) is only actually spent below,
+    once real evidence exists to show — a 404 (nothing to evaluate yet)
+    doesn't burn one of the visitor's uses for nothing.
     """
     code = auth.get("code", "")
     student_name, _grade = get_personalization(code)
@@ -47,6 +81,7 @@ async def get_diagnostic_summary(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No mastery data yet — this builds up once some math tutoring happens in this demo session",
         )
+    record_use(audit_from_request(request)["ip"], code)
     await log_event(
         AuditEvent.DIAGNOSTIC_VIEW,
         role="demo_code",
@@ -60,7 +95,8 @@ async def get_diagnostic_summary(
 @router.post("/chat")
 async def diagnostic_chat(
     req: DiagnosticChatRequest,
-    auth: dict = Depends(_require_demo_code),
+    request: Request,
+    auth: dict = Depends(_require_diagnostic_quota),
 ):
     """
     Direct-answer chat for the diagnostic preview — same relaxed,
@@ -70,10 +106,16 @@ async def diagnostic_chat(
     about the actual gaps/next-steps, not just generic homeschooling
     questions. Nothing here is persisted — same as the sandbox it's
     modeled on.
+
+    Quota is only spent when there's real evidence to discuss — same rule
+    as get_diagnostic_summary above, so asking before any math tutoring
+    has happened (a generic, no-evidence answer) doesn't burn a use.
     """
     code = auth.get("code", "")
     student_name, _grade = get_personalization(code)
     summary = get_mastery_summary_demo(code, student_name or "Guest")
+    if summary:
+        record_use(audit_from_request(request)["ip"], code)
     context = _render_mastery_context(summary) if summary else (
         "No math evidence has been recorded in this demo session yet — "
         "answer generally about homeschooling and how this diagnostic preview works."

@@ -130,6 +130,28 @@ async def test_malformed_tool_input_is_logged_and_swallowed_not_raised(db_sessio
 
 
 @pytest.mark.asyncio
+async def test_a_hallucinated_but_well_formed_probe_id_is_a_safe_no_op(db_session):
+    """Unlike a malformed outcome (caught by Pydantic validation before it
+    ever reaches process_evidence), a syntactically valid but unregistered
+    probe_id — the more realistic risk once this tool ships, since no
+    subject-context probe_id list exists yet (that's unit 3.2) — passes
+    RecordSkillEvidenceInput validation cleanly and only becomes a no-op
+    two layers deeper, in qmatrix.q_row(). Confirming that chain actually
+    holds end-to-end, not just trusting it by inspection."""
+    result = await _dispatch_completed_tool_call(
+        "record_skill_evidence",
+        {"probe_id": "probe.a_plausible_but_made_up_skill", "outcome": "correct"},
+        db_session, _config(), Subject.mathematics,
+    )
+    assert result == (None, None)
+
+    rows = (await db_session.execute(
+        select(MasteryProfile).where(MasteryProfile.student_name == "Emma")
+    )).scalars().all()
+    assert rows == []
+
+
+@pytest.mark.asyncio
 async def test_valid_math_evidence_genuinely_persists_end_to_end(db_session):
     await _dispatch_completed_tool_call(
         "record_skill_evidence",

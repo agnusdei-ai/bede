@@ -375,8 +375,8 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // now just playing back audio (e.g. the subject-opener effect firing
     // while the prior subject's response is still being spoken). Without
     // this, two turns' audio can play concurrently — "two Bedes talking at
-    // once" — since speakViaKokoro creates a fresh <audio> element per call
-    // rather than replacing whatever's already playing.
+    // once" — since playBackendVoice creates a fresh <audio> element per
+    // call rather than replacing whatever's already playing.
     stopSpeech()
     stopListening()
     setIsStreaming(true)

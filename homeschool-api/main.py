@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 
 async def _warm_voice_models():
     """
-    Pre-load the local voice models (Resemblyzer speaker verification, Whisper
-    fallback STT, Kokoro TTS) in a background thread so the first child of the
+    Pre-load the local voice models (Resemblyzer speaker verification,
+    Whisper fallback STT) in a background thread so the first child of the
     day doesn't pay the multi-second model-load latency at login or first mic
     use. Purely best-effort: each loader logs-and-degrades on its own when a
     package/model isn't installed, and all of them stay lazy anyway — this

@@ -1,6 +1,8 @@
 """
-Regression tests for services/voice_synthesis.py — the OpenAI-TTS-first,
-Kokoro-fallback voice backend chain.
+Regression tests for services/voice_synthesis.py — the OpenAI TTS voice
+backend. No self-hosted fallback model is used; when OpenAI isn't
+configured, synthesis is simply unavailable and the caller falls back to
+the browser's own speechSynthesis.
 """
 import asyncio
 
@@ -94,33 +96,17 @@ def test_synthesize_speech_prefers_openai_when_configured(monkeypatch):
     assert result == b"FAKEWAVDATA"
 
 
-def test_synthesize_speech_falls_back_to_none_when_openai_fails_and_no_kokoro(monkeypatch):
+def test_synthesize_speech_returns_none_when_openai_fails(monkeypatch):
     settings.openai_api_key = "sk-test"
     _FakeAsyncClient.response = _FakeResponse(status_code=500)
     monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
-
-    async def fake_get_model():
-        return None
-    monkeypatch.setattr(vs, "_get_model", fake_get_model)
 
     result = asyncio.run(vs.synthesize_speech("hello"))
     assert result is None
 
 
-def test_synthesize_speech_never_tries_kokoro_when_openai_is_configured(monkeypatch):
-    """Regression: a configured OpenAI TTS that fails must never silently
-    degrade to Kokoro's noticeably different voice mid-conversation — the
-    caller should get None (stay silent for that line), not a surprise
-    switch to a different voice. This asserts Kokoro is never even reached,
-    not just that the end result happens to be None."""
-    settings.openai_api_key = "sk-test"
-    _FakeAsyncClient.response = _FakeResponse(status_code=500)
-    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
-
-    async def fail_if_called():
-        raise AssertionError("Kokoro must not be tried when OpenAI is configured")
-    monkeypatch.setattr(vs, "_get_model", fail_if_called)
-
+def test_synthesize_speech_returns_none_when_openai_not_configured():
+    settings.openai_api_key = ""
     result = asyncio.run(vs.synthesize_speech("hello"))
     assert result is None
 
@@ -130,42 +116,6 @@ def test_synthesis_configured_true_when_openai_key_set():
     assert vs.synthesis_configured() is True
 
 
-def test_synthesis_configured_false_when_nothing_set(monkeypatch):
+def test_synthesis_configured_false_when_nothing_set():
     settings.openai_api_key = ""
-    monkeypatch.setattr(settings, "kokoro_model_dir", "/nonexistent/path/xyz")
     assert vs.synthesis_configured() is False
-
-
-def test_resolve_voice_blend():
-    import numpy as np
-
-    class FakeKokoro:
-        voices = {
-            "bm_george": np.array([1.0, 2.0], dtype=np.float32),
-            "bm_lewis": np.array([3.0, 4.0], dtype=np.float32),
-        }
-
-        def get_voice_style(self, name):
-            return self.voices[name]
-
-    k = FakeKokoro()
-    assert vs._resolve_voice(k, "bm_george") == "bm_george"
-
-    blended = vs._resolve_voice(k, "bm_george+bm_lewis")
-    assert np.allclose(blended, [2.0, 3.0])
-
-    weighted = vs._resolve_voice(k, "bm_george:0.75+bm_lewis:0.25")
-    assert np.allclose(weighted, 0.75 * k.voices["bm_george"] + 0.25 * k.voices["bm_lewis"])
-
-
-@pytest.mark.parametrize("voice_spec,expected_lang", [
-    ("bm_george", "en-gb"),
-    ("bm_lewis", "en-gb"),
-    ("am_adam", "en-us"),
-    ("bm_george+bm_lewis", "en-gb"),
-    ("am_adam+af_bella", "en-us"),
-])
-def test_first_voice_name_drives_correct_accent(voice_spec, expected_lang):
-    name = vs._first_voice_name(voice_spec)
-    lang = "en-gb" if name.startswith(("bm_", "bf_")) else "en-us"
-    assert lang == expected_lang

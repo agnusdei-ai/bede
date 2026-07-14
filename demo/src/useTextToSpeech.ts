@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { speakViaBackend } from './api'
 
-// Tries the backend's self-hosted Kokoro voice first (same one production
-// uses) — both demo tiers always supply a real token, since both are
+// Tries the backend's OpenAI TTS voice first (same one production uses) —
+// both demo tiers always supply a real token, since both are
 // backend-mediated. Falls back to browser speech if the backend request
 // fails or isn't configured. Bede's persona is historically male — voice
 // selection prefers a male voice, never gender-ambiguous or female.
@@ -184,8 +184,10 @@ export function useTextToSpeech(speakToken: string | null = null) {
   const generationRef = useRef(0)
 
   // Returns whether it actually played AND whether some backend TTS is
-  // configured at all — see speak() below for why both matter.
-  const speakViaKokoro = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean }> => {
+  // configured at all — see speak() below for why both matter. Named
+  // distinctly from api.ts's imported speakViaBackend (fetch-only): this
+  // wraps that call with actual playback + generation tracking on top.
+  const playBackendVoice = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean }> => {
     if (!speakToken) return { spoke: false, configured: false }
     const { audio: blob, configured } = await speakViaBackend(speakToken, text)
     if (!blob) return { spoke: false, configured }
@@ -237,14 +239,14 @@ export function useTextToSpeech(speakToken: string | null = null) {
     generationRef.current += 1
     const myGeneration = generationRef.current
     setIsSpeaking(true)
-    const { spoke, configured } = await speakViaKokoro(clean, myGeneration)
+    const { spoke, configured } = await playBackendVoice(clean, myGeneration)
     // Only the browser's own voice is a reasonable fallback when NOTHING is
     // configured server-side — a configured backend that failed this one
     // call stays silent rather than jarringly switching to a different,
     // lower-quality voice mid-conversation.
     if (!spoke && !configured && generationRef.current === myGeneration) await speakViaBrowser(clean, myGeneration)
     if (generationRef.current === myGeneration) setIsSpeaking(false)
-  }, [speakViaKokoro, speakViaBrowser])
+  }, [playBackendVoice, speakViaBrowser])
 
   // Unmount cleanup — a screen switch (e.g. main chat -> Mastery preview)
   // unmounts this hook's owning component; without this, any audio that

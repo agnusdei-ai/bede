@@ -1,0 +1,56 @@
+# Bede's license checkout + automated distribution Worker.
+#
+# See docs/CHECKOUT_SETUP.md at the repo root for the full one-time setup
+# walkthrough (Cloudflare account, D1 database, Stripe account, secrets).
+#
+# This is deliberately a SEPARATE deployment from the product itself
+# (homeschool-api/) — the self-hosted product stays phone-home-free by
+# design (core/licensing.py verifies offline); this Worker exists purely to
+# take payment, mint a license the same way scripts/issue_license.py would,
+# and email it — a family's own Bede instance never talks to this or any
+# other Anthropic/Cloudflare/Stripe service after it's licensed.
+
+name = "bede-checkout"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "LICENSES_DB"
+database_name = "bede-licenses"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"   # `wrangler d1 create bede-licenses` prints this
+
+# ── Non-secret configuration ────────────────────────────────────────────────
+[vars]
+# CORS — the origin(s) your marketing/checkout page is served from. A
+# browser's CORS Origin header is always scheme://host[:port] with no path.
+ALLOWED_ORIGIN = "https://agnusdei.ai"
+# Stripe Price IDs (from your Stripe Dashboard → Product catalog) — pricing
+# itself lives in Stripe, not here, so you can change it without a redeploy.
+STRIPE_PRICE_CORE = "REPLACE_WITH_STRIPE_PRICE_ID"
+STRIPE_PRICE_COOP_PER_SEAT = "REPLACE_WITH_STRIPE_PRICE_ID"
+# Default seat count baked into a core-tier purchase (matches the product's
+# existing 10-student pod cap).
+CORE_SEATS = "10"
+# Self-serve trial terms.
+TRIAL_DAYS = "21"
+TRIAL_SEATS = "10"
+# "From" address for license delivery emails — must be a sender verified
+# against a domain in your Resend account.
+RESEND_FROM_ADDRESS = "Bede <licenses@agnusdei.ai>"
+
+# ── Secrets — set with `wrangler secret put <NAME>`, never written here ────
+# LICENSE_SIGNING_PRIVATE_KEY_PEM   The Ed25519 private key from
+#                                   homeschool-api/scripts/generate_license_keypair.py,
+#                                   full PEM text (BEGIN/END lines included).
+#                                   Anyone with this can mint valid licenses —
+#                                   set it directly with `wrangler secret put`,
+#                                   never in a file that touches this repo.
+# STRIPE_SECRET_KEY                 Stripe Dashboard → Developers → API keys.
+# STRIPE_WEBHOOK_SECRET              Stripe Dashboard → Developers → Webhooks
+#                                   → your endpoint → Signing secret.
+# RESEND_API_KEY                    Same Resend account the product itself
+#                                   can use, or a separate key — your choice.
+# ADMIN_TOKEN                        A random string you generate yourself
+#                                   (e.g. `openssl rand -hex 32`) — required
+#                                   as a Bearer token on GET /admin/licenses.

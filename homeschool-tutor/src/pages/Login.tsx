@@ -6,6 +6,7 @@ import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
 import ParentMfaVerification from '../components/ParentMfaVerification'
+import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
 import type { VerifyResult } from '../services/voiceApi'
 
 type Phase = 'login' | 'voice-verify' | 'parent-mfa'
@@ -141,12 +142,17 @@ export default function Login() {
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <img
-            src="/bede-portrait.jpg"
-            alt="Bede"
-            className="w-44 h-44 mx-auto mb-4 rounded-full drop-shadow-md object-cover object-top"
-          />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Bede</h1>
+          <div className="relative w-44 mx-auto mb-4">
+            <img
+              src="/bede-portrait.jpg"
+              alt="Bede"
+              className="w-44 h-44 rounded-full drop-shadow-md object-cover object-top"
+            />
+            <AgnusDeiMark className="w-14 h-14 absolute -bottom-2 -right-3 drop-shadow-md" />
+          </div>
+          <h1 className="text-2xl font-display font-bold text-gray-800">
+            <BedeWordmark />
+          </h1>
           <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
           {studentFromUrl && (
             <p className="text-sm font-medium text-navy-700 mt-2">
@@ -221,6 +227,10 @@ export default function Login() {
           "The sole true end of education is simply this: to teach men how to teach
           themselves." — Dorothy L. Sayers, <em>The Lost Tools of Learning</em>
         </p>
+        <div className="flex flex-col items-center gap-1.5 mt-4">
+          <AgnusDeiLogo className="h-10 opacity-80" />
+          <TrademarkNotice className="text-center" />
+        </div>
       </div>
     </div>
   )

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { BookOpen } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import TextSizeControl from '../components/TextSizeControl'
+import { AgnusDeiMark, BedeWordmark } from '../components/BedeMark'
 
 const VALIDATE_INTERVAL_MS = 5 * 60 * 1000   // re-validate token every 5 min
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000  // 30 min of no interaction → re-auth
@@ -101,10 +101,10 @@ function SplashScreen() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-faith-100 flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-100 rounded-2xl mb-4 animate-pulse-soft">
-          <BookOpen size={32} className="text-sage-600" />
-        </div>
-        <p className="text-sage-600 font-display text-lg font-semibold">Bede</p>
+        <AgnusDeiMark className="w-16 h-16 mx-auto mb-4 animate-pulse-soft" />
+        <p className="text-sage-600 font-display text-lg font-semibold">
+          <BedeWordmark />
+        </p>
         <p className="text-xs text-gray-400 mt-2">Verifying session…</p>
       </div>
     </div>

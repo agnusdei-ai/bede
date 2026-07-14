@@ -1,11 +1,11 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { BookOpen } from 'lucide-react'
 import AppShell from './guards/AppShell'
 import ErrorBoundary from './components/ErrorBoundary'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
 import { useSessionStore } from './store/sessionStore'
+import { AgnusDeiMark, BedeWordmark } from './components/BedeMark'
 
 // Login is eager — it's the universal entry point for every user, parent and
 // child alike. Everything past it is route-split so a child's tablet never
@@ -21,10 +21,10 @@ function RouteFallback() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-faith-100 flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-100 rounded-2xl mb-4 animate-pulse-soft">
-          <BookOpen size={32} className="text-sage-600" />
-        </div>
-        <p className="text-sage-600 font-display text-lg font-semibold">Bede</p>
+        <AgnusDeiMark className="w-16 h-16 mx-auto mb-4 animate-pulse-soft" />
+        <p className="text-sage-600 font-display text-lg font-semibold">
+          <BedeWordmark />
+        </p>
       </div>
     </div>
   )

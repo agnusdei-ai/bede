@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Notice — Bede Public Beta Demo</title>
+<style>
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #2d3142;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 32px 20px 64px;
+    line-height: 1.6;
+    background: #fdfbf7;
+  }
+  h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 26px; margin-bottom: 4px; }
+  h2 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 18px; margin-top: 36px; }
+  .sub { color: #6b7280; font-size: 14px; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { color: #1e3a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .callout {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+    padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #92400e;
+  }
+  a { color: #1e3a8a; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  .back { display: inline-block; margin-top: 32px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>Privacy Notice — Public Beta Demo</h1>
+<p class="sub">Applies only to the free public demo at this domain. Last updated 2026-07-14.</p>
+
+<p>
+  This page covers the <strong>public beta demo</strong> only — the version anyone can try
+  with a one-time 6-digit code, no account required. It's a completely different
+  deployment from Bede itself, which real families run entirely on their own hardware
+  with nothing sent to us at all. If you're evaluating Bede for your own family's use,
+  the self-hosted product's privacy model is stricter than everything below — see the
+  main project's documentation for that.
+</p>
+
+<div class="callout">
+  <strong>In short:</strong> we never store the conversation itself. We do store, briefly,
+  the name/grade you optionally provide and anonymized structural signals about how the
+  session went (which tools were used, how many turns, which subjects) — never what was
+  actually said. Feedback is entirely optional, and we never ask a child for their own
+  email address.
+</div>
+
+<h2>What we collect, and for how long</h2>
+<table>
+  <tr><th>Data</th><th>Why</th><th>Retention</th></tr>
+  <tr>
+    <td>Learner's name and grade <em>(optional)</em></td>
+    <td>Personalizes this one session's tone and content</td>
+    <td>Up to 6 hours, or immediately if you log out. Never added to a permanent record.</td>
+  </tr>
+  <tr>
+    <td>The conversation itself</td>
+    <td>—</td>
+    <td><strong>Never stored, under any circumstance.</strong> It exists only for the length of the live session.</td>
+  </tr>
+  <tr>
+    <td>Anonymized interaction-pattern signals — which tutoring tools fired, turn counts, which subjects were visited/completed</td>
+    <td>Helps us see which teaching patterns lead to better sessions</td>
+    <td>30 days, then automatically deleted. Keyed to a one-way cryptographic hash of your session code, not the code itself — we can't reverse it back to identify you.</td>
+  </tr>
+  <tr>
+    <td>Feedback message <em>(optional)</em></td>
+    <td>Product improvement</td>
+    <td>Sent once to our team's inbox by email. Not written to any database.</td>
+  </tr>
+  <tr>
+    <td>Contact email <em>(optional, parent/guardian only)</em></td>
+    <td>To follow up if you've asked us to</td>
+    <td>Only ever collected if you actively choose to share it — never written to any database, used once to reply.</td>
+  </tr>
+</table>
+
+<h2>Children's privacy</h2>
+<p>
+  Bede is built for children to use under a parent's supervision, and we've designed this
+  demo with that in mind. A child is never asked to provide their own email address or any
+  other way to contact them directly — the one place an email is collected (the end-of-demo
+  feedback screen) is explicitly gated to a parent or guardian, with that field only
+  appearing after that's affirmed. The name and grade fields on the entry screen are
+  optional and, per above, are never kept beyond a few hours.
+</p>
+<p>
+  If you're a parent and believe your child has provided information beyond what's
+  described here, or you'd like anything related to your family removed, contact us at
+  <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> and we'll act on it promptly.
+</p>
+
+<h2>What we don't do</h2>
+<ul>
+  <li>No advertising trackers, no third-party analytics pixels, no ad networks.</li>
+  <li>We never sell or share your data with anyone.</li>
+  <li>No persistent account or profile is created from a demo session — a session code
+    is discarded (or expires) and that's the end of it.</li>
+</ul>
+
+<h2>Who's behind this</h2>
+<p>
+  This demo is operated by Agnus Dei Technologies, LLC. Questions about this notice, or
+  about your (or your child's) data specifically, can go to
+  <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.
+</p>
+
+<a class="back" href="./">&larr; Back to the demo</a>
+
+</body>
+</html>

@@ -196,7 +196,7 @@ export async function speakViaBackend(
   }
 }
 
-export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'plans' | 'other'
+export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'plans' | 'other' | 'beta_close'
 
 /** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
  *  showing the feedback button at all, so it never appears only to fail on

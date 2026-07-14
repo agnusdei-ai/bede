@@ -16,6 +16,8 @@ import HandwritingCanvas from './HandwritingCanvas'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
+import { useConsent } from './useConsent'
+import ConsentModal from './ConsentModal'
 
 interface DisplayMessage {
   id: string
@@ -174,6 +176,16 @@ function CodeScreen({ onLoggedIn }: {
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
+  const { hasConsented, giveConsent } = useConsent()
+
+  // Gated ahead of the entry form itself, not layered on top of it — a
+  // visitor who hasn't agreed yet shouldn't even have the name/grade
+  // fields or "Generate my code" reachable (tab order, screen readers),
+  // not just visually obscured by an overlay. See useConsent.ts for the
+  // localStorage flag this checks/sets.
+  if (!hasConsented) {
+    return <ConsentModal onAgree={giveConsent} />
+  }
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
@@ -245,7 +257,7 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code, just for you. This browser remembers the name and grade for next time, and it's gone once you close this tab. Your conversation itself is never stored — only anonymized interaction patterns (like which teaching techniques were used, never what was said) may be reviewed afterward to help us improve Bede.</p>
+          <p>A one-time 6-digit code, just for you. This browser remembers the name and grade for next time (gone once you close this tab); the same details are also sent to us to personalize this one session, kept up to 6 hours and then deleted automatically. Your conversation itself is never stored — only anonymized interaction patterns (like which teaching techniques were used, never what was said) may be reviewed afterward to help us improve Bede. Full details in the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a>.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
@@ -752,6 +764,16 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  // Separate from the "Bede's notes" capture above — this is optional
+  // product feedback, not a session summary. contactEmail is deliberately
+  // only ever sent if isParentGuardian is checked: a child using the demo
+  // is never asked for their own email, only whether an adult wants a
+  // follow-up (see ConsentModal.tsx's matching disclosure of this).
+  const [improvementMessage, setImprovementMessage] = useState('')
+  const [isParentGuardian, setIsParentGuardian] = useState(false)
+  const [followupEmail, setFollowupEmail] = useState('')
+  const [improvementStatus, setImprovementStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('sending')
@@ -768,6 +790,24 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
             ? 'Your session has ended, so this could not be sent.'
             : friendlyErrorMessage(err, 'Could not send the email.')
       )
+    }
+  }
+
+  const handleImprovementSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!improvementMessage.trim()) return
+    setImprovementStatus('sending')
+    try {
+      await submitFeedback(
+        token,
+        'beta_close',
+        improvementMessage.trim(),
+        undefined,
+        isParentGuardian ? followupEmail.trim() || undefined : undefined,
+      )
+      setImprovementStatus('sent')
+    } catch {
+      setImprovementStatus('error')
     }
   }
 
@@ -818,6 +858,62 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
             {status === 'error' && <p className="text-xs text-red-600 mt-2">{errorMsg}</p>}
           </form>
         )}
+
+        <div className="border-t border-navy-100 pt-5 mb-6">
+          {improvementStatus === 'sent' ? (
+            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+              <Check size={18} className="shrink-0" />
+              Thanks — this genuinely helps shape what's next.
+            </div>
+          ) : (
+            <form onSubmit={handleImprovementSubmit}>
+              <label htmlFor="demo-improvement" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
+                <MessageSquare size={15} />
+                Anything we should improve? <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <textarea
+                id="demo-improvement"
+                value={improvementMessage}
+                onChange={(e) => setImprovementMessage(e.target.value)}
+                rows={2}
+                maxLength={2000}
+                placeholder="What worked, what didn't, what you wish it did..."
+                className="input w-full resize-none mb-2.5"
+              />
+              <label className="flex items-start gap-2 text-xs text-gray-600 mb-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isParentGuardian}
+                  onChange={(e) => { setIsParentGuardian(e.target.checked); if (!e.target.checked) setFollowupEmail('') }}
+                  className="mt-0.5"
+                />
+                <span>
+                  I'm this learner's parent or guardian, and you may follow up with me by email
+                  <span className="text-gray-400"> — we never ask a child for their own email</span>
+                </span>
+              </label>
+              {isParentGuardian && (
+                <input
+                  type="email"
+                  value={followupEmail}
+                  onChange={(e) => setFollowupEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="input w-full mb-2.5"
+                />
+              )}
+              <button
+                type="submit"
+                disabled={improvementStatus === 'sending' || !improvementMessage.trim()}
+                className="w-full py-2 bg-sage-100 text-sage-700 rounded-xl font-semibold text-sm hover:bg-sage-200 transition-colors disabled:opacity-40"
+              >
+                {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Send feedback'}
+              </button>
+              {improvementStatus === 'error' && (
+                <p className="text-xs text-red-600 mt-2">Could not send this right now — please try again later.</p>
+              )}
+            </form>
+          )}
+        </div>
 
         <button
           onClick={onDone}

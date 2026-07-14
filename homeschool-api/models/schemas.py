@@ -330,8 +330,15 @@ class FeedbackRequest(BaseModel):
     than product feedback — same operator inbox (FEEDBACK_EMAIL), same
     one-outbound-email-and-nothing-persisted contract, just a different
     category label on the email subject so it's easy to triage at a glance.
+
+    "beta_close" is the demo's own end-of-session "help us improve" prompt
+    (DemoSummaryScreen, demo/src/App.tsx) — contact_email here is opt-in and
+    explicitly gated behind a parent/guardian affirmation client-side before
+    the field is even shown, since unlike the rest of this endpoint's
+    traffic, a volunteered email address is unambiguous personal
+    information, not an anonymized signal.
     """
-    category: Literal["cx", "ux", "content_quality", "plans", "other"]
+    category: Literal["cx", "ux", "content_quality", "plans", "other", "beta_close"]
     message: str = Field(..., min_length=1, max_length=2000)
     rating: Optional[int] = Field(None, ge=1, le=5)
     contact_email: Optional[EmailStr] = None

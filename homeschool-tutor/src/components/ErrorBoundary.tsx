@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { BookOpen, RotateCcw } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
+import { AgnusDeiMark, BedeWordmark } from './BedeMark'
 
 interface Props {
   children: ReactNode
@@ -36,10 +37,10 @@ export default class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-faith-100 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-100 rounded-2xl mb-4">
-            <BookOpen size={32} className="text-sage-600" />
-          </div>
-          <p className="text-sage-600 font-display text-lg font-semibold">Bede</p>
+          <AgnusDeiMark className="w-16 h-16 mx-auto mb-4" />
+          <p className="text-sage-600 font-display text-lg font-semibold">
+            <BedeWordmark />
+          </p>
           <p className="text-sm text-gray-500 mt-2 mb-6">
             Something went wrong. Let's get back on track.
           </p>

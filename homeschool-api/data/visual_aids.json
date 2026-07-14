@@ -120,6 +120,116 @@
       "year": "",
       "wiki_title": "Silk Road",
       "description": "Trace the trade routes on the map — what kinds of goods and ideas traveled along them?"
+    },
+    {
+      "id": "millet_angelus",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Angelus",
+      "creator": "Jean-François Millet",
+      "year": "1857-1859",
+      "wiki_title": "The Angelus (painting)",
+      "description": "Two farm workers pause at dusk to pray the Angelus — listen for the distant church bell."
+    },
+    {
+      "id": "millet_gleaners",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Gleaners",
+      "creator": "Jean-François Millet",
+      "year": "1857",
+      "wiki_title": "The Gleaners",
+      "description": "Three women gather leftover grain after the harvest — notice their bent backs and the golden light."
+    },
+    {
+      "id": "millet_sower",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Sower",
+      "creator": "Jean-François Millet",
+      "year": "1850",
+      "wiki_title": "The Sower (Millet)",
+      "description": "A sower strides down the hillside scattering seed — the parable of the sower made paint."
+    },
+    {
+      "id": "millet_man_with_hoe",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Man with a Hoe",
+      "creator": "Jean-François Millet",
+      "year": "1860-1862",
+      "wiki_title": "Man with a Hoe",
+      "description": "A laborer rests on his hoe in a rough field — what does his posture tell you about his day?"
+    },
+    {
+      "id": "fra_angelico_annunciation",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Annunciation (San Marco)",
+      "creator": "Fra Angelico",
+      "year": "c. 1440-1445",
+      "wiki_title": "Annunciation (Fra Angelico, San Marco)",
+      "description": "The angel Gabriel greets Mary under a painted arcade — notice the folded wings and the quiet."
+    },
+    {
+      "id": "fra_angelico_coronation",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Coronation of the Virgin",
+      "creator": "Fra Angelico",
+      "year": "c. 1434-1435",
+      "wiki_title": "Coronation of the Virgin (Fra Angelico, Louvre)",
+      "description": "Heaven crowded with saints as Mary is crowned — how many faces can you find looking up?"
+    },
+    {
+      "id": "fra_angelico_san_marco_altarpiece",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The San Marco Altarpiece",
+      "creator": "Fra Angelico",
+      "year": "c. 1438-1443",
+      "wiki_title": "San Marco Altarpiece",
+      "description": "Mary and the Child enthroned among saints — an early painting where figures stand in real space."
+    },
+    {
+      "id": "constable_salisbury",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Salisbury Cathedral from the Meadows",
+      "creator": "John Constable",
+      "year": "1831",
+      "wiki_title": "Salisbury Cathedral from the Meadows",
+      "description": "A storm passes over the cathedral while a rainbow lands on it — weather and hope in one sky."
+    },
+    {
+      "id": "constable_cornfield",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Cornfield",
+      "creator": "John Constable",
+      "year": "1826",
+      "wiki_title": "The Cornfield",
+      "description": "A shepherd boy stops to drink from the stream on the lane — follow the path back into the field."
+    },
+    {
+      "id": "raphael_sistine_madonna",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Sistine Madonna",
+      "creator": "Raphael",
+      "year": "1512",
+      "wiki_title": "Sistine Madonna",
+      "description": "Mary carries the Child between parted curtains — and two small angels lean on the ledge below."
+    },
+    {
+      "id": "raphael_transfiguration",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Transfiguration",
+      "creator": "Raphael",
+      "year": "1516-1520",
+      "wiki_title": "Transfiguration (Raphael)",
+      "description": "Christ rises in light above while the crowd below struggles in shadow — two stories in one painting."
     }
   ]
 }

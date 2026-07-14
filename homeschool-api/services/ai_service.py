@@ -903,7 +903,18 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
         return ""
 
 
-def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessage]] = None) -> str:
+# Picture-study artist rotation — one artist per term, per Mater Amabilis
+# practice (mirrors the poet rotation in services/poetry_catalog.py).
+# Trimester years rotate the first three; quarterly years all four. Every
+# painting is centuries old and public domain.
+_TERM_ARTISTS = ["Jean-François Millet", "Fra Angelico", "John Constable", "Raphael"]
+
+
+def _get_visual_aids_context(
+    subject: Subject,
+    config: SessionConfig,
+    history: Optional[List[ChatMessage]] = None,
+) -> str:
     """
     List the visual aid ids available for this subject, so Claude's show_visual_aid
     calls always reference something real. Only art_music and history have
@@ -931,6 +942,24 @@ def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessag
         if not aids:
             return ""
 
+        # Art & Music picture study lives with one artist per term (see
+        # _TERM_ARTISTS) — offer only the current term's artist so a term
+        # works through one painter's pictures with no duplications, the
+        # way it rotates one poet's poems. Falls back to the full list if
+        # the term artist has no catalog entries (misconfigured catalog).
+        artist_line = ""
+        if subject == Subject.art_music:
+            rotation_len = 3 if config.term_schedule.value == "trimester" else 4
+            artist = _TERM_ARTISTS[(max(1, config.current_term) - 1) % rotation_len]
+            term_aids = [a for a in aids if a.get("creator") == artist]
+            if term_aids:
+                aids = term_aids
+                term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
+                artist_line = (
+                    f"\nThis {term_word}'s artist is {artist} — Mater Amabilis picture study lives with "
+                    "one artist at a time, so use only this artist's pictures listed below.\n"
+                )
+
         shown_ids: set[str] = set()
         if history:
             combined = "\n".join(m.content for m in history if m.role == "assistant")
@@ -941,7 +970,7 @@ def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessag
             + ("  [ALREADY SHOWN this session]" if a["id"] in shown_ids else "")
             for a in aids
         ]
-        note = "\n\nAvailable visual aids for show_visual_aid (use the id exactly as shown):\n" + "\n".join(lines)
+        note = "\n\nAvailable visual aids for show_visual_aid (use the id exactly as shown):" + artist_line + "\n" + "\n".join(lines)
         if shown_ids:
             note += (
                 "\n\nAn id marked [ALREADY SHOWN this session] has already been displayed once — pick a "
@@ -1130,7 +1159,7 @@ async def _build_subject_prompt(
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
     catalog_note = _get_catalog_context(config, subject)
-    visual_aids_note = _get_visual_aids_context(subject, history)
+    visual_aids_note = _get_visual_aids_context(subject, config, history)
     session_position_note = _session_position_note(config, subject)
     time_of_day_note = _time_of_day_note(time_of_day)
     # Poetry co-study (verbatim public-domain texts — see services/

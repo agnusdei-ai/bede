@@ -1,10 +1,10 @@
 /**
  * The operator's own record of every license this Worker has issued — see
  * schema.sql. This is what makes the license model "owned by you" in a
- * concrete sense: not a copy of Stripe's records, not a third-party
+ * concrete sense: not a copy of Helcim's records, not a third-party
  * licensing SaaS — your D1 database, in your Cloudflare account.
  */
-import type { LicensePayload } from './licensing';
+import type { LicensePayload, LicenseTier } from './licensing';
 
 export interface LedgerRow {
   id: string;
@@ -15,9 +15,9 @@ export interface LedgerRow {
   seats: number;
   issued: string;
   expires: string | null;
-  source: 'stripe' | 'trial';
-  stripe_checkout_session_id: string | null;
-  stripe_customer_id: string | null;
+  source: 'helcim' | 'trial';
+  helcim_invoice_number: string | null;
+  helcim_transaction_id: string | null;
   created_at: string;
 }
 
@@ -26,14 +26,14 @@ export async function recordLicense(
   email: string,
   licenseKey: string,
   payload: LicensePayload,
-  source: 'stripe' | 'trial',
-  stripe?: { checkoutSessionId?: string; customerId?: string },
+  source: 'helcim' | 'trial',
+  helcim?: { invoiceNumber?: string; transactionId?: string },
 ): Promise<void> {
   await db
     .prepare(
       `INSERT INTO licenses
         (id, license_key, licensee_email, licensee_name, tier, seats, issued, expires,
-         source, stripe_checkout_session_id, stripe_customer_id, created_at)
+         source, helcim_invoice_number, helcim_transaction_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -46,23 +46,19 @@ export async function recordLicense(
       payload.issued,
       payload.expires,
       source,
-      stripe?.checkoutSessionId ?? null,
-      stripe?.customerId ?? null,
+      helcim?.invoiceNumber ?? null,
+      helcim?.transactionId ?? null,
       new Date().toISOString(),
     )
     .run();
 }
 
-/** Idempotency check for the Stripe webhook — Stripe retries
- * checkout.session.completed on any non-2xx response, so a second delivery
- * of the same session must be a safe no-op, not a duplicate license. */
-export async function findByStripeSession(
-  db: D1Database,
-  sessionId: string,
-): Promise<LedgerRow | null> {
+/** Idempotency check for the Helcim webhook — a retried/duplicate delivery
+ * for the same invoice must be a safe no-op, not a duplicate license. */
+export async function findByInvoiceNumber(db: D1Database, invoiceNumber: string): Promise<LedgerRow | null> {
   const row = await db
-    .prepare('SELECT * FROM licenses WHERE stripe_checkout_session_id = ?')
-    .bind(sessionId)
+    .prepare('SELECT * FROM licenses WHERE helcim_invoice_number = ?')
+    .bind(invoiceNumber)
     .first<LedgerRow>();
   return row ?? null;
 }
@@ -96,4 +92,67 @@ export async function recentLicenses(db: D1Database, limit: number): Promise<Led
     .bind(limit)
     .all<LedgerRow>();
   return result.results ?? [];
+}
+
+// ── Pending checkouts (created at /checkout/session, before payment) ──────
+
+export interface PendingCheckoutRow {
+  checkout_token: string;
+  invoice_number: string;
+  licensee_email: string;
+  licensee_name: string;
+  tier: string;
+  seats: number;
+  created_at: string;
+}
+
+export async function recordPendingCheckout(
+  db: D1Database,
+  params: {
+    checkoutToken: string;
+    invoiceNumber: string;
+    email: string;
+    licenseeName: string;
+    tier: LicenseTier;
+    seats: number;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO pending_checkouts
+        (checkout_token, invoice_number, licensee_email, licensee_name, tier, seats, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      params.checkoutToken,
+      params.invoiceNumber,
+      params.email,
+      params.licenseeName,
+      params.tier,
+      params.seats,
+      new Date().toISOString(),
+    )
+    .run();
+}
+
+export async function findPendingCheckoutByInvoiceNumber(
+  db: D1Database,
+  invoiceNumber: string,
+): Promise<PendingCheckoutRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM pending_checkouts WHERE invoice_number = ?')
+    .bind(invoiceNumber)
+    .first<PendingCheckoutRow>();
+  return row ?? null;
+}
+
+export async function findPendingCheckoutByToken(
+  db: D1Database,
+  checkoutToken: string,
+): Promise<PendingCheckoutRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM pending_checkouts WHERE checkout_token = ?')
+    .bind(checkoutToken)
+    .first<PendingCheckoutRow>();
+  return row ?? null;
 }

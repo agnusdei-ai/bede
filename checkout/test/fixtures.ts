@@ -57,7 +57,8 @@ export interface FakeRow {
 }
 
 export class FakeD1Database {
-  rows: FakeRow[] = [];
+  rows: FakeRow[] = []; // licenses
+  pendingRows: FakeRow[] = []; // pending_checkouts
 
   prepare(sql: string) {
     const trimmed = sql.trim();
@@ -70,27 +71,40 @@ export class FakeD1Database {
             if (trimmed.startsWith('INSERT INTO licenses')) {
               const [
                 id, license_key, licensee_email, licensee_name, tier, seats,
-                issued, expires, source, stripe_checkout_session_id,
-                stripe_customer_id, created_at,
+                issued, expires, source, helcim_invoice_number,
+                helcim_transaction_id, created_at,
               ] = args;
               if (
-                stripe_checkout_session_id != null &&
-                self.rows.some((r) => r.stripe_checkout_session_id === stripe_checkout_session_id)
+                helcim_invoice_number != null &&
+                self.rows.some((r) => r.helcim_invoice_number === helcim_invoice_number)
               ) {
-                throw new Error('UNIQUE constraint failed: licenses.stripe_checkout_session_id');
+                throw new Error('UNIQUE constraint failed: licenses.helcim_invoice_number');
               }
               self.rows.push({
                 id, license_key, licensee_email, licensee_name, tier, seats,
-                issued, expires, source, stripe_checkout_session_id,
-                stripe_customer_id, created_at,
+                issued, expires, source, helcim_invoice_number,
+                helcim_transaction_id, created_at,
+              });
+            } else if (trimmed.startsWith('INSERT INTO pending_checkouts')) {
+              const [checkout_token, invoice_number, licensee_email, licensee_name, tier, seats, created_at] = args;
+              self.pendingRows.push({
+                checkout_token, invoice_number, licensee_email, licensee_name, tier, seats, created_at,
               });
             }
             return { success: true };
           },
           async first<T>(): Promise<T | null> {
-            if (trimmed.includes('WHERE stripe_checkout_session_id = ?')) {
-              const [sessionId] = args;
-              return (self.rows.find((r) => r.stripe_checkout_session_id === sessionId) as T) ?? null;
+            if (trimmed.startsWith('SELECT * FROM pending_checkouts WHERE invoice_number = ?')) {
+              const [invoiceNumber] = args;
+              return (self.pendingRows.find((r) => r.invoice_number === invoiceNumber) as T) ?? null;
+            }
+            if (trimmed.startsWith('SELECT * FROM pending_checkouts WHERE checkout_token = ?')) {
+              const [checkoutToken] = args;
+              return (self.pendingRows.find((r) => r.checkout_token === checkoutToken) as T) ?? null;
+            }
+            if (trimmed.includes('WHERE helcim_invoice_number = ?')) {
+              const [invoiceNumber] = args;
+              return (self.rows.find((r) => r.helcim_invoice_number === invoiceNumber) as T) ?? null;
             }
             if (trimmed.includes('ORDER BY created_at DESC LIMIT 1')) {
               const [email] = args;

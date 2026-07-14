@@ -2,7 +2,7 @@
   "name": "bede-checkout",
   "private": true,
   "version": "1.0.0",
-  "description": "Bede's license checkout + automated distribution service — a Cloudflare Worker. Owns the entire paid/trial license pipeline (Stripe checkout, Ed25519 license signing, D1 ledger, email delivery) independently of the self-hosted product itself, which stays phone-home-free. See docs/CHECKOUT_SETUP.md at the repo root.",
+  "description": "Bede's license checkout + automated distribution service — a Cloudflare Worker. Owns the entire paid/trial license pipeline (Helcim checkout, Ed25519 license signing, D1 ledger, email delivery) independently of the self-hosted product itself, which stays phone-home-free. See docs/CHECKOUT_SETUP.md at the repo root.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

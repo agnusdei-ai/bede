@@ -8,6 +8,15 @@ items off as they're actually verified (real check, not "looks right").
 
 **Last audited:** 2026-07-14, against `origin/main` @ `dc05738`.
 
+**See also:** `docs/COMPLIANCE_TRACEABILITY.md` — maps each §2/§6 legal and
+child-safety obligation below to its exact implementation, test coverage,
+and audit-log evidence. It also resolves the §6 `LearnerProfileData` open
+question (already covered by the disclaimer) and surfaces three security
+controls with no automated test: the voice router's `require_parent`
+gating, the audit-log write path itself, and — most notably — the
+`_sanitize_parent_field` prompt-injection sanitizer that CLAUDE.md names as
+the SSE path's sole defense.
+
 ---
 
 ## 0. Branch hygiene (read this first)
@@ -134,12 +143,12 @@ items off as they're actually verified (real check, not "looks right").
   supplement to parent-led homeschooling, not a special-needs accommodation
   product.
 - `[x]` Voice biometric session-start authentication for children.
-- `[~]` `LearnerProfileData` (trivium_stage/processing_style/narration_mode/
-  attention_profile) is narration-history-based profiling, not diagnostic —
-  but it's adjacent enough to behavioral signal that it's worth a quick legal
-  sanity check alongside the main agreement review: does its existence need a
-  mention in the parent agreement's "No Diagnosis, No Screening" section, even
-  though it wasn't built for that purpose?
+- `[x]` `LearnerProfileData` (trivium_stage/processing_style/narration_mode/
+  attention_profile) is narration-history-based profiling, not diagnostic.
+  Resolved via `docs/COMPLIANCE_TRACEABILITY.md` R3: the parent agreement's
+  "No Diagnosis, No Screening" section already names this feature explicitly
+  and frames its signal as non-clinical — no further change needed beyond
+  getting that section through legal review (§2).
 - `[ ]` Handwriting-form-assessment feature (letter formation / cursive
   legibility as a distinct rubric) — only sketched during this project, never
   built or scoped-in. Not a beta blocker; flagging so it doesn't get implicitly

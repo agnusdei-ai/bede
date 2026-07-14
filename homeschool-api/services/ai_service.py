@@ -74,11 +74,28 @@ def _normalize_alternating_roles(messages: list[dict]) -> list[dict]:
 # celebration or faith connection never leaves the child with nothing to
 # respond to, instead of hoping the model complies every time.
 _QUESTIONLESS_TOOLS = {"celebrate_discovery", "connect_to_faith"}
-_FALLBACK_CONTINUATION_QUESTIONS = [
-    "What do you think comes next?",
-    "Where does that take your thinking?",
-    "What would you add to that?",
-    "What made you see it that way?",
+
+# Two separate lists, not one shared one — a real clarity problem with the
+# old single _FALLBACK_CONTINUATION_QUESTIONS list: it was appended
+# verbatim after either tool, so none of its questions could actually be
+# clear about what they were asking after, since they had to vaguely fit
+# both a "you just got praised for noticing something" moment and a
+# "you just heard a faith reflection" moment at once. Vague pronouns like
+# "that way"/"that" were doing the work an actual topic reference should —
+# confusing even for a child who WAS just following along, let alone at a
+# 3rd-grade level. Each list below is written for the one specific moment
+# it always follows, so what it's asking about is concrete and immediate.
+_CELEBRATION_FALLBACK_QUESTIONS = [
+    "What was the first clue that helped you notice that?",
+    "Can you find one more example like that one?",
+    "How did you figure that out?",
+    "What do you want to try next?",
+]
+_FAITH_FALLBACK_QUESTIONS = [
+    "Has something like that ever made you feel thankful too?",
+    "What's one way you could thank God for that today?",
+    "How does thinking about that make you feel?",
+    "What do you think that shows us about God's care for us?",
 ]
 
 # Agentic tools the tutor can invoke during a session
@@ -1379,11 +1396,14 @@ async def stream_tutor_response(
         tools=tools_with_cache,
     ) as stream:
         tool_calls_buffer = {}
-        # True only when the most recent visible thing in this turn was a
-        # questionless tool card with no text after it — see
-        # _QUESTIONLESS_TOOLS above. Reset to False the moment real text
-        # streams, so this only reflects what actually happened LAST.
-        ends_on_questionless_tool = False
+        # Holds the questionless tool's name only when the most recent
+        # visible thing in this turn was that tool's card with no text
+        # after it — see _QUESTIONLESS_TOOLS above. None the moment real
+        # text streams, so this only reflects what actually happened LAST.
+        # Carrying the name (not just a bool) is what lets the fallback
+        # below pick the question list that actually fits which moment
+        # just happened.
+        ends_on_questionless_tool: Optional[str] = None
 
         async for event in stream:
             # Dispatch on the wire-protocol `.type` string, not the SDK's
@@ -1410,7 +1430,7 @@ async def stream_tutor_response(
 
                 if delta_type == "text_delta":
                     yield json.dumps({'type': 'text', 'content': delta.text})
-                    ends_on_questionless_tool = False
+                    ends_on_questionless_tool = None
 
                 elif delta_type == "input_json_delta":
                     # Accumulate tool input JSON
@@ -1441,7 +1461,7 @@ async def stream_tutor_response(
                                     )
                             elif tc["name"] == "suggest_next_subject":
                                 yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
-                                ends_on_questionless_tool = False
+                                ends_on_questionless_tool = None
                             elif tc["name"] == "record_skill_evidence":
                                 # Fully silent — no SSE chunk at all, stricter than
                                 # assess_narration's minimal event. See
@@ -1453,15 +1473,18 @@ async def stream_tutor_response(
                                 if tool_response:
                                     yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
                                     ends_on_questionless_tool = (
-                                        tc["name"] in _QUESTIONLESS_TOOLS
-                                        and not tool_input.get("reflection_question")
+                                        tc["name"]
+                                        if tc["name"] in _QUESTIONLESS_TOOLS and not tool_input.get("reflection_question")
+                                        else None
                                     )
                         except json.JSONDecodeError:
                             pass
                         tool_calls_buffer.pop(block_id, None)
 
-        if ends_on_questionless_tool:
-            yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
+        if ends_on_questionless_tool == "celebrate_discovery":
+            yield json.dumps({'type': 'text', 'content': f" {random.choice(_CELEBRATION_FALLBACK_QUESTIONS)}"})
+        elif ends_on_questionless_tool == "connect_to_faith":
+            yield json.dumps({'type': 'text', 'content': f" {random.choice(_FAITH_FALLBACK_QUESTIONS)}"})
 
         try:
             final_message = await stream.get_final_message()

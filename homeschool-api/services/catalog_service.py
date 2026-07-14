@@ -1,5 +1,5 @@
 """
-Catalog service — loads Mater Amabilis Year 1-3 book lists from JSON seed files
+Catalog service — loads Mater Amabilis Year 1-8 book lists from JSON seed files
 at import time. Static in-memory data; no database required.
 
 Functions:

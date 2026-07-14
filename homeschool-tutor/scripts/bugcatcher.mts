@@ -91,11 +91,22 @@ const lastThree = s2.slice(-3)
 check('S2 two consecutive user messages, assistant turn vanished', lastThree.filter((m) => m.role === 'user').length >= 2 && !lastThree.some((m) => m.content.includes('church bell')), 'the hint the child is answering does not exist in the transcript the model sees')
 
 // ── S3: Drawing-only send ────────────────────────────────────────────────────
+// This check still fires below — by design, not a leftover bug. The real
+// fix for this one lives server-side (homeschool-api/services/ai_service.py's
+// sacred_rules #12: Bede is now required to name a specific, genuine detail
+// from any drawing/handwriting it can see in its own reply — since the
+// image itself is never resent on later turns, Bede's own words there are
+// the only durable record of what it showed, and THAT is what carries
+// forward through normal conversation history). Nothing at this layer
+// (getApiMessages/sessionStore) can observe that fix, since it's about what
+// the model chooses to say, not how this store shapes history — so this
+// check keeps flagging the placeholder itself as content-free, which is
+// still literally true, just no longer the whole picture.
 console.log('\nS3: child sends a drawing with no text')
 bedeTurn([{ type: 'text', content: 'Can you sketch the two figures from memory?' }], { viaUserSend: true })
 const s3 = childSend('', true)
 console.log(apiView(s3.slice(-2)))
-check('S3 later turns keep only "[✏️ Drawing]" placeholder', s3.at(-1)!.content === '[✏️ Drawing]', 'the image goes to the API once (this turn); every later turn sees a bare placeholder with no description of what was drawn')
+check('S3 later turns keep only "[✏️ Drawing]" placeholder', s3.at(-1)!.content === '[✏️ Drawing]', 'the image goes to the API once (this turn); every later turn sees a bare placeholder with no description of what was drawn — see this block\'s own comment above for where the real fix actually lives')
 
 // ── S4: suggest_next_subject on the LAST subject ────────────────────────────
 console.log('\nS4: advance past the final subject (suggest_next_subject fires on last subject)')
@@ -111,6 +122,18 @@ console.log(apiView(s4))
 check('S4 stuck on last subject with amnesia', st.currentSubject === 'mathematics' && s4.length === 1, 'past the last subject the session stays on the same subject but subjectStart advances — all math context is wiped while the child keeps chatting')
 
 // ── S5: [CONTINUE] idle sentinel not recorded ───────────────────────────────
+// This check still fires below — by design, not a leftover bug. What it
+// finds here (consecutive assistant-role turns reaching the API) is a real,
+// accurate description of what getApiMessages/sessionStore produce, and
+// that part is left as-is deliberately: the [CONTINUE] sentinel genuinely
+// shouldn't become a visible user bubble. The actual danger this posed —
+// the Messages API rejects two same-role turns in a row outright — is fixed
+// one layer downstream instead, in
+// homeschool-api/services/ai_service.py's _normalize_alternating_roles(),
+// applied to both stream_tutor_response and stream_sandbox_response right
+// before the API call. See tests/test_normalize_alternating_roles.py and
+// tests/test_stream_history_normalization.py on the backend for the real
+// regression coverage; nothing at this frontend layer can observe that fix.
 console.log('\nS5: idle CONTINUE sentinel → next turn history')
 // [CONTINUE] is sent to the API but never stored as a user bubble (by design);
 // Bede's reply IS stored. Simulate reply then child speaks.
@@ -118,7 +141,7 @@ bedeTurn([{ type: 'text', content: 'Are you still there? Here is an easier way t
 const s5 = childSend('Sorry, I am back!')
 const assistantRuns = s5.reduce((acc: number[], m, i) => (m.role === 'assistant' && s5[i - 1]?.role === 'assistant' ? [...acc, i] : acc), [])
 console.log(apiView(s5))
-check('S5 consecutive assistant messages after auto-continue', assistantRuns.length > 0, 'the model sees itself speak twice with no user turn between — the [CONTINUE] nudge is invisible to later turns')
+check('S5 consecutive assistant messages after auto-continue', assistantRuns.length > 0, 'the model sees itself speak twice with no user turn between — see this block\'s own comment above for why this is expected and handled server-side, not a leftover bug')
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 console.log('\n──── displayMessages (what the CHILD saw) ────')

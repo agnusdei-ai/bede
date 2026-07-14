@@ -234,8 +234,13 @@ export const useSessionStore = create<SessionState>()(
   },
 
   nextSubject: () => {
-    const { currentSubjectIndex, sessionConfig, currentSubject } = get()
+    const { currentSubjectIndex, sessionConfig, currentSubject, subjectsCompleted } = get()
     if (!sessionConfig) return
+    // Every subject already marked complete — nothing left to transition
+    // to. A second call here (e.g. Bede calling suggest_next_subject again
+    // after the day is already wrapped up) must be a no-op, not another
+    // "All subjects complete!" system message stacking up.
+    if (subjectsCompleted.length >= sessionConfig.subjects.length) return
     const nextIndex = currentSubjectIndex + 1
     const nextSubj = sessionConfig.subjects[nextIndex]
     set((s) => {
@@ -251,9 +256,13 @@ export const useSessionStore = create<SessionState>()(
         currentSubjectIndex: nextIndex,
         currentSubject: nextSubj ?? currentSubject,
         subjectsCompleted: [...s.subjectsCompleted, currentSubject],
-        subjectStartedAt: new Date(),
-        // New subject context starts AFTER the transition system message
-        subjectStart: s.displayMessages.length + 1,
+        subjectStartedAt: nextSubj ? new Date() : s.subjectStartedAt,
+        // Real bug this fixes (scripts/bugcatcher.mts's S4 scenario): once
+        // there's no next subject, there's no new context to start fresh —
+        // this must NOT jump past the transition message, or any further
+        // chat (a child who keeps talking after finishing the day) gets
+        // sliced down to a completely empty history on the very next turn.
+        subjectStart: nextSubj ? s.displayMessages.length + 1 : s.subjectStart,
         displayMessages: [...s.displayMessages, transitionMsg],
       }
     })

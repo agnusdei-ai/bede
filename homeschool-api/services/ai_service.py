@@ -911,6 +911,32 @@ def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessag
         return ""
 
 
+def _time_of_day_note(time_of_day: Optional[str]) -> str:
+    """
+    Bede has no built-in sense of wall-clock time — time_of_day is derived
+    from the child's own device clock at login (sessionStore.ts's
+    deriveTimeOfDay) and sent on every chat turn, so a session that starts
+    well into the evening doesn't greet or pray as though it were morning.
+    None whenever the client didn't send one (older clients, the sandbox).
+    """
+    if time_of_day == "morning":
+        return (
+            "\nIt is currently morning where the child is. If you are opening today's FIRST subject (see the note "
+            "below), this is Morning Time in spirit even when the subject itself isn't Morning Time by name — greet "
+            "them with \"Good morning\"."
+        )
+    if time_of_day == "afternoon":
+        return "\nIt is currently afternoon where the child is — greet them with \"Good afternoon\" rather than a morning greeting."
+    if time_of_day == "evening":
+        return (
+            "\nIt is currently evening where the child is (this session is starting after 5pm) — greet them with "
+            "\"Good evening\" rather than a morning greeting. If you are opening today's FIRST subject (see the note "
+            "below), frame the short opening prayer from Sacred Rule 10 as an Evening Time moment: a brief prayer of "
+            "thanks for the day now ending, not a prayer for the day ahead."
+        )
+    return ""
+
+
 def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     """
     Tells Bede whether this is the day's first or last configured subject —
@@ -1051,6 +1077,7 @@ async def _build_subject_prompt(
     db_vector: Optional[dict] = None,
     db_evidence_count: int = 0,
     history: Optional[List[ChatMessage]] = None,
+    time_of_day: Optional[str] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -1062,6 +1089,7 @@ async def _build_subject_prompt(
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject, history)
     session_position_note = _session_position_note(config, subject)
+    time_of_day_note = _time_of_day_note(time_of_day)
     # Poetry co-study (verbatim public-domain texts — see services/
     # poetry_catalog.py) belongs where Mater Amabilis puts poetry: the
     # Morning Time opening and the Living Books literature block. Other
@@ -1075,7 +1103,7 @@ async def _build_subject_prompt(
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{time_of_day_note}{diagnostic_note}"""
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:
@@ -1274,6 +1302,7 @@ async def stream_tutor_response(
     db: Optional["AsyncSession"] = None,
     drawing_image: Optional[str] = None,
     demo_code: Optional[str] = None,
+    time_of_day: Optional[str] = None,
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
@@ -1316,7 +1345,7 @@ async def stream_tutor_response(
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
-        history=history,
+        history=history, time_of_day=time_of_day,
     )
     system = [
         {

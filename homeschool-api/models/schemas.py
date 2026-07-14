@@ -190,6 +190,12 @@ class TutorRequest(BaseModel):
     # Claude as an image so Bede reads the child's actual work instead of a text
     # placeholder. ~8MB base64 ceiling comfortably covers a canvas drawing.
     drawing_image: Optional[str] = Field(default=None, max_length=8_000_000)
+    # The child's device clock at login, bucketed client-side (see
+    # sessionStore.ts's deriveTimeOfDay) — the server has no reliable way to
+    # know the child's timezone otherwise. None for older clients / the
+    # sandbox, in which case Bede just doesn't adjust its greeting/prayer
+    # framing for time of day.
+    local_time_of_day: Optional[Literal["morning", "afternoon", "evening"]] = None
 
 
 class NarrationUploadRequest(BaseModel):

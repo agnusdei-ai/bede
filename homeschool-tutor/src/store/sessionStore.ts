@@ -12,6 +12,20 @@ interface DisplayMessage {
   timestamp: Date
 }
 
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening'
+
+// Bede has no built-in sense of wall-clock time — this is the only source
+// of it, read once from the device's own clock at login. 9am-11:59am =
+// morning (Morning Time + its opening prayer), 12pm-4:59pm = afternoon,
+// 5pm-11:59pm = evening (its own prayer intro, framed as the day closing
+// rather than opening) — see ai_service.py's _time_of_day_note.
+export function deriveTimeOfDay(date: Date): TimeOfDay {
+  const hour = date.getHours()
+  if (hour < 12) return 'morning'
+  if (hour < 17) return 'afternoon'
+  return 'evening'
+}
+
 interface SessionState {
   // Auth
   token: string | null
@@ -39,6 +53,11 @@ interface SessionState {
   sessionStartedAt: Date | null
   subjectStartedAt: Date | null
   subjectsCompleted: Subject[]
+  // Derived once from the device clock when the session starts (see
+  // deriveTimeOfDay) and sent to the API on every chat turn so Bede's
+  // greeting and opening/closing prayer match the child's actual local
+  // time of day, not just subject order.
+  timeOfDay: TimeOfDay | null
 
   // Actions
   startSession: () => void
@@ -112,6 +131,7 @@ export const useSessionStore = create<SessionState>()(
       subjectStartedAt: null,
       currentSubjectIndex: 0,
       subjectsCompleted: [],
+      timeOfDay: null,
     }),
 
   podStudents: [],
@@ -128,6 +148,7 @@ export const useSessionStore = create<SessionState>()(
   sessionStartedAt: null,
   subjectStartedAt: null,
   subjectsCompleted: [],
+  timeOfDay: null,
 
   startSession: () => {
     const config = get().sessionConfig
@@ -145,6 +166,7 @@ export const useSessionStore = create<SessionState>()(
     set({
       sessionStartedAt: now,
       subjectStartedAt: now,
+      timeOfDay: deriveTimeOfDay(now),
       currentSubjectIndex: 0,
       currentSubject: firstSubject,
       displayMessages: [welcomeMsg],

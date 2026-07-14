@@ -106,9 +106,26 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # code is already unique to whoever generated it.
         token_data["code"] = req.credential
 
+    # demo_code tokens skip IP+UA fingerprint binding (parent/child keep it
+    # unchanged). Real bug this fixes: a demo visitor's IP legitimately
+    # changes mid-session on mobile (WiFi<->cellular handoff, carrier CGNAT
+    # rotation) far more often than a real family's home network does —
+    # the very next authenticated request (often the one a subject switch
+    # fires) then failed validate_fingerprint's exact-hash comparison and
+    # 401'd, which the frontend treats as "trial session ended," booting a
+    # visitor who never actually left their device. The token's real
+    # replay defense here is the one-time code redemption itself
+    # (core/demo_code_session.py's redeem_code — a code can only ever be
+    # exchanged for one JWT), plus the 2-hour token expiry and per-IP
+    # quota (core/diagnostic_preview_quota.py) already in place; there's
+    # no real family data behind this role for device-binding to protect,
+    # unlike parent/child. validate_fingerprint's own "no fp claim ->
+    # allow" branch (core/security.py) makes this a true no-op for every
+    # other role.
+    demo_fp = None if req.role == "demo_code" else fp
     token = create_access_token(
         token_data,
-        fingerprint=fp,
+        fingerprint=demo_fp,
         expires_delta=expires,
     )
     await log_event(AuditEvent.AUTH_SUCCESS, role=req.role, success=True, **ctx)

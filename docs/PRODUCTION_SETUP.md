@@ -172,3 +172,10 @@ etc.).
 self-hosters, not DRM — anyone with the source (which every self-hosted
 deployer has) could patch the check out. It exists to make honest use easy
 and accidental/casual misuse visible, not to withstand a determined bypass.
+
+**The public demo is exempt.** `Settings.is_demo_deployment` (true whenever
+`DEMO_PIN` is set — see `core/config.py`) skips this check entirely: the
+demo is a stateless, zero-seat instance meant to be frictionless for
+prospective customers, not gated behind the same license it exists to sell.
+See `docs/DEMO_HOSTING.md#licensing`. A family's real instance is never
+exempt — it should never set `DEMO_PIN`.

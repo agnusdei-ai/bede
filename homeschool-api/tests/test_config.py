@@ -2,8 +2,15 @@
 Regression tests for core/config.py's cross-field validators around
 SANDBOX_PIN — must never collide with another real credential, and must
 meet the same strength bar as CHILD_PIN/DEMO_PIN once PRODUCTION=true —
-and around LICENSE_KEY, required once PRODUCTION=true (see
-core/licensing.py).
+and around LICENSE_KEY, required once PRODUCTION=true for a real family
+deployment but exempt for the public demo (see core/licensing.py and
+Settings.is_demo_deployment).
+
+Note: conftest.py sets DEMO_PIN=384756 as a process-wide env default, so
+every license test below that means to exercise the "real family
+production" path passes demo_pin="" explicitly to opt back out of that
+default — otherwise is_demo_deployment would be True and the license
+check would be silently skipped instead of exercised.
 """
 import base64
 import json
@@ -115,6 +122,7 @@ def test_missing_license_key_rejected_in_production():
             parent_password="a-strong-password",
             child_pin="602656",
             master_secret="b" * 40,
+            demo_pin="",
         )
 
 
@@ -127,6 +135,7 @@ def test_invalid_license_key_rejected_in_production():
             child_pin="602656",
             master_secret="b" * 40,
             license_key="not-a-real-license",
+            demo_pin="",
         )
 
 
@@ -138,6 +147,7 @@ def test_valid_license_key_accepted_in_production(valid_license):
         child_pin="602656",
         master_secret="b" * 40,
         license_key=valid_license,
+        demo_pin="",
     )
     assert s.license_key == valid_license
 
@@ -170,4 +180,53 @@ def test_expired_license_key_rejected_in_production(monkeypatch):
             child_pin="602656",
             master_secret="b" * 40,
             license_key=expired_license,
+            demo_pin="",
+        )
+
+
+# ── Public demo exemption ──────────────────────────────────────────────────
+
+def test_demo_deployment_exempt_from_missing_license():
+    """DEMO_PIN set + PRODUCTION=true + no LICENSE_KEY at all must boot
+    clean — this is exactly bede-demo-api's real render.yaml shape."""
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        demo_pin="749283",
+    )
+    assert s.license_key == ""
+
+
+def test_demo_deployment_exempt_from_invalid_license():
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        demo_pin="749283",
+        license_key="not-a-real-license",
+    )
+    assert s.license_key == "not-a-real-license"
+
+
+def test_is_demo_deployment_reflects_demo_pin():
+    assert Settings(demo_pin="").is_demo_deployment is False
+    assert Settings(demo_pin="749283").is_demo_deployment is True
+
+
+def test_real_family_production_without_demo_pin_still_requires_license():
+    """The exemption must not accidentally widen to all of production —
+    a real family install (demo_pin empty) still needs a valid license."""
+    with pytest.raises(ValueError, match="LICENSE_KEY is not set"):
+        Settings(
+            production="true",
+            secret_key="a" * 40,
+            parent_password="a-strong-password",
+            child_pin="602656",
+            master_secret="b" * 40,
+            demo_pin="",
         )

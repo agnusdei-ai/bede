@@ -43,14 +43,18 @@ just push to `main` and it redeploys itself.
      address. `FEEDBACK_EMAIL` (where beta feedback is routed) is already set
      as a plain, non-secret value in `render.yaml` — it just does nothing
      until these two are filled in.
-   - `LICENSE_KEY` — **not optional**. Since `PRODUCTION=true` is set below,
-     `core/config.py` refuses to boot at all without a valid, unexpired
-     license (see `core/licensing.py` and **Licensing** below) — this demo
-     instance is a real Bede deployment like any other and isn't exempt.
-     Leaving this blank or pasting an API key into it by mistake fails
-     startup with `LICENSE_KEY is invalid: signature verification failed`,
-     not anything CORS- or Anthropic-key-shaped, even though the resulting
-     Render deploy failure can look similar at a glance.
+   - `LICENSE_KEY` — leave this **unset**. `core/config.py`'s
+     `Settings.is_demo_deployment` exempts any deployment with `DEMO_PIN` set
+     (this one) from the license-validity check that a real family instance
+     must pass under `PRODUCTION=true` — the public demo is meant to be
+     zero-friction for prospective customers to try, not gated behind the
+     same paid-license check it exists to sell. See **Licensing** below.
+     Pasting something into this field anyway (a stray API key, a copy-paste
+     mistake) fails startup with `LICENSE_KEY is invalid: signature
+     verification failed`, not anything CORS- or Anthropic-key-shaped, even
+     though the resulting Render deploy failure can look similar at a
+     glance — the fix there is simply to clear the field, not to hunt for a
+     valid license.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
    to remember them) or a fixed non-secret value, including `CORS_ORIGINS`
@@ -64,28 +68,21 @@ just push to `main` and it redeploys itself.
 
 ## Licensing
 
-`bede-demo-api` runs `PRODUCTION=true` (see `render.yaml`), so it needs a
-genuine `LICENSE_KEY` the same way a family's self-hosted install does —
-there's no separate "demo mode" exemption in `core/config.py`'s startup
-validator. Issue one the same way you'd issue any other license:
+`bede-demo-api` runs `PRODUCTION=true` (see `render.yaml`), but it is
+**exempt** from the `LICENSE_KEY` requirement a real family instance must
+satisfy: `core/config.py`'s `reject_missing_or_invalid_license_in_production`
+validator skips the check entirely whenever `Settings.is_demo_deployment`
+is true, which it is for any deployment with `DEMO_PIN` set (this one). The
+demo is a stateless, zero-seat instance meant to be frictionless for
+prospective customers to try — gating it behind the same paid-license check
+it exists to sell would be self-defeating, and there's no per-family seat
+count to enforce here in the first place. Just leave `LICENSE_KEY` unset in
+Render.
 
-```bash
-python homeschool-api/scripts/issue_license.py \
-  --tier core --licensee "Bede Public Demo" --seats 1 \
-  --private-key /path/to/private.pem
-```
-
-paste the printed `LICENSE_KEY=...` value into Render's `LICENSE_KEY` field
-(dashboard → service → **Environment**), which triggers an automatic
-redeploy. This requires the Ed25519 private key generated once by
-`scripts/generate_license_keypair.py` — that script prints it exactly once
-and deliberately never stores it anywhere in the repo (see its docstring),
-so it only exists wherever whoever first ran it saved it (a password
-manager, an encrypted USB drive, etc). If that key has been lost, no new
-license — for this demo or for any real customer — can be issued until a
-new keypair is generated and `core/licensing.py`'s `PUBLIC_KEY_PEM` is
-updated to match, which also invalidates every license signed under the old
-key.
+A real family's self-hosted instance is not exempt — see
+`docs/PRODUCTION_SETUP.md#licensing` for how to issue one of those (requires
+the Ed25519 private key from `scripts/generate_license_keypair.py`, which is
+deliberately never stored in this repo).
 
 ## Wiring the demo frontend to it
 

@@ -45,8 +45,19 @@ function isMaleVoiceName(name: string): boolean {
 // don't label voices "male"/"female" in the first place (Safari/macOS/iOS
 // give plain first names; Windows/Edge give "Microsoft <Name> - ...").
 // Checked before any substring heuristics since exact names are unambiguous.
+//
+// Deliberately excludes "Fred" — a real, confirmed-bad pick reported on
+// Safari/macOS/iOS: it's a decades-old novelty voice (the classic
+// "Stephen Hawking"/"Speak & Spell" robotic sound), not a lower-quality-
+// but-acceptable one like the others here. Lumping it into this same
+// top-priority tier meant Array.find() below picked whichever name
+// happened to come first in that platform's own getVoices() ordering —
+// unspecified and not something this code controls — so the SAME device
+// could resolve to Fred in one tab/session and Daniel or Alex (both
+// genuinely good, natural-sounding voices on the exact same platform) in
+// another. Every other name here is a reasonable voice; Fred never is.
 const KNOWN_MALE_VOICE_NAMES = new Set([
-  'Daniel', 'Oliver', 'Arthur', 'Alex', 'Fred', 'Aaron', 'Gordon',
+  'Daniel', 'Oliver', 'Arthur', 'Alex', 'Aaron', 'Gordon',
   'Microsoft David - English (United States)',
   'Microsoft Mark - English (United States)',
   'Microsoft Guy - English (United States)',

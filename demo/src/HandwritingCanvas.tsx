@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { X, Undo2, Trash2, Check, Pencil, Eraser, Printer } from 'lucide-react'
+import { X, Undo2, Redo2, Trash2, Check, Pencil, Eraser, Printer } from 'lucide-react'
 import type { Subject } from './api'
 
 interface Point {
@@ -47,8 +47,11 @@ const STAFF_LINE_GAP = 12
 const STAFF_GROUP_SPACING = 96
 const STAFF_TOP_MARGIN = 48
 
-type PaperStyle = 'composition' | 'graph' | 'staff'
+type PaperStyle = 'composition' | 'graph' | 'staff' | 'blank'
 
+// The subject picks the DEFAULT paper only — the child is free to switch to
+// any paper from the toolbar picker regardless of topic (a math session may
+// want a blank sketch; an art session may want ruled lines for a caption).
 function paperStyleFor(subject?: Subject): PaperStyle {
   if (subject === 'mathematics') return 'graph'
   if (subject === 'art_music') return 'staff'
@@ -56,10 +59,12 @@ function paperStyleFor(subject?: Subject): PaperStyle {
 }
 
 const PAPER_LABEL: Record<PaperStyle, string> = {
-  composition: 'Composition Paper',
-  graph: 'Graph Paper',
-  staff: 'Staff Paper',
+  composition: 'Composition',
+  graph: 'Graph',
+  staff: 'Staff',
+  blank: 'Blank',
 }
+const PAPER_ORDER: PaperStyle[] = ['composition', 'graph', 'staff', 'blank']
 
 // Fills the page background and its ruling — called any time the canvas is
 // (re)initialized, resized, cleared, or redrawn from the stroke history, so
@@ -68,6 +73,8 @@ const PAPER_LABEL: Record<PaperStyle, string> = {
 function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle) {
   ctx.fillStyle = PARCHMENT_BG
   ctx.fillRect(0, 0, width, height)
+
+  if (style === 'blank') return
 
   if (style === 'graph') {
     ctx.strokeStyle = GRAPH_LINE_COLOR
@@ -158,7 +165,7 @@ const SIZE_PRESETS: Record<SizePreset, { min: number; max: number; base: number;
 type Tool = 'pen' | 'eraser'
 
 export default function HandwritingCanvas({ onSubmit, onCancel, subject }: HandwritingCanvasProps) {
-  const paperStyle = paperStyleFor(subject)
+  const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawingRef = useRef(false)
@@ -168,6 +175,10 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
 
   // Force re-render when strokes change so undo button updates
   const [strokeCount, setStrokeCount] = useState(0)
+  // Undone strokes, waiting for Redo. A NEW stroke invalidates the stack
+  // (classic paint-app behavior) — you can't redo on top of a divergence.
+  const redoStackRef = useRef<Stroke[]>([])
+  const [redoCount, setRedoCount] = useState(0)
 
   // Paint controls — MS Paint/Preview-style: pick a tool, a size, a color.
   // Kept as plain state (not refs) so the toolbar re-renders immediately;
@@ -188,10 +199,6 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     ctx.scale(dpr, dpr)
     drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle)
   }, [paperStyle])
-
-  useEffect(() => {
-    initCanvas()
-  }, [initCanvas])
 
   // Redraw all strokes from scratch onto the canvas
   const redrawAll = useCallback(() => {
@@ -231,6 +238,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
       ctx.stroke()
     }
   }, [paperStyle])
+
+  useEffect(() => {
+    initCanvas()
+    // Switching paper mid-drawing repaints the ruling underneath and replays
+    // every stroke on top — nothing the child drew is lost. (initCanvas
+    // paints the fresh paper; the replay restores their work.)
+    redrawAll()
+  }, [initCanvas, redrawAll])
 
   // Get canvas-relative coordinates from pointer event — works identically
   // for a Surface Pen, Apple Pencil, a finger, or a mouse, since the
@@ -314,6 +329,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
         color: activeColor(),
       })
       setStrokeCount(strokesRef.current.length)
+      redoStackRef.current = []
+      setRedoCount(0)
     }
     currentStrokeRef.current = []
   }
@@ -326,8 +343,19 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
   }
 
   const handleUndo = () => {
-    if (strokesRef.current.length === 0) return
-    strokesRef.current.pop()
+    const undone = strokesRef.current.pop()
+    if (!undone) return
+    redoStackRef.current.push(undone)
+    setRedoCount(redoStackRef.current.length)
+    setStrokeCount(strokesRef.current.length)
+    redrawAll()
+  }
+
+  const handleRedo = () => {
+    const restored = redoStackRef.current.pop()
+    if (!restored) return
+    strokesRef.current.push(restored)
+    setRedoCount(redoStackRef.current.length)
     setStrokeCount(strokesRef.current.length)
     redrawAll()
   }
@@ -335,6 +363,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
   const handleClear = () => {
     strokesRef.current = []
     setStrokeCount(0)
+    redoStackRef.current = []
+    setRedoCount(0)
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
@@ -398,9 +428,21 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
           <span className="text-sm font-medium">Cancel</span>
         </button>
 
-        {/* Center label */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-navy-700">{PAPER_LABEL[paperStyle]}</span>
+        {/* Paper picker — the child's choice, regardless of subject */}
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1">
+          {PAPER_ORDER.map((style) => (
+            <button
+              key={style}
+              onClick={() => setPaperStyle(style)}
+              aria-pressed={paperStyle === style}
+              title={`${PAPER_LABEL[style]} paper`}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {PAPER_LABEL[style]}
+            </button>
+          ))}
         </div>
 
         {/* Right actions */}
@@ -415,6 +457,15 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
             <span className="hidden sm:inline">Undo</span>
           </button>
           <button
+            onClick={handleRedo}
+            disabled={redoCount === 0}
+            title="Redo"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
+          >
+            <Redo2 size={16} />
+            <span className="hidden sm:inline">Redo</span>
+          </button>
+          <button
             onClick={handleClear}
             disabled={strokeCount === 0}
             title="Clear all"
@@ -425,7 +476,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
           </button>
           <button
             onClick={handlePrint}
-            title={`Print this ${PAPER_LABEL[paperStyle].toLowerCase()}`}
+            title={`Print this ${PAPER_LABEL[paperStyle].toLowerCase()} paper`}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Printer size={16} />

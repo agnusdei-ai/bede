@@ -96,3 +96,25 @@ async def test_a_gap_probability_is_reflected_in_the_gaps_list(db_session):
     summary = await get_mastery_summary(db_session, "Sophia")
     gap_ids = {s["skill_id"] for s in summary["gaps"]}
     assert "cc.rote_count_20" in gap_ids
+
+
+@pytest.mark.asyncio
+async def test_corrupted_row_degrades_to_none_instead_of_raising(db_session):
+    """Regression test: get_mastery_summary previously had no try/except
+    around decrypt_json, so a corrupted/undecryptable row (wrong key,
+    truncated blob, bit rot) raised a bare ValueError straight out of the
+    function — reproduced directly against the merged code before this
+    fix (ValueError: "Encrypted blob too short"), which would have
+    surfaced as an unhandled 500 on a parent's dashboard request. Now
+    mirrors process_evidence's own established defensive convention:
+    degrade to "nothing to show" (None -> 404) rather than raise."""
+    from core.database import MasteryProfile
+
+    db_session.add(MasteryProfile(
+        student_name="Zoe", subject_area="mathematics",
+        evidence_count=3, profile_enc=b"not a valid SAGE envelope",
+    ))
+    await db_session.commit()
+
+    summary = await get_mastery_summary(db_session, "Zoe")
+    assert summary is None

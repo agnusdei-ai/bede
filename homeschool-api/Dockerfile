@@ -41,8 +41,8 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # to SIGTERM is to stop accepting new connections but only wait a short,
 # unspecified window for requests already in flight before killing them —
 # nowhere near long enough for a real Socratic turn's own SSE stream
-# (multiple tool calls, then Kokoro/OpenAI TTS synthesis afterward can
-# easily run several seconds to over a minute end to end). 120s gives any
+# (multiple tool calls, then OpenAI TTS synthesis afterward can easily
+# run several seconds to over a minute end to end). 120s gives any
 # in-flight request genuine room to finish naturally instead of being cut
 # off mid-response the moment a deploy starts — this does NOT by itself
 # solve session continuity across a full container replacement (in-memory

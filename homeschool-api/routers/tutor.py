@@ -209,9 +209,9 @@ async def extract_narration(req: NarrationUploadRequest, auth: dict = Depends(re
 @router.post("/speak")
 async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     """
-    Synthesize Bede's spoken voice — OpenAI TTS if configured, else the
-    self-hosted Kokoro model, else nothing (see services/voice_synthesis.py).
-    Returns 204 with no body when synthesis fails or nothing is configured.
+    Synthesize Bede's spoken voice — OpenAI TTS if configured, else nothing
+    (see services/voice_synthesis.py). Returns 204 with no body when
+    synthesis fails or nothing is configured.
 
     The X-TTS-Configured header tells the frontend whether SOME backend TTS
     is set up at all, so it can tell "nothing configured — the browser's own

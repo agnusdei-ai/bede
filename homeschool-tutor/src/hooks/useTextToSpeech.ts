@@ -3,11 +3,10 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 /**
  * Bede's spoken voice.
  *
- * Tries the backend's self-hosted TTS first (services/voice_synthesis.py on
- * the server — a warm, dedicated male monk voice via Kokoro, no cloud API).
- * Falls back to the browser's built-in speechSynthesis when the backend
- * isn't configured or the request fails, so voice output never breaks the
- * session.
+ * Tries the backend's OpenAI TTS first (services/voice_synthesis.py on the
+ * server — a warm, dedicated male monk voice). Falls back to the browser's
+ * built-in speechSynthesis when the backend isn't configured or the request
+ * fails, so voice output never breaks the session.
  *
  * Bede's persona is historically male (the Venerable Bede) — voice selection
  * in both paths prefers a male voice, never a gender-ambiguous or female one.

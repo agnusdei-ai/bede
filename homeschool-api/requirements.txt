@@ -21,10 +21,6 @@ resemblyzer>=0.1.1
 # Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
 webauthn>=2.0.0
 pyotp>=2.9.0
-# Self-hosted TTS for Bede's spoken voice (replaces ElevenLabs) — CPU-friendly
-# ONNX runtime, no cloud dependency. Model files are downloaded separately;
-# see docs/VOICE_SETUP.md.
-kokoro-onnx>=0.5.0
 # Email format validation (pydantic's EmailStr) for the post-session diagnostic email
 email-validator>=2.2.0
 # Async HTTP client — used by services/email_service.py (Resend) and

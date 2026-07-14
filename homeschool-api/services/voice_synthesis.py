@@ -1,113 +1,41 @@
 """
 Server-side text-to-speech for Bede's spoken voice.
 
-Two backends, tried in order:
+OpenAI TTS (_synthesize_openai below) — used when OPENAI_API_KEY is set. A
+full cloud model; gpt-4o-mini-tts's `instructions` parameter lets us steer
+delivery/character in plain English, which is the main lever for actually
+sounding like a specific persona rather than a generic preset voice.
 
-1. OpenAI TTS (services/voice_synthesis.py's _synthesize_openai) — used when
-   OPENAI_API_KEY is set. A full cloud model; meaningfully more natural than
-   Kokoro, and gpt-4o-mini-tts's `instructions` parameter lets us steer
-   delivery/character in plain English, which is the main lever for actually
-   sounding like a specific persona rather than a generic preset voice.
-
-2. Kokoro (kokoro-onnx — ONNX Runtime, CPU-friendly, ~82M parameters, ~80MB
-   quantized) — the free, fully self-hosted fallback when OPENAI_API_KEY
-   isn't set. No per-user API key, no cloud dependency at all. Its ceiling is
-   real, though: confirmed against actual listening feedback that no amount
-   of KOKORO_VOICE/KOKORO_SPEED tuning gets it past "decent small open
-   model" — see core/config.py's comments and docs/VOICE_SETUP.md.
-
-Both gracefully return None on any failure or when unconfigured, so callers
-(routers/tutor.py) fall back to the browser's own speechSynthesis instead of
-erroring — voice output never blocks a session either way.
+Returns None on any failure or when unconfigured, so the caller
+(routers/tutor.py) falls back to the browser's own speechSynthesis instead
+of erroring — voice output never blocks a session either way.
 """
-import asyncio
 import logging
-from pathlib import Path
 from typing import Optional
 
 from core.config import settings
 
 log = logging.getLogger(__name__)
 
-_MODEL_FILENAME = "kokoro-v1.0.onnx"
-_VOICES_FILENAME = "voices-v1.0.bin"
-_SAMPLE_RATE = 24000
 _OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
-
-_kokoro = None
-_load_attempted = False
-_load_lock = asyncio.Lock()
-
-
-def _model_paths() -> tuple[Path, Path]:
-    base = Path(settings.kokoro_model_dir)
-    return base / _MODEL_FILENAME, base / _VOICES_FILENAME
-
-
-def _load_model_sync():
-    """Blocking model load — run in an executor, never on the event loop."""
-    from kokoro_onnx import Kokoro
-
-    model_path, voices_path = _model_paths()
-    return Kokoro(str(model_path), str(voices_path))
-
-
-async def _get_model():
-    """Lazily loads the model on first use and caches it. Returns None (and
-    logs once) if the model files aren't present or loading fails for any
-    reason — never raises, matching this module's fallback contract."""
-    global _kokoro, _load_attempted
-    if _kokoro is not None:
-        return _kokoro
-    if _load_attempted:
-        return None
-
-    async with _load_lock:
-        if _kokoro is not None or _load_attempted:
-            return _kokoro
-        _load_attempted = True
-
-        model_path, voices_path = _model_paths()
-        if not model_path.exists() or not voices_path.exists():
-            log.info(
-                "Kokoro model files not found at %s — voice output will use the "
-                "browser's built-in speech instead. See docs/VOICE_SETUP.md.",
-                settings.kokoro_model_dir,
-            )
-            return None
-
-        try:
-            loop = asyncio.get_running_loop()
-            _kokoro = await loop.run_in_executor(None, _load_model_sync)
-            log.info("Kokoro TTS model loaded from %s", settings.kokoro_model_dir)
-        except Exception:
-            log.exception("Failed to load Kokoro TTS model — falling back to browser speech")
-            return None
-
-        return _kokoro
 
 
 async def preload() -> None:
-    """Best-effort Kokoro warm-up so Bede's first spoken line doesn't pay the
-    ONNX model load (see main.py's startup warm-up task). No-op when OpenAI
-    TTS is configured (nothing local to load) or the model files are absent —
-    _get_model() already logs-and-degrades on its own."""
-    if not settings.openai_api_key:
-        await _get_model()
+    """No-op placeholder — kept so main.py's startup warm-up call site
+    doesn't need to change if a local model is ever reintroduced. OpenAI
+    TTS is a live API call with nothing to pre-load locally."""
+    return None
 
 
 def synthesis_configured() -> bool:
-    """Best-effort, non-blocking check for whether some backend TTS is likely
-    usable — the authoritative check happens lazily in synthesize_speech()."""
-    if settings.openai_api_key:
-        return True
-    model_path, voices_path = _model_paths()
-    return model_path.exists() and voices_path.exists()
+    """Whether backend TTS is usable at all — currently just whether
+    OPENAI_API_KEY is set."""
+    return bool(settings.openai_api_key)
 
 
 async def _synthesize_openai(text: str) -> Optional[bytes]:
     """OpenAI TTS — returns WAV bytes, or None on any failure (network,
-    auth, rate limit) so the caller falls through to Kokoro/browser speech
+    auth, rate limit) so the caller falls through to browser speech
     instead of breaking the session."""
     import httpx
 
@@ -135,81 +63,15 @@ async def _synthesize_openai(text: str) -> Optional[bytes]:
             resp.raise_for_status()
             return resp.content
     except httpx.HTTPError:
-        log.exception("OpenAI TTS request failed — falling back to Kokoro/browser speech")
+        log.exception("OpenAI TTS request failed — falling back to browser speech")
         return None
-
-
-def _first_voice_name(voice_spec: str) -> str:
-    """First component's bare name, ignoring '+' blend separators and ':weight'
-    suffixes — used only to guess the right phonemizer accent (see below)."""
-    return voice_spec.split("+")[0].split(":")[0].strip()
-
-
-def _resolve_voice(kokoro, voice_spec: str):
-    """
-    KOKORO_VOICE is normally a single name (e.g. "bm_george"), passed straight
-    through to kokoro.create(). It can also be a '+'-separated blend of two or
-    more voices' style vectors — e.g. "bm_george+bm_lewis" (equal blend) or
-    "bm_george:0.7+bm_lewis:0.3" (weighted) — a real, supported technique
-    (kokoro.create() accepts a raw style-vector ndarray as well as a name) that
-    sometimes rounds off a single voice's rough edges. Only worth trying if a
-    single voice alone still sounds too mechanical — see docs/VOICE_SETUP.md.
-    """
-    parts = voice_spec.split("+")
-    if len(parts) == 1:
-        return voice_spec  # plain name — let kokoro.create() resolve it as before
-
-    import numpy as np
-
-    blended = None
-    total_weight = 0.0
-    for part in parts:
-        name, _, weight_str = part.strip().partition(":")
-        weight = float(weight_str) if weight_str else 1.0
-        style = kokoro.get_voice_style(name.strip())
-        blended = style * weight if blended is None else blended + style * weight
-        total_weight += weight
-    return (blended / total_weight).astype(np.float32)
-
-
-def _synthesize_sync(kokoro, text: str) -> bytes:
-    """Blocking inference + WAV encoding — run in an executor."""
-    import io
-    import soundfile as sf
-
-    # Kokoro's `lang` controls the phonemizer's pronunciation rules, separate
-    # from the voice's own acoustic model — pairing a British voice (bm_/bf_)
-    # with "en-us" phonemization was making George sound like an American
-    # accent forced onto a British voice: neither convincingly English nor
-    # natural. Match phonemization to the voice's actual accent.
-    lang = "en-gb" if _first_voice_name(settings.kokoro_voice).startswith(("bm_", "bf_")) else "en-us"
-    voice = _resolve_voice(kokoro, settings.kokoro_voice)
-    samples, sample_rate = kokoro.create(text, voice=voice, speed=settings.kokoro_speed, lang=lang)
-    buf = io.BytesIO()
-    sf.write(buf, samples, sample_rate, format="WAV")
-    return buf.getvalue()
 
 
 async def synthesize_speech(text: str) -> Optional[bytes]:
-    """
-    Convert text to spoken audio (WAV bytes) using Bede's configured voice.
-    When OpenAI TTS is configured, it is the ONLY path — a hiccup returns
-    None (the caller stays silent for that line) rather than silently
-    degrading to Kokoro's noticeably different, lower-quality voice
-    mid-conversation. Kokoro is only ever tried when OpenAI isn't
-    configured at all (a deliberate self-hosted, zero-cloud-dependency
-    choice), never as a fallback for a configured backend that failed.
-    """
-    if settings.openai_api_key:
-        return await _synthesize_openai(text)
-
-    kokoro = await _get_model()
-    if kokoro is None:
+    """Convert text to spoken audio (WAV bytes) using Bede's configured
+    voice. None when OpenAI TTS isn't configured or the call fails — the
+    caller stays silent for that line rather than degrading to a
+    different, lower-quality voice mid-conversation."""
+    if not settings.openai_api_key:
         return None
-
-    try:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, _synthesize_sync, kokoro, text)
-    except Exception:
-        log.exception("Kokoro synthesis failed, falling back to browser TTS")
-        return None
+    return await _synthesize_openai(text)

@@ -158,7 +158,7 @@ export async function logout(token: string): Promise<void> {
   }
 }
 
-/** Bede's spoken voice via the backend's self-hosted Kokoro model (see
+/** Bede's spoken voice via the backend's OpenAI TTS (see
  *  homeschool-api/services/voice_synthesis.py) — the same voice production
  *  uses. `configured` reflects the X-TTS-Configured header — whether SOME
  *  backend TTS is set up at all, not just whether this one call succeeded —

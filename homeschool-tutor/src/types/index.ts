@@ -214,3 +214,36 @@ export interface LearnerProfileData {
   bede_profile_notes: string
   assessed_at: string
 }
+
+// Real, persisted (mastery_profiles) diagnostic summary — see
+// homeschool-api/services/diagnostic/get_mastery_summary. Same shape as
+// the public demo's own preview (demo/src/api.ts's MasteryProfileSummary),
+// but this one reflects the student's whole history, not one session.
+export type MasteryLevel = 'gap' | 'developing' | 'secure'
+
+export interface SkillMasteryView {
+  skill_id: string
+  label: string
+  domain: string
+  grade_band: string
+  probability: number
+  level: MasteryLevel
+}
+
+export interface DomainMasteryView {
+  domain: string
+  average_probability: number
+  level: MasteryLevel
+  skills: SkillMasteryView[]
+}
+
+export interface MasteryProfileSummary {
+  student_name: string
+  subject_area: string
+  evidence_count: number
+  calibration: boolean
+  domains: DomainMasteryView[]
+  gaps: SkillMasteryView[]
+  next_steps: SkillMasteryView[]
+  updated_at: string
+}

@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, MasteryProfileSummary } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 
 const BASE = '/api'
@@ -442,6 +442,18 @@ export async function fetchLearnerProfile(
   })
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to load learner profile for ${studentName}`)
+  return res.json()
+}
+
+export async function fetchMasteryProfileSummary(
+  token: string,
+  studentName: string
+): Promise<MasteryProfileSummary | null> {
+  const res = await fetch(`${BASE}/diagnostic/${encodeURIComponent(studentName)}/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to load the math mastery summary for ${studentName}`)
   return res.json()
 }
 

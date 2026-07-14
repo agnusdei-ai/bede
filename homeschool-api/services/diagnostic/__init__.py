@@ -20,9 +20,20 @@ than duplicating the load->update->encrypt->store logic, and it stays
 useful on its own for calibration tooling/tests that don't have `db`.
 """
 
+from typing import Optional
+
 from services.diagnostic.cat import select_next_probes
-from services.diagnostic.mastery import MasteryUpdate, MasteryVector, bayesian_update, new_vector
+from services.diagnostic.mastery import (
+    CALIBRATION_THRESHOLD,
+    MasteryUpdate,
+    MasteryVector,
+    _classify,
+    aggregate_for_parent,
+    bayesian_update,
+    new_vector,
+)
 from services.diagnostic.qmatrix import EvidenceObservation, Q_MATRIX
+from services.diagnostic.skill_map import get_skill
 
 
 async def apply_evidence(
@@ -181,6 +192,85 @@ async def process_evidence(
         log.warning("Mastery profile persist failed for %s/%s: %s", student_name, subject_area, exc)
 
     return updated_vector
+
+
+async def get_mastery_summary(db, student_name: str, subject_area: str = "mathematics") -> Optional[dict]:
+    """
+    Render-only parent summary of a student's REAL, persisted mastery
+    profile (mastery_profiles table) — the production counterpart to
+    services/diagnostic_demo.py's get_mastery_summary_demo, which builds
+    the identical dict shape from a single demo session's ephemeral
+    vector instead. Returns None when no MasteryProfile row exists yet
+    (the student hasn't produced any math evidence), matching that
+    module's own no-evidence contract so routers/diagnostic.py's parent
+    endpoint can 404 the same way the demo one does.
+
+    calibration mirrors process_evidence's own calibration_weight_for
+    threshold (CALIBRATION_THRESHOLD, imported from mastery.py — the
+    same module process_evidence itself already uses) — the picture
+    below is flagged as an early signal, not a settled read, until this
+    student's own evidence_count reaches it. Unlike the demo, evidence
+    keeps accumulating indefinitely across every real session this
+    student has, so calibration reflects the WHOLE relationship so far,
+    not just today.
+    """
+    from sqlalchemy import select
+
+    from core.database import MasteryProfile
+    from core.encryption import decrypt_json
+
+    result = await db.execute(
+        select(MasteryProfile).where(
+            MasteryProfile.student_name == student_name,
+            MasteryProfile.subject_area == subject_area,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        return None
+
+    vector = decrypt_json(row.profile_enc)
+    rollup = aggregate_for_parent(vector)
+
+    def _skill_view(skill_id: str) -> Optional[dict]:
+        skill = get_skill(skill_id)
+        if skill is None:
+            return None
+        probability = vector[skill_id]
+        return {
+            "skill_id": skill_id,
+            "label": skill.label,
+            "domain": skill.domain,
+            "grade_band": skill.band.value,
+            "probability": probability,
+            "level": _classify(probability),
+        }
+
+    domains = []
+    for domain, info in rollup["domains"].items():
+        domain_skill_ids = sorted(
+            (skill_id for skill_id in vector if (s := get_skill(skill_id)) is not None and s.domain == domain),
+            key=lambda skill_id: vector[skill_id],
+        )
+        domains.append({
+            "domain": domain,
+            "average_probability": info["average_probability"],
+            "level": info["level"],
+            "skills": [v for skill_id in domain_skill_ids if (v := _skill_view(skill_id)) is not None],
+        })
+
+    from datetime import datetime, timezone
+
+    return {
+        "student_name": student_name,
+        "subject_area": subject_area,
+        "evidence_count": row.evidence_count,
+        "calibration": row.evidence_count < CALIBRATION_THRESHOLD,
+        "domains": domains,
+        "gaps": [v for skill_id in rollup["gaps"] if (v := _skill_view(skill_id)) is not None],
+        "next_steps": [v for skill_id in rollup["next_steps"] if (v := _skill_view(skill_id)) is not None],
+        "updated_at": row.updated_at.replace(microsecond=0).isoformat(),
+    }
 
 
 def get_next_probe_hint(

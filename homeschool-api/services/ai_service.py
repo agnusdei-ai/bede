@@ -861,11 +861,25 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
         return ""
 
 
-def _get_visual_aids_context(subject: Subject) -> str:
+def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessage]] = None) -> str:
     """
     List the visual aid ids available for this subject, so Claude's show_visual_aid
     calls always reference something real. Only art_music and history have
     curated entries today; other subjects get an empty string (tool unused).
+
+    Also flags which of those have already been shown this session. The
+    catalog is small (6 entries for art_music) and this list is rebuilt
+    identically on every single turn regardless of what's already
+    happened — without an explicit marker here, avoiding a repeat depends
+    entirely on Bede correctly inferring "I already did this" from one
+    line of prose (toApiMessage/getApiMessages's synthesized
+    "[Showed a picture: ...]" note) buried somewhere in a long history.
+    That's a real signal, but a soft one; this makes it a hard one.
+    Detected by a plain substring match on the exact quoted title against
+    every PRIOR assistant turn (not this one) — simple, and low-risk even
+    when wrong: a false-positive "already shown" just steers Bede toward a
+    different image it hasn't technically used yet, never toward a genuine
+    error.
     """
     if subject not in (Subject.art_music, Subject.history):
         return ""
@@ -874,11 +888,25 @@ def _get_visual_aids_context(subject: Subject) -> str:
         aids = get_visual_aids(subject.value)
         if not aids:
             return ""
+
+        shown_ids: set[str] = set()
+        if history:
+            combined = "\n".join(m.content for m in history if m.role == "assistant")
+            shown_ids = {a["id"] for a in aids if f'"{a["title"]}"' in combined}
+
         lines = [
             f"- {a['id']}: \"{a['title']}\"" + (f" ({a['creator']})" if a.get("creator") else "") + f" — {a['description']}"
+            + ("  [ALREADY SHOWN this session]" if a["id"] in shown_ids else "")
             for a in aids
         ]
-        return "\n\nAvailable visual aids for show_visual_aid (use the id exactly as shown):\n" + "\n".join(lines)
+        note = "\n\nAvailable visual aids for show_visual_aid (use the id exactly as shown):\n" + "\n".join(lines)
+        if shown_ids:
+            note += (
+                "\n\nAn id marked [ALREADY SHOWN this session] has already been displayed once — pick a "
+                "different one from the list instead, unless the child specifically asks to see that exact "
+                "one again."
+            )
+        return note
     except Exception:
         return ""
 
@@ -1022,6 +1050,7 @@ async def _build_subject_prompt(
     demo_code: Optional[str] = None,
     db_vector: Optional[dict] = None,
     db_evidence_count: int = 0,
+    history: Optional[List[ChatMessage]] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -1031,7 +1060,7 @@ async def _build_subject_prompt(
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
     catalog_note = _get_catalog_context(config, subject)
-    visual_aids_note = _get_visual_aids_context(subject)
+    visual_aids_note = _get_visual_aids_context(subject, history)
     session_position_note = _session_position_note(config, subject)
     # Poetry co-study (verbatim public-domain texts — see services/
     # poetry_catalog.py) belongs where Mater Amabilis puts poetry: the
@@ -1287,6 +1316,7 @@ async def stream_tutor_response(
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
+        history=history,
     )
     system = [
         {

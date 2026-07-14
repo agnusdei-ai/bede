@@ -12,6 +12,10 @@ interface Stroke {
   points: Point[]
   width: number
   color: string
+  // Eraser strokes are resolved to the CURRENT paper color at draw time —
+  // storing the background hex directly would leave stale-colored patches
+  // behind whenever the child recolors the paper mid-drawing.
+  isEraser?: boolean
 }
 
 interface HandwritingCanvasProps {
@@ -29,6 +33,26 @@ interface HandwritingCanvasProps {
 }
 
 const PARCHMENT_BG = '#faf8f0'
+
+// Paper colors — construction-paper pastels a child would pull from the
+// craft drawer, plus Slate: the classical schoolroom chalkboard (rulings
+// lighten automatically on dark paper; pick a light ink to write on it).
+const PAPER_COLORS = [
+  { name: 'Parchment', value: PARCHMENT_BG },
+  { name: 'White', value: '#ffffff' },
+  { name: 'Sunshine', value: '#fdf3cf' },
+  { name: 'Rose', value: '#fbe4e4' },
+  { name: 'Sage', value: '#e4efe4' },
+  { name: 'Sky', value: '#e0ecf9' },
+  { name: 'Slate', value: '#2e3a44' },
+] as const
+
+// Perceived-luminance check so rulings stay visible on dark paper.
+function isDarkPaper(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16)
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128
+}
 const GRAPH_LINE_COLOR = '#c9d6e8'
 const COMPOSITION_RULE_COLOR = '#a9c3dc'
 const COMPOSITION_MIDLINE_COLOR = '#c7d8ea'
@@ -70,14 +94,19 @@ const PAPER_ORDER: PaperStyle[] = ['composition', 'graph', 'staff', 'blank']
 // (re)initialized, resized, cleared, or redrawn from the stroke history, so
 // the paper style never needs separate "erase to blank" handling from
 // "erase to ruled/gridded" handling.
-function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle) {
-  ctx.fillStyle = PARCHMENT_BG
+function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle, bg: string) {
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, width, height)
 
   if (style === 'blank') return
 
+  const dark = isDarkPaper(bg)
+  const ruleColor = dark ? 'rgba(255,255,255,0.35)' : COMPOSITION_RULE_COLOR
+  const midColor = dark ? 'rgba(255,255,255,0.22)' : COMPOSITION_MIDLINE_COLOR
+  const gridColor = dark ? 'rgba(255,255,255,0.25)' : GRAPH_LINE_COLOR
+
   if (style === 'graph') {
-    ctx.strokeStyle = GRAPH_LINE_COLOR
+    ctx.strokeStyle = gridColor
     ctx.lineWidth = 1
     ctx.setLineDash([])
     for (let x = GRAPH_SPACING; x < width; x += GRAPH_SPACING) {
@@ -96,7 +125,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
   }
 
   if (style === 'staff') {
-    ctx.strokeStyle = COMPOSITION_RULE_COLOR
+    ctx.strokeStyle = ruleColor
     ctx.lineWidth = 1
     ctx.setLineDash([])
     // Whole staves only — a staff that would run off the bottom edge is
@@ -115,7 +144,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
 
   for (let y = COMPOSITION_LINE_HEIGHT; y < height; y += COMPOSITION_LINE_HEIGHT) {
     const midY = y - COMPOSITION_LINE_HEIGHT / 2
-    ctx.strokeStyle = COMPOSITION_MIDLINE_COLOR
+    ctx.strokeStyle = midColor
     ctx.lineWidth = 1
     ctx.setLineDash([6, 6])
     ctx.beginPath()
@@ -123,7 +152,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
     ctx.lineTo(width, midY + 0.5)
     ctx.stroke()
 
-    ctx.strokeStyle = COMPOSITION_RULE_COLOR
+    ctx.strokeStyle = ruleColor
     ctx.setLineDash([])
     ctx.beginPath()
     ctx.moveTo(0, y + 0.5)
@@ -166,6 +195,7 @@ type Tool = 'pen' | 'eraser'
 
 export default function HandwritingCanvas({ onSubmit, onCancel, subject }: HandwritingCanvasProps) {
   const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
+  const [paperColor, setPaperColor] = useState<string>(PARCHMENT_BG)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawingRef = useRef(false)
@@ -197,8 +227,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     canvas.height = canvas.offsetHeight * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle)
-  }, [paperStyle])
+    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle, paperColor)
+  }, [paperStyle, paperColor])
 
   // Redraw all strokes from scratch onto the canvas
   const redrawAll = useCallback(() => {
@@ -210,24 +240,25 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     // Clear to paper (background + ruling/grid)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor)
 
     // Replay all strokes — an "eraser" stroke is just one whose color is the
     // background color, so replaying strokes in order naturally covers
     // whatever ink was under it with no separate erase code path.
     for (const stroke of strokesRef.current) {
+      const strokeColor = stroke.isEraser ? paperColor : stroke.color
       if (stroke.points.length < 2) {
         // Single dot
         const pt = stroke.points[0]
         if (!pt) continue
         ctx.beginPath()
         ctx.arc(pt.x, pt.y, stroke.width / 2, 0, Math.PI * 2)
-        ctx.fillStyle = stroke.color
+        ctx.fillStyle = strokeColor
         ctx.fill()
         continue
       }
       ctx.beginPath()
-      ctx.strokeStyle = stroke.color
+      ctx.strokeStyle = strokeColor
       ctx.lineWidth = stroke.width
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
@@ -237,7 +268,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
       }
       ctx.stroke()
     }
-  }, [paperStyle])
+  }, [paperStyle, paperColor])
 
   useEffect(() => {
     initCanvas()
@@ -273,7 +304,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
   // ruling underneath the erased patch would need a separate ink layer
   // composited over the paper background; not worth the added complexity
   // for a homeschool sketch/practice tool.
-  const activeColor = () => (tool === 'eraser' ? PARCHMENT_BG : color)
+  const activeColor = () => (tool === 'eraser' ? paperColor : color)
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault()
@@ -327,6 +358,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
         points,
         width: getStrokeWidth(avgPressure),
         color: activeColor(),
+        isEraser: tool === 'eraser',
       })
       setStrokeCount(strokesRef.current.length)
       redoStackRef.current = []
@@ -371,7 +403,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     const dpr = dprRef.current
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor)
   }
 
   const handleDone = () => {
@@ -565,6 +597,24 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </label>
+        </div>
+
+        {/* Paper color — construction paper + slate chalkboard. Square
+            swatches so they read as PAPER, distinct from the round ink dots. */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 pl-3 border-l border-parchment-200">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Paper</span>
+          {PAPER_COLORS.map((swatch) => (
+            <button
+              key={swatch.value}
+              onClick={() => setPaperColor(swatch.value)}
+              title={`${swatch.name} paper`}
+              aria-pressed={paperColor === swatch.value}
+              className={`w-7 h-7 rounded-md border-2 transition-transform flex-shrink-0 ${
+                paperColor === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
+              }`}
+              style={{ backgroundColor: swatch.value }}
+            />
+          ))}
         </div>
       </div>
 

@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event, read_audit_log
 from core.api_usage import get_usage_summary
+from core.config import settings
 from core.database import get_db
 from core.deps import require_parent
+from core import licensing
 from models.schemas import UsageSummary
 from services.voice_auth import list_profiles
 
@@ -45,6 +47,19 @@ async def system_status(
     """Return system health metadata. No sensitive data included."""
     profiles = await list_profiles(db)
     usage = await get_usage_summary(db)
+
+    license_info = licensing.get_license(settings.license_key)
+    license_status = None
+    if license_info is not None:
+        license_status = {
+            "tier": license_info.tier,
+            "licensee": license_info.licensee,
+            "seats": license_info.seats,
+            "expires": license_info.expires.isoformat() if license_info.expires else None,
+            "days_remaining": license_info.days_remaining,
+            "is_expired": license_info.is_expired,
+        }
+
     return {
         "voice_profiles_enrolled": len(profiles),
         "student_names":  profiles,
@@ -52,6 +67,7 @@ async def system_status(
         "key_storage":    "KEK-wrapped DATA_KEY in managed PostgreSQL",
         "audit_log":      "AES-256-GCM encrypted rows in managed PostgreSQL",
         "usage": usage,
+        "license": license_status,
     }
 
 

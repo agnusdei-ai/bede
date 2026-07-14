@@ -95,7 +95,7 @@ echo -e "Press Enter to skip optional fields."
 blank
 
 # ── Anthropic API key ─────────────────────────────────────────────────────────
-info "1/5  Anthropic (Claude) API key"
+info "1/6  Anthropic (Claude) API key"
 echo "     Get yours at: https://console.anthropic.com/"
 while true; do
   read -rp "     ANTHROPIC_API_KEY: " ANTHROPIC_API_KEY
@@ -105,7 +105,7 @@ done
 
 # ── Database ──────────────────────────────────────────────────────────────────
 blank
-info "2/5  Database"
+info "2/6  Database"
 echo "     1) Local Postgres (recommended) — runs alongside Bede in Docker."
 echo "        No external account, nothing leaves this machine. You're"
 echo "        responsible for backups — see 'make db-backup' after setup."
@@ -132,7 +132,7 @@ fi
 
 # ── Access credentials ────────────────────────────────────────────────────────
 blank
-info "3/5  Parent password (admin login)"
+info "3/6  Parent password (admin login)"
 while true; do
   read -rsp "     PARENT_PASSWORD: " PARENT_PASSWORD; echo
   [[ ${#PARENT_PASSWORD} -ge 8 ]] && break
@@ -140,16 +140,29 @@ while true; do
 done
 
 blank
-info "4/5  Child PIN (student login, 6+ digits, no easily-guessable pattern)"
+info "4/6  Child PIN (student login, 6+ digits, no easily-guessable pattern)"
 while true; do
   read -rp "     CHILD_PIN: " CHILD_PIN
   is_strong_pin "$CHILD_PIN" && break
   warn "Must be 6+ digits and not a sequential run, repeated block, or palindrome (e.g. 602656 is fine, not 111111, 123123, 121212, 123456, 654321, or 669966)."
 done
 
+# ── License ───────────────────────────────────────────────────────────────────
+blank
+info "5/6  License key"
+echo "     Paste the LICENSE_KEY you received when you purchased or started a"
+echo "     trial of Bede — it's the line printed by scripts/issue_license.py."
+echo "     No internet connection is needed to verify it; nothing is sent"
+echo "     anywhere. See docs/PRODUCTION_SETUP.md#licensing if you don't have one yet."
+while true; do
+  read -rp "     LICENSE_KEY: " LICENSE_KEY
+  [[ -n "$LICENSE_KEY" ]] && break
+  warn "This field is required — Bede will not start in production without a valid license."
+done
+
 # ── Auto-generate secrets ─────────────────────────────────────────────────────
 blank
-info "5/5  Generating cryptographic secrets..."
+info "6/6  Generating cryptographic secrets..."
 SECRET_KEY=$(openssl rand -hex 32)
 MASTER_SECRET=$(openssl rand -hex 32)
 success "SECRET_KEY and MASTER_SECRET generated (64 hex chars each)"
@@ -194,6 +207,7 @@ DATABASE_URL=${DATABASE_URL}
 CORS_ORIGINS=${CORS_ORIGINS}
 DISABLE_API_DOCS=true
 PRODUCTION=true
+LICENSE_KEY=${LICENSE_KEY}
 EOF
 if [[ -n "$COMPOSE_PROFILES" ]]; then
   cat >> .env <<EOF

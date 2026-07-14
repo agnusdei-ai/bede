@@ -119,11 +119,56 @@ HTTPS with no browser chrome.
 All from `.env` (gitignored — never commit). See `.env.example` for the
 full list, with comments: `ANTHROPIC_API_KEY`, `SECRET_KEY`,
 `MASTER_SECRET`, `PARENT_PASSWORD`, `CHILD_PIN`, `DATABASE_URL`,
-`CORS_ORIGINS`. Optional: `OPENAI_API_KEY` for voice (see
-`docs/VOICE_SETUP.md`), `RESEND_API_KEY` for the post-session diagnostic
-email, `PARENT_EMAIL` for an urgent alert when Bede detects a child in
-distress or danger (reuses `RESEND_API_KEY`), `SANDBOX_PIN` to unlock a
-direct-answer "Ask Bede" chat for you to test/explore Bede's behavior (see
-the Pod Dashboard's **Sandbox** button — requires being logged in as parent
-plus this PIN; nothing said there is ever saved), `WEBAUTHN_RP_ID`/TOTP
-settings for parent MFA.
+`CORS_ORIGINS`, `LICENSE_KEY` (see **Licensing** below). Optional:
+`OPENAI_API_KEY` for voice (see `docs/VOICE_SETUP.md`), `RESEND_API_KEY`
+for the post-session diagnostic email, `PARENT_EMAIL` for an urgent alert
+when Bede detects a child in distress or danger (reuses `RESEND_API_KEY`),
+`SANDBOX_PIN` to unlock a direct-answer "Ask Bede" chat for you to
+test/explore Bede's behavior (see the Pod Dashboard's **Sandbox** button —
+requires being logged in as parent plus this PIN; nothing said there is
+ever saved), `WEBAUTHN_RP_ID`/TOTP settings for parent MFA.
+
+## Licensing
+
+Once `PRODUCTION=true`, Bede refuses to start without a valid `LICENSE_KEY`
+(`core/config.py`'s `reject_missing_or_invalid_license_in_production`
+validator, mirroring the same fail-fast pattern as its weak-credential
+checks). A license is a compact, **offline-verifiable** certificate — no
+phone-home, no license server, no telemetry. Verification happens entirely
+against a public key embedded in `homeschool-api/core/licensing.py`; your
+server never needs outbound network access to prove it's licensed, and it
+never reports back to us.
+
+**Getting one:** if you purchased Bede or started a trial, you were given a
+`LICENSE_KEY=...` line — paste it into `.env` as-is (both setup wizards —
+terminal and browser — also prompt for it directly and write it for you).
+
+**What it controls today:**
+- Startup itself — a missing, tampered, or expired license refuses to boot
+  (check `make logs` for the exact reason if the API container won't come
+  up after a license change).
+- The pod's seat cap — `POST /pod/configs` (`routers/pod.py`) rejects
+  adding a student past your license's `seats` count.
+- The parent dashboard's status strip shows your tier, licensee, and (for a
+  trial) days remaining, sourced from `GET /admin/status`.
+
+**Tiers:** `trial` (must carry an expiry — a fully-featured, time-limited
+evaluation), `core` (a single household, up to `seats` students), `coop`
+(a co-op/parish school license covering multiple households under one
+`seats` count).
+
+**Issuing a license (operator-only):** this is for whoever runs the Bede
+business, not something a family does. One-time: generate the signing
+keypair with `python homeschool-api/scripts/generate_license_keypair.py`
+— keep the private key offline and out of every repo; paste the public key
+into `core/licensing.py`. Per sale/trial: `python
+homeschool-api/scripts/issue_license.py --tier core --licensee "The Smith
+Family" --seats 10 --private-key /path/to/private.pem` prints the
+`LICENSE_KEY=` line to send the customer. See both scripts' docstrings for
+the full flag reference (trial expiry via `--days`, co-op seat counts,
+etc.).
+
+**Threat model, honestly:** this is a trust-and-verify gate for legitimate
+self-hosters, not DRM — anyone with the source (which every self-hosted
+deployer has) could patch the check out. It exists to make honest use easy
+and accidental/casual misuse visible, not to withstand a determined bypass.

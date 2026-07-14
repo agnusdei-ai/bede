@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import List
 
+from core import licensing
 from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
 
 
@@ -162,6 +163,12 @@ class Settings(BaseSettings):
     # Set to "true" in Docker to enforce HTTPS-only cookie flags
     production: str = "false"
 
+    # ── License ─────────────────────────────────────────────────────────────
+    # Required once PRODUCTION=true (see reject_missing_or_invalid_license_in_production
+    # below) — an offline-verifiable certificate issued by scripts/issue_license.py.
+    # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
+    license_key: str = ""
+
     _WEAK_SECRETS = {
         "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min",
         "change-me-parent",
@@ -226,6 +233,32 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Production mode is enabled but insecure defaults are in use: "
                 + "; ".join(problems)
+            )
+        return self
+
+    @model_validator(mode="after")
+    def reject_missing_or_invalid_license_in_production(self) -> "Settings":
+        """A real deployment (family install or the operator's own public
+        demo — both run PRODUCTION=true) must carry a genuine, unexpired
+        license. Kept as its own validator, separate from
+        reject_weak_defaults_in_production above, since a license problem
+        is a distinct failure mode (missing/invalid/expired, not "using a
+        dev default") worth its own clear error message."""
+        if not self.is_production:
+            return self
+        if not self.license_key:
+            raise ValueError(
+                "Production mode is enabled but LICENSE_KEY is not set — issue one with "
+                "scripts/issue_license.py (see docs/PRODUCTION_SETUP.md#licensing)"
+            )
+        try:
+            info = licensing.verify_license(self.license_key)
+        except licensing.InvalidLicenseError as exc:
+            raise ValueError(f"LICENSE_KEY is invalid: {exc}") from exc
+        if info.is_expired:
+            raise ValueError(
+                f"LICENSE_KEY expired on {info.expires.isoformat()} "
+                f"({info.tier} license for {info.licensee!r}) — renew to continue running in production"
             )
         return self
 

@@ -30,6 +30,14 @@ on:
       - '.github/workflows/production-regression.yml'
   workflow_dispatch:
 
+env:
+  # A real, perpetually-valid license signed with the actual operator
+  # keypair (core/licensing.py's embedded PUBLIC_KEY_PEM) — not a secret,
+  # same as the throwaway ANTHROPIC_API_KEY below: it doesn't grant
+  # anything beyond letting this ephemeral CI container pass its own
+  # startup license check. Issued via scripts/issue_license.py.
+  CI_TEST_LICENSE_KEY: eyJleHBpcmVzIjpudWxsLCJpZCI6ImMwMDQyYmExLWNiMmYtNDFjOC1hZTAxLTBlOTVhYjhlMjllNyIsImlzc3VlZCI6IjIwMjYtMDctMTQiLCJsaWNlbnNlZSI6IkNJIFRlc3QiLCJzZWF0cyI6MTAsInRpZXIiOiJjb3JlIn0.7lWKgJd3KbEqYHKuRFHu-b-_MzziDfspXEtg_qaDVZHTF1pCHlKYLt2MjxEhVjNy8X_pA33tq5X-wBK39cEGCg
+
 jobs:
   compose-config-validation:
     runs-on: ubuntu-latest
@@ -44,6 +52,7 @@ jobs:
           PARENT_PASSWORD=test
           CHILD_PIN=602656
           DATABASE_URL=postgresql+asyncpg://user:pass@host/db
+          LICENSE_KEY=${CI_TEST_LICENSE_KEY}
           EOF
           docker compose config --quiet
           # db service must NOT be included when the local-db profile isn't active
@@ -63,6 +72,7 @@ jobs:
           DATABASE_URL=postgresql+asyncpg://sage:testpass@db:5432/bede
           COMPOSE_PROFILES=local-db
           POSTGRES_PASSWORD=testpass
+          LICENSE_KEY=${CI_TEST_LICENSE_KEY}
           EOF
           docker compose config --quiet
           docker compose config --services | grep -q '^db$'
@@ -95,6 +105,7 @@ jobs:
             --data-urlencode "db_choice=local" \
             --data-urlencode "parent_password=cipassword123" \
             --data-urlencode "child_pin=602656" \
+            --data-urlencode "license_key=${CI_TEST_LICENSE_KEY}" \
             | grep -q "All set"
 
           # wizard.py signals success by exiting its own process — confirm
@@ -117,6 +128,7 @@ jobs:
           grep -q '^COMPOSE_PROFILES=local-db$' .env
           grep -q '^POSTGRES_PASSWORD=' .env
           grep -q '^CHILD_PIN=602656$' .env
+          grep -q "^LICENSE_KEY=${CI_TEST_LICENSE_KEY}\$" .env
           grep -q '@db:5432/bede$' .env
           [ "$(stat -c '%a' .env)" = "600" ]
 

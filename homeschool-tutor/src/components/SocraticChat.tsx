@@ -484,6 +484,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
           </button>
 
+          {/* Bede's avatar — a quiet "he's talking" tell, not just the Volume2
+              icon's pulse: a small bounce + glow while his voice is actually
+              playing, still the moment it stops. Same isSpeaking state the
+              Volume2 icon below already uses, so this never drifts out of
+              sync with what's actually true. */}
+          <img
+            src="/bede-icon.png"
+            alt="Bede"
+            className={`w-9 h-9 rounded-full object-cover shrink-0 transition-transform duration-150 ${
+              isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
+            }`}
+          />
+
           {/* TTS toggle */}
           {ttsSupported && (
             <button

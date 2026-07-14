@@ -376,6 +376,29 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // fires into a session the child has already left.
   useEffect(() => clearInactivityTimer, [clearInactivityTimer])
 
+  // Dictation-mode keepalive: while voice mode is on, the mic should be LIVE
+  // whenever Bede isn't thinking (streaming) or talking (speaking), we're not
+  // on a break, the canvas isn't open, and no transcription is in flight —
+  // no matter HOW the mic went quiet (an utterance finished, silence timed
+  // out, the fallback transcribed to nothing). The transition effect above
+  // restarts it at turn boundaries; this invariant catches every other way
+  // it can die, so the learner converses freely without re-tapping the mic.
+  // Tapping the mic off (voiceMode false) remains the only way out. The
+  // short delay debounces recognition-engine restart cycles.
+  useEffect(() => {
+    if (!voiceMode || breakActive || showCanvas || isStreaming || isSpeaking || isListening || isTranscribing) return
+    const id = setTimeout(() => startListening(), 400)
+    return () => clearTimeout(id)
+  }, [voiceMode, breakActive, showCanvas, isStreaming, isSpeaking, isListening, isTranscribing, startListening])
+
+  // And the inverse guard: the moment a turn starts (Bede thinking or
+  // speaking), the mic must be OFF — otherwise a [CONTINUE]-initiated turn
+  // could leave a kept-alive mic hot while Bede talks, and it would hear
+  // Bede's own voice as the child's answer.
+  useEffect(() => {
+    if ((isStreaming || isSpeaking) && isListening) stopListening()
+  }, [isStreaming, isSpeaking, isListening, stopListening])
+
   // A break can end mid-"turn-just-ended" window (the effect above skips
   // restarting while breakActive is true and doesn't get a second chance
   // once turnActiveRef has already been cleared) — resume voice mode's

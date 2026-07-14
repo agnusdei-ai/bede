@@ -336,8 +336,22 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const consecutiveAutoContinues = useRef(0)
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
+
+  // ── Dictation mode ────────────────────────────────────────────────────────
+  // One tap turns the mic into an open conversation: each finished utterance
+  // sends itself, and the keepalive effect below re-arms the mic whenever
+  // Bede isn't thinking or talking — the learner converses freely with no
+  // button between turns. Tapping the mic again is the only way out.
+  // Mirrors homeschool-tutor's SocraticChat voice mode.
+  const [voiceMode, setVoiceMode] = useState(false)
+  const voiceModeRef = useRef(false)
+  useEffect(() => { voiceModeRef.current = voiceMode }, [voiceMode])
+
   const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
-    useSpeechRecognition((transcript) => setInput((prev) => (prev ? prev + ' ' + transcript : transcript)))
+    useSpeechRecognition((transcript) => {
+      if (voiceModeRef.current) send(transcript)
+      else setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+    })
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { inputRef.current = input }, [input])
@@ -482,8 +496,10 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStreaming, isSpeaking, showCanvas, messages])
 
-  const send = () => {
-    const msg = input.trim()
+  const send = (overrideMsg?: string) => {
+    // overrideMsg lets dictation mode send a transcript directly, without a
+    // setInput()-then-read round trip through React state.
+    const msg = (overrideMsg ?? input).trim()
     if ((!msg && !pendingDrawing) || isStreaming) return
     stopSpeech()
     stopListening()
@@ -497,9 +513,33 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   }
 
   const toggleMic = () => {
-    if (isListening) stopListening()
-    else startListening()
+    if (voiceMode) {
+      setVoiceMode(false)
+      stopListening()
+    } else {
+      setVoiceMode(true)
+      startListening()
+    }
   }
+
+  // Dictation-mode keepalive: while the mic is on, it stays LIVE whenever
+  // Bede isn't thinking (streaming) or talking (speaking) and the canvas is
+  // closed — no matter how recognition went quiet (an utterance finished,
+  // silence timed out). The learner never re-taps the mic between turns;
+  // tapping it off is the only way out. The short delay debounces the
+  // recognition engine's restart cycles.
+  useEffect(() => {
+    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening) return
+    const id = setTimeout(() => startListening(), 400)
+    return () => clearTimeout(id)
+  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, startListening])
+
+  // Inverse guard: the moment a turn starts (including the idle-continue
+  // nudge), the mic must be OFF, or it would hear Bede's own voice as the
+  // learner's answer.
+  useEffect(() => {
+    if ((isStreaming || isSpeaking) && isListening) stopListening()
+  }, [isStreaming, isSpeaking, isListening, stopListening])
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a
@@ -622,7 +662,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleMic} disabled={isStreaming} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
+            <button onClick={toggleMic} disabled={!voiceMode && isStreaming} title={voiceMode ? 'Voice conversation on — tap to end' : 'Start a voice conversation'} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${voiceMode ? (isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-red-500 text-white') : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
               {isListening ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
@@ -631,11 +671,11 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={isStreaming}
-            placeholder={isListening ? 'Listening… speak now' : 'Type or tap the mic to speak…'}
+            placeholder={isListening ? 'Listening… speak now' : voiceMode ? 'Voice conversation on — waiting for Bede…' : 'Type or tap the mic to speak…'}
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />
-          <button onClick={send} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
+          <button onClick={() => send()} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>

@@ -65,7 +65,7 @@ export default function ConsentModal({ onAgree }: { onAgree: () => void }) {
           rel="noopener noreferrer"
           className="block text-xs text-navy-600 underline hover:text-navy-800 mb-5"
         >
-          Read the full Privacy Notice
+          Read the full Privacy Notice, including our COPPA parental notice
         </a>
 
         <button

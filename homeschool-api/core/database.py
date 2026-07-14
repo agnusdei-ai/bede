@@ -244,6 +244,45 @@ class SessionTranscript(Base):
     )
 
 
+class ApiUsageEvent(Base):
+    """
+    Append-only per-call token usage log — the raw ingredient for both the
+    per-student usage card on Progress.tsx and the household-wide total on
+    GET /admin/status. Every real Anthropic API call this deployment makes
+    (tutoring turns, sandbox turns, session summaries, learner-profile
+    synthesis) writes exactly one row here via core/api_usage.py's
+    record_usage(), best-effort and never blocking the actual turn — a
+    logging hiccup here must not break a child's session.
+
+    This deployment is BYOK (see .env.example's ANTHROPIC_API_KEY) — Bede
+    itself is never billed for any of this, the family's own key is.
+    Token counts and a model name are not sensitive content (no
+    transcript, no prompt text), so — like MasteryProfile.evidence_count —
+    these are plain (unencrypted) columns, not AES-256-GCM BYTEA.
+
+    student_name is nullable: the parent sandbox (routers/sandbox.py) has
+    no student context at all, so those turns roll into the household
+    total only, never onto any specific student's card.
+    """
+    __tablename__ = "api_usage_events"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[Optional[str]] = mapped_column(String(100), index=True, nullable=True)
+    model: Mapped[str] = mapped_column(String(60), nullable=False)
+    input_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
+    output_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
+    cache_creation_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
 class ParentSecurityKey(Base):
     """
     One row per enrolled FIDO2 authenticator (YubiKey or other WebAuthn

@@ -3,11 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
-import type { NarrationAssessmentData, LearnerProfileData, SessionConfig, MasteryProfileSummary } from '../types'
+import type { NarrationAssessmentData, LearnerProfileData, SessionConfig, MasteryProfileSummary, UsageSummary } from '../types'
 import {
   fetchNarrationAssessments,
   fetchLearnerProfile,
   fetchMasteryProfileSummary,
+  fetchStudentUsage,
   buildLearnerProfile,
 } from '../services/api'
 
@@ -163,6 +164,64 @@ function MathMasterySnapshot({ studentName, summary, loading }: { studentName: s
           <p className="text-xs text-gray-500">{summary.next_steps.map((s) => s.label).join(', ')}</p>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * This deployment is BYOK (bring your own Anthropic API key) — Bede
+ * itself is never billed for any of this. Shown here because a family's
+ * spend naturally tracks how often a student actually uses sessions, the
+ * same frequency signal that also feeds their learner profile above —
+ * so it belongs next to the rest of that student's activity, not buried
+ * in a separate admin-only page. Always an estimate: console.anthropic.com
+ * is the authoritative source for actual billing.
+ */
+function AiUsageCard({ usage, loading }: { usage: UsageSummary | null; loading: boolean }) {
+  if (loading) return null
+
+  if (!usage || usage.total_calls === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">AI Usage</h2>
+        <p className="text-xs text-gray-500">
+          No usage recorded yet for this student. This tracks tokens spent on your own Anthropic API key as
+          sessions happen — check back after a session or two.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-700">AI Usage</h2>
+        <span className="text-xs text-gray-400">
+          {usage.total_calls} interaction{usage.total_calls === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-2xl font-display font-bold text-gray-800">
+          ${usage.estimated_cost_usd.toFixed(2)}
+        </span>
+        <span className="text-xs text-gray-400">estimated</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 mb-3">
+        <div>
+          <p className="text-gray-400">Input tokens</p>
+          <p className="font-medium text-gray-700 tabular-nums">{usage.total_input_tokens.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-gray-400">Output tokens</p>
+          <p className="font-medium text-gray-700 tabular-nums">{usage.total_output_tokens.toLocaleString()}</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-400 leading-relaxed">
+        Reflects {usage.total_calls} recorded interaction{usage.total_calls === 1 ? '' : 's'} with Bede — usage
+        naturally tracks how often this student uses sessions. Bede runs on your own Anthropic API key and is
+        never billed to Bede itself; this is a best-effort estimate, not a bill — see console.anthropic.com for
+        exact billing.
+      </p>
     </div>
   )
 }
@@ -527,6 +586,7 @@ export default function Progress() {
   const [assessments, setAssessments] = useState<NarrationAssessmentData[]>([])
   const [profile, setProfile] = useState<LearnerProfileData | null>(null)
   const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
+  const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -537,16 +597,19 @@ export default function Progress() {
     setAssessments([])
     setProfile(null)
     setMasterySummary(null)
+    setUsage(null)
 
     Promise.all([
       fetchNarrationAssessments(token, activeStudent),
       fetchLearnerProfile(token, activeStudent),
       fetchMasteryProfileSummary(token, activeStudent),
+      fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, m]) => {
+      .then(([a, p, m, u]) => {
         setAssessments(a)
         setProfile(p)
         setMasterySummary(m)
+        setUsage(u)
       })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : 'Failed to load progress data')
@@ -630,6 +693,7 @@ export default function Progress() {
               assessments={assessments}
             />
             <MathMasterySnapshot studentName={activeStudent} summary={masterySummary} loading={loading} />
+            <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />
           </div>

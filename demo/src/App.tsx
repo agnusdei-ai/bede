@@ -527,7 +527,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100">
       <header className="bg-parchment-50 border-b border-sage-200 shrink-0 px-4 py-2">
         <div className="flex items-center gap-3">
-          <img src={`${import.meta.env.BASE_URL}bede-icon.png`} alt="Bede" className="w-8 h-8 rounded-full object-cover shrink-0" />
+          <img
+            src={`${import.meta.env.BASE_URL}bede-icon.png`}
+            alt="Bede"
+            className={`w-8 h-8 rounded-full object-cover shrink-0 transition-transform duration-150 ${
+              isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
+            }`}
+          />
           <div className="flex-1 min-w-0 truncate">
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
             <span className="text-gray-400 text-xs ml-2">with {displayName}</span>

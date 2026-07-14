@@ -82,6 +82,7 @@ export default {
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
         'celebrate': 'celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
         'ring-pulse': 'ringPulse 1.8s ease-in-out infinite',
+        'bede-talk': 'bedeTalk 0.5s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
@@ -95,6 +96,13 @@ export default {
         ringPulse: {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(30, 58, 138, 0.35)' },
           '50%': { boxShadow: '0 0 0 6px rgba(30, 58, 138, 0)' },
+        },
+        // A gentle head-bob, not a literal mouth-flap (no per-frame mouth art
+        // exists for bede-icon.png) — reads as "he's the one talking" at the
+        // small size this renders at, without needing new art assets.
+        bedeTalk: {
+          '0%, 100%': { transform: 'scale(1) rotate(0deg)' },
+          '50%': { transform: 'scale(1.08) rotate(-3deg)' },
         },
       },
     },

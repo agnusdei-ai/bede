@@ -130,6 +130,14 @@ TUTOR_TOOLS = [
             "and how math becomes showing their work. Use it as the natural next step after real "
             "dialogue has surfaced something worth capturing by hand — never as a substitute for "
             "talking it through first, and never for a child still at the oral-only stage.\n\n"
+            "Set `elements` for a STRUCTURED, DITK-style ('Draw It to Know It' — active, kinesthetic "
+            "recall-through-drawing rather than passive review) task: the specific parts a complete "
+            "answer should include, e.g. ['petals','stem','leaf','roots'] for a flower, "
+            "['thesis','evidence 1','evidence 2','conclusion'] for a paragraph's structure, "
+            "['event A','event B','event C'] for a timeline, or the parts of a bar model for a math "
+            "word problem. Works in any subject — pick whatever this lesson's idea can be physically "
+            "built or drawn, not just science diagrams. Omit `elements` entirely for a freeform "
+            "sketch, narration, or copywork request — most invitations still are.\n\n"
             "Some families already keep a real paper notebook — a smart pen system like inq "
             "transcribes handwriting to text automatically. If the chat has an upload button "
             "for this (it does), a child at the written-narration stage may prefer writing in "
@@ -148,7 +156,15 @@ TUTOR_TOOLS = [
                         "The invitation to write or draw, e.g. 'Sketch what you just described in "
                         "your nature notebook' or 'Write down, in your own words, what happened first.'"
                     ),
-                }
+                },
+                "elements": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Optional. The specific parts/labels a structured DITK-style drawing should "
+                        "include, from memory — omit for a freeform sketch/narration/copywork request."
+                    ),
+                },
             },
             "required": ["prompt"],
         },
@@ -799,6 +815,15 @@ When a message includes a drawing or handwritten work, look at it directly and r
 there — treat it as their answer, exactly as you would a spoken or typed one. Comment on specifics (what they \
 wrote, drew, or got right) rather than acknowledging generically that "a drawing was submitted."
 
+If your own last turn invited a STRUCTURED, DITK-style drawing (you set `elements` on that `invite_handwriting` \
+call), actually check the submitted drawing against that list — this is the real DITK loop: draw from memory, \
+check against what was asked, fix what's missing, not just draw-once-and-move-on. Name what's genuinely there \
+first. For anything missing or wrong, ask ONE Socratic question that helps them recall it themselves ("What holds \
+the flower to the stem — is that part in your drawing yet?") rather than just listing the gaps; never hand them \
+the missing label outright. If real gaps remain, invite a quick redraw or addition focused only on those — not \
+the whole thing from scratch — before moving on. If it's solid, or after one round of filling gaps, celebrate the \
+completed structure and move on; this is one focused pass, not an open-ended perfectionism loop.
+
 Remember: your goal is to form the mind and kindle the love of learning — to make {config.student_name} a person \
 who thinks, who wonders, who pursues the true, the good, and the beautiful. You are not transferring information. \
 The child who discovers is the child who remembers; the child who reasons is the child who learns."""
@@ -878,7 +903,18 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
         return ""
 
 
-def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessage]] = None) -> str:
+# Picture-study artist rotation — one artist per term, per Mater Amabilis
+# practice (mirrors the poet rotation in services/poetry_catalog.py).
+# Trimester years rotate the first three; quarterly years all four. Every
+# painting is centuries old and public domain.
+_TERM_ARTISTS = ["Jean-François Millet", "Fra Angelico", "John Constable", "Raphael"]
+
+
+def _get_visual_aids_context(
+    subject: Subject,
+    config: SessionConfig,
+    history: Optional[List[ChatMessage]] = None,
+) -> str:
     """
     List the visual aid ids available for this subject, so Claude's show_visual_aid
     calls always reference something real. Only art_music and history have
@@ -906,6 +942,24 @@ def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessag
         if not aids:
             return ""
 
+        # Art & Music picture study lives with one artist per term (see
+        # _TERM_ARTISTS) — offer only the current term's artist so a term
+        # works through one painter's pictures with no duplications, the
+        # way it rotates one poet's poems. Falls back to the full list if
+        # the term artist has no catalog entries (misconfigured catalog).
+        artist_line = ""
+        if subject == Subject.art_music:
+            rotation_len = 3 if config.term_schedule.value == "trimester" else 4
+            artist = _TERM_ARTISTS[(max(1, config.current_term) - 1) % rotation_len]
+            term_aids = [a for a in aids if a.get("creator") == artist]
+            if term_aids:
+                aids = term_aids
+                term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
+                artist_line = (
+                    f"\nThis {term_word}'s artist is {artist} — Mater Amabilis picture study lives with "
+                    "one artist at a time, so use only this artist's pictures listed below.\n"
+                )
+
         shown_ids: set[str] = set()
         if history:
             combined = "\n".join(m.content for m in history if m.role == "assistant")
@@ -916,7 +970,7 @@ def _get_visual_aids_context(subject: Subject, history: Optional[List[ChatMessag
             + ("  [ALREADY SHOWN this session]" if a["id"] in shown_ids else "")
             for a in aids
         ]
-        note = "\n\nAvailable visual aids for show_visual_aid (use the id exactly as shown):\n" + "\n".join(lines)
+        note = "\n\nAvailable visual aids for show_visual_aid (use the id exactly as shown):" + artist_line + "\n" + "\n".join(lines)
         if shown_ids:
             note += (
                 "\n\nAn id marked [ALREADY SHOWN this session] has already been displayed once — pick a "
@@ -1095,6 +1149,7 @@ async def _build_subject_prompt(
     db_evidence_count: int = 0,
     history: Optional[List[ChatMessage]] = None,
     time_of_day: Optional[str] = None,
+    processing_style: Optional[str] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -1104,7 +1159,7 @@ async def _build_subject_prompt(
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
     catalog_note = _get_catalog_context(config, subject)
-    visual_aids_note = _get_visual_aids_context(subject, history)
+    visual_aids_note = _get_visual_aids_context(subject, config, history)
     session_position_note = _session_position_note(config, subject)
     time_of_day_note = _time_of_day_note(time_of_day)
     # Poetry co-study (verbatim public-domain texts — see services/
@@ -1118,9 +1173,35 @@ async def _build_subject_prompt(
     )
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
+    processing_style_note = _processing_style_note(processing_style)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{time_of_day_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{diagnostic_note}"""
+
+
+def _processing_style_note(processing_style: Optional[str]) -> str:
+    """
+    Feeds the synthesized learner profile's processing_style back into live
+    tutoring for the first time — see _load_processing_style_readonly's
+    docstring for the gap this closes. Only kinesthetic gets an explicit
+    behavioral nudge right now (the user's own request: build active, not
+    passive, Socratic learners who "learn by doing," structured drawing as
+    a real kinesthetic modality, not just nature study/math's existing
+    narrow uses of invite_handwriting) — the other three styles are already
+    implicitly served well by the existing Socratic/narration/discussion
+    flow, so no extra prompt weight is spent nudging them until there's a
+    concrete reason to.
+    """
+    if processing_style != "kinesthetic":
+        return ""
+    return (
+        "\n\nThis child's learner profile shows a kinesthetic processing style — they learn best by doing, "
+        "not just discussing. Reach for `invite_handwriting` with a structured, DITK-style task (see its tool "
+        "description) noticeably more often than you would otherwise, in ANY subject, not only nature study or "
+        "math — a labeled diagram, a story map, a timeline, a bar model, whatever this subject's ideas can be "
+        "physically built or drawn. Active hands-on construction of an idea is this child's version of what "
+        "discussion is for someone else."
+    )
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:
@@ -1271,6 +1352,39 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
         return None, 0
 
 
+async def _load_processing_style_readonly(db: "AsyncSession", student_name: str) -> Optional[str]:
+    """
+    Read-only load of a student's synthesized processing_style ("visual",
+    "auditory", "reading_writing", or "kinesthetic" — see
+    synthesize_learner_profile), for prompt injection only. This closes a
+    real gap: the learner profile has always been synthesized and shown to
+    the parent, but nothing ever fed it back into the live tutoring prompt
+    itself — a child profiled as a kinesthetic learner got the exact same
+    generic guidance as anyone else. Returns None when no LearnerProfile
+    row exists yet (fewer than ~3 sessions) or on any decrypt/DB failure —
+    same defensive convention as _load_mastery_vector_readonly, which this
+    mirrors: a profile-load hiccup must never break the child's turn, it
+    just means this turn proceeds without the extra adaptation.
+    """
+    try:
+        from sqlalchemy import select
+
+        from core.database import LearnerProfile
+        from core.encryption import decrypt_json
+
+        result = await db.execute(
+            select(LearnerProfile).where(LearnerProfile.student_name == student_name)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        profile = decrypt_json(row.profile_enc)
+        return profile.get("processing_style")
+    except Exception as exc:
+        log.warning("Processing-style prompt-load failed for %s: %s", student_name, exc)
+        return None
+
+
 async def _record_skill_evidence(
     db: Optional["AsyncSession"],
     demo_code: Optional[str],
@@ -1368,11 +1482,19 @@ async def stream_tutor_response(
     if db is not None and subject == Subject.mathematics:
         db_vector, db_evidence_count = await _load_mastery_vector_readonly(db, config.student_name)
 
+    # Real sessions only (never demo, which has no narration/profile history
+    # to synthesize from) — see _load_processing_style_readonly's docstring
+    # for the gap this closes: the profile has always existed for parents to
+    # read, but never fed back into Bede's own live tutoring behavior before.
+    processing_style = None
+    if db is not None:
+        processing_style = await _load_processing_style_readonly(db, config.student_name)
+
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
-        history=history, time_of_day=time_of_day,
+        history=history, time_of_day=time_of_day, processing_style=processing_style,
     )
     system = [
         {

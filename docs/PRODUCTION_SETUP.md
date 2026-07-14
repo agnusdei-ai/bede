@@ -173,14 +173,22 @@ self-hosters, not DRM — anyone with the source (which every self-hosted
 deployer has) could patch the check out. It exists to make honest use easy
 and accidental/casual misuse visible, not to withstand a determined bypass.
 
+**The public demo is exempt.** `Settings.is_demo_deployment` (true whenever
+`DEMO_PIN` is set — see `core/config.py`) skips this check entirely: the
+demo is a stateless, zero-seat instance meant to be frictionless for
+prospective customers, not gated behind the same license it exists to sell.
+See `docs/DEMO_HOSTING.md#licensing`. A family's real instance is never
+exempt — it should never set `DEMO_PIN`.
+
 **Never commit a real LICENSE_KEY, even a "test" one.** A valid license is
 worth real money to whoever holds it — this repo has no revocation
 mechanism, so a key exposed in a public commit, PR description, or issue
 is usable forever by anyone who finds it, not just embarrassing. Treat it
 with the same handling as any other credential in this repo (`.env`, a
 platform's secret store) — never a plaintext file or workflow `env:`
-value. `production-regression.yml`'s CI run needs one real, signed license
-to prove the full stack actually boots with `PRODUCTION=true`; that value
+value. `production-regression.yml`'s CI run still needs one real, signed
+license (it exercises the family-install path, which is never exempt) to
+prove the full stack actually boots with `PRODUCTION=true`; that value
 lives in this repo's **Settings → Secrets and variables → Actions** as
 `CI_TEST_LICENSE_KEY`, not in the workflow file itself. To rotate it:
 `python homeschool-api/scripts/issue_license.py --tier trial --licensee

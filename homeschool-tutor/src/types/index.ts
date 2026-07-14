@@ -273,10 +273,12 @@ export interface UsageSummary {
 }
 
 // Mirrors homeschool-api/core/licensing.py's LicenseInfo, as surfaced by
-// GET /admin/status. Null on the wire (see routers/admin.py) only when
-// LICENSE_KEY is unset — dev/self-managed mode, no license configured;
-// a real production deployment always has one (core/config.py refuses to
-// boot without a valid one), so this is effectively always present there.
+// GET /admin/status. Null on the wire (see routers/admin.py) when
+// LICENSE_KEY is unset — dev/self-managed mode, or the operator's public
+// demo (Settings.is_demo_deployment exempts it from needing one). A real
+// family production deployment always has one (core/config.py refuses to
+// boot without a valid one there), so this is effectively always present
+// for that case.
 export interface LicenseStatus {
   tier: 'trial' | 'core' | 'coop'
   licensee: string

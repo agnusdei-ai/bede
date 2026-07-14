@@ -43,6 +43,18 @@ just push to `main` and it redeploys itself.
      address. `FEEDBACK_EMAIL` (where beta feedback is routed) is already set
      as a plain, non-secret value in `render.yaml` — it just does nothing
      until these two are filled in.
+   - `LICENSE_KEY` — leave this **unset**. `core/config.py`'s
+     `Settings.is_demo_deployment` exempts any deployment with `DEMO_PIN` set
+     (this one) from the license-validity check that a real family instance
+     must pass under `PRODUCTION=true` — the public demo is meant to be
+     zero-friction for prospective customers to try, not gated behind the
+     same paid-license check it exists to sell. See **Licensing** below.
+     Pasting something into this field anyway (a stray API key, a copy-paste
+     mistake) fails startup with `LICENSE_KEY is invalid: signature
+     verification failed`, not anything CORS- or Anthropic-key-shaped, even
+     though the resulting Render deploy failure can look similar at a
+     glance — the fix there is simply to clear the field, not to hunt for a
+     valid license.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
    to remember them) or a fixed non-secret value, including `CORS_ORIGINS`
@@ -53,6 +65,24 @@ just push to `main` and it redeploys itself.
 5. Click deploy. First build takes a few minutes (installing
    `openai-whisper`, `librosa`, etc.). Once it's up, copy the service URL
    Render gives you — looks like `https://bede-demo-api-XXXX.onrender.com`.
+
+## Licensing
+
+`bede-demo-api` runs `PRODUCTION=true` (see `render.yaml`), but it is
+**exempt** from the `LICENSE_KEY` requirement a real family instance must
+satisfy: `core/config.py`'s `reject_missing_or_invalid_license_in_production`
+validator skips the check entirely whenever `Settings.is_demo_deployment`
+is true, which it is for any deployment with `DEMO_PIN` set (this one). The
+demo is a stateless, zero-seat instance meant to be frictionless for
+prospective customers to try — gating it behind the same paid-license check
+it exists to sell would be self-defeating, and there's no per-family seat
+count to enforce here in the first place. Just leave `LICENSE_KEY` unset in
+Render.
+
+A real family's self-hosted instance is not exempt — see
+`docs/PRODUCTION_SETUP.md#licensing` for how to issue one of those (requires
+the Ed25519 private key from `scripts/generate_license_keypair.py`, which is
+deliberately never stored in this repo).
 
 ## Wiring the demo frontend to it
 

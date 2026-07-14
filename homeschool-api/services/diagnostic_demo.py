@@ -19,8 +19,7 @@ entirely.
 """
 
 from services.diagnostic import apply_evidence
-from services.diagnostic.mastery import _classify, aggregate_for_parent, calibration_weight_for, new_vector
-from services.diagnostic.skill_map import get_skill
+from services.diagnostic.mastery import build_summary_view, calibration_weight_for, new_vector
 
 from core.demo_code_session import (
     get_mastery_evidence_count,
@@ -78,51 +77,18 @@ async def get_mastery_summary_demo(code: str, student_name: str, subject_area: s
     """Builds the same shape as models.schemas.MasteryProfileSummary (as a
     plain dict — routers/diagnostic.py constructs the actual Pydantic model
     so a schema mismatch fails loudly there, not silently here), or None if
-    this code has no evidence recorded yet."""
+    this code has no evidence recorded yet. View-building itself lives in
+    mastery.build_summary_view, shared with the real db-backed path
+    (services.diagnostic.get_mastery_summary) — this function's own job is
+    just supplying this backend's session state."""
     vector = await get_mastery_vector(code)
     if vector is None:
         return None
 
-    rollup = aggregate_for_parent(vector)
-
-    def _skill_view(skill_id: str) -> dict | None:
-        skill = get_skill(skill_id)
-        if skill is None:
-            return None
-        probability = vector[skill_id]
-        return {
-            "skill_id": skill_id,
-            "label": skill.label,
-            "domain": skill.domain,
-            "grade_band": skill.band.value,
-            "probability": probability,
-            "level": _classify(probability),
-        }
-
-    domains = []
-    for domain, info in rollup["domains"].items():
-        domain_skill_ids = sorted(
-            (skill_id for skill_id in vector if (s := get_skill(skill_id)) is not None and s.domain == domain),
-            key=lambda skill_id: vector[skill_id],
-        )
-        domains.append({
-            "domain": domain,
-            "average_probability": info["average_probability"],
-            "level": info["level"],
-            "skills": [v for skill_id in domain_skill_ids if (v := _skill_view(skill_id)) is not None],
-        })
-
     evidence_count = await get_mastery_evidence_count(code)
-    return {
-        "student_name": student_name,
-        "subject_area": subject_area,
-        "evidence_count": evidence_count,
-        "calibration": evidence_count < CALIBRATION_THRESHOLD,
-        "domains": domains,
-        "gaps": [v for skill_id in rollup["gaps"] if (v := _skill_view(skill_id)) is not None],
-        "next_steps": [v for skill_id in rollup["next_steps"] if (v := _skill_view(skill_id)) is not None],
-        "updated_at": _now_iso(),
-    }
+    return build_summary_view(
+        vector, student_name, subject_area, evidence_count, CALIBRATION_THRESHOLD, _now_iso(),
+    )
 
 
 def _now_iso() -> str:

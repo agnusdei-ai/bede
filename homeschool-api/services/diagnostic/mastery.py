@@ -184,3 +184,63 @@ def aggregate_for_parent(vector: MasteryVector) -> dict:
         "gaps": gaps,
         "next_steps": fringe(vector),
     }
+
+
+def build_summary_view(
+    vector: MasteryVector,
+    student_name: str,
+    subject_area: str,
+    evidence_count: int,
+    calibration_threshold: int,
+    updated_at: str,
+) -> dict:
+    """
+    Builds the full MasteryProfileSummary-shaped dict (matching
+    models.schemas.MasteryProfileSummary field-for-field) from a raw
+    vector. Both the demo's in-memory/session backend
+    (services/diagnostic_demo.py's get_mastery_summary_demo) and the
+    real, persistent backend (services/diagnostic/__init__.py's
+    get_mastery_summary) used to build this same shape independently
+    inline — factored out here so the view-building logic (domain
+    rollup, per-skill views, gaps/next-steps) exists in exactly one
+    place instead of drifting between the two.
+    """
+    rollup = aggregate_for_parent(vector)
+
+    def _skill_view(skill_id: str) -> dict | None:
+        skill = get_skill(skill_id)
+        if skill is None:
+            return None
+        probability = vector[skill_id]
+        return {
+            "skill_id": skill_id,
+            "label": skill.label,
+            "domain": skill.domain,
+            "grade_band": skill.band.value,
+            "probability": probability,
+            "level": _classify(probability),
+        }
+
+    domains = []
+    for domain, info in rollup["domains"].items():
+        domain_skill_ids = sorted(
+            (skill_id for skill_id in vector if (s := get_skill(skill_id)) is not None and s.domain == domain),
+            key=lambda skill_id: vector[skill_id],
+        )
+        domains.append({
+            "domain": domain,
+            "average_probability": info["average_probability"],
+            "level": info["level"],
+            "skills": [v for skill_id in domain_skill_ids if (v := _skill_view(skill_id)) is not None],
+        })
+
+    return {
+        "student_name": student_name,
+        "subject_area": subject_area,
+        "evidence_count": evidence_count,
+        "calibration": evidence_count < calibration_threshold,
+        "domains": domains,
+        "gaps": [v for skill_id in rollup["gaps"] if (v := _skill_view(skill_id)) is not None],
+        "next_steps": [v for skill_id in rollup["next_steps"] if (v := _skill_view(skill_id)) is not None],
+        "updated_at": updated_at,
+    }

@@ -1,5 +1,7 @@
+import asyncio
 import hmac
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sse_starlette.sse import EventSourceResponse
@@ -8,10 +10,16 @@ from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.demo_code_session import record_message as demo_code_record_message
 from core.deps import require_auth, require_parent
+from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services.ai_service import check_safeguarding, SAFEGUARDING_RESPONSE, stream_sandbox_response
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/sandbox", tags=["sandbox"])
+
+_STALL_MESSAGE = "Sorry, that took too long to come through. Could you try sending that again?"
+_ERROR_MESSAGE = "Something went wrong on my end. Could you try sending that again?"
 
 
 @router.post("/chat")
@@ -38,12 +46,21 @@ async def chat(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect sandbox PIN")
 
     async def event_generator():
-        async for chunk in stream_sandbox_response(
-            conversation_history=req.conversation_history,
-            message=req.message,
-            custom_instructions=req.custom_instructions,
-        ):
-            yield chunk
+        try:
+            async for chunk in with_stall_timeout(stream_sandbox_response(
+                conversation_history=req.conversation_history,
+                message=req.message,
+                custom_instructions=req.custom_instructions,
+            )):
+                yield chunk
+        except asyncio.TimeoutError:
+            log.warning("Sandbox stream stalled past %.0fs", STREAM_STALL_TIMEOUT_SECONDS)
+            yield json.dumps({'type': 'text', 'content': _STALL_MESSAGE})
+            yield json.dumps({'type': 'done'})
+        except Exception:
+            log.exception("Sandbox stream failed mid-turn")
+            yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
+            yield json.dumps({'type': 'done'})
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")
 
@@ -84,11 +101,20 @@ async def demo_chat(
             yield json.dumps({'type': 'done'})
             return
 
-        async for chunk in stream_sandbox_response(
-            conversation_history=req.conversation_history,
-            message=req.message,
-            custom_instructions=req.custom_instructions,
-        ):
-            yield chunk
+        try:
+            async for chunk in with_stall_timeout(stream_sandbox_response(
+                conversation_history=req.conversation_history,
+                message=req.message,
+                custom_instructions=req.custom_instructions,
+            )):
+                yield chunk
+        except asyncio.TimeoutError:
+            log.warning("Sandbox demo stream stalled past %.0fs", STREAM_STALL_TIMEOUT_SECONDS)
+            yield json.dumps({'type': 'text', 'content': _STALL_MESSAGE})
+            yield json.dumps({'type': 'done'})
+        except Exception:
+            log.exception("Sandbox demo stream failed mid-turn")
+            yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
+            yield json.dumps({'type': 'done'})
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")

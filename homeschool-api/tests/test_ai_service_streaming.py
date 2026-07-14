@@ -145,7 +145,7 @@ async def test_celebrate_discovery_as_the_last_block_gets_a_fallback_question():
     assert parsed[-1] == {"type": "done"}
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert text_chunks, "no fallback question was appended after a questionless tool card"
-    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS
+    assert text_chunks[-1]["content"].strip() in ai_service._CELEBRATION_FALLBACK_QUESTIONS
 
 
 @pytest.mark.asyncio
@@ -170,7 +170,31 @@ async def test_connect_to_faith_without_reflection_question_gets_a_fallback():
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert text_chunks, "connect_to_faith with no reflection_question should still get a fallback"
-    assert text_chunks[-1]["content"].strip() in ai_service._FALLBACK_CONTINUATION_QUESTIONS
+    assert text_chunks[-1]["content"].strip() in ai_service._FAITH_FALLBACK_QUESTIONS
+
+
+@pytest.mark.asyncio
+async def test_celebration_fallback_never_uses_a_faith_question_and_vice_versa():
+    """Real bug the two-list split fixes: a single shared fallback list
+    couldn't be clear about what it was asking after, since the exact
+    same question might follow either a celebration or a faith moment.
+    Each tool's fallback must only ever draw from its own purpose-fit list."""
+    celebration_events = list(_tool_use_events(
+        "toolu_1", "celebrate_discovery",
+        {"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
+    ))
+    celebration_parsed = await _run_stream(celebration_events)
+    celebration_text = [p for p in celebration_parsed if p["type"] == "text"][-1]["content"].strip()
+    assert celebration_text in ai_service._CELEBRATION_FALLBACK_QUESTIONS
+    assert celebration_text not in ai_service._FAITH_FALLBACK_QUESTIONS
+
+    faith_events = list(_tool_use_events(
+        "toolu_1", "connect_to_faith", {"connection": "Just as the river never stops moving, God's care never stops either."},
+    ))
+    faith_parsed = await _run_stream(faith_events)
+    faith_text = [p for p in faith_parsed if p["type"] == "text"][-1]["content"].strip()
+    assert faith_text in ai_service._FAITH_FALLBACK_QUESTIONS
+    assert faith_text not in ai_service._CELEBRATION_FALLBACK_QUESTIONS
 
 
 @pytest.mark.asyncio

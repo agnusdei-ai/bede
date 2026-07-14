@@ -1334,6 +1334,16 @@ async def stream_tutor_response(
     site (routers/tutor.py), so exactly one backend is ever live per
     request — never both, never neither once subject == mathematics.
     """
+    # Demo-only, best-effort structural signal (see services/interaction_signals.py
+    # for the privacy design) — never fires for parent/child sessions (demo_code
+    # is None there). Records that a turn happened and, separately, whether this
+    # particular turn was Bede picking the thread back up after silence (rule 11's
+    # [CONTINUE] sentinel), not the content of either side's message.
+    from services.interaction_signals import record_signal
+    await record_signal(demo_code, "turn", subject.value)
+    if child_message == "[CONTINUE]":
+        await record_signal(demo_code, "silence_continue", subject.value)
+
     # Build message list and apply sliding window to cap per-turn input tokens
     messages = [{"role": m.role, "content": m.content} for m in history]
     if drawing_image:
@@ -1445,6 +1455,13 @@ async def stream_tutor_response(
                     if tc["input_str"]:
                         try:
                             tool_input = json.loads(tc["input_str"])
+                            # Demo-only structural signal: that this tool fired,
+                            # never its arguments (no narration/hint/prompt text
+                            # ever reaches interaction_signals). See that module's
+                            # docstring for the full privacy design.
+                            await record_signal(demo_code, tc["name"], subject.value)
+                            if tc["name"] == "suggest_next_subject":
+                                await record_signal(demo_code, "subject_complete", subject.value)
                             if tc["name"] == "assess_narration":
                                 # Silent server-side save; emit minimal event for frontend
                                 summary = await _save_assessment(db, config.student_name, subject, tool_input)

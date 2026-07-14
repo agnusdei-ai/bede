@@ -145,6 +145,13 @@ class Settings(BaseSettings):
     # derived-delta audit trail) stays empty even though the table exists.
     diagnostic_evidence_log_enabled: bool = False
 
+    # ── Demo interaction-pattern analysis (optional) ──────────────────────────
+    # On by default for demo sessions only (never parent/child production) —
+    # structural signals only (which tools fired, turn counts, subject
+    # completions), never conversation content. Disclosed in the demo's own
+    # consent copy (demo/src/App.tsx). See services/interaction_signals.py.
+    interaction_signal_logging_enabled: bool = True
+
     # ── CORS ──────────────────────────────────────────────────────────────────
     # Explicit whitelist — no wildcards
     cors_origins: str = "http://localhost:5173,http://localhost:80"

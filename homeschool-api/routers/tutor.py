@@ -274,8 +274,8 @@ async def email_summary(
     if role == "demo_code":
         # Never trust client-supplied session_config for the demo role —
         # only the transcript/subjects it already streamed are real; mirrors /chat.
-        req.session_config = await _demo_session_config()
         code = auth.get("code", "")
+        req.session_config = await _demo_session_config(code)
         if not await demo_code_claim_email_send(code):
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

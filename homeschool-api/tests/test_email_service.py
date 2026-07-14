@@ -47,6 +47,31 @@ def test_email_configured_false_when_no_api_key(monkeypatch):
     assert email_configured() is False
 
 
+def test_email_configured_false_when_from_address_still_the_example_com_placeholder(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    assert email_configured() is False
+
+
+def test_email_configured_true_with_a_real_from_address(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@realdomain.org>")
+    assert email_configured() is True
+
+
+def test_send_email_returns_false_when_from_address_still_the_placeholder(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    result = asyncio.run(send_email("parent@example.com", "subject", "<p>body</p>"))
+    assert result is False
+
+
 def test_send_email_returns_false_when_unconfigured(monkeypatch):
     from core.config import settings
 
@@ -74,7 +99,7 @@ def test_distress_alert_configured_requires_both_resend_and_parent_email(monkeyp
     from core.config import settings
 
     monkeypatch.setattr(settings, "resend_api_key", "re_test")
-    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@realdomain.org>")
     monkeypatch.setattr(settings, "parent_email", "")
     assert distress_alert_configured() is False
 
@@ -140,7 +165,7 @@ def test_feedback_configured_requires_both_resend_and_feedback_email(monkeypatch
     from core.config import settings
 
     monkeypatch.setattr(settings, "resend_api_key", "re_test")
-    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@realdomain.org>")
     monkeypatch.setattr(settings, "feedback_email", "")
     assert feedback_configured() is False
 

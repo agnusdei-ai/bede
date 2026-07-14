@@ -106,6 +106,6 @@ async def test_feedback_enabled_reflects_configuration(monkeypatch):
     assert await feedback_enabled() == {"enabled": False}
 
     monkeypatch.setattr(settings, "resend_api_key", "re_test")
-    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@example.com>")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@realdomain.org>")
     monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
     assert await feedback_enabled() == {"enabled": True}

@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, MasteryProfileSummary, UsageSummary } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, MasteryProfileSummary, UsageSummary, LicenseStatus } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 
 const BASE = '/api'
@@ -268,6 +268,7 @@ export interface SystemStatus {
   key_storage: string
   audit_log: string
   usage: UsageSummary
+  license: LicenseStatus | null
 }
 
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {

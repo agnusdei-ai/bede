@@ -72,6 +72,14 @@ services:
       # palindrome) since core/config.py validates it the same way regardless.
       - key: DEMO_PIN
         sync: false
+      # Required once PRODUCTION=true (see below) — an offline-verifiable
+      # license certificate, no phone-home (core/licensing.py). This demo
+      # deployment is a real Bede instance like any other, so it needs a
+      # genuine license the same way a family's install does. Issue one
+      # with homeschool-api/scripts/issue_license.py and paste the printed
+      # LICENSE_KEY= value here. See docs/PRODUCTION_SETUP.md#licensing.
+      - key: LICENSE_KEY
+        sync: false
 
       # Auto-generated — random by design, nobody needs to remember these.
       - key: SECRET_KEY

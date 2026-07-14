@@ -271,3 +271,17 @@ export interface UsageSummary {
   estimated_cost_usd: number
   by_model: ModelUsage[]
 }
+
+// Mirrors homeschool-api/core/licensing.py's LicenseInfo, as surfaced by
+// GET /admin/status. Null on the wire (see routers/admin.py) only when
+// LICENSE_KEY is unset — dev/self-managed mode, no license configured;
+// a real production deployment always has one (core/config.py refuses to
+// boot without a valid one), so this is effectively always present there.
+export interface LicenseStatus {
+  tier: 'trial' | 'core' | 'coop'
+  licensee: string
+  seats: number
+  expires: string | null
+  days_remaining: number | null
+  is_expired: boolean
+}

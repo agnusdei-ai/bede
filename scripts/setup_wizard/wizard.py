@@ -30,6 +30,12 @@ _CONTAINER_PATH = "/app/homeschool-api"
 _REPO_PATH = str(Path(__file__).resolve().parent.parent.parent / "homeschool-api")
 sys.path.insert(0, _CONTAINER_PATH if os.path.isdir(_CONTAINER_PATH) else _REPO_PATH)
 from core.pin_policy import pin_is_strong  # noqa: E402
+# Deliberately NOT importing core.licensing here — real signature
+# verification needs pycryptodome, and this container stays pure-stdlib on
+# purpose (see module docstring). This form only checks the field is
+# non-empty; core/config.py does the real cryptographic/expiry check when
+# the actual API container boots — if that rejects it, `make logs` shows
+# why (see docs/PRODUCTION_SETUP.md#licensing).
 
 REPO_DIR = "/repo"
 ENV_PATH = os.path.join(REPO_DIR, ".env")
@@ -121,6 +127,10 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append('<div class="hint">At least 6 digits, and not an obvious pattern like 111111 or 123456 — e.g. 602656 is a good one. Your child uses this to log in.</div>')
     body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="602656">')
 
+    body.append('<label>License key</label>')
+    body.append('<div class="hint">The LICENSE_KEY you received when you purchased or started a trial of Bede. No internet connection is needed to use it.</div>')
+    body.append(f'<input type="text" name="license_key" value="{html.escape(v.get("license_key", ""))}" placeholder="eyJ...">')
+
     body.append('<button type="submit">Set up Bede</button>')
     body.append('</form>')
     body.append("""
@@ -177,6 +187,7 @@ def build_env_file(fields: dict) -> str:
         f"CORS_ORIGINS={cors}\n"
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
+        f"LICENSE_KEY={fields['license_key']}\n"
     )
 
 
@@ -190,6 +201,8 @@ def validate(fields: dict) -> str:
         return "Parent password must be at least 8 characters."
     if not pin_is_strong(fields.get("child_pin", "")):
         return "Student PIN must be 6+ digits and not an obvious pattern (like 111111 or 123456) — e.g. 602656 works."
+    if not fields.get("license_key", "").strip():
+        return "Please enter your license key."
     return ""
 
 

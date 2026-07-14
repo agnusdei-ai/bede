@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign } from 'lucide-react'
+import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea } from '../types'
 import { SUBJECTS, CORE_AREAS } from '../types'
@@ -184,6 +184,31 @@ export default function ParentSetup() {
                 <DollarSign size={13} />
                 ${systemStatus.usage.estimated_cost_usd.toFixed(2)} AI usage (est.)
               </span>
+              {systemStatus.license && (
+                <span
+                  className={`flex items-center gap-1.5 ${
+                    systemStatus.license.tier === 'trial' &&
+                    systemStatus.license.days_remaining !== null &&
+                    systemStatus.license.days_remaining <= 7
+                      ? 'text-amber-700 font-medium'
+                      : ''
+                  }`}
+                  title={`Licensed to ${systemStatus.license.licensee} — ${systemStatus.license.seats} student seats`}
+                >
+                  {systemStatus.license.tier === 'trial' &&
+                  systemStatus.license.days_remaining !== null &&
+                  systemStatus.license.days_remaining <= 7 ? (
+                    <AlertTriangle size={13} />
+                  ) : (
+                    <KeyRound size={13} />
+                  )}
+                  {systemStatus.license.tier === 'trial'
+                    ? systemStatus.license.days_remaining !== null && systemStatus.license.days_remaining >= 0
+                      ? `Trial — ${systemStatus.license.days_remaining} day${systemStatus.license.days_remaining === 1 ? '' : 's'} left`
+                      : 'Trial expired'
+                    : `${systemStatus.license.tier === 'coop' ? 'Co-op' : 'Core'} license`}
+                </span>
+              )}
             </>
           ) : (
             <span>Checking system status…</span>

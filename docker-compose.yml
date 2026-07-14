@@ -7,6 +7,7 @@
 #   PARENT_PASSWORD     Parent login password
 #   CHILD_PIN           Child login PIN
 #   DATABASE_URL        PostgreSQL connection string — see "Storage model" below
+#   LICENSE_KEY         Offline license certificate — see docs/PRODUCTION_SETUP.md#licensing
 #
 # Storage model — two options, see docs/PRODUCTION_SETUP.md:
 #   1. Managed Postgres (Neon/Supabase/etc., the original default) — nothing
@@ -44,6 +45,7 @@ services:
       - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - LICENSE_KEY=${LICENSE_KEY:?LICENSE_KEY is required — issue one with homeschool-api/scripts/issue_license.py, see docs/PRODUCTION_SETUP.md#licensing}
       # Optional — leave unset to skip cloud voice entirely; the browser's
       # own built-in speech takes over automatically. See docs/VOICE_SETUP.md.
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}

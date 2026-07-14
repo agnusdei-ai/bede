@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import licensing
+from core.config import settings
 from core.database import StudentConfig, get_db
 from core.deps import require_parent, require_real_user
 from core.encryption import decrypt_json, encrypt_json
@@ -25,7 +27,29 @@ async def save_pod_configs(
     _: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Parent saves all student configs for today's pod. Upserts per student name."""
+    """
+    Parent saves all student configs for today's pod. Upserts per student
+    name. Enforces the license's seat cap when a license is configured
+    (unset LICENSE_KEY — dev/self-managed mode — skips this, same
+    "empty = disabled" pattern as DEMO_PIN); in production a license is
+    always present by the time this runs (core/config.py rejects startup
+    without one), so this is a defense-in-depth check, not the primary gate.
+    """
+    license_info = licensing.get_license(settings.license_key)
+    if license_info is not None:
+        result = await db.execute(select(StudentConfig.student_name))
+        existing_names = {row[0] for row in result.all()}
+        new_names = {config.student_name for config in req.configs}
+        total_seats_used = len(existing_names | new_names)
+        if total_seats_used > license_info.seats:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Your {license_info.tier} license allows up to {license_info.seats} "
+                    f"student{'s' if license_info.seats != 1 else ''} "
+                    f"(this pod would have {total_seats_used}) — contact us to upgrade."
+                ),
+            )
     for config in req.configs:
         enc = encrypt_json(config.model_dump())
         result = await db.execute(

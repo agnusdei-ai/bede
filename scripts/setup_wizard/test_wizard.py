@@ -88,12 +88,26 @@ def test_managed_db_without_url_rejected(running_wizard):
     assert "connection string" in exc_info.value.read().decode()
 
 
+def test_missing_license_key_rejected_without_writing_env(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": "602656",
+        })
+    assert exc_info.value.code == 400
+    assert "license key" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
 def test_valid_local_db_submission_writes_correct_env(running_wizard):
     resp = _post(running_wizard, {
         "anthropic_key": "sk-ant-real-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
     })
     assert resp.status == 200
     success_body = resp.read().decode()
@@ -108,6 +122,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     assert "@db:5432/bede" in env
     assert "PARENT_PASSWORD=parentpass123" in env
     assert "CHILD_PIN=602656" in env
+    assert "LICENSE_KEY=eyJ.test-license-key" in env
     assert "CORS_ORIGINS=https://localhost,https://192.168.1.50,http://ui:80" in env
 
     mode = stat.S_IMODE(os.stat(wizard.ENV_PATH).st_mode)
@@ -121,6 +136,7 @@ def test_valid_managed_db_submission_has_no_local_db_settings(running_wizard):
         "database_url": "postgresql://user:pass@neon.example/db",
         "parent_password": "parentpass123",
         "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
     })
     env = open(wizard.ENV_PATH).read()
     assert "COMPOSE_PROFILES" not in env
@@ -133,12 +149,14 @@ def test_resubmission_backs_up_previous_env(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
     })
     _post(running_wizard, {
         "anthropic_key": "sk-ant-second",
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
     })
     assert os.path.exists(wizard.ENV_PATH + ".backup")
     assert "sk-ant-first" in open(wizard.ENV_PATH + ".backup").read()
@@ -151,6 +169,7 @@ def test_shutdown_signal_fires_after_success(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
     })
     assert wizard._shutdown_event.wait(timeout=2) is True
 
@@ -187,6 +206,7 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
     })
     main_thread.join(timeout=5)
     assert main_thread.is_alive() is False

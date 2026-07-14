@@ -15,7 +15,7 @@ import re
 
 import httpx
 
-from core.config import settings
+from core.config import DEFAULT_RESEND_FROM_ADDRESS, settings
 
 log = logging.getLogger(__name__)
 
@@ -177,7 +177,18 @@ async def send_feedback(
 
 
 def email_configured() -> bool:
-    return bool(settings.resend_api_key and settings.resend_from_address)
+    """False whenever RESEND_API_KEY is unset OR RESEND_FROM_ADDRESS is
+    still on its example.com placeholder — the latter looks configured
+    (non-empty) but can never actually deliver mail, since example.com can
+    never be a verified sending domain in a real Resend account. Treating
+    it as unconfigured here means every caller (send_email, the diagnostic
+    email button, the distress alert) fails fast and consistently instead
+    of silently trying and failing per-send."""
+    return bool(
+        settings.resend_api_key
+        and settings.resend_from_address
+        and settings.resend_from_address != DEFAULT_RESEND_FROM_ADDRESS
+    )
 
 
 async def send_email(to_address: str, subject: str, html_body: str) -> bool:

@@ -6,6 +6,13 @@ from typing import List
 from core import licensing
 from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
 
+# Placeholder RESEND_FROM_ADDRESS — example.com can never be a verified
+# sending domain in a real Resend account, so a deployment left on this
+# default can never actually deliver mail no matter what RESEND_API_KEY is
+# set to. services/email_service.py's email_configured() treats this value
+# the same as an empty string — see that module for the full explanation.
+DEFAULT_RESEND_FROM_ADDRESS = "Bede <bede@example.com>"
+
 
 class Settings(BaseSettings):
     # ── AI models ──────────────────────────────────────────────────────────────
@@ -47,7 +54,7 @@ class Settings(BaseSettings):
     # Leave RESEND_API_KEY unset to disable the feature entirely.
     resend_api_key: str = ""
     # Must be a verified sending address/domain in your Resend account.
-    resend_from_address: str = "Bede <bede@example.com>"
+    resend_from_address: str = DEFAULT_RESEND_FROM_ADDRESS
 
     # ── Distress alert (optional) ─────────────────────────────────────────────
     # Unlike the post-session email above, a distress signal is child-

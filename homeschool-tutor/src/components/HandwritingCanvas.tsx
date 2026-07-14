@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { X, Undo2, Trash2, Check, Pencil, Eraser, Printer } from 'lucide-react'
+import { X, Undo2, Redo2, Trash2, Check, Pencil, Eraser, Printer } from 'lucide-react'
 import type { Subject } from '../types'
 
 interface Point {
@@ -12,6 +12,10 @@ interface Stroke {
   points: Point[]
   width: number
   color: string
+  // Eraser strokes are resolved to the CURRENT paper color at draw time —
+  // storing the background hex directly would leave stale-colored patches
+  // behind whenever the child recolors the paper mid-drawing.
+  isEraser?: boolean
 }
 
 interface HandwritingCanvasProps {
@@ -29,6 +33,26 @@ interface HandwritingCanvasProps {
 }
 
 const PARCHMENT_BG = '#faf8f0'
+
+// Paper colors — construction-paper pastels a child would pull from the
+// craft drawer, plus Slate: the classical schoolroom chalkboard (rulings
+// lighten automatically on dark paper; pick a light ink to write on it).
+const PAPER_COLORS = [
+  { name: 'Parchment', value: PARCHMENT_BG },
+  { name: 'White', value: '#ffffff' },
+  { name: 'Sunshine', value: '#fdf3cf' },
+  { name: 'Rose', value: '#fbe4e4' },
+  { name: 'Sage', value: '#e4efe4' },
+  { name: 'Sky', value: '#e0ecf9' },
+  { name: 'Slate', value: '#2e3a44' },
+] as const
+
+// Perceived-luminance check so rulings stay visible on dark paper.
+function isDarkPaper(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16)
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128
+}
 const GRAPH_LINE_COLOR = '#c9d6e8'
 const COMPOSITION_RULE_COLOR = '#a9c3dc'
 const COMPOSITION_MIDLINE_COLOR = '#c7d8ea'
@@ -47,8 +71,11 @@ const STAFF_LINE_GAP = 12
 const STAFF_GROUP_SPACING = 96
 const STAFF_TOP_MARGIN = 48
 
-type PaperStyle = 'composition' | 'graph' | 'staff'
+type PaperStyle = 'composition' | 'graph' | 'staff' | 'blank'
 
+// The subject picks the DEFAULT paper only — the child is free to switch to
+// any paper from the toolbar picker regardless of topic (a math session may
+// want a blank sketch; an art session may want ruled lines for a caption).
 function paperStyleFor(subject?: Subject): PaperStyle {
   if (subject === 'mathematics') return 'graph'
   if (subject === 'art_music') return 'staff'
@@ -56,21 +83,30 @@ function paperStyleFor(subject?: Subject): PaperStyle {
 }
 
 const PAPER_LABEL: Record<PaperStyle, string> = {
-  composition: 'Composition Paper',
-  graph: 'Graph Paper',
-  staff: 'Staff Paper',
+  composition: 'Composition',
+  graph: 'Graph',
+  staff: 'Staff',
+  blank: 'Blank',
 }
+const PAPER_ORDER: PaperStyle[] = ['composition', 'graph', 'staff', 'blank']
 
 // Fills the page background and its ruling — called any time the canvas is
 // (re)initialized, resized, cleared, or redrawn from the stroke history, so
 // the paper style never needs separate "erase to blank" handling from
 // "erase to ruled/gridded" handling.
-function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle) {
-  ctx.fillStyle = PARCHMENT_BG
+function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle, bg: string) {
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, width, height)
 
+  if (style === 'blank') return
+
+  const dark = isDarkPaper(bg)
+  const ruleColor = dark ? 'rgba(255,255,255,0.35)' : COMPOSITION_RULE_COLOR
+  const midColor = dark ? 'rgba(255,255,255,0.22)' : COMPOSITION_MIDLINE_COLOR
+  const gridColor = dark ? 'rgba(255,255,255,0.25)' : GRAPH_LINE_COLOR
+
   if (style === 'graph') {
-    ctx.strokeStyle = GRAPH_LINE_COLOR
+    ctx.strokeStyle = gridColor
     ctx.lineWidth = 1
     ctx.setLineDash([])
     for (let x = GRAPH_SPACING; x < width; x += GRAPH_SPACING) {
@@ -89,7 +125,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
   }
 
   if (style === 'staff') {
-    ctx.strokeStyle = COMPOSITION_RULE_COLOR
+    ctx.strokeStyle = ruleColor
     ctx.lineWidth = 1
     ctx.setLineDash([])
     // Whole staves only — a staff that would run off the bottom edge is
@@ -108,7 +144,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
 
   for (let y = COMPOSITION_LINE_HEIGHT; y < height; y += COMPOSITION_LINE_HEIGHT) {
     const midY = y - COMPOSITION_LINE_HEIGHT / 2
-    ctx.strokeStyle = COMPOSITION_MIDLINE_COLOR
+    ctx.strokeStyle = midColor
     ctx.lineWidth = 1
     ctx.setLineDash([6, 6])
     ctx.beginPath()
@@ -116,7 +152,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
     ctx.lineTo(width, midY + 0.5)
     ctx.stroke()
 
-    ctx.strokeStyle = COMPOSITION_RULE_COLOR
+    ctx.strokeStyle = ruleColor
     ctx.setLineDash([])
     ctx.beginPath()
     ctx.moveTo(0, y + 0.5)
@@ -161,7 +197,8 @@ const SIZE_PRESETS: Record<SizePreset, { min: number; max: number; base: number;
 type Tool = 'pen' | 'eraser'
 
 export default function HandwritingCanvas({ onSubmit, onCancel, subject }: HandwritingCanvasProps) {
-  const paperStyle = paperStyleFor(subject)
+  const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
+  const [paperColor, setPaperColor] = useState<string>(PARCHMENT_BG)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawingRef = useRef(false)
@@ -171,6 +208,10 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
 
   // Force re-render when strokes change so undo button updates
   const [strokeCount, setStrokeCount] = useState(0)
+  // Undone strokes, waiting for Redo. A NEW stroke invalidates the stack
+  // (classic paint-app behavior) — you can't redo on top of a divergence.
+  const redoStackRef = useRef<Stroke[]>([])
+  const [redoCount, setRedoCount] = useState(0)
 
   // Paint controls — MS Paint/Preview-style: pick a tool, a size, a color.
   // Kept as plain state (not refs) so the toolbar re-renders immediately;
@@ -189,12 +230,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     canvas.height = canvas.offsetHeight * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle)
-  }, [paperStyle])
-
-  useEffect(() => {
-    initCanvas()
-  }, [initCanvas])
+    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle, paperColor)
+  }, [paperStyle, paperColor])
 
   // Redraw all strokes from scratch onto the canvas
   const redrawAll = useCallback(() => {
@@ -206,24 +243,25 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     // Clear to paper (background + ruling/grid)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor)
 
     // Replay all strokes — an "eraser" stroke is just one whose color is the
     // background color, so replaying strokes in order naturally covers
     // whatever ink was under it with no separate erase code path.
     for (const stroke of strokesRef.current) {
+      const strokeColor = stroke.isEraser ? paperColor : stroke.color
       if (stroke.points.length < 2) {
         // Single dot
         const pt = stroke.points[0]
         if (!pt) continue
         ctx.beginPath()
         ctx.arc(pt.x, pt.y, stroke.width / 2, 0, Math.PI * 2)
-        ctx.fillStyle = stroke.color
+        ctx.fillStyle = strokeColor
         ctx.fill()
         continue
       }
       ctx.beginPath()
-      ctx.strokeStyle = stroke.color
+      ctx.strokeStyle = strokeColor
       ctx.lineWidth = stroke.width
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
@@ -233,7 +271,15 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
       }
       ctx.stroke()
     }
-  }, [paperStyle])
+  }, [paperStyle, paperColor])
+
+  useEffect(() => {
+    initCanvas()
+    // Switching paper mid-drawing repaints the ruling underneath and replays
+    // every stroke on top — nothing the child drew is lost. (initCanvas
+    // paints the fresh paper; the replay restores their work.)
+    redrawAll()
+  }, [initCanvas, redrawAll])
 
   // Get canvas-relative coordinates from pointer event — works identically
   // for a Surface Pen, Apple Pencil, a finger, or a mouse, since the
@@ -261,7 +307,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
   // ruling underneath the erased patch would need a separate ink layer
   // composited over the paper background; not worth the added complexity
   // for a homeschool sketch/practice tool.
-  const activeColor = () => (tool === 'eraser' ? PARCHMENT_BG : color)
+  const activeColor = () => (tool === 'eraser' ? paperColor : color)
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault()
@@ -315,8 +361,11 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
         points,
         width: getStrokeWidth(avgPressure),
         color: activeColor(),
+        isEraser: tool === 'eraser',
       })
       setStrokeCount(strokesRef.current.length)
+      redoStackRef.current = []
+      setRedoCount(0)
     }
     currentStrokeRef.current = []
   }
@@ -329,8 +378,19 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
   }
 
   const handleUndo = () => {
-    if (strokesRef.current.length === 0) return
-    strokesRef.current.pop()
+    const undone = strokesRef.current.pop()
+    if (!undone) return
+    redoStackRef.current.push(undone)
+    setRedoCount(redoStackRef.current.length)
+    setStrokeCount(strokesRef.current.length)
+    redrawAll()
+  }
+
+  const handleRedo = () => {
+    const restored = redoStackRef.current.pop()
+    if (!restored) return
+    strokesRef.current.push(restored)
+    setRedoCount(redoStackRef.current.length)
     setStrokeCount(strokesRef.current.length)
     redrawAll()
   }
@@ -338,13 +398,15 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
   const handleClear = () => {
     strokesRef.current = []
     setStrokeCount(0)
+    redoStackRef.current = []
+    setRedoCount(0)
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
     const dpr = dprRef.current
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor)
   }
 
   const handleDone = () => {
@@ -401,9 +463,21 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
           <span className="text-sm font-medium">Cancel</span>
         </button>
 
-        {/* Center label */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-navy-700">{PAPER_LABEL[paperStyle]}</span>
+        {/* Paper picker — the child's choice, regardless of subject */}
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1">
+          {PAPER_ORDER.map((style) => (
+            <button
+              key={style}
+              onClick={() => setPaperStyle(style)}
+              aria-pressed={paperStyle === style}
+              title={`${PAPER_LABEL[style]} paper`}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {PAPER_LABEL[style]}
+            </button>
+          ))}
         </div>
 
         {/* Right actions */}
@@ -418,6 +492,15 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
             <span className="hidden sm:inline">Undo</span>
           </button>
           <button
+            onClick={handleRedo}
+            disabled={redoCount === 0}
+            title="Redo"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
+          >
+            <Redo2 size={16} />
+            <span className="hidden sm:inline">Redo</span>
+          </button>
+          <button
             onClick={handleClear}
             disabled={strokeCount === 0}
             title="Clear all"
@@ -428,7 +511,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
           </button>
           <button
             onClick={handlePrint}
-            title={`Print this ${PAPER_LABEL[paperStyle].toLowerCase()}`}
+            title={`Print this ${PAPER_LABEL[paperStyle].toLowerCase()} paper`}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Printer size={16} />
@@ -517,6 +600,24 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </label>
+        </div>
+
+        {/* Paper color — construction paper + slate chalkboard. Square
+            swatches so they read as PAPER, distinct from the round ink dots. */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 pl-3 border-l border-parchment-200">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Paper</span>
+          {PAPER_COLORS.map((swatch) => (
+            <button
+              key={swatch.value}
+              onClick={() => setPaperColor(swatch.value)}
+              title={`${swatch.name} paper`}
+              aria-pressed={paperColor === swatch.value}
+              className={`w-7 h-7 rounded-md border-2 transition-transform flex-shrink-0 ${
+                paperColor === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
+              }`}
+              style={{ backgroundColor: swatch.value }}
+            />
+          ))}
         </div>
       </div>
 

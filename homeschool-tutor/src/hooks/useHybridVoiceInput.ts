@@ -75,6 +75,13 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     onEndWithoutResult: () => {
       if (!stoppedByUserRef.current) startFallback()
     },
+    onNoSpeech: () => {
+      // Nobody spoke — nothing to transcribe, so don't burn a Whisper round
+      // trip on 8s of silence. Go idle; SocraticChat's dictation keepalive
+      // restarts the mic if voice mode is still on.
+      clearWatchdog()
+      setMode('idle')
+    },
   })
 
   // Interim results prove native recognition is alive and hearing the child —

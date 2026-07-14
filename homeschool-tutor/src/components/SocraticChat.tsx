@@ -4,6 +4,7 @@ import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText }
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
@@ -127,6 +128,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const consumeTurnStream = useCallback(async (stream: ReturnType<typeof streamTutorChat>) => {
     const speechSegments: string[] = []
     let pendingText = ''
+    // Everything this turn has already said (text + rendered cards) — the
+    // duplicate-suppression reference for isDuplicateUtterance below.
+    let turnText = ''
     const flush = () => {
       if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
@@ -136,11 +140,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
           pendingText += chunk.content
+          turnText += chunk.content
         } else if (chunk.type === 'tool' && chunk.content) {
           flush()
-          addToolMessage(chunk.tool ?? 'tool', chunk.content)
+          // Side effects (opening the canvas) still fire even for a card we
+          // suppress — only the duplicated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
+          if (isDuplicateUtterance(chunk.content, turnText)) {
+            // The turn already said this — don't render or speak it twice.
+            continue
+          }
+          addToolMessage(chunk.tool ?? 'tool', chunk.content)
           speechSegments.push(chunk.content)
+          turnText += ' ' + chunk.content
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
@@ -363,6 +375,29 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
   useEffect(() => clearInactivityTimer, [clearInactivityTimer])
+
+  // Dictation-mode keepalive: while voice mode is on, the mic should be LIVE
+  // whenever Bede isn't thinking (streaming) or talking (speaking), we're not
+  // on a break, the canvas isn't open, and no transcription is in flight —
+  // no matter HOW the mic went quiet (an utterance finished, silence timed
+  // out, the fallback transcribed to nothing). The transition effect above
+  // restarts it at turn boundaries; this invariant catches every other way
+  // it can die, so the learner converses freely without re-tapping the mic.
+  // Tapping the mic off (voiceMode false) remains the only way out. The
+  // short delay debounces recognition-engine restart cycles.
+  useEffect(() => {
+    if (!voiceMode || breakActive || showCanvas || isStreaming || isSpeaking || isListening || isTranscribing) return
+    const id = setTimeout(() => startListening(), 400)
+    return () => clearTimeout(id)
+  }, [voiceMode, breakActive, showCanvas, isStreaming, isSpeaking, isListening, isTranscribing, startListening])
+
+  // And the inverse guard: the moment a turn starts (Bede thinking or
+  // speaking), the mic must be OFF — otherwise a [CONTINUE]-initiated turn
+  // could leave a kept-alive mic hot while Bede talks, and it would hear
+  // Bede's own voice as the child's answer.
+  useEffect(() => {
+    if ((isStreaming || isSpeaking) && isListening) stopListening()
+  }, [isStreaming, isSpeaking, isListening, stopListening])
 
   // A break can end mid-"turn-just-ended" window (the effect above skips
   // restarting while breakActive is true and doesn't get a second chance

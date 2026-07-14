@@ -14,13 +14,20 @@ interface Options {
   onFinal?: (transcript: string) => void
   /** Fired on a real recognition error (never for benign 'no-speech'). */
   onError?: (error: string) => void
-  /** Fired when recognition ends without ever producing a final result. */
+  /** Fired when recognition ends without ever producing a final result
+   *  for a REAL reason (Safari's silent stall, engine hiccups) — callers
+   *  use it to fall back to recording + server transcription. */
   onEndWithoutResult?: () => void
+  /** Fired when recognition ended simply because nobody spoke (the benign
+   *  'no-speech' case). Distinct from onEndWithoutResult so dictation-mode
+   *  keepalives can just restart the mic instead of pointlessly recording
+   *  8s of silence for the Whisper fallback. */
+  onNoSpeech?: () => void
   language?: string
   continuous?: boolean
 }
 
-export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, language = 'en-US', continuous = false }: Options = {}) {
+export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, onNoSpeech, language = 'en-US', continuous = false }: Options = {}) {
   const [isListening, setIsListening] = useState(false)
   const [interim, setInterim] = useState('')
   const [isSupported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
@@ -37,6 +44,7 @@ export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, lan
   const start = useCallback(() => {
     if (!isSupported || isListening) return
     let gotFinalResult = false
+    let sawNoSpeech = false
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -70,7 +78,9 @@ export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, lan
     }
 
     rec.onerror = (e: any) => {
-      if (e.error !== 'no-speech') {
+      if (e.error === 'no-speech') {
+        sawNoSpeech = true
+      } else {
         console.warn('Speech recognition error:', e.error)
         onError?.(e.error)
       }
@@ -81,7 +91,9 @@ export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, lan
     rec.onend = () => {
       setIsListening(false)
       setInterim('')
-      if (!gotFinalResult) onEndWithoutResult?.()
+      if (gotFinalResult) return
+      if (sawNoSpeech) onNoSpeech?.()
+      else onEndWithoutResult?.()
     }
 
     recognitionRef.current = rec

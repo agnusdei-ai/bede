@@ -744,6 +744,42 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   )
 }
 
+// A row of 5 clickable stars for the end-of-demo survey below.
+function StarRating({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
+  return (
+    <div className="mb-3">
+      <p className="text-xs font-semibold text-navy-700 mb-1">{label}</p>
+      <div className="flex gap-1" role="radiogroup" aria-label={label}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            aria-label={`${n} star${n === 1 ? '' : 's'}`}
+            onClick={() => onChange(n)}
+            className="p-0.5"
+          >
+            <Star
+              size={20}
+              className={n <= value ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const DEMO_FEATURE_OPTIONS = [
+  'Socratic hints & questions',
+  'Handwriting / drawing canvas',
+  'Voice mode (talk instead of type)',
+  'Switching between subjects',
+  "Bede's tone & personality",
+  'Session summary email',
+]
+
 // ── End-of-demo diagnostic notes + email capture ─────────────────────────────
 //
 // Lead-gen mechanic for the demo: at the end of a session, offer to email
@@ -769,10 +805,35 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
   // only ever sent if isParentGuardian is checked: a child using the demo
   // is never asked for their own email, only whether an adult wants a
   // follow-up (see ConsentModal.tsx's matching disclosure of this).
+  //
+  // A short survey rather than one open textarea — overallRating is the
+  // only required field and maps straight to FeedbackRequest.rating; the
+  // other four structured answers get folded into the free-text `message`
+  // sent to the existing beta_close pipeline (see buildSurveyMessage
+  // below) rather than growing the backend schema for what's still just
+  // one outbound email with nothing persisted server-side.
+  const [overallRating, setOverallRating] = useState(0)
+  const [teachingRating, setTeachingRating] = useState(0)
+  const [easeRating, setEaseRating] = useState(0)
+  const [favoriteFeature, setFavoriteFeature] = useState('')
+  const [recommendRating, setRecommendRating] = useState(0)
   const [improvementMessage, setImprovementMessage] = useState('')
   const [isParentGuardian, setIsParentGuardian] = useState(false)
   const [followupEmail, setFollowupEmail] = useState('')
   const [improvementStatus, setImprovementStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  const buildSurveyMessage = () => {
+    const lines = [
+      teachingRating ? `Teaching style (Socratic approach): ${teachingRating}/5` : null,
+      easeRating ? `Ease of use: ${easeRating}/5` : null,
+      favoriteFeature ? `Most valuable feature: ${favoriteFeature}` : null,
+      recommendRating ? `Likelihood to recommend to another family: ${recommendRating}/5` : null,
+    ].filter((line): line is string => Boolean(line))
+    if (improvementMessage.trim()) {
+      lines.push(`\nAnything we should improve:\n${improvementMessage.trim()}`)
+    }
+    return lines.length ? lines.join('\n') : '(No additional written feedback — see star rating.)'
+  }
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -795,14 +856,14 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
 
   const handleImprovementSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!improvementMessage.trim()) return
+    if (!overallRating) return
     setImprovementStatus('sending')
     try {
       await submitFeedback(
         token,
         'beta_close',
-        improvementMessage.trim(),
-        undefined,
+        buildSurveyMessage(),
+        overallRating,
         isParentGuardian ? followupEmail.trim() || undefined : undefined,
       )
       setImprovementStatus('sent')
@@ -813,7 +874,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
 
   return (
     <div className="min-h-screen bg-parchment-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
+      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
           <h1 className="text-xl font-display font-bold text-gray-800">That's a wrap!</h1>
@@ -867,8 +928,39 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
             </div>
           ) : (
             <form onSubmit={handleImprovementSubmit}>
-              <label htmlFor="demo-improvement" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-3">
                 <MessageSquare size={15} />
+                Help us improve — a few quick questions
+              </p>
+
+              <StarRating value={overallRating} onChange={setOverallRating} label="Overall, how was this demo?" />
+              <StarRating value={teachingRating} onChange={setTeachingRating} label="How did Bede's Socratic teaching style feel?" />
+              <StarRating value={easeRating} onChange={setEaseRating} label="How easy was the demo to use?" />
+
+              <div className="mb-3">
+                <label htmlFor="demo-feature" className="block text-xs font-semibold text-navy-700 mb-1">
+                  Which feature stood out most? <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <select
+                  id="demo-feature"
+                  value={favoriteFeature}
+                  onChange={(e) => setFavoriteFeature(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">Choose one...</option>
+                  {DEMO_FEATURE_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <StarRating
+                value={recommendRating}
+                onChange={setRecommendRating}
+                label="How likely are you to recommend Bede to another homeschool family?"
+              />
+
+              <label htmlFor="demo-improvement" className="block text-xs font-semibold text-navy-700 mb-1">
                 Anything we should improve? <span className="font-normal text-gray-400">(optional)</span>
               </label>
               <textarea
@@ -903,7 +995,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
               )}
               <button
                 type="submit"
-                disabled={improvementStatus === 'sending' || !improvementMessage.trim()}
+                disabled={improvementStatus === 'sending' || !overallRating}
                 className="w-full py-2 bg-sage-100 text-sage-700 rounded-xl font-semibold text-sm hover:bg-sage-200 transition-colors disabled:opacity-40"
               >
                 {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Send feedback'}

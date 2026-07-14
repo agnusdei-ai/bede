@@ -151,6 +151,7 @@ async def chat(
                     db=db,
                     drawing_image=req.drawing_image,
                     demo_code=auth.get("code") if is_demo_code else None,
+                    time_of_day=req.local_time_of_day,
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,
             ):

@@ -1,4 +1,5 @@
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData } from '../types'
+import type { TimeOfDay } from '../store/sessionStore'
 
 const BASE = '/api'
 
@@ -175,7 +176,8 @@ export async function* streamTutorChat(
   history: ChatMessage[],
   childMessage: string,
   signal?: AbortSignal,
-  drawingImageDataUrl?: string | null
+  drawingImageDataUrl?: string | null,
+  timeOfDay?: TimeOfDay | null
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${BASE}/tutor/chat`, {
     method: 'POST',
@@ -189,6 +191,7 @@ export async function* streamTutorChat(
       conversation_history: history,
       child_message: childMessage,
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
+      local_time_of_day: timeOfDay ?? null,
     }),
     signal,
   })

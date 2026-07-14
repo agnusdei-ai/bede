@@ -418,6 +418,47 @@ class DiagnosticPreviewUse(Base):
     )
 
 
+class DemoInteractionSignal(Base):
+    """
+    Aggregated, anonymized structural interaction patterns from demo
+    sessions only (never parent/child production sessions) — e.g. which
+    tools fired how often, turn counts, subject completions. Never a
+    transcript, never the child's or the model's actual words; the same
+    "derived signal, not raw content" privacy class as
+    DiagnosticEvidenceLog/NarrationAssessment, encrypted the same way.
+
+    session_token (not the demo code itself) is a keyed HMAC-SHA256 of the
+    code, matching DiagnosticPreviewUse.ip_hash's exact reasoning: stays
+    equality-filterable (the same code always hashes the same, so counts
+    accumulate correctly across calls within one session) while being
+    unreversible — a DB compromise gets an opaque per-session token, not
+    the original code, and can't be joined back to DemoCodeSession's
+    optional student_name/grade columns. See services/interaction_signals.py.
+
+    Retained on its own schedule (see that module's purge_old_signals),
+    independent of DemoCodeSession's much shorter TTL — this table exists
+    specifically to survive past a single session's lifetime so patterns
+    can be aggregated across many sessions later, by
+    scripts/export_interaction_signals.py.
+    """
+    __tablename__ = "demo_interaction_signals"
+
+    session_token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    signals_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 async def create_tables() -> None:
     """Idempotent table creation — safe to call on every startup."""
     async with engine.begin() as conn:

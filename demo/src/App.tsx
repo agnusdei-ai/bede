@@ -244,7 +244,7 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code, just for you. This browser remembers the name and grade for next time. Nothing is stored on our server, and it's gone once you close this tab.</p>
+          <p>A one-time 6-digit code, just for you. This browser remembers the name and grade for next time, and it's gone once you close this tab. Your conversation itself is never stored — only anonymized interaction patterns (like which teaching techniques were used, never what was said) may be reviewed afterward to help us improve Bede.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}

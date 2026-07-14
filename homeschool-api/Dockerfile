@@ -35,4 +35,19 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # that setup — collapsing every real visitor's IP into one, which broke the
 # per-IP rate limiter (core/middleware.py) and audit log IP attribution
 # (core/audit.py) for anyone not running this literally on localhost.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+#
+# --timeout-graceful-shutdown 120: on redeploy, the hosting platform sends
+# SIGTERM to this container before replacing it. uvicorn's default response
+# to SIGTERM is to stop accepting new connections but only wait a short,
+# unspecified window for requests already in flight before killing them —
+# nowhere near long enough for a real Socratic turn's own SSE stream
+# (multiple tool calls, then Kokoro/OpenAI TTS synthesis afterward can
+# easily run several seconds to over a minute end to end). 120s gives any
+# in-flight request genuine room to finish naturally instead of being cut
+# off mid-response the moment a deploy starts — this does NOT by itself
+# solve session continuity across a full container replacement (in-memory
+# demo state — core/demo_code_session.py, core/diagnostic_preview_quota.py
+# — still doesn't survive one; that's a separate, larger decision, not
+# something this flag can fix), only that whatever's actively streaming
+# when the deploy begins gets to complete.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-graceful-shutdown", "120"]

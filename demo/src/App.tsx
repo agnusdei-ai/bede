@@ -14,6 +14,7 @@ import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
+import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
 
 interface DisplayMessage {
   id: string
@@ -193,8 +194,13 @@ function CodeScreen({ onLoggedIn }: {
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
         <div className="text-center mb-6">
-          <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 mx-auto mb-3 rounded-full object-cover object-top drop-shadow-md" />
-          <h1 className="text-2xl font-display font-bold text-gray-800">Bede, a Socratic tutor</h1>
+          <div className="relative w-28 mx-auto mb-3">
+            <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
+            <AgnusDeiMark className="w-9 h-9 absolute -bottom-1 -right-2 drop-shadow-md" />
+          </div>
+          <h1 className="text-2xl font-display font-bold text-gray-800">
+            <BedeWordmark />, a Socratic tutor
+          </h1>
           <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each learner's potential</p>
           <p className="text-sm text-gray-500 mt-1">One click. No account or key needed.</p>
         </div>
@@ -250,6 +256,11 @@ function CodeScreen({ onLoggedIn }: {
         >
           {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
         </button>
+
+        <div className="flex flex-col items-center gap-1.5 mt-5">
+          <AgnusDeiLogo className="h-8 opacity-80" />
+          <TrademarkNotice className="text-center" />
+        </div>
       </div>
     </div>
   )

@@ -418,6 +418,31 @@ class MasteryProfileSummary(BaseModel):
     next_steps:     List[SkillMasteryView]     # KST fringe — learnable now
     updated_at:     str
 
+class ModelUsage(BaseModel):
+    """One model's token totals within a UsageSummary — see core/api_usage.py."""
+    model:                  str
+    input_tokens:           int
+    output_tokens:          int
+    cache_creation_tokens:  int
+    cache_read_tokens:      int
+    calls:                  int
+    estimated_cost_usd:     float
+
+class UsageSummary(BaseModel):
+    """
+    Best-effort Anthropic API token/cost estimate for this BYOK deployment
+    — never a bill, console.anthropic.com is the authoritative source.
+    student_name is None for the household-wide total (GET /admin/status);
+    set to a specific student's name for the per-student breakdown
+    (GET /admin/usage/{student_name}).
+    """
+    student_name:         Optional[str] = None
+    total_input_tokens:   int
+    total_output_tokens:  int
+    total_calls:          int
+    estimated_cost_usd:   float
+    by_model:             List[ModelUsage]
+
 class RecordSkillEvidenceInput(BaseModel):
     """Server-side validation of the silent record_skill_evidence tool's
     input (Phase 3). Never leaves the server; not part of any response body."""

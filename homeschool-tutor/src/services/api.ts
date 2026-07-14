@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, MasteryProfileSummary } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, MasteryProfileSummary, UsageSummary } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 
 const BASE = '/api'
@@ -267,6 +267,7 @@ export interface SystemStatus {
   encryption: string
   key_storage: string
   audit_log: string
+  usage: UsageSummary
 }
 
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {
@@ -274,6 +275,14 @@ export async function fetchSystemStatus(token: string): Promise<SystemStatus> {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Status unavailable')
+  return res.json()
+}
+
+export async function fetchStudentUsage(token: string, studentName: string): Promise<UsageSummary> {
+  const res = await fetch(`${BASE}/admin/usage/${encodeURIComponent(studentName)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Failed to load usage for ${studentName}`)
   return res.json()
 }
 

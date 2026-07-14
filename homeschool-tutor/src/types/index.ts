@@ -247,3 +247,27 @@ export interface MasteryProfileSummary {
   next_steps: SkillMasteryView[]
   updated_at: string
 }
+
+// Best-effort Anthropic API token/cost estimate for this BYOK deployment
+// (see homeschool-api/core/api_usage.py) — never a bill, console.anthropic.com
+// is the authoritative source. student_name is null for the household-wide
+// total (GET /admin/status); set for a specific student's own breakdown
+// (GET /admin/usage/{student_name}).
+export interface ModelUsage {
+  model: string
+  input_tokens: number
+  output_tokens: number
+  cache_creation_tokens: number
+  cache_read_tokens: number
+  calls: number
+  estimated_cost_usd: number
+}
+
+export interface UsageSummary {
+  student_name: string | null
+  total_input_tokens: number
+  total_output_tokens: number
+  total_calls: number
+  estimated_cost_usd: number
+  by_model: ModelUsage[]
+}

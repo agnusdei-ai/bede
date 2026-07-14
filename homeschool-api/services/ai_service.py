@@ -1463,6 +1463,21 @@ async def stream_tutor_response(
         if ends_on_questionless_tool:
             yield json.dumps({'type': 'text', 'content': f" {random.choice(_FALLBACK_CONTINUATION_QUESTIONS)}"})
 
+        try:
+            final_message = await stream.get_final_message()
+            usage = final_message.usage
+            from core.api_usage import record_usage
+            await record_usage(
+                student_name=config.student_name,
+                model=settings.tutor_model,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+                cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+            )
+        except Exception:
+            log.warning("Failed to capture usage for a tutor turn", exc_info=True)
+
         yield json.dumps({'type': 'done'})
 
 
@@ -1505,6 +1520,17 @@ Keep it warm, specific, and under 300 words. Address the parent directly."""
         max_tokens=600,
         messages=[{"role": "user", "content": prompt}],
     )
+
+    try:
+        from core.api_usage import record_usage
+        await record_usage(
+            student_name=req.session_config.student_name,
+            model=settings.session_model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+    except Exception:
+        log.warning("Failed to capture usage for a session summary", exc_info=True)
 
     return response.content[0].text
 
@@ -1550,6 +1576,17 @@ Return ONLY a JSON object with keys: trivium_stage, processing_style, narration_
         max_tokens=400,
         messages=[{"role": "user", "content": prompt}],
     )
+
+    try:
+        from core.api_usage import record_usage
+        await record_usage(
+            student_name=student_name,
+            model=settings.session_model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+    except Exception:
+        log.warning("Failed to capture usage for a learner-profile synthesis", exc_info=True)
 
     text = response.content[0].text.strip()
     if text.startswith("```"):
@@ -1611,5 +1648,20 @@ async def stream_sandbox_response(
         async for event in stream:
             if event.type == "content_block_delta" and event.delta.type == "text_delta":
                 yield json.dumps({'type': 'text', 'content': event.delta.text})
+
+        try:
+            final_message = await stream.get_final_message()
+            usage = final_message.usage
+            from core.api_usage import record_usage
+            await record_usage(
+                student_name=None,  # sandbox has no student context — household total only
+                model=settings.tutor_model,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+                cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+            )
+        except Exception:
+            log.warning("Failed to capture usage for a sandbox turn", exc_info=True)
 
         yield json.dumps({'type': 'done'})

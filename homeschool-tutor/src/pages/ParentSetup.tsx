@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea } from '../types'
 import { SUBJECTS, CORE_AREAS } from '../types'
@@ -179,6 +179,10 @@ export default function ParentSetup() {
                 {systemStatus.voice_profiles_enrolled === 0
                   ? 'No voices enrolled'
                   : `${systemStatus.voice_profiles_enrolled} voice${systemStatus.voice_profiles_enrolled > 1 ? 's' : ''} enrolled`}
+              </span>
+              <span className="flex items-center gap-1.5" title="Estimate on your own Anthropic API key — see console.anthropic.com for exact billing">
+                <DollarSign size={13} />
+                ${systemStatus.usage.estimated_cost_usd.toFixed(2)} AI usage (est.)
               </span>
             </>
           ) : (

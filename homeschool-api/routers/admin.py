@@ -9,8 +9,10 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event, read_audit_log
+from core.api_usage import get_usage_summary
 from core.database import get_db
 from core.deps import require_parent
+from models.schemas import UsageSummary
 from services.voice_auth import list_profiles
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -42,10 +44,28 @@ async def system_status(
 ):
     """Return system health metadata. No sensitive data included."""
     profiles = await list_profiles(db)
+    usage = await get_usage_summary(db)
     return {
         "voice_profiles_enrolled": len(profiles),
         "student_names":  profiles,
         "encryption":     "AES-256-GCM",
         "key_storage":    "KEK-wrapped DATA_KEY in managed PostgreSQL",
         "audit_log":      "AES-256-GCM encrypted rows in managed PostgreSQL",
+        "usage": usage,
     }
+
+
+@router.get("/usage/{student_name}", response_model=UsageSummary)
+async def student_usage(
+    student_name: str,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+) -> UsageSummary:
+    """
+    Per-student Anthropic API usage/cost estimate — see core/api_usage.py.
+    Always 200s, even with zero recorded usage yet (an all-zero
+    UsageSummary), rather than 404ing — this is an estimate dashboard,
+    not evidence-gated content like the diagnostic summary endpoints.
+    """
+    usage = await get_usage_summary(db, student_name)
+    return UsageSummary(**usage)

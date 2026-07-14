@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
-import type { NarrationAssessmentData, LearnerProfileData, SessionConfig } from '../types'
+import type { NarrationAssessmentData, LearnerProfileData, SessionConfig, MasteryProfileSummary } from '../types'
 import {
   fetchNarrationAssessments,
   fetchLearnerProfile,
+  fetchMasteryProfileSummary,
   buildLearnerProfile,
 } from '../services/api'
 
@@ -83,6 +84,85 @@ function ScoreBar({ score }: { score: number }) {
       <span className="text-xs text-gray-500 tabular-nums w-10 text-right shrink-0">
         {score}/25
       </span>
+    </div>
+  )
+}
+
+// ── Math mastery bar — 0-1 probability, colored by level ────────────────────
+
+function MasteryBar({ probability, level }: { probability: number; level: MasteryProfileSummary['domains'][number]['level'] }) {
+  const color = level === 'secure' ? 'bg-emerald-400' : level === 'developing' ? 'bg-amber-400' : 'bg-red-300'
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${Math.round(probability * 100)}%` }} />
+      </div>
+      <span className="text-xs text-gray-500 tabular-nums w-10 text-right shrink-0">
+        {Math.round(probability * 100)}%
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Real, persisted (mastery_profiles table) math diagnostic — see
+ * homeschool-api/services/diagnostic. Reflects the student's WHOLE
+ * history with Bede, not a single session, unlike the public demo's own
+ * single-session preview of the same engine. Silent to the child the
+ * entire time it's being built (record_skill_evidence never touches the
+ * SSE stream) — this is the first and only place any of it becomes
+ * visible, and only to a parent (this page is require_parent-gated).
+ */
+function MathMasterySnapshot({ studentName, summary, loading }: { studentName: string; summary: MasteryProfileSummary | null; loading: boolean }) {
+  if (loading) return null
+
+  if (!summary) {
+    return (
+      <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">Math Mastery Snapshot</h2>
+        <p className="text-xs text-gray-500">
+          No math mastery data yet. This builds silently as {studentName} works through math sessions with Bede —
+          check back after a session or two.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-700">Math Mastery Snapshot</h2>
+        <span className="text-xs text-gray-400">
+          {summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'}
+        </span>
+      </div>
+      {summary.calibration && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+          Bede is still forming a first picture of how {studentName} approaches math, based on {summary.evidence_count}{' '}
+          observation{summary.evidence_count === 1 ? '' : 's'} so far — treat this as an early signal, not a settled
+          read. It will sharpen the more {studentName} works with Bede.
+        </p>
+      )}
+      <div className="space-y-3 mb-4">
+        {summary.domains.map((d) => (
+          <div key={d.domain}>
+            <p className="text-xs font-semibold text-navy-700 mb-1">{d.domain}</p>
+            <MasteryBar probability={d.average_probability} level={d.level} />
+          </div>
+        ))}
+      </div>
+      {summary.gaps.length > 0 && (
+        <div className="mb-2">
+          <p className="text-xs font-semibold text-gray-700 mb-1">Gaps to focus on</p>
+          <p className="text-xs text-gray-500">{summary.gaps.map((s) => s.label).join(', ')}</p>
+        </div>
+      )}
+      {summary.next_steps.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-700 mb-1">Suggested next steps</p>
+          <p className="text-xs text-gray-500">{summary.next_steps.map((s) => s.label).join(', ')}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -446,6 +526,7 @@ export default function Progress() {
 
   const [assessments, setAssessments] = useState<NarrationAssessmentData[]>([])
   const [profile, setProfile] = useState<LearnerProfileData | null>(null)
+  const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -455,14 +536,17 @@ export default function Progress() {
     setLoadError(null)
     setAssessments([])
     setProfile(null)
+    setMasterySummary(null)
 
     Promise.all([
       fetchNarrationAssessments(token, activeStudent),
       fetchLearnerProfile(token, activeStudent),
+      fetchMasteryProfileSummary(token, activeStudent),
     ])
-      .then(([a, p]) => {
+      .then(([a, p, m]) => {
         setAssessments(a)
         setProfile(p)
+        setMasterySummary(m)
       })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : 'Failed to load progress data')
@@ -545,6 +629,7 @@ export default function Progress() {
               config={podStudents.find((s) => s.student_name === activeStudent)}
               assessments={assessments}
             />
+            <MathMasterySnapshot studentName={activeStudent} summary={masterySummary} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />
           </div>

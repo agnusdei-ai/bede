@@ -1085,7 +1085,9 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
               </div>
               {summary.calibration && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-                  Bede is still getting to know how {summary.student_name} thinks about math. These are early estimates.
+                  Bede is still forming a first picture of how {summary.student_name} approaches math, based on{' '}
+                  {summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'} so far — treat this as
+                  an early signal, not a settled read.
                 </p>
               )}
               <div className="space-y-2 mb-3">

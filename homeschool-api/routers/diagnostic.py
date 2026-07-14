@@ -1,13 +1,16 @@
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from core.audit import AuditEvent, audit_from_request, log_event
+from core.database import get_db
 from core.demo_code_session import get_personalization
-from core.deps import require_auth
+from core.deps import require_auth, require_parent
 from core.diagnostic_preview_quota import has_quota, record_use
 from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
+from services.diagnostic import get_mastery_summary
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
@@ -95,6 +98,42 @@ async def get_diagnostic_summary(
     return MasteryProfileSummary(**summary)
 
 
+@router.get("/{student_name}/summary", response_model=MasteryProfileSummary)
+async def get_student_mastery_summary(
+    student_name: str,
+    request: Request,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> MasteryProfileSummary:
+    """
+    Render-only mastery summary for a real student's REAL, persisted
+    profile (services.diagnostic.get_mastery_summary → mastery_profiles),
+    never the demo's ephemeral single-session vector above. Parent-only
+    (require_parent) — never reachable by the child role, matching the
+    design doc's P1 (mastery profile is parent-confidential). No quota:
+    unlike the public demo, this is the family's own data behind a real
+    login, not a free-tier abuse surface.
+
+    404 until this student has produced some real math evidence — same
+    no-data contract as the demo endpoint above, so the frontend can
+    reuse one "nothing here yet" empty state for both.
+    """
+    summary = await get_mastery_summary(db, student_name)
+    if summary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No mastery data yet. This builds up as math tutoring happens in real sessions.",
+        )
+    await log_event(
+        AuditEvent.DIAGNOSTIC_VIEW,
+        role="parent",
+        student_name=student_name,
+        success=True,
+        **audit_from_request(request),
+    )
+    return MasteryProfileSummary(**summary)
+
+
 @router.post("/chat")
 async def diagnostic_chat(
     req: DiagnosticChatRequest,
@@ -149,7 +188,7 @@ def _templated_diagnostic_reply(summary: dict | None) -> str:
     lines = [
         f"Here's where {summary['student_name']} stands in {summary['subject_area']} so far "
         f"({summary['evidence_count']} observation{'' if summary['evidence_count'] == 1 else 's'}"
-        + (", still getting calibrated" if summary["calibration"] else "") + "):",
+        + (" — early signal, not a settled read" if summary["calibration"] else "") + "):",
         "",
     ]
     for domain in summary["domains"]:

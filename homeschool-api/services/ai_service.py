@@ -28,6 +28,38 @@ _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 # Max conversation turns sent to Claude per request (sliding window)
 _HISTORY_WINDOW = 20
 
+
+def _normalize_alternating_roles(messages: list[dict]) -> list[dict]:
+    """The Messages API requires strictly alternating user/assistant turns —
+    two consecutive same-role messages are rejected outright. Client-supplied
+    conversation_history can legitimately end up with two assistant turns in
+    a row: the idle-continue "[CONTINUE]" sentinel (both apps) is
+    deliberately never stored as a visible user turn client-side (see
+    demo/src/App.tsx and homeschool-tutor's sessionStore.ts — it's a silent
+    backend nudge, not something the child said), so the assistant reply
+    that answered it ends up sitting directly next to the assistant turn
+    before it once that history is replayed on the child's very next real
+    message. Merges any consecutive same-role text turns into one rather
+    than erroring or silently dropping either — nothing said is lost, it's
+    just presented as what it actually was: one continuous turn.
+
+    Only merges plain string content — a multimodal turn (the drawing-image
+    turn appends a list-content user message) is never adjacent to another
+    same-role turn in any case this codebase actually produces, so no merge
+    logic exists for that shape; it's just left in place unmerged, same as
+    before this function existed.
+    """
+    if not messages:
+        return messages
+    normalized = [dict(messages[0])]
+    for msg in messages[1:]:
+        prev = normalized[-1]
+        if msg["role"] == prev["role"] and isinstance(prev["content"], str) and isinstance(msg["content"], str):
+            normalized[-1] = {**prev, "content": prev["content"] + "\n\n" + msg["content"]}
+        else:
+            normalized.append(dict(msg))
+    return normalized
+
 # Tool calls that render a card with no question of their own — see
 # tools_guidance in _build_static_prompt. A prompt instruction telling Claude
 # to always add trailing text+a question after one of these is real, but not
@@ -683,6 +715,9 @@ conversation forward: offer an easier or more concrete rephrasing of what you ju
 that opens a new angle, or — if this topic has had a fair try already — naturally pivot toward a related question or \
 invite them toward finishing up this subject. Keep the same warm tone as always; this is just you, a patient tutor, \
 picking the thread back up.
+12. When a child submits a drawing or piece of handwritten work you can see, name at least one specific, genuine \
+detail from it in your reply — not vague general praise. The image itself is shown to you only on this one turn, \
+never again later — your own words here are the only record either of you will have of what it actually showed.
 </sacred_rules>
 
 <ethical_boundaries>
@@ -1238,7 +1273,7 @@ async def stream_tutor_response(
         })
     else:
         messages.append({"role": "user", "content": child_message})
-    messages = messages[-_HISTORY_WINDOW:]
+    messages = _normalize_alternating_roles(messages)[-_HISTORY_WINDOW:]
 
     # Loaded ahead of building `system` (not inside _build_subject_prompt,
     # which stays sync) since a real DB read needs an await — see
@@ -1506,7 +1541,7 @@ async def stream_sandbox_response(
     stream_tutor_response so the frontend can reuse the same consumer logic."""
     messages = [{"role": m.role, "content": m.content} for m in conversation_history]
     messages.append({"role": "user", "content": message})
-    messages = messages[-_HISTORY_WINDOW:]
+    messages = _normalize_alternating_roles(messages)[-_HISTORY_WINDOW:]
 
     async with _client.messages.stream(
         model=settings.tutor_model,

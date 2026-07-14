@@ -160,7 +160,7 @@ _ROTATION = [
             )),
             _poem("What Is Pink?", {_F, _C}, (
                 "What is pink? a rose is pink\n"
-                "By a fountain's brink.\n"
+                "By the fountain's brink.\n"
                 "What is red? a poppy's red\n"
                 "In its barley bed.\n"
                 "What is blue? the sky is blue\n"

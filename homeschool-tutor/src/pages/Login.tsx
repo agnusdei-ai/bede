@@ -6,7 +6,7 @@ import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
 import ParentMfaVerification from '../components/ParentMfaVerification'
-import { AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
+import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
 import type { VerifyResult } from '../services/voiceApi'
 
 type Phase = 'login' | 'voice-verify' | 'parent-mfa'
@@ -148,7 +148,7 @@ export default function Login() {
               alt="Bede"
               className="w-44 h-44 rounded-full drop-shadow-md object-cover object-top"
             />
-            <AgnusDeiMark className="w-11 h-11 absolute -bottom-1 -right-1 rounded-full shadow-md ring-2 ring-white" />
+            <AgnusDeiMark className="w-14 h-14 absolute -bottom-2 -right-3 drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-display font-bold text-gray-800">
             <BedeWordmark />
@@ -227,7 +227,10 @@ export default function Login() {
           "The sole true end of education is simply this: to teach men how to teach
           themselves." — Dorothy L. Sayers, <em>The Lost Tools of Learning</em>
         </p>
-        <TrademarkNotice className="text-center mt-4" />
+        <div className="flex flex-col items-center gap-1.5 mt-4">
+          <AgnusDeiLogo className="h-10 opacity-80" />
+          <TrademarkNotice className="text-center" />
+        </div>
       </div>
     </div>
   )

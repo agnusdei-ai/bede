@@ -31,12 +31,19 @@ on:
   workflow_dispatch:
 
 env:
-  # A real, perpetually-valid license signed with the actual operator
-  # keypair (core/licensing.py's embedded PUBLIC_KEY_PEM) — not a secret,
-  # same as the throwaway ANTHROPIC_API_KEY below: it doesn't grant
-  # anything beyond letting this ephemeral CI container pass its own
-  # startup license check. Issued via scripts/issue_license.py.
-  CI_TEST_LICENSE_KEY: eyJleHBpcmVzIjpudWxsLCJpZCI6ImMwMDQyYmExLWNiMmYtNDFjOC1hZTAxLTBlOTVhYjhlMjllNyIsImlzc3VlZCI6IjIwMjYtMDctMTQiLCJsaWNlbnNlZSI6IkNJIFRlc3QiLCJzZWF0cyI6MTAsInRpZXIiOiJjb3JlIn0.7lWKgJd3KbEqYHKuRFHu-b-_MzziDfspXEtg_qaDVZHTF1pCHlKYLt2MjxEhVjNy8X_pA33tq5X-wBK39cEGCg
+  # A real, signed license — validly verifiable against core/licensing.py's
+  # embedded PUBLIC_KEY_PEM, which is exactly why this is NOT safe to
+  # commit as a plaintext value the way the throwaway ANTHROPIC_API_KEY
+  # below is: unlike a fake API key, a valid LICENSE_KEY is worth real
+  # money to whoever holds it (there's no revocation — anyone with the
+  # string can license their own instance for free, forever, with a public
+  # repo's git/PR history being exactly the kind of place that gets
+  # scraped for exactly this). Stored as a GitHub Actions repository secret
+  # instead — see docs/PRODUCTION_SETUP.md#licensing for how to (re)issue
+  # one via scripts/issue_license.py; bounded to a multi-year trial expiry
+  # rather than a perpetual core license, as defense in depth if it's ever
+  # exposed some other way.
+  CI_TEST_LICENSE_KEY: ${{ secrets.CI_TEST_LICENSE_KEY }}
 
 jobs:
   compose-config-validation:

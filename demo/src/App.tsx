@@ -578,7 +578,11 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // speaking surfaces (user bubbles, send button). All from the existing
     // parchment/sage scales, i.e. colors that exist in nature.
     <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100">
-      <header className="bg-parchment-50 border-b border-sage-200 shrink-0 px-4 py-2">
+      {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
+          top-3 right-3, 36px) so this header's own trailing content never
+          renders underneath it — the collapsed icon-only button still
+          covers a real corner of the viewport, not just page content. */}
+      <header className="bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
         <div className="flex items-center gap-3">
           <img
             src={`${import.meta.env.BASE_URL}bede-icon.png`}
@@ -893,7 +897,11 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
 
   return (
     <div className="flex flex-col h-screen bg-parchment-50">
-      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-3 flex items-center gap-3">
+      {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
+          top-3 right-3, 36px) so this header's own trailing content never
+          renders underneath it — the collapsed icon-only button still
+          covers a real corner of the viewport, not just page content. */}
+      <header className="bg-white border-b border-navy-100 shrink-0 pl-4 pr-14 py-3 flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="Back to the tutoring demo">
           <ArrowLeft size={18} />
         </button>
@@ -1092,7 +1100,11 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
 
   return (
     <div className="flex flex-col h-screen bg-parchment-50">
-      <header className="bg-white border-b border-navy-100 shrink-0 px-4 py-3 flex items-center gap-3">
+      {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
+          top-3 right-3, 36px) so this header's own trailing content never
+          renders underneath it — the collapsed icon-only button still
+          covers a real corner of the viewport, not just page content. */}
+      <header className="bg-white border-b border-navy-100 shrink-0 pl-4 pr-14 py-3 flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="Back to the demo">
           <ArrowLeft size={18} />
         </button>

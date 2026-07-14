@@ -14,10 +14,10 @@
 | 1 — Core package (pure Python) | done (8/8 units) | user sign-off received — proceed to Phase 2 |
 | 2 — Persistence | done (3/3 units) | user sign-off received ("Yes") — proceed to Phase 3 |
 | 3 — Loop integration | done (3/3 units) | — |
-| 4 — Parent surface | not started for parent/child; a demo-only preview already exists (`routers/diagnostic.py`, `services/diagnostic_demo.py`) from a concurrent session's work | — |
+| 4 — Parent surface | done (2/2 units) | real parent/child mastery summary shipped (#73), reusing the demo's existing `routers/diagnostic.py` file rather than a new one |
 | 5 — Validation & tuning | not started | — |
 
-**Current status:** Phase 3 complete. Unit 3.3 (calibration weighting + widened spread) merged — both backends now decay `calibration_weight` from evidence gathered so far, and the per-turn calibration check/prompt note/probe-spread widening are all keyed off the same `evidence_count` comparison. This was also the first unit run through the newly-adopted Fable-backed B4 review policy (see the 2026-07-13 policy decision below); the review found a real test-coverage gap via mutation testing, fixed before merge. Next: Phase 4 (real parent-facing dashboard for parent/child sessions — a demo-only preview already exists from the concurrent session).
+**Current status:** Phase 4 complete. #73 (a concurrent session, merged same day as this entry) shipped the real, persistent parent-facing mastery summary: `GET /diagnostic/{student_name}/summary` (require_parent-gated, distinct from the demo-only `GET /summary`), a new `services.diagnostic.get_mastery_summary` read path, and a "Math Mastery Snapshot" section in `Progress.tsx` — math evidence `record_skill_evidence` had been silently writing to `mastery_profiles` since Phase 3 was, until this, never actually visible to a real parent. This entry's own session independently built the identical feature in parallel (not yet pushed) and dropped it once #73's merge was discovered, keeping only two small, genuinely additive fixes on top of #73's version: (1) `get_mastery_summary` had no try/except around `decrypt_json` — reproduced for real (a corrupted row raised `ValueError: Encrypted blob too short` straight out of the function) before fixing it to degrade to `None`/404 like `process_evidence`'s own established convention; (2) the summary-view-building logic (domain rollup, per-skill views, gaps/next-steps) was independently duplicated in both `services/diagnostic_demo.py` and #73's `services/diagnostic/__init__.py` — extracted into a shared `mastery.build_summary_view()` used by both. Next: Phase 5 (validation/tuning) whenever a live session is available, or extending the skill map to non-math domains (writing, logic) per §13 of the design doc — a separate, explicitly scoped follow-up already discussed with the user.
 
 ---
 
@@ -54,8 +54,8 @@
 
 | Unit | Deliverable | Realizes | Real check | Status |
 |---|---|---|---|---|
-| 4.1 | `routers/diagnostic.py` + `main.py` registration | S9 (read) | behind `require_parent`; ExfiltrationGuard passes; 404 on missing | `[ ]` |
-| 4.2 | `MasteryDashboard.tsx` + types + api.ts + route | — | render-only; no download/print; `tsc --noEmit` clean | `[ ]` |
+| 4.1 | `GET /diagnostic/{student_name}/summary` in the existing `routers/diagnostic.py` (already registered in `main.py` by the demo work) + `services.diagnostic.get_mastery_summary` | S9 (read) | behind `require_parent`; ExfiltrationGuard passes (render-only JSON, no export/download); 404 on missing — `tests/diagnostic/test_get_mastery_summary.py`, `tests/test_diagnostic_parent_router.py` | `[x]` (#73; corrupted-row defensive fix + `build_summary_view` DRY refactor added same day) |
+| 4.2 | `MasterySummaryCard`/"Math Mastery Snapshot" section in `Progress.tsx` + types + `api.ts` (no new route) | — | render-only; no download/print; `tsc --noEmit` clean | `[x]` (#73) |
 
 ## Phase 5 — Validation & tuning
 
@@ -85,7 +85,7 @@ Checked at B4 for every data/persistence/prompt unit:
 |---|---|---|
 | `settings.diagnostic_evidence_log_enabled` flag in `core/config.py` | Unit 2.1 | `[x]` — see Completed-Unit Audit 2.1 |
 | `AuditEvent.DIAGNOSTIC_VIEW` enum member in `core/audit.py` | Unit 4.1 | `[x]` — added by the concurrent session's demo-only `routers/diagnostic.py`; real Phase 4 (parent/child) will reuse it |
-| Best host page for dashboard link (`PodDashboard` vs `Progress`) | Unit 4.2 | `[ ]` |
+| Best host page for dashboard link (`PodDashboard` vs `Progress`) | Unit 4.2 | `[x]` — `Progress.tsx` (#73) — it's already the per-student, parent-only, render-only page this data belongs on, not a separate page |
 | `numpy` already a bede dependency? (decide stdlib-`math`-only if not) | Unit 1.3/1.4 | `[x]` — see Decisions Log 2026-07-12 (unit 1.1) |
 
 ---

@@ -164,7 +164,8 @@ class Settings(BaseSettings):
     production: str = "false"
 
     # ── License ─────────────────────────────────────────────────────────────
-    # Required once PRODUCTION=true (see reject_missing_or_invalid_license_in_production
+    # Required once PRODUCTION=true, unless this is the public demo (see
+    # is_demo_deployment / reject_missing_or_invalid_license_in_production
     # below) — an offline-verifiable certificate issued by scripts/issue_license.py.
     # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
     license_key: str = ""
@@ -238,13 +239,18 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_missing_or_invalid_license_in_production(self) -> "Settings":
-        """A real deployment (family install or the operator's own public
-        demo — both run PRODUCTION=true) must carry a genuine, unexpired
-        license. Kept as its own validator, separate from
+        """A real family deployment running PRODUCTION=true must carry a
+        genuine, unexpired license. The operator's own public demo is
+        exempt (see is_demo_deployment) — it's a stateless, zero-seat
+        instance that exists specifically to be frictionless for
+        prospective customers to try, so gating it behind the same
+        paid-license check it's meant to sell is counterproductive, and
+        there's no per-family seat count to enforce there in the first
+        place. Kept as its own validator, separate from
         reject_weak_defaults_in_production above, since a license problem
         is a distinct failure mode (missing/invalid/expired, not "using a
         dev default") worth its own clear error message."""
-        if not self.is_production:
+        if not self.is_production or self.is_demo_deployment:
             return self
         if not self.license_key:
             raise ValueError(
@@ -269,6 +275,15 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.production.lower() == "true"
+
+    @property
+    def is_demo_deployment(self) -> bool:
+        """DEMO_PIN is the deliberate, deployment-level on/off switch for the
+        whole public demo (see the field's own comment above) — never set on
+        a family's real instance, so its presence reliably identifies "this
+        is the operator's own public demo," not just "this happens to have a
+        PIN configured." """
+        return bool(self.demo_pin)
 
     @property
     def api_docs_enabled(self) -> bool:

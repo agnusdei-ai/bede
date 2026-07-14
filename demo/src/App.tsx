@@ -13,6 +13,7 @@ import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
+import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
 
@@ -396,17 +397,29 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       if (pendingSpeech.trim()) speechSegments.push(pendingSpeech)
       pendingSpeech = ''
     }
+    // Everything this turn has already said — duplicate-suppression reference.
+    let turnText = ''
     try {
       for await (const chunk of runChat(subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
         if (chunk.type === 'text') {
           fullText += chunk.content
           pendingSpeech += chunk.content
+          turnText += chunk.content
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: fullText } : m)))
         } else if (chunk.type === 'tool') {
           flushPendingSpeech()
-          setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: chunk.tool }])
+          // Side effects still fire even for a suppressed duplicate card —
+          // only the repeated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
-          speechSegments.push(chunk.content)
+          if (isDuplicateUtterance(chunk.content, turnText)) {
+            // The turn already said this — don't render or speak it twice
+            // (see dedupe.ts; the deterministic CX backstop for the model
+            // restating a tool card's content as plain text).
+          } else {
+            setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: chunk.tool }])
+            speechSegments.push(chunk.content)
+            turnText += ' ' + chunk.content
+          }
         } else if (chunk.type === 'visual_aid') {
           setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
         } else if (chunk.type === 'subject_complete') {

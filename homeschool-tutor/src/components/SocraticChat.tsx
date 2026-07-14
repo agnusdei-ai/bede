@@ -4,6 +4,7 @@ import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText }
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
@@ -127,6 +128,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const consumeTurnStream = useCallback(async (stream: ReturnType<typeof streamTutorChat>) => {
     const speechSegments: string[] = []
     let pendingText = ''
+    // Everything this turn has already said (text + rendered cards) — the
+    // duplicate-suppression reference for isDuplicateUtterance below.
+    let turnText = ''
     const flush = () => {
       if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
@@ -136,11 +140,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
           pendingText += chunk.content
+          turnText += chunk.content
         } else if (chunk.type === 'tool' && chunk.content) {
           flush()
-          addToolMessage(chunk.tool ?? 'tool', chunk.content)
+          // Side effects (opening the canvas) still fire even for a card we
+          // suppress — only the duplicated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
+          if (isDuplicateUtterance(chunk.content, turnText)) {
+            // The turn already said this — don't render or speak it twice.
+            continue
+          }
+          addToolMessage(chunk.tool ?? 'tool', chunk.content)
           speechSegments.push(chunk.content)
+          turnText += ' ' + chunk.content
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {

@@ -3,6 +3,7 @@ import json
 import logging
 import random
 import re
+import time
 from datetime import datetime, timezone
 from typing import AsyncIterator, List, Optional, TYPE_CHECKING
 
@@ -1349,6 +1350,21 @@ async def _save_assessment(
         return None
 
 
+# Both readonly prompt-loaders below feed data that's only ever rewritten in
+# occasional batch jobs (mastery evidence processing, end-of-session profile
+# resynthesis), never mid-turn — so re-querying and re-decrypting on every
+# single turn (every child message, in processing_style's case every subject
+# too, not just mathematics) was pure added latency for a value that's almost
+# always unchanged since the last turn. A short in-process TTL cache turns
+# "one DB round trip per message" into "one per few minutes per student,"
+# which is what actually fixed the login/first-response slowdown this was
+# quietly causing. 5 minutes is short enough that a freshly (re)synthesized
+# profile takes effect within the same session, not just next login.
+_READONLY_PROMPT_CACHE_TTL_SECONDS = 300
+_mastery_vector_cache: dict[str, tuple[tuple[Optional[dict], int], float]] = {}
+_processing_style_cache: dict[str, tuple[Optional[str], float]] = {}
+
+
 async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
     """
     Read-only load of a student's real (db-backed) mastery vector and its
@@ -1361,8 +1377,14 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
     calibration_weight_for(row.evidence_count) — the same field driving
     both. Defensive like _save_assessment: any DB/decrypt failure degrades
     to (None, 0) (cold-start prompt text) rather than raising into
-    stream_tutor_response.
+    stream_tutor_response. Cached per student for
+    _READONLY_PROMPT_CACHE_TTL_SECONDS — see that constant's comment.
     """
+    now = time.monotonic()
+    cached = _mastery_vector_cache.get(student_name)
+    if cached is not None and cached[1] > now:
+        return cached[0]
+
     try:
         from sqlalchemy import select
 
@@ -1376,12 +1398,13 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
             )
         )
         row = result.scalar_one_or_none()
-        if row is None:
-            return None, 0
-        return decrypt_json(row.profile_enc), row.evidence_count
+        value = (None, 0) if row is None else (decrypt_json(row.profile_enc), row.evidence_count)
     except Exception as exc:
         log.warning("Mastery vector prompt-load failed for %s: %s", student_name, exc)
-        return None, 0
+        value = (None, 0)
+
+    _mastery_vector_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    return value
 
 
 async def _load_processing_style_readonly(db: "AsyncSession", student_name: str) -> Optional[str]:
@@ -1396,8 +1419,16 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
     row exists yet (fewer than ~3 sessions) or on any decrypt/DB failure —
     same defensive convention as _load_mastery_vector_readonly, which this
     mirrors: a profile-load hiccup must never break the child's turn, it
-    just means this turn proceeds without the extra adaptation.
+    just means this turn proceeds without the extra adaptation. Cached per
+    student for _READONLY_PROMPT_CACHE_TTL_SECONDS — see that constant's
+    comment; this one in particular runs on every subject, not just
+    mathematics, so it's the bigger of the two per-turn costs being cached.
     """
+    now = time.monotonic()
+    cached = _processing_style_cache.get(student_name)
+    if cached is not None and cached[1] > now:
+        return cached[0]
+
     try:
         from sqlalchemy import select
 
@@ -1408,13 +1439,13 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
             select(LearnerProfile).where(LearnerProfile.student_name == student_name)
         )
         row = result.scalar_one_or_none()
-        if row is None:
-            return None
-        profile = decrypt_json(row.profile_enc)
-        return profile.get("processing_style")
+        value = None if row is None else decrypt_json(row.profile_enc).get("processing_style")
     except Exception as exc:
         log.warning("Processing-style prompt-load failed for %s: %s", student_name, exc)
-        return None
+        value = None
+
+    _processing_style_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    return value
 
 
 async def _record_skill_evidence(

@@ -119,6 +119,15 @@ a countdown in the header shortly before each transition. On top of all
 this, you can still set a stricter total screen-time cap per student, with a
 longer eye-rest break, from the student's settings.
 
+**Composition is encouraged, never required.** At least once per session,
+Bede invites your child to spend about ten minutes on a piece of their own
+handwritten work — a written narration, a nature journal entry, math worked
+out on paper — that pulls the day's learning together and helps it stick.
+He waits for a natural pause rather than interrupting whatever your child
+is in the middle of, and if the child declines, he accepts that and moves
+on. If you'd like the composition pointed somewhere particular, mention it
+in the student's lesson note and Bede will fold it in.
+
 ## 6. Getting each child onto their own tablet
 
 **First, each new device needs to trust your server's certificate** — a

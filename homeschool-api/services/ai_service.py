@@ -1083,6 +1083,47 @@ def _time_of_day_note(time_of_day: Optional[str]) -> str:
     return ""
 
 
+# The invite_handwriting card's visible title. Shared between the tool
+# renderer (_process_tool_use) and _composition_note's history scan below,
+# so the once-per-session detection can never drift from what the client
+# actually echoes back in history.
+_HANDWRITING_CARD_MARKER = "Time to Write or Draw"
+
+
+def _composition_note(history: Optional[List[ChatMessage]]) -> str:
+    """
+    Once-per-session composition encouragement: handwritten composition is
+    never mandatory, but always encouraged — the child should get at least
+    one warm invitation per session to spend about ten minutes writing or
+    drawing something that pulls today's learning together, and it must
+    never interrupt an activity already in progress.
+
+    Detection keys off the invite_handwriting card's rendered title, which
+    the client sends back as part of history (the same mechanism the
+    picture-study "[ALREADY SHOWN]" markers rely on) — once any invitation
+    has gone out this session, the standing nudge switches off and normal
+    invite_handwriting judgment applies.
+    """
+    already_invited = any(
+        m.role == "assistant" and _HANDWRITING_CARD_MARKER in (m.content or "")
+        for m in (history or [])
+    )
+    if already_invited:
+        return ""
+    return (
+        "\n\nCOMPOSITION THIS SESSION: the child has not yet had their composition time today. "
+        "Once this session, encourage a sustained piece of handwritten composition via "
+        "`invite_handwriting` — about ten minutes of unhurried writing or drawing that pulls "
+        "together and reinforces what they have learned, from you or from the parent's note: a "
+        "written narration, a nature journal entry, math work shown on paper, copywork of a line "
+        "worth keeping — whatever fits this child's stage and today's material. Timing matters: "
+        "NEVER interrupt an activity in progress. Wait for a natural pause — after a narration "
+        "lands, when a topic reaches its end, or as a subject closes. And it is an invitation, "
+        "not a requirement: encourage warmly, say why it helps (writing it down makes it stick), "
+        "but if the child would rather not, accept gracefully and move on."
+    )
+
+
 def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     """
     Tells Bede whether this is the day's first or last configured subject —
@@ -1255,9 +1296,10 @@ async def _build_subject_prompt(
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
+    composition_note = _composition_note(history)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{diagnostic_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -1322,7 +1364,7 @@ def _process_tool_use(tool_name: str, tool_input: dict) -> str:
         return f"📖 *Narration Time* — {tool_input['prompt']}"
 
     if tool_name == "invite_handwriting":
-        return f"✍️ *Time to Write or Draw* — {tool_input['prompt']}"
+        return f"✍️ *{_HANDWRITING_CARD_MARKER}* — {tool_input['prompt']}"
 
     if tool_name == "offer_socratic_hint":
         hint = tool_input["hint_question"]

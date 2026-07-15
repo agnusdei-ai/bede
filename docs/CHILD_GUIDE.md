@@ -50,6 +50,11 @@ There's no rush and no wrong way to think out loud.
 - Sometimes I'll open your writing pad myself and invite you to write or draw
   something — like sketching what you noticed outside, or writing down what
   happened first in a story.
+- At least once a day, I'll invite you to spend about ten minutes on a real piece
+  of your own work — writing or drawing what you've learned. That's your
+  composition time. You can always say no, and I won't mind. But putting it down
+  on paper in your own words is one of the best ways to make learning stick, so I
+  hope you'll give it a real try.
 - I might celebrate when you figure something out, or offer a hint if you're stuck.
 - After each hour, the screen will pause for a real break — ten minutes away from
   the screen. Go outside, look at something far away, or say a quiet prayer. I'll

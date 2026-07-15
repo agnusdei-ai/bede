@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from core import constitution
 from core.config import settings
 from core.database import AsyncSessionLocal, create_tables, engine
 from core.encryption import initialize_encryption
@@ -46,15 +47,23 @@ async def _warm_voice_models():
 async def lifespan(app: FastAPI):
     """
     Startup:
-      1. Create database tables (idempotent — safe on every boot)
-      2. Load or generate device_salt and DATA_KEY from the DB
+      1. Verify Bede's constitution (tamper-evident, digest-pinned — see
+         core/constitution.py) BEFORE anything else, including database
+         initialization. Already checked once at import time as a
+         module-level side effect; re-checked explicitly here so the
+         ordering guarantee doesn't depend on which module happened to
+         import core.constitution first.
+      2. Create database tables (idempotent — safe on every boot)
+      3. Load or generate device_salt and DATA_KEY from the DB
          PBKDF2 key derivation runs in a thread pool so the event loop
          is not blocked during the ~1.5 s CPU-bound operation.
-      3. Kick off the voice-model warm-up in the background (non-blocking).
+      4. Kick off the voice-model warm-up in the background (non-blocking).
     Shutdown:
-      4. Dispose the connection pool cleanly.
+      5. Dispose the connection pool cleanly.
     """
     try:
+        constitution.get_constitution()
+        log.info("Constitution verified ✓")
         await create_tables()
         async with AsyncSessionLocal() as db:
             await initialize_encryption(settings.master_secret, db)

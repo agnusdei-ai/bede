@@ -154,6 +154,40 @@ class LearnerProfile(Base):
     )
 
 
+class LearnerBehaviorCheck(Base):
+    """
+    A deliberately minimal, parent-only sanity check on one claim: does
+    Bede's own kinesthetic-learner adaptation (services/ai_service.py's
+    _processing_style_note, which asks Bede to reach for invite_handwriting
+    more often) actually change its behavior. This is NOT a psychometric
+    instrument and makes no claim that categorizing a child this way
+    improves learning outcomes — the "learning styles" literature this
+    profile is loosely modeled on (VAK/VARK) is itself contested for that
+    stronger claim (see Pashler et al. 2008). It only answers the narrower,
+    verifiable question: since being profiled kinesthetic, how often has
+    Bede actually followed through.
+
+    Exists only for a student CURRENTLY profiled kinesthetic — see
+    routers/narration.py's build_profile, which creates/resets this row
+    when a profile newly becomes kinesthetic and deletes it the moment a
+    resynthesis moves the student to a different processing_style. No
+    event log, no per-turn timestamps, no narration content — a single
+    running count plus the date counting started. profile_enc holds
+    encrypt_json({"invite_handwriting_count": int}); "since" is a plain
+    (non-sensitive) timestamp, left unencrypted like every other table's
+    created_at/updated_at column.
+    """
+    __tablename__ = "learner_behavior_checks"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    since: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    count_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
 class MasteryProfile(Base):
     """
     Per-student CDM/IRT/KST mastery vector for a subject area (K-8 math

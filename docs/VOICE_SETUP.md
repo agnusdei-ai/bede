@@ -58,3 +58,24 @@ production instance. Setting `OPENAI_API_KEY` on one does nothing for the
 other. The demo's static frontend itself (GitHub Pages) needs no rebuild or
 redeploy for a voice-provider change — voice selection is entirely
 server-side, so only the backend host(s) need updating.
+
+## Troubleshooting: voice works once, then goes silent
+
+If Bede speaks the opening line fine but goes silent from the second turn
+onward — reported specifically on Android tablets in Chrome — this was a
+confirmed browser autoplay-policy issue, not a backend/API problem. A
+freshly-constructed `<audio>` element created well after the page's initial
+unlock gesture can be silently refused by the browser's autoplay policy even
+though the page itself is otherwise "unlocked," and the older code reported
+that refusal as a successful play, masking the failure and skipping the
+browser-speech fallback entirely.
+
+Both `homeschool-tutor` and `demo` now reuse a single, pre-blessed `<audio>`
+element across every turn instead of constructing a new one per line
+(`useTextToSpeech.ts`'s `getSharedAudioElement()`), and treat a rejected
+`play()` as a genuine playback failure rather than a success — falling back
+to the browser's own voice instead of staying silent. If a family reports
+persistent silence after the first line despite this, confirm they're on a
+current app build first; this class of autoplay restriction has historically
+gotten stricter across browser versions, not looser, so a stale deployment
+is the most likely cause.

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 /**
  * Selectable chat-background theme, persisted the same way as the text-size
@@ -19,6 +19,26 @@ export interface ChatTheme {
   bgClass: string
 }
 
+export interface BubbleColor {
+  id: string
+  name: string
+  className: string
+}
+
+// The reader's own bubble color — picked for contrast against whichever
+// background theme is active. All are deep nature tones (no black) that
+// keep the bubble's white text comfortably above WCAG AA contrast; the
+// arbitrary-value classes are complete literals so Tailwind generates them.
+export const BUBBLE_COLORS: BubbleColor[] = [
+  // The default — the leaf-green the learner bubble always used.
+  { id: 'sage', name: 'Sage', className: 'bg-sage-600' },
+  { id: 'navy', name: 'Navy', className: 'bg-navy-500' },
+  { id: 'olive', name: 'Olive', className: 'bg-[#5f6b28]' },
+  { id: 'clay', name: 'Clay', className: 'bg-[#9c4a24]' },
+  { id: 'plum', name: 'Plum', className: 'bg-[#6d4a7c]' },
+  { id: 'walnut', name: 'Walnut', className: 'bg-[#6b4f2f]' },
+]
+
 export const CHAT_THEMES: ChatTheme[] = [
   // The default — the original nature palette chat mode shipped with.
   { id: 'meadow', name: 'Meadow', bgClass: 'bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100' },
@@ -30,7 +50,16 @@ export const CHAT_THEMES: ChatTheme[] = [
 ]
 
 const STORAGE_KEY = 'bede-chat-theme'
+const BUBBLE_STORAGE_KEY = 'bede-bubble-color'
 const DEFAULT_THEME = CHAT_THEMES[0]
+const DEFAULT_BUBBLE = BUBBLE_COLORS[0]
+
+// The picker lives in the chat header while the bubbles render deeper in
+// the tree (SocraticChat's MessageBubble) — separate useChatTheme()
+// instances. This same-window event keeps every instance in sync the
+// moment one of them changes a preference (the browser's own 'storage'
+// event only fires in OTHER tabs, so it can't do this job).
+const CHANGE_EVENT = 'bede-chat-theme-change'
 
 function readStoredTheme(): ChatTheme {
   try {
@@ -41,18 +70,52 @@ function readStoredTheme(): ChatTheme {
   }
 }
 
+function readStoredBubble(): BubbleColor {
+  try {
+    const raw = localStorage.getItem(BUBBLE_STORAGE_KEY)
+    return BUBBLE_COLORS.find((b) => b.id === raw) ?? DEFAULT_BUBBLE
+  } catch {
+    return DEFAULT_BUBBLE
+  }
+}
+
 export function useChatTheme() {
   const [theme, setThemeState] = useState<ChatTheme>(() => readStoredTheme())
+  const [bubble, setBubbleState] = useState<BubbleColor>(() => readStoredBubble())
+
+  useEffect(() => {
+    const onChange = () => {
+      setThemeState(readStoredTheme())
+      setBubbleState(readStoredBubble())
+    }
+    window.addEventListener(CHANGE_EVENT, onChange)
+    return () => window.removeEventListener(CHANGE_EVENT, onChange)
+  }, [])
 
   const setThemeId = useCallback((id: string) => {
     const next = CHAT_THEMES.find((t) => t.id === id) ?? DEFAULT_THEME
+    // Set locally too, not only via the event — if localStorage is
+    // unavailable the event round-trip would re-read the default and the
+    // tap would appear to do nothing.
     setThemeState(next)
     try {
       localStorage.setItem(STORAGE_KEY, next.id)
     } catch {
       // Best-effort — a failed save just means the preference resets next visit.
     }
+    window.dispatchEvent(new Event(CHANGE_EVENT))
   }, [])
 
-  return { theme, setThemeId }
+  const setBubbleId = useCallback((id: string) => {
+    const next = BUBBLE_COLORS.find((b) => b.id === id) ?? DEFAULT_BUBBLE
+    setBubbleState(next)
+    try {
+      localStorage.setItem(BUBBLE_STORAGE_KEY, next.id)
+    } catch {
+      // Best-effort — a failed save just means the preference resets next visit.
+    }
+    window.dispatchEvent(new Event(CHANGE_EVENT))
+  }, [])
+
+  return { theme, setThemeId, bubble, setBubbleId }
 }

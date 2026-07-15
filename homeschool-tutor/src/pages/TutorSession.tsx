@@ -32,7 +32,7 @@ export default function TutorSession() {
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const { theme, setThemeId } = useChatTheme()
+  const { theme, setThemeId, bubble, setBubbleId } = useChatTheme()
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
 
@@ -216,7 +216,7 @@ export default function TutorSession() {
           </div>
         )}
 
-        <ThemePicker theme={theme} onSelect={setThemeId} />
+        <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
 
         {feedbackEnabled && (
           <button

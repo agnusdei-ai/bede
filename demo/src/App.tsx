@@ -348,7 +348,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // right back up where it left off, not silently drop back to a blank
   // subject opener as if nothing had happened yet.
   const restored = useMemo(() => loadChatState(code), []) // eslint-disable-line react-hooks/exhaustive-deps
-  const { theme, setThemeId } = useChatTheme()
+  const { theme, setThemeId, bubble, setBubbleId } = useChatTheme()
 
   const [subject, setSubject] = useState<Subject>(() =>
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
@@ -636,7 +636,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
             <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
           </div>
-          <ThemePicker theme={theme} onSelect={setThemeId} />
+          <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
           {header}
         </div>
         {/* Full-width row of its own — on a phone, cramming this into the row
@@ -661,7 +661,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={displayName} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayName} bubbleClass={bubble.className} />
         ))}
         {isStreaming && messages.at(-1)?.content === '' && !messages.at(-1)?.visualAid && (
           <div className="flex items-center gap-2 text-sage-700 text-sm">
@@ -739,7 +739,9 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   )
 }
 
-function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName: string }) {
+// bubbleClass: the reader's chosen bubble color (useChatTheme) — passed down
+// from the one hook instance in ChatScreen rather than re-subscribing per bubble.
+function MessageBubble({ msg, studentName, bubbleClass }: { msg: DisplayMessage; studentName: string; bubbleClass: string }) {
   if (msg.role === 'system') {
     return <div className="flex justify-center"><div className="text-xs text-gray-400 bg-white border border-gray-100 rounded-full px-3 py-1 italic">{msg.content}</div></div>
   }
@@ -766,9 +768,10 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   const isUser = msg.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? 'bg-sage-600 text-white rounded-br-sm' : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? `${bubbleClass} text-white rounded-br-sm` : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
         {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
-        {isUser && <div className="text-xs font-semibold text-sage-100 mb-1">{studentName}</div>}
+        {/* white/85 (not a sage tint) so the name stays legible on every bubble color */}
+        {isUser && <div className="text-xs font-semibold text-white/85 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>

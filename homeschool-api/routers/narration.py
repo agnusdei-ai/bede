@@ -33,29 +33,43 @@ from services.ai_service import synthesize_learner_profile
 router = APIRouter(prefix="/narration", tags=["narration"])
 
 
+# Styles with a real, comparable tool-level signal (see services/ai_service.py's
+# _increment_behavior_check call sites) — kinesthetic (invite_handwriting WITH
+# elements), reading_writing (invite_handwriting WITHOUT elements), visual
+# (show_visual_aid). auditory has no honest tool-level proxy (almost all
+# ordinary Socratic dialogue already IS auditory, so there's no discrete event
+# to count) — it gets a prompt nudge only (_processing_style_note), never a
+# LearnerBehaviorCheck row.
+TRACKABLE_STYLES = frozenset({"kinesthetic", "reading_writing", "visual"})
+
+
 async def _sync_behavior_check(db: AsyncSession, student_name: str, old_style: str | None, new_style: str) -> None:
     """
     Keeps LearnerBehaviorCheck's existence tied to "is this student CURRENTLY
-    profiled kinesthetic" — see that model's own docstring for why. Called
-    once per profile (re)synthesis, comparing the style that's being
-    replaced against the one just computed:
-      - newly kinesthetic (wasn't before, or no prior profile) -> fresh row,
-        count reset to 0 so the observation reflects this labeling, not a
-        stale one from a much earlier, possibly-different period.
-      - still kinesthetic across this rebuild -> leave the existing row
-        alone; resetting it every rebuild would make the count too noisy
-        to mean anything (narrations get reassessed roughly every session).
-      - no longer kinesthetic -> delete the row; no reason to keep counting
-        (or retain) a behavior check for a label the student no longer has.
+    profiled with one of the TRACKABLE_STYLES" — see that model's own
+    docstring for why. Called once per profile (re)synthesis, comparing the
+    style being replaced against the one just computed:
+      - newly one of TRACKABLE_STYLES (wasn't before, no prior profile, OR
+        switched from a DIFFERENT trackable style) -> fresh row, count reset
+        to 0. A style switch must reset even between two trackable styles —
+        the count means a different thing per style (a kinesthetic count
+        doesn't carry over as a reading_writing count just because both use
+        LearnerBehaviorCheck).
+      - SAME trackable style across this rebuild -> leave the existing row
+        alone; resetting it every rebuild would make the count too noisy to
+        mean anything (narrations get reassessed roughly every session).
+      - not a trackable style (auditory, or none yet) -> delete the row; no
+        reason to keep counting (or retain) a behavior check for a label the
+        student no longer has.
     """
-    if new_style == "kinesthetic":
-        if old_style == "kinesthetic":
+    if new_style in TRACKABLE_STYLES:
+        if old_style == new_style:
             return
         existing = await db.execute(
             select(LearnerBehaviorCheck).where(LearnerBehaviorCheck.student_name == student_name)
         )
         row = existing.scalar_one_or_none()
-        count_enc = encrypt_json({"invite_handwriting_count": 0})
+        count_enc = encrypt_json({"count": 0})
         if row is None:
             db.add(LearnerBehaviorCheck(student_name=student_name, count_enc=count_enc))
         else:
@@ -167,9 +181,11 @@ async def get_behavior_check(
     """
     Parent-only (unlike GET /profile above, which a child token can also
     read) — see LearnerBehaviorCheck's docstring for what this is and
-    isn't. Returns null when the student isn't currently profiled
-    kinesthetic (no row exists) rather than 404 — this is an expected,
-    common state, not an error.
+    isn't. Returns null when the student isn't currently profiled with one
+    of TRACKABLE_STYLES (no row exists) rather than 404 — this is an
+    expected, common state (e.g. auditory-profiled, or no profile yet),
+    not an error. `count`'s meaning depends on the student's CURRENT
+    processing_style (see GET /profile) — the caller combines the two.
     """
     result = await db.execute(
         select(LearnerBehaviorCheck).where(LearnerBehaviorCheck.student_name == student_name)
@@ -178,6 +194,6 @@ async def get_behavior_check(
     if row is None:
         return None
     return {
-        "invite_handwriting_count": decrypt_json(row.count_enc)["invite_handwriting_count"],
+        "count": decrypt_json(row.count_enc)["count"],
         "since": row.since.isoformat(),
     }

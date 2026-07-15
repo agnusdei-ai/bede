@@ -41,12 +41,8 @@ def test_none_produces_no_note():
     assert _processing_style_note(None) == ""
 
 
-@pytest.mark.parametrize("style", ["visual", "auditory", "reading_writing"])
-def test_non_kinesthetic_styles_produce_no_note(style):
-    """Deliberate: only kinesthetic gets an explicit nudge right now — see
-    _processing_style_note's own docstring for why the other three aren't
-    touched yet."""
-    assert _processing_style_note(style) == ""
+def test_unknown_style_produces_no_note():
+    assert _processing_style_note("not_a_real_style") == ""
 
 
 def test_kinesthetic_note_mentions_structured_drawing_across_subjects():
@@ -54,7 +50,29 @@ def test_kinesthetic_note_mentions_structured_drawing_across_subjects():
     assert "kinesthetic" in note
     assert "invite_handwriting" in note
     assert "DITK" in note
-    assert "not only nature study or" in note  # explicitly cross-subject, not science-only
+    assert "elements" in note
+
+
+def test_reading_writing_note_favors_plain_written_narration():
+    note = _processing_style_note("reading_writing")
+    assert "reading/writing" in note
+    assert "invite_handwriting" in note
+    assert "elements` unset" in note
+
+
+def test_visual_note_favors_show_visual_aid():
+    note = _processing_style_note("visual")
+    assert "visual" in note
+    assert "show_visual_aid" in note
+
+
+def test_auditory_note_favors_oral_narration_no_tool_named():
+    """auditory has no honest tool-level signal (see LearnerBehaviorCheck's
+    docstring) — it's a pure behavioral nudge, not tied to a specific tool
+    call the way the other three are."""
+    note = _processing_style_note("auditory")
+    assert "auditory" in note
+    assert "oral narration" in note
 
 
 # ── Wired into _build_subject_prompt ──────────────────────────────────────────

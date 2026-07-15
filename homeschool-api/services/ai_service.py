@@ -1260,26 +1260,57 @@ async def _build_subject_prompt(
 def _processing_style_note(processing_style: Optional[str]) -> str:
     """
     Feeds the synthesized learner profile's processing_style back into live
-    tutoring for the first time — see _load_processing_style_readonly's
-    docstring for the gap this closes. Only kinesthetic gets an explicit
-    behavioral nudge right now (the user's own request: build active, not
-    passive, Socratic learners who "learn by doing," structured drawing as
-    a real kinesthetic modality, not just nature study/math's existing
-    narrow uses of invite_handwriting) — the other three styles are already
-    implicitly served well by the existing Socratic/narration/discussion
-    flow, so no extra prompt weight is spent nudging them until there's a
-    concrete reason to.
+    tutoring — see _load_processing_style_readonly's docstring for the gap
+    this closes. All four styles get an explicit behavioral nudge (the
+    user's own request: build active, not passive, Socratic learners who
+    "learn by doing," and let Bede's method actually respond to what's
+    profiled rather than treating every child identically once a profile
+    exists) — deliberately NOT a claim that matching instruction to a fixed
+    "learning style" label improves outcomes (that specific claim doesn't
+    hold up in the literature; see LearnerBehaviorCheck's docstring). This
+    is Bede leaning on the tool that's already the natural fit for this
+    child's profile more often, on top of — never instead of — the
+    classical method's own habit of moving through all these modes in
+    the ordinary course of a lesson regardless of profile.
+
+    kinesthetic and reading_writing both nudge toward invite_handwriting,
+    disambiguated downstream (ai_service.py's tool-dispatch loop, and
+    LearnerBehaviorCheck's signal) by whether `elements` (a structured,
+    DITK-style task) is set: kinesthetic wants it set, reading_writing
+    wants a plain written narration/copywork invite instead.
     """
-    if processing_style != "kinesthetic":
-        return ""
-    return (
-        "\n\nThis child's learner profile shows a kinesthetic processing style — they learn best by doing, "
-        "not just discussing. Reach for `invite_handwriting` with a structured, DITK-style task (see its tool "
-        "description) noticeably more often than you would otherwise, in ANY subject, not only nature study or "
-        "math — a labeled diagram, a story map, a timeline, a bar model, whatever this subject's ideas can be "
-        "physically built or drawn. Active hands-on construction of an idea is this child's version of what "
-        "discussion is for someone else."
-    )
+    if processing_style == "kinesthetic":
+        return (
+            "\n\nThis child's learner profile shows a kinesthetic processing style — they learn best by doing, "
+            "not just discussing. Reach for `invite_handwriting` WITH `elements` set (a structured, DITK-style "
+            "task — see its tool description) noticeably more often than you would otherwise, in ANY subject, "
+            "not only nature study or math — a labeled diagram, a story map, a timeline, a bar model, whatever "
+            "this subject's ideas can be physically built or drawn. Active hands-on construction of an idea is "
+            "this child's version of what discussion is for someone else."
+        )
+    if processing_style == "reading_writing":
+        return (
+            "\n\nThis child's learner profile shows a reading/writing processing style — precise language and "
+            "putting thoughts into their own written words is where they do their best thinking. Reach for "
+            "`invite_handwriting` for a plain written narration or copywork task (leave `elements` unset — this "
+            "is about their own written expression, not a structured DITK diagram) noticeably more often than "
+            "you would for a child who narrates better aloud."
+        )
+    if processing_style == "visual":
+        return (
+            "\n\nThis child's learner profile shows a visual processing style — seeing something concrete "
+            "sharpens their understanding more than description alone. When this subject's context below lists "
+            "an available visual aid, reach for `show_visual_aid` more readily than you would otherwise, rather "
+            "than only describing the artwork, map, or artifact in words."
+        )
+    if processing_style == "auditory":
+        return (
+            "\n\nThis child's learner profile shows an auditory processing style — rhythm, sound, and hearing "
+            "an idea spoken aloud is where it lands for them. Favor oral narration and discussion over written "
+            "narration, read passages aloud in your own phrasing before discussing them, and lean on recitation "
+            "or read-aloud framing (poetry, memory work) more than you would for another child."
+        )
+    return ""
 
 
 def _process_tool_use(tool_name: str, tool_input: dict) -> str:
@@ -1339,16 +1370,20 @@ def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
         return None
 
 
-async def _record_handwriting_invite(db: Optional["AsyncSession"], student_name: str) -> None:
+async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: str) -> None:
     """
-    Increments LearnerBehaviorCheck.invite_handwriting_count — only ever
-    called when the caller has already confirmed processing_style ==
-    "kinesthetic" for this turn (see stream_tutor_response), so a missing
-    row here just means routers/narration.py hasn't (re)synthesized the
-    profile since this deployment shipped this feature; nothing to do in
-    that case. Unlike the readonly loaders above, this is a write and only
-    runs on an invite_handwriting tool call — an already-infrequent event,
-    not something worth caching or batching.
+    Increments LearnerBehaviorCheck.count by one — only ever called when
+    the caller has already confirmed BOTH that processing_style is one of
+    the three trackable styles (kinesthetic, reading_writing, visual — see
+    routers/narration.py's TRACKABLE_STYLES) for this turn AND that the
+    specific tool call matches that style's own signal (invite_handwriting
+    with/without `elements`, or a successfully-resolved show_visual_aid —
+    see the three call sites in stream_tutor_response's tool-dispatch
+    loop). A missing row here just means routers/narration.py hasn't
+    (re)synthesized the profile since this deployment shipped this
+    feature; nothing to do in that case. Unlike the readonly loaders
+    above, this is a write and only runs on an already-infrequent tool
+    call, not something worth caching or batching.
     """
     if db is None:
         return
@@ -1364,8 +1399,8 @@ async def _record_handwriting_invite(db: Optional["AsyncSession"], student_name:
         row = result.scalar_one_or_none()
         if row is None:
             return
-        count = decrypt_json(row.count_enc)["invite_handwriting_count"]
-        row.count_enc = encrypt_json({"invite_handwriting_count": count + 1})
+        count = decrypt_json(row.count_enc)["count"]
+        row.count_enc = encrypt_json({"count": count + 1})
         await db.commit()
     except Exception as exc:
         log.warning("Behavior-check increment failed for %s: %s", student_name, exc)
@@ -1733,6 +1768,10 @@ async def stream_tutor_response(
                                 aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
                                 if aid:
                                     yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
+                                    if processing_style == "visual":
+                                        # See LearnerBehaviorCheck's docstring — only counts
+                                        # a successfully-resolved aid, not a hallucinated id.
+                                        await _increment_behavior_check(db, config.student_name)
                                 else:
                                     log.warning(
                                         "Bede requested an unknown visual_aid_id: %r",
@@ -1748,11 +1787,19 @@ async def stream_tutor_response(
                                 # backend (demo_code vs db) actually persists it.
                                 await _record_skill_evidence(db, demo_code, config, subject, tool_input)
                             else:
-                                if tc["name"] == "invite_handwriting" and processing_style == "kinesthetic":
+                                if tc["name"] == "invite_handwriting":
                                     # See LearnerBehaviorCheck's docstring — a minimal,
-                                    # parent-only check on whether this profile's own
+                                    # parent-only check on whether each profile's own
                                     # prompt nudge actually changes Bede's behavior.
-                                    await _record_handwriting_invite(db, config.student_name)
+                                    # elements-set is kinesthetic's structured-DITK
+                                    # signal; elements-absent is reading_writing's
+                                    # plain-written-narration signal — the same tool
+                                    # serves both, disambiguated this way.
+                                    has_elements = bool(tool_input.get("elements"))
+                                    if (processing_style == "kinesthetic" and has_elements) or (
+                                        processing_style == "reading_writing" and not has_elements
+                                    ):
+                                        await _increment_behavior_check(db, config.student_name)
                                 tool_response = _process_tool_use(tc["name"], tool_input)
                                 if tool_response:
                                     yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})

@@ -910,9 +910,11 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
 
 
 # Picture-study artist rotation — one artist per term, per Mater Amabilis
-# practice (mirrors the poet rotation in services/poetry_catalog.py).
-# Trimester years rotate the first three; quarterly years all four. Every
-# painting is centuries old and public domain.
+# practice. (Poetry co-study used to mirror this term-based design but now
+# rotates weekly off the calendar instead — see services/poetry_catalog.py
+# — since this pace fits picture study fine and there was no reason to
+# touch it too.) Trimester years rotate the first three; quarterly years
+# all four. Every painting is centuries old and public domain.
 _TERM_ARTISTS = ["Jean-François Millet", "Fra Angelico", "John Constable", "Raphael"]
 
 
@@ -1168,12 +1170,16 @@ async def _build_subject_prompt(
     visual_aids_note = _get_visual_aids_context(subject, config, history)
     session_position_note = _session_position_note(config, subject)
     time_of_day_note = _time_of_day_note(time_of_day)
-    # Poetry co-study (verbatim public-domain texts — see services/
-    # poetry_catalog.py) belongs where Mater Amabilis puts poetry: the
-    # Morning Time opening and the Living Books literature block. Other
-    # subjects stay lean.
+    # Poetry co-study (verbatim public-domain Catholic texts — see
+    # services/poetry_catalog.py) belongs where Mater Amabilis puts
+    # poetry: the Morning Time opening and the Living Books literature
+    # block. Other subjects stay lean. Rotates weekly off the calendar,
+    # not off current_term — current_term is only reused here as a
+    # per-session offset (so different families/demo visitors don't all
+    # land on the identical poem the same week), not as the driver of
+    # when the poem changes.
     poetry_note = (
-        _poetry_catalog_note(config.grade_stage, config.term_schedule, config.current_term)
+        _poetry_catalog_note(config.grade_stage, week_salt=config.current_term)
         if subject in (Subject.morning_time, Subject.living_books)
         else ""
     )

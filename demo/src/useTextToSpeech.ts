@@ -144,6 +144,21 @@ export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
   return waitForVoicesReady().then(() => pickBestVoice())
 }
 
+// One <audio> element, reused for every turn's backend TTS playback rather
+// than a fresh `new Audio()` per call — module-scoped so it survives hook
+// remounts within the same tab. Confirmed on a Samsung Android tablet
+// (Chrome): a brand-new media element created well after the page's initial
+// unlock gesture can be silently refused by the browser's autoplay policy
+// even though the page itself is otherwise "unlocked" — re-using the SAME
+// element that was blessed by a real play() at login is the standard
+// mitigation for that class of platform quirk (desktop Chrome and iOS
+// Safari don't need it, but reusing one element costs nothing there either).
+let sharedAudioEl: HTMLAudioElement | null = null
+function getSharedAudioElement(): HTMLAudioElement {
+  if (!sharedAudioEl) sharedAudioEl = new Audio()
+  return sharedAudioEl
+}
+
 /**
  * Call synchronously inside a real click handler — e.g. the "Generate my
  * code" button — BEFORE any await. Bede's
@@ -167,11 +182,10 @@ export function unlockSpeechForSession() {
     }
   }
   try {
-    const silent = new Audio(
-      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
-    )
-    silent.volume = 0
-    silent.play().then(() => silent.pause()).catch(() => {})
+    const audio = getSharedAudioElement()
+    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.volume = 0
+    audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
   } catch {
     // best-effort
   }
@@ -193,28 +207,37 @@ export function useTextToSpeech(speakToken: string | null = null) {
   // talking at once.
   const generationRef = useRef(0)
 
-  // Returns whether it actually played AND whether some backend TTS is
-  // configured at all — see speak() below for why both matter. Named
-  // distinctly from api.ts's imported speakViaBackend (fetch-only): this
-  // wraps that call with actual playback + generation tracking on top.
-  const playBackendVoice = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean }> => {
-    if (!speakToken) return { spoke: false, configured: false }
+  // `spoke` reflects whether audio actually started playing — not just
+  // whether the fetch succeeded (see getSharedAudioElement's comment above
+  // for why a caught play() rejection must not be reported as a success).
+  // `configured` is whether some backend TTS is set up at all. `fetchedAudio`
+  // distinguishes "the backend request itself failed" from "we got real
+  // audio bytes back but this browser refused to play them" — see speak()
+  // below for why all three matter. Named distinctly from api.ts's imported
+  // speakViaBackend (fetch-only): this wraps that call with actual playback
+  // + generation tracking on top.
+  const playBackendVoice = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean; fetchedAudio: boolean }> => {
+    if (!speakToken) return { spoke: false, configured: false, fetchedAudio: false }
     const { audio: blob, configured } = await speakViaBackend(speakToken, text)
-    if (!blob) return { spoke: false, configured }
+    if (!blob) return { spoke: false, configured, fetchedAudio: false }
     // A newer speak() or stop() has superseded this call while we were
     // waiting on the network — see generationRef's own comment.
-    if (generationRef.current !== myGeneration) return { spoke: true, configured }
+    if (generationRef.current !== myGeneration) return { spoke: true, configured, fetchedAudio: true }
     const url = URL.createObjectURL(blob)
+    const audio = getSharedAudioElement()
+    audioRef.current = audio
+    let played = false
     await new Promise<void>((resolve) => {
-      const audio = new Audio(url)
-      audioRef.current = audio
       audio.onended = () => resolve()
       audio.onerror = () => resolve()
-      audio.play().catch(() => resolve())
+      audio.src = url
+      audio.play()
+        .then(() => { played = true })
+        .catch(() => resolve()) // autoplay-blocked or decode error — playback never started
     })
     URL.revokeObjectURL(url)
     if (generationRef.current === myGeneration) audioRef.current = null
-    return { spoke: true, configured }
+    return { spoke: played, configured, fetchedAudio: true }
   }, [speakToken])
 
   const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
@@ -249,12 +272,17 @@ export function useTextToSpeech(speakToken: string | null = null) {
     generationRef.current += 1
     const myGeneration = generationRef.current
     setIsSpeaking(true)
-    const { spoke, configured } = await playBackendVoice(clean, myGeneration)
-    // Only the browser's own voice is a reasonable fallback when NOTHING is
-    // configured server-side — a configured backend that failed this one
-    // call stays silent rather than jarringly switching to a different,
-    // lower-quality voice mid-conversation.
-    if (!spoke && !configured && generationRef.current === myGeneration) await speakViaBrowser(clean, myGeneration)
+    const { spoke, configured, fetchedAudio } = await playBackendVoice(clean, myGeneration)
+    // Two distinct failure classes get different treatment:
+    //  - the backend request itself failed (network hiccup, nothing
+    //    configured) — stay silent for this one line rather than jarringly
+    //    switching to a different, lower-quality voice mid-conversation.
+    //  - real audio bytes came back but this browser refused to play them
+    //    (confirmed on a Samsung Android tablet: Chrome can silently block
+    //    audio.play() outside a fresh gesture) — that has nothing to do
+    //    with backend configuration, so browser speech is strictly better
+    //    than the total silence this used to produce.
+    if (!spoke && (fetchedAudio || !configured) && generationRef.current === myGeneration) await speakViaBrowser(clean, myGeneration)
     if (generationRef.current === myGeneration) setIsSpeaking(false)
   }, [playBackendVoice, speakViaBrowser])
 

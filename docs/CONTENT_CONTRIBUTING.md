@@ -121,10 +121,14 @@ Picture study (`art_music`) and history maps/artifacts. No image hosting —
 
 ### 4. Poetry — `services/poetry_catalog.py`
 
-Verbatim public-domain text — see the sourcing standard above before adding
-here. One poet per term/quarter (`Term/Quarter 1` etc. in the module
-docstring); each poem is tagged with the `GradeStage`(s) it's appropriate
-for via the `_poem(title, stages, text)` helper.
+Verbatim public-domain Catholic poems/hymn-texts — see the sourcing
+standard above before adding here. Rotates weekly off the calendar (ISO
+week number), not a parent-set field — see the module docstring for why.
+Each entry is tagged with the specific grade(s) ("K"–"8") it fits via the
+`_entry(title, poet, source, grades, text)` helper; `GradeStage` is
+derived automatically from that grade set (never hand-maintained
+separately) and used only as a fallback when a session has a stage but no
+specific grade.
 
 ### 5. Subject/stage guidance — `services/ai_service.py`
 

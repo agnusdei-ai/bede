@@ -34,10 +34,10 @@ const KNOWN_FEMALE_VOICE_NAMES = new Set([
 // voices too. Every male check below excludes isFemale() explicitly to
 // avoid this exact bug (a real, confirmed cause of picking a female voice
 // on at least one Android/Chrome device that labels voices "...Female").
-function isFemaleVoiceName(name: string): boolean {
+export function isFemaleVoiceName(name: string): boolean {
   return name.toLowerCase().includes('female') || KNOWN_FEMALE_VOICE_NAMES.has(name)
 }
-function isMaleVoiceName(name: string): boolean {
+export function isMaleVoiceName(name: string): boolean {
   return name.toLowerCase().includes('male') && !isFemaleVoiceName(name)
 }
 
@@ -67,7 +67,7 @@ const KNOWN_MALE_VOICE_NAMES = new Set([
   'Google US English Male',
 ])
 
-function pickBestVoice(): SpeechSynthesisVoice | null {
+export function pickBestVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
   const priorities = [
@@ -96,29 +96,36 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
 // line already wants to speak. Picking synchronously before that fires
 // silently falls back to whatever voice the OS/engine defaults to, which is
 // why the chosen voice could vary between sessions on the exact same
-// device. Resolving once (module-scoped, so it's stable for the whole tab)
-// and waiting briefly for the real list makes the pick deterministic.
-let resolvedVoice: SpeechSynthesisVoice | null = null
-let voiceResolutionPromise: Promise<SpeechSynthesisVoice | null> | null = null
+// device.
+//
+// Only READINESS is cached module-scoped (so the whole tab pays the async
+// wait at most once) — never the SpeechSynthesisVoice object itself.
+// Microsoft Edge fires 'voiceschanged' MORE THAN ONCE per session as it
+// lazy-loads its online/neural voices well after the initial local list,
+// and each firing can reissue brand-new SpeechSynthesisVoice object
+// instances for what is logically the same voice. A voice object resolved
+// once and reused on every later utterance goes stale the moment that
+// happens: Edge doesn't error, it silently ignores the now-unrecognized
+// object and falls back to its OWN current default voice instead — a
+// female neural voice on Windows/Edge. This is the confirmed mechanism
+// behind Bede's voice reverting to a woman's specifically on Edge, several
+// turns into a session, even though every priority in pickBestVoice()
+// above was already trying not to pick one. Calling pickBestVoice() fresh
+// on every speak() (instead of returning a long-cached object) means
+// there's never a stale reference left around to go bad.
+let voicesReadyPromise: Promise<void> | null = null
 
-function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
-  if (resolvedVoice) return Promise.resolve(resolvedVoice)
-  if (voiceResolutionPromise) return voiceResolutionPromise
+function waitForVoicesReady(): Promise<void> {
+  if (voicesReadyPromise) return voicesReadyPromise
 
-  voiceResolutionPromise = new Promise((resolve) => {
-    const tryPick = (): boolean => {
-      if (!window.speechSynthesis.getVoices().length) return false
-      resolvedVoice = pickBestVoice()
-      resolve(resolvedVoice)
-      return true
-    }
-
-    if (tryPick()) return
+  voicesReadyPromise = new Promise((resolve) => {
+    if (window.speechSynthesis.getVoices().length) { resolve(); return }
 
     const handler = () => {
-      if (tryPick()) {
+      if (window.speechSynthesis.getVoices().length) {
         window.speechSynthesis.removeEventListener('voiceschanged', handler)
         clearTimeout(timeoutId)
+        resolve()
       }
     }
     window.speechSynthesis.addEventListener('voiceschanged', handler)
@@ -126,12 +133,15 @@ function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
     // Some engines never fire voiceschanged at all — don't wait forever.
     const timeoutId = setTimeout(() => {
       window.speechSynthesis.removeEventListener('voiceschanged', handler)
-      tryPick()
-      resolve(resolvedVoice)
+      resolve()
     }, 1000)
   })
 
-  return voiceResolutionPromise
+  return voicesReadyPromise
+}
+
+export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
+  return waitForVoicesReady().then(() => pickBestVoice())
 }
 
 /**

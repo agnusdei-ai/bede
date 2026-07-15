@@ -144,6 +144,13 @@ class SessionConfig(BaseModel):
     # output. Updated via PATCH /pod/configs/{student_name}/voice-narration
     # (routers/pod.py), reachable by the child themselves, not just the parent.
     voice_narration_enabled: bool = True
+    # Parent-side lock on the chat appearance picker (background theme +
+    # bubble color). When True, the child's session hides the picker
+    # entirely — whatever look the device already has stays put. For
+    # children who find open-ended customization a distraction magnet
+    # (ADD/ADHD tendencies especially), choice happens with the parent,
+    # not mid-lesson. A parent-role session still sees the picker.
+    appearance_locked: bool = False
 
     # ── Term schedule & outcomes ──────────────────────────────────────────
     # Mater Amabilis default is a 3-term year; quarterly gives 4. current_term

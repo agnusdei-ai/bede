@@ -216,7 +216,14 @@ export default function TutorSession() {
           </div>
         )}
 
-        <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+        {/* Appearance lock: when the parent has locked this student's chat
+            appearance, the picker simply isn't rendered in a child session —
+            the device keeps whatever look it already has. A parent-role
+            session still gets it, so the parent can set the look on the
+            child's own device and then leave it locked. */}
+        {(role === 'parent' || !sessionConfig.appearance_locked) && (
+          <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+        )}
 
         {feedbackEnabled && (
           <button

@@ -24,6 +24,7 @@ interface StudentForm {
   faith_emphasis: string
   current_unit: string
   voice_required: boolean
+  appearance_locked: boolean
   screen_time_limit_enabled: boolean
   screen_time_limit_minutes: number
   eye_rest_break_minutes: number
@@ -44,6 +45,7 @@ const blankStudent = (): StudentForm => ({
   faith_emphasis: '',
   current_unit: '',
   voice_required: true,
+  appearance_locked: false,
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
@@ -114,6 +116,7 @@ export default function ParentSetup() {
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
       voice_required: s.voice_required,
+      appearance_locked: s.appearance_locked,
       screen_time_limit_minutes: s.screen_time_limit_enabled ? s.screen_time_limit_minutes : null,
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
       term_schedule: s.term_schedule,
@@ -418,6 +421,33 @@ function StudentCard({
             <span
               className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
                 student.voice_required ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Appearance lock — hides the chat theme/bubble picker in this
+            student's sessions. For children who find open-ended
+            customization a distraction magnet, choice happens here with
+            the parent, not mid-lesson. */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Lock chat appearance</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {student.appearance_locked
+                ? 'Theme & bubble-color picker hidden during this student’s sessions'
+                : 'Student may change the background theme and bubble color'}
+            </p>
+          </div>
+          <button
+            onClick={() => onUpdate({ appearance_locked: !student.appearance_locked })}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+              student.appearance_locked ? 'bg-navy-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                student.appearance_locked ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>

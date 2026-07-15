@@ -36,6 +36,12 @@ export interface SessionConfig {
   // above, which is about login voice-biometric verification, not TTS
   // output. Defaults true when absent (configs saved before this field existed).
   voice_narration_enabled?: boolean
+  // Parent-side lock on the chat appearance picker (background theme +
+  // bubble color). True hides the picker in the child's session — the
+  // device keeps whatever look it already has; a parent-role session
+  // still sees it. Defaults false/absent for configs saved before this
+  // field existed.
+  appearance_locked?: boolean
   // ── Term schedule & outcomes ────────────────────────────────────────────
   // Mater Amabilis default is a 3-term (trimester) year; quarterly gives 4.
   term_schedule?: TermSchedule

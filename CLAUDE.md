@@ -96,6 +96,7 @@ components/
   SubjectNav.tsx     Sidebar subject list with completion tracking
   VoiceVerification.tsx  Child voice passphrase check at session start
   VoiceEnrollment.tsx   Parent-triggered enrollment flow
+  ThemePicker.tsx    Chat-header palette: background theme + reader's bubble color (hidden in child sessions when SessionConfig.appearance_locked)
 store/
   sessionStore.ts    Zustand store (persisted to sessionStorage — auth fields only)
 services/
@@ -105,8 +106,10 @@ hooks/
   useSpeechRecognition.ts  Web Speech API (Chrome/Edge/Safari); interim results
   useTextToSpeech.ts       Browser TTS for Bede's responses
   useVoiceRecorder.ts      MediaRecorder for voice enrollment audio
+  useChatTheme.ts          localStorage-backed theme/bubble preference (CHAT_THEMES, BUBBLE_COLORS; instances synced via window event)
 utils/
-  gradeTimer.ts      K-3: 20-min per-subject; 4-8: 60-min block + 10-min break cycles
+  gradeTimer.ts      Session hard stop for every grade (SessionConfig.session_cap_minutes: 2h default, 4h schema-enforced max) + mandatory 10-min break each hour; K-3 additionally paces subjects in 20-min blocks
+  breakActivities.ts Off-screen break suggestions (nature / faith / eyes / movement rotation)
 types/
   index.ts           Subject enum, SessionConfig interface, SUBJECTS array, SUBJECT_MAP
 ```
@@ -173,19 +176,31 @@ whichever task prompted it.
 ## Standing Workflow: Feature Documentation
 
 Every feature or user-facing behavior change introduced to this repo needs
-to be documented as part of that same change — not left as a follow-up:
+to be documented as part of that same change — not left as a follow-up. A
+feature is not done until its documentation is:
 
-1. **Setup/troubleshooting-relevant change** (voice, auth, deployment,
+1. **Parent-facing controls and behavior** — `docs/PARENT_SETUP.md` (the
+   per-student settings live in §5 "Setting up each student"). Written as
+   plain instructions to a non-technical parent.
+2. **Child-facing features** (anything the learner sees or uses) —
+   `docs/CHILD_GUIDE.md`, keeping its voice: Bede speaking directly and
+   warmly to the child, no jargon.
+3. **Setup/troubleshooting-relevant change** (voice, auth, deployment,
    backup, etc.) — update the relevant file in `docs/` (e.g. a voice-
    pipeline reliability fix belongs in `docs/VOICE_SETUP.md`, not just the
    commit message).
-2. **Architectural change** (a new router, a new frontend flow, a new
-   service module, a new table) — update the relevant subsection under
-   `## Architecture` above so this file keeps matching the real codebase.
-3. **Anything else user-facing** — put it somewhere it will actually be
+4. **Architectural/config change** (a new router, frontend flow, service
+   module, table, SessionConfig field, or env var) — update the relevant
+   subsection under `## Architecture` above so this file keeps matching
+   the real codebase.
+5. **Anything else user-facing** — put it somewhere it will actually be
    found later (an existing doc if one fits, a new one if none does). A
    thorough PR description is not a substitute — PRs get buried in git
    history; docs are what the next person (or session) actually reads.
+
+Also check whether the change makes existing doc text stale (e.g. a new
+setting that replaces "this isn't configurable") and fix that text in the
+same change.
 
 This is a standing rule for this repo across sessions, not a one-off for
 whichever change prompted it.

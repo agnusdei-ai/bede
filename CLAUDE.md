@@ -82,7 +82,7 @@ startup if any credential matches a known-weak default, or if `CHILD_PIN`/
 ### Backend (`homeschool-api/`)
 
 ```
-main.py              FastAPI app + lifespan (constitution verify, DB init, encryption init)
+main.py              FastAPI app + lifespan (constitution verify, DB init, encryption init, voice-model warm-up, periodic data-retention purge — see docs/DATA_RETENTION.md)
 core/
   config.py          Pydantic Settings — all env vars + production validation
   constitution.py    Verifies constitution/bede.constitution.json's SHA-256 digest + structure at import time; exposes recursively read-only data (see "Bede's Constitution" above)
@@ -95,7 +95,7 @@ core/
 routers/
   auth.py            POST /auth/login → JWT; GET /auth/validate
   tutor.py           POST /tutor/chat (SSE stream); POST /tutor/summary
-  pod.py             CRUD /pod/configs — parent saves, child loads by name
+  pod.py             CRUD /pod/configs — parent saves, child loads by name; DELETE now cascades through services/student_deletion.py to remove ALL of that student's data (narration, learner profile, mastery, transcripts, voice, usage), not just the day's config — see docs/DATA_RETENTION.md
   voice.py           POST /voice/enroll; POST /voice/verify
   admin.py           GET /admin/status; GET /admin/audit
   narration.py       Narration assessment history + learner profile: GET/POST /narration/{student}/profile, GET /narration/{student}/assessments, GET /narration/{student}/behavior-check (parent-only processing_style-adaptation observation for TRACKABLE_STYLES — see LearnerBehaviorCheck)
@@ -103,6 +103,7 @@ services/
   ai_service.py      stream_tutor_response() + generate_session_summary(); _constitution_preamble() prepends the verified constitution to every persona/summary/profile-synthesis prompt
   voice_auth.py      Resemblyzer speaker embedding + MFCC similarity scoring
   transcription.py   Whisper transcription for voice enrollment phrases
+  student_deletion.py  delete_all_student_data() — cascading deletion across every per-student table, called from routers/pod.py's DELETE /pod/configs/{student} (see docs/DATA_RETENTION.md)
 models/
   schemas.py         Pydantic models: SessionConfig, Subject, TutorRequest, etc.
 ```
@@ -124,7 +125,7 @@ guards/
 pages/
   Login.tsx          Parent password / child PIN tabs; voice-verify phase if voice_required
   ParentSetup.tsx    Configure up to 10 students per pod with subject/grade/context
-  PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet"
+  PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet" + "Delete all data…" (type-to-confirm modal, calls the cascading DELETE — see docs/DATA_RETENTION.md)
   TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay
   Progress.tsx       Parent-only: narration history, learner profile (+ behavior-check observation for kinesthetic/reading_writing/visual profiles), math mastery summary, AI usage — non-exhaustive, see the page itself
 components/

@@ -43,6 +43,35 @@ async def _warm_voice_models():
         log.warning("Voice model warm-up failed — models will load lazily on first use", exc_info=True)
 
 
+_DATA_PURGE_INTERVAL_SECONDS = 6 * 60 * 60  # every 6 hours
+
+
+async def _periodic_data_purge():
+    """
+    Runs the demo's own retention policy (services/interaction_signals.py's
+    _RETENTION_DAYS-day-old DemoInteractionSignal rows) automatically for the
+    life of this process, instead of relying on a human remembering to run
+    scripts/export_interaction_signals.py — see docs/DATA_RETENTION.md for
+    the full retention policy this is one piece of. A real family's own
+    data (StudentConfig, VoiceProfile, narration history, etc.) is
+    deliberately NOT swept here — that data is retained until the parent
+    explicitly deletes it (routers/pod.py's DELETE /pod/configs/{student}),
+    never on a timer, since a family may use the same student profile for
+    years. Self-contained and best-effort: one failed sweep logs a warning
+    and tries again next interval rather than crashing the whole process.
+    """
+    from services.interaction_signals import purge_old_signals
+
+    while True:
+        await asyncio.sleep(_DATA_PURGE_INTERVAL_SECONDS)
+        try:
+            deleted = await purge_old_signals()
+            if deleted:
+                log.info("Periodic data purge: removed %d expired demo interaction-signal row(s)", deleted)
+        except Exception:
+            log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -58,8 +87,10 @@ async def lifespan(app: FastAPI):
          PBKDF2 key derivation runs in a thread pool so the event loop
          is not blocked during the ~1.5 s CPU-bound operation.
       4. Kick off the voice-model warm-up in the background (non-blocking).
+      5. Start the periodic data-retention purge loop (non-blocking) — see
+         docs/DATA_RETENTION.md.
     Shutdown:
-      5. Dispose the connection pool cleanly.
+      6. Dispose the connection pool cleanly.
     """
     try:
         constitution.get_constitution()
@@ -73,10 +104,12 @@ async def lifespan(app: FastAPI):
         sys.exit(1)
 
     warmup_task = asyncio.create_task(_warm_voice_models())
+    purge_task = asyncio.create_task(_periodic_data_purge())
 
     yield
 
     warmup_task.cancel()
+    purge_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

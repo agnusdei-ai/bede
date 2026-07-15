@@ -195,6 +195,12 @@ so what comes out matches ordinary classroom handwriting paper.
 - Every session is saved as an encrypted transcript, viewable from the same place.
 - If a child's voice changes enough that verification starts failing (common after
   a cold, or over months of growth), re-run enrollment from the Pod Dashboard.
+- **Deleting a child's data:** Pod Dashboard → that student's card → **Delete all
+  data…**, then type their name to confirm. This permanently removes everything
+  Bede has stored for them — narration history, learner profile, mastery tracking,
+  session transcripts, voice enrollment, all of it — not just today's plan. It
+  cannot be undone. See `docs/DATA_RETENTION.md` for the full, table-by-table list
+  of what's kept and for how long.
 
 ## Troubleshooting
 

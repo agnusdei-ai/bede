@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical } from 'lucide-react'
+import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical, Trash2, AlertTriangle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import { fetchNarrationAssessments, fetchLearnerProfile } from '../services/api'
+import { fetchNarrationAssessments, fetchLearnerProfile, deleteStudentData } from '../services/api'
 import { SUBJECTS } from '../types'
 import type { SessionConfig } from '../types'
 
 export default function PodDashboard() {
   const navigate = useNavigate()
-  const { podStudents, logout, token } = useSessionStore()
+  const { podStudents, setPodStudents, logout, token } = useSessionStore()
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  const handleDeleted = (studentName: string) => {
+    setPodStudents(podStudents.filter((s) => s.student_name !== studentName))
+    setDeleteTarget(null)
+  }
 
   // A student is "ready" once they've completed at least one session (has a
   // narration assessment on record) but Bede's initial learner profile
@@ -133,7 +139,11 @@ export default function PodDashboard() {
         {/* Student grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {podStudents.map((student) => (
-            <StudentPodCard key={student.student_name} student={student} />
+            <StudentPodCard
+              key={student.student_name}
+              student={student}
+              onRequestDelete={() => setDeleteTarget(student.student_name)}
+            />
           ))}
         </div>
 
@@ -151,11 +161,106 @@ export default function PodDashboard() {
           </p>
         </div>
       </div>
+
+      {deleteTarget && token && (
+        <DeleteStudentModal
+          studentName={deleteTarget}
+          token={token}
+          onCancel={() => setDeleteTarget(null)}
+          onDeleted={() => handleDeleted(deleteTarget)}
+        />
+      )}
     </div>
   )
 }
 
-function StudentPodCard({ student }: { student: SessionConfig }) {
+function DeleteStudentModal({
+  studentName,
+  token,
+  onCancel,
+  onDeleted,
+}: {
+  studentName: string
+  token: string
+  onCancel: () => void
+  onDeleted: () => void
+}) {
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+    try {
+      await deleteStudentData(token, studentName)
+      onDeleted()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete this student\'s data')
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={18} className="text-red-500" />
+          </div>
+          <div>
+            <h2 className="text-base font-display font-semibold text-gray-800">
+              Permanently delete {studentName}&apos;s data?
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              This removes {studentName} from today&apos;s pod AND deletes everything Bede has
+              stored for them — narration history, learner profile, math mastery tracking,
+              session transcripts, and voice enrollment. This cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+          Type <span className="font-mono font-semibold">{studentName}</span> to confirm
+        </label>
+        <input
+          type="text"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-300"
+          autoFocus
+        />
+
+        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="px-4 py-2 text-sm text-gray-600 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={confirmText !== studentName || deleting}
+            className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {deleting ? 'Deleting…' : 'Delete Permanently'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StudentPodCard({
+  student,
+  onRequestDelete,
+}: {
+  student: SessionConfig
+  onRequestDelete: () => void
+}) {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
 
@@ -244,6 +349,12 @@ function StudentPodCard({ student }: { student: SessionConfig }) {
           }`}
         >
           {copied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy Link for Tablet</>}
+        </button>
+        <button
+          onClick={onRequestDelete}
+          className="flex items-center justify-center gap-1.5 w-full py-1.5 text-xs text-gray-400 hover:text-red-600 transition-colors"
+        >
+          <Trash2 size={12} /> Delete all data…
         </button>
       </div>
     </div>

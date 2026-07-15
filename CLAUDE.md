@@ -32,7 +32,7 @@ growth.** The constitution's faith dimension (`connect_to_faith`, Piety,
 Fear of the Lord, the non-negotiable "never force or trivialize" and
 "informs but never replaces conscience" rules) is deliberately governed
 qualitatively, by rule, not tracked as a metric — unlike, say,
-`LearnerBehaviorCheck`'s count of `invite_handwriting` calls. That
+`LearnerBehaviorCheck`'s per-style tool-call counts. That
 pattern must not be extended to faith: a child's spiritual life comes
 from the child, not from a number Bede optimizes against. If a future
 change proposes any kind of "faith engagement" signal, counter, or
@@ -98,7 +98,7 @@ routers/
   pod.py             CRUD /pod/configs — parent saves, child loads by name
   voice.py           POST /voice/enroll; POST /voice/verify
   admin.py           GET /admin/status; GET /admin/audit
-  narration.py       Narration assessment history + learner profile: GET/POST /narration/{student}/profile, GET /narration/{student}/assessments, GET /narration/{student}/behavior-check (parent-only kinesthetic-adaptation observation — see LearnerBehaviorCheck)
+  narration.py       Narration assessment history + learner profile: GET/POST /narration/{student}/profile, GET /narration/{student}/assessments, GET /narration/{student}/behavior-check (parent-only processing_style-adaptation observation for TRACKABLE_STYLES — see LearnerBehaviorCheck)
 services/
   ai_service.py      stream_tutor_response() + generate_session_summary(); _constitution_preamble() prepends the verified constitution to every persona/summary/profile-synthesis prompt
   voice_auth.py      Resemblyzer speaker embedding + MFCC similarity scoring
@@ -111,7 +111,9 @@ models/
 
 **SSE streaming format:** Each chunk is `data: {"type":"text","content":"..."}`, `data: {"type":"tool","tool":"<name>","content":"..."}`, or `data: {"type":"done"}`. Tool calls are accumulated in a buffer, JSON-parsed at `ContentBlockStop`, then formatted and emitted.
 
-**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`; also supports a structured, DITK-style mode via an optional `elements` list, for a child whose learner profile shows a kinesthetic processing style), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`, `record_skill_evidence`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only); `record_skill_evidence` is stricter still — it emits nothing to the SSE stream at all, silently persisting math-skill diagnostic evidence via `_record_skill_evidence` (`services/ai_service.py`), which routes to exactly one of two backends: the real, db-backed `services/diagnostic/` (parent/child sessions) or the demo's in-memory `services/diagnostic_demo.py` (demo_code sessions only) — see `docs/diagnostic/`. For a currently kinesthetic-profiled student, each `invite_handwriting` call also increments `LearnerBehaviorCheck` (`_record_handwriting_invite`) — a minimal, parent-only, encrypted observation of whether that profile's own prompt nudge is actually changing Bede's behavior, surfaced on the Progress page. It is deliberately not a psychometric claim that the label improves learning.
+**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`; also supports a structured, DITK-style mode via an optional `elements` list), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`, `record_skill_evidence`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only); `record_skill_evidence` is stricter still — it emits nothing to the SSE stream at all, silently persisting math-skill diagnostic evidence via `_record_skill_evidence` (`services/ai_service.py`), which routes to exactly one of two backends: the real, db-backed `services/diagnostic/` (parent/child sessions) or the demo's in-memory `services/diagnostic_demo.py` (demo_code sessions only) — see `docs/diagnostic/`.
+
+**processing_style adaptation:** `_processing_style_note` (`services/ai_service.py`) nudges Bede's tool choice per the synthesized learner profile — kinesthetic (favor `invite_handwriting` WITH `elements`, a structured DITK task), reading_writing (favor `invite_handwriting` WITHOUT `elements`, plain written narration), visual (favor `show_visual_aid` when this subject has one available), auditory (favor oral narration/discussion/recitation — a behavioral nudge only, no tool call to count). For the three tool-backed styles, each matching call also increments `LearnerBehaviorCheck` (`_increment_behavior_check`; row lifecycle in `routers/narration.py`'s `TRACKABLE_STYLES`/`_sync_behavior_check`) — a minimal, parent-only, encrypted count of whether that profile's own nudge is actually changing Bede's behavior, surfaced on the Progress page. It is deliberately not a psychometric claim that any of these labels improves learning, and auditory is deliberately excluded from the counter — no honest tool-level signal exists for it (almost all ordinary Socratic dialogue already is auditory).
 
 ### Frontend (`homeschool-tutor/src/`)
 
@@ -124,7 +126,7 @@ pages/
   ParentSetup.tsx    Configure up to 10 students per pod with subject/grade/context
   PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet"
   TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay
-  Progress.tsx       Parent-only: narration history, learner profile (+ kinesthetic behavior-check observation), math mastery summary, AI usage — non-exhaustive, see the page itself
+  Progress.tsx       Parent-only: narration history, learner profile (+ behavior-check observation for kinesthetic/reading_writing/visual profiles), math mastery summary, AI usage — non-exhaustive, see the page itself
 components/
   SocraticChat.tsx   Chat UI + SSE stream consumer + Bede opener ([START] sentinel)
   SessionTimer.tsx   Countdown display; grade-aware (K-3 vs 4-8)

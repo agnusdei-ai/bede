@@ -230,11 +230,15 @@ export interface LearnerProfileData {
 // Parent-only (unlike LearnerProfileData, which a child token can also
 // read) — see homeschool-api/core/database.py's LearnerBehaviorCheck for
 // what this is and isn't. Only ever present while processing_style is
-// currently "kinesthetic"; null otherwise (see fetchLearnerBehaviorCheck).
-// Deliberately NOT a claim that the kinesthetic label improves learning —
-// only a check that Bede's own prompted adaptation is actually happening.
+// currently one of the three TRACKABLE_STYLES (kinesthetic, reading_writing,
+// visual — see routers/narration.py); null otherwise, including for
+// auditory, which gets a prompt nudge but no counter (no honest tool-level
+// signal exists for it). Deliberately NOT a claim that any of these labels
+// improves learning — only a check that Bede's own prompted adaptation is
+// actually happening. count's meaning depends on the CURRENT
+// processing_style (see behaviorCheckLine in pages/Progress.tsx).
 export interface LearnerBehaviorCheck {
-  invite_handwriting_count: number
+  count: number
   since: string
 }
 

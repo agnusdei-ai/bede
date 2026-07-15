@@ -237,14 +237,29 @@ function ProfileBadge({ label }: { label: string }) {
   )
 }
 
-// Descriptive only — never a claim that the kinesthetic label improves
+// Descriptive only — never a claim that any of these labels improves
 // learning (the "learning styles" literature this profile is loosely
 // modeled on doesn't support that stronger claim). Just: is Bede's own
-// prompted adaptation (more invite_handwriting) actually showing up.
-function behaviorCheckLine(check: LearnerBehaviorCheck): string {
+// prompted adaptation actually showing up. Only these three styles have a
+// real, comparable tool-level signal (see LearnerBehaviorCheck's own
+// docstring for why auditory doesn't) — behaviorCheck is null for any
+// other style, including auditory, so this is never called for those.
+const TRACKABLE_STYLES: LearnerProfileData['processing_style'][] = ['kinesthetic', 'reading_writing', 'visual']
+
+function behaviorCheckLine(style: LearnerProfileData['processing_style'], check: LearnerBehaviorCheck): string {
   const since = formatDate(check.since)
-  const times = check.invite_handwriting_count
-  return `Since being profiled as a kinesthetic learner on ${since}, Bede has invited hands-on drawing or writing ${times} time${times !== 1 ? 's' : ''}.`
+  const times = check.count
+  const timesPhrase = `${times} time${times !== 1 ? 's' : ''}`
+  switch (style) {
+    case 'kinesthetic':
+      return `Since being profiled as a kinesthetic learner on ${since}, Bede has invited hands-on drawing or writing ${timesPhrase}.`
+    case 'reading_writing':
+      return `Since being profiled as a reading/writing learner on ${since}, Bede has invited written narration ${timesPhrase}.`
+    case 'visual':
+      return `Since being profiled as a visual learner on ${since}, Bede has shown a visual aid ${timesPhrase} (only available in subjects with one, like Art & Music or History).`
+    default:
+      return ''
+  }
 }
 
 function LearnerProfileCard({
@@ -293,9 +308,9 @@ function LearnerProfileCard({
           {profile.bede_profile_notes && (
             <p className="text-sm text-gray-600 leading-relaxed">{profile.bede_profile_notes}</p>
           )}
-          {profile.processing_style === 'kinesthetic' && behaviorCheck && (
+          {TRACKABLE_STYLES.includes(profile.processing_style) && behaviorCheck && (
             <p className="text-xs text-sage-700 bg-sage-50 border border-sage-100 rounded-lg px-3 py-2">
-              {behaviorCheckLine(behaviorCheck)}
+              {behaviorCheckLine(profile.processing_style, behaviorCheck)}
             </p>
           )}
           <p className="text-xs text-gray-400">

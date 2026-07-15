@@ -157,25 +157,34 @@ class LearnerProfile(Base):
 class LearnerBehaviorCheck(Base):
     """
     A deliberately minimal, parent-only sanity check on one claim: does
-    Bede's own kinesthetic-learner adaptation (services/ai_service.py's
-    _processing_style_note, which asks Bede to reach for invite_handwriting
-    more often) actually change its behavior. This is NOT a psychometric
-    instrument and makes no claim that categorizing a child this way
-    improves learning outcomes — the "learning styles" literature this
-    profile is loosely modeled on (VAK/VARK) is itself contested for that
-    stronger claim (see Pashler et al. 2008). It only answers the narrower,
-    verifiable question: since being profiled kinesthetic, how often has
-    Bede actually followed through.
+    Bede's own processing_style adaptation (services/ai_service.py's
+    _processing_style_note, which asks Bede to reach for a specific tool
+    more often for a given profile) actually change its behavior. This is
+    NOT a psychometric instrument and makes no claim that categorizing a
+    child this way improves learning outcomes — the "learning styles"
+    literature this profile is loosely modeled on (VAK/VARK) is itself
+    contested for that stronger claim (see Pashler et al. 2008). It only
+    answers the narrower, verifiable question: since being profiled this
+    way, how often has Bede actually followed through.
 
-    Exists only for a student CURRENTLY profiled kinesthetic — see
-    routers/narration.py's build_profile, which creates/resets this row
-    when a profile newly becomes kinesthetic and deletes it the moment a
-    resynthesis moves the student to a different processing_style. No
-    event log, no per-turn timestamps, no narration content — a single
-    running count plus the date counting started. profile_enc holds
-    encrypt_json({"invite_handwriting_count": int}); "since" is a plain
-    (non-sensitive) timestamp, left unencrypted like every other table's
-    created_at/updated_at column.
+    Exists only for a student CURRENTLY profiled with one of
+    routers/narration.py's TRACKABLE_STYLES (kinesthetic, reading_writing,
+    visual — see that constant's own comment for why auditory isn't
+    among them: no honest tool-level signal exists for it, nudge only).
+    build_profile creates/resets this row when a profile newly becomes one
+    of those three (including switching FROM one trackable style TO a
+    different one — the count doesn't carry over) and deletes it the
+    moment a resynthesis moves the student off all three. No event log,
+    no per-turn timestamps, no narration content — a single running count
+    plus the date counting started. What increments it depends on which
+    style is active (see ai_service.py's three _increment_behavior_check
+    call sites): kinesthetic counts invite_handwriting calls WITH
+    `elements` set (a structured DITK task); reading_writing counts
+    invite_handwriting calls WITHOUT `elements` (a plain written
+    narration); visual counts successfully-resolved show_visual_aid
+    calls. profile_enc holds encrypt_json({"count": int}); "since" is a
+    plain (non-sensitive) timestamp, left unencrypted like every other
+    table's created_at/updated_at column.
     """
     __tablename__ = "learner_behavior_checks"
 

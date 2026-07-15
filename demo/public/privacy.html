@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Notice — Bede Public Beta Demo</title>
+<style>
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #2d3142;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 32px 20px 64px;
+    line-height: 1.6;
+    background: #fdfbf7;
+  }
+  h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 26px; margin-bottom: 4px; }
+  h2 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 18px; margin-top: 36px; }
+  .sub { color: #6b7280; font-size: 14px; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { color: #1e3a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .callout {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+    padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #92400e;
+  }
+  a { color: #1e3a8a; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  .back { display: inline-block; margin-top: 32px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>Privacy Notice — Public Beta Demo</h1>
+<p class="sub">Applies only to the free public demo at this domain. Last updated 2026-07-14.</p>
+
+<p>
+  This page covers the <strong>public beta demo</strong> only — the version anyone can try
+  with a one-time 6-digit code, no account required. It's a completely different
+  deployment from Bede itself, which real families run entirely on their own hardware
+  with nothing sent to us at all. If you're evaluating Bede for your own family's use,
+  the self-hosted product's privacy model is stricter than everything below — see the
+  main project's documentation for that.
+</p>
+
+<div class="callout">
+  <strong>In short:</strong> we never store the conversation itself. We do store, briefly,
+  the name/grade you optionally provide and anonymized structural signals about how the
+  session went (which tools were used, how many turns, which subjects) — never what was
+  actually said. Feedback is entirely optional, and we never ask a child for their own
+  email address.
+</div>
+
+<h2>What we collect, and for how long</h2>
+<table>
+  <tr><th>Data</th><th>Why</th><th>Retention</th></tr>
+  <tr>
+    <td>Learner's name and grade <em>(optional)</em></td>
+    <td>Personalizes this one session's tone and content</td>
+    <td>Up to 6 hours, or immediately if you log out. Never added to a permanent record.</td>
+  </tr>
+  <tr>
+    <td>The conversation itself</td>
+    <td>Sent in real time to Anthropic's Claude API so Bede can generate its responses</td>
+    <td><strong>Never stored by us, under any circumstance.</strong> It exists on our side only for the
+      length of the live session. Anthropic processes it as our service provider to power Bede's replies
+      and does not use it to train its models.</td>
+  </tr>
+  <tr>
+    <td>Anonymized interaction-pattern signals — which tutoring tools fired, turn counts, which subjects were visited/completed</td>
+    <td>Helps us see which teaching patterns lead to better sessions</td>
+    <td>30 days, then automatically deleted. Keyed to a one-way cryptographic hash of your session code, not the code itself — we can't reverse it back to identify you.</td>
+  </tr>
+  <tr>
+    <td>Feedback message <em>(optional)</em></td>
+    <td>Product improvement</td>
+    <td>Sent once, by email via our provider Resend, to our team's inbox. Not written to any database.</td>
+  </tr>
+  <tr>
+    <td>Contact email <em>(optional, parent/guardian only)</em></td>
+    <td>To follow up if you've asked us to</td>
+    <td>Only ever collected if you actively choose to share it — never written to any database, used once to reply.</td>
+  </tr>
+</table>
+
+<h2 id="coppa">Children's Online Privacy Protection Act (COPPA) — Parental Notice</h2>
+<p>
+  bede&trade; ("we," "us," or "our") operates this online demo, which may be used by children
+  under 13 with a parent or guardian present. Because a child may use this service, the
+  Children's Online Privacy Protection Act ("COPPA") requires us to give you this notice
+  and, where we collect personal information from your child, to obtain your consent first —
+  which is why the demo's entry screen gates access behind the consent step described above
+  before any of this is collected.
+</p>
+
+<h3 style="font-size:15px;margin-top:20px;">Operator contact information</h3>
+<p>
+  Company: Agnus Dei Technologies, LLC<br>
+  Address: 112 Civita Rd., Liberty Hill, TX 78642<br>
+  Email: <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>
+</p>
+
+<h3 style="font-size:15px;margin-top:20px;">Information we collect from your child</h3>
+<p>
+  This demo does not use accounts — there is no username, password, phone number, or
+  payment information collected from your child at any point. What we collect, only with
+  your consent, is limited to:
+</p>
+<ul>
+  <li><strong>Name and grade level</strong> <em>(optional)</em> — used only to personalize the one
+    session in progress, kept for at most 6 hours, and never built into a persistent profile.</li>
+  <li><strong>The conversation itself</strong>, transmitted in real time to our AI provider,
+    Anthropic, so Bede can generate its tutoring responses — never stored by us and never
+    used by us or, per Anthropic's terms, by Anthropic to train models.</li>
+  <li><strong>Anonymized interaction-pattern signals</strong> (which teaching tools were used, how
+    many turns, which subjects) — cryptographically keyed so it cannot be traced back to your
+    child, and never includes anything that was actually said.</li>
+</ul>
+<p>
+  We do not require your child to provide more information than is reasonably necessary to
+  try the demo, and every field above is optional except the conversation itself, which is
+  inherent to how a tutoring session works and is not retained afterward.
+</p>
+
+<h3 style="font-size:15px;margin-top:20px;">Information we collect only from a parent or guardian</h3>
+<p>
+  At the end of a session, we show an optional "how could this be better?" prompt. A child
+  is never asked for their own contact information. If a follow-up email address is
+  provided, our interface requires you to first affirm that you are the parent or guardian
+  before that field even appears, and the address is used once, to reply, and is never
+  written to a database.
+</p>
+
+<h3 style="font-size:15px;margin-top:20px;">How we use this information</h3>
+<p>We use the information described above only to:</p>
+<ul>
+  <li>Personalize the single tutoring session in progress.</li>
+  <li>Generate Bede's tutoring responses (via Anthropic's Claude API).</li>
+  <li>Understand, in aggregate and anonymized form, which teaching patterns work well, so we
+    can improve Bede.</li>
+  <li>Reply to a parent or guardian who has asked us to.</li>
+</ul>
+
+<h3 style="font-size:15px;margin-top:20px;">Disclosure to third parties</h3>
+<p>
+  We do not sell your child's information, and we do not use it for advertising. We share
+  it only with the service providers that make the demo work — Anthropic (to generate
+  Bede's responses) and Resend (to deliver an optional feedback email) — each of whom is
+  contractually and technically limited to using it for that purpose. We may also disclose
+  information if required by law or to protect someone's safety.
+</p>
+
+<h3 style="font-size:15px;margin-top:20px;">Your parental rights under COPPA</h3>
+<p>At any time, you may:</p>
+<ul>
+  <li>Ask what personal information we hold related to your child's session.</li>
+  <li>Ask us to delete it.</li>
+  <li>Withdraw your consent and end your child's session.</li>
+</ul>
+<p>
+  In practice there is very little to review or delete once a session ends — name/grade
+  expire automatically within 6 hours and the conversation itself is never stored — but if
+  you'd like to exercise these rights, or believe your child shared more than described
+  here, contact us at <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> with your
+  child's session details and we'll act on it promptly.
+</p>
+
+<h3 style="font-size:15px;margin-top:20px;">What happens if you do not consent</h3>
+<p>
+  If you do not agree at the consent step, your child will not be able to use this demo.
+  Nothing else on this page requires consent beyond that single gate — there is no
+  further, separate collection hidden inside the session itself.
+</p>
+
+<h2>What we don't do</h2>
+<ul>
+  <li>No accounts, usernames, or passwords — there is nothing to create or remember.</li>
+  <li>No phone numbers and no payment information are ever collected in this demo.</li>
+  <li>No advertising trackers, no third-party analytics pixels, no ad networks.</li>
+  <li>We never sell your data or use it for advertising.</li>
+  <li>No persistent account or profile is created from a demo session — a session code
+    is discarded (or expires) and that's the end of it.</li>
+</ul>
+
+<h2>Who's behind this</h2>
+<p>
+  This demo is operated by Agnus Dei Technologies, LLC, 112 Civita Rd., Liberty Hill, TX
+  78642. Questions about this notice, or about your (or your child's) data specifically,
+  can go to <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.
+</p>
+
+<a class="back" href="./">&larr; Back to the demo</a>
+
+</body>
+</html>

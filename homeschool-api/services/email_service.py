@@ -110,6 +110,7 @@ _CATEGORY_LABELS = {
     "content_quality": "Content quality (Bede's teaching)",
     "plans": "🎯 Interested in plans",
     "other": "Other",
+    "beta_close": "💬 End-of-demo suggestion",
 }
 
 

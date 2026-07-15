@@ -8,9 +8,10 @@ import pytest
 
 import core.demo_code_session as demo_code_session
 from core.config import settings
-from models.schemas import DemoCodeRequest, GradeStage, grade_to_stage
+from models.schemas import DemoCodeRequest, GradeStage, TermSchedule, grade_to_stage
 from routers.auth import create_demo_code
-from routers.tutor import _demo_session_config
+from routers.tutor import _demo_current_term, _demo_session_config
+from services.poetry_catalog import poet_for_term
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
 
@@ -78,3 +79,46 @@ async def test_create_demo_code_ignores_grade_outside_allowlist():
 async def test_create_demo_code_with_no_body_still_works():
     resp = await create_demo_code(None)
     assert await demo_code_session.get_personalization(resp.code) == (None, None)
+
+
+async def test_demo_current_term_falls_back_to_1_with_no_code():
+    assert _demo_current_term(None) == 1
+
+
+async def test_demo_current_term_stays_in_range():
+    # Previously this was hardcoded to the SessionConfig default (1),
+    # which meant poet_for_term always resolved to _ROTATION[0]
+    # (Stevenson) — every demo visitor, forever, regardless of code.
+    for code in ("000000", "123456", "999999", "abcdef", "Ellie-grade4"):
+        assert 1 <= _demo_current_term(code) <= 4
+
+
+async def test_demo_current_term_is_stable_for_the_same_code():
+    assert _demo_current_term("123456") == _demo_current_term("123456")
+
+
+async def test_demo_current_term_actually_varies_across_codes():
+    """The whole point of the fix — confirms different demo codes reach
+    more than just term 1's poet across a reasonable sample."""
+    terms = {_demo_current_term(str(i).zfill(6)) for i in range(50)}
+    assert len(terms) > 1
+
+
+async def test_demo_session_config_uses_quarterly_schedule_and_derived_term():
+    code = await demo_code_session.generate_code(student_name="Ellie", grade="6")
+    config = await _demo_session_config(code)
+    assert config.term_schedule == TermSchedule.quarterly
+    assert config.current_term == _demo_current_term(code)
+
+
+async def test_demo_session_config_can_reach_every_poet_in_the_rotation():
+    """Regression guard for the actual bug report: the demo previously
+    could never show anything but Robert Louis Stevenson (term 1's poet)
+    no matter who visited or when."""
+    poets_seen = set()
+    for i in range(50):
+        code = await demo_code_session.generate_code(student_name=f"Kid{i}", grade="4")
+        config = await _demo_session_config(code)
+        poet = poet_for_term(config.term_schedule, config.current_term)
+        poets_seen.add(poet["poet"])
+    assert len(poets_seen) > 1

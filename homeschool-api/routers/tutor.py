@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from models.schemas import (
     SessionSummaryRequest,
     Subject,
     SpeakRequest,
+    TermSchedule,
     TutorRequest,
 )
 from services.ai_service import (
@@ -44,6 +46,24 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
 
+def _demo_current_term(code: str | None) -> int:
+    """
+    A demo session has no real academic calendar to derive current_term
+    from, and SessionConfig's own default (1) is never overridden here —
+    which meant every single demo visitor, forever, saw term 1's poet
+    (Stevenson, poetry_catalog.py's _ROTATION[0]) and term 1's picture-study
+    artist (Millet, ai_service.py's _TERM_ARTISTS[0]), with no way to ever
+    see the other three of each. Deriving a 1-4 value from the demo code
+    itself keeps one session internally consistent (the poet/artist can't
+    shift mid-conversation) while actually exercising the rotation feature
+    across different visitors/codes, which is presumably the point of
+    having it in a demo meant to show the curriculum's breadth.
+    """
+    if not code:
+        return 1
+    return (int(hashlib.sha256(code.encode()).hexdigest(), 16) % 4) + 1
+
+
 async def _demo_session_config(code: str | None = None) -> SessionConfig:
     """
     Server-defined session config for the public demo's demo_code role —
@@ -54,6 +74,10 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     into their JWT. Everything else (all subjects included, voice off)
     stays fixed so a demo visitor can browse the full curriculum breadth
     without configuring anything else.
+
+    term_schedule is pinned to quarterly (4 terms) rather than the default
+    trimester (3) specifically so _demo_current_term's 1-4 range lines up
+    with the full poet/artist rotations, not just their first three.
     """
     student_name, grade = (None, None)
     if code:
@@ -64,6 +88,8 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         grade_stage=grade_to_stage(grade) if grade else GradeStage(settings.demo_grade_stage),
         subjects=list(Subject),
         voice_required=False,
+        term_schedule=TermSchedule.quarterly,
+        current_term=_demo_current_term(code),
     )
 
 

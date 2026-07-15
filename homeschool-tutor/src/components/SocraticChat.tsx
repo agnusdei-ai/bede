@@ -4,6 +4,7 @@ import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText }
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { useChatTheme } from '../hooks/useChatTheme'
 import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
@@ -22,6 +23,7 @@ const MAX_CONSECUTIVE_CONTINUES = 2
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
+  const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
@@ -451,7 +453,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? 'You'} />
+          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? 'You'} bubbleClass={bubble.className} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
@@ -631,9 +633,13 @@ interface MsgProps {
     timestamp: Date
   }
   studentName: string
+  // The reader's chosen bubble color (useChatTheme) — passed down from the
+  // one hook instance at the top of SocraticChat rather than re-subscribing
+  // in every bubble.
+  bubbleClass: string
 }
 
-function MessageBubble({ msg, studentName }: MsgProps) {
+function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
   if (msg.role === 'system') {
     return (
       <div className="flex justify-center">
@@ -673,12 +679,14 @@ function MessageBubble({ msg, studentName }: MsgProps) {
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? 'bg-sage-600 text-white rounded-br-sm'
+            ? `${bubbleClass} text-white rounded-br-sm`
             : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'
         }`}
       >
         {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
-        {isUser && <div className="text-xs font-semibold text-sage-100 mb-1">{studentName}</div>}
+        {/* white/85 (not a sage tint) so the name stays legible on every
+            bubble color, not only the green default */}
+        {isUser && <div className="text-xs font-semibold text-white/85 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>

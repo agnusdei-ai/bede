@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { Palette, Check } from 'lucide-react'
-import { CHAT_THEMES, type ChatTheme } from '../hooks/useChatTheme'
+import { BUBBLE_COLORS, CHAT_THEMES, type BubbleColor, type ChatTheme } from '../hooks/useChatTheme'
 
 /**
  * Compact background-theme picker for the chat header: a palette icon that
  * opens a small dropdown of gradient swatches (each swatch IS the theme's
- * real gradient, so what you tap is what you get). Selection is applied
- * and persisted by the parent via useChatTheme. Mirrored in
+ * real gradient, so what you tap is what you get), plus a row of round
+ * swatches for the reader's own bubble color. Selection is applied and
+ * persisted by the parent via useChatTheme. Mirrored in
  * demo/src/ThemePicker.tsx.
  */
-export default function ThemePicker({ theme, onSelect }: { theme: ChatTheme; onSelect: (id: string) => void }) {
+export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }: {
+  theme: ChatTheme
+  onSelect: (id: string) => void
+  bubble: BubbleColor
+  onSelectBubble: (id: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -37,7 +43,7 @@ export default function ThemePicker({ theme, onSelect }: { theme: ChatTheme; onS
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 w-44">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 w-52">
           <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pb-1">Background</div>
           {CHAT_THEMES.map((t) => (
             <button
@@ -53,6 +59,27 @@ export default function ThemePicker({ theme, onSelect }: { theme: ChatTheme; onS
               {t.id === theme.id && <Check size={13} className="text-navy-500 shrink-0" />}
             </button>
           ))}
+
+          {/* The reader's own bubble color — round swatches (like the ink
+              palette on the drawing canvas) so they read as color chips,
+              distinct from the rectangular background-gradient tiles above. */}
+          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pt-2 pb-1 border-t border-parchment-200 mt-1">
+            Your bubble
+          </div>
+          <div className="flex items-center gap-1.5 px-1.5 pb-1">
+            {BUBBLE_COLORS.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => onSelectBubble(b.id)}
+                title={b.name}
+                aria-pressed={b.id === bubble.id}
+                aria-label={`Bubble color: ${b.name}`}
+                className={`w-6 h-6 rounded-full border-2 transition-transform shrink-0 ${b.className} ${
+                  b.id === bubble.id ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
+                }`}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

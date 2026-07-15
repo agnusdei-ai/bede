@@ -528,7 +528,7 @@ function StudentCard({
                 />
               </div>
               <div>
-                <label className="label">Eye-rest break (min)</label>
+                <label className="label">Eye rest break (min)</label>
                 <input
                   type="number"
                   min={30}
@@ -540,7 +540,7 @@ function StudentCard({
                   }
                   className="input"
                 />
-                <p className="text-xs text-gray-400 mt-1">30-minute minimum, for eye health</p>
+                <p className="text-xs text-gray-400 mt-1">30 minute minimum, for eye health</p>
               </div>
             </div>
           )}

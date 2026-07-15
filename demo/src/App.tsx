@@ -177,15 +177,16 @@ function CodeScreen({ onLoggedIn }: {
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
   const { hasConsented, giveConsent } = useConsent()
+  const formContainerRef = useRef<HTMLDivElement>(null)
 
-  // Gated ahead of the entry form itself, not layered on top of it — a
-  // visitor who hasn't agreed yet shouldn't even have the name/grade
-  // fields or "Generate my code" reachable (tab order, screen readers),
-  // not just visually obscured by an overlay. See useConsent.ts for the
-  // localStorage flag this checks/sets.
-  if (!hasConsented) {
-    return <ConsentModal onAgree={giveConsent} />
-  }
+  // React 18's JSX doesn't recognize the `inert` DOM attribute (it's a
+  // recent-ish addition — React only started passing it through in 19), so
+  // it's set imperatively as the real IDL property instead. This is what
+  // actually makes the dimmed form behind the modal unreachable — by tab
+  // order, screen readers, and clicks alike — not just visually obscured.
+  useEffect(() => {
+    if (formContainerRef.current) formContainerRef.current.inert = !hasConsented
+  }, [hasConsented])
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
@@ -204,8 +205,20 @@ function CodeScreen({ onLoggedIn }: {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
+    <>
+    {/* The entry form renders underneath the consent modal from the start,
+        rather than being swapped out for it — a visitor sees the real UI
+        (dimmed) with the notice popped up on top, not a blank screen
+        wearing a dialog. `inert` (set imperatively above) keeps it
+        correctly unreachable (tab order, screen readers, clicks) until
+        consent is given — the same guarantee the old "gate before the form
+        even exists" approach had, just visually softer. See useConsent.ts
+        for the localStorage flag this checks/sets. */}
+    <div
+      ref={formContainerRef}
+      className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4"
+    >
+      <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
         <div className="text-center mb-6">
           <div className="relative w-28 mx-auto mb-3">
             <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
@@ -276,6 +289,8 @@ function CodeScreen({ onLoggedIn }: {
         </div>
       </div>
     </div>
+    {!hasConsented && <ConsentModal onAgree={giveConsent} />}
+    </>
   )
 }
 

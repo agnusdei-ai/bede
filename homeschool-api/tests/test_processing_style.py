@@ -20,11 +20,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from core.config import settings
-from core.database import Base, LearnerProfile
+from core.database import Base, LearnerProfile, MasteryProfile
 from models.schemas import GradeStage, SessionConfig, Subject
 from services import ai_service
 from services.ai_service import (
     _build_subject_prompt,
+    _load_mastery_vector_readonly,
     _load_processing_style_readonly,
     _processing_style_note,
 )
@@ -126,6 +127,87 @@ async def test_corrupted_row_degrades_to_none_instead_of_raising(db_session):
     await db_session.commit()
 
     assert await _load_processing_style_readonly(db_session, "Zoe") is None
+
+
+# ── Caching: this must not re-query the DB on every single turn ──────────────
+# The real perf regression this closes: before caching, EVERY child message in
+# EVERY subject (not just mathematics, unlike the sibling mastery-vector load)
+# re-queried and re-decrypted LearnerProfile, even though the value can only
+# change via an infrequent batch resynthesis, never mid-turn. See
+# _READONLY_PROMPT_CACHE_TTL_SECONDS' comment in services/ai_service.py.
+
+@pytest.mark.asyncio
+async def test_second_call_within_ttl_does_not_hit_the_db_again(db_session):
+    from core.encryption import encrypt_json
+
+    db_session.add(LearnerProfile(
+        student_name="Nora",
+        session_count=4,
+        profile_enc=encrypt_json({
+            "trivium_stage": "logic", "processing_style": "kinesthetic",
+            "narration_mode": "sequential", "attention_profile": "sustained",
+            "session_count_assessed": 4, "bede_profile_notes": "",
+            "assessed_at": "2026-01-01T00:00:00+00:00",
+        }),
+    ))
+    await db_session.commit()
+
+    assert await _load_processing_style_readonly(db_session, "Nora") == "kinesthetic"
+
+    # Row deleted — a second call that actually re-queried would now see
+    # nothing and fall back to None. Getting "kinesthetic" back proves the
+    # second call was served from cache, not a fresh DB read.
+    await db_session.delete((await db_session.get(LearnerProfile, "Nora")))
+    await db_session.commit()
+
+    assert await _load_processing_style_readonly(db_session, "Nora") == "kinesthetic"
+
+
+@pytest.mark.asyncio
+async def test_cache_is_keyed_per_student(db_session):
+    from core.encryption import encrypt_json
+
+    db_session.add(LearnerProfile(
+        student_name="Priya",
+        session_count=4,
+        profile_enc=encrypt_json({
+            "trivium_stage": "logic", "processing_style": "kinesthetic",
+            "narration_mode": "sequential", "attention_profile": "sustained",
+            "session_count_assessed": 4, "bede_profile_notes": "",
+            "assessed_at": "2026-01-01T00:00:00+00:00",
+        }),
+    ))
+    await db_session.commit()
+
+    assert await _load_processing_style_readonly(db_session, "Priya") == "kinesthetic"
+    # A different, never-seen student must still get a real (None) read,
+    # not another student's cached value.
+    assert await _load_processing_style_readonly(db_session, "Untouched") is None
+
+
+@pytest.mark.asyncio
+async def test_mastery_vector_load_is_also_cached(db_session):
+    """Same fix, same reason, applied to the sibling loader — it only runs
+    for mathematics turns (narrower than processing_style's every-subject
+    reach), but the identical re-query-every-turn cost applied there too."""
+    from core.encryption import encrypt_json
+
+    db_session.add(MasteryProfile(
+        student_name="Theo", subject_area="mathematics",
+        evidence_count=5, profile_enc=encrypt_json({"oa.add_within_20": 0.9}),
+    ))
+    await db_session.commit()
+
+    vector, count = await _load_mastery_vector_readonly(db_session, "Theo")
+    assert (vector, count) == ({"oa.add_within_20": 0.9}, 5)
+
+    await db_session.delete((await db_session.get(MasteryProfile, ("Theo", "mathematics"))))
+    await db_session.commit()
+
+    # Row is gone — a fresh read would now return (None, 0). Still seeing
+    # the original values proves this came from cache.
+    vector, count = await _load_mastery_vector_readonly(db_session, "Theo")
+    assert (vector, count) == ({"oa.add_within_20": 0.9}, 5)
 
 
 # ── End-to-end: stream_tutor_response actually forwards processing_style ─────

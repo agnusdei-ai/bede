@@ -1177,9 +1177,11 @@ async def _build_subject_prompt(
     # not off current_term — current_term is only reused here as a
     # per-session offset (so different families/demo visitors don't all
     # land on the identical poem the same week), not as the driver of
-    # when the poem changes.
+    # when the poem changes. config.grade is passed for grade-specific
+    # curation (K-8, not just the 3 broad stages); grade_stage remains the
+    # fallback for a session with a stage but no exact grade.
     poetry_note = (
-        _poetry_catalog_note(config.grade_stage, week_salt=config.current_term)
+        _poetry_catalog_note(config.grade, config.grade_stage, week_salt=config.current_term)
         if subject in (Subject.morning_time, Subject.living_books)
         else ""
     )

@@ -5,6 +5,8 @@ import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import SocraticChat from '../components/SocraticChat'
 import SubjectDrawer from '../components/SubjectDrawer'
 import FeedbackModal from '../components/FeedbackModal'
+import ThemePicker from '../components/ThemePicker'
+import { useChatTheme } from '../hooks/useChatTheme'
 import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
 import { SUBJECT_MAP } from '../types'
 import { getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes } from '../utils/gradeTimer'
@@ -30,6 +32,7 @@ export default function TutorSession() {
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { theme, setThemeId } = useChatTheme()
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
 
@@ -173,11 +176,12 @@ export default function TutorSession() {
   const subjectInfo = SUBJECT_MAP[currentSubject]
 
   return (
-    // Chat mode leaves the plain white behind for a nature palette — warm
-    // parchment tan flowing into light sage, with leaf-green accents on the
-    // speaking surfaces (see SocraticChat). All from the existing
-    // parchment/sage scales, i.e. colors that exist in nature.
-    <div className="h-screen flex flex-col bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100 overflow-hidden">
+    // Chat mode leaves the plain white behind for a nature palette — the
+    // default is warm parchment tan flowing into light sage, with leaf-green
+    // accents on the speaking surfaces (see SocraticChat), and the reader
+    // can pick a different nature-drawn background from the header's
+    // ThemePicker (persisted per device via useChatTheme).
+    <div className={`h-screen flex flex-col ${theme.bgClass} overflow-hidden`}>
       {/* ── Minimal header ── */}
       <header className="pt-safe bg-parchment-50 border-b border-sage-200 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
         <img src="/bede-icon.png" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
@@ -211,6 +215,8 @@ export default function TutorSession() {
             {fmtTime(isOnBreak ? breakRemainingSecs : remainingSecs)}
           </div>
         )}
+
+        <ThemePicker theme={theme} onSelect={setThemeId} />
 
         {feedbackEnabled && (
           <button

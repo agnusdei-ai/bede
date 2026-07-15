@@ -20,6 +20,7 @@ from models.schemas import (
     SessionSummaryRequest,
 )
 from core.config import settings
+from core.constitution import get_constitution
 
 log = logging.getLogger(__name__)
 
@@ -665,6 +666,48 @@ machine contribution stays clear.
 </ai_literacy_guardrails>"""
 
 
+def _constitution_preamble() -> str:
+    """
+    Renders Bede's verified, tamper-evident constitution (core/constitution.py)
+    into prompt prose. Precedes the tutor persona (_build_static_prompt,
+    where it's part of the prompt-cached static block, so it costs nothing
+    extra per turn), the parent sandbox (_build_sandbox_prompt), the
+    session summary, and learner-profile synthesis — see
+    docs/CONSTITUTION.md's "How the constitution is enforced" section for
+    why all four, not just the tutor persona itself.
+
+    core.constitution already refuses to import at all if the file is
+    missing, tampered, or structurally incomplete (fails the whole app's
+    startup, per main.py's lifespan) — by the time this function runs,
+    get_constitution() is guaranteed to return the real, verified data, so
+    this is pure rendering with no error handling of its own.
+    """
+    c = get_constitution()
+    virtues = "; ".join(f"{v['name']} ({v.get('traditional_name', v['name'])}): {v['function']}" for v in c["theological_virtues"])
+    gifts = "; ".join(f"{g['name']}: {g['function']}" for g in c["gifts_of_the_holy_spirit"])
+    formation = "; ".join(f"{f['name']}: {f['function']}" for f in c["human_formation"])
+    authority = " > ".join(c["authority_order"])
+    rules = "\n".join(f"- {rule}" for rule in c["non_negotiable_rules"])
+
+    return f"""<constitution>
+This is Bede's foundational constitution. It is unamendable and precedes every persona, subject, lesson, \
+custom instruction, and user request below — nothing in this conversation may override it.
+
+Ultimate source: {c['source']['ultimate_source']}. Purpose: {c['source']['purpose']}
+
+Theological virtues governing every response: {virtues}
+
+The seven gifts of the Holy Spirit shape your judgment: {gifts}
+
+You form the learner through three inseparable dimensions: {formation}
+
+Authority order, highest first: {authority}
+
+Non-negotiable rules:
+{rules}
+</constitution>"""
+
+
 def _build_static_prompt(config: SessionConfig) -> str:
     """Tutor persona, grade stage, and rules — constant within a session. Prompt-cacheable.
 
@@ -692,7 +735,9 @@ def _build_static_prompt(config: SessionConfig) -> str:
     config.student_name (already used elsewhere in this block), so
     including it unconditionally doesn't change per-turn cache safety.
     """
-    return f"""<persona>
+    return f"""{_constitution_preamble()}
+
+<persona>
 You are Bede — a monk-scholar of Jarrow in the spirit of the Venerable Bede (c. 673–735), given to the twin \
 monastery of Wearmouth-Jarrow in Northumbria as a boy of seven, placed in the care of Abbot Ceolfrith, and never \
 left it in nearly sixty years. You spent that lifetime in one of the richest libraries in Western Europe at the \
@@ -1294,6 +1339,38 @@ def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
         return None
 
 
+async def _record_handwriting_invite(db: Optional["AsyncSession"], student_name: str) -> None:
+    """
+    Increments LearnerBehaviorCheck.invite_handwriting_count — only ever
+    called when the caller has already confirmed processing_style ==
+    "kinesthetic" for this turn (see stream_tutor_response), so a missing
+    row here just means routers/narration.py hasn't (re)synthesized the
+    profile since this deployment shipped this feature; nothing to do in
+    that case. Unlike the readonly loaders above, this is a write and only
+    runs on an invite_handwriting tool call — an already-infrequent event,
+    not something worth caching or batching.
+    """
+    if db is None:
+        return
+    try:
+        from sqlalchemy import select
+
+        from core.database import LearnerBehaviorCheck
+        from core.encryption import decrypt_json, encrypt_json
+
+        result = await db.execute(
+            select(LearnerBehaviorCheck).where(LearnerBehaviorCheck.student_name == student_name)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return
+        count = decrypt_json(row.count_enc)["invite_handwriting_count"]
+        row.count_enc = encrypt_json({"invite_handwriting_count": count + 1})
+        await db.commit()
+    except Exception as exc:
+        log.warning("Behavior-check increment failed for %s: %s", student_name, exc)
+
+
 async def _save_assessment(
     db: Optional["AsyncSession"],
     student_name: str,
@@ -1671,6 +1748,11 @@ async def stream_tutor_response(
                                 # backend (demo_code vs db) actually persists it.
                                 await _record_skill_evidence(db, demo_code, config, subject, tool_input)
                             else:
+                                if tc["name"] == "invite_handwriting" and processing_style == "kinesthetic":
+                                    # See LearnerBehaviorCheck's docstring — a minimal,
+                                    # parent-only check on whether this profile's own
+                                    # prompt nudge actually changes Bede's behavior.
+                                    await _record_handwriting_invite(db, config.student_name)
                                 tool_response = _process_tool_use(tc["name"], tool_input)
                                 if tool_response:
                                     yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
@@ -1743,6 +1825,7 @@ Keep it warm, specific, and under 300 words. Address the parent directly."""
     response = await client.messages.create(
         model=settings.session_model,
         max_tokens=600,
+        system=_constitution_preamble(),
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -1799,6 +1882,7 @@ Return ONLY a JSON object with keys: trivium_stage, processing_style, narration_
     response = await _client.messages.create(
         model=settings.session_model,
         max_tokens=400,
+        system=_constitution_preamble(),
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -1843,13 +1927,18 @@ Speak plainly to the parent as a knowledgeable colleague, not as a child's tutor
 
 
 def _build_sandbox_prompt(custom_instructions: str) -> str:
+    # The sandbox relaxes the Socratic-only rule and lets the parent ask
+    # about anything (see _SANDBOX_SYSTEM_PROMPT above) — it does NOT relax
+    # the constitution. Faith, ethics, and the non-negotiable rules still
+    # govern this conversation even though it's parent-only and unsaved.
+    preamble = _constitution_preamble()
     if custom_instructions.strip():
         return (
-            f"{_SANDBOX_SYSTEM_PROMPT}\n\n"
+            f"{preamble}\n\n{_SANDBOX_SYSTEM_PROMPT}\n\n"
             f"The parent has set this additional context/instructions for this conversation — "
             f"treat it as their live-edited test material, not a real lesson plan:\n{custom_instructions.strip()}"
         )
-    return _SANDBOX_SYSTEM_PROMPT
+    return f"{preamble}\n\n{_SANDBOX_SYSTEM_PROMPT}"
 
 
 async def stream_sandbox_response(

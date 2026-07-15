@@ -227,6 +227,17 @@ export interface LearnerProfileData {
   assessed_at: string
 }
 
+// Parent-only (unlike LearnerProfileData, which a child token can also
+// read) — see homeschool-api/core/database.py's LearnerBehaviorCheck for
+// what this is and isn't. Only ever present while processing_style is
+// currently "kinesthetic"; null otherwise (see fetchLearnerBehaviorCheck).
+// Deliberately NOT a claim that the kinesthetic label improves learning —
+// only a check that Bede's own prompted adaptation is actually happening.
+export interface LearnerBehaviorCheck {
+  invite_handwriting_count: number
+  since: string
+}
+
 // Real, persisted (mastery_profiles) diagnostic summary — see
 // homeschool-api/services/diagnostic/get_mastery_summary. Same shape as
 // the public demo's own preview (demo/src/api.ts's MasteryProfileSummary),

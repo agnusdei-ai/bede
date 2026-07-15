@@ -6,6 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Agnus Dei / Bede** — a self-hosted, LAN-deployed Catholic Classical homeschool AI tutor. A parent configures each student's daily plan; students connect from their own tablets. Claude (Bede persona) tutors via Socratic dialogue, agentic tools, and subject-specific personas. All student data is AES-256-GCM encrypted at rest; voice biometrics authenticate children at session start.
 
+## Bede's Constitution
+
+Bede's persona, ethics, and limits are governed by an immutable, tamper-evident
+constitution — see **[docs/CONSTITUTION.md](docs/CONSTITUTION.md)** for the full
+human-readable text (Faith/Hope/Love, the seven gifts of the Holy Spirit, the
+three dimensions of human formation, the non-negotiable rules). The canonical,
+digest-pinned source is `homeschool-api/constitution/bede.constitution.json`;
+`core/constitution.py` verifies its SHA-256 digest and structure at import
+time and exposes it as recursively read-only data. `main.py`'s startup
+lifespan re-verifies it explicitly before database initialization — a
+missing or modified constitution prevents Bede from starting at all.
+`services/ai_service.py`'s `_constitution_preamble()` renders it into every
+prompt that shapes Bede's behavior: the tutor persona (`_build_static_prompt`,
+part of the cached static block), the parent sandbox
+(`_build_sandbox_prompt`), the session summary
+(`generate_session_summary`), and learner-profile synthesis
+(`synthesize_learner_profile`). No parent setting, custom instruction,
+retrieved content, or child prompt can override it. Changing the
+foundational substance requires the change-control process in
+`docs/CONSTITUTION.md`'s "Change control" section, not just an edit.
+
 ## Running the Full Stack
 
 Full deployment instructions (Docker Compose, database choice, day-to-day
@@ -50,10 +71,11 @@ startup if any credential matches a known-weak default, or if `CHILD_PIN`/
 ### Backend (`homeschool-api/`)
 
 ```
-main.py              FastAPI app + lifespan (DB init, encryption init)
+main.py              FastAPI app + lifespan (constitution verify, DB init, encryption init)
 core/
   config.py          Pydantic Settings — all env vars + production validation
-  database.py        Async SQLAlchemy engine, ORM models (EncryptionConfig, VoiceProfile, StudentConfig, AuditLog)
+  constitution.py    Verifies constitution/bede.constitution.json's SHA-256 digest + structure at import time; exposes recursively read-only data (see "Bede's Constitution" above)
+  database.py        Async SQLAlchemy engine, ORM models (EncryptionConfig, VoiceProfile, StudentConfig, AuditLog, LearnerProfile, LearnerBehaviorCheck, MasteryProfile, and more — non-exhaustive list)
   encryption.py      AES-256-GCM; MASTER_SECRET → KEK → DATA_KEY hierarchy; all BYTEA columns encrypted
   audit.py           Encrypted audit log — every security event written independently of request transaction
   deps.py            require_auth / require_parent FastAPI dependencies (JWT + IP/UA fingerprint)
@@ -65,8 +87,9 @@ routers/
   pod.py             CRUD /pod/configs — parent saves, child loads by name
   voice.py           POST /voice/enroll; POST /voice/verify
   admin.py           GET /admin/status; GET /admin/audit
+  narration.py       Narration assessment history + learner profile: GET/POST /narration/{student}/profile, GET /narration/{student}/assessments, GET /narration/{student}/behavior-check (parent-only kinesthetic-adaptation observation — see LearnerBehaviorCheck)
 services/
-  ai_service.py      stream_tutor_response() + generate_session_summary()
+  ai_service.py      stream_tutor_response() + generate_session_summary(); _constitution_preamble() prepends the verified constitution to every persona/summary/profile-synthesis prompt
   voice_auth.py      Resemblyzer speaker embedding + MFCC similarity scoring
   transcription.py   Whisper transcription for voice enrollment phrases
 models/
@@ -77,7 +100,7 @@ models/
 
 **SSE streaming format:** Each chunk is `data: {"type":"text","content":"..."}`, `data: {"type":"tool","tool":"<name>","content":"..."}`, or `data: {"type":"done"}`. Tool calls are accumulated in a buffer, JSON-parsed at `ContentBlockStop`, then formatted and emitted.
 
-**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`, `record_skill_evidence`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only); `record_skill_evidence` is stricter still — it emits nothing to the SSE stream at all, silently persisting math-skill diagnostic evidence via `_record_skill_evidence` (`services/ai_service.py`), which routes to exactly one of two backends: the real, db-backed `services/diagnostic/` (parent/child sessions) or the demo's in-memory `services/diagnostic_demo.py` (demo_code sessions only) — see `docs/diagnostic/`.
+**Agentic tools include:** `request_narration`, `invite_handwriting` (opens the tablet's writing/drawing canvas — the app's applied-practice step after dialogue: written narration, nature-notebook sketches, showing math work, per the child's `GradeStage`; also supports a structured, DITK-style mode via an optional `elements` list, for a child whose learner profile shows a kinesthetic processing style), `offer_socratic_hint`, `celebrate_discovery`, `connect_to_faith`, `show_visual_aid`, `assess_narration`, `suggest_next_subject`, `record_skill_evidence`. The first five render as styled cards in the UI (not chat bubbles); `assess_narration` is silent (server-side only); `record_skill_evidence` is stricter still — it emits nothing to the SSE stream at all, silently persisting math-skill diagnostic evidence via `_record_skill_evidence` (`services/ai_service.py`), which routes to exactly one of two backends: the real, db-backed `services/diagnostic/` (parent/child sessions) or the demo's in-memory `services/diagnostic_demo.py` (demo_code sessions only) — see `docs/diagnostic/`. For a currently kinesthetic-profiled student, each `invite_handwriting` call also increments `LearnerBehaviorCheck` (`_record_handwriting_invite`) — a minimal, parent-only, encrypted observation of whether that profile's own prompt nudge is actually changing Bede's behavior, surfaced on the Progress page. It is deliberately not a psychometric claim that the label improves learning.
 
 ### Frontend (`homeschool-tutor/src/`)
 
@@ -90,6 +113,7 @@ pages/
   ParentSetup.tsx    Configure up to 10 students per pod with subject/grade/context
   PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet"
   TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay
+  Progress.tsx       Parent-only: narration history, learner profile (+ kinesthetic behavior-check observation), math mastery summary, AI usage — non-exhaustive, see the page itself
 components/
   SocraticChat.tsx   Chat UI + SSE stream consumer + Bede opener ([START] sentinel)
   SessionTimer.tsx   Countdown display; grade-aware (K-3 vs 4-8)

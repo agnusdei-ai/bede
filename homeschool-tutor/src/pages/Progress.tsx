@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
-import type { NarrationAssessmentData, LearnerProfileData, SessionConfig, MasteryProfileSummary, UsageSummary } from '../types'
+import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary } from '../types'
 import {
   fetchNarrationAssessments,
   fetchLearnerProfile,
+  fetchLearnerBehaviorCheck,
   fetchMasteryProfileSummary,
   fetchStudentUsage,
   buildLearnerProfile,
@@ -236,14 +237,26 @@ function ProfileBadge({ label }: { label: string }) {
   )
 }
 
+// Descriptive only — never a claim that the kinesthetic label improves
+// learning (the "learning styles" literature this profile is loosely
+// modeled on doesn't support that stronger claim). Just: is Bede's own
+// prompted adaptation (more invite_handwriting) actually showing up.
+function behaviorCheckLine(check: LearnerBehaviorCheck): string {
+  const since = formatDate(check.since)
+  const times = check.invite_handwriting_count
+  return `Since being profiled as a kinesthetic learner on ${since}, Bede has invited hands-on drawing or writing ${times} time${times !== 1 ? 's' : ''}.`
+}
+
 function LearnerProfileCard({
   profile,
+  behaviorCheck,
   assessmentCount,
   token,
   studentName,
   onProfileBuilt,
 }: {
   profile: LearnerProfileData | null
+  behaviorCheck: LearnerBehaviorCheck | null
   assessmentCount: number
   token: string
   studentName: string
@@ -279,6 +292,11 @@ function LearnerProfileCard({
           </div>
           {profile.bede_profile_notes && (
             <p className="text-sm text-gray-600 leading-relaxed">{profile.bede_profile_notes}</p>
+          )}
+          {profile.processing_style === 'kinesthetic' && behaviorCheck && (
+            <p className="text-xs text-sage-700 bg-sage-50 border border-sage-100 rounded-lg px-3 py-2">
+              {behaviorCheckLine(behaviorCheck)}
+            </p>
           )}
           <p className="text-xs text-gray-400">
             Based on {profile.session_count_assessed} session
@@ -585,6 +603,7 @@ export default function Progress() {
 
   const [assessments, setAssessments] = useState<NarrationAssessmentData[]>([])
   const [profile, setProfile] = useState<LearnerProfileData | null>(null)
+  const [behaviorCheck, setBehaviorCheck] = useState<LearnerBehaviorCheck | null>(null)
   const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -596,18 +615,21 @@ export default function Progress() {
     setLoadError(null)
     setAssessments([])
     setProfile(null)
+    setBehaviorCheck(null)
     setMasterySummary(null)
     setUsage(null)
 
     Promise.all([
       fetchNarrationAssessments(token, activeStudent),
       fetchLearnerProfile(token, activeStudent),
+      fetchLearnerBehaviorCheck(token, activeStudent),
       fetchMasteryProfileSummary(token, activeStudent),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, m, u]) => {
+      .then(([a, p, bc, m, u]) => {
         setAssessments(a)
         setProfile(p)
+        setBehaviorCheck(bc)
         setMasterySummary(m)
         setUsage(u)
       })
@@ -683,6 +705,7 @@ export default function Progress() {
           <div className="space-y-4">
             <LearnerProfileCard
               profile={profile}
+              behaviorCheck={behaviorCheck}
               assessmentCount={assessments.length}
               token={token}
               studentName={activeStudent}

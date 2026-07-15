@@ -178,7 +178,10 @@ their voice check.
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
   Bede's sense of how that child learns best — available from the very first session
   (an initial, tentative read that sharpens as more sessions accumulate), not just
-  after 3+.
+  after 3+. If Bede profiles your child as a kinesthetic ("learns by doing") learner,
+  the same page shows a small observation confirming how often Bede has actually
+  invited hands-on drawing/writing since — a sanity check on the adaptation itself,
+  not a claim that the label makes your child learn better.
 - Every session is saved as an encrypted transcript, viewable from the same place.
 - If a child's voice changes enough that verification starts failing (common after
   a cold, or over months of growth), re-run enrollment from the Pod Dashboard.

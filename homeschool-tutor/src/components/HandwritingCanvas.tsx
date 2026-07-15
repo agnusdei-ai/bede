@@ -24,12 +24,20 @@ interface HandwritingCanvasProps {
   // Picks the printed/drawn paper style below — mathematics gets graph
   // paper (for showing work, plotting, keeping columns aligned); Art &
   // Music gets staff paper (five-line musical staves for copying a hymn
-  // line, notating a melody, or first composition exercises); everything
-  // else (written narration, nature-notebook sketches, etc., per
+  // line, notating a melody, or first composition exercises); Science gets
+  // the nature-journal split page (open sketch space above, ruled
+  // observation lines below — the classic Charlotte Mason nature-notebook
+  // layout); everything else (written narration, copywork, etc., per
   // invite_handwriting's own scope) gets composition paper, the classic
   // ruled handwriting-practice sheet. Optional/undefined falls back to
   // composition paper.
   subject?: Subject
+  // Scales the composition/journal ruling to the child's writing size —
+  // K-2 gets wide primary ruling with a dashed midline (still forming
+  // letters), 3-5 the standard elementary ruling, 6-8 a tighter
+  // college-style rule with no midline. Unknown/absent falls back to the
+  // 3-5 ruling, which is what this canvas always drew before.
+  gradeStage?: string
 }
 
 const PARCHMENT_BG = '#faf8f0'
@@ -58,10 +66,31 @@ const COMPOSITION_RULE_COLOR = '#a9c3dc'
 const COMPOSITION_MIDLINE_COLOR = '#c7d8ea'
 
 const GRAPH_SPACING = 24
-// Distance between baselines — the dashed guide midline sits halfway
-// between one baseline and the next, matching the classic elementary
-// composition-paper layout (top space, dashed midline, solid baseline).
-const COMPOSITION_LINE_HEIGHT = 42
+// Dot-grid paper: same pitch as the graph grid so work translates between
+// the two, but only the intersections are marked — dots guide without
+// boxing the child in, which suits geometry constructions, multiplication
+// arrays, symmetry work, and freehand-but-tidy diagrams.
+const DOT_SPACING = 24
+const DOT_RADIUS = 1.5
+// Composition ruling scaled to the writer, not one-size-fits-all. The
+// dashed guide midline sits halfway between one baseline and the next,
+// matching the classic elementary layout (top space, dashed midline,
+// solid baseline) — K-2 writes big and needs the midline; 6-8 gets a
+// tighter college-style rule with no midline. The '3-5' row is the exact
+// ruling this canvas always drew before grade scaling existed.
+const RULING_BY_STAGE: Record<string, { lineHeight: number; midline: boolean }> = {
+  'K-2': { lineHeight: 58, midline: true },
+  '3-5': { lineHeight: 42, midline: true },
+  '6-8': { lineHeight: 32, midline: false },
+}
+const DEFAULT_RULING = RULING_BY_STAGE['3-5']
+// Nature-journal split page: the top portion is open sketch space (the
+// specimen drawing), the bottom is ruled for the written observation —
+// one page holds both halves of a Charlotte Mason notebook entry. A short
+// date line sits top-right, as on a real nature-notebook page.
+const JOURNAL_SPLIT_RATIO = 0.58
+const JOURNAL_DATE_LINE_Y = 34
+const JOURNAL_DATE_LINE_WIDTH = 150
 // Musical staff paper: five lines per staff. The line gap is generous
 // (beginner manuscript paper, not engraver-tight) so a child can place
 // note heads between lines with a stylus or pencil after printing.
@@ -71,7 +100,7 @@ const STAFF_LINE_GAP = 12
 const STAFF_GROUP_SPACING = 96
 const STAFF_TOP_MARGIN = 48
 
-type PaperStyle = 'composition' | 'graph' | 'staff' | 'blank'
+type PaperStyle = 'composition' | 'graph' | 'dots' | 'staff' | 'journal' | 'blank'
 
 // The subject picks the DEFAULT paper only — the child is free to switch to
 // any paper from the toolbar picker regardless of topic (a math session may
@@ -79,22 +108,66 @@ type PaperStyle = 'composition' | 'graph' | 'staff' | 'blank'
 function paperStyleFor(subject?: Subject): PaperStyle {
   if (subject === 'mathematics') return 'graph'
   if (subject === 'art_music') return 'staff'
+  if (subject === 'science') return 'journal'
   return 'composition'
 }
 
 const PAPER_LABEL: Record<PaperStyle, string> = {
   composition: 'Composition',
   graph: 'Graph',
+  dots: 'Dots',
   staff: 'Staff',
+  journal: 'Journal',
   blank: 'Blank',
 }
-const PAPER_ORDER: PaperStyle[] = ['composition', 'graph', 'staff', 'blank']
+const PAPER_ORDER: PaperStyle[] = ['composition', 'graph', 'dots', 'staff', 'journal', 'blank']
 
 // Fills the page background and its ruling — called any time the canvas is
 // (re)initialized, resized, cleared, or redrawn from the stroke history, so
 // the paper style never needs separate "erase to blank" handling from
 // "erase to ruled/gridded" handling.
-function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle, bg: string) {
+// One writing line (optional dashed midline + solid baseline) — shared by
+// composition paper and the journal page's ruled lower portion so the two
+// always agree on what a "line" looks like at a given grade stage.
+function drawRuledLines(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  fromY: number,
+  toY: number,
+  ruling: { lineHeight: number; midline: boolean },
+  ruleColor: string,
+  midColor: string,
+) {
+  for (let y = fromY + ruling.lineHeight; y < toY; y += ruling.lineHeight) {
+    if (ruling.midline) {
+      const midY = y - ruling.lineHeight / 2
+      ctx.strokeStyle = midColor
+      ctx.lineWidth = 1
+      ctx.setLineDash([6, 6])
+      ctx.beginPath()
+      ctx.moveTo(0, midY + 0.5)
+      ctx.lineTo(width, midY + 0.5)
+      ctx.stroke()
+    }
+
+    ctx.strokeStyle = ruleColor
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    ctx.beginPath()
+    ctx.moveTo(0, y + 0.5)
+    ctx.lineTo(width, y + 0.5)
+    ctx.stroke()
+  }
+}
+
+function drawPaper(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  style: PaperStyle,
+  bg: string,
+  ruling: { lineHeight: number; midline: boolean },
+) {
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, width, height)
 
@@ -124,6 +197,20 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
     return
   }
 
+  if (style === 'dots') {
+    // A dot at every grid intersection, none on the edges — the ink-dot
+    // color leans on the ruling color so dots survive dark paper too.
+    ctx.fillStyle = dark ? 'rgba(255,255,255,0.4)' : ruleColor
+    for (let x = DOT_SPACING; x < width; x += DOT_SPACING) {
+      for (let y = DOT_SPACING; y < height; y += DOT_SPACING) {
+        ctx.beginPath()
+        ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+    return
+  }
+
   if (style === 'staff') {
     ctx.strokeStyle = ruleColor
     ctx.lineWidth = 1
@@ -142,23 +229,28 @@ function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number,
     return
   }
 
-  for (let y = COMPOSITION_LINE_HEIGHT; y < height; y += COMPOSITION_LINE_HEIGHT) {
-    const midY = y - COMPOSITION_LINE_HEIGHT / 2
-    ctx.strokeStyle = midColor
-    ctx.lineWidth = 1
-    ctx.setLineDash([6, 6])
-    ctx.beginPath()
-    ctx.moveTo(0, midY + 0.5)
-    ctx.lineTo(width, midY + 0.5)
-    ctx.stroke()
-
+  if (style === 'journal') {
+    // Short date line, top-right — filled in by hand like a real notebook.
     ctx.strokeStyle = ruleColor
+    ctx.lineWidth = 1
     ctx.setLineDash([])
     ctx.beginPath()
-    ctx.moveTo(0, y + 0.5)
-    ctx.lineTo(width, y + 0.5)
+    ctx.moveTo(width - 24 - JOURNAL_DATE_LINE_WIDTH, JOURNAL_DATE_LINE_Y + 0.5)
+    ctx.lineTo(width - 24, JOURNAL_DATE_LINE_Y + 0.5)
     ctx.stroke()
+
+    // Divider between the sketch space above and the writing lines below.
+    const splitY = Math.round(height * JOURNAL_SPLIT_RATIO)
+    ctx.beginPath()
+    ctx.moveTo(0, splitY + 0.5)
+    ctx.lineTo(width, splitY + 0.5)
+    ctx.stroke()
+
+    drawRuledLines(ctx, width, splitY, height, ruling, ruleColor, midColor)
+    return
   }
+
+  drawRuledLines(ctx, width, 0, height, ruling, ruleColor, midColor)
 }
 
 // The only exportable surface in this app — a deliberate, narrow exception
@@ -196,8 +288,9 @@ const SIZE_PRESETS: Record<SizePreset, { min: number; max: number; base: number;
 
 type Tool = 'pen' | 'eraser'
 
-export default function HandwritingCanvas({ onSubmit, onCancel, subject }: HandwritingCanvasProps) {
+export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeStage }: HandwritingCanvasProps) {
   const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
+  const ruling = RULING_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_RULING
   const [paperColor, setPaperColor] = useState<string>(PARCHMENT_BG)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -230,8 +323,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     canvas.height = canvas.offsetHeight * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle, paperColor)
-  }, [paperStyle, paperColor])
+    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle, paperColor, ruling)
+  }, [paperStyle, paperColor, ruling])
 
   // Redraw all strokes from scratch onto the canvas
   const redrawAll = useCallback(() => {
@@ -243,7 +336,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     // Clear to paper (background + ruling/grid)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling)
 
     // Replay all strokes — an "eraser" stroke is just one whose color is the
     // background color, so replaying strokes in order naturally covers
@@ -271,7 +364,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
       }
       ctx.stroke()
     }
-  }, [paperStyle, paperColor])
+  }, [paperStyle, paperColor, ruling])
 
   useEffect(() => {
     initCanvas()
@@ -406,7 +499,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
     const dpr = dprRef.current
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling)
   }
 
   const handleDone = () => {
@@ -463,15 +556,18 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject }: Handw
           <span className="text-sm font-medium">Cancel</span>
         </button>
 
-        {/* Paper picker — the child's choice, regardless of subject */}
-        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1">
+        {/* Paper picker — the child's choice, regardless of subject. Six
+            styles can outgrow a portrait tablet between Cancel and the
+            action buttons, so the strip scrolls sideways rather than
+            wrapping or squashing its neighbors. */}
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 min-w-0 overflow-x-auto mx-2">
           {PAPER_ORDER.map((style) => (
             <button
               key={style}
               onClick={() => setPaperStyle(style)}
               aria-pressed={paperStyle === style}
               title={`${PAPER_LABEL[style]} paper`}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
                 paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
               }`}
             >

@@ -169,6 +169,16 @@ function clearChatState(code: string): void {
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
 
+// The stage bands the backend's grade_to_stage() uses, mirrored here so the
+// handwriting canvas can scale its composition ruling to the child. The
+// demo default (no grade picked) is grade 4, hence the '3-5' fallback.
+function demoGradeStage(): string {
+  const grade = sessionStorage.getItem(GRADE_STORAGE_KEY) ?? ''
+  if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
+  if (grade === '6' || grade === '7' || grade === '8') return '6-8'
+  return '3-5'
+}
+
 function CodeScreen({ onLoggedIn }: {
   onLoggedIn: (token: string, code: string) => void
 }) {
@@ -717,6 +727,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
           onCancel={() => setShowCanvas(false)}
           subject={subject}
+          gradeStage={demoGradeStage()}
         />
       )}
     </div>

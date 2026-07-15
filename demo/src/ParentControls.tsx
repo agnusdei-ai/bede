@@ -90,9 +90,9 @@ export default function ParentControlsMenu({ controls, onChange }: {
           {/* Session hard stop */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-700">Session length (hard stop)</p>
+              <p className="text-sm font-medium text-gray-700">Session length</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Ends automatically — 2 hours by default, 4 at most. A 10-minute break follows each hour.
+                The session ends when this time is up. Learners rest for ten minutes after every hour.
               </p>
             </div>
             <div className="w-20 flex-shrink-0">
@@ -120,8 +120,8 @@ export default function ParentControlsMenu({ controls, onChange }: {
               <p className="text-sm font-medium text-gray-700">Lock chat appearance</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {controls.appearanceLocked
-                  ? 'Theme & bubble-color picker hidden'
-                  : 'Learner may change theme and bubble color'}
+                  ? 'The learner cannot change the theme or bubble color.'
+                  : 'The learner may change the theme and bubble color.'}
               </p>
             </div>
             <button
@@ -142,7 +142,7 @@ export default function ParentControlsMenu({ controls, onChange }: {
           </div>
 
           <p className="text-[10px] text-gray-400 pt-1 border-t border-parchment-200">
-            In the full app these live in Parent Setup, behind the parent password.
+            In the full app, the parent password protects these settings.
           </p>
         </div>
       )}

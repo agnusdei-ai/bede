@@ -294,8 +294,7 @@ export default function TutorSession() {
               </div>
               <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Great work today!</h2>
               <p className="text-sm text-gray-600 mb-1">
-                {sessionConfig.student_name}, you've reached today's{' '}
-                {sessionCapMin % 60 === 0 ? `${sessionCapMin / 60}-hour` : `${sessionCapMin}-minute`} learning time.
+                {sessionConfig.student_name}, you have finished your learning time for today.
               </p>
               <p className="text-sm text-gray-500">Wrapping up your session now.</p>
             </div>
@@ -324,7 +323,7 @@ export default function TutorSession() {
                   <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
                   <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
                   <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, you've been working hard.</p>
-                  <p className="text-sm text-gray-500 mb-4">Step away from the screen — be with nature, rest your eyes, or spend a quiet moment with God.</p>
+                  <p className="text-sm text-gray-500 mb-4">Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.</p>
                   {breakActivity && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
                       {breakActivity.prompt}

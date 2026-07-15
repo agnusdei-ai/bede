@@ -438,8 +438,8 @@ function StudentCard({
             <p className="text-sm font-medium text-gray-700">Lock chat appearance</p>
             <p className="text-xs text-gray-500 mt-0.5">
               {student.appearance_locked
-                ? 'Theme & bubble-color picker hidden during this student’s sessions'
-                : 'Student may change the background theme and bubble color'}
+                ? 'This student cannot change the theme or bubble color.'
+                : 'This student may change the theme and bubble color.'}
             </p>
           </div>
           <button
@@ -463,10 +463,10 @@ function StudentCard({
         <div className="p-3 bg-gray-50 rounded-xl">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-gray-700">Session length (hard stop)</p>
+              <p className="text-sm font-medium text-gray-700">Session length</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Ends automatically after {student.session_cap_minutes} min — 2 hours by default, 4 hours at most.
-                A 10-minute off-screen break is required after each hour.
+                The session ends when this time is up. The default is two hours and the most allowed is four.
+                Learners rest for ten minutes after every hour.
               </p>
             </div>
             <div className="w-24 flex-shrink-0">

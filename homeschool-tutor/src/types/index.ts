@@ -24,6 +24,12 @@ export interface SessionConfig {
   faith_emphasis?: string
   current_unit?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
+  // The session's hard stop, in minutes — on by default and there by design
+  // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
+  // effectiveSessionCap clamps whatever is stored). The session concludes
+  // automatically when it's reached, and a mandatory 10-minute break runs
+  // after every hour of session time regardless of this value.
+  session_cap_minutes?: number
   // Parent-set cap on total on-screen tutoring minutes before a mandatory eye-rest
   // break is inserted. null/undefined = no cap beyond the normal grade-based
   // block/break cycle in gradeTimer.ts.

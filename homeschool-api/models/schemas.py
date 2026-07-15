@@ -130,6 +130,14 @@ class SessionConfig(BaseModel):
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
+    # The session's hard stop, in minutes — on by default and there by
+    # design: the session concludes automatically when it's reached. 2-hour
+    # default; a parent (behind the parent password) may raise it, but the
+    # schema ceiling means no stored value can ever exceed 4 hours. Configs
+    # saved before this field existed load as the 2-hour default. A
+    # mandatory 10-minute break runs after every hour of session time
+    # regardless of this value (frontend gradeTimer.ts).
+    session_cap_minutes: int = Field(default=120, ge=30, le=240)
     # Parent-set cap on total on-screen tutoring minutes before a mandatory
     # eye-rest break is inserted, independent of the grade-based block/break
     # cycle. None = no additional cap.

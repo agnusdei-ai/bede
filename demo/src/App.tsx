@@ -13,6 +13,8 @@ import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
+import ThemePicker from './ThemePicker'
+import { useChatTheme } from './useChatTheme'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
@@ -346,6 +348,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // right back up where it left off, not silently drop back to a blank
   // subject opener as if nothing had happened yet.
   const restored = useMemo(() => loadChatState(code), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const { theme, setThemeId } = useChatTheme()
 
   const [subject, setSubject] = useState<Subject>(() =>
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
@@ -610,11 +613,12 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   }
 
   return (
-    // Chat mode leaves the plain white behind for a nature palette — warm
-    // parchment tan flowing into light sage, with leaf-green accents on the
-    // speaking surfaces (user bubbles, send button). All from the existing
-    // parchment/sage scales, i.e. colors that exist in nature.
-    <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100">
+    // Chat mode leaves the plain white behind for a nature palette — the
+    // default is warm parchment tan flowing into light sage, with leaf-green
+    // accents on the speaking surfaces (user bubbles, send button), and the
+    // visitor can pick a different nature-drawn background from the header's
+    // ThemePicker (persisted per device via useChatTheme).
+    <div className={`flex flex-col h-screen ${theme.bgClass}`}>
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still
@@ -632,6 +636,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
             <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
           </div>
+          <ThemePicker theme={theme} onSelect={setThemeId} />
           {header}
         </div>
         {/* Full-width row of its own — on a phone, cramming this into the row

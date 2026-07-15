@@ -27,6 +27,17 @@ retrieved content, or child prompt can override it. Changing the
 foundational substance requires the change-control process in
 `docs/CONSTITUTION.md`'s "Change control" section, not just an edit.
 
+**Never measure, score, or quantify a child's spiritual engagement or
+growth.** The constitution's faith dimension (`connect_to_faith`, Piety,
+Fear of the Lord, the non-negotiable "never force or trivialize" and
+"informs but never replaces conscience" rules) is deliberately governed
+qualitatively, by rule, not tracked as a metric — unlike, say,
+`LearnerBehaviorCheck`'s count of `invite_handwriting` calls. That
+pattern must not be extended to faith: a child's spiritual life comes
+from the child, not from a number Bede optimizes against. If a future
+change proposes any kind of "faith engagement" signal, counter, or
+score, that is out of scope — raise it as a question, don't build it.
+
 ## Running the Full Stack
 
 Full deployment instructions (Docker Compose, database choice, day-to-day

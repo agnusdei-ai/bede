@@ -40,6 +40,27 @@ interface HandwritingCanvasProps {
   gradeStage?: string
 }
 
+// True-to-scale printing: the canvas's internal drawing resolution is
+// pinned to US Letter at 96 CSS px/inch — the same convention every ruling
+// constant below is measured in — regardless of the on-screen viewport's
+// size or shape. Before this existed, ruling was drawn relative to
+// canvas.offsetWidth/Height, i.e. whatever CSS pixels the toolbar's flex-1
+// container happened to occupy (often landscape-shaped on a laptop
+// browser window). Printing that stretched it non-uniformly to fill
+// whatever page size/orientation the browser picked, so neither the
+// ruling spacing nor the page orientation matched a real sheet of ruled
+// letter paper. Pinning the backing resolution here, letterboxing the
+// on-screen display to the same 8.5:11 aspect ratio (see the paperBox
+// sizing effect below), and forcing @page to portrait Letter with no
+// stretch in the print stylesheet makes on-screen drawing and the printed
+// page the same shape at the same scale.
+const PRINT_DPI = 96
+const PAGE_WIDTH_IN = 8.5
+const PAGE_HEIGHT_IN = 11
+const PAGE_ASPECT = PAGE_WIDTH_IN / PAGE_HEIGHT_IN
+const CANVAS_WIDTH = PAGE_WIDTH_IN * PRINT_DPI // 816
+const CANVAS_HEIGHT = PAGE_HEIGHT_IN * PRINT_DPI // 1056
+
 const PARCHMENT_BG = '#faf8f0'
 
 // Paper colors — construction-paper pastels a child would pull from the
@@ -72,16 +93,18 @@ const GRAPH_SPACING = 24
 // arrays, symmetry work, and freehand-but-tidy diagrams.
 const DOT_SPACING = 24
 const DOT_RADIUS = 1.5
-// Composition ruling scaled to the writer, not one-size-fits-all. The
-// dashed guide midline sits halfway between one baseline and the next,
+// Composition ruling scaled to the writer, not one-size-fits-all, using
+// the real inch spacings of classroom ruled paper (converted to px at
+// PRINT_DPI so they print true-to-scale — see CANVAS_WIDTH/HEIGHT above).
+// The dashed guide midline sits halfway between one baseline and the next,
 // matching the classic elementary layout (top space, dashed midline,
-// solid baseline) — K-2 writes big and needs the midline; 6-8 gets a
-// tighter college-style rule with no midline. The '3-5' row is the exact
-// ruling this canvas always drew before grade scaling existed.
+// solid baseline) — K-2 writes big and needs the midline (5/8" primary
+// ruling); 3-5 gets standard 3/8" ruling; 6-8 gets a tighter 1/4"
+// college-style rule with no midline.
 const RULING_BY_STAGE: Record<string, { lineHeight: number; midline: boolean }> = {
-  'K-2': { lineHeight: 58, midline: true },
-  '3-5': { lineHeight: 42, midline: true },
-  '6-8': { lineHeight: 32, midline: false },
+  'K-2': { lineHeight: 0.625 * PRINT_DPI, midline: true },
+  '3-5': { lineHeight: 0.375 * PRINT_DPI, midline: true },
+  '6-8': { lineHeight: 0.25 * PRINT_DPI, midline: false },
 }
 const DEFAULT_RULING = RULING_BY_STAGE['3-5']
 // Nature-journal split page: the top portion is open sketch space (the
@@ -294,6 +317,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   const [paperColor, setPaperColor] = useState<string>(PARCHMENT_BG)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  // The neutral backdrop the paper sits in on screen — measured to letterbox
+  // the paper (see the effect below) so the paper itself always keeps the
+  // real page's 8.5:11 aspect ratio, whatever shape the browser window is.
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [paperBox, setPaperBox] = useState<{ width: number; height: number }>({
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+  })
   const isDrawingRef = useRef(false)
   const currentStrokeRef = useRef<Point[]>([])
   const strokesRef = useRef<Stroke[]>([])
@@ -314,16 +345,42 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   const [sizePreset, setSizePreset] = useState<SizePreset>('medium')
   const [color, setColor] = useState<string>(PALETTE[0].value)
 
+  // Fits the largest 8.5:11 box into the available backdrop — the same
+  // letterbox math a photo viewer uses — so the on-screen drawing area is
+  // always shaped like the real sheet of paper that will come out of the
+  // printer, whatever shape the browser window itself is.
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const fit = () => {
+      const availW = wrapper.clientWidth
+      const availH = wrapper.clientHeight
+      let width = availW
+      let height = width / PAGE_ASPECT
+      if (height > availH) {
+        height = availH
+        width = height * PAGE_ASPECT
+      }
+      setPaperBox({ width, height })
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(wrapper)
+    return () => observer.disconnect()
+  }, [])
+
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const dpr = window.devicePixelRatio || 1
     dprRef.current = dpr
-    canvas.width = canvas.offsetWidth * dpr
-    canvas.height = canvas.offsetHeight * dpr
+    // The backing store is always the fixed physical page resolution, not
+    // the on-screen display size — see CANVAS_WIDTH/HEIGHT's comment above.
+    canvas.width = CANVAS_WIDTH * dpr
+    canvas.height = CANVAS_HEIGHT * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle, paperColor, ruling)
+    drawPaper(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, paperStyle, paperColor, ruling)
   }, [paperStyle, paperColor, ruling])
 
   // Redraw all strokes from scratch onto the canvas
@@ -377,13 +434,17 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // Get canvas-relative coordinates from pointer event — works identically
   // for a Surface Pen, Apple Pencil, a finger, or a mouse, since the
   // Pointer Events API (not separate mouse/touch handlers) unifies all of
-  // them, pressure included where the hardware reports it.
+  // them, pressure included where the hardware reports it. The displayed
+  // box (rect) can be smaller than the fixed CANVAS_WIDTH/HEIGHT drawing
+  // space (it's letterboxed to fit the screen — see paperBox above), so
+  // pointer position is rescaled into that drawing space rather than used
+  // as raw display pixels.
   const getPos = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width),
+      y: (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height),
       pressure: e.pressure,
     }
   }
@@ -518,30 +579,24 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     window.print()
   }
 
-  // Handle window resize
+  // The backing store is now a fixed physical resolution (CANVAS_WIDTH x
+  // CANVAS_HEIGHT), not tied to the on-screen display size, so an ordinary
+  // window resize just reflows the letterboxed paperBox CSS size — the
+  // browser scales the same raster to fit, same as an <img>, with no redraw
+  // needed. Only a devicePixelRatio change (e.g. dragging the window to a
+  // monitor with different pixel density) needs the backing store rebuilt
+  // at the new dpr, so re-init and replay strokes just for that case.
   useEffect(() => {
     const handleResize = () => {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      // Save existing image
-      const tmpCanvas = document.createElement('canvas')
-      tmpCanvas.width = canvas.width
-      tmpCanvas.height = canvas.height
-      tmpCanvas.getContext('2d')!.drawImage(canvas, 0, 0)
-
+      const dpr = window.devicePixelRatio || 1
+      if (dpr === dprRef.current) return
       initCanvas()
-
-      // Restore image
-      const ctx = canvas.getContext('2d')!
-      const dpr = dprRef.current
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.drawImage(tmpCanvas, 0, 0, canvas.width, canvas.height)
-      ctx.scale(dpr, dpr)
+      redrawAll()
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [initCanvas])
+  }, [initCanvas, redrawAll])
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-parchment-50">
@@ -717,42 +772,66 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         </div>
       </div>
 
-      {/* Canvas container — id'd so the print stylesheet below can isolate
-          just the paper itself (background + ruling + strokes), not the
-          toolbar, when handlePrint() triggers window.print(). */}
-      <div ref={containerRef} id={PRINT_AREA_ID} className="flex-1 relative">
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{
-            touchAction: 'none',
-            cursor: 'crosshair',
-            // Chrome/Edge/Firefox all default print rendering to omit
-            // background colors/light strokes to save ink — this asks them
-            // not to, though the user's own "background graphics" print
-            // option (off by default in most browsers) still wins if set.
-            printColorAdjust: 'exact',
-            WebkitPrintColorAdjust: 'exact',
-          } as React.CSSProperties}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerLeave}
-        />
+      {/* Backdrop — letterboxes the paper (see the paperBox-fitting effect
+          above) so it always keeps a real letter page's 8.5:11 shape,
+          whatever shape the browser window itself is. */}
+      <div ref={wrapperRef} className="flex-1 relative flex items-center justify-center overflow-hidden bg-parchment-200/40">
+        {/* The paper itself — id'd so the print stylesheet below can isolate
+            just this (background + ruling + strokes), not the toolbar or
+            backdrop, when handlePrint() triggers window.print(). Sized to
+            paperBox on screen (a scaled-down view of the fixed physical
+            drawing resolution — see CANVAS_WIDTH/HEIGHT) but always an
+            exact 8.5in x 11in at print time (below), so what's drawn on
+            screen is what prints, true to scale. */}
+        <div
+          ref={containerRef}
+          id={PRINT_AREA_ID}
+          className="relative bg-white shadow-md"
+          style={{ width: paperBox.width, height: paperBox.height }}
+        >
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              touchAction: 'none',
+              cursor: 'crosshair',
+              // Chrome/Edge/Firefox all default print rendering to omit
+              // background colors/light strokes to save ink — this asks them
+              // not to, though the user's own "background graphics" print
+              // option (off by default in most browsers) still wins if set.
+              printColorAdjust: 'exact',
+              WebkitPrintColorAdjust: 'exact',
+            } as React.CSSProperties}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerLeave}
+          />
+        </div>
       </div>
 
       {/* Scoped to this component's own overlay — isolates the paper
           (#handwriting-print-area) as the only thing that prints, hiding
-          the toolbar and everything else on the page behind it. */}
+          the toolbar and backdrop behind it. Forces portrait Letter with
+          zero page margin and sizes the paper to the physical page exactly
+          (no percentage-based stretch-to-fill) so it always prints at the
+          same true scale and orientation as a real ruled sheet, regardless
+          of the on-screen window's shape. */}
       <style>{`
         @media print {
+          @page { size: letter portrait; margin: 0; }
           body * { visibility: hidden !important; }
           #${PRINT_AREA_ID}, #${PRINT_AREA_ID} * { visibility: visible !important; }
           #${PRINT_AREA_ID} {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
+            /* !important: React's inline style={} (setting paperBox's
+               on-screen letterboxed px size) otherwise wins the cascade
+               over this stylesheet and the page would print at whatever
+               size it happened to be on screen instead of true 8.5x11in. */
+            position: fixed !important;
+            inset: 0 !important;
+            width: ${PAGE_WIDTH_IN}in !important;
+            height: ${PAGE_HEIGHT_IN}in !important;
+            box-shadow: none !important;
           }
         }
       `}</style>

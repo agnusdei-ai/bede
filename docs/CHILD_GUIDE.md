@@ -22,10 +22,19 @@ Hi! I'm **Bede**. I'll be your tutor while you learn today.
 You can answer me in whichever way feels easiest:
 
 - **Type** your answer in the box at the bottom.
-- **Tap the microphone** 🎤 and just speak — talk normally, like you're answering a
-  friend.
+- **Tap the microphone** 🎤 once and just talk, like you're chatting with a friend.
+  It stays on between turns, so you don't have to keep tapping it. Tap it once
+  more when you're done talking for the day.
 - **Tap the pencil** ✏️ to draw or write your answer by hand — I can look at your
-  drawing directly.
+  drawing directly. You can pick your paper, too: lined paper for writing, graph
+  paper for math, dots for shapes and patterns, music staff paper, a nature
+  journal page for sketching, or a blank sheet. You can even change the paper's
+  color.
+
+There's also a little **palette** 🎨 at the top of the chat. Tap it to choose the
+look of our room: the background behind us, and the color of your own speech
+bubbles. If you don't see the palette, your parent has chosen the look for you —
+that's okay too.
 
 I'll never just give you the answer — I'll ask you questions instead, because
 figuring things out yourself is how you really learn something. Take your time.
@@ -40,7 +49,12 @@ There's no rush and no wrong way to think out loud.
   something — like sketching what you noticed outside, or writing down what
   happened first in a story.
 - I might celebrate when you figure something out, or offer a hint if you're stuck.
-- If it's time for a break, take it! Learning works better in short, focused pieces.
+- After each hour, the screen will pause for a real break — ten minutes away from
+  the screen. Go outside, look at something far away, or say a quiet prayer. I'll
+  suggest something each time. When the break ends, we pick up right where we
+  left off.
+- When your learning time for the day is finished, I'll tell you and wrap things
+  up myself. Great work deserves a real ending!
 
 ## If something feels wrong
 

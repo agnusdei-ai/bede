@@ -96,19 +96,28 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    (books, math scope, composer/artist study) Bede draws from.
 3. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
-4. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
+4. Set the **session length** if the default doesn't suit. Every session ends on
+   its own when this time is up. The default is two hours, and four hours is the
+   most the app will ever allow — that ceiling is built in and cannot be raised.
+5. Decide whether to **lock chat appearance**. The chat has a small palette where
+   a learner can pick a background theme and the color of their own speech
+   bubbles. If choices like that pull your child away from the lesson (children
+   with attention challenges especially), turn the lock on: the palette
+   disappears from their sessions entirely. You can still open a session
+   yourself as the parent, set a look you both like, and leave it locked.
+6. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
 
-**Session length is capped automatically by grade** — this isn't something you
-configure, it's built in: grades K-3 work in 20-minute per-subject blocks with
-no break (short blocks suit shorter attention spans at that age); grades 4-8
-get a 60-minute block, a 10-minute break, then one more block, then the
-session concludes on its own — a hard 2-hour ceiling per sitting either way.
-You'll still see a countdown in the header during the last stretch before
-each transition. On top of this, you can optionally set a stricter total
-on-screen-time cap per student (with a longer mandatory eye-rest break) from
-the student's settings — the grade-based cap above is the floor everyone
-gets regardless.
+**Sessions have a built-in rhythm of work and rest.** After every hour of
+learning, a mandatory ten-minute break appears: the screen pauses and invites
+your child to step away — be with nature, rest their eyes, or spend a quiet
+moment with God — with a small suggestion each time. Nobody can skip it, and
+the session picks up where it left off when the break ends. Grades K-3 also
+pace each subject in twenty-minute blocks, which suits shorter attention
+spans; grades 4-8 work in the hour-long stretches between breaks. You'll see
+a countdown in the header shortly before each transition. On top of all
+this, you can still set a stricter total screen-time cap per student, with a
+longer eye-rest break, from the student's settings.
 
 ## 6. Getting each child onto their own tablet
 

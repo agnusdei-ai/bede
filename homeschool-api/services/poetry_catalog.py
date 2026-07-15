@@ -1,338 +1,193 @@
 """
-Poetry co-study catalog — public-domain poems with their EXACT text, so
-Bede quotes and teaches recitation verbatim from a canonical source
-instead of reciting from model memory (models can misquote long
-passages, and recitation/copywork requires exact lines).
+Catholic poetry co-study catalog — public-domain poems and hymn-texts with
+their EXACT wording, so Bede quotes and teaches recitation verbatim from a
+verified source instead of reciting from model memory (models can misquote
+long passages, and recitation/copywork requires exact lines). Each entry's
+wording was cross-checked against a named published source before being
+hardcoded here (see PR history for the specific sources checked); short
+excerpts were chosen over full long-form works wherever a complete text
+could not be verified with confidence.
 
-Rotation follows Mater Amabilis practice of living with ONE poet per
-term. The parent's term schedule (SessionConfig.term_schedule) picks the
-rotation length: trimester years rotate three poets, quarterly years
-four. Everything here is public domain; nothing is licensed.
+Rotation is WEEKLY and computed automatically from the calendar (ISO week
+number) rather than from a parent-set field. The prior design (one poet
+per school TERM, keyed to SessionConfig.current_term) depended on a parent
+manually advancing a dropdown in ParentSetup.tsx that nothing ever
+prompted them to update — in practice current_term silently stayed at its
+default of 1 for most sessions, which is exactly what made the public
+demo's poetry permanently stuck on a single poet (see routers/tutor.py's
+_demo_current_term for that fix). A calendar-derived week sidesteps the
+whole failure mode: it advances on its own, for every family and every
+demo visitor, with nothing to configure or forget.
 
-    Term/Quarter 1 — Robert Louis Stevenson, A Child's Garden of Verses (1885)
-    Term/Quarter 2 — Christina Rossetti, Sing-Song and other poems (1872)
-    Term/Quarter 3 — Henry Wadsworth Longfellow (1839-1845)
-    Quarter 4      — William Blake, Songs of Innocence (1789)
-
-Injected into the morning_time and living_books subject prompts by
-services/ai_service.py. Each poet carries a few short poems keyed by
-grade stage so the subject prompt stays lean.
+Each entry is independently tagged with the grade stage(s) it fits, since
+these are drawn from different poets/sources rather than one poet's whole
+collection. Poems for a given stage are filtered first, then indexed by
+week, so K-2, 3-5, and 6-8 each cycle through their own (independently
+sized) list at their own pace — a poem may repeat more than once across a
+school year, which is fine, even desirable, for a memory-work habit (see
+poetry_note's teaching guidance below).
 """
-from models.schemas import GradeStage, TermSchedule
+from datetime import date
+
+from models.schemas import GradeStage
 
 _F = GradeStage.foundations
 _C = GradeStage.core_mastery
 _I = GradeStage.independent
 
 
-def _poem(title: str, stages: set, text: str) -> dict:
-    return {"title": title, "stages": stages, "text": text}
+def _entry(title: str, poet: str, source: str, stages: set, text: str) -> dict:
+    return {"title": title, "poet": poet, "source": source, "stages": stages, "text": text}
 
 
-_ROTATION = [
-    {
-        "poet": "Robert Louis Stevenson",
-        "collection": "A Child's Garden of Verses (1885)",
-        "poems": [
-            _poem("Rain", {_F}, (
-                "The rain is raining all around,\n"
-                "It falls on field and tree,\n"
-                "It rains on the umbrellas here,\n"
-                "And on the ships at sea."
-            )),
-            _poem("Time to Rise", {_F}, (
-                "A birdie with a yellow bill\n"
-                "Hopped upon the window sill,\n"
-                "Cocked his shining eye and said:\n"
-                "\"Ain't you 'shamed, you sleepy-head!\""
-            )),
-            _poem("The Swing", {_F, _C}, (
-                "How do you like to go up in a swing,\n"
-                "Up in the air so blue?\n"
-                "Oh, I do think it the pleasantest thing\n"
-                "Ever a child can do!\n"
-                "\n"
-                "Up in the air and over the wall,\n"
-                "Till I can see so wide,\n"
-                "Rivers and trees and cattle and all\n"
-                "Over the countryside—\n"
-                "\n"
-                "Till I look down on the garden green,\n"
-                "Down on the roof so brown—\n"
-                "Up in the air I go flying again,\n"
-                "Up in the air and down!"
-            )),
-            _poem("Bed in Summer", {_F, _C}, (
-                "In winter I get up at night\n"
-                "And dress by yellow candle-light.\n"
-                "In summer, quite the other way,\n"
-                "I have to go to bed by day.\n"
-                "\n"
-                "I have to go to bed and see\n"
-                "The birds still hopping on the tree,\n"
-                "Or hear the grown-up people's feet\n"
-                "Still going past me in the street.\n"
-                "\n"
-                "And does it not seem hard to you,\n"
-                "When all the sky is clear and blue,\n"
-                "And I should like so much to play,\n"
-                "To have to go to bed by day?"
-            )),
-            _poem("My Shadow", {_C, _I}, (
-                "I have a little shadow that goes in and out with me,\n"
-                "And what can be the use of him is more than I can see.\n"
-                "He is very, very like me from the heels up to the head;\n"
-                "And I see him jump before me, when I jump into my bed.\n"
-                "\n"
-                "The funniest thing about him is the way he likes to grow—\n"
-                "Not at all like proper children, which is always very slow;\n"
-                "For he sometimes shoots up taller like an india-rubber ball,\n"
-                "And he sometimes gets so little that there's none of him at all.\n"
-                "\n"
-                "He hasn't got a notion of how children ought to play,\n"
-                "And can only make a fool of me in every sort of way.\n"
-                "He stays so close beside me, he's a coward you can see;\n"
-                "I'd think shame to stick to nursie as that shadow sticks to me!\n"
-                "\n"
-                "One morning, very early, before the sun was up,\n"
-                "I rose and found the shining dew on every buttercup;\n"
-                "But my lazy little shadow, like an arrant sleepy-head,\n"
-                "Had stayed at home behind me and was fast asleep in bed."
-            )),
-            _poem("Where Go the Boats?", {_C, _I}, (
-                "Dark brown is the river,\n"
-                "Golden is the sand.\n"
-                "It flows along for ever,\n"
-                "With trees on either hand.\n"
-                "\n"
-                "Green leaves a-floating,\n"
-                "Castles of the foam,\n"
-                "Boats of mine a-boating—\n"
-                "Where will all come home?\n"
-                "\n"
-                "On goes the river\n"
-                "And out past the mill,\n"
-                "Away down the valley,\n"
-                "Away down the hill.\n"
-                "\n"
-                "Away down the river,\n"
-                "A hundred miles or more,\n"
-                "Other little children\n"
-                "Shall bring my boats ashore."
-            )),
-        ],
-    },
-    {
-        "poet": "Christina Rossetti",
-        "collection": "Sing-Song and other poems (1872)",
-        "poems": [
-            _poem("The Caterpillar", {_F}, (
-                "Brown and furry\n"
-                "Caterpillar in a hurry,\n"
-                "Take your walk\n"
-                "To the shady leaf, or stalk,\n"
-                "Or what not,\n"
-                "Which may be the chosen spot.\n"
-                "No toad spy you,\n"
-                "Hovering bird of prey pass by you;\n"
-                "Spin and die,\n"
-                "To live again a butterfly."
-            )),
-            _poem("Hurt No Living Thing", {_F}, (
-                "Hurt no living thing:\n"
-                "Ladybird, nor butterfly,\n"
-                "Nor moth with dusty wing,\n"
-                "Nor cricket chirping cheerily,\n"
-                "Nor grasshopper so light of leap,\n"
-                "Nor dancing gnat, nor beetle fat,\n"
-                "Nor harmless worms that creep."
-            )),
-            _poem("Who Has Seen the Wind?", {_F, _C}, (
-                "Who has seen the wind?\n"
-                "Neither I nor you:\n"
-                "But when the leaves hang trembling,\n"
-                "The wind is passing through.\n"
-                "\n"
-                "Who has seen the wind?\n"
-                "Neither you nor I:\n"
-                "But when the trees bow down their heads,\n"
-                "The wind is passing by."
-            )),
-            _poem("What Is Pink?", {_F, _C}, (
-                "What is pink? a rose is pink\n"
-                "By the fountain's brink.\n"
-                "What is red? a poppy's red\n"
-                "In its barley bed.\n"
-                "What is blue? the sky is blue\n"
-                "Where the clouds float thro'.\n"
-                "What is white? a swan is white\n"
-                "Sailing in the light.\n"
-                "What is yellow? pears are yellow,\n"
-                "Rich and ripe and mellow.\n"
-                "What is green? the grass is green,\n"
-                "With small flowers between.\n"
-                "What is violet? clouds are violet\n"
-                "In the summer twilight.\n"
-                "What is orange? Why, an orange,\n"
-                "Just an orange!"
-            )),
-            _poem("Up-Hill", {_C, _I}, (
-                "Does the road wind up-hill all the way?\n"
-                "   Yes, to the very end.\n"
-                "Will the day's journey take the whole long day?\n"
-                "   From morn to night, my friend.\n"
-                "\n"
-                "But is there for the night a resting-place?\n"
-                "   A roof for when the slow dark hours begin.\n"
-                "May not the darkness hide it from my face?\n"
-                "   You cannot miss that inn.\n"
-                "\n"
-                "Shall I meet other wayfarers at night?\n"
-                "   Those who have gone before.\n"
-                "Then must I knock, or call when just in sight?\n"
-                "   They will not keep you standing at that door.\n"
-                "\n"
-                "Shall I find comfort, travel-sore and weak?\n"
-                "   Of labour you shall find the sum.\n"
-                "Will there be beds for me and all who seek?\n"
-                "   Yea, beds for all who come."
-            )),
-        ],
-    },
-    {
-        "poet": "Henry Wadsworth Longfellow",
-        "collection": "selected poems (1839-1845)",
-        "poems": [
-            _poem("The Arrow and the Song", {_F, _C, _I}, (
-                "I shot an arrow into the air,\n"
-                "It fell to earth, I knew not where;\n"
-                "For, so swiftly it flew, the sight\n"
-                "Could not follow it in its flight.\n"
-                "\n"
-                "I breathed a song into the air,\n"
-                "It fell to earth, I knew not where;\n"
-                "For who has sight so keen and strong,\n"
-                "That it can follow the flight of song?\n"
-                "\n"
-                "Long, long afterward, in an oak\n"
-                "I found the arrow, still unbroke;\n"
-                "And the song, from beginning to end,\n"
-                "I found again in the heart of a friend."
-            )),
-            _poem("A Psalm of Life (opening stanzas)", {_C, _I}, (
-                "Tell me not, in mournful numbers,\n"
-                "   Life is but an empty dream!—\n"
-                "For the soul is dead that slumbers,\n"
-                "   And things are not what they seem.\n"
-                "\n"
-                "Life is real! Life is earnest!\n"
-                "   And the grave is not its goal;\n"
-                "Dust thou art, to dust returnest,\n"
-                "   Was not spoken of the soul.\n"
-                "\n"
-                "Lives of great men all remind us\n"
-                "   We can make our lives sublime,\n"
-                "And, departing, leave behind us\n"
-                "   Footprints on the sands of time."
-            )),
-        ],
-    },
-    {
-        "poet": "William Blake",
-        "collection": "Songs of Innocence (1789)",
-        "poems": [
-            _poem("The Shepherd", {_F}, (
-                "How sweet is the Shepherd's sweet lot!\n"
-                "From the morn to the evening he strays;\n"
-                "He shall follow his sheep all the day,\n"
-                "And his tongue shall be filled with praise.\n"
-                "\n"
-                "For he hears the lamb's innocent call,\n"
-                "And he hears the ewe's tender reply;\n"
-                "He is watchful while they are in peace,\n"
-                "For they know when their Shepherd is nigh."
-            )),
-            _poem("The Lamb", {_F, _C}, (
-                "Little Lamb, who made thee?\n"
-                "Dost thou know who made thee?\n"
-                "Gave thee life, and bid thee feed,\n"
-                "By the stream and o'er the mead;\n"
-                "Gave thee clothing of delight,\n"
-                "Softest clothing, woolly, bright;\n"
-                "Gave thee such a tender voice,\n"
-                "Making all the vales rejoice?\n"
-                "Little Lamb, who made thee?\n"
-                "Dost thou know who made thee?\n"
-                "\n"
-                "Little Lamb, I'll tell thee,\n"
-                "Little Lamb, I'll tell thee:\n"
-                "He is called by thy name,\n"
-                "For He calls Himself a Lamb.\n"
-                "He is meek, and He is mild;\n"
-                "He became a little child.\n"
-                "I a child, and thou a lamb,\n"
-                "We are called by His name.\n"
-                "Little Lamb, God bless thee!\n"
-                "Little Lamb, God bless thee!"
-            )),
-            _poem("The Tyger (opening and closing stanzas)", {_C, _I}, (
-                "Tyger! Tyger! burning bright\n"
-                "In the forests of the night,\n"
-                "What immortal hand or eye\n"
-                "Could frame thy fearful symmetry?\n"
-                "\n"
-                "When the stars threw down their spears,\n"
-                "And water'd heaven with their tears,\n"
-                "Did he smile his work to see?\n"
-                "Did he who made the Lamb make thee?\n"
-                "\n"
-                "Tyger! Tyger! burning bright\n"
-                "In the forests of the night,\n"
-                "What immortal hand or eye,\n"
-                "Dare frame thy fearful symmetry?"
-            )),
-        ],
-    },
+_COLLECTION = [
+    _entry(
+        "Angel of God", "Traditional (trad. attrib. St. Anselm of Canterbury)",
+        "USCCB, \"Prayer to Your Guardian Angel\"", {_F, _C}, (
+            "Angel of God, my guardian dear,\n"
+            "To whom God's love commits me here,\n"
+            "Ever this day be at my side,\n"
+            "To light and guard, to rule and guide. Amen."
+        ),
+    ),
+    _entry(
+        "Canticle of the Sun (Brother Sun)", "St. Francis of Assisi (tr. Matthew Arnold)",
+        "Matthew Arnold's translation, as printed in Albert E. Bailey's The Gospel in Hymns", {_F, _C}, (
+            "Praised be my Lord God with all his creatures;\n"
+            "and specially our brother the sun,\n"
+            "who brings us the day, and who brings us the light;\n"
+            "fair is he, and shining with a very great splendour:\n"
+            "O Lord, to us he signifies Thee!"
+        ),
+    ),
+    _entry(
+        "Loving Shepherd of Thy Sheep", "Jane E. Leeson",
+        "Infant Hymnings (1842)", {_F, _C}, (
+            "Loving Shepherd of Thy sheep,\n"
+            "Keep Thy lamb, in safety keep;\n"
+            "Nothing can Thy power withstand,\n"
+            "None can pluck me from Thy hand.\n"
+            "\n"
+            "Loving Shepherd, ever near,\n"
+            "Teach Thy lamb Thy voice to hear,\n"
+            "Suffer not my steps to stray\n"
+            "From the straight and narrow way."
+        ),
+    ),
+    _entry(
+        "Christ Be With Me", "St. Patrick's Breastplate (tr. Cecil Frances Alexander, 1889)",
+        "\"I Bind Unto Myself Today\", verse translation of the Lorica", {_C, _I}, (
+            "Christ be with me, Christ within me,\n"
+            "Christ behind me, Christ before me,\n"
+            "Christ beside me, Christ to win me,\n"
+            "Christ to comfort and restore me,\n"
+            "Christ beneath me, Christ above me,\n"
+            "Christ in quiet, Christ in danger,\n"
+            "Christ in hearts of all that love me,\n"
+            "Christ in mouth of friend and stranger."
+        ),
+    ),
+    _entry(
+        "Lead, Kindly Light", "St. John Henry Newman",
+        "Lyra Apostolica (1836), first stanza", {_C, _I}, (
+            "Lead, Kindly Light, amid the encircling gloom,\n"
+            "Lead Thou me on;\n"
+            "The night is dark, and I am far from home,\n"
+            "Lead Thou me on.\n"
+            "Keep Thou my feet; I do not ask to see\n"
+            "The distant scene; one step enough for me."
+        ),
+    ),
+    _entry(
+        "The Donkey", "G.K. Chesterton",
+        "The Wild Knight and Other Poems (1900)", {_C, _I}, (
+            "When fishes flew and forests walked\n"
+            "And figs grew upon thorn,\n"
+            "Some moment when the moon was blood,\n"
+            "Then surely I was born;\n"
+            "With monstrous head and sickening cry\n"
+            "And ears like errant wings,\n"
+            "The devil's walking parody\n"
+            "On all four-footed things.\n"
+            "\n"
+            "The tattered outlaw of the earth,\n"
+            "Of ancient crooked will;\n"
+            "Starve, scourge, deride me: I am dumb,\n"
+            "I keep my secret still.\n"
+            "\n"
+            "Fools! For I also had my hour;\n"
+            "One far fierce hour and sweet:\n"
+            "There was a shout about my ears,\n"
+            "And palms before my feet."
+        ),
+    ),
+    _entry(
+        "Pied Beauty", "Gerard Manley Hopkins, S.J.",
+        "Poems (1918, posthumous)", {_I}, (
+            "Glory be to God for dappled things—\n"
+            "   For skies of couple-colour as a brinded cow;\n"
+            "      For rose-moles all in stipple upon trout that swim;\n"
+            "Fresh-firecoal chestnut-falls; finches' wings;\n"
+            "   Landscape plotted and pieced—fold, fallow, and plough;\n"
+            "      And áll trádes, their gear and tackle and trim.\n"
+            "\n"
+            "All things counter, original, spare, strange;\n"
+            "   Whatever is fickle, freckled (who knows how?)\n"
+            "      With swift, slow; sweet, sour; adazzle, dim;\n"
+            "He fathers-forth whose beauty is past change:\n"
+            "                                Praise him."
+        ),
+    ),
 ]
 
 
-def poet_for_term(schedule: TermSchedule, current_term: int) -> dict:
-    """One poet per term. Trimester years rotate the first three poets;
-    quarterly years all four. current_term is 1-based and already capped
-    by SessionConfig validation."""
-    rotation_len = 3 if schedule == TermSchedule.trimester else 4
-    idx = (max(1, current_term) - 1) % rotation_len
-    return _ROTATION[idx]
+def _entries_for_stage(stage: GradeStage) -> list[dict]:
+    return [e for e in _COLLECTION if stage in e["stages"]]
 
 
-def poems_for_stage(poet: dict, stage: GradeStage) -> list[dict]:
-    return [
-        {"title": p["title"], "text": p["text"]}
-        for p in poet["poems"]
-        if stage in p["stages"]
-    ]
+def current_week(today: "date | None" = None) -> int:
+    """1-based ISO week number. Computed fresh from the calendar every
+    call — no stored state to drift, no field for a parent to forget."""
+    return (today or date.today()).isocalendar()[1]
 
 
-def poetry_note(stage: GradeStage, schedule: TermSchedule, current_term: int) -> str:
+def poem_for_week(stage: GradeStage, week_salt: int = 0, today: "date | None" = None) -> "dict | None":
+    """
+    The stage-filtered entry for the current calendar week. week_salt
+    offsets the index — ai_service.py passes the session's current_term
+    (already unique-per-demo-code, see routers/tutor.py's
+    _demo_current_term) so different families/demo visitors don't all
+    land on the identical poem in the same calendar week, without this
+    module needing to know anything about demo codes itself.
+
+    Returns None only if a stage's list is empty (not true of the current
+    collection, but keeps this honest if a future edit narrows one to
+    nothing).
+    """
+    entries = _entries_for_stage(stage)
+    if not entries:
+        return None
+    idx = (current_week(today) + week_salt - 1) % len(entries)
+    return entries[idx]
+
+
+def poetry_note(stage: GradeStage, week_salt: int = 0, today: "date | None" = None) -> str:
     """Prompt block for poetry co-study in morning_time / living_books:
-    the current term's poet, this stage's poems verbatim, and how to
-    teach them the Mater Amabilis way (co-study and gentle recitation,
-    never a quiz)."""
-    poet = poet_for_term(schedule, current_term)
-    poems = poems_for_stage(poet, stage)
-    if not poems:
+    this week's poem, given VERBATIM, and how to teach it the Mater
+    Amabilis way (co-study and gentle recitation, never a quiz)."""
+    entry = poem_for_week(stage, week_salt, today)
+    if not entry:
         return ""
-    term_word = "term" if schedule == TermSchedule.trimester else "quarter"
-    poem_blocks = "\n\n".join(f'"{p["title"]}"\n{p["text"]}' for p in poems)
     return f"""
 
 <poetry_co_study>
-This {term_word}'s poet is {poet["poet"]} — {poet["collection"]}, chosen per Mater Amabilis practice
-of living with one poet at a time. The poems below are this child's stage selection, given VERBATIM.
-When you read, quote, or teach any line of these poems, use EXACTLY the text below — never recite
-them from memory and never paraphrase a line you present as the poem itself.
+This week's poem is "{entry['title']}" by {entry['poet']} ({entry['source']}) — part of a
+weekly rotation of Catholic verse and hymn-texts, per Mater Amabilis practice of a steady
+poetry habit. The text below is given VERBATIM. When you read, quote, or teach any line of
+this poem, use EXACTLY the text below — never recite it from memory and never paraphrase a
+line you present as the poem itself.
 
-{poem_blocks}
+{entry['text']}
 
 How to co-study a poem (a few minutes, woven in where it fits — not a lecture):
 read a stanza aloud together, wonder about one image in it ("What do you see when he says...?"),

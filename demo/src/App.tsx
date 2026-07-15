@@ -804,11 +804,12 @@ const DEMO_FEATURE_OPTIONS = [
 // notes are never shown to the student in this browser. Capped to one send
 // per code (core/demo_code_session.py), which is what keeps this from being
 // an open door to spam the operator's own Resend/Claude usage.
-function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDone }: {
+function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedbackEnabled, onDone }: {
   token: string
   config: SessionConfig
   sessionState: { history: ChatMessage[]; subjectsCompleted: Subject[] }
   durationMinutes: number
+  feedbackEnabled: boolean
   onDone: () => void
 }) {
   const [email, setEmail] = useState('')
@@ -935,6 +936,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
           </form>
         )}
 
+        {feedbackEnabled && (
         <div className="border-t border-navy-100 pt-5 mb-6">
           {improvementStatus === 'sent' ? (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
@@ -1021,6 +1023,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, onDon
             </form>
           )}
         </div>
+        )}
 
         <button
           onClick={onDone}
@@ -1669,6 +1672,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
         config={config}
         sessionState={sessionStateRef.current}
         durationMinutes={elapsedMinutes}
+        feedbackEnabled={feedbackEnabled}
         onDone={handleLogout}
       />
     )

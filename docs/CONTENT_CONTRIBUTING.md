@@ -40,10 +40,19 @@ it, not an LLM's recollection. The precedent already in this repo:
   own product pages (`loc.ignatius.com/faithandlife`) and is explicit about
   what it does and doesn't claim (topics are "broad thematic threads, NOT
   a claimed-exhaustive chapter-by-chapter table of contents").
-- A prior session verified every poem in `poetry_catalog.py` against a
-  primary source (e.g. UPenn's digital facsimile of Rossetti's 1872
-  *Sing-Song*) via WebSearch, and caught a real transcription error doing
-  so ("By a fountain's brink" → "By the fountain's brink").
+- A prior session verified every poem in `poetry_catalog.py`'s original
+  secular rotation against a primary source (e.g. UPenn's digital
+  facsimile of Rossetti's 1872 *Sing-Song*) via WebSearch, and caught a
+  real transcription error doing so ("By a fountain's brink" → "By the
+  fountain's brink"). That rotation was later replaced with a Catholic
+  poetry/hymn-text collection (per-entry sourcing is cited in each
+  `_entry(...)` call's `source` argument) — verified the same way, via
+  WebSearch cross-checked across multiple independent results per poem,
+  since direct WebFetch access to primary-source sites (Poetry Foundation,
+  Wikisource, sacred-texts.com, even Wikipedia) 403'd across the board in
+  that session's environment. Anything that couldn't be corroborated
+  consistently across sources was left out rather than guessed — favor a
+  short, well-attested excerpt over a longer passage nobody could verify.
 
 When you bring new source material, cite it (a `_comment` field in JSON, a
 docstring/comment in Python) the same way, and verify anything presented as

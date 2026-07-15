@@ -11,7 +11,6 @@ from core.config import settings
 from models.schemas import DemoCodeRequest, GradeStage, TermSchedule, grade_to_stage
 from routers.auth import create_demo_code
 from routers.tutor import _demo_current_term, _demo_session_config
-from services.poetry_catalog import poet_for_term
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
 
@@ -87,8 +86,9 @@ async def test_demo_current_term_falls_back_to_1_with_no_code():
 
 async def test_demo_current_term_stays_in_range():
     # Previously this was hardcoded to the SessionConfig default (1),
-    # which meant poet_for_term always resolved to _ROTATION[0]
-    # (Stevenson) — every demo visitor, forever, regardless of code.
+    # which meant the picture-study rotation always resolved to
+    # _TERM_ARTISTS[0] (Millet) — every demo visitor, forever, regardless
+    # of code.
     for code in ("000000", "123456", "999999", "abcdef", "Ellie-grade4"):
         assert 1 <= _demo_current_term(code) <= 4
 
@@ -109,16 +109,3 @@ async def test_demo_session_config_uses_quarterly_schedule_and_derived_term():
     config = await _demo_session_config(code)
     assert config.term_schedule == TermSchedule.quarterly
     assert config.current_term == _demo_current_term(code)
-
-
-async def test_demo_session_config_can_reach_every_poet_in_the_rotation():
-    """Regression guard for the actual bug report: the demo previously
-    could never show anything but Robert Louis Stevenson (term 1's poet)
-    no matter who visited or when."""
-    poets_seen = set()
-    for i in range(50):
-        code = await demo_code_session.generate_code(student_name=f"Kid{i}", grade="4")
-        config = await _demo_session_config(code)
-        poet = poet_for_term(config.term_schedule, config.current_term)
-        poets_seen.add(poet["poet"])
-    assert len(poets_seen) > 1

@@ -130,6 +130,14 @@ class SessionConfig(BaseModel):
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
+    # The session's hard stop, in minutes — on by default and there by
+    # design: the session concludes automatically when it's reached. 2-hour
+    # default; a parent (behind the parent password) may raise it, but the
+    # schema ceiling means no stored value can ever exceed 4 hours. Configs
+    # saved before this field existed load as the 2-hour default. A
+    # mandatory 10-minute break runs after every hour of session time
+    # regardless of this value (frontend gradeTimer.ts).
+    session_cap_minutes: int = Field(default=120, ge=30, le=240)
     # Parent-set cap on total on-screen tutoring minutes before a mandatory
     # eye-rest break is inserted, independent of the grade-based block/break
     # cycle. None = no additional cap.
@@ -144,6 +152,13 @@ class SessionConfig(BaseModel):
     # output. Updated via PATCH /pod/configs/{student_name}/voice-narration
     # (routers/pod.py), reachable by the child themselves, not just the parent.
     voice_narration_enabled: bool = True
+    # Parent-side lock on the chat appearance picker (background theme +
+    # bubble color). When True, the child's session hides the picker
+    # entirely — whatever look the device already has stays put. For
+    # children who find open-ended customization a distraction magnet
+    # (ADD/ADHD tendencies especially), choice happens with the parent,
+    # not mid-lesson. A parent-role session still sees the picker.
+    appearance_locked: bool = False
 
     # ── Term schedule & outcomes ──────────────────────────────────────────
     # Mater Amabilis default is a 3-term year; quarterly gives 4. current_term

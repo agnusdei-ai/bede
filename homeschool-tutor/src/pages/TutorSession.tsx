@@ -9,7 +9,10 @@ import ThemePicker from '../components/ThemePicker'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
 import { SUBJECT_MAP } from '../types'
-import { getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes } from '../utils/gradeTimer'
+import {
+  getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes, effectiveSessionCap,
+  SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+} from '../utils/gradeTimer'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import { pickBreakActivity } from '../utils/breakActivities'
 import { Coffee, Eye } from 'lucide-react'
@@ -58,21 +61,22 @@ export default function TutorSession() {
     }
   }, [token, sessionConfig, role, studentParam, navigate, setSessionConfig, startSession])
 
-  // Grades 4-8's hard 2-hour screen-time cap: hooks must run unconditionally
-  // on every render, so this lives here (before the sessionConfig-null return
-  // below) rather than alongside the rest of the timer logic further down,
-  // which depends on sessionConfig and can't run until after that check.
-  // endSessionRef defers to handleEndSession (defined later, once
-  // sessionConfig is known) so the actual end-of-session logic — generating
-  // the parent summary, logging out — lives in exactly one place.
+  // The session-level cap — every grade, by design: the session concludes
+  // at session_cap_minutes (2-hour default, 4-hour ceiling, enforced by
+  // effectiveSessionCap even against a bad stored value). Hooks must run
+  // unconditionally on every render, so this lives here (before the
+  // sessionConfig-null return below) rather than alongside the rest of the
+  // timer logic further down, which depends on sessionConfig and can't run
+  // until after that check. endSessionRef defers to handleEndSession
+  // (defined later, once sessionConfig is known) so the actual
+  // end-of-session logic — generating the parent summary, logging out —
+  // lives in exactly one place.
   const endSessionRef = useRef<() => void>(() => {})
   const hasAutoConcludedRef = useRef(false)
   const [, setCapTick] = useState(0)
   const [showConcludedMessage, setShowConcludedMessage] = useState(false)
   useEffect(() => {
     if (!sessionConfig || !sessionStartedAt) return
-    const cfg = getTimerConfig(sessionConfig.grade)
-    if (!cfg.totalCapMinutes) return
     // Forces a re-render every 15s so the cap is noticed promptly even if
     // nothing else (chat activity, etc.) happens to re-render in the meantime.
     const id = setInterval(() => setCapTick((n) => n + 1), 15000)
@@ -80,9 +84,10 @@ export default function TutorSession() {
   }, [sessionConfig, sessionStartedAt])
   useEffect(() => {
     if (!sessionConfig || !sessionStartedAt) return
-    const cfg = getTimerConfig(sessionConfig.grade)
-    if (!cfg.totalCapMinutes) return
-    const { phase } = getPhase(sessionStartedAt, cfg.blockMinutes, cfg.breakMinutes, cfg.totalCapMinutes)
+    const { phase } = getPhase(
+      sessionStartedAt, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+      effectiveSessionCap(sessionConfig.session_cap_minutes),
+    )
     if (phase === 'concluded' && !hasAutoConcludedRef.current) {
       hasAutoConcludedRef.current = true  // guard against re-firing on every subsequent render
       // Show a brief, friendly heads-up before actually ending the session —
@@ -117,12 +122,22 @@ export default function TutorSession() {
     return null
   }
 
-  const timerCfg = getTimerConfig(sessionConfig.grade)
+  const sessionCapMin = effectiveSessionCap(sessionConfig.session_cap_minutes)
+  const timerCfg = getTimerConfig(sessionConfig.grade, sessionConfig.session_cap_minutes)
   const timerStartedAt = timerCfg.isYounger ? subjectStartedAt : sessionStartedAt
   const { phase: currentPhase, remainingSecs } = getPhase(
     timerStartedAt, timerCfg.blockMinutes, timerCfg.breakMinutes, timerCfg.totalCapMinutes
   )
   const isSubjectBreak = currentPhase === 'break'
+
+  // Session-level 60/10 rhythm + cap, for EVERY grade. For 4-8 this is the
+  // same clock as their subject timer above (both run on session time); for
+  // K-3 it adds the mandatory hourly break their per-subject pacing never
+  // had — a K-3 sitting that runs past an hour breaks like everyone else's.
+  const sessionPhase = getPhase(
+    sessionStartedAt, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES, sessionCapMin,
+  )
+  const isSessionBreak = sessionPhase.phase === 'break'
 
   // Parent-set total on-screen time cap, tracked across the whole session
   // (independent of the grade-based per-subject cycle above). Forces a
@@ -135,9 +150,20 @@ export default function TutorSession() {
     : null
   const isEyeRestBreak = screenPhase?.phase === 'break'
 
-  const isOnBreak = isSubjectBreak || isEyeRestBreak
-  const breakRemainingSecs = isEyeRestBreak ? screenPhase!.remainingSecs : remainingSecs
-  const breakActivity = isEyeRestBreak ? pickBreakActivity(screenPhase!.cycleIndex) : null
+  const isOnBreak = isSubjectBreak || isSessionBreak || isEyeRestBreak
+  const breakRemainingSecs = isEyeRestBreak
+    ? screenPhase!.remainingSecs
+    : isSessionBreak
+      ? sessionPhase.remainingSecs
+      : remainingSecs
+  // Every mandatory break gets a suggested off-screen activity, not just
+  // the eye-rest kind — the hourly break exists to be with nature, rest
+  // the eyes, or reflect on God, so it should suggest as much.
+  const breakActivity = isEyeRestBreak
+    ? pickBreakActivity(screenPhase!.cycleIndex)
+    : isOnBreak
+      ? pickBreakActivity(sessionPhase.cycleIndex)
+      : null
 
   const isWarning = !isOnBreak && remainingSecs > 0 && remainingSecs <= timerCfg.warningMinutes * 60
 
@@ -216,7 +242,14 @@ export default function TutorSession() {
           </div>
         )}
 
-        <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+        {/* Appearance lock: when the parent has locked this student's chat
+            appearance, the picker simply isn't rendered in a child session —
+            the device keeps whatever look it already has. A parent-role
+            session still gets it, so the parent can set the look on the
+            child's own device and then leave it locked. */}
+        {(role === 'parent' || !sessionConfig.appearance_locked) && (
+          <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+        )}
 
         {feedbackEnabled && (
           <button
@@ -252,7 +285,7 @@ export default function TutorSession() {
 
       {/* ── Full-height chat ── */}
       <main className="flex-1 overflow-hidden relative">
-        {/* Session-concluded overlay — today's 2-hour cap reached (grades 4-8) */}
+        {/* Session-concluded overlay — the session cap reached (every grade) */}
         {showConcludedMessage && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
             <div className="bg-white rounded-2xl border border-sage-200 shadow-xl p-8 max-w-sm w-full text-center">
@@ -261,7 +294,7 @@ export default function TutorSession() {
               </div>
               <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Great work today!</h2>
               <p className="text-sm text-gray-600 mb-1">
-                {sessionConfig.student_name}, you've reached today's 2-hour learning time.
+                {sessionConfig.student_name}, you have finished your learning time for today.
               </p>
               <p className="text-sm text-gray-500">Wrapping up your session now.</p>
             </div>
@@ -290,7 +323,12 @@ export default function TutorSession() {
                   <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
                   <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
                   <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, you've been working hard.</p>
-                  <p className="text-sm text-gray-500 mb-6">Step away, have a snack, come back refreshed.</p>
+                  <p className="text-sm text-gray-500 mb-4">Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.</p>
+                  {breakActivity && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
+                      {breakActivity.prompt}
+                    </div>
+                  )}
                   <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(breakRemainingSecs)}</div>
                   <p className="text-xs text-gray-400">until your next learning block</p>
                 </>

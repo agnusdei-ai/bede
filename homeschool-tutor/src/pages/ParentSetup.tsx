@@ -24,6 +24,8 @@ interface StudentForm {
   faith_emphasis: string
   current_unit: string
   voice_required: boolean
+  appearance_locked: boolean
+  session_cap_minutes: number
   screen_time_limit_enabled: boolean
   screen_time_limit_minutes: number
   eye_rest_break_minutes: number
@@ -44,6 +46,8 @@ const blankStudent = (): StudentForm => ({
   faith_emphasis: '',
   current_unit: '',
   voice_required: true,
+  appearance_locked: false,
+  session_cap_minutes: 120,
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
@@ -114,6 +118,8 @@ export default function ParentSetup() {
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
       voice_required: s.voice_required,
+      appearance_locked: s.appearance_locked,
+      session_cap_minutes: Math.max(30, Math.min(240, s.session_cap_minutes)),
       screen_time_limit_minutes: s.screen_time_limit_enabled ? s.screen_time_limit_minutes : null,
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
       term_schedule: s.term_schedule,
@@ -421,6 +427,63 @@ function StudentCard({
               }`}
             />
           </button>
+        </div>
+
+        {/* Appearance lock — hides the chat theme/bubble picker in this
+            student's sessions. For children who find open-ended
+            customization a distraction magnet, choice happens here with
+            the parent, not mid-lesson. */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Lock chat appearance</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {student.appearance_locked
+                ? 'This student cannot change the theme or bubble color.'
+                : 'This student may change the theme and bubble color.'}
+            </p>
+          </div>
+          <button
+            onClick={() => onUpdate({ appearance_locked: !student.appearance_locked })}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+              student.appearance_locked ? 'bg-navy-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                student.appearance_locked ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Session hard stop — on by default and there by design; the
+            parent (already behind the parent password to be on this page)
+            may extend it, but never beyond 4 hours, and every hour of
+            session time still gets its mandatory 10-minute break. */}
+        <div className="p-3 bg-gray-50 rounded-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Session length</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                The session ends when this time is up. The default is two hours and the most allowed is four.
+                Learners rest for ten minutes after every hour.
+              </p>
+            </div>
+            <div className="w-24 flex-shrink-0">
+              <input
+                type="number"
+                min={30}
+                max={240}
+                step={15}
+                value={student.session_cap_minutes}
+                onChange={(e) =>
+                  onUpdate({ session_cap_minutes: Math.max(30, Math.min(240, Number(e.target.value) || 120)) })
+                }
+                className="input"
+              />
+              <p className="text-xs text-gray-400 mt-1 text-center">minutes</p>
+            </div>
+          </div>
         </div>
 
         {/* Screen time limit + eye-rest break */}

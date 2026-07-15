@@ -24,6 +24,12 @@ export interface SessionConfig {
   faith_emphasis?: string
   current_unit?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
+  // The session's hard stop, in minutes — on by default and there by design
+  // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
+  // effectiveSessionCap clamps whatever is stored). The session concludes
+  // automatically when it's reached, and a mandatory 10-minute break runs
+  // after every hour of session time regardless of this value.
+  session_cap_minutes?: number
   // Parent-set cap on total on-screen tutoring minutes before a mandatory eye-rest
   // break is inserted. null/undefined = no cap beyond the normal grade-based
   // block/break cycle in gradeTimer.ts.
@@ -36,6 +42,12 @@ export interface SessionConfig {
   // above, which is about login voice-biometric verification, not TTS
   // output. Defaults true when absent (configs saved before this field existed).
   voice_narration_enabled?: boolean
+  // Parent-side lock on the chat appearance picker (background theme +
+  // bubble color). True hides the picker in the child's session — the
+  // device keeps whatever look it already has; a parent-role session
+  // still sees it. Defaults false/absent for configs saved before this
+  // field existed.
+  appearance_locked?: boolean
   // ── Term schedule & outcomes ────────────────────────────────────────────
   // Mater Amabilis default is a 3-term (trimester) year; quarterly gives 4.
   term_schedule?: TermSchedule

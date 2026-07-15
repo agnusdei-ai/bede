@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap } from 'lucide-react'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -15,6 +15,9 @@ import { renderEmphasis } from './renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
+import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
+import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
+import { pickBreakActivity } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
@@ -340,15 +343,39 @@ interface ChatScreenProps {
   // screen can send it, without lifting message state itself out of this
   // component.
   sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
+  // When this session started (epoch ms) — drives the session-level hard
+  // stop and mandatory hourly breaks, same rules as the full app.
+  sessionStartedAt: number
 }
 
-function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
   // subject opener as if nothing had happened yet.
   const restored = useMemo(() => loadChatState(code), []) // eslint-disable-line react-hooks/exhaustive-deps
   const { theme, setThemeId, bubble, setBubbleId } = useChatTheme()
+
+  // Parent controls (gear menu, header upper right) — the demo's stand-in
+  // for the full app's password-protected Parent Setup, so the experience
+  // matches: a session hard stop with mandatory hourly breaks, and the
+  // appearance lock.
+  const [parentControls, setParentControls] = useState<DemoParentControls>(() => readDemoParentControls())
+  // Re-render every 15s so break/conclude transitions are noticed promptly
+  // even when nothing else is happening (same trick as the full app).
+  const [, setPhaseTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setPhaseTick((n) => n + 1), 15000)
+    return () => clearInterval(id)
+  }, [])
+  const sessionPhase = getPhase(
+    new Date(sessionStartedAt), SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+    effectiveSessionCap(parentControls.sessionCapMinutes),
+  )
+  const isSessionBreak = sessionPhase.phase === 'break'
+  const isConcluded = sessionPhase.phase === 'concluded'
+  const sessionPaused = isSessionBreak || isConcluded
+  const breakActivity = isSessionBreak ? pickBreakActivity(sessionPhase.cycleIndex) : null
 
   const [subject, setSubject] = useState<Subject>(() =>
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
@@ -525,7 +552,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // (not as effect dependencies) so a child mid-typing or mid-drawing is
   // never interrupted — those are exactly the moments this must stay quiet.
   useEffect(() => {
-    if (isStreaming || isSpeaking) return
+    if (isStreaming || isSpeaking || sessionPaused) return
     if (consecutiveAutoContinues.current >= MAX_CONSECUTIVE_AUTO_CONTINUES) return
     const id = setTimeout(() => {
       if (inputRef.current.trim() || showCanvas) return  // actively composing or drawing — leave them be
@@ -534,13 +561,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     }, IDLE_CONTINUE_MS)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isSpeaking, showCanvas, messages])
+  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused])
 
   const send = (overrideMsg?: string) => {
     // overrideMsg lets dictation mode send a transcript directly, without a
     // setInput()-then-read round trip through React state.
     const msg = (overrideMsg ?? input).trim()
-    if ((!msg && !pendingDrawing) || isStreaming) return
+    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused) return
     stopSpeech()
     stopListening()
     setInput('')
@@ -569,17 +596,17 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // tapping it off is the only way out. The short delay debounces the
   // recognition engine's restart cycles.
   useEffect(() => {
-    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening) return
+    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening || sessionPaused) return
     const id = setTimeout(() => startListening(), 400)
     return () => clearTimeout(id)
-  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, startListening])
+  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, startListening, sessionPaused])
 
   // Inverse guard: the moment a turn starts (including the idle-continue
   // nudge), the mic must be OFF, or it would hear Bede's own voice as the
   // learner's answer.
   useEffect(() => {
-    if ((isStreaming || isSpeaking) && isListening) stopListening()
-  }, [isStreaming, isSpeaking, isListening, stopListening])
+    if ((isStreaming || isSpeaking || sessionPaused) && isListening) stopListening()
+  }, [isStreaming, isSpeaking, sessionPaused, isListening, stopListening])
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a
@@ -636,7 +663,14 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
             <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
           </div>
-          <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+          {!parentControls.appearanceLocked && (
+            <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+          )}
+          {/* Parent controls — the header's upper right, next to where the
+              appearance picker lives, under the fixed text-size control:
+              the familiar corner for settings. Stays visible when the
+              appearance lock hides the picker (it's how you unlock). */}
+          <ParentControlsMenu controls={parentControls} onChange={setParentControls} />
           {header}
         </div>
         {/* Full-width row of its own — on a phone, cramming this into the row
@@ -659,6 +693,43 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         </div>
       </header>
 
+      {/* Chat body + input share one relative wrapper so the mandatory
+          break / session-over overlay can cover both while leaving the
+          header (parent controls, Finish) reachable — a demo visitor is
+          never locked away from ending or adjusting the session. */}
+      <div className="flex-1 flex flex-col min-h-0 relative">
+      {sessionPaused && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
+          <div className={`bg-white rounded-2xl border shadow-xl p-8 max-w-sm w-full text-center ${isConcluded ? 'border-sage-200' : 'border-amber-200'}`}>
+            {isConcluded ? (
+              <>
+                <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
+                  <Check size={24} className="text-sage-600" />
+                </div>
+                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Great work today!</h2>
+                <p className="text-sm text-gray-600 mb-1">
+                  {displayName}, you have finished your learning time for today.
+                </p>
+                <p className="text-sm text-gray-500">Use Finish above to wrap up.</p>
+              </>
+            ) : (
+              <>
+                <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
+                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
+                <p className="text-sm text-gray-600 mb-1">{displayName}, you've been working hard.</p>
+                <p className="text-sm text-gray-500 mb-4">Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.</p>
+                {breakActivity && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
+                    {breakActivity.prompt}
+                  </div>
+                )}
+                <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(sessionPhase.remainingSecs)}</div>
+                <p className="text-xs text-gray-400">until your next learning block</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} studentName={displayName} bubbleClass={bubble.className} />
@@ -686,7 +757,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
 
       <div className="px-4 py-3 bg-parchment-50 border-t border-sage-200">
         <div className="flex gap-2 items-end">
-          <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
+          <button onClick={() => setShowCanvas(true)} disabled={isStreaming || sessionPaused} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
           </button>
           <input
@@ -716,15 +787,16 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-            disabled={isStreaming}
+            disabled={isStreaming || sessionPaused}
             placeholder={isListening ? 'Listening… speak now' : voiceMode ? 'Voice conversation on — waiting for Bede…' : 'Type or tap the mic to speak…'}
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />
-          <button onClick={() => send()} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
+          <button onClick={() => send()} disabled={isStreaming || sessionPaused || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
+      </div>
       </div>
 
       {showCanvas && (
@@ -1709,6 +1781,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
         speakToken={token}
         onSessionInvalid={onSessionEnded}
         sessionStateRef={sessionStateRef}
+        sessionStartedAt={sessionStartRef.current}
         header={
           <>
             <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">

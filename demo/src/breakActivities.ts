@@ -1,3 +1,4 @@
+// Mirror of homeschool-tutor/src/utils/breakActivities.ts for the demo app.
 // Suggestions shown during the mandatory eye-rest break, to nudge screen time
 // toward something other than another screen. Picked deterministically by
 // cycle index so the suggestion stays put for the duration of one break

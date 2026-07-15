@@ -1,3 +1,5 @@
+// Mirror of homeschool-tutor/src/utils/gradeTimer.ts for the demo app —
+// same session rules, so the demo experience matches the real one.
 /**
  * Session timing rules:
  *

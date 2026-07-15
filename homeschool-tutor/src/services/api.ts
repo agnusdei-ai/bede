@@ -315,6 +315,21 @@ export async function fetchStudentConfig(token: string, studentName: string): Pr
 }
 
 /**
+ * Permanently deletes a student and ALL of their data — narration history,
+ * learner profile, mastery tracking, session transcripts, usage events,
+ * voice enrollment, not just today's pod config. Irreversible — the
+ * caller (PodDashboard.tsx) requires the parent to type the student's
+ * name to confirm before calling this. See docs/DATA_RETENTION.md.
+ */
+export async function deleteStudentData(token: string, studentName: string): Promise<void> {
+  const res = await fetch(`${BASE}/pod/configs/${encodeURIComponent(studentName)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Failed to delete ${studentName}'s data`)
+}
+
+/**
  * Persists the child's own mute/unmute choice for Bede's spoken narration,
  * so it's remembered next session — see SocraticChat.tsx's TTS toggle.
  * Best-effort: a failed save shouldn't interrupt the session the child is

@@ -152,9 +152,11 @@ async def _record_signal_unsafe(demo_code: str, event_type: str, subject_area: O
 
 
 async def purge_old_signals() -> int:
-    """Deletes signal rows older than _RETENTION_DAYS. Meant to be called
-    periodically by scripts/export_interaction_signals.py, not on the hot
-    tutoring path. Returns the number of rows deleted."""
+    """Deletes signal rows older than _RETENTION_DAYS. Called automatically
+    by main.py's periodic background purge task (every few hours, for the
+    life of the process) and also available to run on demand via
+    scripts/export_interaction_signals.py. Not on the hot tutoring path.
+    Returns the number of rows deleted."""
     from sqlalchemy import delete
 
     from core.database import AsyncSessionLocal, DemoInteractionSignal

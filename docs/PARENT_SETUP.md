@@ -173,6 +173,12 @@ to them. Do **not** share the parent password with your child; there's no legiti
 reason they'd need it day-to-day, and it's the one credential that can override
 their voice check.
 
+The writing pad (the pencil icon in a session) has a print button if your child
+prefers a real pencil to a stylus — it prints at true page size on any printer
+connected to their tablet, with handwriting ruling scaled to their `GradeStage`
+(wide 5/8" primary ruling for K-2, standard 3/8" for 3-5, narrower 1/4" for 6-8),
+so what comes out matches ordinary classroom handwriting paper.
+
 ## 9. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and

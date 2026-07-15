@@ -29,7 +29,9 @@ You can answer me in whichever way feels easiest:
   drawing directly. You can pick your paper, too: lined paper for writing, graph
   paper for math, dots for shapes and patterns, music staff paper, a nature
   journal page for sketching, or a blank sheet. You can even change the paper's
-  color.
+  color. If you'd rather write with a real pencil, tap the little printer button
+  to print that page — it comes out the true size of a real sheet of paper, with
+  the lines spaced just like your handwriting practice at your grade.
 
 There's also a little **palette** 🎨 at the top of the chat. Tap it to choose the
 look of our room: the background behind us, and the color of your own speech

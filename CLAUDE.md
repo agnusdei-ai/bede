@@ -169,3 +169,23 @@ this repo, don't stop at opening a PR and waiting — drive it to done:
 
 This is a standing rule for this repo across sessions, not a one-off for
 whichever task prompted it.
+
+## Standing Workflow: Feature Documentation
+
+Every feature or user-facing behavior change introduced to this repo needs
+to be documented as part of that same change — not left as a follow-up:
+
+1. **Setup/troubleshooting-relevant change** (voice, auth, deployment,
+   backup, etc.) — update the relevant file in `docs/` (e.g. a voice-
+   pipeline reliability fix belongs in `docs/VOICE_SETUP.md`, not just the
+   commit message).
+2. **Architectural change** (a new router, a new frontend flow, a new
+   service module, a new table) — update the relevant subsection under
+   `## Architecture` above so this file keeps matching the real codebase.
+3. **Anything else user-facing** — put it somewhere it will actually be
+   found later (an existing doc if one fits, a new one if none does). A
+   thorough PR description is not a substitute — PRs get buried in git
+   history; docs are what the next person (or session) actually reads.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever change prompted it.

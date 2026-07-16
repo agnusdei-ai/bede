@@ -177,6 +177,10 @@ To change models, update `tutor_model` / `session_model` in `core/config.py`.
 
 ## Security Constraints
 
+For the audit-facing view of this section — AIUC-1/SOC 2 control mapping,
+the Society-pillar scope statement, and tracked open compliance gaps —
+see **[docs/SECURITY.md](docs/SECURITY.md)**.
+
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401
 - Auth credential comparisons use `hmac.compare_digest()` (constant-time)

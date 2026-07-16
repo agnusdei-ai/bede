@@ -77,7 +77,9 @@ def _rate_limited_app() -> FastAPI:
 
 
 def test_rate_limit_middleware_uses_the_auth_bucket_limit(monkeypatch):
-    monkeypatch.setattr(middleware, "AUTH_LIMIT", 2)
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_auth_per_minute", 2)
     client = TestClient(_rate_limited_app())
     assert client.get("/auth/login").status_code == 200
     assert client.get("/auth/login").status_code == 200
@@ -87,9 +89,11 @@ def test_rate_limit_middleware_uses_the_auth_bucket_limit(monkeypatch):
 
 
 def test_rate_limit_middleware_buckets_are_independent(monkeypatch):
+    from core.config import settings
+
     # Exhausting the (tiny, patched) auth bucket must not affect a wholly
     # different bucket (voice, or general API) for the same client.
-    monkeypatch.setattr(middleware, "AUTH_LIMIT", 1)
+    monkeypatch.setattr(settings, "rate_limit_auth_per_minute", 1)
     client = TestClient(_rate_limited_app())
     assert client.get("/auth/login").status_code == 200
     assert client.get("/auth/login").status_code == 429

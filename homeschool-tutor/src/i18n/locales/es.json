@@ -1,0 +1,20 @@
+{
+  "login": {
+    "tagline": "Tu tutor de educación clásica en el hogar",
+    "welcome": "¡Hola, {{name}}!",
+    "roleParent": "Padres",
+    "roleChild": "Estudiante",
+    "labelParentPassword": "Contraseña de padres",
+    "labelStudentPin": "PIN del estudiante",
+    "placeholderPassword": "Ingresa la contraseña",
+    "placeholderPin": "Ingresa el PIN",
+    "voiceCheckTitle": "Verificación de voz requerida",
+    "voiceCheckBody": "Después de tu PIN, dirás una frase breve para que Bede sepa que realmente eres tú.",
+    "checking": "Verificando…",
+    "submitParent": "Ingresar como padres",
+    "submitChild": "Continuar →",
+    "quote": "«El único fin verdadero de la educación es simplemente este: enseñar a las personas a enseñarse a sí mismas.» — Dorothy L. Sayers, <italic>The Lost Tools of Learning</italic>",
+    "voiceNamePrompt": "Escribe tu nombre para la verificación de voz:",
+    "voiceNamePlaceholder": "Sofía"
+  }
+}

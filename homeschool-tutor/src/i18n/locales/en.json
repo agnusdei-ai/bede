@@ -1,0 +1,20 @@
+{
+  "login": {
+    "tagline": "Your Classical Homeschool Tutor",
+    "welcome": "Welcome, {{name}}!",
+    "roleParent": "Parent",
+    "roleChild": "Student",
+    "labelParentPassword": "Parent Password",
+    "labelStudentPin": "Student PIN",
+    "placeholderPassword": "Enter password",
+    "placeholderPin": "Enter PIN",
+    "voiceCheckTitle": "Voice check required",
+    "voiceCheckBody": "After your PIN, you'll say a short passphrase so Bede knows it's really you.",
+    "checking": "Checking…",
+    "submitParent": "Enter as Parent",
+    "submitChild": "Continue →",
+    "quote": "\"The sole true end of education is simply this: to teach men how to teach themselves.\" — Dorothy L. Sayers, <italic>The Lost Tools of Learning</italic>",
+    "voiceNamePrompt": "Enter your name for the voice check:",
+    "voiceNamePlaceholder": "Emma"
+  }
+}

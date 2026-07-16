@@ -45,6 +45,9 @@ There's no rush and no wrong way to think out loud.
 ## What a lesson looks like
 
 - We'll go through your subjects for the day, one at a time.
+- Each week during Morning Time, we'll pray one of the Church's own special prayers
+  together, word for word — the same one all week, so you have time to learn it by
+  heart if you'd like to. If your family prays in Spanish, I'll pray it in Spanish too.
 - Sometimes I'll ask you to **tell me back** a story in your own words — that's
   called a *narration*, and it's one of my favorite parts.
 - Sometimes I'll open your writing pad myself and invite you to write or draw

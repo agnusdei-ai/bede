@@ -14,6 +14,28 @@ from core.config import settings
 
 
 @pytest.fixture(autouse=True)
+def _no_real_sleep(monkeypatch):
+    """Retries sleep between attempts for real — tests shouldn't actually
+    wait, and asserting the sleep call count is a cheap way to confirm the
+    retry loop ran the expected number of times."""
+    calls = []
+
+    async def _fake_sleep(seconds):
+        calls.append(seconds)
+
+    monkeypatch.setattr(vs.asyncio, "sleep", _fake_sleep)
+    return calls
+
+
+@pytest.fixture(autouse=True)
+def _reset_fake_client():
+    yield
+    _FakeAsyncClient.response = None
+    _FakeAsyncClient.responses = None
+    _FakeAsyncClient.call_count = 0
+
+
+@pytest.fixture(autouse=True)
 def _reset_settings():
     """These tests mutate settings.openai_* directly (simplest way to drive
     the module's branching) — restore afterward so other test files don't
@@ -44,7 +66,14 @@ class _FakeResponse:
 
 
 class _FakeAsyncClient:
+    """`response` is used for every call when set; `responses` (a list) is
+    popped from left-to-right instead when set, one per successive call —
+    lets a test script "fail twice, then succeed" to exercise retries.
+    `call_count` lets a test assert exactly how many attempts were made."""
     captured = {}
+    response = None
+    responses = None
+    call_count = 0
 
     def __init__(self, *a, **kw):
         pass
@@ -57,6 +86,9 @@ class _FakeAsyncClient:
 
     async def post(self, url, headers=None, json=None):
         _FakeAsyncClient.captured = {"url": url, "headers": headers, "json": json}
+        _FakeAsyncClient.call_count += 1
+        if _FakeAsyncClient.responses is not None:
+            return _FakeAsyncClient.responses.pop(0)
         return _FakeAsyncClient.response
 
 
@@ -119,3 +151,86 @@ def test_synthesis_configured_true_when_openai_key_set():
 def test_synthesis_configured_false_when_nothing_set():
     settings.openai_api_key = ""
     assert vs.synthesis_configured() is False
+
+
+# ── Retry behavior ────────────────────────────────────────────────────────────
+#
+# Both frontends deliberately do NOT fall back to browser speech when
+# OpenAI TTS is configured but a single call fails (see module docstring) —
+# a transient failure here means that turn has no narration at all, not
+# just a lower-quality voice. These tests cover the retry loop added to
+# reduce how often a momentary rate-limit or network hiccup costs a whole
+# turn's narration.
+
+def test_retries_a_transient_rate_limit_and_succeeds(monkeypatch):
+    settings.openai_api_key = "sk-test"
+    _FakeAsyncClient.responses = [_FakeResponse(status_code=429), _FakeResponse()]
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = asyncio.run(vs.synthesize_speech("hello"))
+    assert result == b"FAKEWAVDATA"
+    assert _FakeAsyncClient.call_count == 2
+
+
+def test_retries_two_server_errors_before_succeeding_on_the_third_attempt(monkeypatch):
+    settings.openai_api_key = "sk-test"
+    _FakeAsyncClient.responses = [
+        _FakeResponse(status_code=503), _FakeResponse(status_code=502), _FakeResponse(),
+    ]
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = asyncio.run(vs.synthesize_speech("hello"))
+    assert result == b"FAKEWAVDATA"
+    assert _FakeAsyncClient.call_count == 3
+
+
+def test_gives_up_after_exhausting_all_retries_on_persistent_failure(monkeypatch):
+    settings.openai_api_key = "sk-test"
+    _FakeAsyncClient.response = _FakeResponse(status_code=503)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = asyncio.run(vs.synthesize_speech("hello"))
+    assert result is None
+    assert _FakeAsyncClient.call_count == 3
+
+
+def test_does_not_retry_a_non_retryable_client_error(monkeypatch):
+    """A bad API key (401) or malformed request (400) will never succeed on
+    retry — retrying just adds latency before the inevitable failure."""
+    settings.openai_api_key = "sk-test"
+    _FakeAsyncClient.response = _FakeResponse(status_code=401)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = asyncio.run(vs.synthesize_speech("hello"))
+    assert result is None
+    assert _FakeAsyncClient.call_count == 1
+
+
+def test_retries_a_network_level_error_not_just_a_bad_status(monkeypatch):
+    """A timeout or connection error never reaches raise_for_status() at
+    all — the retry loop must catch these too, not just bad HTTP statuses."""
+    settings.openai_api_key = "sk-test"
+
+    class _FlakyThenOkClient(_FakeAsyncClient):
+        async def post(self, url, headers=None, json=None):
+            _FakeAsyncClient.call_count += 1
+            if _FakeAsyncClient.call_count == 1:
+                raise httpx.ConnectTimeout("connection timed out")
+            return _FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", _FlakyThenOkClient)
+
+    result = asyncio.run(vs.synthesize_speech("hello"))
+    assert result == b"FAKEWAVDATA"
+    assert _FakeAsyncClient.call_count == 2
+
+
+def test_sleeps_between_retries_using_the_configured_backoff(monkeypatch, _no_real_sleep):
+    settings.openai_api_key = "sk-test"
+    _FakeAsyncClient.response = _FakeResponse(status_code=503)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    asyncio.run(vs.synthesize_speech("hello"))
+    # 3 attempts means 2 gaps between them, not a sleep after the final
+    # (already-given-up) attempt.
+    assert _no_real_sleep == list(vs._RETRY_BACKOFF_SECONDS)

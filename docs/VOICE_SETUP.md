@@ -121,3 +121,33 @@ itself came back empty (`transcribeFallback` in `voiceApi.ts`/`api.ts`
 silently returns `''` on a failed or blank transcription, and nothing is
 sent — no error surfaces to the child either) rather than the watchdog
 failing to trigger at all.
+
+## Troubleshooting: Bede's spoken narration goes silent for some turns
+
+Reported after moving to a higher-traffic Render plan / more concurrent
+capacity: individual turns lose their spoken narration with nothing visible
+to the child or parent — the text still appears, Bede just doesn't say it
+out loud that turn. Root cause: `services/voice_synthesis.py`'s OpenAI TTS
+call had no retry at all — a single attempt, and *any* failure (a
+transient rate limit, a momentary network hiccup, a brief 5xx from
+OpenAI) returned `None`. That matters more here than it would look:
+`useTextToSpeech.ts` (both `homeschool-tutor`'s and the demo's own copy)
+deliberately does **not** fall back to the browser's own speech when
+backend TTS is configured but one call fails — the design choice is to
+stay silent for that line rather than audibly switch voices mid-turn. So
+"configured but this one call failed" was never a soft degradation, it was
+a fully silent turn. More concurrent capacity means more concurrent OpenAI
+TTS calls, which means more chances to actually hit OpenAI's own rate
+limits or a transient error — so scaling up made this failure mode show up
+more often, even though nothing about the TTS integration itself changed.
+
+`_synthesize_openai` now retries a rate limit or 5xx up to twice more (3
+attempts total, ~0.5s/1s backoff) before giving up — a non-retryable error
+(bad API key, malformed request) still fails immediately rather than
+wasting two more attempts on something that will never succeed. This
+reduces how often a transient hiccup costs a whole turn's narration; it
+doesn't eliminate silent turns entirely (a sustained OpenAI outage or a
+persistently exhausted rate limit will still exhaust all 3 attempts and go
+silent, by the same intentional no-fallback design above) — check Render's
+server logs for `OpenAI TTS request failed after 3 attempts` to see how
+often that's actually still happening on your deployment.

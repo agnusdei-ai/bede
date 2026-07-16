@@ -9,7 +9,7 @@ import {
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
   type FeedbackCategory, type MasteryProfileSummary,
 } from './api'
-import { useSpeechRecognition } from './useSpeechRecognition'
+import { useHybridVoiceInput } from './useHybridVoiceInput'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
@@ -432,10 +432,18 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const voiceModeRef = useRef(false)
   useEffect(() => { voiceModeRef.current = voiceMode }, [voiceMode])
 
-  const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
-    useSpeechRecognition((transcript) => {
-      if (voiceModeRef.current) send(transcript)
-      else setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+  // Hybrid voice input (native Web Speech first, recording + server Whisper
+  // when it's unsupported, errors, or stalls) — the same resilience the real
+  // app has. A browser update once removed working speech recognition from
+  // under us; with the fallback, the mic degrades to a slightly slower path
+  // instead of dying silently.
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
+    useHybridVoiceInput({
+      token,
+      onFinal: (transcript) => {
+        if (voiceModeRef.current) send(transcript)
+        else setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+      },
     })
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -614,10 +622,10 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // tapping it off is the only way out. The short delay debounces the
   // recognition engine's restart cycles.
   useEffect(() => {
-    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening || sessionPaused) return
+    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening || isTranscribing || sessionPaused) return
     const id = setTimeout(() => startListening(), 400)
     return () => clearTimeout(id)
-  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, startListening, sessionPaused])
+  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, isTranscribing, startListening, sessionPaused])
 
   // Inverse guard: the moment a turn starts (including the idle-continue
   // nudge), the mic must be OFF, or it would hear Bede's own voice as the
@@ -769,6 +777,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         {isListening && interim && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200">{interim}…</div>
+          </div>
+        )}
+        {isTranscribing && (
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 flex items-center gap-2">
+              <Loader2 size={12} className="animate-spin" /> Transcribing…
+            </div>
           </div>
         )}
         <div ref={bottomRef} />

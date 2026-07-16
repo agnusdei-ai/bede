@@ -79,3 +79,20 @@ persistent silence after the first line despite this, confirm they're on a
 current app build first; this class of autoplay restriction has historically
 gotten stricter across browser versions, not looser, so a stale deployment
 is the most likely cause.
+
+## Troubleshooting: the microphone stopped working after a browser update
+
+Browsers periodically change or break their built-in speech recognition —
+a Chrome update once removed working recognition outright (the mic appears,
+starts, then dies instantly with an error event). Both apps are built to
+survive this without anyone doing anything: when the browser's own
+recognition is unsupported, errors, or stalls, the mic automatically falls
+back to recording the utterance and transcribing it server-side with the
+local Whisper model (`useHybridVoiceInput` in `homeschool-tutor` and, since
+this section was written, mirrored in `demo` too — `/voice/transcribe`
+accepts demo sessions for exactly this reason). The fallback path is a
+little slower per utterance — the child speaks, then sees a brief
+"Transcribing…" moment — but voice input keeps working. If the mic seems
+gone entirely, check that the deployment is on a current build; older demo
+builds relied on the browser's recognition alone and had nothing to fall
+back to.

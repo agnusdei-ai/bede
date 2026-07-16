@@ -4,7 +4,7 @@ from typing import List
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_auth, require_parent, require_real_user
 from services.voice_auth import (
     delete_profile,
     enroll_student,
@@ -160,7 +160,14 @@ async def transcribe(
     request: Request,
     audio: UploadFile = File(...),
     language: str = Form(default="en"),
-    auth: dict = Depends(require_real_user),
+    # require_auth (not require_real_user): demo sessions may use the STT
+    # fallback too — browser speech recognition breaks under them exactly
+    # like under a real session (a Chrome update once removed it outright),
+    # and this endpoint is safe to expose at demo scope: stateless (the
+    # result is returned inline, nothing stored), size-capped by
+    # _validate_audio, rate-limited under the per-IP voice bucket, and
+    # backed by the lightweight 'tiny' Whisper model in a worker thread.
+    auth: dict = Depends(require_auth),
 ):
     """
     Server-side Whisper transcription fallback.

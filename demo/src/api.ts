@@ -215,6 +215,29 @@ export function warmDemoBackend(): void {
   }
 }
 
+/** Server-side Whisper transcription — the fallback when the browser's own
+ *  speech recognition is unsupported, errors out, or stalls (a Chrome update
+ *  once broke it outright). Returns '' on any failure so the caller simply
+ *  ends the attempt instead of surfacing an error mid-conversation. Nothing
+ *  is stored server-side; the result comes back inline. */
+export async function transcribeFallback(token: string, wavBlob: Blob, language = 'en'): Promise<string> {
+  try {
+    const form = new FormData()
+    form.append('audio', wavBlob, 'audio.wav')
+    form.append('language', language)
+    const res = await fetch(`${apiBase()}/voice/transcribe`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    if (!res.ok) return ''
+    const data = await res.json()
+    return data.text ?? ''
+  } catch {
+    return ''
+  }
+}
+
 /** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
  *  showing the feedback button at all, so it never appears only to fail on
  *  submit. Unauthenticated — see homeschool-api's routers/feedback.py. */

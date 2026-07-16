@@ -172,18 +172,6 @@ def test_retries_a_transient_rate_limit_and_succeeds(monkeypatch):
     assert _FakeAsyncClient.call_count == 2
 
 
-def test_retries_two_server_errors_before_succeeding_on_the_third_attempt(monkeypatch):
-    settings.openai_api_key = "sk-test"
-    _FakeAsyncClient.responses = [
-        _FakeResponse(status_code=503), _FakeResponse(status_code=502), _FakeResponse(),
-    ]
-    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
-
-    result = asyncio.run(vs.synthesize_speech("hello"))
-    assert result == b"FAKEWAVDATA"
-    assert _FakeAsyncClient.call_count == 3
-
-
 def test_gives_up_after_exhausting_all_retries_on_persistent_failure(monkeypatch):
     settings.openai_api_key = "sk-test"
     _FakeAsyncClient.response = _FakeResponse(status_code=503)
@@ -191,7 +179,7 @@ def test_gives_up_after_exhausting_all_retries_on_persistent_failure(monkeypatch
 
     result = asyncio.run(vs.synthesize_speech("hello"))
     assert result is None
-    assert _FakeAsyncClient.call_count == 3
+    assert _FakeAsyncClient.call_count == vs._MAX_ATTEMPTS
 
 
 def test_does_not_retry_a_non_retryable_client_error(monkeypatch):

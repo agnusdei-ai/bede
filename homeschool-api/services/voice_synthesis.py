@@ -33,8 +33,17 @@ _OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 # will never succeed on retry, so retrying them only adds latency before
 # the inevitable failure.
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
-_MAX_ATTEMPTS = 3
-_RETRY_BACKOFF_SECONDS = (0.5, 1.0)
+# Deliberately capped tight: this whole call sits in the middle of a live
+# conversational turn, not a background job — every extra second here is a
+# second the child watches a spinner. 2 attempts (1 retry) at a 10s
+# per-attempt ceiling bounds the worst case at roughly 20s instead of the
+# ~90s three 30s-timeout attempts could reach; a genuinely hung connection
+# should fail fast enough here to still feel responsive, and the frontend
+# no longer blocks the whole UI on this call regardless (see
+# homeschool-tutor's/demo's send() — TTS is fire-and-forget there now).
+_REQUEST_TIMEOUT_SECONDS = 10.0
+_MAX_ATTEMPTS = 2
+_RETRY_BACKOFF_SECONDS = (0.5,)
 
 
 async def preload() -> None:
@@ -70,7 +79,7 @@ async def _synthesize_openai(text: str) -> Optional[bytes]:
 
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT_SECONDS) as client:
                 resp = await client.post(
                     _OPENAI_TTS_URL,
                     headers={

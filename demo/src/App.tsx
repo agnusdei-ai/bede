@@ -540,7 +540,15 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         }
       }
       flushPendingSpeech()
-      if (ttsEnabled && speechSegments.length) await speak(speechSegments.join(' '))
+      // Fire-and-forget, deliberately not awaited: isSpeaking (a separate,
+      // independently-tracked state from useTextToSpeech) already gates the
+      // mic/turn-coordination effects below on its own, so nothing else
+      // needs isStreaming to stay true for however long TTS synthesis takes
+      // — including its own retries against a slow or rate-limited OpenAI.
+      // Awaiting here used to mean the send button, mic, and text input all
+      // sat blocked/spinning for the full duration of every TTS attempt;
+      // homeschool-tutor's SocraticChat.tsx never had this coupling.
+      if (ttsEnabled && speechSegments.length) speak(speechSegments.join(' '))
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {
@@ -550,9 +558,32 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       }
     } finally {
       setIsStreaming(false)
+      // Subject-advance itself now happens in the turnJustEnded effect
+      // below, once isSpeaking (not just isStreaming) has also settled —
+      // advancing while Bede's own transition line is still playing would
+      // cut it off mid-sentence.
+    }
+  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+
+  // Fires once when a turn's text AND speech have both genuinely finished
+  // (not just the text) — see the fire-and-forget speak() comment above for
+  // why these can no longer be assumed to finish together. Currently only
+  // used for the deferred subject-advance that used to live in send()'s own
+  // finally block; the mic-restart/keepalive effects further below already
+  // watch isStreaming and isSpeaking independently and don't need this.
+  const turnActiveRef = useRef(false)
+  useEffect(() => {
+    const turnActiveNow = isStreaming || isSpeaking
+    if (turnActiveNow) {
+      turnActiveRef.current = true
+      return
+    }
+    if (turnActiveRef.current) {
+      turnActiveRef.current = false
       if (advanceSubjectRef.current) {
         advanceSubjectRef.current = false
-        // Brief pause so the child can read Bede's transition line first.
+        // Brief pause so the child can read (and hear, if TTS is on)
+        // Bede's transition line first.
         setTimeout(() => {
           const idx = subjects.indexOf(subject)
           const next = idx >= 0 ? subjects[idx + 1] : undefined
@@ -560,7 +591,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         }, 2500)
       }
     }
-  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+  }, [isStreaming, isSpeaking, subject, subjects])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return

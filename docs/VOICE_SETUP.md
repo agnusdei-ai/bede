@@ -141,13 +141,38 @@ TTS calls, which means more chances to actually hit OpenAI's own rate
 limits or a transient error — so scaling up made this failure mode show up
 more often, even though nothing about the TTS integration itself changed.
 
-`_synthesize_openai` now retries a rate limit or 5xx up to twice more (3
-attempts total, ~0.5s/1s backoff) before giving up — a non-retryable error
-(bad API key, malformed request) still fails immediately rather than
-wasting two more attempts on something that will never succeed. This
-reduces how often a transient hiccup costs a whole turn's narration; it
-doesn't eliminate silent turns entirely (a sustained OpenAI outage or a
-persistently exhausted rate limit will still exhaust all 3 attempts and go
-silent, by the same intentional no-fallback design above) — check Render's
-server logs for `OpenAI TTS request failed after 3 attempts` to see how
-often that's actually still happening on your deployment.
+`_synthesize_openai` now retries a rate limit or 5xx once more (2 attempts
+total, 10s timeout per attempt, 0.5s backoff between) before giving up — a
+non-retryable error (bad API key, malformed request) still fails
+immediately rather than wasting a second attempt on something that will
+never succeed. This reduces how often a transient hiccup costs a whole
+turn's narration; it doesn't eliminate silent turns entirely (a sustained
+OpenAI outage or a persistently exhausted rate limit will still exhaust
+both attempts and go silent, by the same intentional no-fallback design
+above) — check Render's server logs for `OpenAI TTS request failed after 2
+attempts` to see how often that's actually still happening on your
+deployment. The retry budget is deliberately tight (worst case ~20s, not
+the ~90s three 30s-timeout attempts could reach) — see the next section for
+why that ceiling matters even though it isn't awaited on the critical path
+anymore.
+
+## Troubleshooting: the whole chat UI freezes/spins after Bede replies
+
+A second, distinct problem the retry fix above briefly introduced on its
+own: `demo/src/App.tsx`'s `send()` used to `await speak(...)` — the TTS
+call — *inside* the same block that controls `isStreaming`, so the send
+button, mic, and text input all stayed disabled/spinning for however long
+TTS synthesis took, including every retry attempt. Before the retry fix
+this was already true but brief (a single ~30s-capped attempt); with
+retries added it could compound toward ~90s in the worst case, which is
+what actually surfaced this — reported as the send button spinning
+indefinitely with a fully-rendered reply already on screen.
+`homeschool-tutor/src/components/SocraticChat.tsx` never had this coupling
+(`speak()` there was already fire-and-forget, with `isSpeaking` — a
+separate state — independently gating the mic/turn-coordination effects);
+the demo's own independently-maintained copy did. `speak()` in the demo is
+now fire-and-forget too, and the subject-advance logic that used to
+piggyback on `speak()` finishing (in `send()`'s `finally` block) moved to
+its own effect that waits for both `isStreaming` and `isSpeaking` to settle
+— so a subject transition still won't cut off Bede's spoken line
+mid-sentence, it just no longer blocks the rest of the UI while waiting.

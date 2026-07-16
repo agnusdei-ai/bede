@@ -527,7 +527,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               Volume2 icon below already uses, so this never drifts out of
               sync with what's actually true. */}
           <img
-            src="/bede-icon.png"
+            src="/bede-icon.webp"
             alt="Bede"
             className={`w-9 h-9 rounded-full object-cover shrink-0 transition-transform duration-150 ${
               isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''

@@ -151,6 +151,37 @@ entirely and upgrade `bede-demo-api` to Render's paid Starter plan (~$7/mo)
 in the dashboard — it isn't subject to spin-down or the shared free-hours
 cap at all.
 
+The demo page also helps itself: the moment it loads, it fires a
+fire-and-forget ping to `/health` (`warmDemoBackend` in `demo/src/api.ts`),
+so a sleeping backend starts waking while the visitor is still reading the
+consent notice and typing a name. And if "Generate my code" still runs
+long, the form says plainly that Bede is waking up rather than leaving an
+unexplained spinner. Neither replaces the keep-alive above — they just
+soften the one cold start it doesn't cover.
+
+## Expecting a crowd? (public events, ~100 simultaneous users)
+
+The frontend is static files on GitHub Pages — it scales to any audience
+without you doing anything, and its first load is small (roughly 100 KB of
+compressed code plus under 100 KB of images). The backend is the part to
+prepare:
+
+1. **Upgrade `bede-demo-api` off the free plan for the event window**
+   (Starter or above). The free instance is small and spins down when
+   idle; a paid instance is always on and meaningfully faster. You can
+   downgrade again afterward.
+2. **Mind the per-IP rate limits** (`core/middleware.py`): 10 auth
+   requests and 120 API calls per minute *per IP address*. A hundred
+   visitors on their own homes/phones are nowhere near this. But a single
+   venue where everyone shares one Wi-Fi (one public IP) WILL trip the
+   auth bucket at the "Generate my code" step — for that scenario, raise
+   `AUTH_LIMIT` temporarily, or have attendees use cellular data.
+3. **Anthropic rate limits are the real concurrency ceiling** for chat:
+   each active conversation is a streaming request against your API key's
+   tier. Check your organization's limits before the event; the demo
+   persists nothing, so the backend itself (async FastAPI, SSE) is not
+   the bottleneck.
+
 ## Staying up to date
 
 Render auto-deploys on every push to `main` by default — once this is set

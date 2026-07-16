@@ -210,7 +210,7 @@ export default function TutorSession() {
     <div className={`h-screen flex flex-col ${theme.bgClass} overflow-hidden`}>
       {/* ── Minimal header ── */}
       <header className="pt-safe bg-parchment-50 border-b border-sage-200 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
-        <img src="/bede-icon.png" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
+        <img src="/bede-icon.webp" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
 
         <span className="text-navy-700 font-semibold text-sm truncate max-w-[100px]">
           {sessionConfig.student_name}

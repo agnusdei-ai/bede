@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
@@ -12,7 +12,12 @@ import {
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
-import HandwritingCanvas from './HandwritingCanvas'
+// Lazily loaded: the drawing canvas is a heavyweight component most demo
+// visits never open, and keeping it out of the entry bundle makes first
+// paint lighter for everyone. It loads the moment the pencil is tapped
+// (or Bede invites handwriting); the Suspense fallback below stays null
+// because the wait is a one-time few-hundred-millisecond fetch at most.
+const HandwritingCanvas = lazy(() => import('./HandwritingCanvas'))
 import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
@@ -191,6 +196,10 @@ function CodeScreen({ onLoggedIn }: {
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
+  // Shown when code generation runs long — almost always the demo backend
+  // waking from its idle sleep, not a failure. Naming what's happening
+  // keeps a visitor from abandoning a spinner that WILL finish.
+  const [slowHint, setSlowHint] = useState(false)
   const { hasConsented, giveConsent } = useConsent()
   const formContainerRef = useRef<HTMLDivElement>(null)
 
@@ -207,6 +216,7 @@ function CodeScreen({ onLoggedIn }: {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
+    const slowTimer = setTimeout(() => setSlowHint(true), 2500)
     try {
       const code = await generateDemoCode(studentName, grade)
       const { token } = await loginWithCode(code)
@@ -216,6 +226,9 @@ function CodeScreen({ onLoggedIn }: {
     } catch (err) {
       setError(friendlyErrorMessage(err, 'Could not start a session'))
       setLoading(false)
+    } finally {
+      clearTimeout(slowTimer)
+      setSlowHint(false)
     }
   }
 
@@ -236,7 +249,7 @@ function CodeScreen({ onLoggedIn }: {
       <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
         <div className="text-center mb-6">
           <div className="relative w-28 mx-auto mb-3">
-            <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
+            <img src={`${import.meta.env.BASE_URL}bede-portrait.webp`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
             <AgnusDeiMark className="w-9 h-9 absolute -bottom-1 -right-2 drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-display font-bold text-gray-800">
@@ -289,6 +302,11 @@ function CodeScreen({ onLoggedIn }: {
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
+        {slowHint && (
+          <p className="text-sm text-amber-700 text-center mb-3" aria-live="polite">
+            Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.
+          </p>
+        )}
 
         <button
           onClick={handleClick}
@@ -653,7 +671,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       <header className="bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
         <div className="flex items-center gap-3">
           <img
-            src={`${import.meta.env.BASE_URL}bede-icon.png`}
+            src={`${import.meta.env.BASE_URL}bede-icon.webp`}
             alt="Bede"
             className={`w-8 h-8 rounded-full object-cover shrink-0 transition-transform duration-150 ${
               isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
@@ -809,12 +827,14 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       </div>
 
       {showCanvas && (
-        <HandwritingCanvas
-          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
-          onCancel={() => setShowCanvas(false)}
-          subject={subject}
-          gradeStage={demoGradeStage()}
-        />
+        <Suspense fallback={null}>
+          <HandwritingCanvas
+            onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
+            onCancel={() => setShowCanvas(false)}
+            subject={subject}
+            gradeStage={demoGradeStage()}
+          />
+        </Suspense>
       )}
     </div>
   )

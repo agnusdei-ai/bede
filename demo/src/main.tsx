@@ -4,7 +4,12 @@ import App from './App'
 import ErrorBoundary from './ErrorBoundary'
 import OfflineBanner from './OfflineBanner'
 import TextSizeControl from './TextSizeControl'
+import { warmDemoBackend } from './api'
 import './index.css'
+
+// Start waking the (possibly sleeping) demo backend before React even
+// mounts — see warmDemoBackend's own comment.
+warmDemoBackend()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

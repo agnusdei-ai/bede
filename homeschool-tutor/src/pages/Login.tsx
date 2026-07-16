@@ -144,7 +144,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="relative w-44 mx-auto mb-4">
             <img
-              src="/bede-portrait.jpg"
+              src="/bede-portrait.webp"
               alt="Bede"
               className="w-44 h-44 rounded-full drop-shadow-md object-cover object-top"
             />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import SocraticChat from '../components/SocraticChat'
@@ -18,6 +19,7 @@ import { pickBreakActivity } from '../utils/breakActivities'
 import { Coffee, Eye } from 'lucide-react'
 
 export default function TutorSession() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const studentParam = searchParams.get('student')
@@ -53,7 +55,7 @@ export default function TutorSession() {
         setConfigError('')
         fetchStudentConfig(token, studentParam)
           .then((config) => { setSessionConfig(config); startSession() })
-          .catch((err) => setConfigError(err instanceof Error ? err.message : 'Could not load session config.'))
+          .catch((err) => setConfigError(err instanceof Error ? err.message : t('tutorSession.couldNotLoadSession')))
           .finally(() => setConfigLoading(false))
       } else if (role === 'parent') {
         navigate('/setup')
@@ -106,16 +108,16 @@ export default function TutorSession() {
     if (configLoading) return (
       <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4">
         <Loader2 size={28} className="text-navy-500 animate-spin" />
-        <p className="text-sm text-gray-500">Loading your session…</p>
+        <p className="text-sm text-gray-500">{t('tutorSession.loadingSession')}</p>
       </div>
     )
     if (configError) return (
       <div className="min-h-screen bg-parchment-50 flex flex-col items-center justify-center gap-4 p-8 text-center">
         <AlertCircle size={36} className="text-gray-400" />
-        <p className="text-gray-700 font-medium">Session not found</p>
+        <p className="text-gray-700 font-medium">{t('tutorSession.sessionNotFound')}</p>
         <p className="text-sm text-gray-500 max-w-sm">{configError}</p>
         <button onClick={() => { logout(); navigate('/') }} className="mt-2 text-sm text-navy-600 underline">
-          Back to login
+          {t('tutorSession.backToLogin')}
         </button>
       </div>
     )
@@ -178,7 +180,7 @@ export default function TutorSession() {
         const text = await fetchSessionSummary(token, sessionConfig, getApiMessages(displayMessages), subjectsCompleted, elapsed)
         setSummary(text)
       } catch {
-        setSummary('Unable to generate summary — check your API connection.')
+        setSummary(t('tutorSession.unableToGenerateSummary'))
       } finally {
         setSummaryLoading(false)
       }
@@ -222,7 +224,7 @@ export default function TutorSession() {
           className="flex flex-col items-start shrink-0"
         >
           <span className="text-[10px] font-semibold text-sage-600 uppercase tracking-wide leading-none mb-1">
-            Learning Subject
+            {t('tutorSession.learningSubject')}
           </span>
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sage-100 text-sage-800 text-sm font-medium border border-sage-300 hover:bg-sage-200 transition-colors">
             {subjectInfo && <subjectInfo.Icon size={16} />}
@@ -254,7 +256,7 @@ export default function TutorSession() {
         {feedbackEnabled && (
           <button
             onClick={() => setShowFeedback(true)}
-            title="Tell us what's working and what isn't"
+            title={t('tutorSession.feedbackTooltip')}
             className="p-2 text-gray-400 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors"
           >
             <MessageSquare size={15} />
@@ -265,7 +267,7 @@ export default function TutorSession() {
           <button
             onClick={handleEndSession}
             disabled={isStreaming}
-            title="End session & generate summary"
+            title={t('tutorSession.endSessionTooltip')}
             className="p-2 text-gray-400 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors disabled:opacity-40"
           >
             <FileText size={15} />
@@ -274,7 +276,7 @@ export default function TutorSession() {
 
         <button
           onClick={() => { logout(); navigate('/') }}
-          title="Log out"
+          title={t('tutorSession.logoutTooltip')}
           className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
         >
           <LogOut size={15} />
@@ -292,11 +294,11 @@ export default function TutorSession() {
               <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
                 <Check size={24} className="text-sage-600" />
               </div>
-              <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Great work today!</h2>
+              <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('tutorSession.greatWorkToday')}</h2>
               <p className="text-sm text-gray-600 mb-1">
-                {sessionConfig.student_name}, you have finished your learning time for today.
+                {t('tutorSession.finishedLearningTime', { name: sessionConfig.student_name })}
               </p>
-              <p className="text-sm text-gray-500">Wrapping up your session now.</p>
+              <p className="text-sm text-gray-500">{t('tutorSession.wrappingUp')}</p>
             </div>
           </div>
         )}
@@ -307,30 +309,30 @@ export default function TutorSession() {
               {isEyeRestBreak ? (
                 <>
                   <Eye size={36} className="mx-auto mb-4 text-amber-500" />
-                  <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Eye Rest Break</h2>
-                  <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, that's enough screen time for now.</p>
-                  <p className="text-sm text-gray-500 mb-4">This break is at least {eyeRestMin} minutes — step away from the screen.</p>
+                  <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('tutorSession.eyeRestBreakTitle')}</h2>
+                  <p className="text-sm text-gray-600 mb-1">{t('tutorSession.eyeRestBreakBody', { name: sessionConfig.student_name })}</p>
+                  <p className="text-sm text-gray-500 mb-4">{t('tutorSession.eyeRestBreakDuration', { minutes: eyeRestMin })}</p>
                   {breakActivity && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
-                      {breakActivity.prompt}
+                      {(t('breakActivities', { returnObjects: true }) as string[])[breakActivity.index]}
                     </div>
                   )}
                   <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(breakRemainingSecs)}</div>
-                  <p className="text-xs text-gray-400">until you can continue</p>
+                  <p className="text-xs text-gray-400">{t('tutorSession.untilYouCanContinue')}</p>
                 </>
               ) : (
                 <>
                   <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
-                  <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
-                  <p className="text-sm text-gray-600 mb-1">{sessionConfig.student_name}, you've been working hard.</p>
-                  <p className="text-sm text-gray-500 mb-4">Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.</p>
+                  <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('tutorSession.breakTimeTitle')}</h2>
+                  <p className="text-sm text-gray-600 mb-1">{t('tutorSession.breakTimeBody', { name: sessionConfig.student_name })}</p>
+                  <p className="text-sm text-gray-500 mb-4">{t('tutorSession.breakTimeInstructions')}</p>
                   {breakActivity && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
-                      {breakActivity.prompt}
+                      {(t('breakActivities', { returnObjects: true }) as string[])[breakActivity.index]}
                     </div>
                   )}
                   <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(breakRemainingSecs)}</div>
-                  <p className="text-xs text-gray-400">until your next learning block</p>
+                  <p className="text-xs text-gray-400">{t('tutorSession.untilNextBlock')}</p>
                 </>
               )}
             </div>
@@ -362,6 +364,7 @@ function SessionSummaryView({
   onDone: () => void
   onEmail: (email: string) => Promise<void>
 }) {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [emailError, setEmailError] = useState('')
@@ -375,7 +378,7 @@ function SessionSummaryView({
       setEmailStatus('sent')
     } catch (err) {
       setEmailStatus('error')
-      setEmailError(err instanceof Error ? err.message : 'Could not send the email.')
+      setEmailError(err instanceof Error ? err.message : t('tutorSession.couldNotSendEmail'))
     }
   }
 
@@ -384,13 +387,13 @@ function SessionSummaryView({
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-xl p-8">
         <div className="text-center mb-6">
           <FileText size={36} className="mx-auto mb-3 text-navy-500" />
-          <h1 className="text-xl font-display font-bold text-gray-800">Session Summary</h1>
-          <p className="text-sm text-gray-500 mt-1">Prepared by Bede · for your records</p>
+          <h1 className="text-xl font-display font-bold text-gray-800">{t('tutorSession.summaryTitle')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('tutorSession.summarySubtitle')}</p>
         </div>
         {loading ? (
           <div className="text-center py-12 text-navy-500 animate-pulse-soft">
             <PenLine size={28} className="mx-auto mb-3" />
-            <p className="text-sm">Bede is writing your summary…</p>
+            <p className="text-sm">{t('tutorSession.writingSummary')}</p>
           </div>
         ) : (
           <>
@@ -402,17 +405,16 @@ function SessionSummaryView({
               {emailStatus === 'sent' ? (
                 <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                   <Check size={18} className="shrink-0" />
-                  Sent to {email}. This address wasn't saved anywhere.
+                  {t('tutorSession.sentTo', { email })}
                 </div>
               ) : (
                 <form onSubmit={handleSendEmail}>
                   <label htmlFor="summary-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
                     <Mail size={15} />
-                    Email these notes to yourself
+                    {t('tutorSession.emailLabel')}
                   </label>
                   <p className="text-xs text-gray-500 mb-2.5">
-                    An informal impression from today's session, not an official evaluation. Used once to
-                    send this email, never stored, and never shown to your student.
+                    {t('tutorSession.emailDisclaimer')}
                   </p>
                   <div className="flex gap-2">
                     <input
@@ -421,7 +423,7 @@ function SessionSummaryView({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder={t('tutorSession.emailPlaceholder')}
                       className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400"
                     />
                     <button
@@ -429,7 +431,7 @@ function SessionSummaryView({
                       disabled={emailStatus === 'sending'}
                       className="px-4 py-2.5 bg-navy-100 text-navy-700 rounded-xl font-semibold text-sm hover:bg-navy-200 transition-colors disabled:opacity-50 shrink-0"
                     >
-                      {emailStatus === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send'}
+                      {emailStatus === 'sending' ? <Loader2 size={16} className="animate-spin" /> : t('tutorSession.send')}
                     </button>
                   </div>
                   {emailStatus === 'error' && (
@@ -444,7 +446,7 @@ function SessionSummaryView({
           onClick={onDone}
           className="mt-6 w-full py-3 bg-navy-500 text-white rounded-xl font-semibold hover:bg-navy-600 transition-colors"
         >
-          Done — Return Home
+          {t('tutorSession.doneReturnHome')}
         </button>
       </div>
     </div>

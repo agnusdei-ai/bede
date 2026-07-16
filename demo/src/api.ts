@@ -129,12 +129,16 @@ export async function generateDemoCode(studentName?: string, grade?: string): Pr
 }
 
 /** Exchanges a code from generateDemoCode() for a JWT. One-time only — the
- *  backend rejects a code that's already been redeemed once. */
-export async function loginWithCode(code: string): Promise<{ token: string; expiresAt: number | null }> {
+ *  backend rejects a code that's already been redeemed once. locale is the
+ *  visitor's own choice from CodeScreen's language toggle (see
+ *  docs/LOCALIZATION.md) — the backend embeds it as a JWT claim exactly the
+ *  same way it does for the real app's parent/child logins; no backend
+ *  change was needed to support the demo_code role here. */
+export async function loginWithCode(code: string, locale?: string): Promise<{ token: string; expiresAt: number | null }> {
   const res = await fetch(`${apiBase()}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: 'demo_code', credential: code }),
+    body: JSON.stringify(locale ? { role: 'demo_code', credential: code, locale } : { role: 'demo_code', credential: code }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -142,6 +146,26 @@ export async function loginWithCode(code: string): Promise<{ token: string; expi
   }
   const data = await res.json()
   return { token: data.access_token, expiresAt: decodeExpiry(data.access_token) }
+}
+
+export interface AvailableLocale {
+  code: string
+  name: string
+}
+
+// Public, pre-auth — CodeScreen calls this on mount to decide whether to
+// render the language toggle at all. Empty array on an English-only
+// deployment (the default), same "toggle just isn't there" behavior as
+// homeschool-tutor's Login.tsx.
+export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
+  try {
+    const res = await fetch(`${apiBase()}/auth/locales`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.locales ?? []
+  } catch {
+    return []
+  }
 }
 
 /** Instantly invalidates the demo code server-side (see auth.py's

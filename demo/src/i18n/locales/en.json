@@ -1,0 +1,21 @@
+{
+  "codeScreen": {
+    "titleSuffix": ", a Socratic tutor",
+    "tagline": "Unlocking each learner's potential",
+    "subtitle": "One click. No account or key needed.",
+    "learnerName": "Learner's name",
+    "optional": "(optional)",
+    "namePlaceholder": "e.g. Ellie",
+    "grade": "Grade",
+    "gradeDefault": "Use the default (grade 4)",
+    "kindergarten": "Kindergarten",
+    "gradeN": "Grade {{n}}",
+    "privacyNotice": "A one-time 6-digit code, just for you. This browser remembers your name and grade for next time, gone once you close this tab. We also keep those details for up to 6 hours to personalize this session, then delete them automatically. Your conversation is never stored — only anonymized interaction patterns (which teaching techniques were used, never what was said) may be reviewed later to improve Bede. Full details in the <link>Privacy Notice</link>.",
+    "generateCode": "Generate my code",
+    "wakingUp": "Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.",
+    "couldNotStartSession": "Could not start a session"
+  },
+  "common": {
+    "networkError": "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
+  }
+}

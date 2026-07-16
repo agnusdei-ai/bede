@@ -1,14 +1,17 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee } from 'lucide-react'
+import { useTranslation, Trans } from 'react-i18next'
+import type { TFunction } from 'i18next'
+import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
-  fetchDiagnosticSummary, streamDiagnosticChat,
+  fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales,
   TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
-  type FeedbackCategory, type MasteryProfileSummary,
+  type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
 } from './api'
+import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
@@ -71,9 +74,14 @@ function toApiMessage(m: DisplayMessage): ChatMessage | null {
 // spins the backend down after 15 minutes idle and refuses connections
 // outright while it cold-starts back up, which is exactly this case, so
 // point at that rather than surfacing the raw browser wording.
-function friendlyErrorMessage(err: unknown, fallback: string): string {
+// t is optional — most call sites in this file don't yet have translated
+// fallback copy (see docs/LOCALIZATION.md's disclosed scope boundary: this
+// pass covers CodeScreen, not every error path in the app), so this keeps
+// working with the English default for those, while CodeScreen's own call
+// site passes t to translate both the network-error message and its fallback.
+function friendlyErrorMessage(err: unknown, fallback: string, t?: TFunction): string {
   if (err instanceof TypeError) {
-    return "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
+    return t ? t('common.networkError') : "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
   }
   return err instanceof Error ? err.message : fallback
 }
@@ -178,6 +186,11 @@ function clearChatState(code: string): void {
 // tab closes, same lifetime as every other piece of demo session state.
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
+// Chosen at CodeScreen's own language toggle, per visit — mirrors
+// homeschool-tutor's per-login model (docs/LOCALIZATION.md) but the demo has
+// no persisted auth store to restore from, so sessionStorage fills that role
+// here, same lifetime as the name/grade keys above.
+const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 
 // The stage bands the backend's grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
@@ -192,6 +205,7 @@ function demoGradeStage(): string {
 function CodeScreen({ onLoggedIn }: {
   onLoggedIn: (token: string, code: string) => void
 }) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
@@ -202,6 +216,27 @@ function CodeScreen({ onLoggedIn }: {
   const [slowHint, setSlowHint] = useState(false)
   const { hasConsented, giveConsent } = useConsent()
   const formContainerRef = useRef<HTMLDivElement>(null)
+
+  // Language toggle — only rendered when the backend actually offers a
+  // non-English locale (GET /auth/locales). Restored from sessionStorage so
+  // a reload within the same tab doesn't silently revert to English, same
+  // persistence lifetime as the name/grade fields above.
+  const [availableLocales, setAvailableLocales] = useState<AvailableLocale[]>([])
+  const [selectedLocale, setSelectedLocale] = useState(() => sessionStorage.getItem(LOCALE_STORAGE_KEY) ?? 'en')
+
+  useEffect(() => {
+    fetchAvailableLocales().then(setAvailableLocales)
+  }, [])
+
+  useEffect(() => {
+    if (selectedLocale !== 'en') i18n.changeLanguage(selectedLocale)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chooseLocale = (code: string) => {
+    setSelectedLocale(code)
+    sessionStorage.setItem(LOCALE_STORAGE_KEY, code)
+    i18n.changeLanguage(code)
+  }
 
   // React 18's JSX doesn't recognize the `inert` DOM attribute (it's a
   // recent-ish addition — React only started passing it through in 19), so
@@ -219,12 +254,12 @@ function CodeScreen({ onLoggedIn }: {
     const slowTimer = setTimeout(() => setSlowHint(true), 2500)
     try {
       const code = await generateDemoCode(studentName, grade)
-      const { token } = await loginWithCode(code)
+      const { token } = await loginWithCode(code, selectedLocale)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
       onLoggedIn(token, code)
     } catch (err) {
-      setError(friendlyErrorMessage(err, 'Could not start a session'))
+      setError(friendlyErrorMessage(err, t('codeScreen.couldNotStartSession'), t))
       setLoading(false)
     } finally {
       clearTimeout(slowTimer)
@@ -247,16 +282,49 @@ function CodeScreen({ onLoggedIn }: {
       className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4"
     >
       <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
+        {/* Language toggle — only rendered when this deployment offers one */}
+        {availableLocales.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-5">
+            <Globe size={13} className="text-gray-400" />
+            <div className="flex rounded-lg border border-navy-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => chooseLocale('en')}
+                className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                  selectedLocale === 'en' ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                }`}
+              >
+                English
+              </button>
+              {availableLocales.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => chooseLocale(l.code)}
+                  className={`px-2.5 py-1 text-xs font-medium transition-colors border-l border-navy-200 ${
+                    selectedLocale === l.code ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                  }`}
+                >
+                  {/* The backend's display name is "Spanish (Español)" — show
+                      just the endonym, same reasoning as homeschool-tutor's
+                      Login.tsx toggle. */}
+                  {l.name.match(/\(([^)]+)\)/)?.[1] ?? l.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="text-center mb-6">
           <div className="relative w-28 mx-auto mb-3">
             <img src={`${import.meta.env.BASE_URL}bede-portrait.webp`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
             <AgnusDeiMark className="w-9 h-9 absolute -bottom-1 -right-2 drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-display font-bold text-gray-800">
-            <BedeWordmark />, a Socratic tutor
+            <BedeWordmark />{t('codeScreen.titleSuffix')}
           </h1>
-          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each learner's potential</p>
-          <p className="text-sm text-gray-500 mt-1">One click. No account or key needed.</p>
+          <p className="text-sm text-navy-600 font-medium mt-1">{t('codeScreen.tagline')}</p>
+          <p className="text-sm text-gray-500 mt-1">{t('codeScreen.subtitle')}</p>
         </div>
 
         {/* Both optional — Bede adapts tone, narration pacing (oral vs.
@@ -266,7 +334,7 @@ function CodeScreen({ onLoggedIn }: {
         <div className="space-y-3 mb-5">
           <div>
             <label htmlFor="student-name" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Learner's name <span className="font-normal normal-case text-gray-400">(optional)</span>
+              {t('codeScreen.learnerName')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
             </label>
             <input
               id="student-name"
@@ -274,13 +342,13 @@ function CodeScreen({ onLoggedIn }: {
               value={studentName}
               onChange={(e) => setStudentName(e.target.value)}
               maxLength={50}
-              placeholder="e.g. Ellie"
+              placeholder={t('codeScreen.namePlaceholder')}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
             />
           </div>
           <div>
             <label htmlFor="student-grade" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Grade <span className="font-normal normal-case text-gray-400">(optional)</span>
+              {t('codeScreen.grade')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
             </label>
             <select
               id="student-grade"
@@ -288,9 +356,9 @@ function CodeScreen({ onLoggedIn }: {
               onChange={(e) => setGrade(e.target.value)}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy-400"
             >
-              <option value="">Use the default (grade 4)</option>
+              <option value="">{t('codeScreen.gradeDefault')}</option>
               {DEMO_GRADES.map((g) => (
-                <option key={g} value={g}>{g === 'K' ? 'Kindergarten' : `Grade ${g}`}</option>
+                <option key={g} value={g}>{g === 'K' ? t('codeScreen.kindergarten') : t('codeScreen.gradeN', { n: g })}</option>
               ))}
             </select>
           </div>
@@ -298,13 +366,20 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code, just for you. This browser remembers your name and grade for next time, gone once you close this tab. We also keep those details for up to 6 hours to personalize this session, then delete them automatically. Your conversation is never stored — only anonymized interaction patterns (which teaching techniques were used, never what was said) may be reviewed later to improve Bede. Full details in the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a>.</p>
+          <p>
+            <Trans
+              i18nKey="codeScreen.privacyNotice"
+              components={{
+                link: <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900" />,
+              }}
+            />
+          </p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
         {slowHint && (
           <p className="text-sm text-amber-700 text-center mb-3" aria-live="polite">
-            Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.
+            {t('codeScreen.wakingUp')}
           </p>
         )}
 
@@ -313,7 +388,7 @@ function CodeScreen({ onLoggedIn }: {
           disabled={loading}
           className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
         >
-          {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
+          {loading ? <Loader2 size={18} className="animate-spin" /> : t('codeScreen.generateCode')}
         </button>
 
         <div className="flex flex-col items-center gap-1.5 mt-5">

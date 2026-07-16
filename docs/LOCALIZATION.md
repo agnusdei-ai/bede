@@ -95,14 +95,22 @@ i18next doesn't error on, it just falls back to showing the raw key to the
 parent. The test checks key parity, non-empty values, and matching
 `{{interpolation}}` variables between locales.
 
-**Currently translated:** `Login.tsx` only. The rest of the UI —
-`ParentSetup`, `PodDashboard`, `TutorSession`, `SocraticChat`, `Progress`,
-voice enrollment/verification, etc. — is **not yet translated**; each is a
-follow-up slice using the same `t('namespace.key')` / `Trans` pattern
-established here. Until those land, picking Spanish at login gets a fully
-Spanish-speaking Bede (conversation, prayer catalog) inside a still
-partly-English UI shell — a real, working experience, just not yet a
-complete one.
+**Currently translated:** `Login.tsx`, `TutorSession.tsx`, `SocraticChat.tsx`,
+`ParentSetup.tsx`, `PodDashboard.tsx`, and `Progress.tsx` — every screen a
+parent or child actually spends time on. Voice enrollment/verification and a
+handful of smaller modal/settings components are **not yet translated**; each
+is a follow-up slice using the same `t('namespace.key')` / `Trans` pattern
+established here.
+
+**Deliberately still English regardless of locale:** the subject and
+core-area taxonomy itself — "Morning Time," "Mathematics," "Science," and
+similar labels from `types/index.ts`'s `SUBJECTS`/`CORE_AREAS` arrays, used
+across `TutorSession`, `PodDashboard`, `ParentSetup`, `SocraticChat`, and
+`Progress` alike. These are shared, single-source-of-truth labels referenced
+by (at least) five files; translating the taxonomy itself — likely mirroring
+the backend's own `SUBJECT_LABELS` locale-awareness — is a coherent, separate
+piece of work, not something to do piecemeal inside one screen's translation
+pass without the others drifting out of sync.
 
 ## Sex, not gender-neutral hedging
 

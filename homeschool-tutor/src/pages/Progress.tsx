@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
@@ -22,48 +24,59 @@ function formatDate(iso: string): string {
   })
 }
 
-function signalBadge(signal: NarrationAssessmentData['adaptive_signal']) {
+function signalBadge(signal: NarrationAssessmentData['adaptive_signal'], t: TFunction) {
   switch (signal) {
     case 'advance':
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-          &#8594; Advance
+          &#8594; {t('progress.advance')}
         </span>
       )
     case 'repeat':
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-          &#8617; Repeat
+          &#8617; {t('progress.repeat')}
         </span>
       )
     case 'review_prerequisite':
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-          &#8592; Review
+          &#8592; {t('progress.review')}
         </span>
       )
   }
 }
 
-function triviumLabel(stage: LearnerProfileData['trivium_stage']): string {
-  return { grammar: 'Grammar Stage', logic: 'Logic Stage', rhetoric: 'Rhetoric Stage' }[stage]
+function triviumLabel(stage: LearnerProfileData['trivium_stage'], t: TFunction): string {
+  return {
+    grammar: t('progress.triviumGrammar'),
+    logic: t('progress.triviumLogic'),
+    rhetoric: t('progress.triviumRhetoric'),
+  }[stage]
 }
 
-function processingLabel(style: LearnerProfileData['processing_style']): string {
+function processingLabel(style: LearnerProfileData['processing_style'], t: TFunction): string {
   return {
-    visual: 'Visual Learner',
-    auditory: 'Auditory Learner',
-    reading_writing: 'Reading / Writing',
-    kinesthetic: 'Kinesthetic Learner',
+    visual: t('progress.processingVisual'),
+    auditory: t('progress.processingAuditory'),
+    reading_writing: t('progress.processingReadingWriting'),
+    kinesthetic: t('progress.processingKinesthetic'),
   }[style]
 }
 
-function narrationLabel(mode: LearnerProfileData['narration_mode']): string {
-  return { sequential: 'Sequential Narrator', associative: 'Associative Narrator' }[mode]
+function narrationLabel(mode: LearnerProfileData['narration_mode'], t: TFunction): string {
+  return {
+    sequential: t('progress.narrationSequential'),
+    associative: t('progress.narrationAssociative'),
+  }[mode]
 }
 
-function attentionLabel(profile: LearnerProfileData['attention_profile']): string {
-  return { short_blocks: 'Short Blocks', sustained: 'Sustained Focus', variable: 'Variable Attention' }[profile]
+function attentionLabel(profile: LearnerProfileData['attention_profile'], t: TFunction): string {
+  return {
+    short_blocks: t('progress.attentionShortBlocks'),
+    sustained: t('progress.attentionSustained'),
+    variable: t('progress.attentionVariable'),
+  }[profile]
 }
 
 // ── Score bar — total_score / 25 ─────────────────────────────────────────────
@@ -116,15 +129,15 @@ function MasteryBar({ probability, level }: { probability: number; level: Master
  * visible, and only to a parent (this page is require_parent-gated).
  */
 function MathMasterySnapshot({ studentName, summary, loading }: { studentName: string; summary: MasteryProfileSummary | null; loading: boolean }) {
+  const { t } = useTranslation()
   if (loading) return null
 
   if (!summary) {
     return (
       <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">Math Mastery Snapshot</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{t('progress.mathMasterySnapshotTitle')}</h2>
         <p className="text-xs text-gray-500">
-          No math mastery data yet. This builds silently as {studentName} works through math sessions with Bede —
-          check back after a session or two.
+          {t('progress.noMathMasteryData', { name: studentName })}
         </p>
       </div>
     )
@@ -133,16 +146,14 @@ function MathMasterySnapshot({ studentName, summary, loading }: { studentName: s
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-700">Math Mastery Snapshot</h2>
+        <h2 className="text-sm font-semibold text-gray-700">{t('progress.mathMasterySnapshotTitle')}</h2>
         <span className="text-xs text-gray-400">
-          {summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'}
+          {t('progress.observation', { count: summary.evidence_count })}
         </span>
       </div>
       {summary.calibration && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-          Bede is still forming a first picture of how {studentName} approaches math, based on {summary.evidence_count}{' '}
-          observation{summary.evidence_count === 1 ? '' : 's'} so far — treat this as an early signal, not a settled
-          read. It will sharpen the more {studentName} works with Bede.
+          {t('progress.mathMasteryCalibration', { name: studentName, count: summary.evidence_count })}
         </p>
       )}
       <div className="space-y-3 mb-4">
@@ -155,13 +166,13 @@ function MathMasterySnapshot({ studentName, summary, loading }: { studentName: s
       </div>
       {summary.gaps.length > 0 && (
         <div className="mb-2">
-          <p className="text-xs font-semibold text-gray-700 mb-1">Gaps to focus on</p>
+          <p className="text-xs font-semibold text-gray-700 mb-1">{t('progress.gapsToFocusOn')}</p>
           <p className="text-xs text-gray-500">{summary.gaps.map((s) => s.label).join(', ')}</p>
         </div>
       )}
       {summary.next_steps.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-1">Suggested next steps</p>
+          <p className="text-xs font-semibold text-gray-700 mb-1">{t('progress.suggestedNextSteps')}</p>
           <p className="text-xs text-gray-500">{summary.next_steps.map((s) => s.label).join(', ')}</p>
         </div>
       )}
@@ -179,15 +190,15 @@ function MathMasterySnapshot({ studentName, summary, loading }: { studentName: s
  * is the authoritative source for actual billing.
  */
 function AiUsageCard({ usage, loading }: { usage: UsageSummary | null; loading: boolean }) {
+  const { t } = useTranslation()
   if (loading) return null
 
   if (!usage || usage.total_calls === 0) {
     return (
       <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">AI Usage</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{t('progress.aiUsageTitle')}</h2>
         <p className="text-xs text-gray-500">
-          No usage recorded yet for this student. This tracks tokens spent on your own Anthropic API key as
-          sessions happen — check back after a session or two.
+          {t('progress.noUsageYet')}
         </p>
       </div>
     )
@@ -196,32 +207,29 @@ function AiUsageCard({ usage, loading }: { usage: UsageSummary | null; loading: 
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-700">AI Usage</h2>
+        <h2 className="text-sm font-semibold text-gray-700">{t('progress.aiUsageTitle')}</h2>
         <span className="text-xs text-gray-400">
-          {usage.total_calls} interaction{usage.total_calls === 1 ? '' : 's'}
+          {t('progress.interaction', { count: usage.total_calls })}
         </span>
       </div>
       <div className="flex items-baseline gap-2 mb-3">
         <span className="text-2xl font-display font-bold text-gray-800">
           ${usage.estimated_cost_usd.toFixed(2)}
         </span>
-        <span className="text-xs text-gray-400">estimated</span>
+        <span className="text-xs text-gray-400">{t('progress.estimated')}</span>
       </div>
       <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 mb-3">
         <div>
-          <p className="text-gray-400">Input tokens</p>
+          <p className="text-gray-400">{t('progress.inputTokens')}</p>
           <p className="font-medium text-gray-700 tabular-nums">{usage.total_input_tokens.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-gray-400">Output tokens</p>
+          <p className="text-gray-400">{t('progress.outputTokens')}</p>
           <p className="font-medium text-gray-700 tabular-nums">{usage.total_output_tokens.toLocaleString()}</p>
         </div>
       </div>
       <p className="text-[11px] text-gray-400 leading-relaxed">
-        Reflects {usage.total_calls} recorded interaction{usage.total_calls === 1 ? '' : 's'} with Bede — usage
-        naturally tracks how often this student uses sessions. Bede runs on your own Anthropic API key and is
-        never billed to Bede itself; this is a best-effort estimate, not a bill — see console.anthropic.com for
-        exact billing.
+        {t('progress.usageFooter', { count: usage.total_calls })}
       </p>
     </div>
   )
@@ -246,17 +254,15 @@ function ProfileBadge({ label }: { label: string }) {
 // other style, including auditory, so this is never called for those.
 const TRACKABLE_STYLES: LearnerProfileData['processing_style'][] = ['kinesthetic', 'reading_writing', 'visual']
 
-function behaviorCheckLine(style: LearnerProfileData['processing_style'], check: LearnerBehaviorCheck): string {
+function behaviorCheckLine(style: LearnerProfileData['processing_style'], check: LearnerBehaviorCheck, t: TFunction): string {
   const since = formatDate(check.since)
-  const times = check.count
-  const timesPhrase = `${times} time${times !== 1 ? 's' : ''}`
   switch (style) {
     case 'kinesthetic':
-      return `Since being profiled as a kinesthetic learner on ${since}, Bede has invited hands-on drawing or writing ${timesPhrase}.`
+      return t('progress.behaviorCheckKinesthetic', { since, count: check.count })
     case 'reading_writing':
-      return `Since being profiled as a reading/writing learner on ${since}, Bede has invited written narration ${timesPhrase}.`
+      return t('progress.behaviorCheckReadingWriting', { since, count: check.count })
     case 'visual':
-      return `Since being profiled as a visual learner on ${since}, Bede has shown a visual aid ${timesPhrase} (only available in subjects with one, like Art & Music or History).`
+      return t('progress.behaviorCheckVisual', { since, count: check.count })
     default:
       return ''
   }
@@ -277,6 +283,7 @@ function LearnerProfileCard({
   studentName: string
   onProfileBuilt: (p: LearnerProfileData) => void
 }) {
+  const { t } = useTranslation()
   const [building, setBuilding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -287,7 +294,7 @@ function LearnerProfileCard({
       const result = await buildLearnerProfile(token, studentName, assessmentCount)
       onProfileBuilt(result)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to build profile')
+      setError(e instanceof Error ? e.message : t('progress.failedToBuildProfile'))
     } finally {
       setBuilding(false)
     }
@@ -295,42 +302,41 @@ function LearnerProfileCard({
 
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-5 md:p-6">
-      <h2 className="text-base font-display font-semibold text-gray-800 mb-4">Bede&apos;s Learner Profile</h2>
+      <h2 className="text-base font-display font-semibold text-gray-800 mb-4">{t('progress.learnerProfileTitle')}</h2>
 
       {profile ? (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <ProfileBadge label={triviumLabel(profile.trivium_stage)} />
-            <ProfileBadge label={processingLabel(profile.processing_style)} />
-            <ProfileBadge label={narrationLabel(profile.narration_mode)} />
-            <ProfileBadge label={attentionLabel(profile.attention_profile)} />
+            <ProfileBadge label={triviumLabel(profile.trivium_stage, t)} />
+            <ProfileBadge label={processingLabel(profile.processing_style, t)} />
+            <ProfileBadge label={narrationLabel(profile.narration_mode, t)} />
+            <ProfileBadge label={attentionLabel(profile.attention_profile, t)} />
           </div>
           {profile.bede_profile_notes && (
             <p className="text-sm text-gray-600 leading-relaxed">{profile.bede_profile_notes}</p>
           )}
           {TRACKABLE_STYLES.includes(profile.processing_style) && behaviorCheck && (
             <p className="text-xs text-sage-700 bg-sage-50 border border-sage-100 rounded-lg px-3 py-2">
-              {behaviorCheckLine(profile.processing_style, behaviorCheck)}
+              {behaviorCheckLine(profile.processing_style, behaviorCheck, t)}
             </p>
           )}
           <p className="text-xs text-gray-400">
-            Based on {profile.session_count_assessed} session
-            {profile.session_count_assessed !== 1 ? 's' : ''} &middot; Updated {formatDate(profile.assessed_at)}
+            {t('progress.basedOnSessions', { count: profile.session_count_assessed, date: formatDate(profile.assessed_at) })}
           </p>
         </div>
       ) : assessmentCount < 1 ? (
         <div className="flex items-start gap-3 text-gray-500">
           <Lock size={16} className="mt-0.5 shrink-0 text-gray-300" />
           <p className="text-sm">
-            Complete a session to unlock Bede&apos;s initial recommendations for this student.
+            {t('progress.completeSessionToUnlock')}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
             {assessmentCount < 3
-              ? `Bede has observed ${assessmentCount} session${assessmentCount !== 1 ? 's' : ''} so far and can share an initial, tentative read — this will sharpen as more sessions accumulate.`
-              : `Bede has observed ${assessmentCount} sessions and is ready to synthesise a learner profile.`}
+              ? t('progress.tentativeRead', { count: assessmentCount })
+              : t('progress.readyToSynthesize', { count: assessmentCount })}
           </p>
           {error && (
             <p className="text-xs text-red-600 flex items-center gap-1">
@@ -342,7 +348,7 @@ function LearnerProfileCard({
             disabled={building}
             className="px-4 py-2 bg-sage-500 text-white text-sm font-medium rounded-xl hover:bg-sage-600 transition-colors disabled:opacity-50"
           >
-            {building ? 'Building profile…' : assessmentCount < 3 ? 'Get Initial Recommendations' : 'Build Learner Profile'}
+            {building ? t('progress.buildingProfile') : assessmentCount < 3 ? t('progress.getInitialRecommendations') : t('progress.buildLearnerProfile')}
           </button>
         </div>
       )}
@@ -353,16 +359,17 @@ function LearnerProfileCard({
 // ── Assessment history ────────────────────────────────────────────────────────
 
 function AssessmentHistory({ assessments }: { assessments: NarrationAssessmentData[] }) {
+  const { t } = useTranslation()
   const recent = assessments.slice(-10).reverse()
 
   if (!assessments.length) {
     return (
       <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-5 md:p-6">
-        <h2 className="text-base font-display font-semibold text-gray-800 mb-4">Narration Score History</h2>
+        <h2 className="text-base font-display font-semibold text-gray-800 mb-4">{t('progress.narrationHistoryTitle')}</h2>
         <div className="flex items-start gap-3 text-gray-400">
           <BookOpen size={16} className="mt-0.5 shrink-0" />
           <p className="text-sm">
-            No narrations recorded yet — Bede will score narrations automatically during sessions.
+            {t('progress.noNarrationsYet')}
           </p>
         </div>
       </div>
@@ -372,8 +379,8 @@ function AssessmentHistory({ assessments }: { assessments: NarrationAssessmentDa
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-5 md:p-6">
       <h2 className="text-base font-display font-semibold text-gray-800 mb-4">
-        Narration Score History
-        <span className="ml-2 text-xs font-normal text-gray-400">last {recent.length}</span>
+        {t('progress.narrationHistoryTitle')}
+        <span className="ml-2 text-xs font-normal text-gray-400">{t('progress.lastN', { count: recent.length })}</span>
       </h2>
       <div className="space-y-3">
         {recent.map((a, i) => {
@@ -388,7 +395,7 @@ function AssessmentHistory({ assessments }: { assessments: NarrationAssessmentDa
                 <span className="text-xs text-gray-400 shrink-0">{formatDate(a.assessed_at)}</span>
               </div>
               <div className="row-span-2 flex items-center">
-                {signalBadge(a.adaptive_signal)}
+                {signalBadge(a.adaptive_signal, t)}
               </div>
               {/* Row 2: score bar */}
               <ScoreBar score={a.total_score} />
@@ -416,11 +423,13 @@ const TOPIC_STATUS_RANK: Record<Exclude<TopicStatus, 'not_started'>, number> = {
   mastered: 3,
 }
 
-const TOPIC_STATUS_STYLE: Record<TopicStatus, { label: string; cls: string }> = {
-  not_started: { label: 'Not started', cls: 'bg-gray-100 text-gray-500' },
-  introduced:  { label: 'Introduced',  cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
-  developing:  { label: 'Developing',  cls: 'bg-sky-50 text-sky-700 border border-sky-200' },
-  mastered:    { label: 'Mastered',    cls: 'bg-sage-100 text-sage-800 border border-sage-300' },
+// labelKey resolves through i18n at render time — this array is
+// module-level (no hook context to call t() here directly).
+const TOPIC_STATUS_STYLE: Record<TopicStatus, { labelKey: string; cls: string }> = {
+  not_started: { labelKey: 'progress.statusNotStarted', cls: 'bg-gray-100 text-gray-500' },
+  introduced:  { labelKey: 'progress.statusIntroduced',  cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  developing:  { labelKey: 'progress.statusDeveloping',  cls: 'bg-sky-50 text-sky-700 border border-sky-200' },
+  mastered:    { labelKey: 'progress.statusMastered',    cls: 'bg-sage-100 text-sage-800 border border-sage-300' },
 }
 
 /**
@@ -432,20 +441,20 @@ const TOPIC_STATUS_STYLE: Record<TopicStatus, { label: string; cls: string }> = 
  * where a learner is behind.
  */
 function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessments: NarrationAssessmentData[] }) {
+  const { t } = useTranslation()
   const topics = config?.term_mastery_topics
   if (!config || !topics || Object.keys(topics).length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">Term Mastery Outcomes</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{t('progress.termMasteryOutcomesTitle')}</h2>
         <p className="text-xs text-gray-500">
-          No mastery topics set for this term yet. Add up to 3 topics per core area in Setup —
-          Bede will weave them into lessons and track each learner's progress here.
+          {t('progress.noMasteryTopicsSet')}
         </p>
       </div>
     )
   }
 
-  const termWord = config.term_schedule === 'quarterly' ? 'Quarter' : 'Term'
+  const termWord = config.term_schedule === 'quarterly' ? t('progress.quarterWord') : t('progress.termWord')
 
   const statusFor = (topic: string): TopicStatus => {
     let best: TopicStatus = 'not_started'
@@ -461,7 +470,7 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700">Term Mastery Outcomes</h2>
+        <h2 className="text-sm font-semibold text-gray-700">{t('progress.termMasteryOutcomesTitle')}</h2>
         <span className="text-xs text-gray-400">
           {termWord} {config.current_term ?? 1}
         </span>
@@ -478,10 +487,10 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-xs font-semibold text-navy-700">{label}</p>
                 <p className="text-xs text-gray-400">
-                  {mastered} of {statuses.length} mastered
+                  {t('progress.masteredOf', { mastered, total: statuses.length })}
                   {untouched > 0 && (
                     <span className="ml-2 text-amber-600 font-medium">
-                      {untouched} not yet started
+                      {t('progress.notYetStarted', { count: untouched })}
                     </span>
                   )}
                 </p>
@@ -491,7 +500,7 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
                   <div key={topic} className="flex items-center justify-between gap-2">
                     <span className="text-xs text-gray-600 truncate">{topic}</span>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TOPIC_STATUS_STYLE[status].cls}`}>
-                      {TOPIC_STATUS_STYLE[status].label}
+                      {t(TOPIC_STATUS_STYLE[status].labelKey)}
                     </span>
                   </div>
                 ))}
@@ -505,6 +514,7 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
 }
 
 function ConceptCoverage({ assessments }: { assessments: NarrationAssessmentData[] }) {
+  const { t } = useTranslation()
   if (!assessments.length) return null
 
   // Group concepts by subject
@@ -524,7 +534,7 @@ function ConceptCoverage({ assessments }: { assessments: NarrationAssessmentData
 
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-5 md:p-6">
-      <h2 className="text-base font-display font-semibold text-gray-800 mb-4">Concept Coverage</h2>
+      <h2 className="text-base font-display font-semibold text-gray-800 mb-4">{t('progress.conceptCoverageTitle')}</h2>
       <div className="space-y-4">
         {subjects.map((subject) => {
           const subjectInfo = SUBJECT_MAP[subject as keyof typeof SUBJECT_MAP]
@@ -552,7 +562,7 @@ function ConceptCoverage({ assessments }: { assessments: NarrationAssessmentData
       {allMisconceptions.length > 0 && (
         <div className="mt-5 pt-4 border-t border-gray-100">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            Areas to revisit
+            {t('progress.areasToRevisit')}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {allMisconceptions.map((m) => (
@@ -604,6 +614,7 @@ function StudentTabs({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Progress() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { token, podStudents } = useSessionStore()
@@ -649,7 +660,7 @@ export default function Progress() {
         setUsage(u)
       })
       .catch((e) => {
-        setLoadError(e instanceof Error ? e.message : 'Failed to load progress data')
+        setLoadError(e instanceof Error ? e.message : t('progress.failedToLoadProgress'))
       })
       .finally(() => setLoading(false))
   }, [token, activeStudent])
@@ -662,12 +673,12 @@ export default function Progress() {
           <button
             onClick={() => navigate('/pod')}
             className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white transition-colors"
-            aria-label="Back to pod"
+            aria-label={t('progress.backToPod')}
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-display font-bold text-gray-800">Progress</h1>
+            <h1 className="text-2xl font-display font-bold text-gray-800">{t('progress.title')}</h1>
             {activeStudent && (
               <p className="text-sm text-gray-500">{activeStudent}</p>
             )}
@@ -684,12 +695,12 @@ export default function Progress() {
         {/* No students configured */}
         {!activeStudent && (
           <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-8 text-center">
-            <p className="text-gray-500 text-sm">No students configured yet.</p>
+            <p className="text-gray-500 text-sm">{t('progress.noStudentsYet')}</p>
             <button
               onClick={() => navigate('/setup')}
               className="mt-4 px-4 py-2 bg-sage-500 text-white text-sm rounded-xl hover:bg-sage-600 transition-colors"
             >
-              Go to Setup
+              {t('progress.goToSetup')}
             </button>
           </div>
         )}

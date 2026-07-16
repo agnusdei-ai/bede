@@ -198,6 +198,23 @@ export async function speakViaBackend(
 
 export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'plans' | 'other' | 'beta_close'
 
+/** Wakes the demo backend the moment the page loads. The demo API sleeps
+ *  between visitors on Render's free plan, and without this the FIRST real
+ *  request (generating a code) silently eats the whole cold start — the
+ *  visitor just sees a long spinner. Pinging /health at page load starts
+ *  the wake-up in parallel with the part of the visit that needs no
+ *  server at all: reading the consent notice and typing a name. Fire and
+ *  forget — a failure means nothing here (the backend may simply still be
+ *  waking, or the demo unconfigured), and every real call handles its own
+ *  errors. */
+export function warmDemoBackend(): void {
+  try {
+    fetch(`${apiBase()}/health`).catch(() => {})
+  } catch {
+    // VITE_DEMO_API_BASE unset (apiBase throws) — nothing to warm.
+  }
+}
+
 /** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
  *  showing the feedback button at all, so it never appears only to fail on
  *  submit. Unauthenticated — see homeschool-api's routers/feedback.py. */

@@ -33,15 +33,29 @@ class Settings(BaseSettings):
     session_model: str = "claude-haiku-4-5-20251001"
 
     # ── Language / locale (optional) ──────────────────────────────────────────
-    # Deployment-wide, not per-request: a self-hosted family instance runs in
-    # exactly one language, chosen once at setup — unlike the public demo,
-    # which serves visitors worldwide at once and needs its own runtime
-    # switcher in the frontend instead (see docs/LOCALIZATION.md). "en"
-    # (default) changes nothing from today's behavior. Any other supported
-    # value makes Bede converse with the student natively in that language —
-    # see services/ai_service.py's _locale_directive — generated directly by
-    # the model, not machine-translated after the fact, so grade-level
-    # reading complexity and Socratic intent survive the language switch.
+    # NOT the language every session runs in — it's which single non-English
+    # locale this deployment OFFERS as a login-time choice. The actual
+    # language a given session runs in is picked at the login screen itself
+    # (Login.tsx's English/Español toggle, only rendered when GET
+    # /auth/locales reports this value is non-"en") and carried as a JWT
+    # claim from that point on — see routers/auth.py's login(), not read
+    # globally by services/ai_service.py's _locale_directive anymore (it
+    # takes a locale parameter instead). "en" (default) means the toggle
+    # never appears at all — every session is English, same as before this
+    # feature existed. Setting this to a supported value doesn't force
+    # Spanish on anyone; it just makes the choice available. Bede converses
+    # natively in whichever language was chosen — generated directly by the
+    # model, not machine-translated after the fact, so grade-level reading
+    # complexity and Socratic intent survive the language switch.
+    #
+    # Still deployment-wide in one sense: which locale CAN be offered is
+    # fixed at setup (one extra language per deployment, not an arbitrary
+    # set) — only the moment-to-moment choice of English-vs-that-language is
+    # per-login. This also still gates whether SessionConfig.sex is required
+    # for every student (routers/pod.py) — once the toggle exists at all,
+    # ANY student could land in a non-English session on any given login, so
+    # every student needs sex on file the moment this is non-"en", not just
+    # the ones a parent expects to use it.
     locale: str = "en"
 
     # ── Voice output — OpenAI TTS ─────────────────────────────────────────────

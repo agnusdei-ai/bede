@@ -96,13 +96,16 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    (books, math scope, composer/artist study) Bede draws from.
 3. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
-4. If your deployment is set up to run in a language other than English
-   (see `docs/LOCALIZATION.md`), a **Sex** field appears for each student —
-   Male or Female. This isn't optional on a non-English deployment: Spanish,
-   Italian, and Polish all require it to address your child correctly (the
-   difference between "bienvenido" and "bienvenida," for instance), so
-   setup won't let you save a student without it set. On an English-only
-   deployment (the default), you'll never see this field at all.
+4. If your deployment offers a language other than English at login (`LOCALE`
+   set in `.env` — see `docs/LOCALIZATION.md`), a **Sex** field appears for
+   each student — Male or Female. This isn't optional once the toggle is
+   enabled: Spanish, Italian, and Polish all require it to address your
+   child correctly (the difference between "bienvenido" and "bienvenida,"
+   for instance), and any student could be logged into in that language on
+   any given day — not just the ones you expect to use it — so setup won't
+   let you save a student without it set. On an English-only deployment
+   (the default, no toggle offered at all), you'll never see this field at
+   all.
 5. Set the **session length** if the default doesn't suit. Every session ends on
    its own when this time is up. The default is two hours, and four hours is the
    most the app will ever allow — that ceiling is built in and cannot be raised.
@@ -114,6 +117,18 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    yourself as the parent, set a look you both like, and leave it locked.
 7. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
+
+**The language choice lives on the login screen, not on a student's profile.**
+Once you've set `LOCALE` (step 4 above), everyone who logs in — you or any of
+your children — sees an English/Español toggle right on the login screen
+itself, chosen fresh every time. It isn't tied to which child is logging in:
+the same child can be in English one day and Spanish the next, and a
+bilingual household doesn't need separate profiles for each language.
+Whichever is picked, Bede's own conversation (and the weekly prayer, see
+below) switches immediately, in that language, for that login. The rest of
+the screens — Setup, Dashboard, Progress — are still in English regardless
+of the toggle for now; only the login screen and Bede's own words to your
+child are translated so far.
 
 **Sessions have a built-in rhythm of work and rest.** After every hour of
 learning, a mandatory ten-minute break appears: the screen pauses and invites
@@ -128,11 +143,12 @@ longer eye-rest break, from the student's settings.
 
 **Morning Time includes a weekly prayer, word for word.** Once a week, Bede leads
 your child through one of the Church's own traditional prayers — the Our Father,
-the Hail Mary, and similar universally-known texts — in your deployment's own
-language (English, or Spanish if you've set `LOCALE=es`, see `docs/LOCALIZATION.md`).
-The wording is fixed ahead of time rather than improvised in the moment, the same
-way Bede already handles the week's poem, so your child hears and learns the same
-correct words every time it comes up. This is separate from — and doesn't replace —
+the Hail Mary, and similar universally-known texts — in whichever language was
+chosen at login (English, or Spanish if your deployment offers the toggle and it
+was selected for that login — see `docs/LOCALIZATION.md`). The wording is fixed
+ahead of time rather than improvised in the moment, the same way Bede already
+handles the week's poem, so your child hears and learns the same correct words
+every time it comes up. This is separate from — and doesn't replace —
 Bede's own freshly-worded opening and closing prayer each day (rule 10 of Bede's
 persona), which stays personal to that day rather than a fixed recitation.
 

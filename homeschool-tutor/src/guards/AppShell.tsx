@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import i18n from '../i18n'
 import { useSessionStore } from '../store/sessionStore'
 import TextSizeControl from '../components/TextSizeControl'
 import { AgnusDeiMark, BedeWordmark } from '../components/BedeMark'
@@ -23,11 +24,19 @@ const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000  // 30 min of no interaction → re
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { token, logout } = useSessionStore()
+  const { token, locale, logout } = useSessionStore()
   const [ready, setReady] = useState(false)
   const lastActivityRef = useRef(Date.now())
   const validateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // A page refresh mid-session loses Login.tsx's live i18n.changeLanguage()
+  // call (that only ran once, in memory) — the persisted store still knows
+  // which language was picked at login, so restore it here rather than
+  // silently falling back to VITE_LOCALE's build-time default.
+  useEffect(() => {
+    if (locale && i18n.language !== locale) i18n.changeLanguage(locale)
+  }, [locale])
 
   const forceLogout = (reason = 'Session expired') => {
     console.warn('[AppShell] Forced logout:', reason)

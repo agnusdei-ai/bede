@@ -26,11 +26,31 @@ function toLoginResult(data: any): LoginResult {
   }
 }
 
-export async function login(role: 'parent' | 'child', credential: string): Promise<LoginResult> {
+export interface AvailableLocale {
+  code: string
+  name: string
+}
+
+// Public, pre-auth — Login.tsx calls this before a token exists to decide
+// whether to render the language toggle at all. Empty array on an
+// English-only deployment (the default), same "toggle just isn't there"
+// behavior as before this feature existed.
+export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
+  try {
+    const res = await fetch(`${BASE}/auth/locales`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.locales ?? []
+  } catch {
+    return []
+  }
+}
+
+export async function login(role: 'parent' | 'child', credential: string, locale?: string): Promise<LoginResult> {
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role, credential }),
+    body: JSON.stringify(locale ? { role, credential, locale } : { role, credential }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

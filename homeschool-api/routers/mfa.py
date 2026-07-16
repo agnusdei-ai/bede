@@ -111,11 +111,14 @@ async def totp_disable(db: AsyncSession = Depends(get_db), _: dict = Depends(req
 
 # ── Completing a pending login (requires "parent_pending", not full parent) ─
 
-def _issue_parent_token(request: Request) -> str:
+def _issue_parent_token(request: Request, locale: str = "en") -> str:
+    """locale comes from the pending token's own claim (see routers/auth.py's
+    login()) — the parent picked their language at the password step, and
+    completing MFA a moment later shouldn't silently reset it to English."""
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
     return create_access_token(
-        {"sub": "parent", "role": "parent"},
+        {"sub": "parent", "role": "parent", "locale": locale},
         fingerprint=fp,
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
     )
@@ -134,14 +137,14 @@ async def webauthn_authenticate_verify(
     req: WebAuthnAuthVerifyRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_mfa_pending),
+    pending: dict = Depends(require_mfa_pending),
 ):
     ctx = audit_from_request(request)
     if not await mfa_service.verify_authentication(db, json.dumps(req.credential)):
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="webauthn login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Security key verification failed")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="webauthn login", **ctx)
-    return TokenResponse(access_token=_issue_parent_token(request), role="parent")
+    return TokenResponse(access_token=_issue_parent_token(request, pending.get("locale", "en")), role="parent")
 
 
 @router.post("/totp/authenticate/verify", response_model=TokenResponse)
@@ -149,11 +152,11 @@ async def totp_authenticate_verify(
     req: TotpVerifyRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_mfa_pending),
+    pending: dict = Depends(require_mfa_pending),
 ):
     ctx = audit_from_request(request)
     if not await mfa_service.verify_totp_login(db, req.code):
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="totp login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect or reused code")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="totp login", **ctx)
-    return TokenResponse(access_token=_issue_parent_token(request), role="parent")
+    return TokenResponse(access_token=_issue_parent_token(request, pending.get("locale", "en")), role="parent")

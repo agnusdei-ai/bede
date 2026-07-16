@@ -183,6 +183,7 @@ async def chat(
                     drawing_image=req.drawing_image,
                     demo_code=auth.get("code") if is_demo_code else None,
                     time_of_day=req.local_time_of_day,
+                    locale=auth.get("locale", "en"),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,
             ):
@@ -276,7 +277,7 @@ async def session_summary(
         detail=f"duration={req.duration_minutes}min",
         **audit_from_request(request),
     )
-    summary = await generate_session_summary(req)
+    summary = await generate_session_summary(req, locale=auth.get("locale", "en"))
     return {"summary": summary}
 
 
@@ -313,7 +314,7 @@ async def email_summary(
                 detail="This session has already sent its one diagnostic email",
             )
 
-    summary = await generate_session_summary(req)
+    summary = await generate_session_summary(req, locale=auth.get("locale", "en"))
     html_body = build_summary_email_html(req.session_config.student_name, summary)
     sent = await send_email(
         to_address=req.email,

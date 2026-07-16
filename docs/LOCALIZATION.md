@@ -5,60 +5,104 @@ page covers what's implemented, what's deliberately deferred, and why —
 see the architecture discussion in this repo's history for the fuller
 reasoning behind each call.
 
-## Scope model: one locale per deployment, not a runtime switcher
+## Scope model: one locale offered per deployment, chosen per-login
 
-A self-hosted family instance runs in **exactly one language**, chosen once
-at setup via the `LOCALE` env var (backend) and `VITE_LOCALE` build-time env
-var (frontend) — not a live language picker in the UI. That matches how
-every other per-family setting works in this app (`PARENT_PASSWORD`,
-`CHILD_PIN`, etc.): configured once, not switched mid-session.
+**This changed from the original design.** The first version of this
+feature made `LOCALE` a hard, deployment-wide lock — one self-hosted family
+instance ran in exactly one language, period, the same way `PARENT_PASSWORD`
+or `CHILD_PIN` are configured once and never switched. That's no longer how
+it works.
 
-The public demo (`demo/`) is a different problem — one deployment serving
-visitors worldwide at once — and needs its own runtime language switcher
-rather than a build-time bake. That's out of scope for this pass; the demo
-still ships English-only until that's built separately.
+`LOCALE` (backend env var) now controls something narrower: **which single
+non-English locale this deployment *offers* as a choice**, not which
+language every session is forced into. The actual language a given session
+runs in is picked at **the login screen itself** — Login.tsx's
+English/Español toggle, shown only when `GET /auth/locales` reports this
+deployment has opted in — and applied instantly to that login (both the UI
+chrome and Bede's own conversation), independent of which student is
+logging in or what they picked last time. A bilingual household can have
+one child log in in English one day and Spanish the next; the choice lives
+with the login, not the student's profile. `LOCALE=en` (the default) means
+the toggle never renders at all — every session is English, byte-for-byte
+identical to a deployment that never heard of this feature.
+
+The public demo (`demo/`) still doesn't have this — it's a different
+problem (one deployment serving visitors worldwide at once, no login
+credential to attach a choice to) and remains English-only, out of scope
+for this pass.
 
 ## What's implemented
 
-**Backend — native generation, not translation** (`core/config.py`'s
-`LOCALE` setting, `services/ai_service.py`'s `_locale_directive`): when
-`LOCALE` is set to a supported non-English value, Bede's system prompt
-gains one instruction telling Claude to converse with the student directly
-in that language. This is deliberately **not** a translation pipeline —
-there's no English draft generated and then translated. Claude is natively
+**Backend — a per-login JWT claim, not a global setting**
+(`routers/auth.py`'s `login()` and the new public `GET /auth/locales`):
+`POST /auth/login` accepts an optional `locale` field, validates it against
+whatever single locale `core/config.py`'s `LOCALE` setting has opted this
+deployment into (anything else silently falls back to `"en"` — a stale or
+tampered client value should never be able to block someone's login), and
+embeds it as a `locale` claim in the issued JWT. The parent-MFA pending →
+final token exchange (`routers/mfa.py`) carries the claim through so
+completing a security key/TOTP check a moment after the password step
+doesn't silently reset it to English. Every downstream request on that
+token — `/tutor/chat`, `/tutor/summary`, `/email-summary` — reads
+`auth.get("locale", "en")` and threads it through as a plain function
+parameter (`services/ai_service.py`'s `_locale_directive`,
+`_build_static_prompt`, `_build_subject_prompt`, `stream_tutor_response`,
+`generate_session_summary`, and `services/prayer_catalog.py`'s
+`prayer_note`) rather than reading a global `settings.locale` the way the
+original version did.
+
+**Native generation, not translation** (unchanged principle,
+`_locale_directive`): when a session's locale is non-English, Bede's system
+prompt gains one instruction telling Claude to converse with the student
+directly in that language — deliberately **not** a translation pipeline,
+no English draft generated and then translated. Claude is natively
 multilingual, so asking it to write in Spanish from the start costs nothing
 extra in latency (same single generation pass as English today, still
 streamed token-by-token over the existing SSE pipeline) and — unlike a
 machine-translation engine — it can simultaneously apply the grade-level
 reading-complexity judgment `_STAGE_GUIDANCE` already asks for. An NMT
 engine translates exactly what it's given; it can't "simplify this to a
-3rd-grade reading level" on its own.
+3rd-grade reading level" on its own. Tool names and structured data
+(`request_narration`, `celebrate_discovery`, etc.) stay in English
+regardless of locale — the frontend matches on the literal tool name
+string, so only Bede's own spoken/written words change language.
 
-Tool names and structured data (`request_narration`, `celebrate_discovery`,
-etc.) stay in English regardless of locale — the frontend matches on the
-literal tool name string, so only Bede's own spoken/written words change
-language.
+`routers/pod.py`'s requirement that every student have `SessionConfig.sex`
+on file still keys off `LOCALE != "en"` (whether the toggle is *offered* at
+all) rather than any per-session state — since any student could land in a
+non-English session on any given login once the toggle exists, every
+student needs sex on file the moment it's enabled, not just the ones a
+parent expects to use it.
 
-`LOCALE=en` (the default) is a strict no-op: `_locale_directive` returns an
-empty string, so the static prompt is byte-for-byte identical to a
-deployment that never heard of this feature.
+**Frontend — `react-i18next`, switched at runtime**
+(`homeschool-tutor/src/i18n/`): both resource bundles (`locales/en.json`,
+`locales/es.json`) are always loaded together, regardless of build
+configuration — `i18n.changeLanguage()` switches between them instantly,
+client-side, with no network request. `VITE_LOCALE` still exists but now
+only sets the *very first* paint's language, before Login.tsx's own
+`GET /auth/locales` call and the persisted session store have had a chance
+to run — it's an initial default, not a lock. `Login.tsx` fetches the
+available locale(s) on mount, renders the toggle only when the list is
+non-empty, and calls `i18n.changeLanguage()` the moment a language is
+tapped — so the login screen itself switches live, before the credential
+is even submitted, not just once inside the tutoring session. The choice
+is sent on the login request itself and persisted in `sessionStore.ts`
+(`locale` field) so a page refresh mid-session restores it
+(`guards/AppShell.tsx`) instead of silently reverting to English.
+`src/i18n/locales.test.ts` guards against a common real failure mode — a
+string added to `en.json` and silently forgotten in `es.json`, which
+i18next doesn't error on, it just falls back to showing the raw key to the
+parent. The test checks key parity, non-empty values, and matching
+`{{interpolation}}` variables between locales.
 
-**Frontend — `react-i18next`** (`homeschool-tutor/src/i18n/`): resource
-bundles per locale (`locales/en.json`, `locales/es.json`), loaded once at
-`VITE_LOCALE` build time. `src/i18n/locales.test.ts` guards against a
-common real failure mode — a string added to `en.json` and silently
-forgotten in `es.json`, which i18next doesn't error on, it just falls back
-to showing the raw key to the parent. The test checks key parity,
-non-empty values, and matching `{{interpolation}}` variables between
-locales.
-
-**Currently translated:** `Login.tsx` only, as the first end-to-end proof
-slice (build, typecheck, and both the English and `VITE_LOCALE=es` bundles
-verified to actually contain the translated strings). The rest of the UI —
-`ParentSetup`, `PodDashboard`, `TutorSession`, `SocraticChat`, voice
-enrollment/verification, etc. — is **not yet translated**; each is a
+**Currently translated:** `Login.tsx` only. The rest of the UI —
+`ParentSetup`, `PodDashboard`, `TutorSession`, `SocraticChat`, `Progress`,
+voice enrollment/verification, etc. — is **not yet translated**; each is a
 follow-up slice using the same `t('namespace.key')` / `Trans` pattern
-established here.
+established here. Until those land, picking Spanish at login gets a fully
+Spanish-speaking Bede (conversation, prayer catalog) inside a still
+partly-English UI shell — a real, working experience, just not yet a
+complete one.
 
 ## Sex, not gender-neutral hedging
 
@@ -101,7 +145,7 @@ discover Bede is still speaking English to their child.
 
 | Code | Language | Status |
 |------|----------|--------|
-| `es` | Spanish (Español) | Backend directive shipped; `Login.tsx` translated; rest of UI pending |
+| `es` | Spanish (Español) | Login-time toggle + backend directive shipped; `Login.tsx` translated; rest of UI pending |
 
 Italian and Polish (and others) follow the same pattern once their content
 is drafted and reviewed: add the code to `SUPPORTED_LOCALES`, add a

@@ -3,13 +3,13 @@ Regression tests for the weekly Catholic prayer rotation
 (services/prayer_catalog.py) — mirrors test_poetry_catalog.py's coverage
 of the identical weekly-rotation architecture (see that file's own docstring
 for the fuller "why" behind each check), plus the locale-based text
-selection this catalog adds on top (English/Spanish, per settings.locale).
+selection this catalog adds on top (English/Spanish, per the session's own
+login-time locale — see routers/auth.py's login()).
 """
 from datetime import date
 
 import pytest
 
-from core.config import settings
 from models.schemas import GradeStage, SessionConfig, Subject, VALID_GRADES
 from services.ai_service import _build_subject_prompt
 from services.prayer_catalog import _COLLECTION, current_week, prayer_for_week, prayer_note
@@ -127,16 +127,13 @@ async def test_prayer_note_never_frames_recitation_as_scored_or_measured():
 
 
 # ── Wiring into _build_subject_prompt ───────────────────────────────────────
+#
+# locale is a per-request parameter here (the login-time JWT claim — see
+# routers/auth.py's login()), not read from settings.locale globally, so
+# these pass it directly rather than monkeypatching settings.
 
 def _config() -> SessionConfig:
     return SessionConfig(student_name="Sam", grade="4", grade_stage=GradeStage.core_mastery)
-
-
-@pytest.fixture(autouse=True)
-def _reset_locale():
-    saved = settings.locale
-    yield
-    settings.locale = saved
 
 
 async def test_prayer_recitation_is_included_for_morning_time():
@@ -154,9 +151,15 @@ async def test_prayer_recitation_is_omitted_for_other_subjects():
     assert "<prayer_recitation>" not in prompt
 
 
-async def test_prayer_recitation_follows_the_deployment_locale():
-    settings.locale = "es"
+async def test_prayer_recitation_follows_the_requesting_sessions_locale():
     entry = prayer_for_week("4", GradeStage.core_mastery, week_salt=_config().current_term)
-    prompt = await _build_subject_prompt(_config(), Subject.morning_time)
+    prompt = await _build_subject_prompt(_config(), Subject.morning_time, locale="es")
     assert entry["text_es"] in prompt
     assert entry["text_en"] not in prompt
+
+
+async def test_prayer_recitation_defaults_to_english_when_locale_omitted():
+    entry = prayer_for_week("4", GradeStage.core_mastery, week_salt=_config().current_term)
+    prompt = await _build_subject_prompt(_config(), Subject.morning_time)
+    assert entry["text_en"] in prompt
+    assert entry["text_es"] not in prompt

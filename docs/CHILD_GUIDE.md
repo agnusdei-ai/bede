@@ -10,7 +10,9 @@ Hi! I'm **Bede**. I'll be your tutor while you learn today.
 
 ## Getting started
 
-1. Open Bede on your tablet.
+1. Open Bede on your tablet. If your family uses Bede in more than one language, you'll
+   see **English** and **Español** at the top — tap the one you want before you log in,
+   and I'll talk with you in that language the whole time.
 2. Tap **Student**, then type in your PIN.
 3. When I ask, say: **"I am ready to learn today!"** — that's how I know it's really
    you, not just anyone with the PIN.

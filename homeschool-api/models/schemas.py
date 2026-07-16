@@ -269,6 +269,14 @@ class SandboxDemoChatRequest(BaseModel):
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo_code"]
     credential: str   # password for parent, PIN for child, generated code for demo_code
+    # Chosen at the login screen itself (Login.tsx's English/Español toggle) —
+    # per-login, not a per-student or deployment-wide setting. Validated
+    # against core.config.SUPPORTED_LOCALES at the route (not here, to avoid
+    # this module importing core.config) and embedded as a JWT claim, so the
+    # rest of that session's requests carry it automatically via
+    # core.deps.require_auth's returned payload. See services/ai_service.py's
+    # _locale_directive and services/prayer_catalog.py for where it's read.
+    locale: str = "en"
 
 
 class DemoCodeRequest(BaseModel):

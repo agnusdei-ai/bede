@@ -110,8 +110,14 @@ start — so a stall any time after the first flicker of interim text had no
 safety net at all, and the session just sat there indefinitely. The
 watchdog now re-arms on every new interim result (a rolling window, not a
 one-shot disarm), so a stall at any point still falls back to recording +
-server-side transcription within ~4 seconds. If you still see this after
-updating, it's worth checking whether the fallback recording itself came
-back empty (`transcribeFallback` in `voiceApi.ts` silently returns `''` on
-a failed or blank transcription, and nothing is sent — no error surfaces to
-the child either) rather than the watchdog failing to trigger at all.
+server-side transcription within ~4 seconds. **Fixed in both copies of this
+hook** — `homeschool-tutor/src/hooks/useHybridVoiceInput.ts` (the real
+product) and `demo/src/useHybridVoiceInput.ts` (the public demo's own
+mirrored copy, per this file's earlier note) — they're independent
+codebases, so a fix landing in one alone leaves the other's users, and the
+public demo specifically, still hitting the original bug. If you still see
+this after updating, it's worth checking whether the fallback recording
+itself came back empty (`transcribeFallback` in `voiceApi.ts`/`api.ts`
+silently returns `''` on a failed or blank transcription, and nothing is
+sent — no error surfaces to the child either) rather than the watchdog
+failing to trigger at all.

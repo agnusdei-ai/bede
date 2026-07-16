@@ -19,6 +19,10 @@ interface StudentForm {
   student_name: string
   grade: string
   grade_stage: GradeStage
+  // Biological sex, not "gender identity" — see types/index.ts's
+  // SessionConfig.sex. '' means unset; only required when systemStatus's
+  // locale is a grammatically gendered language (see requireSex below).
+  sex: '' | 'male' | 'female'
   selected_subjects: Subject[]
   lesson_focus: string
   faith_emphasis: string
@@ -41,6 +45,7 @@ const blankStudent = (): StudentForm => ({
   student_name: '',
   grade: '',
   grade_stage: '3-5',
+  sex: '',
   selected_subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
   lesson_focus: '',
   faith_emphasis: '',
@@ -100,10 +105,19 @@ export default function ParentSetup() {
   const removeStudent = (i: number) =>
     setStudents((prev) => prev.filter((_, idx) => idx !== i))
 
+  // Every locale this deployment currently supports (Spanish, Italian,
+  // Polish) is a grammatically gendered language, so a non-English locale
+  // means Bede needs to know each student's sex to address them correctly
+  // — see docs/LOCALIZATION.md. An English-only deployment never asks.
+  const requireSex = !!systemStatus?.locale && systemStatus.locale !== 'en'
+
   const canSave =
     hitlConsent &&
     students.length > 0 &&
-    students.every((s) => s.student_name.trim() && s.grade.trim() && s.selected_subjects.length > 0)
+    students.every((s) =>
+      s.student_name.trim() && s.grade.trim() && s.selected_subjects.length > 0 &&
+      (!requireSex || s.sex)
+    )
 
   const handleSavePod = async () => {
     if (!canSave || !token) return
@@ -113,6 +127,7 @@ export default function ParentSetup() {
       student_name: s.student_name.trim(),
       grade: s.grade.trim(),
       grade_stage: s.grade_stage,
+      sex: s.sex || undefined,
       subjects: s.selected_subjects,
       lesson_focus: s.lesson_focus.trim() || undefined,
       faith_emphasis: s.faith_emphasis.trim() || undefined,
@@ -233,6 +248,7 @@ export default function ParentSetup() {
               total={students.length}
               isEnrolled={isEnrolled(student.student_name.trim())}
               token={token!}
+              requireSex={requireSex}
               onUpdate={(patch) => update(i, patch)}
               onToggleSubject={(id) => toggleSubject(i, id)}
               onEnrolled={() => listVoiceProfiles(token!).then(setEnrolledProfiles).catch(() => {})}
@@ -297,6 +313,7 @@ interface StudentCardProps {
   total: number
   isEnrolled: boolean
   token: string
+  requireSex: boolean
   onUpdate: (patch: Partial<StudentForm>) => void
   onToggleSubject: (id: Subject) => void
   onEnrolled: () => void
@@ -304,7 +321,7 @@ interface StudentCardProps {
 }
 
 function StudentCard({
-  index, student, total, isEnrolled, token,
+  index, student, total, isEnrolled, token, requireSex,
   onUpdate, onToggleSubject, onEnrolled, onRemove,
 }: StudentCardProps) {
   const totalMin = student.selected_subjects.reduce((acc, s) => {
@@ -376,6 +393,34 @@ function StudentCard({
             </button>
           ))}
         </div>
+
+        {/* Sex — only asked when the deployment's locale needs it for
+            grammatically correct address (Spanish, Italian, Polish so far;
+            an English-only deployment never sees this). */}
+        {requireSex && (
+          <div>
+            <label className="label">Sex</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['male', 'female'] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => onUpdate({ sex: value })}
+                  className={`rounded-xl border-2 py-2.5 text-sm font-medium capitalize transition-all ${
+                    student.sex === value
+                      ? 'border-navy-500 bg-navy-50 text-navy-800'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-navy-200'
+                  }`}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Needed so Bede addresses {student.student_name.trim() || 'your child'} with the correct grammatical
+              gender in {student.student_name.trim() ? 'this' : 'the configured'} language.
+            </p>
+          </div>
+        )}
 
         {/* Subjects */}
         <div>

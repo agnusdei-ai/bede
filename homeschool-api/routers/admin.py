@@ -63,6 +63,7 @@ async def system_status(
     return {
         "voice_profiles_enrolled": len(profiles),
         "student_names":  profiles,
+        "locale":         settings.locale,
         "encryption":     "AES-256-GCM",
         "key_storage":    "KEK-wrapped DATA_KEY in managed PostgreSQL",
         "audit_log":      "AES-256-GCM encrypted rows in managed PostgreSQL",

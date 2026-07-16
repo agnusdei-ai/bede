@@ -96,16 +96,23 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    (books, math scope, composer/artist study) Bede draws from.
 3. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
-4. Set the **session length** if the default doesn't suit. Every session ends on
+4. If your deployment is set up to run in a language other than English
+   (see `docs/LOCALIZATION.md`), a **Sex** field appears for each student —
+   Male or Female. This isn't optional on a non-English deployment: Spanish,
+   Italian, and Polish all require it to address your child correctly (the
+   difference between "bienvenido" and "bienvenida," for instance), so
+   setup won't let you save a student without it set. On an English-only
+   deployment (the default), you'll never see this field at all.
+5. Set the **session length** if the default doesn't suit. Every session ends on
    its own when this time is up. The default is two hours, and four hours is the
    most the app will ever allow — that ceiling is built in and cannot be raised.
-5. Decide whether to **lock chat appearance**. The chat has a small palette where
+6. Decide whether to **lock chat appearance**. The chat has a small palette where
    a learner can pick a background theme and the color of their own speech
    bubbles. If choices like that pull your child away from the lesson (children
    with attention challenges especially), turn the lock on: the palette
    disappears from their sessions entirely. You can still open a session
    yourself as the parent, set a look you both like, and leave it locked.
-6. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
+7. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
 
 **Sessions have a built-in rhythm of work and rest.** After every hour of

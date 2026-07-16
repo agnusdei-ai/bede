@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
-import { Lock, User, Star, Mic } from 'lucide-react'
-import { login, fetchStudentConfig, type LoginResult, type MfaMethod } from '../services/api'
+import { Globe, Lock, User, Star, Mic } from 'lucide-react'
+import { login, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
 import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
@@ -13,7 +13,7 @@ import type { VerifyResult } from '../services/voiceApi'
 type Phase = 'login' | 'voice-verify' | 'parent-mfa'
 
 export default function Login() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [role, setRole] = useState<'parent' | 'child'>('parent')
   const [credential, setCredential] = useState('')
   const [error, setError] = useState('')
@@ -22,6 +22,25 @@ export default function Login() {
   const [pendingToken, setPendingToken] = useState('')
   const [pendingMfaMethods, setPendingMfaMethods] = useState<MfaMethod[]>([])
   const [studentName, setStudentName] = useState('')
+
+  // Locale toggle — only rendered when this deployment has actually opted
+  // into offering a non-English login choice (GET /auth/locales). Chosen
+  // fresh at every login, tied to this login rather than to a student's own
+  // identity — a bilingual household can pick differently each time. The
+  // login screen itself switches language live the moment it's tapped, for
+  // an immersive experience from the very first screen, not just once
+  // inside the tutoring session.
+  const [availableLocales, setAvailableLocales] = useState<AvailableLocale[]>([])
+  const [selectedLocale, setSelectedLocale] = useState<string>('en')
+
+  useEffect(() => {
+    fetchAvailableLocales().then(setAvailableLocales)
+  }, [])
+
+  const chooseLocale = (code: string) => {
+    setSelectedLocale(code)
+    i18n.changeLanguage(code)
+  }
 
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -54,7 +73,7 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const result = await login(role, credential)
+      const result = await login(role, credential, selectedLocale)
 
       if (role === 'parent') {
         if (result.mfaRequired) {
@@ -63,7 +82,7 @@ export default function Login() {
           setPhase('parent-mfa')
           return
         }
-        setAuth(result.accessToken, 'parent')
+        setAuth(result.accessToken, 'parent', selectedLocale)
         navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
         return
       }
@@ -95,12 +114,12 @@ export default function Login() {
   }
 
   const handleVoiceVerified = (_result: VerifyResult) => {
-    setAuth(pendingToken, 'child')
+    setAuth(pendingToken, 'child', selectedLocale)
     navigate(returnTo ? decodeURIComponent(returnTo) : '/session')
   }
 
   const handleMfaVerified = (result: LoginResult) => {
-    setAuth(result.accessToken, 'parent')
+    setAuth(result.accessToken, 'parent', selectedLocale)
     navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
   }
 
@@ -162,6 +181,41 @@ export default function Login() {
             </p>
           )}
         </div>
+
+        {/* Language toggle — only rendered when this deployment offers one */}
+        {availableLocales.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Globe size={14} className="text-gray-400" />
+            <div className="flex rounded-lg border border-navy-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => chooseLocale('en')}
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  selectedLocale === 'en' ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                }`}
+              >
+                English
+              </button>
+              {availableLocales.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => chooseLocale(l.code)}
+                  className={`px-3 py-1 text-xs font-medium transition-colors border-l border-navy-200 ${
+                    selectedLocale === l.code ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                  }`}
+                >
+                  {/* The backend's display name is "Spanish (Español)" — an
+                      English gloss for admin/log contexts. The toggle itself
+                      should read as a native speaker's own language name
+                      (an endonym), same as "English" on the other button, so
+                      show just the parenthetical when present. */}
+                  {l.name.match(/\(([^)]+)\)/)?.[1] ?? l.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Role toggle */}
         <div className="flex rounded-lg border border-navy-200 overflow-hidden mb-6">

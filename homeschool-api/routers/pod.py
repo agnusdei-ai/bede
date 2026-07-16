@@ -37,15 +37,21 @@ async def save_pod_configs(
     always present by the time this runs (core/config.py rejects startup
     without one), so this is a defense-in-depth check, not the primary gate.
     """
+    # Required the moment this deployment OFFERS a non-English login choice
+    # at all (settings.locale != "en"), not just for students a parent
+    # expects to use it — the toggle lives on the login screen itself
+    # (Login.tsx), per-login, so ANY student could land in a non-English
+    # session on any given day once the option exists. See core/config.py's
+    # comment on `locale` for the full "toggle availability, not active
+    # language" reframing this check predates but still matches exactly.
     if settings.locale != "en":
         missing = [c.student_name for c in req.configs if c.sex is None]
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    "Sex must be set for every student on a "
-                    f"{settings.locale!r}-locale deployment, so Bede can address them "
-                    f"grammatically correctly: {', '.join(missing)}"
+                    f"Sex must be set for every student once {settings.locale!r} is offered as a login "
+                    f"language on this deployment, so Bede can address them grammatically correctly: {', '.join(missing)}"
                 ),
             )
 

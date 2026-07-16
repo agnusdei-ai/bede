@@ -667,25 +667,25 @@ machine contribution stays clear.
 </ai_literacy_guardrails>"""
 
 
-def _locale_directive(config: SessionConfig) -> str:
+def _locale_directive(config: SessionConfig, locale: str = "en") -> str:
     """Native-language generation, not machine translation: told once here,
     Claude writes its reply directly in the target language from the start,
     so the grade-level reading-complexity judgment _STAGE_GUIDANCE already
     asks for, and the Socratic intent behind it, survive intact — an NMT
     engine translating an already-finished English reply can't simplify to
     a reading level or preserve pedagogical nuance the way native generation
-    can. settings.locale is deployment-wide (see its own comment in
-    core/config.py) — one self-hosted family instance runs in exactly one
-    language, chosen once at setup, not a per-request choice — so this reads
-    settings directly rather than taking locale as a parameter. Returns ""
-    for the "en" default, leaving today's English-only prompt byte-for-byte
-    unchanged (same "" for prompt-cache-safe, config-only inputs" pattern as
-    every other optional note concatenated into _build_static_prompt /
-    _build_subject_prompt).
+    can. `locale` is picked at the login screen itself, per session — not
+    read from settings.locale globally anymore (see core/config.py's updated
+    comment: that setting now only controls which single locale a deployment
+    OFFERS as a login-time choice, not which language any given session runs
+    in). Returns "" for the "en" default, leaving today's English-only
+    prompt byte-for-byte unchanged (same "" for prompt-cache-safe,
+    config-only inputs" pattern as every other optional note concatenated
+    into _build_static_prompt / _build_subject_prompt).
     """
-    if settings.locale == "en":
+    if locale == "en":
         return ""
-    language_name = SUPPORTED_LOCALES.get(settings.locale, settings.locale)
+    language_name = SUPPORTED_LOCALES.get(locale, locale)
     # routers/pod.py's save_pod_configs already requires sex to be set for
     # every student before a non-English locale deployment accepts the
     # save, so this is expected to always be populated by the time a real
@@ -754,7 +754,7 @@ Non-negotiable rules:
 </constitution>"""
 
 
-def _build_static_prompt(config: SessionConfig) -> str:
+def _build_static_prompt(config: SessionConfig, locale: str = "en") -> str:
     """Tutor persona, grade stage, and rules — constant within a session. Prompt-cacheable.
 
     Bede is a Socratic classical tutor for Catholic homeschoolers, formed on the
@@ -882,7 +882,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_ai_literacy_guardrails(config)}{_locale_directive(config)}
+{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \
@@ -1312,6 +1312,7 @@ async def _build_subject_prompt(
     history: Optional[List[ChatMessage]] = None,
     time_of_day: Optional[str] = None,
     processing_style: Optional[str] = None,
+    locale: str = "en",
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -1347,7 +1348,7 @@ async def _build_subject_prompt(
     # Same weekly-calendar rotation and current_term-as-offset convention
     # as poetry_note above.
     prayer_recitation_note = (
-        _prayer_catalog_note(config.grade, config.grade_stage, locale=settings.locale, week_salt=config.current_term)
+        _prayer_catalog_note(config.grade, config.grade_stage, locale=locale, week_salt=config.current_term)
         if subject == Subject.morning_time
         else ""
     )
@@ -1712,6 +1713,7 @@ async def stream_tutor_response(
     drawing_image: Optional[str] = None,
     demo_code: Optional[str] = None,
     time_of_day: Optional[str] = None,
+    locale: str = "en",
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
@@ -1725,6 +1727,12 @@ async def stream_tutor_response(
     for those same sessions. The two are mutually exclusive at every call
     site (routers/tutor.py), so exactly one backend is ever live per
     request — never both, never neither once subject == mathematics.
+
+    locale comes from the JWT the request authenticated with (auth.get(
+    "locale", "en") at the routers/tutor.py call site) — chosen once, at
+    that login, by Login.tsx's English/Español toggle. Not read from
+    settings.locale globally anymore; see core/config.py's comment on that
+    setting for what it means instead.
     """
     # Demo-only, best-effort structural signal (see services/interaction_signals.py
     # for the privacy design) — never fires for parent/child sessions (demo_code
@@ -1772,12 +1780,12 @@ async def stream_tutor_response(
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
-        history=history, time_of_day=time_of_day, processing_style=processing_style,
+        history=history, time_of_day=time_of_day, processing_style=processing_style, locale=locale,
     )
     system = [
         {
             "type": "text",
-            "text": _build_static_prompt(config),
+            "text": _build_static_prompt(config, locale),
             "cache_control": {"type": "ephemeral"},
         },
         {
@@ -1938,12 +1946,24 @@ async def stream_tutor_response(
         yield json.dumps({'type': 'done'})
 
 
-async def generate_session_summary(req: SessionSummaryRequest) -> str:
+async def generate_session_summary(req: SessionSummaryRequest, locale: str = "en") -> str:
     """
     Generate a parent-facing session summary using the faster Haiku model.
     Lists what was covered, narrations recorded, and suggested follow-up.
+
+    locale is the requesting parent's OWN current login locale (routers/
+    tutor.py passes auth.get("locale", "en") from whichever token called
+    /tutor/summary or /email-summary), not necessarily the language the
+    child's session itself ran in — a parent reading their own report wants
+    it in the language they're reading in right now. Native generation, not
+    translation, same principle as _locale_directive.
     """
     client = _client
+    language_note = (
+        f"\n\nWrite this entire summary in {SUPPORTED_LOCALES.get(locale, locale)} — natural, "
+        "warm phrasing a native speaker would use, not a literal translation."
+        if locale != "en" else ""
+    )
 
     conversation_text = "\n".join(
         f"{m.role.upper()}: {m.content}" for m in req.conversation_history[-40:]
@@ -1970,7 +1990,7 @@ Write a parent summary with these sections:
 4. **Tomorrow's Springboard** (one concrete suggestion to build on today's momentum)
 5. **Virtue Observed** (one character quality the child showed today)
 
-Keep it warm, specific, and under 300 words. Address the parent directly."""
+Keep it warm, specific, and under 300 words. Address the parent directly.{language_note}"""
 
     response = await client.messages.create(
         model=settings.session_model,

@@ -30,7 +30,13 @@ interface SessionState {
   // Auth
   token: string | null
   role: 'parent' | 'child' | null
-  setAuth: (token: string, role: 'parent' | 'child') => void
+  // Chosen at the login screen itself (Login.tsx's English/Español toggle),
+  // per-login rather than per-student — see docs/LOCALIZATION.md. Persisted
+  // so a page refresh mid-session doesn't silently fall back to English;
+  // reset to null on logout so the next login starts from the toggle's own
+  // default again, not whatever the last person picked.
+  locale: string | null
+  setAuth: (token: string, role: 'parent' | 'child', locale?: string) => void
   logout: () => void
 
   // Pod — all students configured for today's session (parent's device)
@@ -118,11 +124,13 @@ export const useSessionStore = create<SessionState>()(
     (set, get) => ({
   token: null,
   role: null,
-  setAuth: (token, role) => set({ token, role }),
+  locale: null,
+  setAuth: (token, role, locale) => set({ token, role, locale: locale ?? null }),
   logout: () =>
     set({
       token: null,
       role: null,
+      locale: null,
       sessionConfig: null,
       podStudents: [],
       displayMessages: [],
@@ -308,6 +316,7 @@ export const useSessionStore = create<SessionState>()(
       partialize: (s) => ({
         token: s.token,
         role: s.role,
+        locale: s.locale,
         sessionConfig: s.sessionConfig,
         podStudents: s.podStudents,
       }),

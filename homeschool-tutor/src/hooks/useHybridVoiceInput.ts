@@ -113,7 +113,20 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
 
     if (native.isSupported) {
       setMode('native')
-      native.start()
+      try {
+        native.start()
+      } catch {
+        // iOS Safari can throw synchronously out of start() (e.g. its own
+        // notion of "already started" or a permission-state edge case)
+        // instead of delivering it as an onerror event. If that throw isn't
+        // caught here, the watchdog below never gets registered at all —
+        // mode stays stuck at 'native' forever with no event and no timer
+        // ever going to rescue it. Fall back immediately; a synchronous
+        // throw means native recognition definitely isn't going to work for
+        // this attempt.
+        startFallback()
+        return
+      }
       // Safari can accept the mic tap and then never fire onresult/onerror/onend —
       // bail out to the recording fallback if nothing happens in time.
       watchdogRef.current = setTimeout(() => {

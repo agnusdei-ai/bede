@@ -90,7 +90,8 @@ async def lifespan(app: FastAPI):
       5. Start the periodic data-retention purge loop (non-blocking) — see
          docs/DATA_RETENTION.md.
     Shutdown:
-      6. Dispose the connection pool cleanly.
+      6. Dispose the database connection pool cleanly.
+      7. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
     """
     try:
         constitution.get_constitution()
@@ -113,6 +114,11 @@ async def lifespan(app: FastAPI):
 
     await engine.dispose()
     log.info("Database connections closed")
+
+    from services import email_service, voice_synthesis
+    await voice_synthesis.aclose_http_client()
+    await email_service.aclose_http_client()
+    log.info("Pooled HTTP clients closed")
 
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────

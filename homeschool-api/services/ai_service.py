@@ -19,7 +19,7 @@ from models.schemas import (
     SUBJECT_LABELS,
     SessionSummaryRequest,
 )
-from core.config import settings
+from core.config import settings, SUPPORTED_LOCALES
 from core.constitution import get_constitution
 
 log = logging.getLogger(__name__)
@@ -666,6 +666,38 @@ machine contribution stays clear.
 </ai_literacy_guardrails>"""
 
 
+def _locale_directive(config: SessionConfig) -> str:
+    """Native-language generation, not machine translation: told once here,
+    Claude writes its reply directly in the target language from the start,
+    so the grade-level reading-complexity judgment _STAGE_GUIDANCE already
+    asks for, and the Socratic intent behind it, survive intact — an NMT
+    engine translating an already-finished English reply can't simplify to
+    a reading level or preserve pedagogical nuance the way native generation
+    can. settings.locale is deployment-wide (see its own comment in
+    core/config.py) — one self-hosted family instance runs in exactly one
+    language, chosen once at setup, not a per-request choice — so this reads
+    settings directly rather than taking locale as a parameter. Returns ""
+    for the "en" default, leaving today's English-only prompt byte-for-byte
+    unchanged (same "" for prompt-cache-safe, config-only inputs" pattern as
+    every other optional note concatenated into _build_static_prompt /
+    _build_subject_prompt).
+    """
+    if settings.locale == "en":
+        return ""
+    language_name = SUPPORTED_LOCALES.get(settings.locale, settings.locale)
+    return f"""
+
+<language>
+Converse with {config.student_name} entirely in {language_name} — every word you speak or write to them, from your \
+opening greeting to your closing prayer. Write the way a native-speaking tutor actually talks: natural idiom and \
+sentence rhythm, never a stiff or literal translation of English phrasing. Keep the same reading-level judgment the \
+grade guidance above already asks of you — simpler vocabulary and shorter sentences for a younger child, more range \
+for an older one — the language changes, the Socratic method and every rule above do not. Tool names and any \
+structured data you produce stay exactly as documented below, in English; only your own spoken and written words to \
+{config.student_name} change language.
+</language>"""
+
+
 def _constitution_preamble() -> str:
     """
     Renders Bede's verified, tamper-evident constitution (core/constitution.py)
@@ -836,7 +868,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_ai_literacy_guardrails(config)}
+{_ai_literacy_guardrails(config)}{_locale_directive(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \

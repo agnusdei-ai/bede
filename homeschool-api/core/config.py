@@ -13,12 +13,36 @@ from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
 # the same as an empty string — see that module for the full explanation.
 DEFAULT_RESEND_FROM_ADDRESS = "Bede <bede@example.com>"
 
+# Single source of truth for which LOCALE values this deployment accepts,
+# and the display name services/ai_service.py's _locale_directive uses when
+# instructing Bede to converse natively in that language. "en" is the
+# implicit default and is deliberately not listed here (it's the absence of
+# a locale directive, not a language name to display) — see
+# Settings.reject_unsupported_locale below. New languages get added here
+# only once their content has actually been drafted and reviewed, per
+# docs/LOCALIZATION.md — listing a code here is what turns it on.
+SUPPORTED_LOCALES = {
+    "es": "Spanish (Español)",
+}
+
 
 class Settings(BaseSettings):
     # ── AI models ──────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
+
+    # ── Language / locale (optional) ──────────────────────────────────────────
+    # Deployment-wide, not per-request: a self-hosted family instance runs in
+    # exactly one language, chosen once at setup — unlike the public demo,
+    # which serves visitors worldwide at once and needs its own runtime
+    # switcher in the frontend instead (see docs/LOCALIZATION.md). "en"
+    # (default) changes nothing from today's behavior. Any other supported
+    # value makes Bede converse with the student natively in that language —
+    # see services/ai_service.py's _locale_directive — generated directly by
+    # the model, not machine-translated after the fact, so grade-level
+    # reading complexity and Socratic intent survive the language switch.
+    locale: str = "en"
 
     # ── Voice output — OpenAI TTS ─────────────────────────────────────────────
     # Setting OPENAI_API_KEY switches Bede's voice to OpenAI's TTS API — a
@@ -194,6 +218,20 @@ class Settings(BaseSettings):
         "change-me-master-secret-32-chars-min",
         "0000",
     }
+
+    @model_validator(mode="after")
+    def reject_unsupported_locale(self) -> "Settings":
+        """Fail fast on a typo'd or not-yet-onboarded LOCALE value rather
+        than silently falling back to English — a deployment operator
+        setting LOCALE=espanol or LOCALE=ES (case mismatch) deserves a clear
+        startup error, not a family that thinks they configured Spanish and
+        never notices Bede is still speaking English."""
+        if self.locale != "en" and self.locale not in SUPPORTED_LOCALES:
+            supported = ", ".join(sorted(SUPPORTED_LOCALES))
+            raise ValueError(
+                f"LOCALE={self.locale!r} is not supported — use 'en' or one of: {supported}"
+            )
+        return self
 
     @model_validator(mode="after")
     def reject_demo_pin_reuse(self) -> "Settings":

@@ -1854,7 +1854,17 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
                 <MessageSquare size={12} /> Feedback
               </button>
             )}
-            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
+            {/* basis-full forces this onto its own guaranteed line inside the
+                flex-wrap row above, regardless of how any given browser
+                computes the wrap point for the items before it — reported
+                on iPhone 16/Chrome (i.e. WebKit) staying on one line with
+                the other four items and ending up hidden directly behind
+                the fixed TextSizeControl button (main.tsx) rather than
+                wrapping the way it correctly did in every width/zoom
+                combination tested against Chromium. flex-basis: 100% is a
+                deterministic line-break, not a width computation the two
+                engines could disagree on. */}
+            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="basis-full text-xs text-gray-400 hover:text-gray-600 underline">
               Finish demo
             </button>
           </>

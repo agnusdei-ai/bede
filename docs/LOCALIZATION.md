@@ -26,10 +26,19 @@ with the login, not the student's profile. `LOCALE=en` (the default) means
 the toggle never renders at all — every session is English, byte-for-byte
 identical to a deployment that never heard of this feature.
 
-The public demo (`demo/`) still doesn't have this — it's a different
-problem (one deployment serving visitors worldwide at once, no login
-credential to attach a choice to) and remains English-only, out of scope
-for this pass.
+**The public demo (`demo/`) now has its own equivalent toggle**, on
+`CodeScreen` (its self-service "generate my code" entry screen — the closest
+analog to `Login.tsx`, since the demo has no parent/child role choice).
+It's a genuinely separate implementation, not a shared one: the demo is its
+own Vite app with no dependency on `homeschool-tutor`'s code, so it got its
+own `react-i18next` setup (`demo/src/i18n/`), its own resource bundles
+(currently `codeScreen`/`common` namespaces only — the chat experience past
+login isn't translated yet), and its own persistence (`sessionStorage`,
+since the demo has no login-backed store the way `homeschool-tutor` does).
+The one thing it *didn't* need was any backend change — `POST /auth/login`
+already embedded a `locale` claim unconditionally for every role, `demo_code`
+included, from the very first version of this feature; the demo frontend
+just needed to start sending one.
 
 ## What's implemented
 
@@ -111,6 +120,19 @@ by (at least) five files; translating the taxonomy itself — likely mirroring
 the backend's own `SUBJECT_LABELS` locale-awareness — is a coherent, separate
 piece of work, not something to do piecemeal inside one screen's translation
 pass without the others drifting out of sync.
+
+**The demo (`demo/src/i18n/`)** — its own, separate `react-i18next` install:
+`CodeScreen` (title, name/grade fields, the privacy-notice paragraph via
+`Trans`, the "Generate my code" button, and the toggle itself) is fully
+translated; the chat experience past login (`ChatScreen`, feedback, parent
+controls, the sandbox/diagnostic previews) is **not yet translated** and
+remains English-only regardless of which locale was picked at the code
+screen — a real, working gap disclosed the same way `homeschool-tutor`'s own
+in-progress translation slices were, not a silent one. `demo/src/api.ts`'s
+`friendlyErrorMessage()` also only translates the one network-error message
+and fallback that `CodeScreen` itself passes a `t` function for; the many
+other call sites across `App.tsx`'s single large file keep their existing
+English fallback text for now, same disclosed boundary.
 
 ## Sex, not gender-neutral hedging
 

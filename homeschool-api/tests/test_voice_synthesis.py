@@ -29,7 +29,14 @@ def _no_real_sleep(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _reset_fake_client():
+    # The module's shared httpx client is a lazily-created singleton (see
+    # _get_http_client) — reset it to None both before and after so every
+    # test's monkeypatched httpx.AsyncClient constructor actually gets
+    # picked up, rather than a previous test's already-constructed (real or
+    # differently-faked) client silently sitting there unreplaced.
+    vs._http_client = None
     yield
+    vs._http_client = None
     _FakeAsyncClient.response = None
     _FakeAsyncClient.responses = None
     _FakeAsyncClient.call_count = 0
@@ -151,6 +158,33 @@ def test_synthesis_configured_true_when_openai_key_set():
 def test_synthesis_configured_false_when_nothing_set():
     settings.openai_api_key = ""
     assert vs.synthesis_configured() is False
+
+
+# ── Shared client pooling ───────────────────────────────────────────────────
+#
+# Guards against regressing back to a fresh httpx.AsyncClient() per call —
+# the whole point of the pooled singleton is a warm, reused connection plus
+# a real max_connections cap, neither of which exist if a new client is
+# constructed on every request.
+
+def test_get_http_client_returns_the_same_instance_across_calls():
+    first = vs._get_http_client()
+    second = vs._get_http_client()
+    assert first is second
+
+
+def test_get_http_client_configures_a_connection_limit():
+    client = vs._get_http_client()
+    assert client._transport._pool._max_connections == 10
+
+
+def test_aclose_http_client_clears_the_singleton_so_a_fresh_one_is_built_next():
+    first = vs._get_http_client()
+    asyncio.run(vs.aclose_http_client())
+    assert vs._http_client is None
+
+    second = vs._get_http_client()
+    assert second is not first
 
 
 # ── Retry behavior ────────────────────────────────────────────────────────────

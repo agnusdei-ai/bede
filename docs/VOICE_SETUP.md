@@ -176,3 +176,24 @@ piggyback on `speak()` finishing (in `send()`'s `finally` block) moved to
 its own effect that waits for both `isStreaming` and `isSpeaking` to settle
 — so a subject transition still won't cut off Bede's spoken line
 mid-sentence, it just no longer blocks the rest of the UI while waiting.
+
+## Under the hood: connection reuse for OpenAI TTS and email
+
+`services/voice_synthesis.py`'s OpenAI TTS calls (and, for the same reason,
+`services/email_service.py`'s Resend calls) share one pooled `httpx.AsyncClient`
+per process instead of opening a fresh one for every request. A fresh client
+per call pays a full new TCP+TLS handshake to OpenAI on every line Bede
+speaks, then tears the connection down immediately — reusing a pooled client
+keeps a warm connection alive between calls (a real latency win) and its
+`max_connections` limit doubles as a natural throttle: a request past the cap
+waits for a free pooled connection instead of firing immediately, so a burst
+of concurrent turns can't send an unbounded number of simultaneous requests
+to OpenAI or Resend from one instance. This mirrors `services/ai_service.py`'s
+existing shared Anthropic client, which already worked this way.
+
+This cap is per-process, not fleet-wide: on a single Render instance it's a
+real limit, but each horizontally-scaled instance holds its own independent
+pool, so the true concurrent-request ceiling across a scaled deployment is
+`instance_count × max_connections`, not `max_connections` alone. A true
+cross-instance cap would need a shared store (Redis, a Postgres-backed token
+bucket) this app doesn't have today.

@@ -20,6 +20,35 @@ from core.config import DEFAULT_RESEND_FROM_ADDRESS, settings
 log = logging.getLogger(__name__)
 
 _RESEND_URL = "https://api.resend.com/emails"
+_REQUEST_TIMEOUT_SECONDS = 15.0
+
+# Same reasoning as services/voice_synthesis.py's shared client: a fresh
+# httpx.AsyncClient() per call pays a full new TCP+TLS handshake to Resend
+# every send instead of reusing a pooled connection. Emails here are
+# infrequent (at most a few per session) so the latency win is modest, but
+# max_connections still gives a real, if rarely-exercised, cap on
+# concurrent outbound Resend requests from this process — see that
+# module's longer comment for the single-process-only caveat, which
+# applies identically here.
+_http_client: "httpx.AsyncClient | None" = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            timeout=_REQUEST_TIMEOUT_SECONDS,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+    return _http_client
+
+
+async def aclose_http_client() -> None:
+    """Called from main.py's lifespan shutdown."""
+    global _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+        _http_client = None
 
 
 def _summary_to_html_paragraphs(summary_text: str) -> str:
@@ -200,22 +229,22 @@ async def send_email(to_address: str, subject: str, html_body: str) -> bool:
         return False
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                _RESEND_URL,
-                headers={
-                    "Authorization": f"Bearer {settings.resend_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": settings.resend_from_address,
-                    "to": [to_address],
-                    "subject": subject,
-                    "html": html_body,
-                },
-            )
-            resp.raise_for_status()
-            return True
+        client = _get_http_client()
+        resp = await client.post(
+            _RESEND_URL,
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": settings.resend_from_address,
+                "to": [to_address],
+                "subject": subject,
+                "html": html_body,
+            },
+        )
+        resp.raise_for_status()
+        return True
     except httpx.HTTPError:
         log.warning("Resend send failed (recipient omitted from this log by design)")
         return False

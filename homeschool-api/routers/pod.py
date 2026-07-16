@@ -37,6 +37,18 @@ async def save_pod_configs(
     always present by the time this runs (core/config.py rejects startup
     without one), so this is a defense-in-depth check, not the primary gate.
     """
+    if settings.locale != "en":
+        missing = [c.student_name for c in req.configs if c.sex is None]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Sex must be set for every student on a "
+                    f"{settings.locale!r}-locale deployment, so Bede can address them "
+                    f"grammatically correctly: {', '.join(missing)}"
+                ),
+            )
+
     license_info = licensing.get_license(settings.license_key)
     if license_info is not None:
         result = await db.execute(select(StudentConfig.student_name))

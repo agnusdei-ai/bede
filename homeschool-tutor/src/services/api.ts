@@ -264,6 +264,7 @@ export async function* streamSandboxChat(
 export interface SystemStatus {
   voice_profiles_enrolled: number
   student_names: string[]
+  locale: string
   encryption: string
   key_storage: string
   audit_log: string

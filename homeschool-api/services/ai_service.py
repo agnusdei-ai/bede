@@ -685,6 +685,19 @@ def _locale_directive(config: SessionConfig) -> str:
     if settings.locale == "en":
         return ""
     language_name = SUPPORTED_LOCALES.get(settings.locale, settings.locale)
+    # routers/pod.py's save_pod_configs already requires sex to be set for
+    # every student before a non-English locale deployment accepts the
+    # save, so this is expected to always be populated by the time a real
+    # session reaches here — the fallback sentence below only covers an
+    # already-saved config from before that requirement existed.
+    sex_sentence = (
+        f"{config.student_name} is {config.sex} — use the grammatically correct gendered forms of address, "
+        f"adjectives, and (where {language_name} conjugates for it) verb agreement that match, exactly as a "
+        f"native speaker would for a {config.sex} child. Never hedge into gender-neutral phrasing to avoid this "
+        "when the sex is known."
+        if config.sex
+        else f"This student's sex is not on file — use the most natural gender-neutral phrasing {language_name} allows."
+    )
     return f"""
 
 <language>
@@ -692,9 +705,9 @@ Converse with {config.student_name} entirely in {language_name} — every word y
 opening greeting to your closing prayer. Write the way a native-speaking tutor actually talks: natural idiom and \
 sentence rhythm, never a stiff or literal translation of English phrasing. Keep the same reading-level judgment the \
 grade guidance above already asks of you — simpler vocabulary and shorter sentences for a younger child, more range \
-for an older one — the language changes, the Socratic method and every rule above do not. Tool names and any \
-structured data you produce stay exactly as documented below, in English; only your own spoken and written words to \
-{config.student_name} change language.
+for an older one — the language changes, the Socratic method and every rule above do not. {sex_sentence} Tool names \
+and any structured data you produce stay exactly as documented below, in English; only your own spoken and written \
+words to {config.student_name} change language.
 </language>"""
 
 

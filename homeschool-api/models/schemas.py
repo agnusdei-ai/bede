@@ -115,6 +115,19 @@ class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
     grade: str = Field(..., description="e.g. '3' or 'K'")
     grade_stage: GradeStage
+    # Biological sex, not a separate "gender identity" concept — consistent
+    # with Bede's classical natural-law formation (docs/CONSTITUTION.md).
+    # Optional for an English-only deployment, where it's never asked for or
+    # used. Required by routers/pod.py's save_pod_configs whenever LOCALE is
+    # a non-English value: Spanish, Italian, and Polish all need this for
+    # grammatically correct address ("bienvenido"/"bienvenida", and in
+    # Polish even past-tense verb agreement) — see
+    # services/ai_service.py's _locale_directive and docs/LOCALIZATION.md.
+    # Every locale currently supported happens to be a grammatically
+    # gendered language; a future non-gendered addition (Tagalog, from the
+    # original locale list, has no grammatical gender at all) would need
+    # this requirement revisited rather than assumed to still apply.
+    sex: Optional[Literal["male", "female"]] = None
     subjects: List[Subject] = Field(
         default=[
             Subject.morning_time,

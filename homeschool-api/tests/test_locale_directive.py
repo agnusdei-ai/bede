@@ -11,8 +11,12 @@ from models.schemas import GradeStage, SessionConfig
 from services.ai_service import _build_static_prompt, _locale_directive
 
 
-def _config(grade: str = "4", grade_stage: GradeStage = GradeStage.core_mastery) -> SessionConfig:
-    return SessionConfig(student_name="Sam", grade=grade, grade_stage=grade_stage)
+def _config(
+    grade: str = "4",
+    grade_stage: GradeStage = GradeStage.core_mastery,
+    sex: "str | None" = None,
+) -> SessionConfig:
+    return SessionConfig(student_name="Sam", grade=grade, grade_stage=grade_stage, sex=sex)
 
 
 def test_english_default_produces_no_language_directive(monkeypatch):
@@ -61,6 +65,39 @@ def test_language_directive_preserves_tool_names_in_english(monkeypatch):
     monkeypatch.setattr(settings, "locale", "es")
     text = _locale_directive(_config())
     assert "in English" in text
+
+
+# ── Sex-aware grammatical agreement ──────────────────────────────────────────
+
+def test_male_sex_produces_a_male_agreement_instruction(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "locale", "es")
+    text = _locale_directive(_config(sex="male"))
+    assert "Sam is male" in text
+    assert "Never hedge into gender-neutral phrasing" in text
+
+
+def test_female_sex_produces_a_female_agreement_instruction(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "locale", "es")
+    text = _locale_directive(_config(sex="female"))
+    assert "Sam is female" in text
+    assert "Never hedge into gender-neutral phrasing" in text
+
+
+def test_no_sex_on_file_falls_back_to_neutral_phrasing_instruction(monkeypatch):
+    """Covers a config saved before the sex field existed — routers/pod.py
+    now requires sex for a non-English locale going forward, but this
+    function must still degrade gracefully for old data rather than crash
+    or fabricate a sex."""
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "locale", "es")
+    text = _locale_directive(_config(sex=None))
+    assert "not on file" in text
+    assert "gender-neutral phrasing" in text
 
 
 def test_settings_rejects_an_unsupported_locale_value():

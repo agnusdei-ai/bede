@@ -60,6 +60,37 @@ enrollment/verification, etc. — is **not yet translated**; each is a
 follow-up slice using the same `t('namespace.key')` / `Trans` pattern
 established here.
 
+## Sex, not gender-neutral hedging
+
+Spanish, Italian, and Polish all require grammatically correct address —
+"bienvenido"/"bienvenida", and in Polish even past-tense verbs agree with
+the subject's sex. The first version of this feature sidestepped that with
+gender-neutral phrasing ("¡Hola!" instead of "¡Bienvenido/a!") because the
+data model had no way to know a student's sex at all — not a deliberate
+choice, just the only option available given the gap. That's since been
+corrected, consistent with Bede's classical natural-law formation
+(`docs/CONSTITUTION.md`): biological sex, not a separate "gender identity"
+concept, is the actual grammatical category these languages need.
+
+`SessionConfig.sex` (`"male"` / `"female"`, `models/schemas.py`) is
+collected once at parent setup — surfaced in the UI only when the
+deployment's locale needs it (`GET /admin/status`'s `locale` field drives
+`ParentSetup.tsx`'s `requireSex`; an English-only deployment never asks).
+`POST /pod/configs` (`routers/pod.py`) refuses to save any student config
+missing `sex` once `LOCALE` is non-English — fail fast at save time, not a
+silent gap discovered mid-conversation. `_locale_directive`
+(`services/ai_service.py`) tells Bede the student's sex and instructs
+correct grammatical agreement — explicitly *forbidding* falling back to
+neutral phrasing when the sex is known, and only degrading to neutral
+phrasing for a config saved before this field existed.
+
+This assumes every supported locale is a grammatically gendered language,
+which happens to be true for Spanish/Italian/Polish but isn't universal —
+Tagalog (from the original locale list this feature grew out of) has no
+grammatical gender at all. Adding a non-gendered language later means
+revisiting the "always require sex for LOCALE != en" rule in
+`routers/pod.py` rather than assuming it still applies.
+
 ## Supported locales
 
 Single source of truth: `core/config.py`'s `SUPPORTED_LOCALES` dict. A

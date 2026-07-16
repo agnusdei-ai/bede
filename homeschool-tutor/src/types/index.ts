@@ -19,6 +19,12 @@ export interface SessionConfig {
   student_name: string
   grade: string
   grade_stage: GradeStage
+  // Biological sex, not "gender identity" — see models/schemas.py's
+  // SessionConfig.sex on the backend. Unused/optional on an English-only
+  // deployment; required by POST /pod/configs once the deployment's LOCALE
+  // is a grammatically gendered language (Spanish, Italian, Polish so far)
+  // so Bede can address the student correctly. See docs/LOCALIZATION.md.
+  sex?: 'male' | 'female'
   subjects: Subject[]
   lesson_focus?: string
   faith_emphasis?: string

@@ -96,3 +96,22 @@ little slower per utterance — the child speaks, then sees a brief
 gone entirely, check that the deployment is on a current build; older demo
 builds relied on the browser's recognition alone and had nothing to fall
 back to.
+
+## Troubleshooting: the mic shows "listening" but nothing reaches Bede
+
+Reported on Safari/iOS: the mic indicator stays lit, the child speaks, and
+the conversation just goes quiet — no transcript, no error, no fallback.
+Root cause (fixed): the stall watchdog in `useHybridVoiceInput.ts` that
+exists specifically for Safari's documented tendency to stop delivering
+recognition events partway through an utterance was disarmed *permanently*
+the moment a single interim result arrived, rather than reset on each one.
+Safari's failure mode is stalling out mid-utterance, not just at the very
+start — so a stall any time after the first flicker of interim text had no
+safety net at all, and the session just sat there indefinitely. The
+watchdog now re-arms on every new interim result (a rolling window, not a
+one-shot disarm), so a stall at any point still falls back to recording +
+server-side transcription within ~4 seconds. If you still see this after
+updating, it's worth checking whether the fallback recording itself came
+back empty (`transcribeFallback` in `voiceApi.ts` silently returns `''` on
+a failed or blank transcription, and nothing is sent — no error surfaces to
+the child either) rather than the watchdog failing to trigger at all.

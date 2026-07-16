@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
+from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from models.schemas import (
     SessionConfig,
     Subject,
@@ -1338,13 +1339,25 @@ async def _build_subject_prompt(
         if subject in (Subject.morning_time, Subject.living_books)
         else ""
     )
+    # Prayer recitation (verbatim traditional Catholic prayers, English or
+    # Spanish per the deployment's locale — see services/prayer_catalog.py)
+    # is Morning Time only, not living_books — Subject.morning_time's own
+    # comment ("Bible, hymn, poetry, prayer") is literally this catalog's
+    # scope; living_books is Mater Amabilis literature time, not devotions.
+    # Same weekly-calendar rotation and current_term-as-offset convention
+    # as poetry_note above.
+    prayer_recitation_note = (
+        _prayer_catalog_note(config.grade, config.grade_stage, locale=settings.locale, week_salt=config.current_term)
+        if subject == Subject.morning_time
+        else ""
+    )
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{diagnostic_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

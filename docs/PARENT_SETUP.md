@@ -126,6 +126,16 @@ a countdown in the header shortly before each transition. On top of all
 this, you can still set a stricter total screen-time cap per student, with a
 longer eye-rest break, from the student's settings.
 
+**Morning Time includes a weekly prayer, word for word.** Once a week, Bede leads
+your child through one of the Church's own traditional prayers — the Our Father,
+the Hail Mary, and similar universally-known texts — in your deployment's own
+language (English, or Spanish if you've set `LOCALE=es`, see `docs/LOCALIZATION.md`).
+The wording is fixed ahead of time rather than improvised in the moment, the same
+way Bede already handles the week's poem, so your child hears and learns the same
+correct words every time it comes up. This is separate from — and doesn't replace —
+Bede's own freshly-worded opening and closing prayer each day (rule 10 of Bede's
+persona), which stays personal to that day rather than a fixed recitation.
+
 **Composition is encouraged, never required.** At least once per session,
 Bede invites your child to spend about ten minutes on a piece of their own
 handwritten work — a written narration, a nature journal entry, math worked

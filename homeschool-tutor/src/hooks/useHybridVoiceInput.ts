@@ -84,17 +84,28 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     },
   })
 
-  // Interim results prove native recognition is alive and hearing the child —
-  // the watchdog only exists for Safari's "accepts the tap, then total
-  // silence" stall, so disarm it as soon as ANY result arrives. Without this,
-  // Chrome (which streams interim results while the child is still talking
-  // but only delivers the FINAL transcript after they stop) had native
-  // recognition killed mid-utterance at the 4s mark and was dumped into the
-  // far slower record-then-server-Whisper fallback for any answer longer
-  // than a short phrase.
+  // Interim results prove native recognition is alive and hearing the
+  // child — each new one RE-ARMS the stall watchdog instead of disarming it
+  // outright. A one-shot disarm (the original approach) left the session
+  // with NO stall protection at all for the rest of the utterance the
+  // moment a single interim result had ever arrived — but Safari's
+  // documented failure mode (see useSpeechRecognition.ts) is stalling out
+  // completely PARTWAY through a longer utterance, not just at the very
+  // start, and a one-shot disarm meant that later stall just sat there
+  // "listening" forever with nothing ever reaching Bede. A rolling window
+  // catches a stall at any point while staying just as tolerant of
+  // Chrome's real pattern (interim results throughout a long utterance, one
+  // FINAL transcript only once the child stops) — a fresh interim keeps
+  // re-arming the window well inside the stall timeout as long as
+  // recognition is still actually making progress.
   useEffect(() => {
-    if (modeRef.current === 'native' && native.interim) clearWatchdog()
-  }, [native.interim, clearWatchdog])
+    if (modeRef.current !== 'native' || !native.interim) return
+    clearWatchdog()
+    watchdogRef.current = setTimeout(() => {
+      native.stop()
+      startFallback()
+    }, NATIVE_STALL_TIMEOUT_MS)
+  }, [native.interim, native.stop, clearWatchdog, startFallback])
 
   const start = useCallback(() => {
     if (mode !== 'idle') return

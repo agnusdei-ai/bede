@@ -109,4 +109,25 @@ describe('useHybridVoiceInput stall watchdog (demo)', () => {
     // time (6s) exceeding the 4s stall window.
     expect(startRecording).not.toHaveBeenCalled()
   })
+
+  it('falls back immediately when native start() throws synchronously, without waiting for the stall watchdog', () => {
+    // Reported failure: on iOS Safari, tapping the mic left the session
+    // stuck showing "Listening…" forever with no interim text and nothing
+    // ever reaching Bede. Root cause: start() throwing synchronously (a
+    // real WebKit behavior for some permission/already-started edge cases)
+    // happened BEFORE the stall watchdog's setTimeout was registered, so no
+    // safety net was ever armed — the mode got stuck at 'native' permanently.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(window as any).SpeechRecognition = class {
+      constructor() {
+        throw new DOMException('already started', 'InvalidStateError')
+      }
+    }
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.start())
+
+    expect(startRecording).toHaveBeenCalledTimes(1)
+  })
 })

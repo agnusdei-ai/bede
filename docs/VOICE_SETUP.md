@@ -177,6 +177,31 @@ its own effect that waits for both `isStreaming` and `isSpeaking` to settle
 — so a subject transition still won't cut off Bede's spoken line
 mid-sentence, it just no longer blocks the rest of the UI while waiting.
 
+## Troubleshooting: the mic shows "Listening…" forever and nothing ever reaches Bede, even after waiting
+
+A more persistent variant of the Safari/iOS stall covered above — reported
+specifically as voice input never producing any interpreted text at all, not
+even after the mic sits "listening" for a long time. Root cause: `useHybridVoiceInput.ts`'s
+`start()` called native recognition's own `start()` and only registered the
+4-second stall watchdog on the line immediately *after* that call. iOS
+Safari's `SpeechRecognition` can throw synchronously out of `start()` itself
+(a WebKit quirk for some already-started/permission-state edge cases)
+instead of delivering the failure asynchronously as an `onerror` event. When
+that happens, the watchdog registration is skipped entirely — the session's
+internal mode gets stuck at `'native'` permanently, with no timer left to
+ever rescue it and fall back to recording + server-side transcription. This
+is different from (and not fixed by) the interim-result stall watchdog
+above, since that watchdog only re-arms once it has *already* been armed at
+least once — a synchronous throw at the very first `start()` call meant it
+was never armed in the first place.
+
+`start()` now wraps the call to native recognition's `start()` in a
+try/catch and falls straight to the recording fallback on a synchronous
+throw, rather than relying on a watchdog that would never get set up.
+**Fixed in both copies** — `homeschool-tutor/src/hooks/useHybridVoiceInput.ts`
+and `demo/src/useHybridVoiceInput.ts` — same independent-codebases caveat as
+every other voice-pipeline fix in this file.
+
 ## Under the hood: connection reuse for OpenAI TTS and email
 
 `services/voice_synthesis.py`'s OpenAI TTS calls (and, for the same reason,

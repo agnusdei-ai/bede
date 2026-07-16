@@ -170,12 +170,15 @@ prepare:
    (Starter or above). The free instance is small and spins down when
    idle; a paid instance is always on and meaningfully faster. You can
    downgrade again afterward.
-2. **Mind the per-IP rate limits** (`core/middleware.py`): 10 auth
-   requests and 120 API calls per minute *per IP address*. A hundred
-   visitors on their own homes/phones are nowhere near this. But a single
-   venue where everyone shares one Wi-Fi (one public IP) WILL trip the
-   auth bucket at the "Generate my code" step — for that scenario, raise
-   `AUTH_LIMIT` temporarily, or have attendees use cellular data.
+2. **Mind the per-IP rate limits**: 10 auth requests and 120 API calls
+   per minute *per IP address* by default. A hundred visitors on their
+   own homes/phones are nowhere near this. But a single venue where
+   everyone shares one Wi-Fi (one public IP) WILL trip the auth bucket at
+   the "Generate my code" step. For that scenario, raise the limits from
+   Render's dashboard — set `RATE_LIMIT_AUTH_PER_MINUTE` (and, for a
+   large room, `RATE_LIMIT_API_PER_MINUTE`) as environment variables on
+   `bede-demo-api` and let it restart; no code change involved. Or have
+   attendees use cellular data.
 3. **Anthropic rate limits are the real concurrency ceiling** for chat:
    each active conversation is a streaming request against your API key's
    tier. Check your organization's limits before the event; the demo

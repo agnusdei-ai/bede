@@ -105,6 +105,17 @@ class Settings(BaseSettings):
     # generated token can't be replayed forever if leaked/copied.
     demo_code_token_expire_minutes: int = 120
 
+    # ── Per-IP rate limits (requests per minute per client IP) ────────────────
+    # Enforced by core/middleware.py's RateLimitMiddleware. The defaults suit
+    # a family LAN and ordinary public-demo traffic. Raise them via env vars
+    # (RATE_LIMIT_AUTH_PER_MINUTE, RATE_LIMIT_API_PER_MINUTE,
+    # RATE_LIMIT_VOICE_PER_MINUTE) for an event where many visitors share one
+    # public IP — a conference room's Wi-Fi looks like a single very chatty
+    # client to a per-IP limiter. Takes effect on restart; no code edit.
+    rate_limit_auth_per_minute: int = 10
+    rate_limit_api_per_minute: int = 120
+    rate_limit_voice_per_minute: int = 20
+
     # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
     # An extra PIN — same "empty = disabled" pattern and strength rules as
     # DEMO_PIN — that unlocks a direct-answer chat with Bede for testing and

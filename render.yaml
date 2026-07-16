@@ -97,6 +97,14 @@ services:
         value: "4"
       - key: DEMO_GRADE_STAGE
         value: "3-5"
+      # Offers the English/Español toggle on the demo's CodeScreen (see
+      # docs/LOCALIZATION.md's per-login model) so Spanish-speaking beta
+      # testers can actually exercise the localized experience end to end.
+      # Fixed here rather than sync: false since it's not a secret, just a
+      # product decision — see docs/DEMO_HOSTING.md's "Spanish beta testing"
+      # section for verification steps and how to turn it back off.
+      - key: LOCALE
+        value: es
       # A browser's CORS Origin header is always scheme://host[:port] with
       # NO path — even though the demo itself is served from
       # https://agnusdei-ai.github.io/bede/, the Origin it sends is just

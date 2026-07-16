@@ -84,6 +84,60 @@ A real family's self-hosted instance is not exempt — see
 the Ed25519 private key from `scripts/generate_license_keypair.py`, which is
 deliberately never stored in this repo).
 
+## Spanish beta testing
+
+`render.yaml` sets `LOCALE: es` as a fixed (non-secret) value on
+`bede-demo-api`, so a fresh Blueprint deploy — or a synced redeploy of an
+existing one — offers the English/Español toggle on the demo's `CodeScreen`
+out of the box, exactly the same per-login mechanism documented in
+`docs/LOCALIZATION.md`. Nothing else needs configuring: `POST /auth/login`
+already embeds whatever locale was chosen into every role's JWT, `demo_code`
+included, and `_locale_directive` (`services/ai_service.py`) has Bede
+converse with the visitor natively in Spanish from that point on, not a
+translated-after-the-fact reply.
+
+**If your `bede-demo-api` predates this**, Render's Blueprint sync applies
+`render.yaml` changes to fixed-value env vars automatically on the next
+deploy triggered by a push to `main` — no dashboard step needed. If you want
+to confirm sooner, or your Render dashboard has auto-sync turned off for
+this service, check the **Environment** tab for `LOCALE=es` and add it by
+hand if it's missing.
+
+**To verify:** open the deployed demo, confirm an English/Español toggle
+renders above the "Generate my code" form, click **Español**, and confirm
+the whole screen re-renders live (title, field labels, privacy notice,
+button text — not just the toggle labels themselves). Generate a code and
+confirm Bede's own replies come back in Spanish, not English.
+
+**What beta testers will and won't see in Spanish**, per
+`docs/LOCALIZATION.md`'s disclosed scope: `CodeScreen` (the entry screen)
+and Bede's own conversational replies are localized; `ChatScreen`'s chrome,
+parent controls, and the sandbox/diagnostic previews past login stay
+English regardless of which language was picked at the code screen — a
+known, disclosed gap, not something to file as a bug during this round of
+testing.
+
+**One more expected quirk worth flagging to testers up front:** the demo
+never collects a student's sex (see `_demo_session_config` in
+`routers/tutor.py` — it's a zero-friction, name/grade-only flow by design),
+so Bede will use gender-neutral Spanish phrasing with every demo visitor
+rather than the grammatically-agreeing "bienvenido"/"bienvenida" a real
+family's session produces once `SessionConfig.sex` is on file (see
+`docs/LOCALIZATION.md`'s "Sex, not gender-neutral hedging" section). That's
+correct, intended behavior for the demo specifically, not a regression.
+
+The Spanish strings shipped so far are AI-drafted and reviewed for
+naturalness across multiple passes, not yet reviewed by a native speaker —
+treat this beta round as a chance to surface exactly that kind of feedback
+(phrasing that reads as awkward or overly literal, register that feels off)
+via the beta feedback form (`FEEDBACK_EMAIL`, `routers/feedback.py`) rather
+than assuming the translation is launch-final.
+
+To turn Spanish back off for this deployment — say, to isolate whether an
+issue is locale-specific — set `LOCALE=en` (or delete the var entirely,
+same effect) on `bede-demo-api` in Render's dashboard and let it redeploy;
+no code change required either way.
+
 ## Wiring the demo frontend to it
 
 1. On GitHub: `agnusdei-ai/bede` → **Settings → Secrets and variables →

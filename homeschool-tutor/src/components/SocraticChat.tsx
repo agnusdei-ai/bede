@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
@@ -21,6 +22,7 @@ const INACTIVITY_TIMEOUT_MS = 60_000
 const MAX_CONSECUTIVE_CONTINUES = 2
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
+  const { t } = useTranslation()
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
   const { bubble } = useChatTheme()
@@ -161,7 +163,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'subject_complete') {
           flush()
-          addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
+          addToolMessage('subject_complete', chunk.content ?? t('chat.nextSubjectFallback'))
           speechSegments.push(chunk.content ?? '')
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
@@ -180,7 +182,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       // advanceSubjectRef, if set, is picked up by the turn-completion effect
       // below once streaming AND any queued speech have both finished.
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, t])
 
   // sendOpener reads live store state to avoid stale-closure issues during streaming
   const sendOpener = useCallback(async () => {
@@ -434,13 +436,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error('Could not read that file'))
+        reader.onerror = () => reject(new Error(t('chat.couldNotReadFile')))
         reader.readAsDataURL(file)
       })
       const text = await extractNarrationText(token, file.name, dataUrl.slice(dataUrl.indexOf(',') + 1))
       setInput((prev) => (prev.trim() ? prev + '\n' + text : text))
     } catch (err) {
-      addToolMessage('error', `⚠️ ${err instanceof Error ? err.message : 'Could not read that file'}`)
+      addToolMessage('error', `⚠️ ${err instanceof Error ? err.message : t('chat.couldNotReadFile')}`)
     } finally {
       setUploadingNarration(false)
     }
@@ -453,13 +455,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? 'You'} bubbleClass={bubble.className} />
+          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? t('chat.youFallback')} bubbleClass={bubble.className} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
             <div className="flex items-center gap-2 text-sage-700 text-sm animate-pulse-soft">
               <Loader2 size={14} className="animate-spin" />
-              <span>Bede is thinking…</span>
+              <span>{t('chat.bedeThinking')}</span>
             </div>
           )}
         {/* Interim speech-to-text preview */}
@@ -473,7 +475,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         {isTranscribing && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
-              <Loader2 size={12} className="animate-spin" /> Transcribing…
+              <Loader2 size={12} className="animate-spin" /> {t('chat.transcribing')}
             </div>
           </div>
         )}
@@ -483,8 +485,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       {/* Drawing preview */}
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
-          <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
-          <div className="flex-1 text-xs text-sage-800">Drawing ready. Add a note, or just send it.</div>
+          <img src={pendingDrawing} alt={t('chat.drawingAlt')} className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
+          <div className="flex-1 text-xs text-sage-800">{t('chat.drawingReady')}</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600">
             <X size={14} />
           </button>
@@ -498,7 +500,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <button
             onClick={() => setShowCanvas(true)}
             disabled={isStreaming || breakActive}
-            title="Draw or write by hand"
+            title={t('chat.drawOrWrite')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             <PenLine size={18} />
@@ -515,7 +517,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <button
             onClick={() => narrationFileInputRef.current?.click()}
             disabled={isStreaming || breakActive || uploadingNarration}
-            title="Upload narration from your notebook (e.g. inq)"
+            title={t('chat.uploadNarration')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
@@ -538,7 +540,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           {ttsSupported && (
             <button
               onClick={toggleTTS}
-              title={ttsEnabled ? 'Mute Bede' : 'Unmute Bede'}
+              title={ttsEnabled ? t('chat.muteBede') : t('chat.unmuteBede')}
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
                 ttsEnabled
                   ? 'bg-sage-100 text-sage-700 hover:bg-sage-200'
@@ -561,10 +563,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               disabled={!voiceMode && (isStreaming || breakActive || isTranscribing)}
               title={
                 voiceMode
-                  ? 'Voice mode on. Tap to turn off.'
+                  ? t('chat.voiceModeOnTapOff')
                   : isTranscribing
-                  ? 'Transcribing…'
-                  : 'Turn on voice mode'
+                  ? t('chat.transcribing')
+                  : t('chat.turnOnVoiceMode')
               }
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
                 voiceMode
@@ -585,14 +587,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             disabled={isStreaming || breakActive}
             placeholder={
               breakActive
-                ? 'On a break. Bede will be here when you return.'
+                ? t('chat.placeholderOnBreak')
                 : isListening
-                ? 'Listening… speak now'
+                ? t('chat.placeholderListening')
                 : voiceMode
-                ? 'Voice mode on. Waiting for Bede…'
+                ? t('chat.placeholderVoiceModeWaiting')
                 : sttSupported
-                ? 'Type or tap the mic to speak…'
-                : 'Share your thoughts or answer Bede\'s question…'
+                ? t('chat.placeholderTypeOrMic')
+                : t('chat.placeholderShareThoughts')
             }
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white placeholder-gray-400 disabled:bg-gray-50"
@@ -608,10 +610,10 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
           {voiceMode
-            ? 'Voice mode on. Just speak, and Bede will hear and reply automatically. Tap the mic to turn it off.'
+            ? t('chat.hintVoiceModeOn')
             : sttSupported
-            ? 'Enter to send · mic for voice input'
-            : 'Press Enter to send · Shift+Enter for new line'}
+            ? t('chat.hintEnterOrMic')
+            : t('chat.hintEnterOnly')}
         </p>
       </div>
 

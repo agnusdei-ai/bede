@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Settings } from 'lucide-react'
 import {
   DEFAULT_SESSION_CAP_MINUTES, MIN_SESSION_CAP_MINUTES, MAX_SESSION_CAP_MINUTES,
@@ -52,6 +53,7 @@ export default function ParentControlsMenu({ controls, onChange }: {
   controls: DemoParentControls
   onChange: (next: DemoParentControls) => void
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -75,8 +77,8 @@ export default function ParentControlsMenu({ controls, onChange }: {
     <div ref={rootRef} className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Parent controls"
-        aria-label="Parent controls"
+        title={t('parentControls.tooltip')}
+        aria-label={t('parentControls.tooltip')}
         aria-expanded={open}
         className="p-2 text-gray-400 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors"
       >
@@ -85,14 +87,14 @@ export default function ParentControlsMenu({ controls, onChange }: {
 
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-3 w-72 space-y-3 text-left">
-          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Parent Controls</div>
+          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('parentControls.heading')}</div>
 
           {/* Session hard stop */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-700">Session length</p>
+              <p className="text-sm font-medium text-gray-700">{t('parentControls.sessionLength')}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                The session ends when this time is up. Learners rest for ten minutes after every hour.
+                {t('parentControls.sessionLengthDesc')}
               </p>
             </div>
             <div className="w-20 flex-shrink-0">
@@ -110,25 +112,25 @@ export default function ParentControlsMenu({ controls, onChange }: {
                 })}
                 className="w-full text-sm border border-sage-300 rounded-lg px-2 py-1.5 bg-white text-right"
               />
-              <p className="text-[10px] text-gray-400 mt-0.5 text-center">minutes</p>
+              <p className="text-[10px] text-gray-400 mt-0.5 text-center">{t('parentControls.minutes')}</p>
             </div>
           </div>
 
           {/* Appearance lock */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-parchment-200">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-700">Lock chat appearance</p>
+              <p className="text-sm font-medium text-gray-700">{t('parentControls.lockAppearance')}</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {controls.appearanceLocked
-                  ? 'The learner cannot change the theme or bubble color.'
-                  : 'The learner may change the theme and bubble color.'}
+                  ? t('parentControls.lockedDesc')
+                  : t('parentControls.unlockedDesc')}
               </p>
             </div>
             <button
               onClick={() => update({ appearanceLocked: !controls.appearanceLocked })}
               role="switch"
               aria-checked={controls.appearanceLocked}
-              aria-label="Lock chat appearance"
+              aria-label={t('parentControls.lockAppearance')}
               className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
                 controls.appearanceLocked ? 'bg-navy-500' : 'bg-gray-300'
               }`}
@@ -142,7 +144,7 @@ export default function ParentControlsMenu({ controls, onChange }: {
           </div>
 
           <p className="text-[10px] text-gray-400 pt-1 border-t border-parchment-200">
-            In the full app, the parent password protects these settings.
+            {t('parentControls.passwordNote')}
           </p>
         </div>
       )}

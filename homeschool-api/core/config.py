@@ -101,7 +101,9 @@ class Settings(BaseSettings):
     # setup (RESEND_API_KEY/RESEND_FROM_ADDRESS above); leave PARENT_EMAIL
     # unset to disable this specific alert (the safeguarding event is still
     # always written to the encrypted audit log either way — see
-    # core/audit.py's AuditEvent.SAFEGUARDING).
+    # core/audit.py's AuditEvent.SAFEGUARDING). Also doubles as the
+    # security-alert address for core/audit.py's anomaly watch (AuditEvent.
+    # ANOMALY_ALERT) — see docs/SECURITY.md.
     parent_email: str = ""
 
     # ── Beta feedback (optional) ────────────────────────────────────────────────

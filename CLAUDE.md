@@ -88,7 +88,7 @@ core/
   constitution.py    Verifies constitution/bede.constitution.json's SHA-256 digest + structure at import time; exposes recursively read-only data (see "Bede's Constitution" above)
   database.py        Async SQLAlchemy engine, ORM models (EncryptionConfig, VoiceProfile, StudentConfig, AuditLog, LearnerProfile, LearnerBehaviorCheck, MasteryProfile, and more — non-exhaustive list)
   encryption.py      AES-256-GCM; MASTER_SECRET → KEK → DATA_KEY hierarchy; all BYTEA columns encrypted
-  audit.py           Encrypted audit log — every security event written independently of request transaction
+  audit.py           Encrypted audit log — every security event written independently of request transaction; log_event() also runs a per-IP sliding-window anomaly watch (repeated auth failures, JWT fingerprint mismatches, access-denied hits, a single ExfiltrationGuard block) and, past threshold, records AuditEvent.ANOMALY_ALERT + best-effort emails PARENT_EMAIL — see docs/SECURITY.md
   deps.py            require_auth / require_parent FastAPI dependencies (JWT + IP/UA fingerprint)
   middleware.py      SecurityHeaders, RateLimit, ExfiltrationGuard (blocks known exfiltration endpoints + scans JSON response bodies for leaked key material; SSE streams pass through untouched — see Security Constraints)
   security.py        JWT encode/decode; device fingerprint binding

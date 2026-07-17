@@ -79,6 +79,14 @@ follow up, without waiting for you to think to check the audit log
 yourself. Leave `PARENT_EMAIL` unset if you'd rather rely on the audit log
 alone; the safety stop itself always happens either way.
 
+**That same `PARENT_EMAIL` also covers security alerts.** If Bede notices
+a pattern like several failed login attempts, or a blocked attempt to pull
+data out through the API, in a short window from one address, it emails
+you the same way — once per pattern, so you'll hear about a real attempt
+without your inbox filling up if it keeps happening. Every occurrence is
+still recorded in the encrypted audit log regardless of whether
+`PARENT_EMAIL` is set. See `docs/SECURITY.md` for the exact thresholds.
+
 **Want to test or explore how Bede responds, without a real tutoring session?**
 Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod
 Dashboard. It's a direct-answer chat just for you — Bede answers plainly

@@ -51,9 +51,6 @@ list as items are closed.
 - **Pre-deployment adversarial testing.** No red-team report, jailbreak
   test suite, or third-party adversarial-robustness assessment exists yet
   for the constitution and safeguarding regexes in `ai_service.py`.
-- **Active alerting on the audit log.** `core/audit.py` writes an
-  encrypted, independent audit trail, but nothing currently watches it
-  for anomalous access patterns.
 - **Formal incident response plan.** No named security contact,
   severity/escalation matrix, or breach-notification procedure exists
   yet.
@@ -74,6 +71,18 @@ list as items are closed.
   (`routers/transcripts.py`), and folded into the existing
   `_sanitize_parent_field` for parent-supplied config fields. Covered by
   `tests/test_credential_redaction.py`.
+- **Active alerting on the audit log (E009), closed 2026-07-17.**
+  `core/audit.py` now watches a sliding window per (IP, event type) for
+  security-relevant patterns — 5 failed logins, 3 JWT fingerprint
+  mismatches, or 8 access-denied events in 10 minutes from one address, or
+  even a single blocked exfiltration attempt (`ExfiltrationGuard`'s
+  `suspicious_request`) — and, once per pattern per 30-minute cooldown,
+  records an `AuditEvent.ANOMALY_ALERT` entry and best-effort emails
+  `PARENT_EMAIL` via the same Resend path as the existing safeguarding
+  distress alert (`services/email_service.py`'s `send_security_alert`).
+  In-process only (no new infra, resets on redeploy) — a defense-in-depth
+  signal sized for a self-hosted single-family deployment, not a SIEM.
+  Covered by `tests/test_audit_anomaly.py`.
 
 ## SOC 2 Type 2
 

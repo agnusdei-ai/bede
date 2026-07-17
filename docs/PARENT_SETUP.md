@@ -71,7 +71,10 @@ without you present.
 **If a child expresses distress or danger**, Bede stops tutoring immediately —
 regardless of subject or grade — and tells them to find a trusted adult right
 now. This is a deterministic keyword/pattern check that runs before anything
-reaches Claude, not a judgment call by the AI. Every occurrence is written to
+reaches Claude, not a judgment call by the AI, and it works the same way
+whether your child is typing in English or Spanish (if you've enabled the
+Spanish toggle — see below), including the safety message itself, which
+arrives in whichever language they're using. Every occurrence is written to
 the encrypted audit log. If you set `PARENT_EMAIL` in your `.env` (see
 `.env.example`), you'll also get an urgent email the moment it happens,
 including a short excerpt of what triggered it — enough to know how to

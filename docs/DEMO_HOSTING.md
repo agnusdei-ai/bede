@@ -164,14 +164,22 @@ To serve the demo from your own apex domain (e.g. `agnusdei.ai`) instead of
    add a `www` `CNAME` pointing at `<owner>.github.io` if you want
    `www.yourdomain` to resolve too — GitHub Pages will redirect it to the
    apex automatically once both are configured.
-2. **Repo** — `site/CNAME` already contains the target domain. Update this
-   one-line file if the final domain differs from what's there now.
+2. **Repo** — `site/CNAME` already contains the target domain, but nothing
+   publishes it yet (see "Why the apex isn't just the demo" below) — do this
+   step and the next one together, not this one in advance. Restore the
+   "Assemble Pages site" step in `.github/workflows/deploy-demo.yml` (or
+   rewrite the workflow to publish `site/` some other way) so the deployed
+   artifact actually includes `site/CNAME`, and push that once DNS is live,
+   not before.
 3. **GitHub Pages settings** — once DNS has propagated (can take anywhere
-   from minutes to a few hours), go to `agnusdei-ai/bede` → **Settings →
-   Pages** and enter the custom domain in the **Custom domain** field, then
-   save. GitHub verifies the DNS and provisions a free TLS certificate
-   automatically — this step can't be done before DNS is live, since
-   verification will fail against a domain that isn't pointed at GitHub yet.
+   from minutes to a few hours) *and* the CNAME-carrying deploy from step 2
+   has run at least once, go to `agnusdei-ai/bede` → **Settings → Pages**
+   and confirm the **Custom domain** field shows the right value (GitHub
+   usually fills it in automatically from the published `CNAME` file; enter
+   it by hand if it didn't). GitHub verifies the DNS and provisions a free
+   TLS certificate automatically — this can't succeed before DNS is live,
+   since verification fails against a domain that isn't pointed at GitHub
+   yet.
 4. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists both
    `agnusdei.ai` and `bede.ai` (plus their `www` variants) ahead of time, so
    switching the live domain later needs no backend redeploy. Trim it back
@@ -184,36 +192,47 @@ To serve the demo from your own apex domain (e.g. `agnusdei.ai`) instead of
    works (a CORS mismatch here shows up as every `/tutor/chat` request
    silently failing in the browser console, not a visible error banner).
 
-### Why the apex isn't just the demo
+### Why the apex isn't just the demo (and why that's not deployed yet)
 
-The domain's root (`agnusdei.ai`) is reserved for the company's home page,
-not the interactive demo — Bede is meant to be the first of several
-products, not the only thing the domain will ever host. So the published
-Pages site is assembled from two pieces, not one:
+The domain's root (`agnusdei.ai`) is meant to eventually be the company's
+home page, not the interactive demo — Bede is meant to be the first of
+several products, not the only thing the domain will ever host. The repo
+has the pieces for that: `site/` (a small, hand-written static page,
+`site/index.html`, no build step, no framework, with a "Meet Bede →" link)
+and `site/CNAME` (`agnusdei.ai`).
 
-- **`site/`** — a small, hand-written static page (`site/index.html`,
-  no build step, no framework) with a "Meet Bede →" link into `/bede/`. This
-  is the actual company landing page; edit its content/copy directly as the
-  real product line grows, the same way you'd edit any static HTML file.
-- **`demo/`** — built as before (`npm run build` → `demo/dist`), then copied
-  under `/bede/` in the published output rather than at the root.
-  `demo/vite.config.ts`'s `base: './'` (relative asset paths) is exactly
-  what makes this work with zero code changes — the same build output is
-  valid whether it ends up at a domain root or nested under a subpath.
+**But the live workflow does not publish `site/` yet — it deploys `demo/dist`
+directly, exactly as it did before this idea existed.** That's deliberate,
+learned the hard way: a first attempt published `site/`'s contents at the
+artifact root and nested `demo/dist` under `/bede/` within it. That broke
+the *only* URL that's actually live right now, `agnusdei-ai.github.io/bede/`
+(the `/bede/` segment there comes from the repo being named `bede` — it has
+nothing to do with the subpath restructuring). Two separate problems, either
+one enough to cause an outage on its own:
 
-`.github/workflows/deploy-demo.yml`'s **Assemble Pages site** step does the
-actual assembly: `site/`'s contents go to the artifact root, `demo/dist`'s
-contents go to `<artifact root>/bede/`, and the combined tree is what
-`actions/upload-pages-artifact` publishes. `site/CNAME` is the one that
-matters for GitHub Pages (it must sit at the true published root, not nested
-under `/bede/`) — there's no longer a `demo/public/CNAME`, since that would
-now publish to the wrong path and go unread.
+1. The demo moved to `agnusdei-ai.github.io/bede/bede/` — the doubled path
+   nobody would guess or already has linked.
+2. Worse: **GitHub Pages auto-detects a `CNAME` file in whatever gets
+   published and silently turns on the custom-domain setting from it** —
+   no visit to Settings → Pages required. Publishing `site/CNAME` as part of
+   the artifact quietly pointed the whole deployment at `agnusdei.ai`, and
+   since DNS was never pointed at GitHub Pages for that domain, the result
+   wasn't "shows the wrong page," it was the site becoming unreachable
+   entirely.
 
-If you'd rather have the demo live at the domain root after all — say, a
-single-product deployment with no separate company site planned — drop the
-**Assemble Pages site** step's `bede/` nesting and point
-`upload-pages-artifact` straight at `demo/dist`, the way this workflow
-worked before this section existed.
+**If you're reading this after that happened once already:** check
+`agnusdei-ai/bede` → **Settings → Pages** — if **Custom domain** shows
+`agnusdei.ai`, clear that field now (leave it blank) and save. It'll stay
+that way until you deliberately redo the steps below.
+
+**To actually do the apex/subpath split, do it as one coordinated change,**
+not two separate ones — reintroducing the "Assemble Pages site" step
+(`site/` at the artifact root, `demo/dist` copied to `<root>/bede/`, matching
+what's already written in `site/index.html`'s `/bede/` link) at the same
+time as the DNS + GitHub Pages steps below, so there's no window where a
+CNAME is live in the deployed artifact but DNS isn't ready to answer for it.
+The commit history has the original "Assemble Pages site" step if you want
+to restore it verbatim rather than rewrite it.
 
 ## Cold starts (free plan)
 

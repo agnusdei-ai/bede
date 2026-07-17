@@ -35,7 +35,7 @@ from services.ai_service import (
     _sanitize_parent_field,
     check_safeguarding,
     generate_session_summary,
-    SAFEGUARDING_RESPONSE,
+    safeguarding_response,
     stream_tutor_response,
 )
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
@@ -167,7 +167,7 @@ async def chat(
                 datetime.now(timezone.utc).isoformat(),
                 trigger_excerpt,
             ))
-            yield json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})
+            yield json.dumps({'type': 'text', 'content': safeguarding_response(auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
             return
 

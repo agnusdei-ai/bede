@@ -111,6 +111,18 @@ handful of smaller modal/settings components are **not yet translated**; each
 is a follow-up slice using the same `t('namespace.key')` / `Trans` pattern
 established here.
 
+**The safeguarding crisis check is Spanish-aware too, not just Bede's own
+replies** (`services/ai_service.py`'s `_SAFEGUARDING_PATTERNS`/
+`safeguarding_response`, found during a pre-deployment adversarial-testing
+pass — see `docs/SECURITY.md`): this one deliberately isn't gated behind the
+session's locale the way everything else above is. It's checked
+unconditionally on every message regardless of `LOCALE`, since a family can
+be multilingual even in an English deployment and a missed crisis signal is
+a far worse failure mode than an occasional false positive. The response
+text *is* locale-aware (`routers/tutor.py` passes `auth.get("locale", "en")`
+through), so a Spanish-speaking child gets the safety message in Spanish,
+not just detected correctly.
+
 **Deliberately still English regardless of locale:** the subject and
 core-area taxonomy itself — "Morning Time," "Mathematics," "Science," and
 similar labels from `types/index.ts`'s `SUBJECTS`/`CORE_AREAS` arrays, used

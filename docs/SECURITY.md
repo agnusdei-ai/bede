@@ -48,9 +48,17 @@ absence of these harms has been independently red-teamed.
 Tracked here so they don't only live in a one-off review; update this
 list as items are closed.
 
-- **Pre-deployment adversarial testing.** No red-team report, jailbreak
-  test suite, or third-party adversarial-robustness assessment exists yet
-  for the constitution and safeguarding regexes in `ai_service.py`.
+- **Pre-deployment adversarial testing — partial.** A first-pass adversarial
+  review (2026-07-17) manually probed the deterministic layers —
+  `check_safeguarding`, `_INJECTION_PATTERN`, `_redact_credentials` — with
+  known jailbreak/bypass technique categories and real ambiguous-phrasing
+  false-positive checks (`tests/test_safeguarding.py`), and found and closed
+  one real gap (see Closed gaps below). Still missing, and out of what this
+  environment can do: any test against the **live model** — no jailbreak
+  probing of the constitution/`<ethical_boundaries>` actually happened,
+  since that requires real Anthropic API calls this sandbox doesn't have
+  credentials or approval for — and no **third-party** red-team or
+  independent adversarial-robustness assessment. Both remain open.
 - **Formal incident response plan.** No named security contact,
   severity/escalation matrix, or breach-notification procedure exists
   yet.
@@ -83,6 +91,22 @@ list as items are closed.
   In-process only (no new infra, resets on redeploy) — a defense-in-depth
   signal sized for a self-hosted single-family deployment, not a SIEM.
   Covered by `tests/test_audit_anomaly.py`.
+- **Safeguarding was English-only despite a live Spanish-locale session,
+  closed 2026-07-17.** The adversarial pass above found that
+  `check_safeguarding` (`services/ai_service.py`) — the deterministic,
+  pre-Claude check that bypasses the LLM entirely for a child's
+  distress/danger language — only ever matched English phrasing, even
+  though this deployment supports a real Spanish-locale session
+  (`LOCALE=es`, `docs/LOCALIZATION.md`). A Spanish-speaking child's actual
+  crisis language would never have triggered it. Added a Spanish pattern
+  set (checked unconditionally regardless of deployment `LOCALE` — a family
+  can be multilingual even in an English deployment) and a locale-aware
+  `safeguarding_response()` so the crisis response itself arrives in the
+  child's own language, not just gets detected correctly. Also the first
+  test coverage this function has ever had — `tests/test_safeguarding.py`,
+  including deliberate false-positive checks against ordinary lesson
+  content and an ambiguous Spanish idiom ("me tocó" = "it was my turn")
+  that a naive translation would have misfired on constantly.
 
 ## SOC 2 Type 2
 

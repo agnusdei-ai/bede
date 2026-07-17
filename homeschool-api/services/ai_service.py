@@ -584,12 +584,50 @@ _SAFEGUARDING_PATTERNS = [
     re.compile(r"\bdon'?t\s+feel\s+safe\b", re.I),
     re.compile(r'\b(abused?|molested?|raped?)\b', re.I),
     re.compile(r'\b(he|she|they)\s+hurt\s+me\b', re.I),
+    # Spanish — a pre-deployment adversarial-testing finding (docs/SECURITY.md):
+    # this deployment supports a real, live Spanish-locale session (LOCALE=es,
+    # docs/LOCALIZATION.md), and this check was English-only, so a Spanish-
+    # speaking child's actual distress/danger language would never have
+    # triggered it. Checked unconditionally regardless of the deployment's
+    # configured LOCALE, not gated behind it — a family can be multilingual
+    # even in an English deployment, and the same "false positives are safer
+    # than false negatives" reasoning above applies here too. Direct,
+    # best-effort translations of the same categories above, not a clinical
+    # or exhaustive phrase list; deliberately excludes ambiguous idioms
+    # ("me tocó" alone also means "it was my turn") that would misfire on
+    # ordinary lesson content far more than the English patterns do.
+    re.compile(r'\bme\s+(lastim\w*|hac(?:e|en)\s+daño)\b', re.I),
+    re.compile(r'\bme\s+(pega\w*|golpea\w*|patea\w*)\b', re.I),
+    re.compile(r'\bquiero\s+(morir\w*|matarme|hacerme\s+daño)\b', re.I),
+    re.compile(r'\bmatarme\b', re.I),
+    re.compile(r'\bcortarme\b', re.I),
+    re.compile(r'\bno\s+(estoy|me\s+siento)\s+segur[oa]\b', re.I),
+    re.compile(r'\b(me\s+abus(?:ó|aron|a)|abusad[oa]|violad[oa])\b', re.I),
+    re.compile(r'\bme\s+(hizo|hicieron)\s+daño\b', re.I),
 ]
 
-SAFEGUARDING_RESPONSE = (
-    "I hear you. Please find a parent or a trusted adult right now — "
-    "your safety matters most. You can stop this session and go to them."
-)
+_SAFEGUARDING_RESPONSES = {
+    "en": (
+        "I hear you. Please find a parent or a trusted adult right now — "
+        "your safety matters most. You can stop this session and go to them."
+    ),
+    # A crisis moment is the worst possible time to hand a child a response
+    # in a language they read less fluently than the one they just reached
+    # for — see the Spanish detection patterns above for why this exists.
+    "es": (
+        "Te escucho. Por favor busca a tus padres o a un adulto de confianza "
+        "ahora mismo — tu seguridad es lo más importante. Puedes "
+        "detener esta sesión e ir con ellos."
+    ),
+}
+SAFEGUARDING_RESPONSE = _SAFEGUARDING_RESPONSES["en"]  # back-compat default for callers that don't pass locale
+
+
+def safeguarding_response(locale: str = "en") -> str:
+    """Localized crisis response — falls back to English for any locale
+    without a translation yet (safe default: still a real, correct answer,
+    just not in the child's own language)."""
+    return _SAFEGUARDING_RESPONSES.get(locale, _SAFEGUARDING_RESPONSES["en"])
 
 
 def check_safeguarding(message: str) -> bool:

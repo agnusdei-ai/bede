@@ -20,11 +20,16 @@ for the current subject, and the child's current message. If the child
 used the handwriting canvas, that turn also includes the drawing as a
 base64-encoded image. End-of-session summaries (`generate_session_summary`)
 send the session's message history to produce the parent-facing report.
+A separate, second call (`services/moderation.py`'s `classify_child_message`,
+AIUC-1 B005) sends just the child's current message — not the system
+prompt or conversation history — for content-safety classification before
+the main tutoring call proceeds.
 
 **Why it's required:** Anthropic's Claude models are Bede — there's no
 tutoring without this call. `core/config.py` pins `tutor_model` (streaming,
 `claude-sonnet-4-6`) and `session_model` (non-streaming,
-`claude-haiku-4-5-20251001`, end-of-session summary only).
+`claude-haiku-4-5-20251001`, end-of-session summary and moderation
+classification both).
 
 **What doesn't get sent:** raw encryption key material, other students'
 data, voice biometric embeddings, or anything from the parent's own

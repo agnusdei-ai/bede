@@ -318,10 +318,18 @@ explicitly not built here, each for a concrete reason:
   third-party API, cuts against that directly. `check_safeguarding()`
   (`services/ai_service.py`) already pattern-matches distress signals
   before a message reaches the model; extending its phrase lists per
-  locale is a much smaller, LAN-compatible lift than a second model, and is
-  the natural next step if this is revisited. Treat a dedicated
-  classifier as its own separate infrastructure decision, not a
-  localization sub-task.
+  locale (now done for Spanish — see `docs/SECURITY.md`) is a much
+  smaller, LAN-compatible lift than a second model.
+
+  **The dedicated-classifier decision this deferred has since been
+  made** (`services/moderation.py`, AIUC-1 B005 — see `docs/SECURITY.md`),
+  and it sidesteps both objections above by construction: it classifies
+  with the same Haiku model already configured as `session_model`, over
+  the already-required `ANTHROPIC_API_KEY` — no second model to host, no
+  new vendor receiving a child's conversation. Locale isn't threaded
+  through it at all; it classifies content categories (self-harm,
+  violence, sexual content, hate speech, prompt injection), not language,
+  so it works identically regardless of which locale a session runs in.
 
 ## Translation quality bar
 

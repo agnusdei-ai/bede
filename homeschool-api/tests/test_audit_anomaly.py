@@ -77,6 +77,16 @@ def test_check_anomaly_single_occurrence_rule_fires_immediately():
     assert _check_anomaly(AuditEvent.SUSPICIOUS_REQUEST, "1.1.1.1") == 1
 
 
+def test_check_anomaly_moderation_flagged_fires_at_three_not_one():
+    """AIUC-1 B005's moderation classifier flags routine boundary-testing
+    fairly often — 3 in 10 minutes, not 1, so a single flag doesn't page
+    the parent for something the in-the-moment redirect already handled."""
+    ip = "5.5.5.5"
+    assert _check_anomaly(AuditEvent.MODERATION_FLAGGED, ip) is None
+    assert _check_anomaly(AuditEvent.MODERATION_FLAGGED, ip) is None
+    assert _check_anomaly(AuditEvent.MODERATION_FLAGGED, ip) == 3
+
+
 def test_check_anomaly_ignores_events_with_no_rule():
     for _ in range(50):
         assert _check_anomaly(AuditEvent.SESSION_START, "9.9.9.9") is None

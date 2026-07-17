@@ -533,13 +533,41 @@ _INJECTION_PATTERN = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# AIUC-1 A008 — credential/secret leakage prevention. Catches the shapes a
+# parent or child might paste into a text field: provider API keys,
+# AWS/GitHub/Slack tokens, JWTs, Bearer headers, and user:pass@host
+# connection strings. Applied everywhere free text from a request enters
+# model context, the audit log, or persisted transcript storage — see
+# _redact_credentials's call sites in routers/tutor.py, routers/
+# transcripts.py, and stream_tutor_response below.
+_CREDENTIAL_PATTERN = re.compile(
+    r'(sk-(?:ant|proj|live|test)?-?[A-Za-z0-9_-]{16,}'
+    r'|AKIA[0-9A-Z]{16}'
+    r'|gh[pousr]_[A-Za-z0-9]{36,}'
+    r'|xox[baprs]-[A-Za-z0-9-]{10,}'
+    r'|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'
+    r'|[A-Za-z][A-Za-z0-9+.-]*://[^\s:/@]+:[^\s@/]+@[^\s]+'
+    r'|(?i:bearer)\s+[A-Za-z0-9\-._~+/]{20,}=*)'
+)
+
+
+def _redact_credentials(value: Optional[str]) -> Optional[str]:
+    """Redact credential-shaped substrings (API keys, tokens, connection
+    strings) so a pasted secret never reaches model context, the audit
+    log, or conversation/transcript storage. AIUC-1 control A008."""
+    if not value:
+        return value
+    return _CREDENTIAL_PATTERN.sub('[redacted-credential]', value)
+
 
 def _sanitize_parent_field(value: Optional[str], max_len: int = 500) -> Optional[str]:
-    """Strip HTML and prompt-injection attempts from parent-supplied context fields."""
+    """Strip HTML, prompt-injection attempts, and credential-shaped
+    patterns from parent-supplied context fields."""
     if not value:
         return value
     cleaned = _HTML_TAG.sub('', value)
     cleaned = _INJECTION_PATTERN.sub('[removed]', cleaned)
+    cleaned = _redact_credentials(cleaned)
     cleaned = cleaned.strip()[:max_len]
     return cleaned or None
 
@@ -1780,8 +1808,21 @@ async def stream_tutor_response(
     if child_message == "[CONTINUE]":
         await record_signal(demo_code, "silence_continue", subject.value)
 
-    # Build message list and apply sliding window to cap per-turn input tokens
-    messages = [{"role": m.role, "content": m.content} for m in history]
+    # Build message list and apply sliding window to cap per-turn input tokens.
+    # User-role history is redacted here too, not just the current turn below —
+    # the client replays its own local (unredacted) copy of past user turns on
+    # every request, so without this a credential caught on turn N would still
+    # reach the model again on turn N+1 via `history`.
+    messages = [
+        {"role": m.role, "content": _redact_credentials(m.content) if m.role == "user" else m.content}
+        for m in history
+    ]
+    # Belt-and-suspenders redaction of the current turn — routers/tutor.py
+    # already redacts req.child_message before calling in, but this keeps
+    # the guarantee here at the service boundary rather than resting
+    # entirely on every caller remembering to do it first. Idempotent:
+    # redacting an already-redacted "[redacted-credential]" is a no-op.
+    child_message = _redact_credentials(child_message) or child_message
     if drawing_image:
         # Multimodal turn — Claude reads the handwriting/drawing directly rather
         # than receiving a text placeholder for it.

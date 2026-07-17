@@ -20,6 +20,13 @@ from sqlalchemy import select
 
 log = logging.getLogger(__name__)
 
+# Holds strong references to in-flight log_event_nowait() tasks — asyncio
+# only keeps a WEAK reference to a task once nothing else holds one, so a
+# fire-and-forget call with nothing tracking it can get garbage-collected
+# mid-write on a busy event loop. Discarded via the task's own done
+# callback once it finishes, so this never grows unbounded.
+_background_tasks: set[asyncio.Task] = set()
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -174,6 +181,22 @@ async def log_event(
     trigger_count = _check_anomaly(event, ip)
     if trigger_count is not None:
         asyncio.create_task(_fire_anomaly_alert(event, ip, trigger_count))
+
+
+def log_event_nowait(*args, **kwargs) -> None:
+    """
+    Fire-and-forget log_event() — for hot paths (login, voice verify) where
+    the audit write's own DB round-trip must not add to user-facing
+    latency. Safe specifically because log_event() already treats its own
+    failures as non-fatal and never propagates them (see its docstring) —
+    detaching it here only trades an infinitesimal risk of losing one
+    audit line, if the process crashes in the instant between the
+    response being sent and this task finishing, for removing a full DB
+    round-trip from that response's critical path.
+    """
+    task = asyncio.create_task(log_event(*args, **kwargs))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 # ── Read ─────────────────────────────────────────────────────────────────────

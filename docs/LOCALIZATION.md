@@ -234,18 +234,38 @@ calendar of saints; it's context to reach for when it's the natural fit,
 the same way an English-locale session already draws on whichever
 saint/feast fits the day.
 
-**Deliberately not done yet:** a Spanish-language entry in
-`services/poetry_catalog.py` (the verbatim public-domain poetry/hymn
-catalog). The two best-known Guadalupan hymns — "La Guadalupana" ("Desde el
-cielo...") and "Las Mañanitas a la Virgen de Guadalupe" — are both
-mid-20th-century compositions (1940s and 1950s respectively) still under
-copyright, not the pre-1929 public-domain material this catalog requires
-(see `docs/CONTENT_CONTRIBUTING.md`'s "one hard rule"). Older material
-exists — Sor Juana Inés de la Cruz's 17th-century villancicos touch on
-Guadalupe, safely public domain by any measure — but a clean, exact,
-cross-verifiable primary-source text wasn't found in the research pass that
-produced this section. Adding this needs a dedicated sourcing effort before
-it's added, not a rushed or half-verified entry.
+**Poetry co-study resolved a different way — no Spanish-language catalog
+entry at all, on purpose.** The two best-known Guadalupan hymns — "La
+Guadalupana" ("Desde el cielo...") and "Las Mañanitas a la Virgen de
+Guadalupe" — are both mid-20th-century compositions (1940s and 1950s
+respectively) still under copyright, not the pre-1929 public-domain
+material `services/poetry_catalog.py` requires (see
+`docs/CONTENT_CONTRIBUTING.md`'s "one hard rule"). Older material exists —
+Sor Juana Inés de la Cruz's 17th-century villancicos touch on Guadalupe,
+safely public domain by any measure — but a clean, exact, cross-verifiable
+primary-source text wasn't found in the research pass that first raised
+this. Rather than keep chasing sourcing for Spanish (and needing to repeat
+that chase for every future locale — Tagalog, Italian, Polish), a live
+Spanish session surfaced a cleaner fix: `poetry_catalog.py`'s English poem
+was firing regardless of locale, so a Spanish reply would quote a real
+English poem verbatim mid-sentence — a "Spanglish" kink a parent reported
+directly.
+
+`_native_poetry_note` (`services/ai_service.py`, wired into
+`_build_subject_prompt` in place of `poetry_catalog.py`'s quotation
+whenever `locale != "en"`) is the fix: Bede composes a short original
+devotional reflection or a few original lines of verse, natively in the
+session's language, never attributed to a real poet or presented as an
+existing published work — the same native-generation principle
+`_locale_directive` already applies everywhere else Bede speaks. This needs
+no stored or sourced content and scales to any future locale with zero
+content-curation work, at the cost of a real feature difference stated
+plainly: only English sessions get Bede quoting a real, historically
+attributed poem verbatim; every other locale gets Bede's own composition
+instead. `prayer_catalog.py`'s prayer recitation is unaffected by any of
+this — it already carries verified Spanish text for the Church's own
+traditional prayers (Our Father, etc.), a different case from quoting an
+individually-authored poem.
 
 ## Sex, not gender-neutral hedging
 

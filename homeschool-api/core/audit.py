@@ -9,8 +9,10 @@ This keeps audit writes independent of the main request transaction and
 means a rollback in a route handler will not suppress the audit entry.
 """
 
+import asyncio
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -46,6 +48,75 @@ class AuditEvent:
     DIAGNOSTIC_VIEW          = "diagnostic.view"
     FEEDBACK_SUBMITTED       = "feedback.submitted"
     STUDENT_DATA_DELETED     = "student.data_deleted"
+    ANOMALY_ALERT            = "security.anomaly_alert"
+
+
+# ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
+# The audit log used to be write-only — every security event was durably
+# recorded but nothing ever looked back at the pattern. This is a lightweight,
+# in-process sliding-window watch over specific security-relevant event
+# types, mirroring core/middleware.py's RateLimitMiddleware bucket approach
+# (no new infra, no persistence across restarts, resets on redeploy). It's
+# sized for what it actually is: a defense-in-depth signal for a self-hosted
+# single-family deployment, not a SIEM — the goal is the parent finding out
+# about a sustained brute-force/probing attempt in real time, not forensic-
+# grade anomaly detection.
+
+_ANOMALY_RULES: dict[str, tuple[int, float]] = {
+    # event -> (occurrences, window_seconds) that trigger an alert from one IP
+    AuditEvent.AUTH_FAILURE: (5, 600),
+    AuditEvent.TOKEN_FINGERPRINT_MISMATCH: (3, 600),
+    AuditEvent.ACCESS_DENIED: (8, 600),
+    AuditEvent.VOICE_VERIFY_FAIL: (5, 600),
+    AuditEvent.SUSPICIOUS_REQUEST: (1, 1),  # ExfiltrationGuard hits are alert-worthy on their own
+}
+_ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
+
+_anomaly_windows: dict[tuple[str, str], list[float]] = {}
+_anomaly_last_alert: dict[tuple[str, str], float] = {}
+
+
+def _check_anomaly(event: str, ip: str) -> Optional[int]:
+    """Returns the occurrence count if `event` from `ip` just crossed its
+    threshold (and isn't still in cooldown from a prior alert on the same
+    pattern), else None. Not async / has no side effects beyond its own
+    module-level dicts — safe to call synchronously from log_event()."""
+    rule = _ANOMALY_RULES.get(event)
+    if rule is None or ip in ("unknown", ""):
+        return None
+    threshold, window = rule
+    key = (ip, event)
+    now = time.monotonic()
+
+    last_alert = _anomaly_last_alert.get(key)
+    if last_alert is not None and now - last_alert < _ANOMALY_ALERT_COOLDOWN_SECONDS:
+        return None
+
+    timestamps = [t for t in _anomaly_windows.get(key, []) if now - t < window]
+    timestamps.append(now)
+
+    if len(timestamps) >= threshold:
+        _anomaly_last_alert[key] = now
+        _anomaly_windows[key] = []
+        return len(timestamps)
+
+    _anomaly_windows[key] = timestamps
+    return None
+
+
+async def _fire_anomaly_alert(event: str, ip: str, count: int) -> None:
+    """Fire-and-forget: records the alert itself in the audit log (so the
+    alert is part of the durable trail, not just implied by the events that
+    triggered it) and best-effort emails the parent — same pattern as
+    ai_service.py's safeguarding alert."""
+    from services.email_service import security_alert_configured, send_security_alert
+
+    await log_event(
+        AuditEvent.ANOMALY_ALERT, ip=ip, success=True,
+        detail=f"{event} x{count} from {ip}",
+    )
+    if security_alert_configured():
+        await send_security_alert(event, ip, count)
 
 
 # ── Write ────────────────────────────────────────────────────────────────────
@@ -90,6 +161,14 @@ async def log_event(
     except Exception as exc:
         # Audit failure must never crash the request
         log.warning("Audit write failed: %s", exc)
+
+    # Anomaly watch runs regardless of whether the write above succeeded —
+    # the pattern lives in this process's in-memory window either way.
+    # Fire-and-forget, same reasoning as the safeguarding alert: the request
+    # this call is part of must never wait on an outbound email.
+    trigger_count = _check_anomaly(event, ip)
+    if trigger_count is not None:
+        asyncio.create_task(_fire_anomaly_alert(event, ip, trigger_count))
 
 
 # ── Read ─────────────────────────────────────────────────────────────────────

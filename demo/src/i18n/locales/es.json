@@ -23,10 +23,9 @@
     "drawingReady": "Dibujo listo. Agrega una nota o simplemente envíalo.",
     "uploadNarration": "Sube una narración de tu cuaderno (por ejemplo, inq)",
     "placeholderListening": "Escuchando… habla ahora",
-    "placeholderVoiceModeWaiting": "Conversación de voz activada. Esperando a Bede…",
     "placeholderTypeOrMic": "Escribe o toca el micrófono para hablar…",
-    "micOnTooltip": "Conversación de voz activada — toca para terminar",
-    "micOffTooltip": "Iniciar una conversación de voz"
+    "micOnTooltip": "Escuchando… toca para detener",
+    "micOffTooltip": "Toca para hablar"
   },
   "header": {
     "askBede": "Pregúntale a Bede",

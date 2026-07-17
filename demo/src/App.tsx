@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -498,15 +498,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
 
-  // ── Dictation mode ────────────────────────────────────────────────────────
-  // One tap turns the mic into an open conversation: each finished utterance
-  // sends itself, and the keepalive effect below re-arms the mic whenever
-  // Bede isn't thinking or talking — the learner converses freely with no
-  // button between turns. Tapping the mic again is the only way out.
-  // Mirrors homeschool-tutor's SocraticChat voice mode.
-  const [voiceMode, setVoiceMode] = useState(false)
-  const voiceModeRef = useRef(false)
-  useEffect(() => { voiceModeRef.current = voiceMode }, [voiceMode])
+  // ── Voice input: tap to speak ─────────────────────────────────────────────
+  // One tap starts listening for a single utterance; a finished transcript
+  // sends itself and the mic returns to idle — no hands-free restart loop.
+  // Mirrors homeschool-tutor's SocraticChat mic (see its comment for why:
+  // a continuous restart loop made every one of the heuristics below re-run
+  // on every turn, and any hiccup on any restart surfaced as a recurring,
+  // hard-to-pin-down audio bug).
 
   // Hybrid voice input (native Web Speech first, recording + server Whisper
   // when it's unsupported, errors, or stalls) — the same resilience the real
@@ -524,10 +522,9 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
-      onFinal: (transcript) => {
-        if (voiceModeRef.current) send(transcript)
-        else setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
-      },
+      // A tap started this utterance specifically to speak an answer — send
+      // it the moment it's final, same as tapping Send after typing.
+      onFinal: (transcript) => send(transcript),
     })
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -720,27 +717,12 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
 
+  // Tap starts listening for one utterance; tapping again while listening
+  // cancels it without sending, rather than submitting a partial transcript.
   const toggleMic = () => {
-    if (voiceMode) {
-      setVoiceMode(false)
-      stopListening()
-    } else {
-      setVoiceMode(true)
-      startListening()
-    }
+    if (isListening) stopListening()
+    else startListening()
   }
-
-  // Dictation-mode keepalive: while the mic is on, it stays LIVE whenever
-  // Bede isn't thinking (streaming) or talking (speaking) and the canvas is
-  // closed — no matter how recognition went quiet (an utterance finished,
-  // silence timed out). The learner never re-taps the mic between turns;
-  // tapping it off is the only way out. The short delay debounces the
-  // recognition engine's restart cycles.
-  useEffect(() => {
-    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening || isTranscribing || sessionPaused) return
-    const id = setTimeout(() => startListening(), 400)
-    return () => clearTimeout(id)
-  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, isTranscribing, startListening, sessionPaused])
 
   // Inverse guard: the moment a turn starts (including the idle-continue
   // nudge), the mic must be OFF, or it would hear Bede's own voice as the
@@ -936,8 +918,8 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleMic} disabled={!voiceMode && isStreaming} title={voiceMode ? t('chatScreen.micOnTooltip') : t('chatScreen.micOffTooltip')} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${voiceMode ? (isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-red-500 text-white') : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
-              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            <button onClick={toggleMic} disabled={isStreaming} title={isListening ? t('chatScreen.micOnTooltip') : t('chatScreen.micOffTooltip')} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
+              <Mic size={18} />
             </button>
           )}
           <textarea
@@ -945,7 +927,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={isStreaming || sessionPaused}
-            placeholder={isListening ? t('chatScreen.placeholderListening') : voiceMode ? t('chatScreen.placeholderVoiceModeWaiting') : t('chatScreen.placeholderTypeOrMic')}
+            placeholder={isListening ? t('chatScreen.placeholderListening') : t('chatScreen.placeholderTypeOrMic')}
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />

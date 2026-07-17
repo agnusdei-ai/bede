@@ -24,9 +24,9 @@ Hi! I'm **Bede**. I'll be your tutor while you learn today.
 You can answer me in whichever way feels easiest:
 
 - **Type** your answer in the box at the bottom.
-- **Tap the microphone** 🎤 once and just talk, like you're chatting with a friend.
-  It stays on between turns, so you don't have to keep tapping it. Tap it once
-  more when you're done talking for the day.
+- **Tap the microphone** 🎤 once and say your answer, like you're chatting with
+  a friend. As soon as you're done talking, it sends itself — no need to tap
+  Send too. Want to say something else? Just tap the microphone again.
 - **Tap the pencil** ✏️ to draw or write your answer by hand — I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
   paper for math, dots for shapes and patterns, music staff paper, a nature

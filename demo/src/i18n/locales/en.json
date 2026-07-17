@@ -23,10 +23,9 @@
     "drawingReady": "Drawing ready. Add a note, or just send it.",
     "uploadNarration": "Upload narration from your notebook (e.g. inq)",
     "placeholderListening": "Listening… speak now",
-    "placeholderVoiceModeWaiting": "Voice conversation on — waiting for Bede…",
     "placeholderTypeOrMic": "Type or tap the mic to speak…",
-    "micOnTooltip": "Voice conversation on — tap to end",
-    "micOffTooltip": "Start a voice conversation"
+    "micOnTooltip": "Listening… tap to stop",
+    "micOffTooltip": "Tap to speak"
   },
   "header": {
     "askBede": "Ask Bede",

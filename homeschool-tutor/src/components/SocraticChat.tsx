@@ -22,7 +22,7 @@ const INACTIVITY_TIMEOUT_MS = 60_000
 const MAX_CONSECUTIVE_CONTINUES = 2
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
   const { bubble } = useChatTheme()
@@ -102,8 +102,15 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // Native Web Speech API first, auto-falls back to recording + server-side
   // Whisper transcription when it's unsupported, errors, or silently stalls
   // (Safari/iOS are known to do this — see useHybridVoiceInput).
+  //
+  // language must follow the session's own locale (i18n.language), not the
+  // 'en-US' default — a Spanish session recognizing speech as English
+  // produces garbled transcripts regardless of how well the rest of the UI
+  // is translated. Propagates to both the native Web Speech recognizer and
+  // the server Whisper fallback's language hint — see useHybridVoiceInput.ts.
   const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } = useHybridVoiceInput({
     token,
+    language: i18n.language === 'es' ? 'es-MX' : 'en-US',
     onFinal: (transcript) => {
       if (voiceModeRef.current) {
         send(transcript)

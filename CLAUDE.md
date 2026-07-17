@@ -186,7 +186,11 @@ gone wrong, or you've found a vulnerability in Bede's code, see
 root-level **[SECURITY.md](SECURITY.md)**. For the dependency SBOM and
 what actually flows to Anthropic/OpenAI/Resend at runtime, see
 **[docs/VENDOR_DATA_FLOW.md](docs/VENDOR_DATA_FLOW.md)**
-(`docs/sbom/`, regenerable via `scripts/generate_sbom.py`).
+(`docs/sbom/`, regenerable via `scripts/generate_sbom.py`). For live
+red-team probing of the actual tutoring persona against the real model
+(costs real API money, not part of the test suite or CI), see
+`scripts/adversarial_probe.py` and its transcripts/findings in
+`docs/adversarial-probes/`.
 
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401

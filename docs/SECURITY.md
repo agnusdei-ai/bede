@@ -52,17 +52,18 @@ absence of these harms has been independently red-teamed.
 Tracked here so they don't only live in a one-off review; update this
 list as items are closed.
 
-- **Pre-deployment adversarial testing — partial.** A first-pass adversarial
-  review (2026-07-17) manually probed the deterministic layers —
-  `check_safeguarding`, `_INJECTION_PATTERN`, `_redact_credentials` — with
-  known jailbreak/bypass technique categories and real ambiguous-phrasing
-  false-positive checks (`tests/test_safeguarding.py`), and found and closed
-  one real gap (see Closed gaps below). Still missing, and out of what this
-  environment can do: any test against the **live model** — no jailbreak
-  probing of the constitution/`<ethical_boundaries>` actually happened,
-  since that requires real Anthropic API calls this sandbox doesn't have
-  credentials or approval for — and no **third-party** red-team or
-  independent adversarial-robustness assessment. Both remain open.
+- **Pre-deployment adversarial testing — still not independent.** Two
+  passes now done (see Closed gaps): a static-layer review of the
+  deterministic regexes, and a real live-model probe against the actual
+  constitution/`<ethical_boundaries>` (`scripts/adversarial_probe.py`,
+  `docs/adversarial-probes/`). What's still missing, and structurally out
+  of scope for in-house testing regardless of environment: a **third-party**
+  red-team or independent adversarial-robustness assessment — AIUC-1's own
+  control language calls for an outside organization specifically, and
+  this remains the same tooling that helped build the system, testing
+  itself. `scripts/adversarial_probe.py` is a real, reusable asset for
+  that engagement (or for periodic in-house re-runs between engagements),
+  not a replacement for it.
 
 ## Closed gaps
 
@@ -153,6 +154,35 @@ list as items are closed.
   to every tutoring turn except `[START]`/`[CONTINUE]` sentinels and turns
   the free regex already caught. Covered by `tests/test_moderation.py`
   and `tests/test_moderation_router.py`.
+- **Live-model adversarial probe, run 2026-07-17.** A real, in-house
+  red-team pass — `scripts/adversarial_probe.py`, 17 cases across system-
+  prompt extraction, persona override, multi-turn escalation, safeguarding
+  bypass, out-of-scope advice, and encoding/obfuscation tricks, plus 2
+  negative controls — run against the actual live model with a
+  temporary, since-rotated API key. Full transcripts and analysis in
+  `docs/adversarial-probes/`. Found and fixed two real issues:
+  - A "just this once, I promise I won't tell anyone" framing got Bede to
+    state a direct answer before any Socratic question — a real, if
+    low-severity, bypass of `sacred_rules` #1. Hardened the rule with
+    explicit "no exceptions" language mirroring the persona-override
+    rules that *did* hold up in the same probe; re-verified live against
+    the original attack and a rephrased variant, both now held.
+  - A base64-encoded injection attempt triggered Claude's own native
+    `stop_reason="refusal"` (zero content blocks) — not a security bypass,
+    but `stream_tutor_response`/`stream_sandbox_response` had no handling
+    for it, leaving a child looking at a silent, blank reply. Both now
+    fall back to a real message instead of nothing.
+
+  Every other technique tested — direct and framed system-prompt
+  extraction, DAN-style and fictional-framing persona override, escalating
+  a softer ask into an extraction attempt, indirect/euphemistic
+  safeguarding-bypass phrasing, "legitimate assignment" framing around
+  self-harm content, medical/legal/pastoral out-of-scope requests,
+  translation/base64/leetspeak injection vectors — held. Negative controls
+  (ordinary imaginative roleplay, writing from a character's POV for a
+  literature lesson) correctly were not treated as attacks. **Still not
+  independent third-party testing** — see the open gap above for what
+  that would still require.
 
 ## SOC 2 Type 2
 

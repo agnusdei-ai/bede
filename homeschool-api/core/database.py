@@ -80,7 +80,15 @@ class AuditLog(Base):
     """One AES-GCM-encrypted record per audit event."""
     __tablename__ = "audit_log"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # BigInteger().with_variant(Integer(), "sqlite"): on Postgres this is a
+    # real BIGINT/BIGSERIAL identity column, unchanged from before. Plain
+    # BigInteger doesn't get SQLite's "INTEGER PRIMARY KEY" rowid-alias
+    # autoincrement (SQLite only special-cases the exact type name
+    # "INTEGER"), which otherwise makes every insert under a SQLite test
+    # engine fail with a NOT NULL constraint on id.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

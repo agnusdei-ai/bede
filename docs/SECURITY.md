@@ -6,7 +6,11 @@ in `CLAUDE.md`'s "Security Constraints" section, not a replacement for it.
 Like `docs/DATA_RETENTION.md`, this is a factual description of what the
 code does, **not legal advice or a certification** — neither AIUC-1 nor
 SOC 2 compliance can be established by a document; both require an
-accredited third-party auditor's opinion after a live assessment.
+accredited third-party auditor's opinion after a live assessment. If
+something has actually gone wrong (or you've found a vulnerability in
+Bede's code), see **[docs/INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)**
+instead — this file is the architecture/posture overview, that one is the
+action plan.
 
 ## AIUC-1 Society pillar: scope statement
 
@@ -59,9 +63,6 @@ list as items are closed.
   since that requires real Anthropic API calls this sandbox doesn't have
   credentials or approval for — and no **third-party** red-team or
   independent adversarial-robustness assessment. Both remain open.
-- **Formal incident response plan.** No named security contact,
-  severity/escalation matrix, or breach-notification procedure exists
-  yet.
 - **SBOM.** Dependencies (`requirements.txt`, `package.json`) are curated
   and purpose-commented but not published as a CycloneDX/SPDX SBOM.
 
@@ -107,6 +108,18 @@ list as items are closed.
   including deliberate false-positive checks against ordinary lesson
   content and an ambiguous Spanish idiom ("me tocó" = "it was my turn")
   that a naive translation would have misfired on constantly.
+- **Formal incident response plan, closed 2026-07-17.**
+  `docs/INCIDENT_RESPONSE.md` covers detection (tying together the audit
+  log, the E009 anomaly alert, and the safeguarding distress alert into one
+  "what already tells you something's wrong" table), a severity scale,
+  step-by-step response for both the self-hosted family instance and the
+  public demo (including the crucial `SECRET_KEY`-vs-`MASTER_SECRET`
+  rotation distinction — one is safe and reversible, the other destroys all
+  existing data), breach-notification guidance, and a root-level
+  `SECURITY.md` wiring up GitHub's private vulnerability reporting for the
+  codebase itself. Named contacts are the real, already-existing channels
+  (`PARENT_EMAIL` for a family's own instance, `FEEDBACK_EMAIL` for the
+  demo) rather than a fabricated security-team email address.
 
 ## SOC 2 Type 2
 
@@ -114,9 +127,11 @@ SOC 2 Type 2 additionally requires an accredited CPA firm to observe
 these controls operating effectively over a 6–12 month window, plus a
 documented policy set (Information Security, Access Control, Change
 Management, Vendor Management, Risk Assessment) — none of which a
-codebase alone can satisfy. The technical controls this repository
-already has (encryption at rest, constant-time auth, rate limiting,
-security headers, container hardening, the encrypted independent audit
-log) map most directly to the Security and Confidentiality criteria;
-Availability, Processing Integrity, and Privacy have partial technical
-coverage but no accompanying policy documentation yet.
+codebase alone can satisfy. `docs/INCIDENT_RESPONSE.md` covers the
+incident-response piece specifically; the other policies remain
+undocumented. The technical controls this repository already has
+(encryption at rest, constant-time auth, rate limiting, security headers,
+container hardening, the encrypted independent audit log) map most
+directly to the Security and Confidentiality criteria; Availability,
+Processing Integrity, and Privacy have partial technical coverage but no
+accompanying policy documentation yet.

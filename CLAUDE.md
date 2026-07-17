@@ -179,7 +179,10 @@ To change models, update `tutor_model` / `session_model` in `core/config.py`.
 
 For the audit-facing view of this section — AIUC-1/SOC 2 control mapping,
 the Society-pillar scope statement, and tracked open compliance gaps —
-see **[docs/SECURITY.md](docs/SECURITY.md)**.
+see **[docs/SECURITY.md](docs/SECURITY.md)**. If something has actually
+gone wrong, or you've found a vulnerability in Bede's code, see
+**[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)** and the
+root-level **[SECURITY.md](SECURITY.md)**.
 
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401

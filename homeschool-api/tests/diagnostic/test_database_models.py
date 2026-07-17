@@ -22,8 +22,11 @@ from core.config import settings
 from core.database import Base, DiagnosticEvidenceLog, MasteryProfile
 
 
-def test_diagnostic_evidence_log_disabled_by_default():
-    assert settings.diagnostic_evidence_log_enabled is False
+def test_diagnostic_evidence_log_enabled_by_default():
+    """Flipped to on by default once generate_session_summary's Math Skill
+    Growth report needed real deltas to read back — see
+    docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §5.3's update note."""
+    assert settings.diagnostic_evidence_log_enabled is True
 
 
 def test_mastery_profile_table_name_and_composite_primary_key():

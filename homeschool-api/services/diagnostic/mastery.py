@@ -101,6 +101,14 @@ def _classify(probability: float) -> str:
     return "gap"
 
 
+def classify_level(probability: float) -> str:
+    """Public wrapper around _classify for other diagnostic-package modules
+    (e.g. services.diagnostic.get_session_growth) that need the same
+    secure/developing/gap thresholds this module already owns, without
+    reaching into a private name across module boundaries."""
+    return _classify(probability)
+
+
 def bayesian_update(
     vector: MasteryVector,
     observation: EvidenceObservation,

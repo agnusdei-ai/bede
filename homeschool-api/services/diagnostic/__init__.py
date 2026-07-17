@@ -20,6 +20,7 @@ than duplicating the load->update->encrypt->store logic, and it stays
 useful on its own for calibration tooling/tests that don't have `db`.
 """
 
+from datetime import datetime
 from typing import Optional
 
 from services.diagnostic.cat import select_next_probes
@@ -29,6 +30,7 @@ from services.diagnostic.mastery import (
     MasteryVector,
     bayesian_update,
     build_summary_view,
+    classify_level,
     new_vector,
 )
 from services.diagnostic.qmatrix import EvidenceObservation, Q_MATRIX
@@ -242,6 +244,84 @@ async def get_mastery_summary(db, student_name: str, subject_area: str = "mathem
         vector, student_name, subject_area, row.evidence_count, CALIBRATION_THRESHOLD,
         row.updated_at.replace(microsecond=0).isoformat(),
     )
+
+
+async def get_session_growth(
+    db, student_name: str, subject_area: str, since: datetime,
+) -> list[dict]:
+    """
+    Deterministic before/after per skill for one session window, built from
+    DiagnosticEvidenceLog rows observed since `since` — session start is the
+    summary request's own timestamp minus SessionSummaryRequest.duration_minutes
+    (see services/ai_service.py's generate_session_summary), so this needs no
+    new session-start field anywhere. For each skill_id touched in the
+    window: before is the EARLIEST prior seen, after is the LATEST posterior
+    — a skill probed several times this session still reports one honest
+    start-to-end movement, not just the last delta. Sorted by movement
+    (largest gain first).
+
+    Returns [] whenever there's nothing to report: the evidence log is
+    disabled (settings.diagnostic_evidence_log_enabled=False, so the table
+    is simply empty), no math evidence happened in this window, or the load
+    fails outright — this is a parent-report nicety, not something that
+    should ever raise into generate_session_summary and break the report.
+    """
+    import logging
+
+    from sqlalchemy import select
+
+    from core.database import DiagnosticEvidenceLog
+    from core.encryption import decrypt_json
+    from services.diagnostic.skill_map import get_skill
+
+    log = logging.getLogger(__name__)
+
+    try:
+        result = await db.execute(
+            select(DiagnosticEvidenceLog)
+            .where(
+                DiagnosticEvidenceLog.student_name == student_name,
+                DiagnosticEvidenceLog.subject_area == subject_area,
+                DiagnosticEvidenceLog.observed_at >= since,
+            )
+            .order_by(DiagnosticEvidenceLog.observed_at)
+        )
+        rows = result.scalars().all()
+    except Exception as exc:
+        log.warning("Session growth load failed for %s/%s: %s", student_name, subject_area, exc)
+        return []
+
+    before: dict[str, float] = {}
+    after: dict[str, float] = {}
+    for row in rows:
+        try:
+            deltas = decrypt_json(row.delta_enc)
+        except Exception as exc:
+            log.warning("Session growth delta decrypt failed for %s/%s: %s", student_name, subject_area, exc)
+            continue
+        for delta in deltas:
+            skill_id = delta["skill_id"]
+            before.setdefault(skill_id, delta["prior"])
+            after[skill_id] = delta["posterior"]
+
+    growth = []
+    for skill_id, before_probability in before.items():
+        skill = get_skill(skill_id)
+        if skill is None:
+            continue
+        after_probability = after[skill_id]
+        growth.append({
+            "skill_id": skill_id,
+            "label": skill.label,
+            "domain": skill.domain,
+            "before": before_probability,
+            "after": after_probability,
+            "before_level": classify_level(before_probability),
+            "after_level": classify_level(after_probability),
+        })
+
+    growth.sort(key=lambda g: g["after"] - g["before"], reverse=True)
+    return growth
 
 
 def get_next_probe_hint(

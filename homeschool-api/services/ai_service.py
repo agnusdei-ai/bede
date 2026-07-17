@@ -2140,7 +2140,9 @@ async def stream_tutor_response(
         yield json.dumps({'type': 'done'})
 
 
-async def generate_session_summary(req: SessionSummaryRequest, locale: str = "en") -> str:
+async def generate_session_summary(
+    req: SessionSummaryRequest, locale: str = "en", db: Optional["AsyncSession"] = None,
+) -> str:
     """
     Generate a parent-facing session summary using the faster Haiku model.
     Lists what was covered, narrations recorded, and suggested follow-up.
@@ -2151,6 +2153,24 @@ async def generate_session_summary(req: SessionSummaryRequest, locale: str = "en
     child's session itself ran in — a parent reading their own report wants
     it in the language they're reading in right now. Native generation, not
     translation, same principle as _locale_directive.
+
+    db, when given (routers/tutor.py only passes it for the real `parent`
+    role — never for `demo_code`, whose student_name isn't guaranteed
+    isolated from a real family's, and whose evidence never lands in the
+    real diagnostic_evidence_log table anyway — see services/diagnostic_demo.py),
+    is used to look up services.diagnostic.get_session_growth: real, derived
+    before/after skill-mastery movement from THIS session alone (session
+    start = now minus req.duration_minutes; no separate session-start field
+    exists anywhere else). This is the before/after outcome measurement the
+    Socratic loop is meant to surface, not a guess — the growth numbers below
+    are handed to the model as data to report accurately, in whatever locale
+    this summary is being written in, not a fixed English sentence bolted on
+    afterward (same native-generation principle as everywhere else in this
+    file; skill labels are English source data, and translating a handful of
+    short factual math-skill names natively alongside the rest of an
+    already-translated report carries none of the verbatim/attribution risk
+    that made poetry/prayer quoting a special case — see
+    docs/LOCALIZATION.md's poetry co-study section for that distinction).
     """
     client = _client
     language_note = (
@@ -2166,6 +2186,40 @@ async def generate_session_summary(req: SessionSummaryRequest, locale: str = "en
     subjects_done = ", ".join(
         s.value.replace("_", " ").title() for s in req.subjects_completed
     )
+
+    growth_note = ""
+    if db is not None and Subject.mathematics in req.subjects_completed:
+        try:
+            from datetime import timedelta
+
+            from services.diagnostic import get_session_growth
+
+            since = datetime.now(timezone.utc) - timedelta(minutes=req.duration_minutes)
+            growth = await get_session_growth(
+                db, req.session_config.student_name, "mathematics", since,
+            )
+        except Exception:
+            log.warning("Session growth lookup failed for summary", exc_info=True)
+            growth = []
+
+        if growth:
+            growth_lines = "\n".join(
+                f"- {g['label']} ({g['domain']}): {g['before']:.0%} -> {g['after']:.0%} confidence"
+                + (
+                    f", moved from '{g['before_level']}' to '{g['after_level']}'"
+                    if g["before_level"] != g["after_level"] else ""
+                )
+                for g in growth
+            )
+            growth_note = f"""
+
+Math skill movement THIS session, from the diagnostic engine's own before/after evidence — report \
+these numbers accurately, do not invent, round beyond what's given, or editorialize past what the data \
+supports:
+{growth_lines}
+
+Add a sixth section, **Math Skill Growth**, naming the 1-3 most notable movements above in plain, warm \
+language a parent would understand — skip clinical terms like "posterior" or "CDM"."""
 
     prompt = f"""You are summarizing a {req.duration_minutes}-minute homeschool session for the parent.
 
@@ -2184,7 +2238,7 @@ Write a parent summary with these sections:
 4. **Tomorrow's Springboard** (one concrete suggestion to build on today's momentum)
 5. **Virtue Observed** (one character quality the child showed today)
 
-Keep it warm, specific, and under 300 words. Address the parent directly.{language_note}"""
+Keep it warm, specific, and under 300 words. Address the parent directly.{growth_note}{language_note}"""
 
     response = await client.messages.create(
         model=settings.session_model,

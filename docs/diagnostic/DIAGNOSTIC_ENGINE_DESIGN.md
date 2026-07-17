@@ -429,7 +429,7 @@ class DiagnosticEvidenceLog(Base):
     )
 ```
 
-A config flag (`settings.diagnostic_evidence_log_enabled`, default `False` **[to verify: add to core/config.py]**) governs whether this table is written at all; when off, only `MasteryProfile` is updated and the deltas are discarded — the strictest reading of P3.
+A config flag (`settings.diagnostic_evidence_log_enabled`) governs whether this table is written at all; when off, only `MasteryProfile` is updated and the deltas are discarded — the strictest reading of P3. **Update:** shipped `False` for Phase 1-4 per the reasoning above; flipped to default `True` once the end-of-session before/after "Math Skill Growth" report (`services.diagnostic.get_session_growth`, called from `services/ai_service.py`'s `generate_session_summary`) needed real deltas to read back — that report is exactly the auditability payoff this section argued the middle path was for. Still opt-out via the same flag, and still never a transcript.
 
 ### 5.4 How they fit alongside `StudentConfig`
 

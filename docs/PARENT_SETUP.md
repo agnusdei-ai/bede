@@ -258,6 +258,15 @@ so what comes out matches ordinary classroom handwriting paper.
   auditory profile changes how Bede teaches (favoring oral narration and discussion)
   but has no equivalent counter — there's no single tool call that cleanly signals
   it the way the other three have.
+- **End-of-session summary** (shown after a session ends, and optionally emailed to
+  you): highlights, narrations, areas to revisit, tomorrow's suggestion, and a
+  virtue observed. If your child worked on Mathematics that session, and the
+  diagnostic engine recorded any skill movement, a **Math Skill Growth** section
+  is added automatically — a plain-language before/after ("Multi-digit
+  multiplication: 42% → 61%, moved from developing to secure") built from the
+  same real evidence behind the Progress page's math mastery snapshot below, not
+  a guess. It only appears when there's something real to report; a session with
+  no math, or no measurable movement, gets the same five sections as before.
 - Every session is saved as an encrypted transcript, viewable from the same place.
 - If a child's voice changes enough that verification starts failing (common after
   a cold, or over months of growth), re-run enrollment from the Pod Dashboard.

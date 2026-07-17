@@ -63,9 +63,6 @@ list as items are closed.
   since that requires real Anthropic API calls this sandbox doesn't have
   credentials or approval for — and no **third-party** red-team or
   independent adversarial-robustness assessment. Both remain open.
-- **SBOM.** Dependencies (`requirements.txt`, `package.json`) are curated
-  and purpose-commented but not published as a CycloneDX/SPDX SBOM.
-
 ## Closed gaps
 
 - **Credential/secret pattern redaction (A008), closed 2026-07-17.**
@@ -120,6 +117,18 @@ list as items are closed.
   codebase itself. Named contacts are the real, already-existing channels
   (`PARENT_EMAIL` for a family's own instance, `FEEDBACK_EMAIL` for the
   demo) rather than a fabricated security-team email address.
+- **SBOM and vendor data-flow note, closed 2026-07-17.** `docs/sbom/`
+  holds CycloneDX 1.5 bills of material for both dependency trees
+  (`backend.cdx.json` from `requirements.txt`/`requirements-dev.txt`,
+  `frontend.cdx.json` from `package-lock.json`'s exact resolved versions —
+  361 components with license data where npm records it), regenerable via
+  `scripts/generate_sbom.py`. `docs/VENDOR_DATA_FLOW.md` covers what
+  actually flows to each third party at runtime (distinct from the
+  dependency list): the full prompt context to Anthropic (required), text
+  sent to OpenAI's TTS API specifically — clarifying that voice
+  *enrollment* transcription is local Whisper, not a network call, despite
+  sharing a vendor name — and the four independent Resend email triggers.
+  Also states explicitly that voice biometrics never leave the machine.
 
 ## SOC 2 Type 2
 

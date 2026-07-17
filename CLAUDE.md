@@ -182,7 +182,10 @@ the Society-pillar scope statement, and tracked open compliance gaps —
 see **[docs/SECURITY.md](docs/SECURITY.md)**. If something has actually
 gone wrong, or you've found a vulnerability in Bede's code, see
 **[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)** and the
-root-level **[SECURITY.md](SECURITY.md)**.
+root-level **[SECURITY.md](SECURITY.md)**. For the dependency SBOM and
+what actually flows to Anthropic/OpenAI/Resend at runtime, see
+**[docs/VENDOR_DATA_FLOW.md](docs/VENDOR_DATA_FLOW.md)**
+(`docs/sbom/`, regenerable via `scripts/generate_sbom.py`).
 
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401

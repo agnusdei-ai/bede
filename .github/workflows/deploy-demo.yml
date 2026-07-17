@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'demo/**'
+      - 'site/**'
       - '.github/workflows/deploy-demo.yml'
   workflow_dispatch:
 
@@ -32,7 +33,7 @@ jobs:
       - name: Install
         working-directory: demo
         run: npm ci
-      - name: Build
+      - name: Build demo
         working-directory: demo
         # VITE_DEMO_API_BASE must point at a publicly-reachable homeschool-api
         # deployment with DEMO_PIN set (Settings -> Secrets and variables ->
@@ -42,10 +43,21 @@ jobs:
         env:
           VITE_DEMO_API_BASE: ${{ vars.VITE_DEMO_API_BASE }}
         run: npm run build
+      - name: Assemble Pages site
+        # agnusdei.ai's apex is the company home page (site/); the interactive
+        # demo lives at agnusdei.ai/bede/ rather than consuming the whole
+        # domain, since Bede is meant to be the first of several products (see
+        # docs/DEMO_HOSTING.md's "Custom domain" section). demo/'s Vite build
+        # already uses a relative base path (vite.config.ts), so it works
+        # correctly regardless of which subpath it's copied under here.
+        run: |
+          mkdir -p pages-dist/bede
+          cp -r site/. pages-dist/
+          cp -r demo/dist/. pages-dist/bede/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: demo/dist
+          path: pages-dist
 
   deploy:
     needs: build

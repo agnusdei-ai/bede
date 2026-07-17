@@ -164,10 +164,8 @@ To serve the demo from your own apex domain (e.g. `agnusdei.ai`) instead of
    add a `www` `CNAME` pointing at `<owner>.github.io` if you want
    `www.yourdomain` to resolve too — GitHub Pages will redirect it to the
    apex automatically once both are configured.
-2. **Repo** — `demo/public/CNAME` already contains the target domain (Vite
-   copies everything in `public/` verbatim into the build output, so this
-   ships automatically on the next deploy). Update this one-line file if the
-   final domain differs from what's there now.
+2. **Repo** — `site/CNAME` already contains the target domain. Update this
+   one-line file if the final domain differs from what's there now.
 3. **GitHub Pages settings** — once DNS has propagated (can take anywhere
    from minutes to a few hours), go to `agnusdei-ai/bede` → **Settings →
    Pages** and enter the custom domain in the **Custom domain** field, then
@@ -179,10 +177,43 @@ To serve the demo from your own apex domain (e.g. `agnusdei.ai`) instead of
    switching the live domain later needs no backend redeploy. Trim it back
    to just whichever domain is actually in use once that's settled, and drop
    the `agnusdei-ai.github.io` fallback once the custom domain is confirmed
-   working end to end.
+   working end to end. The demo living under `/bede/` rather than at the
+   domain root doesn't affect this at all — a browser's CORS `Origin` header
+   is always just `scheme://host[:port]`, never a path.
 5. **Confirm** — open the new domain, generate a code, and confirm the chat
    works (a CORS mismatch here shows up as every `/tutor/chat` request
    silently failing in the browser console, not a visible error banner).
+
+### Why the apex isn't just the demo
+
+The domain's root (`agnusdei.ai`) is reserved for the company's home page,
+not the interactive demo — Bede is meant to be the first of several
+products, not the only thing the domain will ever host. So the published
+Pages site is assembled from two pieces, not one:
+
+- **`site/`** — a small, hand-written static page (`site/index.html`,
+  no build step, no framework) with a "Meet Bede →" link into `/bede/`. This
+  is the actual company landing page; edit its content/copy directly as the
+  real product line grows, the same way you'd edit any static HTML file.
+- **`demo/`** — built as before (`npm run build` → `demo/dist`), then copied
+  under `/bede/` in the published output rather than at the root.
+  `demo/vite.config.ts`'s `base: './'` (relative asset paths) is exactly
+  what makes this work with zero code changes — the same build output is
+  valid whether it ends up at a domain root or nested under a subpath.
+
+`.github/workflows/deploy-demo.yml`'s **Assemble Pages site** step does the
+actual assembly: `site/`'s contents go to the artifact root, `demo/dist`'s
+contents go to `<artifact root>/bede/`, and the combined tree is what
+`actions/upload-pages-artifact` publishes. `site/CNAME` is the one that
+matters for GitHub Pages (it must sit at the true published root, not nested
+under `/bede/`) — there's no longer a `demo/public/CNAME`, since that would
+now publish to the wrong path and go unread.
+
+If you'd rather have the demo live at the domain root after all — say, a
+single-product deployment with no separate company site planned — drop the
+**Assemble Pages site** step's `bede/` nesting and point
+`upload-pages-artifact` straight at `demo/dist`, the way this workflow
+worked before this section existed.
 
 ## Cold starts (free plan)
 

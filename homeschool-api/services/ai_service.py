@@ -642,6 +642,24 @@ def check_safeguarding(message: str) -> bool:
     return False
 
 
+# AIUC-1 B005 — the non-crisis counterpart to _SAFEGUARDING_RESPONSES above,
+# for services/moderation.py's classifier flags that aren't a personal-
+# safety crisis (violence/sexual_content/hate_or_harassment). Deliberately
+# a gentler redirect, not the "find a trusted adult" framing — that framing
+# would be both inaccurate and needlessly alarming for a child who was
+# testing a boundary rather than in danger.
+_MODERATION_REDIRECT_RESPONSES = {
+    "en": "Let's keep our lesson time focused on today's subject — what would you like to explore next?",
+    "es": "Sigamos enfocados en la lección de hoy — ¿qué te gustaría explorar después?",
+}
+
+
+def moderation_redirect_response(locale: str = "en") -> str:
+    """Localized non-crisis content redirect — same fallback contract as
+    safeguarding_response()."""
+    return _MODERATION_REDIRECT_RESPONSES.get(locale, _MODERATION_REDIRECT_RESPONSES["en"])
+
+
 _GRADE_DESCRIPTORS = {
     "K": "a Kindergarten student", "0": "a Kindergarten student",
     "1": "a first-grade student", "2": "a second-grade student", "3": "a third-grade student",

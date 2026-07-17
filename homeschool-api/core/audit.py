@@ -49,6 +49,7 @@ class AuditEvent:
     FEEDBACK_SUBMITTED       = "feedback.submitted"
     STUDENT_DATA_DELETED     = "student.data_deleted"
     ANOMALY_ALERT            = "security.anomaly_alert"
+    MODERATION_FLAGGED       = "moderation.flagged"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -69,6 +70,10 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     AuditEvent.ACCESS_DENIED: (8, 600),
     AuditEvent.VOICE_VERIFY_FAIL: (5, 600),
     AuditEvent.SUSPICIOUS_REQUEST: (1, 1),  # ExfiltrationGuard hits are alert-worthy on their own
+    # 3 in 10 min, not 1 — a single moderation flag is routine (a blocked
+    # turn already redirects the child in the moment); a repeated pattern
+    # from one address is the part worth a parent's attention.
+    AuditEvent.MODERATION_FLAGGED: (3, 600),
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
 

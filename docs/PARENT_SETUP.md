@@ -90,6 +90,19 @@ without your inbox filling up if it keeps happening. Every occurrence is
 still recorded in the encrypted audit log regardless of whether
 `PARENT_EMAIL` is set. See `docs/SECURITY.md` for the exact thresholds.
 
+**Every message your child sends is also screened before Bede sees it.**
+Beyond the distress/danger check above, a second, broader check looks for
+content categories a fixed keyword list can't catch — things like violence
+or content that isn't appropriate for the grade you've set. If something
+trips this, your child sees a gentle redirect back to the lesson (not the
+"find a trusted adult" message — that's reserved for the distress check),
+and it's recorded in the audit log; three or more in a short window from
+one address triggers the same security-alert email as above. This runs on
+every single message (not just flagged ones), which means a small, real
+cost on your Anthropic bill per message and a brief pause (well under a
+second, typically) before Bede's reply starts — there's no setting to turn
+it off, the same way the distress check isn't optional either.
+
 **Want to test or explore how Bede responds, without a real tutoring session?**
 Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod
 Dashboard. It's a direct-answer chat just for you — Bede answers plainly

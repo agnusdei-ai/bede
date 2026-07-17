@@ -63,6 +63,7 @@ list as items are closed.
   since that requires real Anthropic API calls this sandbox doesn't have
   credentials or approval for — and no **third-party** red-team or
   independent adversarial-robustness assessment. Both remain open.
+
 ## Closed gaps
 
 - **Credential/secret pattern redaction (A008), closed 2026-07-17.**
@@ -129,6 +130,29 @@ list as items are closed.
   *enrollment* transcription is local Whisper, not a network call, despite
   sharing a vendor name — and the four independent Resend email triggers.
   Also states explicitly that voice biometrics never leave the machine.
+- **B005 real-time input filtering — dedicated classifier, closed
+  2026-07-17.** `_INJECTION_PATTERN`/`check_safeguarding` are fast, free
+  regexes but only catch phrasing someone already wrote a pattern for —
+  AIUC-1's B005 language ("automated moderation tools") calls for
+  something broader. `services/moderation.py`'s `classify_child_message`
+  adds a real classifier call (Haiku, the same model already configured as
+  `session_model`) before every tutoring turn, for content categories a
+  fixed phrase list can't enumerate: self_harm (any language, indirect
+  phrasing — a broader net alongside `check_safeguarding`'s deterministic
+  patterns, not a replacement for them), violence, sexual_content,
+  hate_or_harassment, and prompt_injection (logged for visibility, never
+  blocks alone — see the module docstring for why). Deliberately reuses
+  the already-required `ANTHROPIC_API_KEY` rather than adding a new vendor
+  or a self-hosted model — `docs/LOCALIZATION.md` had explicitly flagged
+  that exact tradeoff as the reason a "parallel safety-classifier model"
+  was out of scope for that work; this closes it without introducing
+  either objection. Fails open twice over (inside `classify_child_message`
+  itself, and again at the router call site) so a classifier outage never
+  blocks a legitimate tutoring turn. **Real cost/latency tradeoff, stated
+  plainly**: this adds one Haiku call (roughly 200–500ms, real API cost)
+  to every tutoring turn except `[START]`/`[CONTINUE]` sentinels and turns
+  the free regex already caught. Covered by `tests/test_moderation.py`
+  and `tests/test_moderation_router.py`.
 
 ## SOC 2 Type 2
 

@@ -442,7 +442,7 @@ interface ChatScreenProps {
 }
 
 function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
@@ -513,9 +513,17 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // app has. A browser update once removed working speech recognition from
   // under us; with the fallback, the mic degrades to a slightly slower path
   // instead of dying silently.
+  //
+  // language must follow the session's own locale (i18n.language), not the
+  // 'en-US' default — a Spanish session recognizing speech as English
+  // produces garbled transcripts regardless of how well the rest of the UI
+  // is translated. Propagates to both the native Web Speech recognizer
+  // (useSpeechRecognition's `lang`) and the server Whisper fallback
+  // (transcribeFallback's language hint) — see useHybridVoiceInput.ts.
   const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
     useHybridVoiceInput({
       token,
+      language: i18n.language === 'es' ? 'es-MX' : 'en-US',
       onFinal: (transcript) => {
         if (voiceModeRef.current) send(transcript)
         else setInput((prev) => (prev ? prev + ' ' + transcript : transcript))

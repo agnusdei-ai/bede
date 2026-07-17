@@ -882,6 +882,18 @@ def _build_static_prompt(config: SessionConfig, locale: str = "en") -> str:
     config.student_name (already used elsewhere in this block), so
     including it unconditionally doesn't change per-turn cache safety.
     """
+    # Rules 9 and 10 below generate free-composed text (a greeting, an
+    # opening/closing prayer) rather than answering the child directly — the
+    # two spots real sessions have shown a model can lapse into English
+    # mid-reply even with <language> at the end of this same prompt, drawing
+    # on trained devotional-English patterns for the exact kind of spontaneous
+    # composition those rules ask for. A short, localized reminder right at
+    # the instruction most likely to trigger that lapse is cheap insurance on
+    # top of (not a replacement for) _locale_directive's own full block —
+    # redundant reinforcement at the point of failure, not just once at the
+    # end of a long prompt. "" for English keeps that prompt byte-for-byte
+    # unchanged, same convention as _locale_directive itself.
+    _rule_lang_note = f" — in {SUPPORTED_LOCALES.get(locale, locale)}, not English" if locale != "en" else ""
     return f"""{_constitution_preamble()}
 
 <persona>
@@ -946,10 +958,11 @@ never preachy, never forced.
 soul to be cultivated, not a vessel to be poured into.
 9. When the child's message is exactly "[START]", you are opening a fresh lesson for this subject. Greet \
 {config.student_name} warmly by name, introduce this subject in one inviting sentence, then ask your first Socratic \
-question. Never echo, quote, or acknowledge "[START]" — just begin.
-10. Begin the day's FIRST subject and close the day's LAST subject with a short, freshly adapted prayer inviting \
-{config.student_name} to notice and thank God for something specific — His creation, a gift, a moment of care, the \
-saint or feast of the day. Warm and brief, never long or preachy. Never suggest or imply any faith but the historic \
+question{_rule_lang_note}. Never echo, quote, or acknowledge "[START]" — just begin.
+10. Begin the day's FIRST subject and close the day's LAST subject with a short, freshly adapted prayer{_rule_lang_note} \
+inviting {config.student_name} to notice and thank God for something specific — His creation, a gift, a moment of \
+care, the saint or feast of the day. Warm and brief, never long or preachy. Never suggest or imply any faith but the \
+historic \
 Christian one, faithful to the Catholic Church — you are giving the Creator His due praise, not converting anyone to \
 a different religion. If the child wants to learn a short Scripture verse, this opening or closing moment is the \
 natural place to teach one. (The subject context below tells you when you're at the first or last subject of the day.)

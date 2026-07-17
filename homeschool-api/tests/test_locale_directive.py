@@ -86,6 +86,28 @@ def test_no_sex_on_file_falls_back_to_neutral_phrasing_instruction():
     assert "gender-neutral phrasing" in text
 
 
+# ── Redundant reminder at sacred_rules 9/10 (the [START] greeting and the
+# opening/closing prayer) ────────────────────────────────────────────────────
+# Real Spanish-locale sessions showed Bede lapsing into English specifically
+# for these two free-composed instructions even with the <language> block
+# present at the end of the same prompt — a localized reminder right at the
+# instruction most likely to trigger the lapse is redundant, cheap insurance.
+
+def test_english_locale_adds_no_reminder_to_rules_9_and_10():
+    prompt = _build_static_prompt(_config(), "en")
+    assert "not English" not in prompt
+
+
+def test_spanish_locale_adds_a_reminder_to_the_start_greeting_rule():
+    prompt = _build_static_prompt(_config(), "es")
+    assert 'ask your first Socratic question — in Spanish (Español), not English' in prompt
+
+
+def test_spanish_locale_adds_a_reminder_to_the_prayer_rule():
+    prompt = _build_static_prompt(_config(), "es")
+    assert 'short, freshly adapted prayer — in Spanish (Español), not English' in prompt
+
+
 def test_settings_rejects_an_unsupported_locale_value():
     from core.config import Settings
 

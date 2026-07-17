@@ -83,6 +83,26 @@ non-English session on any given login once the toggle exists, every
 student needs sex on file the moment it's enabled, not just the ones a
 parent expects to use it.
 
+**A real lapse this caught in production**: `<language>`'s own dedicated
+block sits at the very end of the static prompt, and for most of a reply
+that's enough — but real Spanish sessions showed Bede's response to
+`sacred_rules` 9 (the `[START]` greeting) and 10 (the opening/closing
+prayer) mixing languages mid-turn, composing the free-form greeting or
+prayer in English before switching to Spanish for the actual Socratic
+question. Both rules ask for spontaneous composition (a greeting, a
+prayer) rather than answering something the child said — exactly the kind
+of generation most likely to fall back on trained English devotional
+patterns despite the instruction present elsewhere in the same prompt.
+Fixed by adding a short, localized reminder directly at each of those two
+rules (` — in Spanish (Español), not English`, computed once as
+`_rule_lang_note` in `_build_static_prompt`, empty string for English so
+that prompt stays byte-for-byte unchanged) — redundant reinforcement right
+at the point of failure, not a replacement for `_locale_directive`'s own
+full block. Covered by `tests/test_locale_directive.py`'s
+"redundant reminder" tests, verified with the standard break-then-restore
+discipline (temporarily removed the reminder, confirmed the new tests
+actually fail, restored it).
+
 **Frontend — `react-i18next`, switched at runtime**
 (`homeschool-tutor/src/i18n/`): both resource bundles (`locales/en.json`,
 `locales/es.json`) are always loaded together, regardless of build
@@ -103,6 +123,22 @@ string added to `en.json` and silently forgotten in `es.json`, which
 i18next doesn't error on, it just falls back to showing the raw key to the
 parent. The test checks key parity, non-empty values, and matching
 `{{interpolation}}` variables between locales.
+
+**Speech recognition follows the session's own locale, not a hardcoded
+default** (`SocraticChat.tsx` and the demo's `ChatScreen`, both via
+`useHybridVoiceInput`'s `language` option): a real bug report showed voice
+dictation ("listening") still recognizing speech as English inside a
+Spanish session — the mic button worked and transcribed *something*, but
+against the wrong language model, so a Spanish-speaking child's actual
+words came back garbled. `useHybridVoiceInput`/`useSpeechRecognition`
+always supported a `language` parameter (default `'en-US'`) and propagated
+it correctly to both the native Web Speech API's `lang` and the server
+Whisper fallback's language hint (`transcribeFallback`) — the bug was
+purely that neither call site ever passed anything but the default. Both
+now pass `i18n.language === 'es' ? 'es-MX' : 'en-US'`. Voice *biometric*
+verification (`VoiceVerification.tsx`, login-time passphrase check) was
+never affected — it's acoustic speaker-embedding comparison
+(`services/voice_auth.py`), not language-dependent transcription.
 
 **Currently translated:** `Login.tsx`, `TutorSession.tsx`, `SocraticChat.tsx`,
 `ParentSetup.tsx`, `PodDashboard.tsx`, and `Progress.tsx` — every screen a

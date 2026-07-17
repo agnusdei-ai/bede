@@ -778,6 +778,44 @@ words to {config.student_name} change language.
 </language>"""
 
 
+def _native_poetry_note(locale: str) -> str:
+    """
+    Non-English substitute for services/poetry_catalog.py's verbatim
+    English quotation, used for Morning Time / Living Books poetry
+    co-study in any locale other than "en". Quoting a SPECIFIC named poem
+    accurately requires a verified translation of that exact work — real,
+    per-locale sourcing work (see docs/CONTENT_CONTRIBUTING.md's
+    "verified public domain" bar, and docs/LOCALIZATION.md's note on the
+    Guadalupan-hymn sourcing attempt that didn't clear it) — so rather
+    than either falling back to the English poem (which produced exactly
+    the mixed-language "kink" reported from a live Spanish session, an
+    English poem quoted mid-Spanish-reply) or risking an unverified
+    on-the-fly "translation" of a real poet's work, Bede composes a short
+    ORIGINAL reflection or a few original lines of verse, in its own
+    voice, never attributed to a real poet or presented as an existing
+    published work — the same native-generation principle
+    _locale_directive already applies to everything else Bede says. Needs
+    no stored or sourced content, and scales to any future locale
+    (Tagalog, etc.) with zero content-curation work — the tradeoff, stated
+    plainly: only English sessions get Bede quoting a real, historically
+    attributed poem verbatim; every other locale gets Bede's own
+    devotional composition instead.
+    """
+    if locale == "en":
+        return ""
+    language_name = SUPPORTED_LOCALES.get(locale, locale)
+    return f"""
+
+<poetry_co_study>
+There is no verified {language_name} poem to quote verbatim today. Instead of reciting a \
+specific named poem, compose a short, warm devotional reflection or a few original lines of \
+verse of your own — entirely in {language_name}, in your own voice, never attributed to a real \
+poet and never presented as an existing published work. Fit it to today's subject and the season \
+or feast, the way Mater Amabilis poetry co-study would: give the child an image worth wondering \
+at together, not a lecture. Keep it brief — a few lines, not a long poem.
+</poetry_co_study>"""
+
+
 def _guadalupe_note(subject: Subject, locale: str) -> str:
     """
     A brief cultural/devotional anchor for the app's single Spanish locale —
@@ -1439,18 +1477,28 @@ async def _build_subject_prompt(
     visual_aids_note = _get_visual_aids_context(subject, config, history)
     session_position_note = _session_position_note(config, subject)
     time_of_day_note = _time_of_day_note(time_of_day)
-    # Poetry co-study (verbatim public-domain Catholic texts — see
-    # services/poetry_catalog.py) belongs where Mater Amabilis puts
-    # poetry: the Morning Time opening and the Living Books literature
-    # block. Other subjects stay lean. Rotates weekly off the calendar,
-    # not off current_term — current_term is only reused here as a
-    # per-session offset (so different families/demo visitors don't all
-    # land on the identical poem the same week), not as the driver of
-    # when the poem changes. config.grade is passed for grade-specific
-    # curation (K-8, not just the 3 broad stages); grade_stage remains the
-    # fallback for a session with a stage but no exact grade.
+    # Poetry co-study belongs where Mater Amabilis puts poetry: the Morning
+    # Time opening and the Living Books literature block. Other subjects
+    # stay lean. English locale gets services/poetry_catalog.py's verbatim
+    # public-domain quotation, rotating weekly off the calendar (not off
+    # current_term — current_term is only reused here as a per-session
+    # offset, so different families/demo visitors don't all land on the
+    # identical poem the same week). config.grade is passed for grade-
+    # specific curation (K-8, not just the 3 broad stages); grade_stage
+    # remains the fallback for a session with a stage but no exact grade.
+    # Any other locale gets _native_poetry_note's free-composition
+    # instruction instead — quoting a specific named poem accurately
+    # requires a verified translation of that exact work, real per-locale
+    # sourcing effort this app doesn't do (see _native_poetry_note's own
+    # docstring); the English poem was quoted regardless of locale until a
+    # live Spanish session showed exactly the mixed-language "kink" that
+    # produces.
     poetry_note = (
-        _poetry_catalog_note(config.grade, config.grade_stage, week_salt=config.current_term)
+        (
+            _poetry_catalog_note(config.grade, config.grade_stage, week_salt=config.current_term)
+            if locale == "en"
+            else _native_poetry_note(locale)
+        )
         if subject in (Subject.morning_time, Subject.living_books)
         else ""
     )

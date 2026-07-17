@@ -31,6 +31,7 @@ from models.schemas import (
     TutorRequest,
 )
 from services.ai_service import (
+    _redact_credentials,
     _sanitize_parent_field,
     check_safeguarding,
     generate_session_summary,
@@ -111,6 +112,11 @@ async def chat(
     role. Passes db so Bede can persist narration assessments server-side
     mid-stream (skipped for the demo role — see below).
     """
+    # AIUC-1 A008 — redact credential-shaped text (API keys, tokens,
+    # connection strings) before it reaches the safeguarding-audit excerpt
+    # below, model context, or anywhere else this turn's message is used.
+    req.child_message = _redact_credentials(req.child_message) or req.child_message
+
     role = auth.get("role")
     is_demo_code = role == "demo_code"
     if is_demo_code:

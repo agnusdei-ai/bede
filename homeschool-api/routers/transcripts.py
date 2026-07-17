@@ -10,6 +10,7 @@ from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import SessionTranscript, get_db
 from core.deps import require_parent, require_real_user
 from core.encryption import decrypt_json, encrypt_json
+from services.ai_service import _redact_credentials
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
 
@@ -44,7 +45,14 @@ async def save_transcript(
         "student_name": student_name,
         "subjects": req.subjects,
         "duration_minutes": req.duration_minutes,
-        "messages": [m.model_dump() for m in req.messages],
+        # AIUC-1 A008 — this is a client-submitted, independently-stored
+        # copy of the conversation (not derived from the already-redacted
+        # /tutor/chat path), so it needs its own credential redaction
+        # before it's encrypted and persisted.
+        "messages": [
+            {**m.model_dump(), "content": _redact_credentials(m.content)}
+            for m in req.messages
+        ],
         "saved_at": now.isoformat(),
     }
     db.add(SessionTranscript(

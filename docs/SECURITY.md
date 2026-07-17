@@ -51,10 +51,6 @@ list as items are closed.
 - **Pre-deployment adversarial testing.** No red-team report, jailbreak
   test suite, or third-party adversarial-robustness assessment exists yet
   for the constitution and safeguarding regexes in `ai_service.py`.
-- **Credential/secret pattern redaction.** `_sanitize_parent_field`/
-  `_INJECTION_PATTERN` (`services/ai_service.py`) strip prompt-injection
-  phrasing but not credential-shaped patterns (API keys, tokens,
-  connection strings) a child or parent might paste into chat.
 - **Active alerting on the audit log.** `core/audit.py` writes an
   encrypted, independent audit trail, but nothing currently watches it
   for anomalous access patterns.
@@ -63,6 +59,21 @@ list as items are closed.
   yet.
 - **SBOM.** Dependencies (`requirements.txt`, `package.json`) are curated
   and purpose-commented but not published as a CycloneDX/SPDX SBOM.
+
+## Closed gaps
+
+- **Credential/secret pattern redaction (A008), closed 2026-07-17.**
+  `_redact_credentials`/`_CREDENTIAL_PATTERN` (`services/ai_service.py`)
+  now catch API keys, AWS/GitHub/Slack tokens, JWTs, Bearer headers, and
+  `user:pass@host` connection strings, and are applied at every point
+  free text enters the backend: the live `child_message` on `/tutor/chat`
+  (`routers/tutor.py`), replayed user-role `conversation_history` inside
+  `stream_tutor_response` (a client resends its own unredacted copy of
+  past turns every request, so this needed covering separately from the
+  current turn), the independently client-submitted transcript save
+  (`routers/transcripts.py`), and folded into the existing
+  `_sanitize_parent_field` for parent-supplied config fields. Covered by
+  `tests/test_credential_redaction.py`.
 
 ## SOC 2 Type 2
 

@@ -134,6 +134,49 @@ and fallback that `CodeScreen` itself passes a `t` function for; the many
 other call sites across `App.tsx`'s single large file keep their existing
 English fallback text for now, same disclosed boundary.
 
+## `es` is Mexican Spanish, not pan-Hispanic-neutral
+
+**This is a deliberate scope choice, not a default.** The app has exactly
+one Spanish locale — there's no `es-MX` vs. `es-ES` split — and that single
+locale is intentionally calibrated for a Mexican Catholic family
+specifically, not a generic "any Spanish-speaking country" experience. A
+Spain, Argentine, or other Spanish-speaking family using the same toggle
+gets the same Mexico-framed content. This mirrors how the English-locale
+experience was never neutral either — it already reflects one particular
+tradition (Mater Amabilis, an American Catholic homeschool curriculum) — but
+it's called out explicitly here since it wasn't originally an intentional
+design decision the way it is now.
+
+`services/ai_service.py`'s `_guadalupe_note` (wired into
+`_build_subject_prompt`, `Subject.saints` and `Subject.morning_time` only)
+is the concrete expression of this: when `locale == "es"`, Bede is told Our
+Lady of Guadalupe and St. Juan Diego are *this family's own* patroness and
+saint, not one devotion among many, and given verified facts (the December
+9, 1531 first apparition at Tepeyac hill outside Mexico City, the December
+12, 1531 tilma image, St. Juan Diego's July 31, 2002 canonization by Pope
+St. John Paul II as the first Indigenous saint of the Americas) to draw on
+naturally rather than from unverified model memory — consistent with
+`docs/CONTENT_CONTRIBUTING.md`'s sourcing standard, cross-checked across
+multiple independent sources. This doesn't replace or crowd out the
+liturgical calendar or the Faith and Life catechism scope
+(`services/catalog_service.py`) — Bede still ranges across the Church's full
+calendar of saints; it's context to reach for when it's the natural fit,
+the same way an English-locale session already draws on whichever
+saint/feast fits the day.
+
+**Deliberately not done yet:** a Spanish-language entry in
+`services/poetry_catalog.py` (the verbatim public-domain poetry/hymn
+catalog). The two best-known Guadalupan hymns — "La Guadalupana" ("Desde el
+cielo...") and "Las Mañanitas a la Virgen de Guadalupe" — are both
+mid-20th-century compositions (1940s and 1950s respectively) still under
+copyright, not the pre-1929 public-domain material this catalog requires
+(see `docs/CONTENT_CONTRIBUTING.md`'s "one hard rule"). Older material
+exists — Sor Juana Inés de la Cruz's 17th-century villancicos touch on
+Guadalupe, safely public domain by any measure — but a clean, exact,
+cross-verifiable primary-source text wasn't found in the research pass that
+produced this section. Adding this needs a dedicated sourcing effort before
+it's added, not a rushed or half-verified entry.
+
 ## Sex, not gender-neutral hedging
 
 Spanish, Italian, and Polish all require grammatically correct address —

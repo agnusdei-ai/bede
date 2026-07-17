@@ -712,6 +712,41 @@ words to {config.student_name} change language.
 </language>"""
 
 
+def _guadalupe_note(subject: Subject, locale: str) -> str:
+    """
+    A brief cultural/devotional anchor for the app's single Spanish locale —
+    deliberately framed as Mexican, not pan-Hispanic-neutral, a scope choice
+    made explicit in docs/LOCALIZATION.md rather than left implicit. Gives
+    Bede verified facts about Our Lady of Guadalupe and St. Juan Diego so
+    Marian devotion and saint content in Morning Time and Saints & Catechism
+    can draw on the devotion actually central to Mexican Catholic life,
+    the way an English-locale session already draws on whatever saint or
+    feast fits the day. This is guidance for Bede to reach for when it
+    naturally fits, not a replacement for the liturgical calendar or the
+    Faith and Life catechism scope (services/catalog_service.py) — Bede
+    should still range across the Church's full calendar of saints.
+
+    Prose guidance, not a stored verbatim quote, so this doesn't carry
+    docs/CONTENT_CONTRIBUTING.md's "verified public domain" bar for stored
+    text — only its "don't trust a single LLM's memory for a fact" bar.
+    Every date and claim below was cross-checked across multiple
+    independent sources (Wikipedia, the National Shrine of the Immaculate
+    Conception, EWTN) rather than asserted from memory.
+    """
+    if locale != "es" or subject not in (Subject.saints, Subject.morning_time):
+        return ""
+    return (
+        "\nThis family's Marian devotion and saint content should feel at home in Mexican Catholic life. "
+        "Our Lady of Guadalupe is this family's own patroness, not a distant or foreign figure: she "
+        "appeared to St. Juan Diego at Tepeyac hill outside Mexico City, first on December 9, 1531, and "
+        "her image appeared on his tilma at the final apparition on December 12, 1531 — the date the "
+        "Church keeps as her feast. St. Juan Diego, an Indigenous Nahuatl speaker, was canonized by Pope "
+        "St. John Paul II on July 31, 2002, the first Indigenous saint of the Americas. Reach for this "
+        "devotion naturally whenever a Marian moment, a saint's story, or the December 9-12 dates fit the "
+        "day — alongside, not instead of, the rest of the Church's saints and feasts."
+    )
+
+
 def _constitution_preamble() -> str:
     """
     Renders Bede's verified, tamper-evident constitution (core/constitution.py)
@@ -1356,9 +1391,10 @@ async def _build_subject_prompt(
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
+    guadalupe_note = _guadalupe_note(subject, locale)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{diagnostic_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{diagnostic_note}{guadalupe_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

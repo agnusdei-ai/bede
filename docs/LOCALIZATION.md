@@ -123,16 +123,38 @@ pass without the others drifting out of sync.
 
 **The demo (`demo/src/i18n/`)** — its own, separate `react-i18next` install:
 `CodeScreen` (title, name/grade fields, the privacy-notice paragraph via
-`Trans`, the "Generate my code" button, and the toggle itself) is fully
-translated; the chat experience past login (`ChatScreen`, feedback, parent
-controls, the sandbox/diagnostic previews) is **not yet translated** and
-remains English-only regardless of which locale was picked at the code
-screen — a real, working gap disclosed the same way `homeschool-tutor`'s own
-in-progress translation slices were, not a silent one. `demo/src/api.ts`'s
-`friendlyErrorMessage()` also only translates the one network-error message
-and fallback that `CodeScreen` itself passes a `t` function for; the many
-other call sites across `App.tsx`'s single large file keep their existing
-English fallback text for now, same disclosed boundary.
+`Trans`, the "Generate my code" button, and the toggle itself), `ChatScreen`
+(header, "Learning Subject" label and the subject dropdown itself, the
+break/session-concluded overlay, streaming/transcribing indicators, input
+placeholders, mic tooltips), the header links (Ask Bede, Mastery preview,
+Feedback, Finish demo), `ParentControlsMenu`, `ThemePicker`'s static labels,
+`SessionEndedScreen`, and `DemoSummaryScreen` (including its end-of-demo
+feedback survey — ratings, the feature dropdown, the improvement textarea,
+the parent/guardian email opt-in) are all translated — this closes the gap
+that originally let a visitor pick Español at the code screen and then land
+in an English chat with only Bede's own replies actually in Spanish, since
+fixed after real user reports of exactly that "Spanglish" experience.
+
+**Still not yet translated, a disclosed boundary**: `DemoSandboxScreen`
+(the "Ask Bede" direct-answer preview) and `DiagnosticViewScreen` (the
+"Mastery preview" link) — both are optional, opt-in preview surfaces reached
+via an extra click from the header, not the core chat flow every visitor
+goes through — plus the separate small `FeedbackModal` reachable from the
+header's "Feedback" link (distinct from `DemoSummaryScreen`'s own built-in
+feedback survey, which *is* translated). `demo/src/api.ts`'s
+`friendlyErrorMessage()` now also translates the network-error fallback at
+every call site that passes it a `t` function (`CodeScreen` and
+`DemoSummaryScreen`'s email-send handler); the remaining call sites across
+`App.tsx` — mostly inside the still-untranslated sandbox/diagnostic screens
+— keep their existing English fallback text, same disclosed boundary.
+
+Subject labels specifically (`demo/src/api.ts`'s `SUBJECT_LABELS`) are
+locale-aware via a `subjects.*` i18next namespace at the one place they're
+rendered (`ChatScreen`'s subject `<select>`) — this is narrower than fully
+solving the "subject/core-area taxonomy stays English regardless of locale"
+gap described above for `homeschool-tutor` (which has five call sites to
+keep in sync, not one), but establishes the same key-naming convention
+(`subjects.<Subject enum value>`) that a future pass there could reuse.
 
 ## `es` is Mexican Spanish, not pan-Hispanic-neutral
 

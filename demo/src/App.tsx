@@ -25,7 +25,7 @@ import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
 import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
-import { pickBreakActivity } from './breakActivities'
+import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
@@ -442,6 +442,7 @@ interface ChatScreenProps {
 }
 
 function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+  const { t } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
@@ -793,7 +794,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           />
           <div className="flex-1 min-w-0 truncate">
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
-            <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
+            <span className="text-gray-400 text-xs ml-2">{t('chatScreen.withName', { name: displayName })}</span>
           </div>
           {!parentControls.appearanceLocked && (
             <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
@@ -821,7 +822,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             core to showing Bede's range, so it gets guaranteed full width. */}
         <div className="mt-2">
           <label htmlFor="subject-select" className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none block mb-1">
-            Learning Subject
+            {t('chatScreen.learningSubject')}
           </label>
           <select
             id="subject-select"
@@ -829,7 +830,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onChange={(e) => setSubject(e.target.value as Subject)}
             className="w-full text-sm font-medium border border-sage-300 rounded-lg pl-3 pr-2 py-2 bg-white text-sage-800 hover:border-sage-400 cursor-pointer transition-colors"
           >
-            {subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
+            {subjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
           </select>
         </div>
       </header>
@@ -847,25 +848,25 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
                 <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
                   <Check size={24} className="text-sage-600" />
                 </div>
-                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Great work today!</h2>
+                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionPaused.greatWorkToday')}</h2>
                 <p className="text-sm text-gray-600 mb-1">
-                  {displayName}, you have finished your learning time for today.
+                  {t('sessionPaused.finishedLearningTime', { name: displayName })}
                 </p>
-                <p className="text-sm text-gray-500">Use Finish above to wrap up.</p>
+                <p className="text-sm text-gray-500">{t('sessionPaused.useFinishAbove')}</p>
               </>
             ) : (
               <>
                 <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
-                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">Break Time</h2>
-                <p className="text-sm text-gray-600 mb-1">{displayName}, you've been working hard.</p>
-                <p className="text-sm text-gray-500 mb-4">Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.</p>
+                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionPaused.breakTime')}</h2>
+                <p className="text-sm text-gray-600 mb-1">{t('sessionPaused.workedHard', { name: displayName })}</p>
+                <p className="text-sm text-gray-500 mb-4">{t('sessionPaused.stepAway')}</p>
                 {breakActivity && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
-                    {breakActivity.prompt}
+                    {t(`breakActivities.${sessionPhase.cycleIndex % BREAK_ACTIVITIES.length}`, breakActivity.prompt)}
                   </div>
                 )}
                 <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(sessionPhase.remainingSecs)}</div>
-                <p className="text-xs text-gray-400">until your next learning block</p>
+                <p className="text-xs text-gray-400">{t('sessionPaused.untilNextBlock')}</p>
               </>
             )}
           </div>
@@ -877,7 +878,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         ))}
         {isStreaming && messages.at(-1)?.content === '' && !messages.at(-1)?.visualAid && (
           <div className="flex items-center gap-2 text-sage-700 text-sm">
-            <Loader2 size={14} className="animate-spin" /> <span>Bede is thinking…</span>
+            <Loader2 size={14} className="animate-spin" /> <span>{t('chatScreen.bedeThinking')}</span>
           </div>
         )}
         {isListening && interim && (
@@ -888,7 +889,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         {isTranscribing && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 flex items-center gap-2">
-              <Loader2 size={12} className="animate-spin" /> Transcribing…
+              <Loader2 size={12} className="animate-spin" /> {t('chatScreen.transcribing')}
             </div>
           </div>
         )}
@@ -898,7 +899,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
           <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
-          <div className="flex-1 text-xs text-sage-800">Drawing ready. Add a note, or just send it.</div>
+          <div className="flex-1 text-xs text-sage-800">{t('chatScreen.drawingReady')}</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
         </div>
       )}
@@ -918,7 +919,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           <button
             onClick={() => narrationFileInputRef.current?.click()}
             disabled={isStreaming || uploadingNarration}
-            title="Upload narration from your notebook (e.g. inq)"
+            title={t('chatScreen.uploadNarration')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
@@ -927,7 +928,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleMic} disabled={!voiceMode && isStreaming} title={voiceMode ? 'Voice conversation on — tap to end' : 'Start a voice conversation'} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${voiceMode ? (isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-red-500 text-white') : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
+            <button onClick={toggleMic} disabled={!voiceMode && isStreaming} title={voiceMode ? t('chatScreen.micOnTooltip') : t('chatScreen.micOffTooltip')} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${voiceMode ? (isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-red-500 text-white') : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
               {isListening ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
@@ -936,7 +937,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={isStreaming || sessionPaused}
-            placeholder={isListening ? 'Listening… speak now' : voiceMode ? 'Voice conversation on — waiting for Bede…' : 'Type or tap the mic to speak…'}
+            placeholder={isListening ? t('chatScreen.placeholderListening') : voiceMode ? t('chatScreen.placeholderVoiceModeWaiting') : t('chatScreen.placeholderTypeOrMic')}
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />
@@ -1027,6 +1028,10 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (n: n
   )
 }
 
+// Values stay in English — sent server-side into the admin-facing feedback
+// email body (buildSurveyMessage below), never shown to the child. Only the
+// displayed <option> label is localized, via DEMO_FEATURE_KEYS below
+// (index-aligned, same pattern as breakActivities.ts's category/index split).
 const DEMO_FEATURE_OPTIONS = [
   'Socratic hints & questions',
   'Handwriting / drawing canvas',
@@ -1034,6 +1039,10 @@ const DEMO_FEATURE_OPTIONS = [
   'Switching between subjects',
   "Bede's tone & personality",
   'Session summary email',
+]
+const DEMO_FEATURE_KEYS = [
+  'summary.featureSocratic', 'summary.featureHandwriting', 'summary.featureVoice',
+  'summary.featureSubjects', 'summary.featureTone', 'summary.featureEmail',
 ]
 
 // ── End-of-demo diagnostic notes + email capture ─────────────────────────────
@@ -1053,6 +1062,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
   feedbackEnabled: boolean
   onDone: () => void
 }) {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -1105,8 +1115,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
         err instanceof TrialEmailCappedError
           ? err.message
           : err instanceof TrialSessionEndedError
-            ? 'Your session has ended, so this could not be sent.'
-            : friendlyErrorMessage(err, 'Could not send the email.')
+            ? t('summary.sessionEndedCantSend')
+            : friendlyErrorMessage(err, t('summary.couldNotSendEmail'), t)
       )
     }
   }
@@ -1134,26 +1144,25 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
-          <h1 className="text-xl font-display font-bold text-gray-800">That's a wrap!</h1>
+          <h1 className="text-xl font-display font-bold text-gray-800">{t('summary.thatsAWrap')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Thanks for trying Bede with {config.student_name}.
+            {t('summary.thanksForTrying', { name: config.student_name })}
           </p>
         </div>
 
         {status === 'sent' ? (
           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
             <Check size={18} className="shrink-0" />
-            Sent to {email}. This address wasn't saved anywhere.
+            {t('summary.sentTo', { email })}
           </div>
         ) : (
           <form onSubmit={handleSend} className="mb-6">
             <label htmlFor="demo-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
               <Mail size={15} />
-              Want Bede's notes from today's demo?
+              {t('summary.wantNotes')}
             </label>
             <p className="text-xs text-gray-500 mb-2.5">
-              An informal impression from this one short session, not an official evaluation. Sent once
-              to the address below. Never stored, and never shown to {config.student_name}.
+              {t('summary.notesDisclaimer', { name: config.student_name })}
             </p>
             <div className="flex gap-2">
               <input
@@ -1162,7 +1171,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t('summary.emailPlaceholder')}
                 className="input flex-1 min-w-0"
               />
               <button
@@ -1170,7 +1179,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 disabled={status === 'sending'}
                 className="px-4 py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 shrink-0"
               >
-                {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send'}
+                {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : t('summary.send')}
               </button>
             </div>
             {status === 'error' && <p className="text-xs text-red-600 mt-2">{errorMsg}</p>}
@@ -1182,22 +1191,22 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
           {improvementStatus === 'sent' ? (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
               <Check size={18} className="shrink-0" />
-              Thanks — this genuinely helps shape what's next.
+              {t('summary.thanksHelps')}
             </div>
           ) : (
             <form onSubmit={handleImprovementSubmit}>
               <p className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-3">
                 <MessageSquare size={15} />
-                Help us improve — a few quick questions
+                {t('summary.helpUsImprove')}
               </p>
 
-              <StarRating value={overallRating} onChange={setOverallRating} label="Overall, how was this demo?" />
-              <StarRating value={teachingRating} onChange={setTeachingRating} label="How did Bede's Socratic teaching style feel?" />
-              <StarRating value={easeRating} onChange={setEaseRating} label="How easy was the demo to use?" />
+              <StarRating value={overallRating} onChange={setOverallRating} label={t('summary.overallRatingLabel')} />
+              <StarRating value={teachingRating} onChange={setTeachingRating} label={t('summary.teachingRatingLabel')} />
+              <StarRating value={easeRating} onChange={setEaseRating} label={t('summary.easeRatingLabel')} />
 
               <div className="mb-3">
                 <label htmlFor="demo-feature" className="block text-xs font-semibold text-navy-700 mb-1">
-                  Which feature stood out most? <span className="font-normal text-gray-400">(optional)</span>
+                  {t('summary.whichFeature')} <span className="font-normal text-gray-400">{t('codeScreen.optional')}</span>
                 </label>
                 <select
                   id="demo-feature"
@@ -1205,9 +1214,9 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   onChange={(e) => setFavoriteFeature(e.target.value)}
                   className="input w-full"
                 >
-                  <option value="">Choose one...</option>
-                  {DEMO_FEATURE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                  <option value="">{t('summary.chooseOne')}</option>
+                  {DEMO_FEATURE_OPTIONS.map((opt, i) => (
+                    <option key={opt} value={opt}>{t(DEMO_FEATURE_KEYS[i])}</option>
                   ))}
                 </select>
               </div>
@@ -1215,11 +1224,11 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
               <StarRating
                 value={recommendRating}
                 onChange={setRecommendRating}
-                label="How likely are you to recommend Bede to another homeschool family?"
+                label={t('summary.recommendRatingLabel')}
               />
 
               <label htmlFor="demo-improvement" className="block text-xs font-semibold text-navy-700 mb-1">
-                Anything we should improve? <span className="font-normal text-gray-400">(optional)</span>
+                {t('summary.anythingToImprove')} <span className="font-normal text-gray-400">{t('codeScreen.optional')}</span>
               </label>
               <textarea
                 id="demo-improvement"
@@ -1227,7 +1236,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 onChange={(e) => setImprovementMessage(e.target.value)}
                 rows={2}
                 maxLength={2000}
-                placeholder="What worked, what didn't, what you wish it did..."
+                placeholder={t('summary.improvementPlaceholder')}
                 className="input w-full resize-none mb-2.5"
               />
               <label className="flex items-start gap-2 text-xs text-gray-600 mb-2.5 cursor-pointer">
@@ -1238,8 +1247,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   className="mt-0.5"
                 />
                 <span>
-                  I'm this learner's parent or guardian, and you may follow up with me by email
-                  <span className="text-gray-400"> — we never ask a child for their own email</span>
+                  {t('summary.parentGuardianCheckbox')}
+                  <span className="text-gray-400"> {t('summary.neverAskChild')}</span>
                 </span>
               </label>
               {isParentGuardian && (
@@ -1247,7 +1256,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   type="email"
                   value={followupEmail}
                   onChange={(e) => setFollowupEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('summary.emailPlaceholder')}
                   className="input w-full mb-2.5"
                 />
               )}
@@ -1256,10 +1265,10 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 disabled={improvementStatus === 'sending' || !overallRating}
                 className="w-full py-2 bg-sage-100 text-sage-700 rounded-xl font-semibold text-sm hover:bg-sage-200 transition-colors disabled:opacity-40"
               >
-                {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Send feedback'}
+                {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : t('summary.sendFeedback')}
               </button>
               {improvementStatus === 'error' && (
-                <p className="text-xs text-red-600 mt-2">Could not send this right now — please try again later.</p>
+                <p className="text-xs text-red-600 mt-2">{t('summary.couldNotSendFeedback')}</p>
               )}
             </form>
           )}
@@ -1270,7 +1279,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
           onClick={onDone}
           className="w-full py-3 bg-navy-100 text-navy-700 rounded-xl font-semibold hover:bg-navy-200 transition-colors"
         >
-          Done
+          {t('summary.done')}
         </button>
       </div>
     </div>
@@ -1860,6 +1869,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   onOpenSandbox: () => void
   onOpenDiagnostic: () => void
 }) {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
   const [finished, setFinished] = useState(false)
@@ -1939,25 +1949,25 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
             </div>
             <button
               onClick={onOpenSandbox}
-              title="Preview the parent-only direct-answer sandbox"
+              title={t('header.askBedeTooltip')}
               className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
-              <FlaskConical size={12} /> Ask Bede
+              <FlaskConical size={12} /> {t('header.askBede')}
             </button>
             <button
               onClick={onOpenDiagnostic}
-              title="Preview live mastery tracking for this session"
+              title={t('header.masteryPreviewTooltip')}
               className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
-              <GraduationCap size={12} /> Mastery preview
+              <GraduationCap size={12} /> {t('header.masteryPreview')}
             </button>
             {feedbackEnabled && (
               <button
                 onClick={() => setShowFeedback(true)}
-                title="Tell us what's working and what isn't"
+                title={t('header.feedbackTooltip')}
                 className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline"
               >
-                <MessageSquare size={12} /> Feedback
+                <MessageSquare size={12} /> {t('header.feedback')}
               </button>
             )}
             {/* basis-full forces this onto its own guaranteed line inside the
@@ -1970,8 +1980,8 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
                 combination tested against Chromium. flex-basis: 100% is a
                 deterministic line-break, not a width computation the two
                 engines could disagree on. */}
-            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="basis-full text-xs text-gray-400 hover:text-gray-600 underline">
-              Finish demo
+            <button onClick={() => setFinished(true)} title={t('header.finishDemoTooltip')} className="basis-full text-xs text-gray-400 hover:text-gray-600 underline">
+              {t('header.finishDemo')}
             </button>
           </>
         }
@@ -1981,16 +1991,17 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
 }
 
 function SessionEndedScreen({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
         <KeyRound size={32} className="text-navy-400 mx-auto mb-3" />
-        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">Your session has ended</h1>
+        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionEnded.title')}</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Generate a new code to keep exploring Bede.
+          {t('sessionEnded.body')}
         </p>
         <button onClick={onRetry} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
-          Generate a new code
+          {t('sessionEnded.generateNewCode')}
         </button>
       </div>
     </div>

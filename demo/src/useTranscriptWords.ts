@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 export interface TranscriptWord {
   text: string
@@ -21,6 +21,15 @@ export function useTranscriptWords(interim: string): TranscriptWord[] {
   const prevWordsRef = useRef<string[]>([])
   const words = interim ? interim.split(/\s+/).filter(Boolean) : []
 
+  // Read-only during render: diff against whatever the PREVIOUS commit left
+  // in the ref. Do not write to the ref here — mutating a ref during render
+  // is an impure side effect, and React 18 Strict Mode deliberately double-
+  // invokes render bodies in development to catch exactly this. Double-
+  // invoking this diff would otherwise have the second pass diff `words`
+  // against itself (written by the first pass), always yielding zero new
+  // words — silently breaking the settled/new split. Committing the write
+  // in an effect (below), which Strict Mode does not double-fire on
+  // updates, keeps render pure and the diff correct in both dev and prod.
   let commonPrefixLen = 0
   while (
     commonPrefixLen < words.length &&
@@ -30,7 +39,13 @@ export function useTranscriptWords(interim: string): TranscriptWord[] {
     commonPrefixLen++
   }
 
-  prevWordsRef.current = words
+  useEffect(() => {
+    prevWordsRef.current = words
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `words` is
+    // recomputed fresh from `interim` every render; depending on `interim`
+    // (a primitive) rather than `words` (a new array each render) is what
+    // actually keeps this effect from re-running redundantly.
+  }, [interim])
 
   return words.map((text, i) => ({ text, key: i, isNew: i >= commonPrefixLen }))
 }

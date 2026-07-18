@@ -908,7 +908,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
               {transcriptWords.map(({ text, key, isNew }) => (
                 <span
                   key={key}
-                  className={isNew ? 'text-sage-500 italic animate-slide-up inline-block mr-1' : 'text-sage-800 inline-block mr-1'}
+                  className={isNew ? 'text-gray-400 italic animate-slide-up inline-block mr-1' : 'text-sage-900 font-semibold inline-block mr-1'}
                 >
                   {text}
                 </span>

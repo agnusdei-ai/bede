@@ -32,6 +32,51 @@ class Settings(BaseSettings):
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 
+    # ── Provider adapters (vendor-agnostic tutor backend) ─────────────────────
+    # ai_service.py talks to a provider ADAPTER, not a hardcoded Anthropic
+    # client — see services/adapters/ and docs/PROVIDER_ADAPTERS.md. This
+    # decouples Bede from any single vendor so an account closure/lockout at one
+    # provider can't take the whole tutor offline.
+    #
+    # BEDE_ADAPTER_ORDER is a comma-separated preference list; the router picks
+    # the FIRST adapter that is actually configured (has its credentials set) and
+    # skips the rest. The default is deliberately "local,anthropic" rather than
+    # "anthropic": the refactor exists for the case where Anthropic access is
+    # GONE, so a self-hosted vLLM server (local) is the practical primary and
+    # Anthropic is kept only as an optional last resort — the router never
+    # requires ANTHROPIC_API_KEY to start or serve. openai/mistral are supported
+    # secondaries but kept OUT of the default order on purpose: OPENAI_API_KEY
+    # already drives OpenAI TTS (services/voice_synthesis.py), and auto-routing
+    # the tutor through OpenAI just because a TTS key exists would be a silent
+    # surprise. Enable them explicitly, e.g. BEDE_ADAPTER_ORDER=local,openai,anthropic.
+    bede_adapter_order: str = "local,anthropic"
+    # Manual override — when set to a single adapter name (local/openai/mistral/
+    # anthropic) it pins the tutor to that provider, skipping order/failover
+    # entirely. Empty = honor BEDE_ADAPTER_ORDER.
+    bede_force_adapter: str = ""
+
+    # ── Local self-hosted LLM (OpenAI-compatible, e.g. vLLM) ──────────────────
+    # Points at a vLLM (or any OpenAI-compatible) server's /v1 endpoint serving
+    # Qwen3-Coder-30B-A3B-Instruct. IMPORTANT: this model needs a GPU and CANNOT
+    # run inside the Render web service (Render has no GPU instances) — it runs
+    # on separate GPU hardware and LOCAL_LLM_BASE_URL points at it over the
+    # network. See docs/PROVIDER_ADAPTERS.md's infrastructure note. Empty
+    # LOCAL_LLM_BASE_URL = the local adapter is treated as unconfigured/skipped.
+    local_llm_base_url: str = ""
+    # vLLM's OpenAI server has no built-in auth; the SDK still requires a
+    # non-empty key, so this placeholder is fine for a private/tunnelled server.
+    local_llm_api_key: str = "not-needed"
+    local_llm_model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+
+    # ── OpenAI chat adapter (secondary; distinct from OpenAI TTS above) ────────
+    # Reuses OPENAI_API_KEY (defined below for TTS) as the credential, plus this
+    # model. Only used for tutoring when "openai" is added to BEDE_ADAPTER_ORDER.
+    openai_model: str = "gpt-4.1-mini"
+
+    # ── Mistral chat adapter (optional secondary) ─────────────────────────────
+    mistral_api_key: str = ""
+    mistral_model: str = "mistral-large-latest"
+
     # ── Language / locale (optional) ──────────────────────────────────────────
     # NOT the language every session runs in — it's which single non-English
     # locale this deployment OFFERS as a login-time choice. The actual

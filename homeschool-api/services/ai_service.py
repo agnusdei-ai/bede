@@ -1,4 +1,3 @@
-import anthropic
 import json
 import logging
 import random
@@ -25,8 +24,19 @@ from core.constitution import get_constitution
 
 log = logging.getLogger(__name__)
 
-# Single shared async client — avoids re-initialising on every request
-_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+# Single shared async client — avoids re-initialising on every request.
+# Resolved through the provider-adapter router (services/adapters/) rather than
+# constructed directly, so WHICH vendor backs the tutor is configurable and no
+# longer hardcoded to Anthropic. The default config still resolves this to a
+# real anthropic.AsyncAnthropic when only ANTHROPIC_API_KEY is set, so the
+# object's shape (.messages.stream / .messages.create, Anthropic-shaped in/out)
+# is identical and every existing call site and test is unaffected. When the
+# deployment has moved off Anthropic (e.g. a local vLLM/Qwen3-Coder server via
+# LOCAL_LLM_BASE_URL), this resolves to that adapter instead — see
+# docs/PROVIDER_ADAPTERS.md.
+from services.adapters.router import get_default_client
+
+_client = get_default_client()
 
 # Max conversation turns sent to Claude per request (sliding window)
 _HISTORY_WINDOW = 20

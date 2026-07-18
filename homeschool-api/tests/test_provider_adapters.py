@@ -38,6 +38,7 @@ from services.adapters.openai_compatible_adapter import (
     OpenAICompatibleClient,
     _build_request,
     _flatten_system,
+    _translate_content,
     _translate_tools,
 )
 
@@ -192,8 +193,10 @@ class _FakeCompletions:
     def __init__(self, stream_chunks=None, create_response=None):
         self._stream_chunks = stream_chunks or []
         self._create_response = create_response
+        self.last_kwargs = None  # the exact request the adapter sent, for translation assertions
 
     async def create(self, **kwargs):
+        self.last_kwargs = kwargs
         if kwargs.get("stream"):
             return _FakeAsyncStream(self._stream_chunks)
         return self._create_response
@@ -338,6 +341,37 @@ async def test_session_summary_end_to_end_over_local_adapter(monkeypatch):
     assert record.await_args.kwargs["output_tokens"] == 250
 
 
+@pytest.mark.asyncio
+async def test_drawing_image_turn_reaches_a_non_anthropic_adapter_intact(monkeypatch):
+    """End-to-end regression guard for the bug _translate_content's own tests
+    above target directly: invite_handwriting's drawing submission (the
+    multimodal turn stream_tutor_response builds when drawing_image is set)
+    must arrive at a non-Anthropic adapter as an actual image, not silently
+    become a bare caption string."""
+    adapter = _local_adapter_with(stream_chunks=[_oa_text_chunk("I can see it!")])
+    monkeypatch.setattr(ai_service, "_client", adapter)
+
+    with patch("core.api_usage.record_usage", AsyncMock()):
+        out = [
+            json.loads(c)
+            async for c in ai_service.stream_tutor_response(
+                config=_config(),
+                subject=Subject.nature_study,
+                history=[],
+                child_message="Here's what I drew.",
+                drawing_image="QUJD",  # arbitrary base64 payload — only the translation is under test
+            )
+        ]
+
+    assert out[-1] == {"type": "done"}
+    sent_messages = adapter._openai.chat.completions.last_kwargs["messages"]
+    user_turn = [m for m in sent_messages if m["role"] == "user"][-1]
+    assert isinstance(user_turn["content"], list), "the image forced content out of string form as expected"
+    image_parts = [p for p in user_turn["content"] if p.get("type") == "image_url"]
+    assert image_parts, "the drawing image never reached the adapter's request — it was silently dropped"
+    assert image_parts[0]["image_url"]["url"] == "data:image/png;base64,QUJD"
+
+
 # ── 3. request-translation unit checks (Anthropic shape → OpenAI shape) ──────
 
 def test_flatten_system_handles_string_and_cached_block_list():
@@ -376,6 +410,30 @@ def test_build_request_moves_system_into_a_system_role_message():
     assert req["messages"][0] == {"role": "system", "content": "You are Bede."}
     assert req["messages"][1] == {"role": "user", "content": "Hello"}
     assert req["max_tokens"] == 400
+
+
+def test_translate_content_collapses_a_text_only_block_list_to_a_string():
+    """A list with no image (e.g. a lone text/tool_result block) keeps the
+    pre-image-support behavior: one flattened string, not a needless list."""
+    content = [{"type": "text", "text": "hello"}, {"type": "tool_result", "content": "42"}]
+    assert _translate_content(content) == "hello\n42"
+
+
+def test_translate_content_keeps_an_image_block_as_a_list_of_parts():
+    """The bug this guards against: invite_handwriting's drawing_image turn
+    (services/ai_service.py's "Multimodal turn" — an {"type":"image",...}
+    block beside the caption) was previously collapsed by _content_to_text
+    into a bare caption string, silently discarding the image before it ever
+    reached a non-Anthropic model. OpenAI's vision format requires content
+    to stay a list of {"type":"text"/"image_url",...} parts."""
+    content = [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "QUJD"}},
+        {"type": "text", "text": "Here's what I drew."},
+    ]
+    out = _translate_content(content)
+    assert isinstance(out, list)
+    assert out[0] == {"type": "image_url", "image_url": {"url": "data:image/png;base64,QUJD"}}
+    assert out[1] == {"type": "text", "text": "Here's what I drew."}
 
 
 # ── 4. failover router (Phase 6) ─────────────────────────────────────────────

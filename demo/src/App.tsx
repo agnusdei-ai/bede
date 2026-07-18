@@ -32,6 +32,7 @@ import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
 import { useConsent } from './useConsent'
 import ConsentModal from './ConsentModal'
+import { dismissKeyboard } from './dismissKeyboard'
 
 interface DisplayMessage {
   id: string
@@ -560,7 +561,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // and its own close/reopen animation can shift the mic button's layout
     // mid-gesture. Voice input never needs the keyboard, so clear focus from
     // whatever's currently focused (if anything) up front.
-    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    dismissKeyboard()
     holdingRef.current = true
     startHold()
   }

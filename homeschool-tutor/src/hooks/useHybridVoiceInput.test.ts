@@ -347,4 +347,31 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
     act(() => vi.advanceTimersByTime(60000))
     expect(onFinal).toHaveBeenCalledTimes(1)
   })
+
+  it('does not send a second time when the native engine delivers a trailing final AFTER release (real duplicate-send repro)', () => {
+    // Mirror of the demo app's same-named test — see that file's comment.
+    // Real reported bug, confirmed live via on-screen tracing on the demo
+    // app (same hook): release() sets holdModeRef.current = false and
+    // releasedRef.current = true synchronously, then calls native.stop()
+    // — but stop() does not cut off an in-flight SpeechRecognition
+    // instantly. Safari/Chrome can still deliver one more (often
+    // longer/more complete) final onresult a tick later, with
+    // holdModeRef.current already false — which used to fall through to
+    // the unconditional tap-to-speak send path (no releasedRef check
+    // there), sending the same turn again as a second chat bubble.
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitInterim('And feeling'))
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('And feeling')
+
+    // The browser's own trailing final, arriving after release() already
+    // ran.
+    act(() => lastInstance.emitFinal('And feeling good'))
+
+    expect(onFinal).toHaveBeenCalledTimes(1)
+  })
 })

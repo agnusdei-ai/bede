@@ -1,7 +1,6 @@
 // Mirror of homeschool-tutor/src/hooks/useVoiceRecorder.ts for the demo app.
 import { useState, useRef, useCallback } from 'react'
 import { resample, encodeWav } from './audioUtils'
-import { logDebug } from './debugBus'
 
 /**
  * Raw-PCM capture hook used for voice enrollment and verification audio
@@ -115,7 +114,6 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
   }, [])
 
   const stopRecording = useCallback(async () => {
-    logDebug(`stopRecording() ENTER hasProcessor=${!!processorRef.current}`)
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     if (animRef.current) cancelAnimationFrame(animRef.current)
     analyserRef.current = null
@@ -126,7 +124,6 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     const stream = streamRef.current
     const silence = silenceRef.current
     if (!processor || !audioCtx || !stream) {
-      logDebug('stopRecording() EARLY-RETURN — refs already null')
       setIsRecording(false)
       return
     }
@@ -167,10 +164,8 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     const chunks = pcmChunksRef.current
     pcmChunksRef.current = []
 
-    logDebug(`stopRecording() durationMs=${durationMs} chunks=${chunks.length}`)
     if (durationMs < MIN_RECORDING_MS) {
       // Too short to be real speech — discard without transcribing.
-      logDebug('stopRecording() DISCARDED — too short')
       return
     }
 
@@ -189,11 +184,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
   }, [onComplete])
 
   const startRecording = useCallback(async () => {
-    logDebug(`startRecording() ENTER isRecording=${isRecording}`)
-    if (isRecording) {
-      logDebug('startRecording() GUARD BLOCKED — isRecording already true')
-      return
-    }
+    if (isRecording) return
     pcmChunksRef.current = []
 
     // Reuse a stream prewarm() already opened synchronously inside the

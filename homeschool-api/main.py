@@ -30,12 +30,35 @@ async def _warm_voice_models():
     use. Purely best-effort: each loader logs-and-degrades on its own when a
     package/model isn't installed, and all of them stay lazy anyway — this
     task just fires them early, off the event loop, without delaying boot.
+
+    Resemblyzer speaker verification is skipped entirely on a demo
+    deployment (settings.is_demo_deployment): core/deps.py's require_parent
+    and require_real_user both reject the "demo_code" role outright, and
+    /voice/enroll, /voice/verify, and /voice/override are the ONLY callers
+    of services/voice_auth.py's encoder — so on this deployment shape the
+    model is structurally unreachable by any request that can ever occur,
+    and preloading it is pure waste on principle.
+
+    Don't overestimate what this alone saves, though: measured directly,
+    skipping it only trims ~30MB of live RSS (642MB vs 674MB, both fully
+    warmed). The dominant memory cost — PyTorch, ~480MB just to import —
+    loads regardless, because ctranslate2 (services/transcription.py's
+    faster-whisper backend, which the demo DOES need for its STT fallback)
+    opportunistically imports torch itself whenever it's installed in the
+    environment, and torch is a hard dependency of resemblyzer either way.
+    So this process still sits close to Render's free-tier 512MB web-service
+    memory limit even with this skip in place — see docs/DEMO_HOSTING.md
+    for the actual mitigation (a larger Render plan) for a real "exceeded
+    its memory limit" OOM incident on bede-demo-api. A family's self-hosted
+    instance never sets DEMO_PIN, so this leaves real voice biometric child
+    authentication completely untouched there.
     """
     from services import transcription, voice_auth, voice_synthesis
 
     loop = asyncio.get_running_loop()
     try:
-        await loop.run_in_executor(None, voice_auth.preload)
+        if not settings.is_demo_deployment:
+            await loop.run_in_executor(None, voice_auth.preload)
         await loop.run_in_executor(None, transcription.preload)
         await voice_synthesis.preload()
         log.info("Voice model warm-up finished")

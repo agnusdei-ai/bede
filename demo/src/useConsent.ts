@@ -13,7 +13,7 @@ import { useCallback, useState } from 'react'
  * without needing to touch anyone's already-stored value.
  */
 
-const CONSENT_VERSION = 1
+const CONSENT_VERSION = 2
 const STORAGE_KEY = `bede-demo-consent-v${CONSENT_VERSION}`
 
 function readStoredConsent(): boolean {

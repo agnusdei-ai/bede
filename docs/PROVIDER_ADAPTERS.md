@@ -59,6 +59,18 @@ It translates symmetrically:
 | response | streamed `content_block_delta` (`text_delta`) | `choices[].delta.content` |
 | response | streamed `tool_use` + `input_json_delta` + `content_block_stop` | `choices[].delta.tool_calls` fragments |
 | response | `.usage.input_tokens` / `.output_tokens` | `usage.prompt_tokens` / `completion_tokens` |
+| request | a user turn's `{"type":"image",...}` block (invite_handwriting's drawing submissions) | `{"type":"image_url","image_url":{"url":"data:<mime>;base64,<data>"}}` |
+
+**The image translation needs a vision-capable model on the far end.** OpenAI's
+default (`gpt-4.1-mini`) is vision-capable, so a child's handwriting/drawing
+submission (`invite_handwriting`) reaches it intact. `Qwen/Qwen3-Coder-30B-A3B-Instruct`
+(the local adapter's default) is a code model, not a vision one, and Mistral's
+default `mistral-large-latest` is text-only — configuring either as primary
+means a drawing submission may be rejected or ignored by that backend rather
+than silently dropped the way it was before this translation existed. If a
+non-vision model is your primary, `BEDE_ADAPTER_ORDER` should still list a
+vision-capable adapter (Anthropic or OpenAI) as a fallback so handwriting
+submissions keep working through failover.
 
 ## Configuration
 

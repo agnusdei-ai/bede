@@ -18,7 +18,12 @@ The translation is symmetric:
 
   request  (Anthropic → OpenAI):  system block(s) → a `system` role message;
            `tools`(input_schema) → `tools`(function.parameters); `tool_choice`
-           auto/any/tool → auto/required/named-function; `max_tokens` passthrough.
+           auto/any/tool → auto/required/named-function; `max_tokens` passthrough;
+           a user turn's `{"type":"image",...}` block (invite_handwriting's
+           drawing submissions) → `{"type":"image_url",...}` — requires a
+           vision-capable model on the far end (OpenAI's default gpt-4.1-mini
+           is; a non-vision local/self-hosted model configured here is not,
+           and would receive an image part it can't use).
   response (OpenAI → Anthropic):  streamed text deltas → `content_block_delta`
            `text_delta`; streamed `tool_calls` → a `content_block_start`
            `tool_use` + `input_json_delta` + `content_block_stop` triple per
@@ -67,22 +72,48 @@ def _flatten_system(system: Any) -> Optional[str]:
     return "\n\n".join(parts) if parts else None
 
 
-def _content_to_text(content: Any) -> str:
-    """ai_service passes string message content, but Anthropic content can also
-    be a list of blocks — handle both, keeping only text/tool_result text."""
+def _translate_content(content: Any) -> Any:
+    """ai_service passes string message content, but Anthropic content can
+    also be a list of blocks — most notably the drawing_image turn built in
+    stream_tutor_response for invite_handwriting submissions, an
+    {"type":"image",...} block alongside a {"type":"text",...} caption (see
+    ai_service.py's "Multimodal turn" comment). A list with NO image
+    collapses to a single string, same as before this function existed. A
+    list WITH an image must stay a list of parts — OpenAI's vision format
+    requires content to be [{"type":"text",...}, {"type":"image_url",...}]
+    rather than a flattened string, or the model never receives the image at
+    all (sacred_rules #12 — "name a specific, genuine detail" from a
+    submitted drawing — is otherwise unfulfillable through this adapter)."""
     if isinstance(content, str):
         return content
-    if isinstance(content, list):
-        parts: List[str] = []
-        for block in content:
-            if isinstance(block, dict):
-                if block.get("type") == "text":
-                    parts.append(block.get("text", ""))
-                elif block.get("type") == "tool_result":
-                    inner = block.get("content", "")
-                    parts.append(inner if isinstance(inner, str) else json.dumps(inner))
-        return "\n".join(parts)
-    return str(content)
+    if not isinstance(content, list):
+        return str(content)
+
+    parts: List[Dict[str, Any]] = []
+    has_image = False
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type == "text":
+            parts.append({"type": "text", "text": block.get("text", "")})
+        elif block_type == "tool_result":
+            inner = block.get("content", "")
+            text = inner if isinstance(inner, str) else json.dumps(inner)
+            parts.append({"type": "text", "text": text})
+        elif block_type == "image":
+            has_image = True
+            source = block.get("source", {})
+            media_type = source.get("media_type", "image/png")
+            data = source.get("data", "")
+            parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{media_type};base64,{data}"},
+            })
+
+    if has_image:
+        return parts
+    return "\n".join(p["text"] for p in parts if p.get("type") == "text")
 
 
 def _translate_messages(system: Any, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -92,7 +123,7 @@ def _translate_messages(system: Any, messages: List[Dict[str, Any]]) -> List[Dic
         out.append({"role": "system", "content": system_text})
     for m in messages:
         role = m.get("role", "user")
-        out.append({"role": role, "content": _content_to_text(m.get("content", ""))})
+        out.append({"role": role, "content": _translate_content(m.get("content", ""))})
     return out
 
 

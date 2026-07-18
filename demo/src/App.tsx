@@ -13,6 +13,7 @@ import {
 } from './api'
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
+import { useTranscriptWords } from './useTranscriptWords'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
@@ -527,6 +528,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       onFinal: (transcript) => send(transcript),
     })
 
+  // Word-level diff of the live interim transcript, called unconditionally
+  // (rules of hooks) even though it's only rendered while isListening &&
+  // interim below — lets the transcript bubble fade in just the newly-heard
+  // tail on each tick instead of replacing the whole line, matching how
+  // Claude/Gemini's voice UIs settle words in progressively.
+  const transcriptWords = useTranscriptWords(interim)
+
   // ── Press-and-hold (walkie-talkie) mic — the ONE control for voice input ──
   // A single button: press and hold to talk, release to send. No mode
   // toggle, no tap-to-speak alternative — one button, one gesture, one
@@ -896,7 +904,17 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         )}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200">{interim}…</div>
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border border-sage-200">
+              {transcriptWords.map(({ text, key, isNew }) => (
+                <span
+                  key={key}
+                  className={isNew ? 'text-sage-500 italic animate-slide-up inline-block mr-1' : 'text-sage-800 inline-block mr-1'}
+                >
+                  {text}
+                </span>
+              ))}
+              <span className="text-sage-400">…</span>
+            </div>
           </div>
         )}
         {isTranscribing && (
@@ -948,7 +966,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
               onPointerCancel={holdEnd}
               disabled={isStreaming || sessionPaused || isTranscribing}
               title={isTranscribing ? t('chatScreen.transcribing') : (isListening ? t('chatScreen.micHoldListening') : t('chatScreen.micHoldToTalk'))}
-              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-red-500 text-white animate-pulse' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
             >
               {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
             </button>

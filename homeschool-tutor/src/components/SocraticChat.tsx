@@ -11,6 +11,7 @@ import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
+import { dismissKeyboard } from '../hooks/dismissKeyboard'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -153,7 +154,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     // and its own close/reopen animation can shift the mic button's layout
     // mid-gesture. Voice input never needs the keyboard, so clear focus from
     // whatever's currently focused (if anything) up front.
-    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    dismissKeyboard()
     holdingRef.current = true
     startHold()
   }

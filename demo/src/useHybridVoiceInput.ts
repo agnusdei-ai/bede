@@ -16,6 +16,17 @@ import { transcribeFallback } from './api'
  */
 
 const NATIVE_STALL_TIMEOUT_MS = 4000
+// Hold-to-talk has no per-utterance stall watchdog by design (the child, not
+// a timer, decides when a turn ends — see the effect below). But since the
+// single mic button is now ALWAYS hold-to-talk with no manual toggle to
+// escape a stuck state, an unbounded hold is no longer just "long" — it's a
+// real dead end if a release event is ever missed (a touch pointerup that
+// doesn't reach the button, a dropped event on some Android WebView, etc.).
+// This safety net auto-releases (sending whatever was captured, same as a
+// real release) after the same ceiling already used for the recording
+// fallback, so a missed release degrades to "the turn ended a bit early"
+// rather than "the mic is stuck forever with no way to clear it."
+const HOLD_SAFETY_TIMEOUT_MS = 60000
 // Was 8000ms — kept in sync with homeschool-tutor/src/hooks/useHybridVoiceInput.ts;
 // too short once a child is really answering out loud, and walkie-talkie
 // hold-to-talk falls into this recorder whenever native recognition isn't
@@ -51,6 +62,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const holdModeRef = useRef(false)
   const accumRef = useRef('')
   const lastInterimRef = useRef('')
+  const holdSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Always points at the CURRENT release() so the hold-safety timer (armed
+  // inside _start, defined below) can call it without a forward reference —
+  // updated on every render, right after release is (re)created.
+  const releaseRef = useRef<() => void>(() => {})
   // Gates native onFinal after release so the trailing async final that
   // Safari/Chrome emit a tick after stop() doesn't re-add already-salvaged text.
   const releasedRef = useRef(false)
@@ -58,6 +74,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const clearWatchdog = useCallback(() => {
     if (watchdogRef.current) clearTimeout(watchdogRef.current)
     watchdogRef.current = null
+  }, [])
+
+  const clearHoldSafety = useCallback(() => {
+    if (holdSafetyRef.current) clearTimeout(holdSafetyRef.current)
+    holdSafetyRef.current = null
   }, [])
 
   const recorder = useVoiceRecorder({
@@ -180,6 +201,13 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
           native.stop()
           startFallback()
         }, NATIVE_STALL_TIMEOUT_MS)
+      } else {
+        // See HOLD_SAFETY_TIMEOUT_MS above — bounds the worst case where a
+        // release event never reaches the button at all.
+        holdSafetyRef.current = setTimeout(() => {
+          holdSafetyRef.current = null
+          if (holdModeRef.current) releaseRef.current()
+        }, HOLD_SAFETY_TIMEOUT_MS)
       }
     } else {
       startFallback()
@@ -193,12 +221,13 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     stoppedByUserRef.current = true
     releasedRef.current = true
     clearWatchdog()
+    clearHoldSafety()
     if (modeRef.current === 'native') native.stop()
     if (modeRef.current === 'recording') recorder.stopRecording()
     holdModeRef.current = false
     accumRef.current = ''
     setMode('idle')
-  }, [native, recorder, clearWatchdog, setMode])
+  }, [native, recorder, clearWatchdog, clearHoldSafety, setMode])
 
   // Walkie-talkie release: the child let go of the button. Send whatever the
   // engine has captured so far — accumulated final segments plus the latest
@@ -206,6 +235,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // (which cancels and discards), release() delivers the transcript.
   const release = useCallback(() => {
     clearWatchdog()
+    clearHoldSafety()
     if (modeRef.current === 'native') {
       stoppedByUserRef.current = true
       releasedRef.current = true
@@ -224,7 +254,8 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       recorder.stopRecording()
     }
     // idle / transcribing: nothing to release.
-  }, [native, recorder, clearWatchdog, setMode, onFinal])
+  }, [native, recorder, clearWatchdog, clearHoldSafety, setMode, onFinal])
+  releaseRef.current = release
 
   return {
     isListening: mode === 'native' || mode === 'recording',

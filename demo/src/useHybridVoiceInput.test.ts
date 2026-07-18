@@ -57,6 +57,13 @@ class FakeSpeechRecognition {
       results: [{ 0: { transcript: text }, isFinal: false, length: 1 }],
     })
   }
+
+  emitFinal(text: string) {
+    this.onresult?.({
+      resultIndex: 0,
+      results: [{ 0: { transcript: text }, isFinal: true, length: 1 }],
+    })
+  }
 }
 
 let lastInstance: FakeSpeechRecognition
@@ -129,5 +136,38 @@ describe('useHybridVoiceInput stall watchdog (demo)', () => {
     act(() => result.current.start())
 
     expect(startRecording).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useHybridVoiceInput walkie-talkie hold safety (demo)', () => {
+  // Mirror of the same-named tests in
+  // homeschool-tutor/src/hooks/useHybridVoiceInput.test.ts — see that
+  // file's comment for the full rationale: with the mic ALWAYS in hold
+  // mode and no manual toggle left to clear a stuck state, a missed
+  // release event must not leave the mic listening forever.
+  it('auto-releases after the hold safety timeout if release is never called (missed pointerup)', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitFinal('are you still there'))
+    act(() => vi.advanceTimersByTime(60000))
+
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('are you still there')
+    expect(result.current.isListening).toBe(false)
+  })
+
+  it('does not auto-release if the child already released well before the safety timeout', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitFinal('quick answer'))
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(60000))
+    expect(onFinal).toHaveBeenCalledTimes(1)
   })
 })

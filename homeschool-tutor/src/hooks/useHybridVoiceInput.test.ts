@@ -233,4 +233,38 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
     expect(onFinal).not.toHaveBeenCalled()
     expect(constructCount).toBe(1)
   })
+
+  it('auto-releases after the hold safety timeout if release is never called (missed pointerup)', () => {
+    // Regression guard for a real risk introduced by removing the walkie-talkie
+    // toggle: with the mic ALWAYS in hold mode and no manual toggle to clear a
+    // stuck state, a dropped pointerup (common on some Android WebViews, or a
+    // finger sliding off the button) must not leave the mic listening forever
+    // with zero recourse.
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitFinal('are you still there'))
+    // No release() call at all — simulates a pointerup that never arrived.
+    act(() => vi.advanceTimersByTime(60000))
+
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('are you still there')
+    expect(result.current.isListening).toBe(false)
+  })
+
+  it('does not auto-release if the child already released well before the safety timeout', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitFinal('quick answer'))
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledTimes(1)
+
+    // Letting the old safety timer's window elapse afterward must not fire
+    // a second, stale release.
+    act(() => vi.advanceTimersByTime(60000))
+    expect(onFinal).toHaveBeenCalledTimes(1)
+  })
 })

@@ -56,9 +56,10 @@ worth not conflating:
   part of this payload.
 - **Voice enrollment transcription (`services/transcription.py`), NOT a
   network call.** Despite the name, this uses the open-source
-  `openai-whisper` Python package running locally on your own server —
-  no audio, and no data at all, leaves your machine for this feature.
-  It shares a vendor name with the item above but not a data-flow path.
+  `faster-whisper` package (Whisper model weights, CTranslate2 runtime)
+  running locally on your own server — no audio, and no data at all,
+  leaves your machine for this feature. It shares a vendor name with the
+  item above but not a data-flow path.
 
 ## Resend — optional, transactional email only
 

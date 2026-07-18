@@ -1,14 +1,17 @@
 FROM python:3.12-slim
 
-# libsndfile: soundfile audio I/O; ffmpeg: audio format conversion for whisper
-# gcc + python3-dev: webrtcvad (a transitive dep of openai-whisper) has no
-# prebuilt wheel for this platform and compiles a C extension at install
-# time — without a compiler, `pip install -r requirements.txt` below fails
-# outright. This was never caught before now because this image had never
-# actually been built end-to-end until production-regression.yml's first
-# real run (this sandbox has the Docker CLI but no daemon to build with).
+# libsndfile: soundfile audio I/O (all audio decoding in this service goes
+# through soundfile directly — see services/transcription.py and
+# services/voice_auth.py — so no ffmpeg binary is needed here).
+# gcc + python3-dev: webrtcvad (a transitive dep of resemblyzer, not
+# faster-whisper) has no prebuilt wheel for this platform and compiles a C
+# extension at install time — without a compiler, `pip install -r
+# requirements.txt` below fails outright. This was never caught before now
+# because this image had never actually been built end-to-end until
+# production-regression.yml's first real run (this sandbox has the Docker
+# CLI but no daemon to build with).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsndfile1 ffmpeg curl gcc python3-dev \
+    libsndfile1 curl gcc python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --no-create-home --shell /bin/false sage
@@ -16,6 +19,17 @@ RUN useradd --no-create-home --shell /bin/false sage
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Pre-download the faster-whisper fallback-STT model weights into the image
+# at build time. The api container below runs read_only:true in production
+# (docker-compose.yml) with no writable volume outside a 64MB /tmp tmpfs, so
+# a first-use runtime download (faster-whisper's normal behavior otherwise)
+# has nowhere to write and fails — silently, since services/transcription.py
+# treats any load failure as "fallback STT unavailable" and degrades rather
+# than crashing. Baking the model in here makes it a plain read-only file
+# the running container only ever reads. Must stay in sync with
+# transcription.py's MODEL_DIR/model-size constants.
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8', download_root='/app/models/whisper')"
 
 COPY . .
 RUN chown -R sage:sage /app

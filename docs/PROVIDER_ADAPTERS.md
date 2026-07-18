@@ -156,24 +156,24 @@ the public internet.
    API is OpenAI-compatible, so it reuses `OpenAICompatibleClient` and the same
    `openai` SDK dependency, just pointed at `https://api.mistral.ai/v1`.
 
-### Render demo/dev deployment — cloud-only, Mistral + OpenAI
+### Render demo/dev deployment — cloud-only, OpenAI + Mistral
 
-`render.yaml` sets `BEDE_ADAPTER_ORDER=mistral,openai` for the `bede-demo-api`
-service specifically (Mistral primary, OpenAI fallback), because Render has no
+`render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral` for the `bede-demo-api`
+service specifically (OpenAI primary, Mistral fallback), because Render has no
 GPU (the `local` adapter can't run there) and this deployment should boot and
 serve without needing Anthropic access at all. After a Blueprint deploy, fill
-in `MISTRAL_API_KEY` and `OPENAI_API_KEY` from Render's dashboard (both
+in `OPENAI_API_KEY` and `MISTRAL_API_KEY` from Render's dashboard (both
 `sync: false`, per docs/DEMO_HOSTING.md's setup walkthrough) —
 `ANTHROPIC_API_KEY` is left declared but optional/unused by default here.
 
 **This is live failover, not just a boot-time preference.**
 `services/ai_service.py`'s `_client` is resolved via
 `router.resolve_with_failover()` (Phase 6), which wraps every adapter in
-`BEDE_ADAPTER_ORDER` behind a `FailoverClient`: if Mistral errors with an
+`BEDE_ADAPTER_ORDER` behind a `FailoverClient`: if OpenAI errors with an
 auth/rate-limit/connection failure on a request, that same request
-automatically retries against OpenAI before any content is streamed back —
+automatically retries against Mistral before any content is streamed back —
 no restart or key removal needed. A short in-memory circuit breaker then
-skips Mistral on subsequent calls for ~60s rather than re-paying its timeout
+skips OpenAI on subsequent calls for ~60s rather than re-paying its timeout
 every time, and resets once a call to it succeeds again.
 
 ### Local self-hosted vLLM + Qwen3-Coder-30B-A3B-Instruct (needs a GPU)

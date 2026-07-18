@@ -64,20 +64,21 @@ services:
       # key at console.mistral.ai (La Plateforme) -> API Keys.
       - key: MISTRAL_API_KEY
         sync: false
-      # Cloud-first boot order for this Render demo/dev deployment: Mistral
-      # primary, OpenAI secondary/fallback. Deliberately excludes "local"
+      # Cloud-first boot order for this Render demo/dev deployment: OpenAI
+      # primary, Mistral secondary/fallback. Deliberately excludes "local"
       # (Render has no GPU to run vLLM/Qwen3-Coder) and does not require
       # "anthropic" to be configured at all — this demo boots and serves
-      # fully on Mistral+OpenAI. Note: get_default_client() resolves ONCE at
-      # startup to the first *configured* adapter (Mistral, since
-      # MISTRAL_API_KEY is set) — OpenAI only takes over if MISTRAL_API_KEY
-      # is removed/unset, not automatically on a live Mistral outage (that
-      # would require wiring in router.resolve_with_failover() instead of
-      # get_default_client() in services/ai_service.py — not done here).
+      # fully on OpenAI+Mistral. Because services/ai_service.py's `_client`
+      # resolves via router.resolve_with_failover() (not the plain
+      # get_default_client()), this is LIVE failover, not just a boot-time
+      # preference: if OpenAI errors (auth/rate-limit/connection failure) on
+      # a request, that request automatically retries against Mistral before
+      # any content streams back, with a ~60s circuit-breaker cooldown on
+      # the failed provider.
       # A family's self-hosted production instance should instead follow the
       # docs/PROVIDER_ADAPTERS.md default (local,anthropic) or its own choice.
       - key: BEDE_ADAPTER_ORDER
-        value: mistral,openai
+        value: openai,mistral
       # Neither of these was ever declared here before — without them,
       # services/email_service.py's email_configured() is False, which
       # silently no-ops the post-session summary email, the distress alert,

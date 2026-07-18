@@ -270,7 +270,7 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code, just for you. This browser remembers the name and grade for next time (gone once you close this tab); the same details are also sent to us to personalize this one session, kept up to 6 hours and then deleted automatically. Your conversation itself is never stored — only anonymized interaction patterns (like which teaching techniques were used, never what was said) may be reviewed afterward to help us improve Bede. Full details in the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a>.</p>
+          <p>A one-time 6-digit code, just for you. This browser remembers your name and grade for next time, gone once you close this tab. We also keep those details for up to 6 hours to personalize this session, then delete them automatically. Your conversation is never stored — only anonymized interaction patterns (which teaching techniques were used, never what was said) may be reviewed later to improve Bede. Full details in the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a>.</p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}

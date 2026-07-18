@@ -30,31 +30,28 @@ export default function ConsentModal({ onAgree }: { onAgree: () => void }) {
             <span className="text-navy-400 font-bold shrink-0">•</span>
             <span>
               <strong className="text-gray-800">Your conversation is never stored.</strong> Nothing you or your
-              learner types or says is saved on our server, ever.
+              learner says is saved, ever.
             </span>
           </li>
           <li className="flex gap-2.5">
             <span className="text-navy-400 font-bold shrink-0">•</span>
             <span>
-              <strong className="text-gray-800">Anonymized interaction patterns may be reviewed.</strong> Things
-              like which teaching techniques were used — never what was actually said — may be looked at afterward
-              to help us improve Bede.
+              <strong className="text-gray-800">Anonymized patterns may be reviewed</strong> — which teaching
+              techniques were used, never what was said — to help us improve Bede.
             </span>
           </li>
           <li className="flex gap-2.5">
             <span className="text-navy-400 font-bold shrink-0">•</span>
             <span>
-              <strong className="text-gray-800">Name and grade, if you enter them,</strong> are used to personalize
-              this one session — kept for up to 6 hours (deleted immediately if you log out), then removed
-              automatically. Never added to any permanent record.
+              <strong className="text-gray-800">Name and grade personalize this session</strong> — kept up to 6
+              hours (sooner if you log out), then deleted automatically. Never part of any permanent record.
             </span>
           </li>
           <li className="flex gap-2.5">
             <span className="text-navy-400 font-bold shrink-0">•</span>
             <span>
-              <strong className="text-gray-800">Feedback is entirely optional.</strong> At the end, you can share
-              suggestions and — only if you're the parent/guardian and choose to — leave an email for a follow-up.
-              We never ask a child for their own email.
+              <strong className="text-gray-800">Feedback is optional.</strong> Parents/guardians may leave an
+              email for follow-up — we never ask a child for their own.
             </span>
           </li>
         </ul>

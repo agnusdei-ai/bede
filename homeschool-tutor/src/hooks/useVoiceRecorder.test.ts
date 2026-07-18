@@ -155,6 +155,40 @@ describe('useVoiceRecorder raw PCM capture', () => {
   })
 })
 
+describe('useVoiceRecorder re-entrant stopRecording (iOS Safari duplicate release)', () => {
+  it('does not double-process the same recording when stopRecording is called again before the first call\'s audioCtx.close() resolves', async () => {
+    // Regression test for a real bug: release() in useHybridVoiceInput can
+    // fire twice for one press on iOS Safari while mode is still
+    // 'recording' (nothing there moves mode away from 'recording' until
+    // THIS hook's own onComplete callback runs). stopRecording() used to
+    // leave processorRef/audioCtxRef/streamRef populated across its
+    // `await audioCtx.close()` call, so a second overlapping call would
+    // read those same non-null refs, pass the null-guard, and re-encode +
+    // re-send the exact same captured audio a second time — the child's
+    // one spoken turn showing up twice, back to back, with identical text.
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onComplete }))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    act(() => vi.advanceTimersByTime(500))
+
+    // Fire the calls back to back, without awaiting the first one before
+    // starting the second — this is what reproduces the race: the first
+    // call's synchronous prefix (through the ref-nulling) runs to
+    // completion before the second call starts, but the first call's
+    // `await audioCtx.close()` hasn't resolved yet when it does.
+    await act(async () => {
+      const first = result.current.stopRecording()
+      const second = result.current.stopRecording()
+      await Promise.all([first, second])
+    })
+
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('useVoiceRecorder mic prewarming (iOS Safari user-gesture requirement)', () => {
   it('reuses the stream opened by prewarm() instead of calling getUserMedia() again in startRecording', async () => {
     const { result } = renderHook(() => useVoiceRecorder({}))

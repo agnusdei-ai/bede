@@ -122,16 +122,33 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     const processor = processorRef.current
     const audioCtx = audioCtxRef.current
     const stream = streamRef.current
+    const silence = silenceRef.current
     if (!processor || !audioCtx || !stream) {
       setIsRecording(false)
       return
     }
 
+    // Null every ref out SYNCHRONOUSLY, right here — before the `await
+    // audioCtx.close()` below — not after it. A held mic button can get
+    // released twice for one press on iOS Safari (e.g. release() firing
+    // again while this call is still awaiting close()), and stopRecording()
+    // used to leave these refs populated across that whole await. A second
+    // concurrent call would then read the SAME non-null refs, pass this same
+    // guard, and re-process the SAME pcmChunksRef chunks — producing a
+    // byte-identical second WAV that gets transcribed and sent again,
+    // showing up as the exact turn appearing twice in the chat. Clearing the
+    // refs up front means a second call sees them already null and takes
+    // the early-return above instead of racing to do this all twice.
+    processorRef.current = null
+    silenceRef.current = null
+    audioCtxRef.current = null
+    streamRef.current = null
+
     const durationMs = Date.now() - startedAtRef.current
 
     processor.onaudioprocess = null
     processor.disconnect()
-    silenceRef.current?.disconnect()
+    silence?.disconnect()
     const nativeSampleRate = audioCtx.sampleRate
     // Safe even if already closed elsewhere — close() on a closed context
     // rejects, which would otherwise become an unhandled rejection here.
@@ -142,10 +159,6 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     }
     stream.getTracks().forEach((t) => t.stop())
 
-    processorRef.current = null
-    silenceRef.current = null
-    audioCtxRef.current = null
-    streamRef.current = null
     setIsRecording(false)
 
     const chunks = pcmChunksRef.current

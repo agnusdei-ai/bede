@@ -8,6 +8,7 @@
  * line on every update.
  */
 import { renderHook } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { useTranscriptWords } from './useTranscriptWords'
 
@@ -80,5 +81,26 @@ describe('useTranscriptWords', () => {
       initialProps: { interim: '  hello   there  ' },
     })
     expect(result.current.map((w) => w.text)).toEqual(['hello', 'there'])
+  })
+
+  it('still produces a correct diff under Strict Mode\'s double-invoked renders', () => {
+    // React 18 Strict Mode deliberately renders each component twice in
+    // development to surface impure render-phase side effects. If the diff
+    // ref were ever written during render (instead of in an effect), the
+    // second invocation would diff `words` against itself and always report
+    // zero new words — silently breaking the settled/new split in dev.
+    const { result, rerender } = renderHook(({ interim }) => useTranscriptWords(interim), {
+      initialProps: { interim: "i think it's" },
+      wrapper: StrictMode,
+    })
+    rerender({ interim: "i think it's raining outside" })
+
+    expect(result.current).toEqual([
+      { text: 'i', key: 0, isNew: false },
+      { text: 'think', key: 1, isNew: false },
+      { text: "it's", key: 2, isNew: false },
+      { text: 'raining', key: 3, isNew: true },
+      { text: 'outside', key: 4, isNew: true },
+    ])
   })
 })

@@ -202,6 +202,52 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
     expect(onFinal).not.toHaveBeenCalled()
   })
 
+  it('falls back to recording if native produces zero signal for the whole hold-start window (Safari silent-hold bug)', () => {
+    // Real reported failure: on iOS Safari, holding the mic showed
+    // "Listening..." the whole time, but releasing after several seconds
+    // of real speech sent nothing at all and no transcript ever appeared.
+    // Root cause: unlike tap-to-speak, hold mode armed NO watchdog at all
+    // at start, so if native never fires a single onresult for the ENTIRE
+    // hold (a documented Safari failure mode), release() has nothing to
+    // salvage. release() also can't rely on onEndWithoutResult firing
+    // afterward, since it marks stoppedByUserRef before stopping native
+    // specifically to suppress that signal. This test presses, lets the
+    // hold-start window elapse with zero interim/final ever emitted (the
+    // silent-Safari case), and expects the recorder fallback to have
+    // started WHILE still held, so release() still has real audio to send.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(startRecording).not.toHaveBeenCalled()
+
+    // Native never produces a single onresult the whole time — the exact
+    // Safari silent-stall failure mode.
+    act(() => vi.advanceTimersByTime(4100))
+
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    expect(result.current.isListening).toBe(true)
+  })
+
+  it('does not fall back to recording in hold mode once native has proven it is alive, even across a long pause', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    // Native responds well within the hold-start window — proof of life.
+    act(() => vi.advanceTimersByTime(1000))
+    act(() => lastInstance.emitInterim('hi'))
+
+    // A long natural pause afterward, well past the hold-start window,
+    // must NOT be mistaken for the silent-Safari case now that native has
+    // already proven it's working.
+    act(() => vi.advanceTimersByTime(10000))
+    expect(startRecording).not.toHaveBeenCalled()
+
+    act(() => lastInstance.emitFinal('hi there'))
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledWith('hi there')
+  })
+
   it('never restarts recognition on its own after a tap utterance settles (no auto-restart loop)', () => {
     const onFinal = vi.fn()
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))

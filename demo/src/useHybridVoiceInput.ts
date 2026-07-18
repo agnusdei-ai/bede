@@ -16,7 +16,12 @@ import { transcribeFallback } from './api'
  */
 
 const NATIVE_STALL_TIMEOUT_MS = 4000
-const MAX_RECORDING_MS = 8000
+// Was 8000ms — kept in sync with homeschool-tutor/src/hooks/useHybridVoiceInput.ts;
+// too short once a child is really answering out loud, and walkie-talkie
+// hold-to-talk falls into this recorder whenever native recognition isn't
+// supported or throws synchronously on press, silently truncating longer
+// held answers.
+const MAX_RECORDING_MS = 60000
 
 interface Options {
   token: string | null

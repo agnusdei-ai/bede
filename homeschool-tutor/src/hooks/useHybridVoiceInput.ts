@@ -13,7 +13,15 @@ import { transcribeFallback } from '../services/voiceApi'
  */
 
 const NATIVE_STALL_TIMEOUT_MS = 4000
-const MAX_RECORDING_MS = 8000
+// Was 8000ms — far too short for a real spoken answer once a child is
+// actually explaining their thinking out loud, and the walkie-talkie
+// hold-to-talk mode (which is meant to support longer, paused-and-resumed
+// answers) falls into this exact recorder whenever native recognition
+// isn't supported or throws synchronously on press (see the catch in
+// _start below) — so this cap silently truncated long walkie-talkie
+// answers on any browser without native SpeechRecognition (Firefox,
+// some Android WebViews), not just short tap-to-speak utterances.
+const MAX_RECORDING_MS = 60000
 
 interface Options {
   token: string | null

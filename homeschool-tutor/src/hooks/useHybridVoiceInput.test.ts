@@ -16,7 +16,11 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { startRecording } = vi.hoisted(() => ({ startRecording: vi.fn() }))
+const { startRecording, prewarm, cancelPrewarm } = vi.hoisted(() => ({
+  startRecording: vi.fn(),
+  prewarm: vi.fn(),
+  cancelPrewarm: vi.fn(),
+}))
 
 vi.mock('./useVoiceRecorder', () => ({
   useVoiceRecorder: () => ({
@@ -24,6 +28,8 @@ vi.mock('./useVoiceRecorder', () => ({
     level: 0,
     startRecording,
     stopRecording: vi.fn(),
+    prewarm,
+    cancelPrewarm,
   }),
 }))
 
@@ -77,6 +83,8 @@ let constructCount = 0
 beforeEach(() => {
   vi.useFakeTimers()
   startRecording.mockClear()
+  prewarm.mockClear()
+  cancelPrewarm.mockClear()
   constructCount = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).SpeechRecognition = class {
@@ -228,14 +236,40 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
     expect(result.current.isListening).toBe(true)
   })
 
+  it('primes the fallback recorder\'s mic stream synchronously at press-time, not when the watchdog fires', () => {
+    // iOS Safari only honors getUserMedia() when it's initiated directly
+    // inside a user gesture's call stack. If the recorder only requested
+    // its stream once the hold-start watchdog actually fired (4s later,
+    // from a setTimeout callback), that request would run well outside
+    // any gesture and Safari can silently block it — even though the
+    // fallback "started", it would never actually capture audio. prewarm()
+    // must fire in the same synchronous tick as startHold() so the stream
+    // request is made at the right moment regardless of whether native
+    // ends up needing the fallback at all.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(prewarm).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(4100))
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    // No SECOND getUserMedia request should happen when the watchdog
+    // fires — the fallback must reuse the stream prewarm() already opened.
+    expect(prewarm).toHaveBeenCalledTimes(1)
+  })
+
   it('does not fall back to recording in hold mode once native has proven it is alive, even across a long pause', () => {
     const onFinal = vi.fn()
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
 
     act(() => result.current.startHold())
+    expect(prewarm).toHaveBeenCalledTimes(1)
     // Native responds well within the hold-start window — proof of life.
     act(() => vi.advanceTimersByTime(1000))
     act(() => lastInstance.emitInterim('hi'))
+    // The prewarmed stream is no longer needed once native has proven it's
+    // alive — release it rather than holding the mic open for nothing.
+    expect(cancelPrewarm).toHaveBeenCalledTimes(1)
 
     // A long natural pause afterward, well past the hold-start window,
     // must NOT be mistaken for the silent-Safari case now that native has

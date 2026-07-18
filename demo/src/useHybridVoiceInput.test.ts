@@ -14,7 +14,11 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { startRecording } = vi.hoisted(() => ({ startRecording: vi.fn() }))
+const { startRecording, prewarm, cancelPrewarm } = vi.hoisted(() => ({
+  startRecording: vi.fn(),
+  prewarm: vi.fn(),
+  cancelPrewarm: vi.fn(),
+}))
 
 vi.mock('./useVoiceRecorder', () => ({
   useVoiceRecorder: () => ({
@@ -22,6 +26,8 @@ vi.mock('./useVoiceRecorder', () => ({
     level: 0,
     startRecording,
     stopRecording: vi.fn(),
+    prewarm,
+    cancelPrewarm,
   }),
 }))
 
@@ -71,6 +77,8 @@ let lastInstance: FakeSpeechRecognition
 beforeEach(() => {
   vi.useFakeTimers()
   startRecording.mockClear()
+  prewarm.mockClear()
+  cancelPrewarm.mockClear()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).SpeechRecognition = class {
     constructor() {
@@ -188,13 +196,29 @@ describe('useHybridVoiceInput walkie-talkie hold safety (demo)', () => {
     expect(result.current.isListening).toBe(true)
   })
 
+  it('primes the fallback recorder\'s mic stream synchronously at press-time, not when the watchdog fires', () => {
+    // iOS Safari only honors getUserMedia() when it's initiated directly
+    // inside a user gesture's call stack — see homeschool-tutor's mirror
+    // test for the full rationale.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(prewarm).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(4100))
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    expect(prewarm).toHaveBeenCalledTimes(1)
+  })
+
   it('does not fall back to recording in hold mode once native has proven it is alive, even across a long pause', () => {
     const onFinal = vi.fn()
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
 
     act(() => result.current.startHold())
+    expect(prewarm).toHaveBeenCalledTimes(1)
     act(() => vi.advanceTimersByTime(1000))
     act(() => lastInstance.emitInterim('hi'))
+    expect(cancelPrewarm).toHaveBeenCalledTimes(1)
 
     act(() => vi.advanceTimersByTime(10000))
     expect(startRecording).not.toHaveBeenCalled()

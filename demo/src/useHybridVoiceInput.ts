@@ -121,6 +121,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       }
       clearWatchdog()
       setMode('idle')
+      recorder.cancelPrewarm()
       onFinal?.(transcript)
     },
     onError: () => {
@@ -135,6 +136,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       // restarts the mic if voice mode is still on.
       clearWatchdog()
       setMode('idle')
+      recorder.cancelPrewarm()
     },
   })
 
@@ -165,6 +167,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // later pauses are the child's call, not a timer's.
     if (holdModeRef.current) {
       clearWatchdog()
+      // First proof native is alive for this hold — the prewarmed mic
+      // stream (opened below in _start, in case a fallback turns out to be
+      // needed) is no longer going to be used, so release it now rather
+      // than holding the mic open pointlessly for the rest of the press.
+      recorder.cancelPrewarm()
       return
     }
     clearWatchdog()
@@ -172,7 +179,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       native.stop()
       startFallback()
     }, NATIVE_STALL_TIMEOUT_MS)
-  }, [native.interim, native.stop, clearWatchdog, startFallback])
+  }, [native.interim, native.stop, clearWatchdog, startFallback, recorder])
 
   // Shared entry point for both tap-to-speak (hold=false) and walkie-talkie
   // hold-to-talk (hold=true). Uses modeRef (synchronous) rather than the mode
@@ -187,6 +194,17 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
 
     if (native.isSupported) {
       setMode('native')
+      // Open the fallback recorder's mic stream NOW, synchronously, inside
+      // this same press-gesture call stack — before we even know whether
+      // native recognition will work. iOS Safari only honors getUserMedia()
+      // requests initiated directly inside a user gesture; if native stalls
+      // and the watchdog below has to fall back several seconds from now,
+      // that fallback runs from a setTimeout callback, well outside any
+      // gesture — a getUserMedia() call made cold at that point is exactly
+      // the case Safari silently blocks. Priming here sidesteps that: by
+      // the time the fallback might be needed, the stream request was
+      // already made at the right moment and is just waiting to be reused.
+      recorder.prewarm()
       try {
         native.start(hold)
       } catch {
@@ -241,7 +259,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     releasedRef.current = true
     clearWatchdog()
     clearHoldSafety()
-    if (modeRef.current === 'native') native.stop()
+    if (modeRef.current === 'native') {
+      native.stop()
+      recorder.cancelPrewarm()
+    }
     if (modeRef.current === 'recording') recorder.stopRecording()
     holdModeRef.current = false
     accumRef.current = ''
@@ -260,6 +281,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       releasedRef.current = true
       const salvage = lastInterimRef.current.trim()
       native.stop()
+      recorder.cancelPrewarm()
       const text = [accumRef.current.trim(), salvage].filter(Boolean).join(' ').trim()
       accumRef.current = ''
       lastInterimRef.current = ''

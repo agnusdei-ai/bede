@@ -170,4 +170,37 @@ describe('useHybridVoiceInput walkie-talkie hold safety (demo)', () => {
     act(() => vi.advanceTimersByTime(60000))
     expect(onFinal).toHaveBeenCalledTimes(1)
   })
+
+  it('falls back to recording if native produces zero signal for the whole hold-start window (Safari silent-hold bug)', () => {
+    // Real reported failure: on iOS Safari, holding the mic showed
+    // "Listening..." the whole time, but releasing after several seconds
+    // of real speech sent nothing at all and no transcript ever appeared.
+    // See homeschool-tutor/src/hooks/useHybridVoiceInput.test.ts for the
+    // full rationale.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(startRecording).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(4100))
+
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    expect(result.current.isListening).toBe(true)
+  })
+
+  it('does not fall back to recording in hold mode once native has proven it is alive, even across a long pause', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => vi.advanceTimersByTime(1000))
+    act(() => lastInstance.emitInterim('hi'))
+
+    act(() => vi.advanceTimersByTime(10000))
+    expect(startRecording).not.toHaveBeenCalled()
+
+    act(() => lastInstance.emitFinal('hi there'))
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledWith('hi there')
+  })
 })

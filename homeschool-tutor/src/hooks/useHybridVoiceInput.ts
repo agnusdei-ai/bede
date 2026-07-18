@@ -109,6 +109,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
         // Walkie-talkie: keep the mic open across pauses. Stash each final
         // segment; release() sends the whole thing once the child lets go.
         if (releasedRef.current) return
+        // A final result is proof of life just like an interim (some engines
+        // can emit a final without ever emitting an interim first) — disarm
+        // the hold-start watchdog below so it can't fire after the fact.
+        clearWatchdog()
         accumRef.current = accumRef.current ? `${accumRef.current} ${transcript}` : transcript
         // The interim that preceded this segment is now baked into it — drop
         // it so release()'s salvage can't re-append text already accumulated.
@@ -155,8 +159,14 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     lastInterimRef.current = native.interim
     // In hold-to-talk the child is deliberately in control of when the turn
     // ends (release), so a mid-utterance pause must NOT trip the stall
-    // watchdog and dump into the recording fallback — skip re-arming it.
-    if (holdModeRef.current) return
+    // watchdog and dump into the recording fallback. But the FIRST interim
+    // is still proof native is alive — disarm the hold-start watchdog
+    // (armed in _start below) for good, then stop; don't rearm it, since
+    // later pauses are the child's call, not a timer's.
+    if (holdModeRef.current) {
+      clearWatchdog()
+      return
+    }
     clearWatchdog()
     watchdogRef.current = setTimeout(() => {
       native.stop()
@@ -192,16 +202,25 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
         return
       }
       // In hold-to-talk the child, not a timer, decides when the turn ends,
-      // so the stall watchdog would only fight the user — don't arm it. In
-      // tap-to-speak, Safari can accept the mic tap and then never fire
-      // onresult/onerror/onend, so bail to the recording fallback if nothing
-      // happens in time.
-      if (!hold) {
-        watchdogRef.current = setTimeout(() => {
-          native.stop()
-          startFallback()
-        }, NATIVE_STALL_TIMEOUT_MS)
-      } else {
+      // so once native has proven it's alive, the stall watchdog must not
+      // fight the user over a natural pause — see the interim effect above,
+      // which disarms (and never rearms) this same timer on first signal.
+      // But Safari (esp. iOS) can accept the mic press and then never fire
+      // ONE SINGLE onresult for the entire hold — no interim, no final,
+      // nothing (see useSpeechRecognition.ts) — and unlike tap-to-speak,
+      // hold mode can't lean on onEndWithoutResult firing after release()
+      // to catch this: release() sets stoppedByUserRef BEFORE stopping
+      // native specifically to suppress that signal, so a fallback
+      // recording doesn't start moments after the child already let go.
+      // So arm the SAME watchdog here too (for both modes) — for hold mode
+      // it only fires if literally nothing has happened yet, and switches
+      // this hold over to the recorder fallback while the child is still
+      // holding, so release() still has real audio to send.
+      watchdogRef.current = setTimeout(() => {
+        native.stop()
+        startFallback()
+      }, NATIVE_STALL_TIMEOUT_MS)
+      if (hold) {
         // See HOLD_SAFETY_TIMEOUT_MS above — bounds the worst case where a
         // release event never reaches the button at all.
         holdSafetyRef.current = setTimeout(() => {

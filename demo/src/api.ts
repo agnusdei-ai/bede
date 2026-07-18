@@ -430,6 +430,23 @@ async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
   }
 }
 
+// The visitor's own device calendar date (YYYY-MM-DD), computed fresh at
+// each request — mirrors homeschool-tutor/src/store/sessionStore.ts's
+// deriveLocalDate. Sent as local_date so the backend's weekly poetry/prayer
+// rotation (services/poetry_catalog.py, services/prayer_catalog.py) picks
+// the week the VISITOR's calendar is on, not the server's — otherwise a
+// server running in a different timezone (typically UTC) could show a
+// different week's poem near a Sunday/Monday boundary in the visitor's own
+// timezone. getFullYear/getMonth/getDate (not toISOString, which converts
+// to UTC first) — the same local-vs-UTC distinction that bug is about.
+export function deriveLocalDate(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export async function* streamTutorChat(
   token: string,
   config: SessionConfig,
@@ -451,6 +468,7 @@ export async function* streamTutorChat(
       conversation_history: history,
       child_message: childMessage,
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
+      local_date: deriveLocalDate(),
     }),
     signal,
   })

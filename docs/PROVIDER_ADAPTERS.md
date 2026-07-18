@@ -156,15 +156,25 @@ the public internet.
    API is OpenAI-compatible, so it reuses `OpenAICompatibleClient` and the same
    `openai` SDK dependency, just pointed at `https://api.mistral.ai/v1`.
 
-### Render demo/dev deployment — cloud-only, OpenAI + Mistral
+### Render demo/dev deployment — cloud-only, Mistral + OpenAI
 
-`render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral` for the `bede-demo-api`
-service specifically, because Render has no GPU (the `local` adapter can't run
-there) and this deployment should boot and serve without needing Anthropic
-access at all. After a Blueprint deploy, fill in `OPENAI_API_KEY` and
-`MISTRAL_API_KEY` from Render's dashboard (both `sync: false`, per
-docs/DEMO_HOSTING.md's setup walkthrough) — `ANTHROPIC_API_KEY` is left
-declared but optional/unused by default here.
+`render.yaml` sets `BEDE_ADAPTER_ORDER=mistral,openai` for the `bede-demo-api`
+service specifically (Mistral primary, OpenAI fallback), because Render has no
+GPU (the `local` adapter can't run there) and this deployment should boot and
+serve without needing Anthropic access at all. After a Blueprint deploy, fill
+in `MISTRAL_API_KEY` and `OPENAI_API_KEY` from Render's dashboard (both
+`sync: false`, per docs/DEMO_HOSTING.md's setup walkthrough) —
+`ANTHROPIC_API_KEY` is left declared but optional/unused by default here.
+
+**"Fallback" here means boot-time preference, not live failover.**
+`get_default_client()` resolves once, at startup, to the first *configured*
+adapter in the order — so OpenAI only takes over if `MISTRAL_API_KEY` is
+removed/unset and the service restarts, not automatically mid-outage if
+Mistral starts erroring while still configured. True live failover (auto-retry
+OpenAI the moment Mistral 401s/429s/times out on a request already in flight)
+requires wiring `router.resolve_with_failover()` into `services/ai_service.py`
+in place of `get_default_client()` — that helper already exists and is tested,
+it's just not the active code path today.
 
 ### Local self-hosted vLLM + Qwen3-Coder-30B-A3B-Instruct (needs a GPU)
 

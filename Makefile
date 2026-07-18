@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup setup-gui start stop restart logs logs-api logs-ui status caddy-trust update backup-env db-backup db-restore clean help
+.PHONY: setup setup-gui start stop restart logs logs-api logs-ui status caddy-trust update backup-env db-backup db-restore clean help generate-wizard-narration
 
 ##@ First-time setup
 setup:           ## Run interactive terminal wizard (generates .env, pulls images, starts services)
@@ -62,6 +62,10 @@ caddy-trust:     ## Export Caddy's root CA cert — install on each LAN tablet o
 
 ipad-profile:    ## Generate one .mobileconfig for iPad: CA trust + Home Screen icon in a single install
 	@bash ipad-profile.sh
+
+generate-wizard-narration:  ## One-time: generate the setup wizard's spoken narration (needs OPENAI_API_KEY) — commit the result
+	@test -n "$$OPENAI_API_KEY" || { echo "Usage: OPENAI_API_KEY=sk-... make generate-wizard-narration"; exit 1; }
+	python3 scripts/setup_wizard/generate_narration.py
 
 ##@ Maintenance
 update:          ## Pull latest images and restart

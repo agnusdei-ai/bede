@@ -109,3 +109,59 @@ describe('useVoiceRecorder minimum-duration guard', () => {
     expect(onComplete).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('useVoiceRecorder mic prewarming (iOS Safari user-gesture requirement)', () => {
+  it('reuses the stream opened by prewarm() instead of calling getUserMedia() again in startRecording', async () => {
+    const { result } = renderHook(() => useVoiceRecorder({}))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    // The prewarm getUserMedia() call is async even though it's *initiated*
+    // synchronously — flush it before startRecording tries to consume it.
+    await act(async () => {})
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    // startRecording must NOT have requested a second stream — a second,
+    // later getUserMedia() call is exactly the case that's unreliable on
+    // iOS Safari once the original user gesture has passed.
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops the prewarmed stream\'s tracks when cancelPrewarm is called before it is ever used', async () => {
+    const { result } = renderHook(() => useVoiceRecorder({}))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    await act(async () => {})
+
+    const fakeStream = await (navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>).mock.results[0].value
+    act(() => {
+      result.current.cancelPrewarm()
+    })
+    await act(async () => {})
+
+    expect(fakeStream.getTracks()[0].stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('still works when startRecording is called with no prior prewarm (falls back to a fresh request)', async () => {
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onComplete }))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(500))
+    await act(async () => {
+      await result.current.stopRecording()
+    })
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+})

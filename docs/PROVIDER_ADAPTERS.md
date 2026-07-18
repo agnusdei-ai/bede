@@ -133,6 +133,86 @@ WireGuard, an SSH tunnel) or at minimum put an authenticating reverse proxy in
 front of it and set `LOCAL_LLM_API_KEY` accordingly — never hang it directly on
 the public internet.
 
+## Setup guide — configuring and installing each adapter
+
+### OpenAI (cloud, no local install)
+
+1. Create an account and API key at [platform.openai.com](https://platform.openai.com/api-keys),
+   and add a billing method (pay-as-you-go).
+2. Set `OPENAI_API_KEY=sk-...` in `.env` (or Render's dashboard for the demo).
+   This is the **same key** already used for OpenAI TTS — no second key needed.
+3. Optionally set `OPENAI_MODEL` (default `gpt-4.1-mini`) to a different chat model.
+4. Add `openai` to `BEDE_ADAPTER_ORDER`, e.g. `BEDE_ADAPTER_ORDER=openai,mistral`.
+5. No package install needed — the `openai` Python SDK (`>=1.40.0`) is already in
+   `homeschool-api/requirements.txt` (it was already a dependency for TTS).
+
+### Mistral AI (cloud, no local install)
+
+1. Create an account and API key at [console.mistral.ai](https://console.mistral.ai/)
+   ("La Plateforme") -> API Keys.
+2. Set `MISTRAL_API_KEY=...` in `.env` (or Render's dashboard).
+3. Optionally set `MISTRAL_MODEL` (default `mistral-large-latest`).
+4. Add `mistral` to `BEDE_ADAPTER_ORDER`. No package install needed — Mistral's
+   API is OpenAI-compatible, so it reuses `OpenAICompatibleClient` and the same
+   `openai` SDK dependency, just pointed at `https://api.mistral.ai/v1`.
+
+### Render demo/dev deployment — cloud-only, OpenAI + Mistral
+
+`render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral` for the `bede-demo-api`
+service specifically, because Render has no GPU (the `local` adapter can't run
+there) and this deployment should boot and serve without needing Anthropic
+access at all. After a Blueprint deploy, fill in `OPENAI_API_KEY` and
+`MISTRAL_API_KEY` from Render's dashboard (both `sync: false`, per
+docs/DEMO_HOSTING.md's setup walkthrough) — `ANTHROPIC_API_KEY` is left
+declared but optional/unused by default here.
+
+### Local self-hosted vLLM + Qwen3-Coder-30B-A3B-Instruct (needs a GPU)
+
+**Hardware — vLLM is Linux/CUDA-only.** It does not run on Raspberry Pi (no
+discrete GPU/CUDA) or on Apple Silicon Macs (no native vLLM support). It needs
+an NVIDIA GPU on Linux (bare metal or WSL2):
+
+| Tier | GPU VRAM | System RAM | Storage | Notes |
+|------|----------|------------|---------|-------|
+| Minimum | 16 GB (RTX 4060 Ti 16GB+) | 32 GB | ~30-45 GB SSD | 4-bit AWQ/GPTQ quant |
+| Recommended | 24 GB (RTX 3090/4090) | 64 GB | 45+ GB SSD | Full quality Q4/Q5, better throughput/longer context |
+
+If your household hardware is a laptop/tablet/Raspberry Pi without a suitable
+GPU, skip this adapter and rely on `openai`/`mistral` (or `anthropic` if/when
+restored) instead — that's exactly what the adapter design is for.
+
+**Install/run** (on the separate GPU machine, not on Render):
+
+```bash
+docker run --gpus all -p 8000:8000 \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  vllm/vllm-openai:latest \
+  --model Qwen/Qwen3-Coder-30B-A3B-Instruct \
+  --tool-call-parser qwen3_coder \
+  --enable-auto-tool-choice \
+  --max-model-len 131072
+```
+
+Then on the Bede backend (wherever it runs — laptop/Pi/tablet or Render), set:
+
+```bash
+LOCAL_LLM_BASE_URL=http://your-gpu-box.lan:8000/v1
+LOCAL_LLM_API_KEY=not-needed
+LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct
+BEDE_ADAPTER_ORDER=local,anthropic
+```
+
+Put the vLLM server behind a tunnel/VPN (Tailscale, WireGuard) or an
+authenticating reverse proxy before exposing it beyond your LAN — its OpenAI
+server has no built-in auth.
+
+### Anthropic (optional/legacy — kept for whenever access returns)
+
+1. `ANTHROPIC_API_KEY=sk-ant-...` in `.env`, same as before this refactor.
+2. Add `anthropic` to `BEDE_ADAPTER_ORDER` (or leave it there — it's in the
+   default already) to use it again the moment it's set.
+3. No install needed — `anthropic>=0.40.0` was already a dependency.
+
 ## Adding another provider
 
 If it speaks OpenAI's `/v1/chat/completions`, you don't need new code — add a

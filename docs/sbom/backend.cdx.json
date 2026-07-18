@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:2a6a5c5e-42be-47f9-a804-03a8a4bff8f5",
+  "serialNumber": "urn:uuid:8897e449-c00a-495d-ac9a-60207c90fa41",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-07-17T06:36:11Z",
+    "timestamp": "2026-07-18T14:17:50Z",
     "component": {
       "type": "application",
       "name": "homeschool-api",
@@ -17,6 +17,19 @@
       "name": "anthropic",
       "version": "0.40.0",
       "purl": "pkg:pypi/anthropic@0.40.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "openai",
+      "version": "1.40.0",
+      "purl": "pkg:pypi/openai@1.40.0",
       "scope": "required",
       "properties": [
         {
@@ -209,9 +222,9 @@
     },
     {
       "type": "library",
-      "name": "openai-whisper",
-      "version": "20240930",
-      "purl": "pkg:pypi/openai-whisper@20240930",
+      "name": "faster-whisper",
+      "version": "1.0.0",
+      "purl": "pkg:pypi/faster-whisper@1.0.0",
       "scope": "required",
       "properties": [
         {

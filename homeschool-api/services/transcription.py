@@ -1,35 +1,45 @@
 """
-Server-side speech-to-text using OpenAI Whisper (open-source, runs locally).
-Used as a fallback when the browser's Web Speech API is unavailable (Firefox,
-offline, or low-confidence interim results).
+Server-side speech-to-text using faster-whisper (CTranslate2, open-source,
+runs locally). Used as a fallback when the browser's Web Speech API is
+unavailable (Firefox, offline, or low-confidence interim results).
 
-Model sizes vs speed (single inference on CPU):
-  tiny   ~39M params   ~0.5s  – use for short child utterances
-  base   ~74M params   ~1s    – slightly better accuracy
-  small  ~244M params  ~3s    – best accuracy/speed trade-off for 2h session
+Model sizes vs speed (single inference on CPU, int8 quantization):
+  tiny   ~39M params   – use for short child utterances
+  base   ~74M params   – slightly better accuracy
+  small  ~244M params  – best accuracy/speed trade-off for 2h session
 
 We default to 'base' — 'tiny' shipped noticeably worse transcripts once real
 sentences (not just isolated enrollment phrases) started flowing through the
 fallback path, including every walkie-talkie hold-to-talk turn on a browser
-without native SpeechRecognition. 'base' roughly doubles inference time
-(~1s vs ~0.5s per utterance on CPU) but is still comfortably fast enough for
-a single child utterance, and its accuracy jump is worth that trade for a
-feature children actually rely on to be understood correctly.
+without native SpeechRecognition. faster-whisper's CTranslate2 backend runs
+these same 'base' weights several times faster than the original
+openai-whisper implementation on CPU (int8 quantization, no torch runtime),
+so upgrading to 'small' isn't necessary to hit comfortable per-utterance
+latency — see docs/VOICE_SETUP.md.
 
 Everything CPU-bound here (model load AND inference) runs in a thread-pool
 executor, never on the asyncio event loop. FastAPI serves every request —
 including the /tutor/chat SSE stream — from one event loop; a synchronous
 Whisper call used to freeze the entire app (every tablet's chat stream, every
 login) for the full duration of a model load + transcription.
+
+MODEL_DIR is where the model weights live. In the production Docker image
+they're pre-downloaded here at build time (see Dockerfile) — the api
+container runs read_only:true with no writable volume outside a 64MB /tmp
+tmpfs, so a first-use runtime download has nowhere to write and would fail.
+In local dev (no container, filesystem writable) this same path just
+downloads on first use instead.
 """
 import asyncio
 import io
 import logging
+import os
 import threading
 
 logger = logging.getLogger(__name__)
 
 _WHISPER_MODEL_SIZE = "base"
+MODEL_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "models", "whisper"))
 
 _model = None
 _model_load_attempted = False
@@ -47,13 +57,25 @@ def _get_model():
         if _model is not None or _model_load_attempted:
             return _model
         try:
-            import whisper  # type: ignore
+            from faster_whisper import WhisperModel  # type: ignore
 
-            logger.info("Loading Whisper model '%s'…", _WHISPER_MODEL_SIZE)
-            _model = whisper.load_model(_WHISPER_MODEL_SIZE)
-            logger.info("Whisper model ready")
+            logger.info("Loading faster-whisper model '%s'…", _WHISPER_MODEL_SIZE)
+            _model = WhisperModel(
+                _WHISPER_MODEL_SIZE,
+                device="cpu",
+                compute_type="int8",
+                download_root=MODEL_DIR,
+            )
+            logger.info("faster-whisper model ready")
         except ImportError:
-            logger.warning("openai-whisper not installed — fallback STT unavailable")
+            logger.warning("faster-whisper not installed — fallback STT unavailable")
+        except Exception:
+            # Any other load failure (corrupted/missing baked weights, a
+            # disk issue, ...) should degrade the same way a missing package
+            # does, not crash the caller — see transcribe_audio's "not
+            # available" response and preload()'s own broad catch in
+            # main.py's _warm_voice_models.
+            logger.exception("faster-whisper model load failed — fallback STT unavailable")
         finally:
             _model_load_attempted = True
         return _model
@@ -74,9 +96,10 @@ def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
 
     import numpy as np
     import soundfile as sf
-    import tempfile, os
 
-    # Whisper expects a file path or numpy array at 16kHz mono float32
+    # faster-whisper accepts a numpy array directly (16kHz mono float32) —
+    # no need to round-trip through a temp WAV file the way openai-whisper's
+    # own path-based loader required.
     buf = io.BytesIO(audio_bytes)
     try:
         data, sr = sf.read(buf, dtype="float32", always_2d=False)
@@ -96,31 +119,24 @@ def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
         except Exception:
             pass
 
-    # Write to temp WAV so Whisper can read it
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        sf.write(tmp.name, data, 16000)
-        tmp_path = tmp.name
-
     try:
-        result = model.transcribe(
-            tmp_path,
+        segments, info = model.transcribe(
+            data,
             language=language,
-            fp16=False,          # safe on CPU
             condition_on_previous_text=False,
         )
+        text = "".join(segment.text for segment in segments).strip()
         return {
-            "text": result.get("text", "").strip(),
-            "language": result.get("language", language),
+            "text": text,
+            "language": info.language or language,
         }
     except Exception as e:
         return {"text": "", "error": str(e), "language": language}
-    finally:
-        os.unlink(tmp_path)
 
 
 async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> dict:
     """
-    Transcribe audio bytes to text using Whisper.
+    Transcribe audio bytes to text using faster-whisper.
     Returns {text, language, segments}.
     """
     loop = asyncio.get_running_loop()

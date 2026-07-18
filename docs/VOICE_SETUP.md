@@ -97,6 +97,33 @@ gone entirely, check that the deployment is on a current build; older demo
 builds relied on the browser's recognition alone and had nothing to fall
 back to.
 
+## Under the hood: the local fallback-STT model (faster-whisper)
+
+`services/transcription.py`'s server-side fallback runs on
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) (a CTranslate2
+reimplementation of Whisper), not the original `openai-whisper` package —
+several times faster on CPU with `int8` quantization, and it drops the
+PyTorch runtime `openai-whisper` needed, for a meaningfully smaller/faster
+Docker build. Same `base` model weights, same accuracy trade-off already
+described above; only the inference engine changed. No `.env` setting or
+deployment action is needed for this — nothing to configure, no account,
+still 100% local (see docs/VENDOR_DATA_FLOW.md).
+
+One thing that *did* need a deployment-level fix alongside the swap: the
+`api` container runs `read_only: true` in production
+(`docker-compose.yml`) with no writable volume outside a 64MB `/tmp`
+tmpfs, so a model download attempted at container *startup* — faster-whisper's
+(and previously openai-whisper's) normal first-use behavior — would fail
+with nowhere to write, and `services/transcription.py`'s loader degrades
+that failure silently (fallback STT just stops working, with no visible
+error to a parent or child — matching the same class of silent failure
+described in the troubleshooting sections above, just from a different root
+cause). The Dockerfile now pre-downloads the model weights at *build* time
+instead, so the running container only ever reads an already-baked file.
+If you maintain a custom Dockerfile or build pipeline for this service,
+make sure it keeps that pre-download `RUN` step, or the fallback STT path
+will silently stop working the same way once deployed read-only.
+
 ## Troubleshooting: the mic shows "listening" but nothing reaches Bede
 
 Reported on Safari/iOS: the mic indicator stays lit, the child speaks, and

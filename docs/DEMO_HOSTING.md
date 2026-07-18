@@ -63,8 +63,10 @@ just push to `main` and it redeploys itself.
    this is correct even though the demo itself lives at
    `https://agnusdei-ai.github.io/bede/`).
 5. Click deploy. First build takes a few minutes (installing
-   `openai-whisper`, `librosa`, etc.). Once it's up, copy the service URL
-   Render gives you — looks like `https://bede-demo-api-XXXX.onrender.com`.
+   `faster-whisper`, `librosa`, etc., and pre-downloading the fallback-STT
+   model weights into the image — see docs/VOICE_SETUP.md). Once it's up,
+   copy the service URL Render gives you — looks like
+   `https://bede-demo-api-XXXX.onrender.com`.
 
 ## Licensing
 

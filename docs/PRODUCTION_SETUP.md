@@ -38,6 +38,18 @@ tab when it says Bede is starting. It asks the exact same questions as the
 terminal wizard, just as text fields and clickable choices instead of typed
 answers, and produces the identical `.env`/Docker setup underneath.
 
+The browser wizard greets you (and confirms when it's done) in Bede's own
+voice — if `scripts/setup_wizard/audio/` has been populated by running
+`make generate-wizard-narration` (see that target's help text; needs an
+`OPENAI_API_KEY` once, at build/release time, never at install time). If
+those clips were never generated, the wizard works identically, just
+silently without narration. On the form page only, you can also turn on
+"🎤 Voice commands" to say things like *"on this computer"*, *"cloud
+database"*, or *"submit"* instead of clicking — this needs a
+Chrome/Edge-family browser (Web Speech API) and is entirely opt-in per
+visit. It only ever selects choices or submits the form; your password,
+PIN, and API key always have to be typed, never spoken.
+
 > **Status: proven end-to-end, on an ongoing basis.** A scheduled CI job
 > (`.github/workflows/production-regression.yml`, weekly plus on every
 > relevant change) builds the wizard image, submits the form exactly as a

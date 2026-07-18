@@ -174,6 +174,59 @@ def test_shutdown_signal_fires_after_success(running_wizard):
     assert wizard._shutdown_event.wait(timeout=2) is True
 
 
+def test_audio_serves_existing_file(running_wizard, tmp_path, monkeypatch):
+    audio_dir = tmp_path / "audio"
+    audio_dir.mkdir()
+    (audio_dir / "welcome.wav").write_bytes(b"RIFF....fake-wav-bytes")
+    monkeypatch.setattr(wizard, "AUDIO_DIR", audio_dir)
+
+    resp = urllib.request.urlopen(f"{running_wizard}/audio/welcome.wav")
+    assert resp.status == 200
+    assert resp.headers["Content-Type"] == "audio/wav"
+    assert resp.read() == b"RIFF....fake-wav-bytes"
+
+
+def test_audio_missing_file_404s_without_crashing(running_wizard, tmp_path, monkeypatch):
+    monkeypatch.setattr(wizard, "AUDIO_DIR", tmp_path / "audio")  # doesn't exist
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        urllib.request.urlopen(f"{running_wizard}/audio/welcome.wav")
+    assert exc_info.value.code == 404
+
+
+def test_audio_rejects_unknown_filenames(running_wizard):
+    """Only the fixed, known clip names are servable — closes off path
+    traversal or probing for arbitrary files even though this is a
+    short-lived, localhost-only container."""
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        urllib.request.urlopen(f"{running_wizard}/audio/../../../etc/passwd")
+    assert exc_info.value.code == 404
+
+
+def test_form_page_includes_narration_and_mic_controls(running_wizard):
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert "playNarration('welcome')" in body
+    assert "toggleVoiceCommands" in body
+    assert "always type your password, PIN, and API key" in body
+    # Voice commands must never target secret input fields by name.
+    assert 'name=parent_password' not in body
+    assert 'name=child_pin' not in body
+    assert 'name=anthropic_key' not in body
+    assert 'name=license_key' not in body
+
+
+def test_success_page_includes_narration_but_no_mic(running_wizard):
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-test",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    body = resp.read().decode()
+    assert "playNarration('success')" in body
+    assert "toggleVoiceCommands" not in body
+
+
 def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch):
     """The actual real entrypoint (not just the Handler class in isolation)
     — this is the exact exit signal the launcher scripts depend on to know

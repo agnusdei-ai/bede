@@ -42,6 +42,15 @@ ENV_PATH = os.path.join(REPO_DIR, ".env")
 PORT = int(os.environ.get("WIZARD_PORT", "8765"))
 LAN_IP = os.environ.get("HOST_LAN_IP", "").strip()
 
+# Optional spoken narration, in Bede's own configured voice (OpenAI TTS,
+# fable) — generated once by scripts/setup_wizard/generate_narration.py and
+# committed as static assets, never called live. If a family never ran that
+# script, AUDIO_DIR is empty and _serve_audio() below 404s; the page's JS
+# treats that as "no narration available" and just hides the controls —
+# the wizard functions identically either way.
+AUDIO_DIR = Path(__file__).resolve().parent / "audio"
+_AUDIO_FILES = {"welcome.wav", "success.wav"}
+
 _shutdown_event = threading.Event()
 
 _PAGE_HEAD = """\
@@ -77,6 +86,16 @@ _PAGE_HEAD = """\
            padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
   .success { text-align: center; padding: 40px 20px; }
   a { color: #2b4c7e; }
+  .narration-bar { display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+                    background: #eef2f8; border-radius: 10px; padding: 10px 14px;
+                    margin-bottom: 20px; }
+  .narration-btn, .mic-btn { padding: 8px 14px; font-size: 14px; font-weight: 600;
+    border: 1px solid #2b4c7e; border-radius: 20px; background: white;
+    color: #2b4c7e; cursor: pointer; }
+  .narration-btn:hover, .mic-btn:hover { background: #e0e7f2; }
+  .mic-btn.on { background: #2b4c7e; color: white; }
+  .mic-status { font-size: 13px; color: #6b7280; flex-basis: 100%; }
+  .voice-hint { font-size: 12px; color: #6b7280; flex-basis: 100%; }
 </style>
 </head>
 <body>
@@ -84,11 +103,129 @@ _PAGE_HEAD = """\
 _PAGE_TAIL = "</body></html>"
 
 
+def _narration_block(clip: str, enable_mic: bool) -> str:
+    """Spoken narration (bookends only — welcome/success, not every field)
+    plus, on the form page, opt-in voice commands for CHOICES and
+    NAVIGATION only. Voice input is never wired to the password, PIN, or
+    API key fields — those must always be typed, both for privacy (nobody
+    wants their password spoken aloud near a listening microphone) and
+    because speech recognition mishears exactly the kind of arbitrary
+    strings those fields hold.
+    """
+    mic_markup = ""
+    mic_script = ""
+    if enable_mic:
+        mic_markup = (
+            '<button type="button" id="mic-toggle" class="mic-btn" '
+            'style="display:none" onclick="toggleVoiceCommands()">'
+            '🎤 Voice commands: off</button>'
+            '<div class="voice-hint">Voice commands only control choices and '
+            'navigation (e.g. "on this computer", "submit") — always type '
+            'your password, PIN, and API key.</div>'
+        )
+        # Deliberately built as a separate string, included only when
+        # enable_mic is True — omitted entirely (not just runtime-guarded)
+        # on pages like the success screen with nothing left to command.
+        mic_script = f"""
+      var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      var micBtn = document.getElementById('mic-toggle');
+      var micStatus = document.getElementById('mic-status');
+      if (Recognition) {{
+        micBtn.style.display = 'inline-block';
+
+        var listening = false;
+        var recognition = null;
+
+        var handleCommand = function(text) {{
+          var t = text.toLowerCase();
+          if (/local|this computer/.test(t)) {{
+            var el = document.querySelector('input[name=db_choice][value=local]');
+            if (el) el.click();
+            micStatus.textContent = 'Heard: "' + text + '" — selected "on this computer."';
+          }} else if (/cloud|managed|my own database/.test(t)) {{
+            var el2 = document.querySelector('input[name=db_choice][value=managed]');
+            if (el2) el2.click();
+            micStatus.textContent = 'Heard: "' + text + '" — selected "cloud database."';
+          }} else if (/replay|repeat|say that again/.test(t)) {{
+            micStatus.textContent = 'Heard: "' + text + '" — replaying.';
+            playNarration('{clip}');
+          }} else if (/submit|set up bede|continue|go ahead/.test(t)) {{
+            micStatus.textContent = 'Heard: "' + text + '" — submitting.';
+            var form = document.querySelector('form');
+            if (form) form.requestSubmit();
+          }} else {{
+            micStatus.textContent = 'Didn\\'t catch a command in: "' + text + '"';
+          }}
+        }};
+
+        window.toggleVoiceCommands = function() {{
+          listening = !listening;
+          if (listening) {{
+            recognition = new Recognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.onresult = function(e) {{ handleCommand(e.results[0][0].transcript); }};
+            recognition.onerror = function() {{ micStatus.textContent = "Didn't catch that."; }};
+            recognition.onend = function() {{ if (listening) recognition.start(); }};
+            recognition.start();
+            micBtn.textContent = '🎤 Voice commands: on';
+            micBtn.classList.add('on');
+            micStatus.textContent = 'Listening for "on this computer", "cloud database", "submit"...';
+          }} else {{
+            if (recognition) recognition.stop();
+            micBtn.textContent = '🎤 Voice commands: off';
+            micBtn.classList.remove('on');
+            micStatus.textContent = '';
+          }}
+        }};
+      }}
+        """
+
+    return f"""
+    <audio id="narration-audio" style="display:none"></audio>
+    <div class="narration-bar" id="narration-bar">
+      <button type="button" id="narration-replay" class="narration-btn"
+        onclick="playNarration('{clip}')">🔊 Hear this from Bede</button>
+      {mic_markup}
+      <div class="mic-status" id="mic-status"></div>
+    </div>
+    <script>
+    (function() {{
+      var audio = document.getElementById('narration-audio');
+      var bar = document.getElementById('narration-bar');
+      var available = true;
+
+      audio.addEventListener('error', function() {{
+        available = false;
+        bar.style.display = 'none';
+      }});
+      audio.addEventListener('loadeddata', function() {{
+        bar.style.display = 'flex';
+      }});
+
+      function playNarration(name) {{
+        if (!available) return;
+        audio.src = '/audio/' + name + '.wav';
+        audio.play().catch(function() {{
+          // Autoplay blocked without a prior user gesture — the replay
+          // button (shown once loadeddata fires) lets them start it manually.
+        }});
+      }}
+      window.playNarration = playNarration;
+      playNarration('{clip}');
+      {mic_script}
+    }})();
+    </script>
+    """
+
+
 def render_form(error: str = "", banner: str = "", values: dict | None = None) -> str:
     v = values or {}
     db_choice = v.get("db_choice", "local")
     body = []
     body.append("<h1>Let's set up Bede</h1>")
+    body.append(_narration_block("welcome", enable_mic=True))
     body.append('<p class="sub">Answer these, then click the button at the bottom — everything else happens automatically.</p>')
     if banner:
         body.append(f'<div class="error">{banner}</div>')
@@ -146,7 +283,8 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
 
 def render_success() -> str:
-    body = f"""
+    body = _narration_block("success", enable_mic=False)
+    body += f"""
     <div class="success">
       <h1>All set!</h1>
       <p>Starting Bede now — this can take a couple of minutes the first time.</p>
@@ -218,7 +356,30 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def _serve_audio(self, name: str):
+        # Whitelist against a fixed, known set of filenames rather than
+        # trusting the path — closes off traversal (`../..`) even though
+        # this container is short-lived and localhost-only.
+        if name not in _AUDIO_FILES:
+            self.send_response(404)
+            self.end_headers()
+            return
+        path = AUDIO_DIR / name
+        if not path.is_file():
+            self.send_response(404)
+            self.end_headers()
+            return
+        data = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "audio/wav")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self):
+        if self.path.startswith("/audio/"):
+            self._serve_audio(self.path[len("/audio/"):])
+            return
         if self.path != "/":
             self.send_response(404)
             self.end_headers()

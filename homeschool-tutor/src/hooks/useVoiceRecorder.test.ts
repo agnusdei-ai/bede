@@ -9,36 +9,53 @@
  * producing what looks like a phantom reply to a question nobody asked.
  * MIN_RECORDING_MS (see useVoiceRecorder.ts) discards recordings that short
  * before they ever reach transcription.
+ *
+ * Also covers the raw-PCM capture path itself (ScriptProcessorNode →
+ * Float32Array chunks → WAV) added to replace the old MediaRecorder →
+ * decodeAudioData round trip, which iOS Safari could silently fail to
+ * complete for its own MediaRecorder output.
  */
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../utils/audioUtils', () => ({
-  convertToWav: vi.fn(async () => new Blob(['fake-wav'], { type: 'audio/wav' })),
-  getBestMimeType: () => 'audio/webm',
-}))
-
 import { useVoiceRecorder } from './useVoiceRecorder'
 
-class FakeMediaRecorder {
-  state: 'inactive' | 'recording' = 'inactive'
-  stream: MediaStream
-  ondataavailable: ((e: { data: Blob }) => void) | null = null
-  onstop: (() => void) | null = null
+class FakeGainNode {
+  gain = { value: 1 }
+  connect = vi.fn()
+  disconnect = vi.fn()
+}
 
-  constructor(stream: MediaStream) {
-    this.stream = stream
-  }
+class FakeScriptProcessorNode {
+  onaudioprocess: ((e: { inputBuffer: { getChannelData: (ch: number) => Float32Array } }) => void) | null = null
+  connect = vi.fn()
+  disconnect = vi.fn()
+}
 
-  start() {
-    this.state = 'recording'
-    this.ondataavailable?.({ data: new Blob(['chunk']) })
+class FakeAnalyserNode {
+  fftSize = 0
+  frequencyBinCount = 4
+  getByteFrequencyData(arr: Uint8Array) {
+    arr.fill(0)
   }
+}
 
-  stop() {
-    this.state = 'inactive'
-    this.onstop?.()
+class FakeAudioContext {
+  sampleRate = 44100
+  destination = {}
+  createMediaStreamSource() {
+    return { connect: vi.fn() }
   }
+  createAnalyser() {
+    return new FakeAnalyserNode()
+  }
+  createScriptProcessor() {
+    return new FakeScriptProcessorNode()
+  }
+  createGain() {
+    return new FakeGainNode()
+  }
+  close = vi.fn(async () => {})
 }
 
 beforeEach(() => {
@@ -52,20 +69,7 @@ beforeEach(() => {
     getUserMedia: vi.fn(async () => fakeStream),
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(window as any).MediaRecorder = FakeMediaRecorder as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(window as any).AudioContext = class {
-    createMediaStreamSource() {
-      return { connect: vi.fn() }
-    }
-    createAnalyser() {
-      return {
-        fftSize: 0,
-        frequencyBinCount: 4,
-        getByteFrequencyData: (arr: Uint8Array) => arr.fill(0),
-      }
-    }
-  }
+  ;(window as any).AudioContext = FakeAudioContext as any
   // requestAnimationFrame/cancelAnimationFrame aren't polyfilled in jsdom by default.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).requestAnimationFrame = vi.fn(() => 1)
@@ -107,6 +111,47 @@ describe('useVoiceRecorder minimum-duration guard', () => {
     })
 
     expect(onComplete).toHaveBeenCalledTimes(1)
+    const wavBlob = onComplete.mock.calls[0][0] as Blob
+    expect(wavBlob.type).toBe('audio/wav')
+  })
+})
+
+describe('useVoiceRecorder raw PCM capture', () => {
+  it('captures audio directly off the live graph (no MediaRecorder/decodeAudioData round trip) and encodes it into the WAV passed to onComplete', async () => {
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onComplete }))
+
+    let processor: FakeScriptProcessorNode | undefined
+    const originalCreate = FakeAudioContext.prototype.createScriptProcessor
+    FakeAudioContext.prototype.createScriptProcessor = function (this: FakeAudioContext) {
+      processor = new FakeScriptProcessorNode()
+      return processor
+    }
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    // Simulate two buffers of captured audio arriving while recording.
+    const fakeChannelData = new Float32Array(4096).fill(0.5)
+    act(() => {
+      processor?.onaudioprocess?.({ inputBuffer: { getChannelData: () => fakeChannelData } })
+      processor?.onaudioprocess?.({ inputBuffer: { getChannelData: () => fakeChannelData } })
+    })
+
+    act(() => vi.advanceTimersByTime(500))
+    await act(async () => {
+      await result.current.stopRecording()
+    })
+
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    const wavBlob = onComplete.mock.calls[0][0] as Blob
+    // 44-byte WAV header + 2 buffers of 4096 samples * 2 bytes/sample
+    // (resampled from 44100 → 16000, so smaller than the raw capture, but
+    // still comfortably larger than an empty/header-only WAV).
+    expect(wavBlob.size).toBeGreaterThan(44)
+
+    FakeAudioContext.prototype.createScriptProcessor = originalCreate
   })
 })
 

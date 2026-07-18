@@ -1,9 +1,22 @@
+// Mirror of demo/src/useVoiceRecorder.ts for the homeschool-tutor app.
 import { useState, useRef, useCallback } from 'react'
-import { convertToWav, getBestMimeType } from '../utils/audioUtils'
+import { resample, encodeWav } from '../utils/audioUtils'
 
 /**
- * MediaRecorder hook used for voice enrollment and verification audio capture.
- * Returns WAV blobs ready to POST to the backend.
+ * Raw-PCM capture hook used for voice enrollment and verification audio
+ * capture. Returns WAV blobs ready to POST to the backend.
+ *
+ * This taps raw PCM samples directly off the live microphone audio graph
+ * (via a ScriptProcessorNode, at the same tap point the level-meter
+ * AnalyserNode already uses below) instead of recording through
+ * MediaRecorder and decoding the result afterwards. That encode/decode
+ * round trip (MediaRecorder → Blob → AudioContext.decodeAudioData) is a
+ * documented source of failures specifically on iOS Safari, which can fail
+ * to decode its own MediaRecorder-produced MP4/AAC output — silently, with
+ * the failure surfacing as an unhandled promise rejection that left
+ * stopRecording() hanging forever and nothing ever shown to the user.
+ * Capturing PCM directly sidesteps that whole compatibility surface: there
+ * is no container or codec to decode, on any browser.
  */
 
 interface RecordingOptions {
@@ -20,11 +33,19 @@ interface RecordingOptions {
 // and read as a phantom reply with no real question behind it.
 const MIN_RECORDING_MS = 400
 
+// 4096 samples per callback is the MediaRecorder-era default and comfortably
+// supported everywhere ScriptProcessorNode still runs (deprecated but not
+// removed in any current browser, including iOS Safari).
+const PROCESSOR_BUFFER_SIZE = 4096
+
 export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: RecordingOptions = {}) {
   const [isRecording, setIsRecording] = useState(false)
   const [level, setLevel] = useState(0) // 0–1 volume level for visualisation
-  const mediaRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const silenceRef = useRef<GainNode | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const pcmChunksRef = useRef<Float32Array[]>([])
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animRef = useRef<number | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -86,7 +107,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     prewarmStreamRef.current = null
     prewarmPromiseRef.current = null
     pending?.then((stream) => {
-      if (stream && stream !== mediaRef.current?.stream) {
+      if (stream && stream !== streamRef.current) {
         stream.getTracks().forEach((t) => t.stop())
       }
     })
@@ -98,34 +119,60 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     analyserRef.current = null
     setLevel(0)
 
-    const recorder = mediaRef.current
-    if (!recorder || recorder.state === 'inactive') return
+    const processor = processorRef.current
+    const audioCtx = audioCtxRef.current
+    const stream = streamRef.current
+    if (!processor || !audioCtx || !stream) {
+      setIsRecording(false)
+      return
+    }
 
     const durationMs = Date.now() - startedAtRef.current
 
-    await new Promise<void>((resolve) => {
-      recorder.onstop = async () => {
-        if (durationMs < MIN_RECORDING_MS) {
-          // Too short to be real speech — discard without transcribing.
-          resolve()
-          return
-        }
-        const wavBlob = await convertToWav(chunksRef.current)
-        onComplete?.(wavBlob)
-        resolve()
-      }
-      recorder.stop()
-    })
+    processor.onaudioprocess = null
+    processor.disconnect()
+    silenceRef.current?.disconnect()
+    const nativeSampleRate = audioCtx.sampleRate
+    // Safe even if already closed elsewhere — close() on a closed context
+    // rejects, which would otherwise become an unhandled rejection here.
+    try {
+      await audioCtx.close()
+    } catch {
+      // already closed — nothing to do
+    }
+    stream.getTracks().forEach((t) => t.stop())
 
-    recorder.stream.getTracks().forEach((t) => t.stop())
-    mediaRef.current = null
-    chunksRef.current = []
+    processorRef.current = null
+    silenceRef.current = null
+    audioCtxRef.current = null
+    streamRef.current = null
     setIsRecording(false)
+
+    const chunks = pcmChunksRef.current
+    pcmChunksRef.current = []
+
+    if (durationMs < MIN_RECORDING_MS) {
+      // Too short to be real speech — discard without transcribing.
+      return
+    }
+
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+    const merged = new Float32Array(totalLength)
+    let offset = 0
+    for (const chunk of chunks) {
+      merged.set(chunk, offset)
+      offset += chunk.length
+    }
+
+    const samples = nativeSampleRate === 16000 ? merged : resample(merged, nativeSampleRate, 16000)
+    const wavBuffer = encodeWav(samples, 16000)
+    const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' })
+    onComplete?.(wavBlob)
   }, [onComplete])
 
   const startRecording = useCallback(async () => {
     if (isRecording) return
-    chunksRef.current = []
+    pcmChunksRef.current = []
 
     // Reuse a stream prewarm() already opened synchronously inside the
     // user's press gesture when one is in flight/ready. Only call
@@ -139,9 +186,11 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     prewarmStreamRef.current = null
     if (!stream) return
 
-    // Volume visualisation via AnalyserNode
     const audioCtx = new AudioContext()
+    audioCtxRef.current = audioCtx
     const source = audioCtx.createMediaStreamSource(stream)
+
+    // Volume visualisation via AnalyserNode (unchanged).
     const analyser = audioCtx.createAnalyser()
     analyser.fftSize = 256
     source.connect(analyser)
@@ -156,11 +205,23 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
     }
     tick()
 
-    const mimeType = getBestMimeType()
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-    mediaRef.current = recorder
-    recorder.start(100) // collect every 100ms
+    // Raw PCM capture. ScriptProcessorNode only fires onaudioprocess while
+    // connected into a live graph that reaches a destination — route it
+    // through a zero-gain node so nothing is audibly played back (no mic
+    // monitoring/echo) while still keeping the processor "pulled".
+    const processor = audioCtx.createScriptProcessor(PROCESSOR_BUFFER_SIZE, 1, 1)
+    processor.onaudioprocess = (e) => {
+      pcmChunksRef.current.push(new Float32Array(e.inputBuffer.getChannelData(0)))
+    }
+    source.connect(processor)
+    const silence = audioCtx.createGain()
+    silence.gain.value = 0
+    processor.connect(silence)
+    silence.connect(audioCtx.destination)
+    processorRef.current = processor
+    silenceRef.current = silence
+
+    streamRef.current = stream
     startedAtRef.current = Date.now()
     setIsRecording(true)
 

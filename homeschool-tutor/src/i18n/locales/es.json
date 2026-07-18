@@ -185,7 +185,14 @@
     "noteForBedePlaceholder": "p. ej. Enfócate en las tablas de multiplicar del 6 al 9 hoy.",
     "stageDescGrammar": "Etapa de gramática",
     "stageDescLogic": "Etapa de lógica",
-    "stageDescRhetoric": "Etapa de retórica"
+    "stageDescRhetoric": "Etapa de retórica",
+    "companionModeLabel": "¿Cómo te gustaría comenzar con Bede?",
+    "companionModeBookCompanion": "Compañero de libros",
+    "companionModeBookCompanionDesc": "Toque ligero: Bede se une a los libros que ya están leyendo. Nada nuevo que planificar.",
+    "companionModeGuided": "Un poco más de estructura",
+    "companionModeGuidedDesc": "Conversación basada en libros más algunas materias principales.",
+    "companionModeFullPlan": "Plan diario completo",
+    "companionModeFullPlanDesc": "Bede cubre la rotación completa de materias de Mater Amabilis."
   },
   "progress": {
     "advance": "Avanzar",

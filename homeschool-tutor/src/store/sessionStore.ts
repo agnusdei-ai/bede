@@ -26,6 +26,22 @@ export function deriveTimeOfDay(date: Date): TimeOfDay {
   return 'evening'
 }
 
+// The device's own local calendar date (YYYY-MM-DD), sent alongside
+// timeOfDay so the backend's weekly poetry/prayer rotation
+// (services/poetry_catalog.py, services/prayer_catalog.py) picks the
+// week the CHILD's calendar is on, not the server's — otherwise a
+// server running in a different timezone (typically UTC) could show a
+// different week's poem near a Sunday/Monday boundary in the child's
+// own timezone. getFullYear/getMonth/getDate (not toISOString, which
+// converts to UTC first) — the same local-vs-UTC distinction
+// deriveTimeOfDay above depends on.
+export function deriveLocalDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 interface SessionState {
   // Auth
   token: string | null
@@ -64,6 +80,10 @@ interface SessionState {
   // greeting and opening/closing prayer match the child's actual local
   // time of day, not just subject order.
   timeOfDay: TimeOfDay | null
+  // Derived once alongside timeOfDay (see deriveLocalDate) and sent to
+  // the API so the weekly poetry/prayer rotation uses the child's own
+  // calendar date, not the server's.
+  localDate: string | null
 
   // Actions
   startSession: () => void
@@ -140,6 +160,7 @@ export const useSessionStore = create<SessionState>()(
       currentSubjectIndex: 0,
       subjectsCompleted: [],
       timeOfDay: null,
+      localDate: null,
     }),
 
   podStudents: [],
@@ -157,6 +178,7 @@ export const useSessionStore = create<SessionState>()(
   subjectStartedAt: null,
   subjectsCompleted: [],
   timeOfDay: null,
+  localDate: null,
 
   startSession: () => {
     const config = get().sessionConfig
@@ -175,6 +197,7 @@ export const useSessionStore = create<SessionState>()(
       sessionStartedAt: now,
       subjectStartedAt: now,
       timeOfDay: deriveTimeOfDay(now),
+      localDate: deriveLocalDate(now),
       currentSubjectIndex: 0,
       currentSubject: firstSubject,
       displayMessages: [welcomeMsg],

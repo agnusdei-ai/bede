@@ -3,7 +3,7 @@ import logging
 import random
 import re
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import AsyncIterator, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -1497,6 +1497,7 @@ async def _build_subject_prompt(
     db_evidence_count: int = 0,
     history: Optional[List[ChatMessage]] = None,
     time_of_day: Optional[str] = None,
+    local_date: Optional[date] = None,
     processing_style: Optional[str] = None,
     locale: str = "en",
 ) -> str:
@@ -1520,6 +1521,10 @@ async def _build_subject_prompt(
     # identical poem the same week). config.grade is passed for grade-
     # specific curation (K-8, not just the 3 broad stages); grade_stage
     # remains the fallback for a session with a stage but no exact grade.
+    # today=local_date threads the child's own device date through (see
+    # TutorRequest.local_date) so the week boundary is the CHILD's Sunday/
+    # Monday, not the server's — falls back to poetry_catalog.py's own
+    # date.today() when local_date is None (older clients, the sandbox).
     # Any other locale gets _native_poetry_note's free-composition
     # instruction instead — quoting a specific named poem accurately
     # requires a verified translation of that exact work, real per-locale
@@ -1529,7 +1534,7 @@ async def _build_subject_prompt(
     # produces.
     poetry_note = (
         (
-            _poetry_catalog_note(config.grade, config.grade_stage, week_salt=config.current_term)
+            _poetry_catalog_note(config.grade, config.grade_stage, week_salt=config.current_term, today=local_date)
             if locale == "en"
             else _native_poetry_note(locale)
         )
@@ -1544,7 +1549,9 @@ async def _build_subject_prompt(
     # Same weekly-calendar rotation and current_term-as-offset convention
     # as poetry_note above.
     prayer_recitation_note = (
-        _prayer_catalog_note(config.grade, config.grade_stage, locale=locale, week_salt=config.current_term)
+        _prayer_catalog_note(
+            config.grade, config.grade_stage, locale=locale, week_salt=config.current_term, today=local_date,
+        )
         if subject == Subject.morning_time
         else ""
     )
@@ -1910,6 +1917,7 @@ async def stream_tutor_response(
     drawing_image: Optional[str] = None,
     demo_code: Optional[str] = None,
     time_of_day: Optional[str] = None,
+    local_date: Optional[date] = None,
     locale: str = "en",
 ) -> AsyncIterator[str]:
     """
@@ -1990,7 +1998,8 @@ async def stream_tutor_response(
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
-        history=history, time_of_day=time_of_day, processing_style=processing_style, locale=locale,
+        history=history, time_of_day=time_of_day, local_date=local_date, processing_style=processing_style,
+        locale=locale,
     )
     system = [
         {

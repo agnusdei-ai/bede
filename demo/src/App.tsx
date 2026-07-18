@@ -270,7 +270,7 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>A one-time 6-digit code, just for you. Your conversation is never stored — see the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a> for details.</p>
+          <p>Your conversation is never stored. <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a></p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}

@@ -13,12 +13,95 @@ from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
 # the same as an empty string — see that module for the full explanation.
 DEFAULT_RESEND_FROM_ADDRESS = "Bede <bede@example.com>"
 
+# Single source of truth for which LOCALE values this deployment accepts,
+# and the display name services/ai_service.py's _locale_directive uses when
+# instructing Bede to converse natively in that language. "en" is the
+# implicit default and is deliberately not listed here (it's the absence of
+# a locale directive, not a language name to display) — see
+# Settings.reject_unsupported_locale below. New languages get added here
+# only once their content has actually been drafted and reviewed, per
+# docs/LOCALIZATION.md — listing a code here is what turns it on.
+SUPPORTED_LOCALES = {
+    "es": "Spanish (Español)",
+}
+
 
 class Settings(BaseSettings):
     # ── AI models ──────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
+
+    # ── Provider adapters (vendor-agnostic tutor backend) ─────────────────────
+    # ai_service.py talks to a provider ADAPTER, not a hardcoded Anthropic
+    # client — see services/adapters/ and docs/PROVIDER_ADAPTERS.md. This
+    # decouples Bede from any single vendor so an account closure/lockout at one
+    # provider can't take the whole tutor offline.
+    #
+    # BEDE_ADAPTER_ORDER is a comma-separated preference list; the router picks
+    # the FIRST adapter that is actually configured (has its credentials set) and
+    # skips the rest. The default is deliberately "local,anthropic" rather than
+    # "anthropic": the refactor exists for the case where Anthropic access is
+    # GONE, so a self-hosted vLLM server (local) is the practical primary and
+    # Anthropic is kept only as an optional last resort — the router never
+    # requires ANTHROPIC_API_KEY to start or serve. openai/mistral are supported
+    # secondaries but kept OUT of the default order on purpose: OPENAI_API_KEY
+    # already drives OpenAI TTS (services/voice_synthesis.py), and auto-routing
+    # the tutor through OpenAI just because a TTS key exists would be a silent
+    # surprise. Enable them explicitly, e.g. BEDE_ADAPTER_ORDER=local,openai,anthropic.
+    bede_adapter_order: str = "local,anthropic"
+    # Manual override — when set to a single adapter name (local/openai/mistral/
+    # anthropic) it pins the tutor to that provider, skipping order/failover
+    # entirely. Empty = honor BEDE_ADAPTER_ORDER.
+    bede_force_adapter: str = ""
+
+    # ── Local self-hosted LLM (OpenAI-compatible, e.g. vLLM) ──────────────────
+    # Points at a vLLM (or any OpenAI-compatible) server's /v1 endpoint serving
+    # Qwen3-Coder-30B-A3B-Instruct. IMPORTANT: this model needs a GPU and CANNOT
+    # run inside the Render web service (Render has no GPU instances) — it runs
+    # on separate GPU hardware and LOCAL_LLM_BASE_URL points at it over the
+    # network. See docs/PROVIDER_ADAPTERS.md's infrastructure note. Empty
+    # LOCAL_LLM_BASE_URL = the local adapter is treated as unconfigured/skipped.
+    local_llm_base_url: str = ""
+    # vLLM's OpenAI server has no built-in auth; the SDK still requires a
+    # non-empty key, so this placeholder is fine for a private/tunnelled server.
+    local_llm_api_key: str = "not-needed"
+    local_llm_model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+
+    # ── OpenAI chat adapter (secondary; distinct from OpenAI TTS above) ────────
+    # Reuses OPENAI_API_KEY (defined below for TTS) as the credential, plus this
+    # model. Only used for tutoring when "openai" is added to BEDE_ADAPTER_ORDER.
+    openai_model: str = "gpt-4.1-mini"
+
+    # ── Mistral chat adapter (optional secondary) ─────────────────────────────
+    mistral_api_key: str = ""
+    mistral_model: str = "mistral-large-latest"
+
+    # ── Language / locale (optional) ──────────────────────────────────────────
+    # NOT the language every session runs in — it's which single non-English
+    # locale this deployment OFFERS as a login-time choice. The actual
+    # language a given session runs in is picked at the login screen itself
+    # (Login.tsx's English/Español toggle, only rendered when GET
+    # /auth/locales reports this value is non-"en") and carried as a JWT
+    # claim from that point on — see routers/auth.py's login(), not read
+    # globally by services/ai_service.py's _locale_directive anymore (it
+    # takes a locale parameter instead). "en" (default) means the toggle
+    # never appears at all — every session is English, same as before this
+    # feature existed. Setting this to a supported value doesn't force
+    # Spanish on anyone; it just makes the choice available. Bede converses
+    # natively in whichever language was chosen — generated directly by the
+    # model, not machine-translated after the fact, so grade-level reading
+    # complexity and Socratic intent survive the language switch.
+    #
+    # Still deployment-wide in one sense: which locale CAN be offered is
+    # fixed at setup (one extra language per deployment, not an arbitrary
+    # set) — only the moment-to-moment choice of English-vs-that-language is
+    # per-login. This also still gates whether SessionConfig.sex is required
+    # for every student (routers/pod.py) — once the toggle exists at all,
+    # ANY student could land in a non-English session on any given login, so
+    # every student needs sex on file the moment this is non-"en", not just
+    # the ones a parent expects to use it.
+    locale: str = "en"
 
     # ── Voice output — OpenAI TTS ─────────────────────────────────────────────
     # Setting OPENAI_API_KEY switches Bede's voice to OpenAI's TTS API — a
@@ -63,7 +146,9 @@ class Settings(BaseSettings):
     # setup (RESEND_API_KEY/RESEND_FROM_ADDRESS above); leave PARENT_EMAIL
     # unset to disable this specific alert (the safeguarding event is still
     # always written to the encrypted audit log either way — see
-    # core/audit.py's AuditEvent.SAFEGUARDING).
+    # core/audit.py's AuditEvent.SAFEGUARDING). Also doubles as the
+    # security-alert address for core/audit.py's anomaly watch (AuditEvent.
+    # ANOMALY_ALERT) — see docs/SECURITY.md.
     parent_email: str = ""
 
     # ── Beta feedback (optional) ────────────────────────────────────────────────
@@ -104,6 +189,17 @@ class Settings(BaseSettings):
     # core/demo_code_session.py) — this expiry is just a backstop so a
     # generated token can't be replayed forever if leaked/copied.
     demo_code_token_expire_minutes: int = 120
+
+    # ── Per-IP rate limits (requests per minute per client IP) ────────────────
+    # Enforced by core/middleware.py's RateLimitMiddleware. The defaults suit
+    # a family LAN and ordinary public-demo traffic. Raise them via env vars
+    # (RATE_LIMIT_AUTH_PER_MINUTE, RATE_LIMIT_API_PER_MINUTE,
+    # RATE_LIMIT_VOICE_PER_MINUTE) for an event where many visitors share one
+    # public IP — a conference room's Wi-Fi looks like a single very chatty
+    # client to a per-IP limiter. Takes effect on restart; no code edit.
+    rate_limit_auth_per_minute: int = 10
+    rate_limit_api_per_minute: int = 120
+    rate_limit_voice_per_minute: int = 20
 
     # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
     # An extra PIN — same "empty = disabled" pattern and strength rules as
@@ -183,6 +279,20 @@ class Settings(BaseSettings):
         "change-me-master-secret-32-chars-min",
         "0000",
     }
+
+    @model_validator(mode="after")
+    def reject_unsupported_locale(self) -> "Settings":
+        """Fail fast on a typo'd or not-yet-onboarded LOCALE value rather
+        than silently falling back to English — a deployment operator
+        setting LOCALE=espanol or LOCALE=ES (case mismatch) deserves a clear
+        startup error, not a family that thinks they configured Spanish and
+        never notices Bede is still speaking English."""
+        if self.locale != "en" and self.locale not in SUPPORTED_LOCALES:
+            supported = ", ".join(sorted(SUPPORTED_LOCALES))
+            raise ValueError(
+                f"LOCALE={self.locale!r} is not supported — use 'en' or one of: {supported}"
+            )
+        return self
 
     @model_validator(mode="after")
     def reject_demo_pin_reuse(self) -> "Settings":

@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
+import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { useChatTheme } from '../hooks/useChatTheme'
 import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
@@ -20,8 +23,10 @@ const INACTIVITY_TIMEOUT_MS = 60_000
 const MAX_CONSECUTIVE_CONTINUES = 2
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
+  const { t, i18n } = useTranslation()
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
+  const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
@@ -36,18 +41,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const inputRef = useRef('')
   useEffect(() => { inputRef.current = input }, [input])
 
-  // ── Voice command mode ────────────────────────────────────────────────────
-  // Tapping the mic used to just drop the transcript into the text box,
-  // leaving the child to then manually hit Send — an awkward extra step for
-  // a voice-first interaction. While voice mode is on, a finished transcript
-  // sends itself immediately, and once Bede's reply (text + any spoken
-  // narration) finishes, the mic re-activates on its own — a hands-free
-  // loop until the child taps the mic again to turn it off. Typing, Send,
-  // drawing, and file upload all keep working normally alongside it; voice
-  // mode only changes what the mic button itself does.
-  const [voiceMode, setVoiceMode] = useState(false)
-  const voiceModeRef = useRef(false)
-  useEffect(() => { voiceModeRef.current = voiceMode }, [voiceMode])
+  // ── Voice input: tap to speak ─────────────────────────────────────────────
+  // One tap starts listening for a single utterance; a finished transcript
+  // sends itself immediately and the mic returns to idle — no hands-free
+  // restart loop. This used to auto-restart listening indefinitely after
+  // every turn ("voice mode"), which meant every one of those restarts had
+  // to re-run the same handful of timing-fragile "is the browser still
+  // listening?" heuristics (see useHybridVoiceInput.ts) — any hiccup on any
+  // restart surfaced as a recurring, hard-to-pin-down audio bug. Tap-to-
+  // speak keeps every one of those heuristics scoped to a single, bounded
+  // utterance instead, matching how Claude's own voice input and common
+  // EdTech dictation controls behave (tap to record, tap/pause to send —
+  // not a continuous open mic). Typing, Send, drawing, and file upload all
+  // keep working normally alongside it.
   // Tracks whether a turn (streaming and/or Bede's spoken reply) is in
   // flight, so the effect below can detect the moment it fully ends —
   // see its own comment for why this needs both isStreaming and isSpeaking.
@@ -98,16 +104,69 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // Native Web Speech API first, auto-falls back to recording + server-side
   // Whisper transcription when it's unsupported, errors, or silently stalls
   // (Safari/iOS are known to do this — see useHybridVoiceInput).
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } = useHybridVoiceInput({
+  //
+  // language must follow the session's own locale (i18n.language), not the
+  // 'en-US' default — a Spanish session recognizing speech as English
+  // produces garbled transcripts regardless of how well the rest of the UI
+  // is translated. Propagates to both the native Web Speech recognizer and
+  // the server Whisper fallback's language hint — see useHybridVoiceInput.ts.
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening } = useHybridVoiceInput({
     token,
-    onFinal: (transcript) => {
-      if (voiceModeRef.current) {
-        send(transcript)
-      } else {
-        setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
-      }
-    },
+    language: i18n.language === 'es' ? 'es-MX' : 'en-US',
+    // A walkie-talkie release delivers a finished utterance — send it the
+    // moment it's final, same as tapping Send after typing.
+    onFinal: (transcript) => send(transcript),
   })
+
+  // Word-level diff of the live interim transcript, called unconditionally
+  // (rules of hooks) even though it's only rendered while isListening &&
+  // interim below — lets the transcript bubble fade in just the newly-heard
+  // tail on each tick instead of replacing the whole line, matching how
+  // Claude/Gemini's voice UIs settle words in progressively.
+  const transcriptWords = useTranscriptWords(interim)
+
+  // ── Press-and-hold (walkie-talkie) mic — the ONE control for voice input ──
+  // A single button: press and hold to talk, release to send. No mode
+  // toggle, no tap-to-speak alternative — one button, one gesture, one
+  // mental model (same pattern as WhatsApp voice messages and Claude's
+  // mobile push-to-talk). A single native recognition session stays open for
+  // the whole hold (see useHybridVoiceInput.startHold/release), so natural
+  // pauses don't end the turn. Crucially, the mic is NEVER restarted by a
+  // timer or effect: only an explicit press starts it and only an explicit
+  // release (or the inverse guard below, when Bede starts a turn) stops it.
+  // That's the whole point — the earlier "voice mode" auto-restarted the mic
+  // on a timer after every turn, which re-ran the timing-fragile listen
+  // heuristics endlessly and bred recurring audio bugs.
+  // Tracks an active press so pointerup/pointerleave only release a hold we
+  // actually started (a stray pointerleave with no prior press is a no-op).
+  const holdingRef = useRef(false)
+
+  const holdStart = (e: React.PointerEvent) => {
+    if (isStreaming || breakActive || isTranscribing) return
+    e.preventDefault()
+    // Dismiss any open on-screen keyboard before starting to listen. If the
+    // child tapped into the text box earlier and then switches to voice
+    // without tapping away first, the keyboard on iOS Safari stays open for
+    // the whole hold: it eats a large slice of the viewport, so Bede's next
+    // reply renders partly underneath the input bar (reads as "cut off"),
+    // and its own close/reopen animation can shift the mic button's layout
+    // mid-gesture. Voice input never needs the keyboard, so clear focus from
+    // whatever's currently focused (if anything) up front.
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    holdingRef.current = true
+    startHold()
+  }
+
+  const holdEnd = () => {
+    if (!holdingRef.current) return
+    holdingRef.current = false
+    release()
+  }
+
+  // It's genuinely the child's turn (nothing streaming, speaking,
+  // transcribing, listening, or on break) — show a clear "press and hold to
+  // talk" cue instead of auto-listening.
+  const awaitingChildTurn = !isStreaming && !isSpeaking && !isListening && !isTranscribing && !breakActive
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -159,7 +218,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'subject_complete') {
           flush()
-          addToolMessage('subject_complete', chunk.content ?? "Let's move on to our next subject!")
+          addToolMessage('subject_complete', chunk.content ?? t('chat.nextSubjectFallback'))
           speechSegments.push(chunk.content ?? '')
           advanceSubjectRef.current = true
         } else if (chunk.type === 'done') {
@@ -178,7 +237,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       // advanceSubjectRef, if set, is picked up by the turn-completion effect
       // below once streaming AND any queued speech have both finished.
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, t])
 
   // sendOpener reads live store state to avoid stale-closure issues during streaming
   const sendOpener = useCallback(async () => {
@@ -315,25 +374,16 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     }
   }
 
-  const toggleMic = () => {
-    if (voiceMode) {
-      setVoiceMode(false)
-      stopListening()
-    } else {
-      setVoiceMode(true)
-      startListening()
-    }
-  }
-
-  // Voice mode's hands-free loop: once a turn is fully over — the stream
-  // has finished AND (if TTS is going to speak the reply) Bede's own voice
-  // has stopped playing — restart listening automatically. Keyed off BOTH
-  // isStreaming and isSpeaking transitioning together rather than either
+  // Detects the moment a turn fully ends — the stream has finished AND (if TTS
+  // is going to speak the reply) Bede's own voice has stopped playing — to
+  // drive subject transitions and the silence timer. It deliberately does NOT
+  // restart the mic: an earlier "voice mode" auto-restarted listening here on
+  // every turn, and re-running the timing-fragile listen heuristics endlessly
+  // bred recurring audio bugs (see the press-and-hold note above). Keyed off
+  // BOTH isStreaming and isSpeaking transitioning together rather than either
   // alone, since whether TTS actually queues audio for a given turn (empty
-  // response, TTS off/unsupported, or the backend having nothing configured)
-  // isn't known in advance — this way the mic never has to guess, and never
-  // restarts while Bede's own voice is still playing (which would otherwise
-  // let the mic pick up Bede's reply as if the child said it).
+  // response, TTS off/unsupported, or nothing configured) isn't known in
+  // advance — this way it never has to guess when the turn is truly over.
   useEffect(() => {
     const turnActiveNow = isStreaming || isSpeaking
     if (turnActiveNow) {
@@ -346,9 +396,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     }
     if (turnActiveRef.current) {
       turnActiveRef.current = false
-      if (voiceModeRef.current && !breakActive && !isListening) {
-        startListening()
-      }
       // Subject transitions used to fire on a flat 2.5s timeout regardless of
       // how long Bede's spoken transition line actually took — long lines got
       // cut off mid-sentence, short ones (or TTS off) left a dead pause. Now
@@ -370,28 +417,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         }, INACTIVITY_TIMEOUT_MS)
       }
     }
-  }, [isStreaming, isSpeaking, breakActive, isListening, startListening, nextSubject, clearInactivityTimer, sendContinue])
+  }, [isStreaming, isSpeaking, breakActive, nextSubject, clearInactivityTimer, sendContinue])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
   useEffect(() => clearInactivityTimer, [clearInactivityTimer])
 
-  // Dictation-mode keepalive: while voice mode is on, the mic should be LIVE
-  // whenever Bede isn't thinking (streaming) or talking (speaking), we're not
-  // on a break, the canvas isn't open, and no transcription is in flight —
-  // no matter HOW the mic went quiet (an utterance finished, silence timed
-  // out, the fallback transcribed to nothing). The transition effect above
-  // restarts it at turn boundaries; this invariant catches every other way
-  // it can die, so the learner converses freely without re-tapping the mic.
-  // Tapping the mic off (voiceMode false) remains the only way out. The
-  // short delay debounces recognition-engine restart cycles.
-  useEffect(() => {
-    if (!voiceMode || breakActive || showCanvas || isStreaming || isSpeaking || isListening || isTranscribing) return
-    const id = setTimeout(() => startListening(), 400)
-    return () => clearTimeout(id)
-  }, [voiceMode, breakActive, showCanvas, isStreaming, isSpeaking, isListening, isTranscribing, startListening])
-
-  // And the inverse guard: the moment a turn starts (Bede thinking or
+  // The inverse guard: the moment a turn starts (Bede thinking or
   // speaking), the mic must be OFF — otherwise a [CONTINUE]-initiated turn
   // could leave a kept-alive mic hot while Bede talks, and it would hear
   // Bede's own voice as the child's answer.
@@ -400,22 +432,21 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   }, [isStreaming, isSpeaking, isListening, stopListening])
 
   // A break can end mid-"turn-just-ended" window (the effect above skips
-  // restarting while breakActive is true and doesn't get a second chance
-  // once turnActiveRef has already been cleared) — resume voice mode's
-  // loop, and re-arm the silence timer, separately once the break itself
-  // ends, so neither gets silently stuck off until the child notices.
+  // re-arming while breakActive is true and doesn't get a second chance
+  // once turnActiveRef has already been cleared) — re-arm the silence timer
+  // separately once the break itself ends, so it doesn't get silently stuck
+  // off until the child notices.
   const prevBreakActiveRef = useRef(breakActive)
   useEffect(() => {
     const breakJustEnded = prevBreakActiveRef.current && !breakActive
     prevBreakActiveRef.current = breakActive
     if (breakJustEnded && !isStreaming && !isSpeaking) {
-      if (voiceModeRef.current && !isListening) startListening()
       clearInactivityTimer()
       inactivityTimerRef.current = setTimeout(() => {
         sendContinue()
       }, INACTIVITY_TIMEOUT_MS)
     }
-  }, [breakActive, isStreaming, isSpeaking, isListening, startListening, clearInactivityTimer, sendContinue])
+  }, [breakActive, isStreaming, isSpeaking, clearInactivityTimer, sendContinue])
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a
@@ -432,13 +463,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error('Could not read that file'))
+        reader.onerror = () => reject(new Error(t('chat.couldNotReadFile')))
         reader.readAsDataURL(file)
       })
       const text = await extractNarrationText(token, file.name, dataUrl.slice(dataUrl.indexOf(',') + 1))
       setInput((prev) => (prev.trim() ? prev + '\n' + text : text))
     } catch (err) {
-      addToolMessage('error', `⚠️ ${err instanceof Error ? err.message : 'Could not read that file'}`)
+      addToolMessage('error', `⚠️ ${err instanceof Error ? err.message : t('chat.couldNotReadFile')}`)
     } finally {
       setUploadingNarration(false)
     }
@@ -451,27 +482,35 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? 'You'} />
+          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? t('chat.youFallback')} bubbleClass={bubble.className} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
             <div className="flex items-center gap-2 text-sage-700 text-sm animate-pulse-soft">
               <Loader2 size={14} className="animate-spin" />
-              <span>Bede is thinking…</span>
+              <span>{t('chat.bedeThinking')}</span>
             </div>
           )}
         {/* Interim speech-to-text preview */}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft">
-              {interim}…
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border border-sage-200">
+              {transcriptWords.map(({ text, key, isNew }) => (
+                <span
+                  key={key}
+                  className={isNew ? 'text-gray-400 italic animate-slide-up inline-block mr-1' : 'text-sage-900 font-semibold inline-block mr-1'}
+                >
+                  {text}
+                </span>
+              ))}
+              <span className="text-sage-400">…</span>
             </div>
           </div>
         )}
         {isTranscribing && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
-              <Loader2 size={12} className="animate-spin" /> Transcribing…
+              <Loader2 size={12} className="animate-spin" /> {t('chat.transcribing')}
             </div>
           </div>
         )}
@@ -481,8 +520,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       {/* Drawing preview */}
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
-          <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
-          <div className="flex-1 text-xs text-sage-800">Drawing ready. Add a note, or just send it.</div>
+          <img src={pendingDrawing} alt={t('chat.drawingAlt')} className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
+          <div className="flex-1 text-xs text-sage-800">{t('chat.drawingReady')}</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600">
             <X size={14} />
           </button>
@@ -496,7 +535,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <button
             onClick={() => setShowCanvas(true)}
             disabled={isStreaming || breakActive}
-            title="Draw or write by hand"
+            title={t('chat.drawOrWrite')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             <PenLine size={18} />
@@ -513,7 +552,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <button
             onClick={() => narrationFileInputRef.current?.click()}
             disabled={isStreaming || breakActive || uploadingNarration}
-            title="Upload narration from your notebook (e.g. inq)"
+            title={t('chat.uploadNarration')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
@@ -525,7 +564,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               Volume2 icon below already uses, so this never drifts out of
               sync with what's actually true. */}
           <img
-            src="/bede-icon.png"
+            src="/bede-icon.webp"
             alt="Bede"
             className={`w-9 h-9 rounded-full object-cover shrink-0 transition-transform duration-150 ${
               isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
@@ -536,7 +575,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           {ttsSupported && (
             <button
               onClick={toggleTTS}
-              title={ttsEnabled ? 'Mute Bede' : 'Unmute Bede'}
+              title={ttsEnabled ? t('chat.muteBede') : t('chat.unmuteBede')}
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
                 ttsEnabled
                   ? 'bg-sage-100 text-sage-700 hover:bg-sage-200'
@@ -551,28 +590,34 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             </button>
           )}
 
-          {/* Mic button — toggles voice mode on/off; disabled only when
-              trying to TURN ON during a busy state, never when turning off */}
+          {/* The ONE voice control: press and hold the mic to talk, release to
+              send. No mode toggle, no tap-to-speak alternative — pointer
+              handlers (not onClick) drive it, and touch-none stops the
+              long-press menu / scroll / text selection on tablets. Disabled
+              while Bede is busy, on a break, or transcribing. */}
           {sttSupported && (
             <button
-              onClick={toggleMic}
-              disabled={!voiceMode && (isStreaming || breakActive || isTranscribing)}
+              onPointerDown={holdStart}
+              onPointerUp={holdEnd}
+              onPointerLeave={holdEnd}
+              onPointerCancel={holdEnd}
+              disabled={isStreaming || breakActive || isTranscribing}
               title={
-                voiceMode
-                  ? 'Voice mode on. Tap to turn off.'
-                  : isTranscribing
-                  ? 'Transcribing…'
-                  : 'Turn on voice mode'
+                isTranscribing
+                  ? t('chat.transcribing')
+                  : isListening
+                  ? t('chat.micHoldListening')
+                  : t('chat.micHoldToTalk')
               }
-              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
-                voiceMode
-                  ? isListening
-                    ? 'bg-red-500 text-white animate-pulse'
-                    : 'bg-red-500 text-white'
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${
+                isListening
+                  ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft'
+                  : awaitingChildTurn
+                  ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300'
                   : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'
               }`}
             >
-              {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : voiceMode ? <MicOff size={18} /> : <Mic size={18} />}
+              {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
             </button>
           )}
 
@@ -583,14 +628,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             disabled={isStreaming || breakActive}
             placeholder={
               breakActive
-                ? 'On a break. Bede will be here when you return.'
+                ? t('chat.placeholderOnBreak')
                 : isListening
-                ? 'Listening… speak now'
-                : voiceMode
-                ? 'Voice mode on. Waiting for Bede…'
+                ? t('chat.placeholderHoldListening')
+                : awaitingChildTurn
+                ? t('chat.placeholderYourTurn')
                 : sttSupported
-                ? 'Type or tap the mic to speak…'
-                : 'Share your thoughts or answer Bede\'s question…'
+                ? t('chat.placeholderTypeOrMic')
+                : t('chat.placeholderShareThoughts')
             }
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white placeholder-gray-400 disabled:bg-gray-50"
@@ -605,17 +650,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
-          {voiceMode
-            ? 'Voice mode on. Just speak, and Bede will hear and reply automatically. Tap the mic to turn it off.'
-            : sttSupported
-            ? 'Enter to send · mic for voice input'
-            : 'Press Enter to send · Shift+Enter for new line'}
+          {sttSupported ? t('chat.hintHoldToTalk') : t('chat.hintEnterOnly')}
         </p>
       </div>
 
       {/* Handwriting overlay */}
       {showCanvas && (
-        <HandwritingCanvas onSubmit={handleDrawingSubmit} onCancel={handleDrawingCancel} subject={currentSubject} />
+        <HandwritingCanvas onSubmit={handleDrawingSubmit} onCancel={handleDrawingCancel} subject={currentSubject} gradeStage={gradeStage} />
       )}
     </div>
   )
@@ -631,9 +672,13 @@ interface MsgProps {
     timestamp: Date
   }
   studentName: string
+  // The reader's chosen bubble color (useChatTheme) — passed down from the
+  // one hook instance at the top of SocraticChat rather than re-subscribing
+  // in every bubble.
+  bubbleClass: string
 }
 
-function MessageBubble({ msg, studentName }: MsgProps) {
+function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
   if (msg.role === 'system') {
     return (
       <div className="flex justify-center">
@@ -673,12 +718,14 @@ function MessageBubble({ msg, studentName }: MsgProps) {
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? 'bg-sage-600 text-white rounded-br-sm'
+            ? `${bubbleClass} text-white rounded-br-sm`
             : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'
         }`}
       >
         {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
-        {isUser && <div className="text-xs font-semibold text-sage-100 mb-1">{studentName}</div>}
+        {/* white/85 (not a sage tint) so the name stays legible on every
+            bubble color, not only the green default */}
+        {isUser && <div className="text-xs font-semibold text-white/85 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>

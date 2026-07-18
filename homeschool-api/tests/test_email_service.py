@@ -7,6 +7,9 @@ real HTML into the outgoing email.
 """
 import asyncio
 
+import pytest
+
+import services.email_service as es
 from services.email_service import (
     _feedback_prefix,
     build_distress_alert_html,
@@ -19,6 +22,16 @@ from services.email_service import (
     send_email,
     send_feedback,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_shared_http_client():
+    # Same reasoning as test_voice_synthesis.py's equivalent fixture: the
+    # module's shared httpx client is a lazily-created singleton, so it must
+    # not leak across tests.
+    es._http_client = None
+    yield
+    es._http_client = None
 
 
 def test_html_includes_disclaimer_and_bold_conversion():
@@ -180,3 +193,29 @@ def test_send_feedback_returns_false_when_feedback_email_unset(monkeypatch):
     monkeypatch.setattr(settings, "feedback_email", "")
     result = asyncio.run(send_feedback("cx", "message", "parent"))
     assert result is False
+
+
+# ── Shared client pooling ───────────────────────────────────────────────────
+#
+# Guards against regressing back to a fresh httpx.AsyncClient() per send —
+# see services/voice_synthesis.py's equivalent tests/comment for why this
+# matters (warm connection reuse + a real max_connections cap).
+
+def test_get_http_client_returns_the_same_instance_across_calls():
+    first = es._get_http_client()
+    second = es._get_http_client()
+    assert first is second
+
+
+def test_get_http_client_configures_a_connection_limit():
+    client = es._get_http_client()
+    assert client._transport._pool._max_connections == 10
+
+
+def test_aclose_http_client_clears_the_singleton_so_a_fresh_one_is_built_next():
+    first = es._get_http_client()
+    asyncio.run(es.aclose_http_client())
+    assert es._http_client is None
+
+    second = es._get_http_client()
+    assert second is not first

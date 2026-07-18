@@ -16,11 +16,11 @@ export function BedeWordmark({ className = '' }: { className?: string }) {
 }
 
 export function AgnusDeiMark({ className = 'w-10 h-10' }: { className?: string }) {
-  return <img src={`${import.meta.env.BASE_URL}agnus-dei-emblem.png`} alt="Agnus Dei Technologies" className={className} />
+  return <img src={`${import.meta.env.BASE_URL}agnus-dei-emblem.webp`} alt="Agnus Dei Technologies" className={className} />
 }
 
 export function AgnusDeiLogo({ className = 'h-8' }: { className?: string }) {
-  return <img src={`${import.meta.env.BASE_URL}agnus-dei-logo.png`} alt="Agnus Dei Technologies" className={className} />
+  return <img src={`${import.meta.env.BASE_URL}agnus-dei-logo.webp`} alt="Agnus Dei Technologies" className={className} />
 }
 
 export function TrademarkNotice({ className = '' }: { className?: string }) {

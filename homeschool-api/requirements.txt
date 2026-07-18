@@ -1,4 +1,9 @@
 anthropic>=0.40.0
+# OpenAI Python SDK — backs services/adapters/openai_compatible_adapter.py, the
+# single adapter class used for every non-Anthropic provider (OpenAI, a
+# self-hosted vLLM/Qwen3-Coder server, Mistral, any OpenAI-compatible endpoint)
+# via its base_url override. See docs/PROVIDER_ADAPTERS.md.
+openai>=1.40.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-dotenv>=1.0.0
@@ -16,7 +21,11 @@ numpy>=1.26.0
 scipy>=1.13.0
 librosa>=0.10.0
 soundfile>=0.12.0
-openai-whisper>=20240930
+# CTranslate2-backed Whisper fallback STT — several times faster than
+# openai-whisper on CPU (int8 quantization) and drops the torch dependency
+# entirely, since it doesn't share openai-whisper's PyTorch runtime. See
+# services/transcription.py and docs/VOICE_SETUP.md.
+faster-whisper>=1.0.0
 resemblyzer>=0.1.1
 # Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
 webauthn>=2.0.0

@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from core.audit import AuditEvent, audit_from_request, log_event
+from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core.database import get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_auth, require_parent, require_real_user
 from services.voice_auth import (
     delete_profile,
     enroll_student,
@@ -63,7 +63,7 @@ async def enroll(
 
     try:
         result = await enroll_student(student_name, audio_bytes_list, db)
-        await log_event(AuditEvent.VOICE_ENROLL, student_name=student_name, role="parent", **ctx)
+        log_event_nowait(AuditEvent.VOICE_ENROLL, student_name=student_name, role="parent", **ctx)
         return {
             "success":      True,
             "student_name": result["student_name"],
@@ -71,7 +71,7 @@ async def enroll(
             "method":       result["method"],
         }
     except ValueError as exc:
-        await log_event(AuditEvent.VOICE_ENROLL, student_name=student_name, success=False, detail=str(exc), **ctx)
+        log_event_nowait(AuditEvent.VOICE_ENROLL, student_name=student_name, success=False, detail=str(exc), **ctx)
         raise HTTPException(status_code=422, detail=str(exc))
 
 
@@ -93,7 +93,7 @@ async def verify(
     result = await verify_student(student_name, data, db)
 
     event = AuditEvent.VOICE_VERIFY_PASS if result["verified"] else AuditEvent.VOICE_VERIFY_FAIL
-    await log_event(
+    log_event_nowait(
         event,
         student_name=student_name,
         role=auth.get("role"),
@@ -119,7 +119,7 @@ async def override_verification(
 ):
     """Parent approves a medium-confidence session. Logged in audit trail."""
     ctx = audit_from_request(request)
-    await log_event(AuditEvent.VOICE_OVERRIDE, student_name=student_name, role="parent", **ctx)
+    log_event_nowait(AuditEvent.VOICE_OVERRIDE, student_name=student_name, role="parent", **ctx)
     return parent_override(student_name)
 
 
@@ -142,7 +142,7 @@ async def remove_profile(
     _: dict = Depends(require_parent),
 ):
     if await delete_profile(student_name, db):
-        await log_event(
+        log_event_nowait(
             AuditEvent.VOICE_ENROLL,
             student_name=student_name,
             role="parent",
@@ -160,7 +160,15 @@ async def transcribe(
     request: Request,
     audio: UploadFile = File(...),
     language: str = Form(default="en"),
-    auth: dict = Depends(require_real_user),
+    # require_auth (not require_real_user): demo sessions may use the STT
+    # fallback too — browser speech recognition breaks under them exactly
+    # like under a real session (a Chrome update once removed it outright),
+    # and this endpoint is safe to expose at demo scope: stateless (the
+    # result is returned inline, nothing stored), size-capped by
+    # _validate_audio, rate-limited under the per-IP voice bucket, and
+    # backed by the 'base' Whisper model in a worker thread.
+    # (upgraded from 'tiny' for better accuracy on real utterances)
+    auth: dict = Depends(require_auth),
 ):
     """
     Server-side Whisper transcription fallback.

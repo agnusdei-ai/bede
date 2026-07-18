@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.audit import AuditEvent, audit_from_request, log_event
-from core.config import settings
+from core.audit import AuditEvent, audit_from_request, log_event_nowait
+from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
 from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
 from core.deps import require_auth
@@ -57,14 +57,38 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     return DemoCodeResponse(code=code)
 
 
+@router.get("/locales")
+async def available_locales():
+    """
+    Public, unauthenticated — Login.tsx calls this before a token exists to
+    decide whether to render the English/Español toggle at all. Returns only
+    whether this deployment has opted into offering a non-English login
+    choice (settings.locale — see core/config.py's updated docstring), never
+    anything sensitive. An English-only deployment (the default) gets an
+    empty list and never sees a toggle.
+    """
+    if settings.locale == "en":
+        return {"locales": []}
+    return {"locales": [{"code": settings.locale, "name": SUPPORTED_LOCALES[settings.locale]}]}
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
 
+    # Chosen at the login screen itself — validated against whichever single
+    # locale this deployment has opted into (settings.locale), same list
+    # GET /auth/locales already advertised to render the toggle. Silently
+    # falls back to "en" for anything else (an unknown code, or a deployment
+    # that hasn't enabled a toggle at all) rather than rejecting the login
+    # outright — a stale/tampered client value should never be able to block
+    # someone from getting into their own session.
+    locale = req.locale if req.locale == settings.locale else "en"
+
     if req.role == "parent":
         if not hmac.compare_digest(req.credential, settings.parent_password):
-            await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, **ctx)
+            log_event_nowait(AuditEvent.AUTH_FAILURE, role="parent", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
         # Password alone isn't enough once a security key or TOTP app is
@@ -73,18 +97,23 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # routers/mfa.py), not a real parent session.
         methods = await mfa_service.enrolled_methods(db)
         if methods:
+            # locale carries through the pending token so the FINAL token
+            # (issued by routers/mfa.py once the second factor completes)
+            # can re-embed it — the parent picked their language once, at
+            # this password step, and MFA completing a moment later
+            # shouldn't silently reset it back to English.
             pending_token = create_access_token(
-                {"sub": "parent", "role": "parent_pending"},
+                {"sub": "parent", "role": "parent_pending", "locale": locale},
                 fingerprint=fp,
                 expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
             )
-            await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="password ok, mfa pending", **ctx)
+            log_event_nowait(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="password ok, mfa pending", **ctx)
             return TokenResponse(access_token=pending_token, role="parent_pending", mfa_required=True, mfa_methods=methods)
 
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
         if not hmac.compare_digest(req.credential, settings.child_pin):
-            await log_event(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
+            log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         expires = timedelta(minutes=settings.child_token_expire_minutes)
     elif req.role == "demo_code":
@@ -93,13 +122,13 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # rejects an unknown or already-redeemed code, so the same code can
         # never be exchanged for two independent JWTs/quotas.
         if not settings.demo_pin or not await redeem_code(req.credential):
-            await log_event(AuditEvent.AUTH_FAILURE, role="demo_code", success=False, **ctx)
+            log_event_nowait(AuditEvent.AUTH_FAILURE, role="demo_code", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or already-used code")
         expires = timedelta(minutes=settings.demo_code_token_expire_minutes)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown role")
 
-    token_data = {"sub": req.role, "role": req.role}
+    token_data = {"sub": req.role, "role": req.role, "locale": locale}
     if req.role == "demo_code":
         # The code itself is the tracking key for message-quota enforcement
         # (core/demo_code_session.py) — no separate jti needed since each
@@ -128,7 +157,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         fingerprint=demo_fp,
         expires_delta=expires,
     )
-    await log_event(AuditEvent.AUTH_SUCCESS, role=req.role, success=True, **ctx)
+    log_event_nowait(AuditEvent.AUTH_SUCCESS, role=req.role, success=True, **ctx)
     return TokenResponse(access_token=token, role=req.role)
 
 
@@ -143,13 +172,13 @@ async def validate_token(
     """
     payload = decode_token(credentials.credentials)
     if not payload:
-        await log_event(AuditEvent.TOKEN_INVALID, **audit_from_request(request), success=False)
+        log_event_nowait(AuditEvent.TOKEN_INVALID, **audit_from_request(request), success=False)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
     if not validate_fingerprint(payload, fp):
-        await log_event(
+        log_event_nowait(
             AuditEvent.TOKEN_FINGERPRINT_MISMATCH,
             role=payload.get("role"),
             success=False,
@@ -173,5 +202,5 @@ async def logout(request: Request, auth: dict = Depends(require_auth)):
     ctx = audit_from_request(request)
     if auth.get("role") == "demo_code":
         await end_code_session(auth.get("code", ""))
-    await log_event(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
+    log_event_nowait(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
     return {"success": True}

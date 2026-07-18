@@ -71,13 +71,37 @@ without you present.
 **If a child expresses distress or danger**, Bede stops tutoring immediately —
 regardless of subject or grade — and tells them to find a trusted adult right
 now. This is a deterministic keyword/pattern check that runs before anything
-reaches Claude, not a judgment call by the AI. Every occurrence is written to
+reaches Claude, not a judgment call by the AI, and it works the same way
+whether your child is typing in English or Spanish (if you've enabled the
+Spanish toggle — see below), including the safety message itself, which
+arrives in whichever language they're using. Every occurrence is written to
 the encrypted audit log. If you set `PARENT_EMAIL` in your `.env` (see
 `.env.example`), you'll also get an urgent email the moment it happens,
 including a short excerpt of what triggered it — enough to know how to
 follow up, without waiting for you to think to check the audit log
 yourself. Leave `PARENT_EMAIL` unset if you'd rather rely on the audit log
 alone; the safety stop itself always happens either way.
+
+**That same `PARENT_EMAIL` also covers security alerts.** If Bede notices
+a pattern like several failed login attempts, or a blocked attempt to pull
+data out through the API, in a short window from one address, it emails
+you the same way — once per pattern, so you'll hear about a real attempt
+without your inbox filling up if it keeps happening. Every occurrence is
+still recorded in the encrypted audit log regardless of whether
+`PARENT_EMAIL` is set. See `docs/SECURITY.md` for the exact thresholds.
+
+**Every message your child sends is also screened before Bede sees it.**
+Beyond the distress/danger check above, a second, broader check looks for
+content categories a fixed keyword list can't catch — things like violence
+or content that isn't appropriate for the grade you've set. If something
+trips this, your child sees a gentle redirect back to the lesson (not the
+"find a trusted adult" message — that's reserved for the distress check),
+and it's recorded in the audit log; three or more in a short window from
+one address triggers the same security-alert email as above. This runs on
+every single message (not just flagged ones), which means a small, real
+cost on your Anthropic bill per message and a brief pause (well under a
+second, typically) before Bede's reply starts — there's no setting to turn
+it off, the same way the distress check isn't optional either.
 
 **Want to test or explore how Bede responds, without a real tutoring session?**
 Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod
@@ -96,19 +120,70 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    (books, math scope, composer/artist study) Bede draws from.
 3. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
-4. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
+4. If your deployment offers a language other than English at login (`LOCALE`
+   set in `.env` — see `docs/LOCALIZATION.md`), a **Sex** field appears for
+   each student — Male or Female. This isn't optional once the toggle is
+   enabled: Spanish, Italian, and Polish all require it to address your
+   child correctly (the difference between "bienvenido" and "bienvenida,"
+   for instance), and any student could be logged into in that language on
+   any given day — not just the ones you expect to use it — so setup won't
+   let you save a student without it set. On an English-only deployment
+   (the default, no toggle offered at all), you'll never see this field at
+   all.
+5. Set the **session length** if the default doesn't suit. Every session ends on
+   its own when this time is up. The default is two hours, and four hours is the
+   most the app will ever allow — that ceiling is built in and cannot be raised.
+6. Decide whether to **lock chat appearance**. The chat has a small palette where
+   a learner can pick a background theme and the color of their own speech
+   bubbles. If choices like that pull your child away from the lesson (children
+   with attention challenges especially), turn the lock on: the palette
+   disappears from their sessions entirely. You can still open a session
+   yourself as the parent, set a look you both like, and leave it locked.
+7. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
 
-**Session length is capped automatically by grade** — this isn't something you
-configure, it's built in: grades K-3 work in 20-minute per-subject blocks with
-no break (short blocks suit shorter attention spans at that age); grades 4-8
-get a 60-minute block, a 10-minute break, then one more block, then the
-session concludes on its own — a hard 2-hour ceiling per sitting either way.
-You'll still see a countdown in the header during the last stretch before
-each transition. On top of this, you can optionally set a stricter total
-on-screen-time cap per student (with a longer mandatory eye-rest break) from
-the student's settings — the grade-based cap above is the floor everyone
-gets regardless.
+**The language choice lives on the login screen, not on a student's profile.**
+Once you've set `LOCALE` (step 4 above), everyone who logs in — you or any of
+your children — sees an English/Español toggle right on the login screen
+itself, chosen fresh every time. It isn't tied to which child is logging in:
+the same child can be in English one day and Spanish the next, and a
+bilingual household doesn't need separate profiles for each language.
+Whichever is picked, Bede's own conversation (and the weekly prayer, see
+below) switches immediately, in that language, for that login. The rest of
+the screens — Setup, Dashboard, Progress — are still in English regardless
+of the toggle for now; only the login screen and Bede's own words to your
+child are translated so far.
+
+**Sessions have a built-in rhythm of work and rest.** After every hour of
+learning, a mandatory ten-minute break appears: the screen pauses and invites
+your child to step away — be with nature, rest their eyes, or spend a quiet
+moment with God — with a small suggestion each time. Nobody can skip it, and
+the session picks up where it left off when the break ends. Grades K-3 also
+pace each subject in twenty-minute blocks, which suits shorter attention
+spans; grades 4-8 work in the hour-long stretches between breaks. You'll see
+a countdown in the header shortly before each transition. On top of all
+this, you can still set a stricter total screen-time cap per student, with a
+longer eye-rest break, from the student's settings.
+
+**Morning Time includes a weekly prayer, word for word.** Once a week, Bede leads
+your child through one of the Church's own traditional prayers — the Our Father,
+the Hail Mary, and similar universally-known texts — in whichever language was
+chosen at login (English, or Spanish if your deployment offers the toggle and it
+was selected for that login — see `docs/LOCALIZATION.md`). The wording is fixed
+ahead of time rather than improvised in the moment, the same way Bede already
+handles the week's poem, so your child hears and learns the same correct words
+every time it comes up. This is separate from — and doesn't replace —
+Bede's own freshly-worded opening and closing prayer each day (rule 10 of Bede's
+persona), which stays personal to that day rather than a fixed recitation.
+
+**Composition is encouraged, never required.** At least once per session,
+Bede invites your child to spend about ten minutes on a piece of their own
+handwritten work — a written narration, a nature journal entry, math worked
+out on paper — that pulls the day's learning together and helps it stick.
+He waits for a natural pause rather than interrupting whatever your child
+is in the middle of, and if the child declines, he accepts that and moves
+on. If you'd like the composition pointed somewhere particular, mention it
+in the student's lesson note and Bede will fold it in.
 
 ## 6. Getting each child onto their own tablet
 
@@ -164,15 +239,34 @@ to them. Do **not** share the parent password with your child; there's no legiti
 reason they'd need it day-to-day, and it's the one credential that can override
 their voice check.
 
+The writing pad (the pencil icon in a session) has a print button if your child
+prefers a real pencil to a stylus — it prints at true page size on any printer
+connected to their tablet, with handwriting ruling scaled to their `GradeStage`
+(wide 5/8" primary ruling for K-2, standard 3/8" for 3-5, narrower 1/4" for 6-8),
+so what comes out matches ordinary classroom handwriting paper.
+
 ## 9. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
   Bede's sense of how that child learns best — available from the very first session
   (an initial, tentative read that sharpens as more sessions accumulate), not just
-  after 3+.
+  after 3+. If Bede profiles your child as a kinesthetic ("learns by doing"),
+  reading/writing, or visual learner, the same page shows a small observation
+  confirming how often Bede has actually followed through (hands-on drawing/writing,
+  written narration, or a shown visual aid, respectively) — a sanity check on the
+  adaptation itself, not a claim that the label makes your child learn better. An
+  auditory profile changes how Bede teaches (favoring oral narration and discussion)
+  but has no equivalent counter — there's no single tool call that cleanly signals
+  it the way the other three have.
 - Every session is saved as an encrypted transcript, viewable from the same place.
 - If a child's voice changes enough that verification starts failing (common after
   a cold, or over months of growth), re-run enrollment from the Pod Dashboard.
+- **Deleting a child's data:** Pod Dashboard → that student's card → **Delete all
+  data…**, then type their name to confirm. This permanently removes everything
+  Bede has stored for them — narration history, learner profile, mastery tracking,
+  session transcripts, voice enrollment, all of it — not just today's plan. It
+  cannot be undone. See `docs/DATA_RETENTION.md` for the full, table-by-table list
+  of what's kept and for how long.
 
 ## Troubleshooting
 

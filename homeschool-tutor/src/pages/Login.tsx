@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Lock, User, Star, Mic } from 'lucide-react'
-import { login, fetchStudentConfig, type LoginResult, type MfaMethod } from '../services/api'
+import { useTranslation, Trans } from 'react-i18next'
+import { Globe, Lock, User, Star, Mic } from 'lucide-react'
+import { login, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
 import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
@@ -12,6 +13,7 @@ import type { VerifyResult } from '../services/voiceApi'
 type Phase = 'login' | 'voice-verify' | 'parent-mfa'
 
 export default function Login() {
+  const { t, i18n } = useTranslation()
   const [role, setRole] = useState<'parent' | 'child'>('parent')
   const [credential, setCredential] = useState('')
   const [error, setError] = useState('')
@@ -20,6 +22,25 @@ export default function Login() {
   const [pendingToken, setPendingToken] = useState('')
   const [pendingMfaMethods, setPendingMfaMethods] = useState<MfaMethod[]>([])
   const [studentName, setStudentName] = useState('')
+
+  // Locale toggle — only rendered when this deployment has actually opted
+  // into offering a non-English login choice (GET /auth/locales). Chosen
+  // fresh at every login, tied to this login rather than to a student's own
+  // identity — a bilingual household can pick differently each time. The
+  // login screen itself switches language live the moment it's tapped, for
+  // an immersive experience from the very first screen, not just once
+  // inside the tutoring session.
+  const [availableLocales, setAvailableLocales] = useState<AvailableLocale[]>([])
+  const [selectedLocale, setSelectedLocale] = useState<string>('en')
+
+  useEffect(() => {
+    fetchAvailableLocales().then(setAvailableLocales)
+  }, [])
+
+  const chooseLocale = (code: string) => {
+    setSelectedLocale(code)
+    i18n.changeLanguage(code)
+  }
 
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -52,7 +73,7 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const result = await login(role, credential)
+      const result = await login(role, credential, selectedLocale)
 
       if (role === 'parent') {
         if (result.mfaRequired) {
@@ -61,7 +82,7 @@ export default function Login() {
           setPhase('parent-mfa')
           return
         }
-        setAuth(result.accessToken, 'parent')
+        setAuth(result.accessToken, 'parent', selectedLocale)
         navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
         return
       }
@@ -93,12 +114,12 @@ export default function Login() {
   }
 
   const handleVoiceVerified = (_result: VerifyResult) => {
-    setAuth(pendingToken, 'child')
+    setAuth(pendingToken, 'child', selectedLocale)
     navigate(returnTo ? decodeURIComponent(returnTo) : '/session')
   }
 
   const handleMfaVerified = (result: LoginResult) => {
-    setAuth(result.accessToken, 'parent')
+    setAuth(result.accessToken, 'parent', selectedLocale)
     navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
   }
 
@@ -123,11 +144,11 @@ export default function Login() {
         {!knownStudentName && (
           <div className="fixed bottom-6 left-0 right-0 text-center">
             <div className="inline-block bg-white/90 rounded-xl border border-navy-200 px-4 py-3 shadow">
-              <p className="text-xs text-gray-500 mb-2">Enter your name for the voice check:</p>
+              <p className="text-xs text-gray-500 mb-2">{t('login.voiceNamePrompt')}</p>
               <input
                 value={studentName}
                 onChange={(e) => setStudentName(e.target.value)}
-                placeholder="Emma"
+                placeholder={t('login.voiceNamePlaceholder')}
                 className="text-sm border border-navy-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy-400"
               />
             </div>
@@ -144,7 +165,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="relative w-44 mx-auto mb-4">
             <img
-              src="/bede-portrait.jpg"
+              src="/bede-portrait.webp"
               alt="Bede"
               className="w-44 h-44 rounded-full drop-shadow-md object-cover object-top"
             />
@@ -153,13 +174,48 @@ export default function Login() {
           <h1 className="text-2xl font-display font-bold text-gray-800">
             <BedeWordmark />
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Your Classical Homeschool Tutor</p>
+          <p className="text-sm text-gray-500 mt-1">{t('login.tagline')}</p>
           {studentFromUrl && (
             <p className="text-sm font-medium text-navy-700 mt-2">
-              Welcome, {studentFromUrl}!
+              {t('login.welcome', { name: studentFromUrl })}
             </p>
           )}
         </div>
+
+        {/* Language toggle — only rendered when this deployment offers one */}
+        {availableLocales.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Globe size={14} className="text-gray-400" />
+            <div className="flex rounded-lg border border-navy-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => chooseLocale('en')}
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  selectedLocale === 'en' ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                }`}
+              >
+                English
+              </button>
+              {availableLocales.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => chooseLocale(l.code)}
+                  className={`px-3 py-1 text-xs font-medium transition-colors border-l border-navy-200 ${
+                    selectedLocale === l.code ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                  }`}
+                >
+                  {/* The backend's display name is "Spanish (Español)" — an
+                      English gloss for admin/log contexts. The toggle itself
+                      should read as a native speaker's own language name
+                      (an endonym), same as "English" on the other button, so
+                      show just the parenthetical when present. */}
+                  {l.name.match(/\(([^)]+)\)/)?.[1] ?? l.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Role toggle */}
         <div className="flex rounded-lg border border-navy-200 overflow-hidden mb-6">
@@ -172,8 +228,8 @@ export default function Login() {
               }`}
             >
               {r === 'parent'
-                ? <span className="flex items-center justify-center gap-1.5"><User size={13} /> Parent</span>
-                : <span className="flex items-center justify-center gap-1.5"><Star size={13} /> Student</span>
+                ? <span className="flex items-center justify-center gap-1.5"><User size={13} /> {t('login.roleParent')}</span>
+                : <span className="flex items-center justify-center gap-1.5"><Star size={13} /> {t('login.roleChild')}</span>
               }
             </button>
           ))}
@@ -182,7 +238,7 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {role === 'parent' ? 'Parent Password' : 'Student PIN'}
+              {role === 'parent' ? t('login.labelParentPassword') : t('login.labelStudentPin')}
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -190,7 +246,7 @@ export default function Login() {
                 type="password"
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
-                placeholder={role === 'parent' ? 'Enter password' : 'Enter PIN'}
+                placeholder={role === 'parent' ? t('login.placeholderPassword') : t('login.placeholderPin')}
                 inputMode={role === 'child' ? 'numeric' : 'text'}
                 className="w-full pl-9 pr-4 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-400"
                 required
@@ -202,8 +258,8 @@ export default function Login() {
             <div className="flex items-start gap-2.5 bg-navy-50 border border-navy-200 rounded-lg px-3 py-2.5">
               <Mic size={16} className="text-navy-500 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-navy-700">
-                <p className="font-semibold">Voice check required</p>
-                <p className="text-navy-600 mt-0.5">After your PIN, you'll say a short passphrase so Bede knows it's really you.</p>
+                <p className="font-semibold">{t('login.voiceCheckTitle')}</p>
+                <p className="text-navy-600 mt-0.5">{t('login.voiceCheckBody')}</p>
               </div>
             </div>
           )}
@@ -219,13 +275,12 @@ export default function Login() {
             disabled={loading || !credential}
             className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? 'Checking…' : role === 'parent' ? 'Enter as Parent' : 'Continue →'}
+            {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : t('login.submitChild')}
           </button>
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
-          "The sole true end of education is simply this: to teach men how to teach
-          themselves." — Dorothy L. Sayers, <em>The Lost Tools of Learning</em>
+          <Trans i18nKey="login.quote" components={{ italic: <em /> }} />
         </p>
         <div className="flex flex-col items-center gap-1.5 mt-4">
           <AgnusDeiLogo className="h-10 opacity-80" />

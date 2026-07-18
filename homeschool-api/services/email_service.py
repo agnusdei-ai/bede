@@ -20,6 +20,35 @@ from core.config import DEFAULT_RESEND_FROM_ADDRESS, settings
 log = logging.getLogger(__name__)
 
 _RESEND_URL = "https://api.resend.com/emails"
+_REQUEST_TIMEOUT_SECONDS = 15.0
+
+# Same reasoning as services/voice_synthesis.py's shared client: a fresh
+# httpx.AsyncClient() per call pays a full new TCP+TLS handshake to Resend
+# every send instead of reusing a pooled connection. Emails here are
+# infrequent (at most a few per session) so the latency win is modest, but
+# max_connections still gives a real, if rarely-exercised, cap on
+# concurrent outbound Resend requests from this process — see that
+# module's longer comment for the single-process-only caveat, which
+# applies identically here.
+_http_client: "httpx.AsyncClient | None" = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            timeout=_REQUEST_TIMEOUT_SECONDS,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+    return _http_client
+
+
+async def aclose_http_client() -> None:
+    """Called from main.py's lifespan shutdown."""
+    global _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+        _http_client = None
 
 
 def _summary_to_html_paragraphs(summary_text: str) -> str:
@@ -200,22 +229,22 @@ async def send_email(to_address: str, subject: str, html_body: str) -> bool:
         return False
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                _RESEND_URL,
-                headers={
-                    "Authorization": f"Bearer {settings.resend_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": settings.resend_from_address,
-                    "to": [to_address],
-                    "subject": subject,
-                    "html": html_body,
-                },
-            )
-            resp.raise_for_status()
-            return True
+        client = _get_http_client()
+        resp = await client.post(
+            _RESEND_URL,
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": settings.resend_from_address,
+                "to": [to_address],
+                "subject": subject,
+                "html": html_body,
+            },
+        )
+        resp.raise_for_status()
+        return True
     except httpx.HTTPError:
         log.warning("Resend send failed (recipient omitted from this log by design)")
         return False
@@ -239,5 +268,59 @@ async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_exc
     return await send_email(
         settings.parent_email,
         subject=f"Bede paused {student_name}'s session — please check in",
+        html_body=html_body,
+    )
+
+
+def build_security_alert_html(event: str, ip: str, count: int, window_label: str) -> str:
+    """
+    AIUC-1 E009 — anomalous-access-pattern alert. Reuses PARENT_EMAIL/Resend
+    (same config as the distress alert above) rather than adding a second
+    email setting, since for a self-hosted single-family deployment the
+    family running the instance IS the security contact.
+    """
+    safe_event = html.escape(event)
+    safe_ip = html.escape(ip)
+    return f"""\
+<!DOCTYPE html>
+<html>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">Unusual activity on your Bede instance</h1>
+  <p style="font-size: 13px; color: #6b7280; margin: 0 0 24px 0;">
+    Bede noticed a repeated pattern that's worth a look — it doesn't always mean
+    something is wrong, but it's outside what normal use of your instance looks like.
+  </p>
+  <div style="font-size: 15px; line-height: 1.6; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+    <p style="margin: 0 0 8px 0;"><strong>{count}&times;</strong> <code>{safe_event}</code> {window_label}</p>
+    <p style="margin: 0;">From address: <code>{safe_ip}</code></p>
+  </div>
+  <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
+    Full detail is in your instance's audit log (parent login &rarr; Admin &rarr; Audit Log).
+    This alert is a single automated notice — it won't repeat for the same pattern for a
+    while, even if it continues, so check the log directly for the current picture.
+  </p>
+</body>
+</html>"""
+
+
+def security_alert_configured() -> bool:
+    return email_configured() and bool(settings.parent_email)
+
+
+async def send_security_alert(event: str, ip: str, count: int, window_label: str = "in the last 10 minutes") -> bool:
+    """
+    Best-effort real-time notification when core/audit.py's anomaly watch
+    (AIUC-1 E009) crosses a threshold for a security-relevant event type
+    from one IP. Returns False silently (never raises) when PARENT_EMAIL/
+    Resend aren't configured — the pattern is always in the encrypted audit
+    log regardless (AuditEvent.ANOMALY_ALERT), this is just the active
+    notification on top of that passive record.
+    """
+    if not security_alert_configured():
+        return False
+    html_body = build_security_alert_html(event, ip, count, window_label)
+    return await send_email(
+        settings.parent_email,
+        subject="Bede: unusual activity detected on your instance",
         html_body=html_body,
     )

@@ -31,14 +31,17 @@ from models.schemas import (
     TutorRequest,
 )
 from services.ai_service import (
+    _redact_credentials,
     _sanitize_parent_field,
     check_safeguarding,
     generate_session_summary,
-    SAFEGUARDING_RESPONSE,
+    moderation_redirect_response,
+    safeguarding_response,
     stream_tutor_response,
 )
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
+from services.moderation import classify_child_message
 from services.voice_synthesis import synthesis_configured, synthesize_speech
 
 log = logging.getLogger(__name__)
@@ -111,6 +114,11 @@ async def chat(
     role. Passes db so Bede can persist narration assessments server-side
     mid-stream (skipped for the demo role — see below).
     """
+    # AIUC-1 A008 — redact credential-shaped text (API keys, tokens,
+    # connection strings) before it reaches the safeguarding-audit excerpt
+    # below, model context, or anywhere else this turn's message is used.
+    req.child_message = _redact_credentials(req.child_message) or req.child_message
+
     role = auth.get("role")
     is_demo_code = role == "demo_code"
     if is_demo_code:
@@ -139,29 +147,68 @@ async def chat(
         **audit_from_request(request),
     ))
 
+    async def _trigger_safeguarding(trigger_excerpt: str, detail_prefix: str = "trigger") -> None:
+        await log_event(
+            AuditEvent.SAFEGUARDING,
+            role=auth.get("role"),
+            student_name=req.session_config.student_name,
+            success=True,
+            detail=f"{detail_prefix}:{trigger_excerpt}",
+            **audit_from_request(request),
+        )
+        # Fire-and-forget — the child's safety response must not wait on a
+        # network round-trip to Resend. The audit log entry above is the
+        # durable record regardless of whether this send succeeds;
+        # distress_alert_configured() short-circuits instantly when
+        # PARENT_EMAIL/Resend aren't set up.
+        asyncio.create_task(send_distress_alert(
+            req.session_config.student_name,
+            datetime.now(timezone.utc).isoformat(),
+            trigger_excerpt,
+        ))
+
     async def event_generator():
-        # Deterministic safeguarding check — bypasses LLM entirely for crisis signals
+        # Deterministic safeguarding check — bypasses LLM entirely for crisis
+        # signals, free and zero-latency, so it runs before paying for a
+        # moderation classification call at all.
         if check_safeguarding(req.child_message):
-            trigger_excerpt = req.child_message[:80]
+            await _trigger_safeguarding(req.child_message[:80])
+            yield json.dumps({'type': 'text', 'content': safeguarding_response(auth.get("locale", "en"))})
+            yield json.dumps({'type': 'done'})
+            return
+
+        # AIUC-1 B005 — automated moderation classifier, broader than the
+        # regex above (any language, indirect phrasing, content categories
+        # no fixed phrase list enumerates). classify_child_message() already
+        # fails open internally (services/moderation.py) — this second,
+        # router-level guard is deliberate belt-and-suspenders: a turn must
+        # never fail to reach the child just because a classifier call had
+        # an unexpected failure mode its own try/except didn't anticipate.
+        try:
+            moderation = await classify_child_message(req.child_message, req.session_config.student_name)
+        except Exception:
+            log.warning("Moderation classifier call failed at the router level — failing open", exc_info=True)
+            moderation = {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
+        if moderation["flagged"]:
             await log_event(
-                AuditEvent.SAFEGUARDING,
+                AuditEvent.MODERATION_FLAGGED,
                 role=auth.get("role"),
                 student_name=req.session_config.student_name,
                 success=True,
-                detail=f"trigger:{trigger_excerpt}",
+                detail=(
+                    f"categories={','.join(moderation['categories'])} "
+                    f"confidence={moderation['confidence']} blocked={moderation['should_block']}"
+                ),
                 **audit_from_request(request),
             )
-            # Fire-and-forget — the child's safety response below must not
-            # wait on a network round-trip to Resend. The audit log entry
-            # above is the durable record regardless of whether this send
-            # succeeds; distress_alert_configured() short-circuits instantly
-            # when PARENT_EMAIL/Resend aren't set up.
-            asyncio.create_task(send_distress_alert(
-                req.session_config.student_name,
-                datetime.now(timezone.utc).isoformat(),
-                trigger_excerpt,
-            ))
-            yield json.dumps({'type': 'text', 'content': SAFEGUARDING_RESPONSE})
+        if moderation["should_block"]:
+            if "self_harm" in moderation["categories"]:
+                # Same crisis path as the regex above — a broader net for
+                # the same kind of signal, not a different kind of response.
+                await _trigger_safeguarding(req.child_message[:80], detail_prefix="trigger(moderation)")
+                yield json.dumps({'type': 'text', 'content': safeguarding_response(auth.get("locale", "en"))})
+            else:
+                yield json.dumps({'type': 'text', 'content': moderation_redirect_response(auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
             return
 
@@ -183,6 +230,7 @@ async def chat(
                     drawing_image=req.drawing_image,
                     demo_code=auth.get("code") if is_demo_code else None,
                     time_of_day=req.local_time_of_day,
+                    locale=auth.get("locale", "en"),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,
             ):
@@ -276,7 +324,7 @@ async def session_summary(
         detail=f"duration={req.duration_minutes}min",
         **audit_from_request(request),
     )
-    summary = await generate_session_summary(req)
+    summary = await generate_session_summary(req, locale=auth.get("locale", "en"))
     return {"summary": summary}
 
 
@@ -313,7 +361,7 @@ async def email_summary(
                 detail="This session has already sent its one diagnostic email",
             )
 
-    summary = await generate_session_summary(req)
+    summary = await generate_session_summary(req, locale=auth.get("locale", "en"))
     html_body = build_summary_email_html(req.session_config.student_name, summary)
     sent = await send_email(
         to_address=req.email,

@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'demo/**'
+      - 'site/**'
       - '.github/workflows/deploy-demo.yml'
   workflow_dispatch:
 
@@ -32,7 +33,7 @@ jobs:
       - name: Install
         working-directory: demo
         run: npm ci
-      - name: Build
+      - name: Build demo
         working-directory: demo
         # VITE_DEMO_API_BASE must point at a publicly-reachable homeschool-api
         # deployment with DEMO_PIN set (Settings -> Secrets and variables ->

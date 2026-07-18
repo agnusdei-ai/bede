@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation, Trans } from 'react-i18next'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea } from '../types'
@@ -9,21 +10,30 @@ import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, savePodConfigs, type SystemStatus } from '../services/api'
 
-const GRADE_STAGES: Array<{ label: string; value: GradeStage; description: string; emoji: string }> = [
-  { label: 'K–2', value: 'K-2', description: 'Grammar Stage', emoji: '🌱' },
-  { label: '3–5', value: '3-5', description: 'Logic Stage', emoji: '🔭' },
-  { label: '6–8', value: '6-8', description: 'Rhetoric Stage', emoji: '🎓' },
+// label is a numeric grade range, not a translated word — same across
+// locales. descriptionKey resolves through i18n at render time since this
+// array is module-level (no hook context to call t() here directly).
+const GRADE_STAGES: Array<{ label: string; value: GradeStage; descriptionKey: string; emoji: string }> = [
+  { label: 'K–2', value: 'K-2', descriptionKey: 'parentSetup.stageDescGrammar', emoji: '🌱' },
+  { label: '3–5', value: '3-5', descriptionKey: 'parentSetup.stageDescLogic', emoji: '🔭' },
+  { label: '6–8', value: '6-8', descriptionKey: 'parentSetup.stageDescRhetoric', emoji: '🎓' },
 ]
 
 interface StudentForm {
   student_name: string
   grade: string
   grade_stage: GradeStage
+  // Biological sex, not "gender identity" — see types/index.ts's
+  // SessionConfig.sex. '' means unset; only required when systemStatus's
+  // locale is a grammatically gendered language (see requireSex below).
+  sex: '' | 'male' | 'female'
   selected_subjects: Subject[]
   lesson_focus: string
   faith_emphasis: string
   current_unit: string
   voice_required: boolean
+  appearance_locked: boolean
+  session_cap_minutes: number
   screen_time_limit_enabled: boolean
   screen_time_limit_minutes: number
   eye_rest_break_minutes: number
@@ -39,11 +49,14 @@ const blankStudent = (): StudentForm => ({
   student_name: '',
   grade: '',
   grade_stage: '3-5',
+  sex: '',
   selected_subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
   lesson_focus: '',
   faith_emphasis: '',
   current_unit: '',
   voice_required: true,
+  appearance_locked: false,
+  session_cap_minutes: 120,
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
@@ -58,6 +71,7 @@ const blankStudent = (): StudentForm => ({
 })
 
 export default function ParentSetup() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { setSessionConfig, startSession, setPodStudents, logout, token } = useSessionStore()
 
@@ -96,10 +110,19 @@ export default function ParentSetup() {
   const removeStudent = (i: number) =>
     setStudents((prev) => prev.filter((_, idx) => idx !== i))
 
+  // Every locale this deployment currently supports (Spanish, Italian,
+  // Polish) is a grammatically gendered language, so a non-English locale
+  // means Bede needs to know each student's sex to address them correctly
+  // — see docs/LOCALIZATION.md. An English-only deployment never asks.
+  const requireSex = !!systemStatus?.locale && systemStatus.locale !== 'en'
+
   const canSave =
     hitlConsent &&
     students.length > 0 &&
-    students.every((s) => s.student_name.trim() && s.grade.trim() && s.selected_subjects.length > 0)
+    students.every((s) =>
+      s.student_name.trim() && s.grade.trim() && s.selected_subjects.length > 0 &&
+      (!requireSex || s.sex)
+    )
 
   const handleSavePod = async () => {
     if (!canSave || !token) return
@@ -109,11 +132,14 @@ export default function ParentSetup() {
       student_name: s.student_name.trim(),
       grade: s.grade.trim(),
       grade_stage: s.grade_stage,
+      sex: s.sex || undefined,
       subjects: s.selected_subjects,
       lesson_focus: s.lesson_focus.trim() || undefined,
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
       voice_required: s.voice_required,
+      appearance_locked: s.appearance_locked,
+      session_cap_minutes: Math.max(30, Math.min(240, s.session_cap_minutes)),
       screen_time_limit_minutes: s.screen_time_limit_enabled ? s.screen_time_limit_minutes : null,
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
       term_schedule: s.term_schedule,
@@ -137,7 +163,7 @@ export default function ParentSetup() {
         navigate('/pod')
       }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save — check your connection.')
+      setSaveError(err instanceof Error ? err.message : t('parentSetup.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -150,13 +176,13 @@ export default function ParentSetup() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <img src="/bede-icon.png" alt="Bede" className="w-9 h-9 rounded-full object-cover" />
-              <h1 className="text-2xl font-display font-bold text-gray-800">Plan Today's Pod</h1>
+              <img src="/bede-icon.webp" alt="Bede" className="w-9 h-9 rounded-full object-cover" />
+              <h1 className="text-2xl font-display font-bold text-gray-800">{t('parentSetup.title')}</h1>
             </div>
-            <p className="text-sm text-gray-500 mt-1">Add each student, then open their session on their tablet</p>
+            <p className="text-sm text-gray-500 mt-1">{t('parentSetup.subtitle')}</p>
           </div>
           <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 underline">
-            Log out
+            {t('parentSetup.logOut')}
           </button>
         </div>
 
@@ -169,20 +195,20 @@ export default function ParentSetup() {
             : 'border-gray-200 bg-gray-50 text-gray-500'
         }`}>
           {statusError ? (
-            <span className="flex items-center gap-1.5"><Database size={13} /> Cannot reach server</span>
+            <span className="flex items-center gap-1.5"><Database size={13} /> {t('parentSetup.cannotReachServer')}</span>
           ) : systemStatus ? (
             <>
-              <span className="flex items-center gap-1.5 font-medium"><Database size={13} /> DB connected</span>
+              <span className="flex items-center gap-1.5 font-medium"><Database size={13} /> {t('parentSetup.dbConnected')}</span>
               <span className="flex items-center gap-1.5"><Shield size={13} /> {systemStatus.encryption}</span>
               <span className="flex items-center gap-1.5">
                 <Users size={13} />
                 {systemStatus.voice_profiles_enrolled === 0
-                  ? 'No voices enrolled'
-                  : `${systemStatus.voice_profiles_enrolled} voice${systemStatus.voice_profiles_enrolled > 1 ? 's' : ''} enrolled`}
+                  ? t('parentSetup.noVoicesEnrolled')
+                  : t('parentSetup.voicesEnrolled', { count: systemStatus.voice_profiles_enrolled })}
               </span>
-              <span className="flex items-center gap-1.5" title="Estimate on your own Anthropic API key — see console.anthropic.com for exact billing">
+              <span className="flex items-center gap-1.5" title={t('parentSetup.usageEstimateTooltip')}>
                 <DollarSign size={13} />
-                ${systemStatus.usage.estimated_cost_usd.toFixed(2)} AI usage (est.)
+                {t('parentSetup.usageEstimate', { cost: systemStatus.usage.estimated_cost_usd.toFixed(2) })}
               </span>
               {systemStatus.license && (
                 <span
@@ -193,7 +219,7 @@ export default function ParentSetup() {
                       ? 'text-amber-700 font-medium'
                       : ''
                   }`}
-                  title={`Licensed to ${systemStatus.license.licensee} — ${systemStatus.license.seats} student seats`}
+                  title={t('parentSetup.licenseTooltip', { licensee: systemStatus.license.licensee, seats: systemStatus.license.seats })}
                 >
                   {systemStatus.license.tier === 'trial' &&
                   systemStatus.license.days_remaining !== null &&
@@ -204,14 +230,14 @@ export default function ParentSetup() {
                   )}
                   {systemStatus.license.tier === 'trial'
                     ? systemStatus.license.days_remaining !== null && systemStatus.license.days_remaining >= 0
-                      ? `Trial — ${systemStatus.license.days_remaining} day${systemStatus.license.days_remaining === 1 ? '' : 's'} left`
-                      : 'Trial expired'
-                    : `${systemStatus.license.tier === 'coop' ? 'Co-op' : 'Core'} license`}
+                      ? t('parentSetup.trialDaysLeft', { count: systemStatus.license.days_remaining })
+                      : t('parentSetup.trialExpired')
+                    : systemStatus.license.tier === 'coop' ? t('parentSetup.coopLicense') : t('parentSetup.coreLicense')}
                 </span>
               )}
             </>
           ) : (
-            <span>Checking system status…</span>
+            <span>{t('parentSetup.checkingStatus')}</span>
           )}
         </div>
 
@@ -227,6 +253,7 @@ export default function ParentSetup() {
               total={students.length}
               isEnrolled={isEnrolled(student.student_name.trim())}
               token={token!}
+              requireSex={requireSex}
               onUpdate={(patch) => update(i, patch)}
               onToggleSubject={(id) => toggleSubject(i, id)}
               onEnrolled={() => listVoiceProfiles(token!).then(setEnrolledProfiles).catch(() => {})}
@@ -241,7 +268,7 @@ export default function ParentSetup() {
             onClick={addStudent}
             className="mt-4 w-full py-3 border-2 border-dashed border-navy-300 rounded-xl text-navy-600 hover:border-navy-400 hover:bg-navy-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
           >
-            <Plus size={16} /> Add Another Student
+            <Plus size={16} /> {t('parentSetup.addAnotherStudent')}
           </button>
         )}
 
@@ -254,10 +281,7 @@ export default function ParentSetup() {
             className="mt-0.5 w-4 h-4 accent-navy-600 flex-shrink-0"
           />
           <span className="text-xs text-gray-600 leading-relaxed">
-            I understand that Bede is an AI assistant that{' '}
-            <strong>supports, not replaces</strong>, my role as primary educator. I remain
-            responsible for my child's curriculum, wellbeing, and learning outcomes. I have
-            reviewed today's plan and it reflects my intentions.
+            <Trans i18nKey="parentSetup.hitlConsent" components={{ strong: <strong /> }} />
           </span>
         </label>
 
@@ -273,11 +297,11 @@ export default function ParentSetup() {
           className="mt-6 w-full py-4 bg-navy-500 text-white rounded-xl font-semibold text-base hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
         >
           {saving ? (
-            <><Loader2 size={18} className="animate-spin" /> Saving…</>
+            <><Loader2 size={18} className="animate-spin" /> {t('parentSetup.saving')}</>
           ) : students.length === 1 ? (
-            <>Begin Session with Bede</>
+            <>{t('parentSetup.beginSession')}</>
           ) : (
-            <>Open Pod Dashboard — {students.length} Students</>
+            <>{t('parentSetup.openPodDashboard', { count: students.length })}</>
           )}
         </button>
       </div>
@@ -291,6 +315,7 @@ interface StudentCardProps {
   total: number
   isEnrolled: boolean
   token: string
+  requireSex: boolean
   onUpdate: (patch: Partial<StudentForm>) => void
   onToggleSubject: (id: Subject) => void
   onEnrolled: () => void
@@ -298,15 +323,16 @@ interface StudentCardProps {
 }
 
 function StudentCard({
-  index, student, total, isEnrolled, token,
+  index, student, total, isEnrolled, token, requireSex,
   onUpdate, onToggleSubject, onEnrolled, onRemove,
 }: StudentCardProps) {
+  const { t } = useTranslation()
   const totalMin = student.selected_subjects.reduce((acc, s) => {
     const info = SUBJECTS.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
   }, 0)
 
-  const label = student.student_name.trim() || `Student ${index + 1}`
+  const label = student.student_name.trim() || t('parentSetup.studentFallbackLabel', { n: index + 1 })
 
   return (
     <div className="bg-white rounded-xl border border-navy-100 shadow-sm overflow-hidden">
@@ -320,7 +346,7 @@ function StudentCard({
           <button
             onClick={onRemove}
             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            title="Remove student"
+            title={t('parentSetup.removeStudent')}
           >
             <Trash2 size={14} />
           </button>
@@ -331,22 +357,22 @@ function StudentCard({
         {/* Name + grade */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Student's Name</label>
+            <label className="label">{t('parentSetup.studentsName')}</label>
             <input
               type="text"
               value={student.student_name}
               onChange={(e) => onUpdate({ student_name: e.target.value })}
-              placeholder="e.g. Emma"
+              placeholder={t('parentSetup.namePlaceholder')}
               className="input"
             />
           </div>
           <div>
-            <label className="label">Grade</label>
+            <label className="label">{t('parentSetup.grade')}</label>
             <input
               type="text"
               value={student.grade}
               onChange={(e) => onUpdate({ grade: e.target.value })}
-              placeholder="e.g. 4 or K"
+              placeholder={t('parentSetup.gradePlaceholder')}
               className="input"
             />
           </div>
@@ -366,16 +392,45 @@ function StudentCard({
             >
               <div className="text-lg mb-0.5">{s.emoji}</div>
               <div className="font-semibold text-xs text-gray-800">{s.label}</div>
-              <div className="text-xs text-gray-400 leading-tight">{s.description}</div>
+              <div className="text-xs text-gray-400 leading-tight">{t(s.descriptionKey)}</div>
             </button>
           ))}
         </div>
 
+        {/* Sex — only asked when the deployment's locale needs it for
+            grammatically correct address (Spanish, Italian, Polish so far;
+            an English-only deployment never sees this). */}
+        {requireSex && (
+          <div>
+            <label className="label">{t('parentSetup.sex')}</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['male', 'female'] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => onUpdate({ sex: value })}
+                  className={`rounded-xl border-2 py-2.5 text-sm font-medium transition-all ${
+                    student.sex === value
+                      ? 'border-navy-500 bg-navy-50 text-navy-800'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-navy-200'
+                  }`}
+                >
+                  {value === 'male' ? t('parentSetup.sexMale') : t('parentSetup.sexFemale')}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              {student.student_name.trim()
+                ? t('parentSetup.sexHelpNamed', { name: student.student_name.trim() })
+                : t('parentSetup.sexHelpUnnamed')}
+            </p>
+          </div>
+        )}
+
         {/* Subjects */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label mb-0">Subjects</label>
-            <span className="text-xs text-gray-400">{totalMin} min</span>
+            <label className="label mb-0">{t('parentSetup.subjects')}</label>
+            <span className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: totalMin })}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {SUBJECTS.map((s) => {
@@ -391,7 +446,7 @@ function StudentCard({
                   <s.Icon size={16} className="flex-shrink-0 text-current" />
                   <div>
                     <div className="text-xs font-medium text-gray-800">{s.label}</div>
-                    <div className="text-xs text-gray-400">{s.durationMin} min</div>
+                    <div className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: s.durationMin })}</div>
                   </div>
                 </button>
               )
@@ -402,11 +457,11 @@ function StudentCard({
         {/* Voice / accessibility */}
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
           <div>
-            <p className="text-sm font-medium text-gray-700">Voice verification</p>
+            <p className="text-sm font-medium text-gray-700">{t('parentSetup.voiceVerification')}</p>
             <p className="text-xs text-gray-500 mt-0.5">
               {student.voice_required
-                ? 'Student says passphrase at session start'
-                : 'PIN-only — no voice check (mute / accessibility)'}
+                ? t('parentSetup.voiceVerificationOn')
+                : t('parentSetup.voiceVerificationOff')}
             </p>
           </div>
           <button
@@ -423,15 +478,71 @@ function StudentCard({
           </button>
         </div>
 
+        {/* Appearance lock — hides the chat theme/bubble picker in this
+            student's sessions. For children who find open-ended
+            customization a distraction magnet, choice happens here with
+            the parent, not mid-lesson. */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+          <div>
+            <p className="text-sm font-medium text-gray-700">{t('parentSetup.lockChatAppearance')}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {student.appearance_locked
+                ? t('parentSetup.appearanceLockedOn')
+                : t('parentSetup.appearanceLockedOff')}
+            </p>
+          </div>
+          <button
+            onClick={() => onUpdate({ appearance_locked: !student.appearance_locked })}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+              student.appearance_locked ? 'bg-navy-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                student.appearance_locked ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Session hard stop — on by default and there by design; the
+            parent (already behind the parent password to be on this page)
+            may extend it, but never beyond 4 hours, and every hour of
+            session time still gets its mandatory 10-minute break. */}
+        <div className="p-3 bg-gray-50 rounded-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-700">{t('parentSetup.sessionLength')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {t('parentSetup.sessionLengthHelp')}
+              </p>
+            </div>
+            <div className="w-24 flex-shrink-0">
+              <input
+                type="number"
+                min={30}
+                max={240}
+                step={15}
+                value={student.session_cap_minutes}
+                onChange={(e) =>
+                  onUpdate({ session_cap_minutes: Math.max(30, Math.min(240, Number(e.target.value) || 120)) })
+                }
+                className="input"
+              />
+              <p className="text-xs text-gray-400 mt-1 text-center">{t('parentSetup.minutes')}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Screen time limit + eye-rest break */}
         <div className="p-3 bg-gray-50 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-700">Limit total screen time today</p>
+              <p className="text-sm font-medium text-gray-700">{t('parentSetup.limitScreenTime')}</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {student.screen_time_limit_enabled
-                  ? `Mandatory eye-rest break after ${student.screen_time_limit_minutes} min on screen`
-                  : 'Off — only the grade-based block/break cycle applies'}
+                  ? t('parentSetup.screenTimeOn', { minutes: student.screen_time_limit_minutes })
+                  : t('parentSetup.screenTimeOff')}
               </p>
             </div>
             <button
@@ -451,7 +562,7 @@ function StudentCard({
           {student.screen_time_limit_enabled && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Screen time cap (min)</label>
+                <label className="label">{t('parentSetup.screenTimeCapLabel')}</label>
                 <input
                   type="number"
                   min={15}
@@ -465,7 +576,7 @@ function StudentCard({
                 />
               </div>
               <div>
-                <label className="label">Eye-rest break (min)</label>
+                <label className="label">{t('parentSetup.eyeRestBreakLabel')}</label>
                 <input
                   type="number"
                   min={30}
@@ -477,7 +588,7 @@ function StudentCard({
                   }
                   className="input"
                 />
-                <p className="text-xs text-gray-400 mt-1">30-minute minimum, for eye health</p>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.eyeRestMinimum')}</p>
               </div>
             </div>
           )}
@@ -488,15 +599,15 @@ function StudentCard({
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600">
               {isEnrolled
-                ? <><CheckCircle size={13} className="inline text-navy-500 mr-1" />Voice enrolled</>
-                : 'No voice profile yet'}
+                ? <><CheckCircle size={13} className="inline text-navy-500 mr-1" />{t('parentSetup.voiceEnrolled')}</>
+                : t('parentSetup.noVoiceProfile')}
             </p>
             <button
               onClick={() => onUpdate({ showEnrollment: true })}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-navy-300 text-navy-700 hover:bg-navy-50 text-xs font-medium transition-colors"
             >
               <Mic size={12} />
-              {isEnrolled ? 'Re-enrol' : 'Enrol Voice'}
+              {isEnrolled ? t('parentSetup.reEnrol') : t('parentSetup.enrolVoice')}
             </button>
           </div>
         )}
@@ -505,11 +616,11 @@ function StudentCard({
         <div className="p-3 bg-gray-50 rounded-xl space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-medium text-gray-700">Term & mastery outcomes</p>
+              <p className="text-sm font-medium text-gray-700">{t('parentSetup.termMasteryOutcomes')}</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {student.term_schedule === 'trimester'
-                  ? 'Mater Amabilis 3-term year'
-                  : '4-quarter year'} · exposure to all topics, mastery of up to 3 per area
+                  ? t('parentSetup.trimesterYear')
+                  : t('parentSetup.quarterYear')} · {t('parentSetup.termMasterySuffix')}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -524,8 +635,8 @@ function StudentCard({
                 }}
                 className="input !w-auto text-xs py-1.5"
               >
-                <option value="trimester">Terms (3/yr)</option>
-                <option value="quarterly">Quarters (4/yr)</option>
+                <option value="trimester">{t('parentSetup.termsOption')}</option>
+                <option value="quarterly">{t('parentSetup.quartersOption')}</option>
               </select>
               <select
                 value={student.current_term}
@@ -534,7 +645,7 @@ function StudentCard({
               >
                 {Array.from({ length: student.term_schedule === 'trimester' ? 3 : 4 }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
-                    {student.term_schedule === 'trimester' ? 'Term' : 'Quarter'} {n}
+                    {student.term_schedule === 'trimester' ? t('parentSetup.termN', { n }) : t('parentSetup.quarterN', { n })}
                   </option>
                 ))}
               </select>
@@ -548,14 +659,13 @@ function StudentCard({
                   type="text"
                   value={student.term_topics[id]}
                   onChange={(e) => onUpdate({ term_topics: { ...student.term_topics, [id]: e.target.value } })}
-                  placeholder="Up to 3 mastery topics, comma-separated"
+                  placeholder={t('parentSetup.termTopicsPlaceholder')}
                   className="input text-xs"
                 />
               </div>
             ))}
             <p className="text-xs text-gray-400">
-              Bede weaves these into lessons, tracks each learner's progress on them, and shows
-              you where they stand on the Progress page — the child never sees them as objectives.
+              {t('parentSetup.termTopicsHelp')}
             </p>
           </div>
         </div>
@@ -567,36 +677,36 @@ function StudentCard({
             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
           >
             {student.expandedContext ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            Session context (optional)
+            {t('parentSetup.sessionContextOptional')}
           </button>
           {student.expandedContext && (
             <div className="mt-3 space-y-3">
               <div>
-                <label className="label">Current Unit of Study</label>
+                <label className="label">{t('parentSetup.currentUnit')}</label>
                 <input
                   type="text"
                   value={student.current_unit}
                   onChange={(e) => onUpdate({ current_unit: e.target.value })}
-                  placeholder="e.g. Ancient Egypt, Fractions"
+                  placeholder={t('parentSetup.currentUnitPlaceholder')}
                   className="input"
                 />
               </div>
               <div>
-                <label className="label">Faith / Virtue Focus</label>
+                <label className="label">{t('parentSetup.faithFocus')}</label>
                 <input
                   type="text"
                   value={student.faith_emphasis}
                   onChange={(e) => onUpdate({ faith_emphasis: e.target.value })}
-                  placeholder="e.g. Proverbs 3:5-6, Patience"
+                  placeholder={t('parentSetup.faithFocusPlaceholder')}
                   className="input"
                 />
               </div>
               <div>
-                <label className="label">Note for Bede</label>
+                <label className="label">{t('parentSetup.noteForBede')}</label>
                 <textarea
                   value={student.lesson_focus}
                   onChange={(e) => onUpdate({ lesson_focus: e.target.value })}
-                  placeholder="e.g. Focus on multiplication facts 6–9 today."
+                  placeholder={t('parentSetup.noteForBedePlaceholder')}
                   rows={2}
                   className="input resize-none"
                 />

@@ -115,6 +115,19 @@ class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
     grade: str = Field(..., description="e.g. '3' or 'K'")
     grade_stage: GradeStage
+    # Biological sex, not a separate "gender identity" concept — consistent
+    # with Bede's classical natural-law formation (docs/CONSTITUTION.md).
+    # Optional for an English-only deployment, where it's never asked for or
+    # used. Required by routers/pod.py's save_pod_configs whenever LOCALE is
+    # a non-English value: Spanish, Italian, and Polish all need this for
+    # grammatically correct address ("bienvenido"/"bienvenida", and in
+    # Polish even past-tense verb agreement) — see
+    # services/ai_service.py's _locale_directive and docs/LOCALIZATION.md.
+    # Every locale currently supported happens to be a grammatically
+    # gendered language; a future non-gendered addition (Tagalog, from the
+    # original locale list, has no grammatical gender at all) would need
+    # this requirement revisited rather than assumed to still apply.
+    sex: Optional[Literal["male", "female"]] = None
     subjects: List[Subject] = Field(
         default=[
             Subject.morning_time,
@@ -130,6 +143,14 @@ class SessionConfig(BaseModel):
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
+    # The session's hard stop, in minutes — on by default and there by
+    # design: the session concludes automatically when it's reached. 2-hour
+    # default; a parent (behind the parent password) may raise it, but the
+    # schema ceiling means no stored value can ever exceed 4 hours. Configs
+    # saved before this field existed load as the 2-hour default. A
+    # mandatory 10-minute break runs after every hour of session time
+    # regardless of this value (frontend gradeTimer.ts).
+    session_cap_minutes: int = Field(default=120, ge=30, le=240)
     # Parent-set cap on total on-screen tutoring minutes before a mandatory
     # eye-rest break is inserted, independent of the grade-based block/break
     # cycle. None = no additional cap.
@@ -144,6 +165,13 @@ class SessionConfig(BaseModel):
     # output. Updated via PATCH /pod/configs/{student_name}/voice-narration
     # (routers/pod.py), reachable by the child themselves, not just the parent.
     voice_narration_enabled: bool = True
+    # Parent-side lock on the chat appearance picker (background theme +
+    # bubble color). When True, the child's session hides the picker
+    # entirely — whatever look the device already has stays put. For
+    # children who find open-ended customization a distraction magnet
+    # (ADD/ADHD tendencies especially), choice happens with the parent,
+    # not mid-lesson. A parent-role session still sees the picker.
+    appearance_locked: bool = False
 
     # ── Term schedule & outcomes ──────────────────────────────────────────
     # Mater Amabilis default is a 3-term year; quarterly gives 4. current_term
@@ -241,6 +269,14 @@ class SandboxDemoChatRequest(BaseModel):
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo_code"]
     credential: str   # password for parent, PIN for child, generated code for demo_code
+    # Chosen at the login screen itself (Login.tsx's English/Español toggle) —
+    # per-login, not a per-student or deployment-wide setting. Validated
+    # against core.config.SUPPORTED_LOCALES at the route (not here, to avoid
+    # this module importing core.config) and embedded as a JWT claim, so the
+    # rest of that session's requests carry it automatically via
+    # core.deps.require_auth's returned payload. See services/ai_service.py's
+    # _locale_directive and services/prayer_catalog.py for where it's read.
+    locale: str = "en"
 
 
 class DemoCodeRequest(BaseModel):

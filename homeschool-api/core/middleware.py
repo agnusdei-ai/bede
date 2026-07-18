@@ -20,14 +20,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from core.audit import AuditEvent, log_event
+from core.config import settings
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 # Sliding window: stores list of timestamps per IP
 _rate_windows: dict[str, list[float]] = defaultdict(list)
 
-AUTH_LIMIT = 10       # auth attempts per IP per minute
-API_LIMIT = 120       # general API calls per IP per minute
-VOICE_LIMIT = 20      # voice enroll/verify per IP per minute
+# Per-minute limits come from settings (RATE_LIMIT_*_PER_MINUTE env vars —
+# see core/config.py), so an operator expecting a crowd behind one shared IP
+# can raise them from the deployment dashboard instead of editing code.
+# Defaults: auth 10, api 120, voice 20 per IP per minute.
 
 
 def _check_rate(ip: str, bucket: str, limit: int, window_sec: int = 60) -> bool:
@@ -180,11 +182,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         if "/auth/" in path:
-            allowed, bucket, limit = _check_rate(ip, "auth", AUTH_LIMIT), "auth", AUTH_LIMIT
+            bucket, limit = "auth", settings.rate_limit_auth_per_minute
         elif "/voice/" in path:
-            allowed, bucket, limit = _check_rate(ip, "voice", VOICE_LIMIT), "voice", VOICE_LIMIT
+            bucket, limit = "voice", settings.rate_limit_voice_per_minute
         else:
-            allowed, bucket, limit = _check_rate(ip, "api", API_LIMIT), "api", API_LIMIT
+            bucket, limit = "api", settings.rate_limit_api_per_minute
+        allowed = _check_rate(ip, bucket, limit)
 
         if not allowed:
             await log_event(

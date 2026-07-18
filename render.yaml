@@ -47,10 +47,38 @@ services:
           property: connectionString
 
       # Secrets — set these in Render's dashboard after the first deploy.
+      # ANTHROPIC_API_KEY is left declared for legacy/optional use (see
+      # docs/PROVIDER_ADAPTERS.md), but this deployment does NOT depend on it —
+      # BEDE_ADAPTER_ORDER below boots this demo on OpenAI/Mistral instead,
+      # since Render has no GPU for the self-hosted "local" adapter and this
+      # demo should not assume Anthropic access is available.
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Doubles as both OpenAI TTS (services/voice_synthesis.py) and the
+      # OpenAI chat adapter (services/adapters/openai_compatible_adapter.py)
+      # now that BEDE_ADAPTER_ORDER includes "openai" below — same key, two
+      # uses, one Render dashboard entry.
       - key: OPENAI_API_KEY
         sync: false
+      # Mistral chat adapter secondary — see docs/PROVIDER_ADAPTERS.md. Get a
+      # key at console.mistral.ai (La Plateforme) -> API Keys.
+      - key: MISTRAL_API_KEY
+        sync: false
+      # Cloud-first boot order for this Render demo/dev deployment: OpenAI
+      # primary, Mistral secondary/fallback. Deliberately excludes "local"
+      # (Render has no GPU to run vLLM/Qwen3-Coder) and does not require
+      # "anthropic" to be configured at all — this demo boots and serves
+      # fully on OpenAI+Mistral. Because services/ai_service.py's `_client`
+      # resolves via router.resolve_with_failover() (not the plain
+      # get_default_client()), this is LIVE failover, not just a boot-time
+      # preference: if OpenAI errors (auth/rate-limit/connection failure) on
+      # a request, that request automatically retries against Mistral before
+      # any content streams back, with a ~60s circuit-breaker cooldown on
+      # the failed provider.
+      # A family's self-hosted production instance should instead follow the
+      # docs/PROVIDER_ADAPTERS.md default (local,anthropic) or its own choice.
+      - key: BEDE_ADAPTER_ORDER
+        value: openai,mistral
       # Neither of these was ever declared here before — without them,
       # services/email_service.py's email_configured() is False, which
       # silently no-ops the post-session summary email, the distress alert,
@@ -97,6 +125,14 @@ services:
         value: "4"
       - key: DEMO_GRADE_STAGE
         value: "3-5"
+      # Offers the English/Español toggle on the demo's CodeScreen (see
+      # docs/LOCALIZATION.md's per-login model) so Spanish-speaking beta
+      # testers can actually exercise the localized experience end to end.
+      # Fixed here rather than sync: false since it's not a secret, just a
+      # product decision — see docs/DEMO_HOSTING.md's "Spanish beta testing"
+      # section for verification steps and how to turn it back off.
+      - key: LOCALE
+        value: es
       # A browser's CORS Origin header is always scheme://host[:port] with
       # NO path — even though the demo itself is served from
       # https://agnusdei-ai.github.io/bede/, the Origin it sends is just

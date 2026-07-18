@@ -52,9 +52,12 @@ VITE_DEMO_API_BASE=https://your-backend.example.com npm run build     # outputs 
 ```
 
 The build uses a relative base path for its own assets, so the output works
-whether it's served from a domain root or a subpath (e.g. a GitHub Pages
-project site) — but `VITE_DEMO_API_BASE` itself must be an absolute URL,
-since it points at a different host entirely. `.github/workflows/deploy-demo.yml`
+whether it's served from a domain root or a subpath — which it is in
+practice: `.github/workflows/deploy-demo.yml` publishes this build under
+`/bede/`, alongside a separate small company landing page (`site/`) at the
+domain root — see `docs/DEMO_HOSTING.md`'s "Why the apex isn't just the
+demo" for the full picture. `VITE_DEMO_API_BASE` itself must still be an
+absolute URL, since it points at a different host entirely; the workflow
 reads it from the `VITE_DEMO_API_BASE` repository variable (Settings →
 Secrets and variables → Actions → Variables) automatically.
 

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agnus Dei Technologies</title>
+  <meta name="description" content="Agnus Dei Technologies — faithful innovation for the classical Catholic home. Meet Bede, our AI Socratic tutor, and see the full curriculum." />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <style>
+    :root {
+      --olive-600: #3d4d1f;
+      --olive-500: #556b2f;
+      --navy-800: #0b1636;
+      --navy-600: #17306e;
+      --gold-500: #d4a106;
+      --gold-300: #f9d54a;
+      --parchment-50: #fefcf7;
+      --parchment-200: #faedc6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--parchment-50);
+      color: var(--navy-800);
+      font-family: Georgia, Cambria, 'Times New Roman', serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 3.5rem 1.5rem 3rem;
+      max-width: 42rem;
+      margin: 0 auto;
+    }
+
+    img.emblem {
+      width: 112px;
+      height: auto;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 {
+      font-family: 'Palatino Linotype', Palatino, serif;
+      font-size: clamp(2rem, 5vw, 2.75rem);
+      margin: 0 0 0.75rem;
+      color: var(--navy-800);
+    }
+
+    p.motto {
+      font-family: 'Palatino Linotype', Palatino, serif;
+      font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+      font-weight: bold;
+      color: var(--olive-600);
+      margin: 0 0 1rem;
+    }
+
+    p.mission {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #3f3f3f;
+      margin: 0 0 2rem;
+    }
+
+    .pillars {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1.5rem;
+      margin: 0 0 2.5rem;
+      padding: 1.5rem;
+      background: rgba(250, 237, 198, 0.4);
+      border-radius: 0.75rem;
+      border: 1px solid var(--parchment-200);
+    }
+
+    .pillar {
+      flex: 1 1 12rem;
+      max-width: 14rem;
+    }
+
+    .pillar h3 {
+      font-family: Georgia, serif;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--olive-600);
+      margin: 0 0 0.35rem;
+    }
+
+    .pillar p {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: #4a4a4a;
+      margin: 0;
+    }
+
+    a.cta {
+      display: inline-block;
+      background: var(--olive-500);
+      color: var(--parchment-50);
+      text-decoration: none;
+      font-family: Georgia, serif;
+      font-size: 1.1rem;
+      font-weight: bold;
+      padding: 0.85rem 2.25rem;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    a.cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+    }
+
+    .video-wrap {
+      width: 100%;
+      max-width: 36rem;
+      margin: 0 0 2.5rem;
+      position: relative;
+      padding-bottom: 56.25%; /* 16:9 */
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .video-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .video-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--parchment-200);
+      color: var(--olive-600);
+    }
+
+    .video-placeholder span {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      background: var(--olive-500);
+      color: var(--parchment-50);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .video-placeholder p {
+      margin: 0;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+
+    .curriculum {
+      background: var(--parchment-200);
+      padding: 3rem 1.5rem;
+    }
+
+    .curriculum-inner {
+      max-width: 56rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .curriculum h2 {
+      font-family: 'Palatino Linotype', Palatino, serif;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      color: var(--navy-800);
+      margin: 0 0 0.5rem;
+    }
+
+    .curriculum .subhead {
+      font-size: 1rem;
+      color: #4a4a4a;
+      max-width: 34rem;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    .subject-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      gap: 1rem;
+      text-align: left;
+    }
+
+    .subject-card {
+      background: var(--parchment-50);
+      border-left: 4px solid var(--olive-500);
+      border-radius: 0.5rem;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .subject-card h3 {
+      font-family: Georgia, serif;
+      font-size: 1.02rem;
+      color: var(--navy-800);
+      margin: 0 0 0.25rem;
+    }
+
+    .subject-card p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #55554f;
+      margin: 0;
+    }
+
+    p.soon {
+      text-align: center;
+      margin: 2.5rem 0 0;
+      font-size: 0.95rem;
+      color: #8a8a8a;
+    }
+
+    footer {
+      padding: 1.5rem;
+      font-size: 0.8rem;
+      color: #a0a0a0;
+      border-top: 1px solid var(--parchment-200);
+      width: 100%;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="hero">
+    <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
+    <h1>Agnus Dei Technologies</h1>
+    <p class="motto">Formation, not just information.</p>
+    <p class="mission">
+      Bede, our first product, teaches the way the Church has always taught —
+      through wonder, questions, and evidence, not lectures or shortcuts. It's
+      a Catholic Classical AI tutor for the homeschool, live today.
+    </p>
+    <div class="pillars">
+      <div class="pillar">
+        <h3>Comprehension</h3>
+        <p>Truth rendered in the child's own words, reasoning, and work — never answer-matching.</p>
+      </div>
+      <div class="pillar">
+        <h3>Compassion</h3>
+        <p>Patience, mercy, and attentiveness to the whole person, not just the lesson.</p>
+      </div>
+      <div class="pillar">
+        <h3>Conscience</h3>
+        <p>Helped to recognize and freely choose the good — informed, never coerced.</p>
+      </div>
+    </div>
+    <div class="video-wrap" id="video-wrap"></div>
+    <a class="cta" href="/bede/">Meet Bede →</a>
+  </main>
+
+  <section class="curriculum">
+    <div class="curriculum-inner">
+      <h2>The Curriculum</h2>
+      <p class="subhead">
+        Ten subjects, woven through a Catholic Classical week — this is what
+        your child explores with Bede, session by session.
+      </p>
+      <div class="subject-grid">
+        <div class="subject-card">
+          <h3>Morning Time</h3>
+          <p>Bible, hymn, poetry &amp; prayer</p>
+        </div>
+        <div class="subject-card">
+          <h3>Living Books</h3>
+          <p>Classical literature &amp; narration</p>
+        </div>
+        <div class="subject-card">
+          <h3>Mathematics</h3>
+          <p>Discovery-based mathematical thinking</p>
+        </div>
+        <div class="subject-card">
+          <h3>Nature Study</h3>
+          <p>Observation, wonder &amp; creation</p>
+        </div>
+        <div class="subject-card">
+          <h3>History &amp; Geography</h3>
+          <p>Story-based history &amp; real places</p>
+        </div>
+        <div class="subject-card">
+          <h3>Language Arts</h3>
+          <p>Narration, copywork &amp; grammar</p>
+        </div>
+        <div class="subject-card">
+          <h3>Science</h3>
+          <p>Botany, zoology &amp; earth science</p>
+        </div>
+        <div class="subject-card">
+          <h3>Art &amp; Music</h3>
+          <p>Composer &amp; artist study</p>
+        </div>
+        <div class="subject-card">
+          <h3>Saints &amp; Catechism</h3>
+          <p>Saints, catechism &amp; virtue formation</p>
+        </div>
+        <div class="subject-card">
+          <h3>Free Study</h3>
+          <p>Student-directed exploration</p>
+        </div>
+      </div>
+      <p class="soon">More from Agnus Dei Technologies is on the way.</p>
+    </div>
+  </section>
+
+  <footer>
+    &copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.
+  </footer>
+  <script>
+    // To add the intro video: paste the ID from its YouTube URL (the part
+    // after "v=", e.g. "dQw4w9WgXcQ" from youtube.com/watch?v=dQw4w9WgXcQ)
+    // below, then push — no build step, no rebuild pipeline, this file is
+    // served as-is. Leave it blank to keep showing the placeholder.
+    const YOUTUBE_VIDEO_ID = '';
+
+    const videoWrap = document.getElementById('video-wrap');
+    videoWrap.innerHTML = YOUTUBE_VIDEO_ID
+      ? `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}"
+           title="Agnus Dei Technologies — Meet Bede"
+           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+           loading="lazy" allowfullscreen></iframe>`
+      : `<div class="video-placeholder">
+           <span>&#9654;</span>
+           <p>Video coming soon</p>
+         </div>`;
+  </script>
+</body>
+</html>

@@ -19,11 +19,23 @@ export interface SessionConfig {
   student_name: string
   grade: string
   grade_stage: GradeStage
+  // Biological sex, not "gender identity" — see models/schemas.py's
+  // SessionConfig.sex on the backend. Unused/optional on an English-only
+  // deployment; required by POST /pod/configs once the deployment's LOCALE
+  // is a grammatically gendered language (Spanish, Italian, Polish so far)
+  // so Bede can address the student correctly. See docs/LOCALIZATION.md.
+  sex?: 'male' | 'female'
   subjects: Subject[]
   lesson_focus?: string
   faith_emphasis?: string
   current_unit?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
+  // The session's hard stop, in minutes — on by default and there by design
+  // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
+  // effectiveSessionCap clamps whatever is stored). The session concludes
+  // automatically when it's reached, and a mandatory 10-minute break runs
+  // after every hour of session time regardless of this value.
+  session_cap_minutes?: number
   // Parent-set cap on total on-screen tutoring minutes before a mandatory eye-rest
   // break is inserted. null/undefined = no cap beyond the normal grade-based
   // block/break cycle in gradeTimer.ts.
@@ -36,6 +48,12 @@ export interface SessionConfig {
   // above, which is about login voice-biometric verification, not TTS
   // output. Defaults true when absent (configs saved before this field existed).
   voice_narration_enabled?: boolean
+  // Parent-side lock on the chat appearance picker (background theme +
+  // bubble color). True hides the picker in the child's session — the
+  // device keeps whatever look it already has; a parent-role session
+  // still sees it. Defaults false/absent for configs saved before this
+  // field existed.
+  appearance_locked?: boolean
   // ── Term schedule & outcomes ────────────────────────────────────────────
   // Mater Amabilis default is a 3-term (trimester) year; quarterly gives 4.
   term_schedule?: TermSchedule
@@ -213,6 +231,21 @@ export interface LearnerProfileData {
   session_count_assessed: number
   bede_profile_notes: string
   assessed_at: string
+}
+
+// Parent-only (unlike LearnerProfileData, which a child token can also
+// read) — see homeschool-api/core/database.py's LearnerBehaviorCheck for
+// what this is and isn't. Only ever present while processing_style is
+// currently one of the three TRACKABLE_STYLES (kinesthetic, reading_writing,
+// visual — see routers/narration.py); null otherwise, including for
+// auditory, which gets a prompt nudge but no counter (no honest tool-level
+// signal exists for it). Deliberately NOT a claim that any of these labels
+// improves learning — only a check that Bede's own prompted adaptation is
+// actually happening. count's meaning depends on the CURRENT
+// processing_style (see behaviorCheckLine in pages/Progress.tsx).
+export interface LearnerBehaviorCheck {
+  count: number
+  since: string
 }
 
 // Real, persisted (mastery_profiles) diagnostic summary — see

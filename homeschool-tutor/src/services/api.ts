@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, MasteryProfileSummary, UsageSummary, LicenseStatus } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, LicenseStatus } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 
 const BASE = '/api'
@@ -26,11 +26,31 @@ function toLoginResult(data: any): LoginResult {
   }
 }
 
-export async function login(role: 'parent' | 'child', credential: string): Promise<LoginResult> {
+export interface AvailableLocale {
+  code: string
+  name: string
+}
+
+// Public, pre-auth — Login.tsx calls this before a token exists to decide
+// whether to render the language toggle at all. Empty array on an
+// English-only deployment (the default), same "toggle just isn't there"
+// behavior as before this feature existed.
+export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
+  try {
+    const res = await fetch(`${BASE}/auth/locales`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.locales ?? []
+  } catch {
+    return []
+  }
+}
+
+export async function login(role: 'parent' | 'child', credential: string, locale?: string): Promise<LoginResult> {
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role, credential }),
+    body: JSON.stringify(locale ? { role, credential, locale } : { role, credential }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -264,6 +284,7 @@ export async function* streamSandboxChat(
 export interface SystemStatus {
   voice_profiles_enrolled: number
   student_names: string[]
+  locale: string
   encryption: string
   key_storage: string
   audit_log: string
@@ -312,6 +333,21 @@ export async function fetchStudentConfig(token: string, studentName: string): Pr
   })
   if (!res.ok) throw new Error(`No configuration found for ${studentName} — ask a parent to set up today's pod.`)
   return res.json()
+}
+
+/**
+ * Permanently deletes a student and ALL of their data — narration history,
+ * learner profile, mastery tracking, session transcripts, usage events,
+ * voice enrollment, not just today's pod config. Irreversible — the
+ * caller (PodDashboard.tsx) requires the parent to type the student's
+ * name to confirm before calling this. See docs/DATA_RETENTION.md.
+ */
+export async function deleteStudentData(token: string, studentName: string): Promise<void> {
+  const res = await fetch(`${BASE}/pod/configs/${encodeURIComponent(studentName)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Failed to delete ${studentName}'s data`)
 }
 
 /**
@@ -453,6 +489,17 @@ export async function fetchLearnerProfile(
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to load learner profile for ${studentName}`)
   return res.json()
+}
+
+export async function fetchLearnerBehaviorCheck(
+  token: string,
+  studentName: string
+): Promise<LearnerBehaviorCheck | null> {
+  const res = await fetch(`${BASE}/narration/${encodeURIComponent(studentName)}/behavior-check`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Failed to load the behavior check for ${studentName}`)
+  return res.json() // null body when not currently profiled kinesthetic
 }
 
 export async function fetchMasteryProfileSummary(

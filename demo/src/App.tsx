@@ -1,23 +1,39 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { Send, Loader2, Mic, MicOff, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap } from 'lucide-react'
+import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
+import { useTranslation, Trans } from 'react-i18next'
+import type { TFunction } from 'i18next'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
-  fetchDiagnosticSummary, streamDiagnosticChat,
+  fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales,
   TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
-  type FeedbackCategory, type MasteryProfileSummary,
+  type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
 } from './api'
-import { useSpeechRecognition } from './useSpeechRecognition'
+import i18n from './i18n'
+import { useHybridVoiceInput } from './useHybridVoiceInput'
+import { useTranscriptWords } from './useTranscriptWords'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
-import HandwritingCanvas from './HandwritingCanvas'
+// Lazily loaded: the drawing canvas is a heavyweight component most demo
+// visits never open, and keeping it out of the entry bundle makes first
+// paint lighter for everyone. It loads the moment the pencil is tapped
+// (or Bede invites handwriting); the Suspense fallback below stays null
+// because the wait is a one-time few-hundred-millisecond fetch at most.
+const HandwritingCanvas = lazy(() => import('./HandwritingCanvas'))
+import ThemePicker from './ThemePicker'
+import { useChatTheme } from './useChatTheme'
+import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
+import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
+import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
 import { useConsent } from './useConsent'
 import ConsentModal from './ConsentModal'
+import { logDebug } from './debugBus'
+import { DebugOverlay } from './DebugOverlay'
 
 interface DisplayMessage {
   id: string
@@ -61,9 +77,14 @@ function toApiMessage(m: DisplayMessage): ChatMessage | null {
 // spins the backend down after 15 minutes idle and refuses connections
 // outright while it cold-starts back up, which is exactly this case, so
 // point at that rather than surfacing the raw browser wording.
-function friendlyErrorMessage(err: unknown, fallback: string): string {
+// t is optional — most call sites in this file don't yet have translated
+// fallback copy (see docs/LOCALIZATION.md's disclosed scope boundary: this
+// pass covers CodeScreen, not every error path in the app), so this keeps
+// working with the English default for those, while CodeScreen's own call
+// site passes t to translate both the network-error message and its fallback.
+function friendlyErrorMessage(err: unknown, fallback: string, t?: TFunction): string {
   if (err instanceof TypeError) {
-    return "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
+    return t ? t('common.networkError') : "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
   }
   return err instanceof Error ? err.message : fallback
 }
@@ -168,16 +189,57 @@ function clearChatState(code: string): void {
 // tab closes, same lifetime as every other piece of demo session state.
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
+// Chosen at CodeScreen's own language toggle, per visit — mirrors
+// homeschool-tutor's per-login model (docs/LOCALIZATION.md) but the demo has
+// no persisted auth store to restore from, so sessionStorage fills that role
+// here, same lifetime as the name/grade keys above.
+const LOCALE_STORAGE_KEY = 'bede-demo-locale'
+
+// The stage bands the backend's grade_to_stage() uses, mirrored here so the
+// handwriting canvas can scale its composition ruling to the child. The
+// demo default (no grade picked) is grade 4, hence the '3-5' fallback.
+function demoGradeStage(): string {
+  const grade = sessionStorage.getItem(GRADE_STORAGE_KEY) ?? ''
+  if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
+  if (grade === '6' || grade === '7' || grade === '8') return '6-8'
+  return '3-5'
+}
 
 function CodeScreen({ onLoggedIn }: {
   onLoggedIn: (token: string, code: string) => void
 }) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
+  // Shown when code generation runs long — almost always the demo backend
+  // waking from its idle sleep, not a failure. Naming what's happening
+  // keeps a visitor from abandoning a spinner that WILL finish.
+  const [slowHint, setSlowHint] = useState(false)
   const { hasConsented, giveConsent } = useConsent()
   const formContainerRef = useRef<HTMLDivElement>(null)
+
+  // Language toggle — only rendered when the backend actually offers a
+  // non-English locale (GET /auth/locales). Restored from sessionStorage so
+  // a reload within the same tab doesn't silently revert to English, same
+  // persistence lifetime as the name/grade fields above.
+  const [availableLocales, setAvailableLocales] = useState<AvailableLocale[]>([])
+  const [selectedLocale, setSelectedLocale] = useState(() => sessionStorage.getItem(LOCALE_STORAGE_KEY) ?? 'en')
+
+  useEffect(() => {
+    fetchAvailableLocales().then(setAvailableLocales)
+  }, [])
+
+  useEffect(() => {
+    if (selectedLocale !== 'en') i18n.changeLanguage(selectedLocale)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chooseLocale = (code: string) => {
+    setSelectedLocale(code)
+    sessionStorage.setItem(LOCALE_STORAGE_KEY, code)
+    i18n.changeLanguage(code)
+  }
 
   // React 18's JSX doesn't recognize the `inert` DOM attribute (it's a
   // recent-ish addition — React only started passing it through in 19), so
@@ -192,15 +254,19 @@ function CodeScreen({ onLoggedIn }: {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
     setLoading(true)
     setError('')
+    const slowTimer = setTimeout(() => setSlowHint(true), 2500)
     try {
       const code = await generateDemoCode(studentName, grade)
-      const { token } = await loginWithCode(code)
+      const { token } = await loginWithCode(code, selectedLocale)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
       onLoggedIn(token, code)
     } catch (err) {
-      setError(friendlyErrorMessage(err, 'Could not start a session'))
+      setError(friendlyErrorMessage(err, t('codeScreen.couldNotStartSession'), t))
       setLoading(false)
+    } finally {
+      clearTimeout(slowTimer)
+      setSlowHint(false)
     }
   }
 
@@ -219,16 +285,49 @@ function CodeScreen({ onLoggedIn }: {
       className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4"
     >
       <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
+        {/* Language toggle — only rendered when this deployment offers one */}
+        {availableLocales.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-5">
+            <Globe size={13} className="text-gray-400" />
+            <div className="flex rounded-lg border border-navy-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => chooseLocale('en')}
+                className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                  selectedLocale === 'en' ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                }`}
+              >
+                English
+              </button>
+              {availableLocales.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => chooseLocale(l.code)}
+                  className={`px-2.5 py-1 text-xs font-medium transition-colors border-l border-navy-200 ${
+                    selectedLocale === l.code ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                  }`}
+                >
+                  {/* The backend's display name is "Spanish (Español)" — show
+                      just the endonym, same reasoning as homeschool-tutor's
+                      Login.tsx toggle. */}
+                  {l.name.match(/\(([^)]+)\)/)?.[1] ?? l.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="text-center mb-6">
           <div className="relative w-28 mx-auto mb-3">
-            <img src={`${import.meta.env.BASE_URL}bede-portrait.jpg`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
+            <img src={`${import.meta.env.BASE_URL}bede-portrait.webp`} alt="Bede" className="w-28 h-28 rounded-full object-cover object-top drop-shadow-md" />
             <AgnusDeiMark className="w-9 h-9 absolute -bottom-1 -right-2 drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-display font-bold text-gray-800">
-            <BedeWordmark />, a Socratic tutor
+            <BedeWordmark />{t('codeScreen.titleSuffix')}
           </h1>
-          <p className="text-sm text-navy-600 font-medium mt-1">Unlocking each learner's potential</p>
-          <p className="text-sm text-gray-500 mt-1">One click. No account or key needed.</p>
+          <p className="text-sm text-navy-600 font-medium mt-1">{t('codeScreen.tagline')}</p>
+          <p className="text-sm text-gray-500 mt-1">{t('codeScreen.subtitle')}</p>
         </div>
 
         {/* Both optional — Bede adapts tone, narration pacing (oral vs.
@@ -238,7 +337,7 @@ function CodeScreen({ onLoggedIn }: {
         <div className="space-y-3 mb-5">
           <div>
             <label htmlFor="student-name" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Learner's name <span className="font-normal normal-case text-gray-400">(optional)</span>
+              {t('codeScreen.learnerName')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
             </label>
             <input
               id="student-name"
@@ -246,13 +345,13 @@ function CodeScreen({ onLoggedIn }: {
               value={studentName}
               onChange={(e) => setStudentName(e.target.value)}
               maxLength={50}
-              placeholder="e.g. Ellie"
+              placeholder={t('codeScreen.namePlaceholder')}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
             />
           </div>
           <div>
             <label htmlFor="student-grade" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
-              Grade <span className="font-normal normal-case text-gray-400">(optional)</span>
+              {t('codeScreen.grade')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
             </label>
             <select
               id="student-grade"
@@ -260,9 +359,9 @@ function CodeScreen({ onLoggedIn }: {
               onChange={(e) => setGrade(e.target.value)}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy-400"
             >
-              <option value="">Use the default (grade 4)</option>
+              <option value="">{t('codeScreen.gradeDefault')}</option>
               {DEMO_GRADES.map((g) => (
-                <option key={g} value={g}>{g === 'K' ? 'Kindergarten' : `Grade ${g}`}</option>
+                <option key={g} value={g}>{g === 'K' ? t('codeScreen.kindergarten') : t('codeScreen.gradeN', { n: g })}</option>
               ))}
             </select>
           </div>
@@ -270,17 +369,29 @@ function CodeScreen({ onLoggedIn }: {
 
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-5 text-xs text-amber-800">
           <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-          <p>Your conversation is never stored. <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">Privacy Notice</a></p>
+          <p>
+            <Trans
+              i18nKey="codeScreen.privacyNotice"
+              components={{
+                link: <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900" />,
+              }}
+            />
+          </p>
         </div>
 
         {error && <p className="text-sm text-red-600 text-center mb-3">{error}</p>}
+        {slowHint && (
+          <p className="text-sm text-amber-700 text-center mb-3" aria-live="polite">
+            {t('codeScreen.wakingUp')}
+          </p>
+        )}
 
         <button
           onClick={handleClick}
           disabled={loading}
           className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
         >
-          {loading ? <Loader2 size={18} className="animate-spin" /> : 'Generate my code'}
+          {loading ? <Loader2 size={18} className="animate-spin" /> : t('codeScreen.generateCode')}
         </button>
 
         <div className="flex flex-col items-center gap-1.5 mt-5">
@@ -328,14 +439,40 @@ interface ChatScreenProps {
   // screen can send it, without lifting message state itself out of this
   // component.
   sessionStateRef?: React.MutableRefObject<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>
+  // When this session started (epoch ms) — drives the session-level hard
+  // stop and mandatory hourly breaks, same rules as the full app.
+  sessionStartedAt: number
 }
 
-function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+  const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
   // subject opener as if nothing had happened yet.
   const restored = useMemo(() => loadChatState(code), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const { theme, setThemeId, bubble, setBubbleId } = useChatTheme()
+
+  // Parent controls (gear menu, header upper right) — the demo's stand-in
+  // for the full app's password-protected Parent Setup, so the experience
+  // matches: a session hard stop with mandatory hourly breaks, and the
+  // appearance lock.
+  const [parentControls, setParentControls] = useState<DemoParentControls>(() => readDemoParentControls())
+  // Re-render every 15s so break/conclude transitions are noticed promptly
+  // even when nothing else is happening (same trick as the full app).
+  const [, setPhaseTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setPhaseTick((n) => n + 1), 15000)
+    return () => clearInterval(id)
+  }, [])
+  const sessionPhase = getPhase(
+    new Date(sessionStartedAt), SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+    effectiveSessionCap(parentControls.sessionCapMinutes),
+  )
+  const isSessionBreak = sessionPhase.phase === 'break'
+  const isConcluded = sessionPhase.phase === 'concluded'
+  const sessionPaused = isSessionBreak || isConcluded
+  const breakActivity = isSessionBreak ? pickBreakActivity(sessionPhase.cycleIndex) : null
 
   const [subject, setSubject] = useState<Subject>(() =>
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
@@ -364,21 +501,85 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
 
-  // ── Dictation mode ────────────────────────────────────────────────────────
-  // One tap turns the mic into an open conversation: each finished utterance
-  // sends itself, and the keepalive effect below re-arms the mic whenever
-  // Bede isn't thinking or talking — the learner converses freely with no
-  // button between turns. Tapping the mic again is the only way out.
-  // Mirrors homeschool-tutor's SocraticChat voice mode.
-  const [voiceMode, setVoiceMode] = useState(false)
-  const voiceModeRef = useRef(false)
-  useEffect(() => { voiceModeRef.current = voiceMode }, [voiceMode])
+  // ── Voice input: tap to speak ─────────────────────────────────────────────
+  // One tap starts listening for a single utterance; a finished transcript
+  // sends itself and the mic returns to idle — no hands-free restart loop.
+  // Mirrors homeschool-tutor's SocraticChat mic (see its comment for why:
+  // a continuous restart loop made every one of the heuristics below re-run
+  // on every turn, and any hiccup on any restart surfaced as a recurring,
+  // hard-to-pin-down audio bug).
 
-  const { isListening, interim, isSupported: sttSupported, start: startListening, stop: stopListening } =
-    useSpeechRecognition((transcript) => {
-      if (voiceModeRef.current) send(transcript)
-      else setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+  // Hybrid voice input (native Web Speech first, recording + server Whisper
+  // when it's unsupported, errors, or stalls) — the same resilience the real
+  // app has. A browser update once removed working speech recognition from
+  // under us; with the fallback, the mic degrades to a slightly slower path
+  // instead of dying silently.
+  //
+  // language must follow the session's own locale (i18n.language), not the
+  // 'en-US' default — a Spanish session recognizing speech as English
+  // produces garbled transcripts regardless of how well the rest of the UI
+  // is translated. Propagates to both the native Web Speech recognizer
+  // (useSpeechRecognition's `lang`) and the server Whisper fallback
+  // (transcribeFallback's language hint) — see useHybridVoiceInput.ts.
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening } =
+    useHybridVoiceInput({
+      token,
+      language: i18n.language === 'es' ? 'es-MX' : 'en-US',
+      // A walkie-talkie release delivers a finished utterance — send it the
+      // moment it's final, same as tapping Send after typing.
+      onFinal: (transcript) => {
+        logDebug(`App.onFinal transcript=${JSON.stringify(transcript)}`)
+        send(transcript)
+      },
     })
+
+  // Word-level diff of the live interim transcript, called unconditionally
+  // (rules of hooks) even though it's only rendered while isListening &&
+  // interim below — lets the transcript bubble fade in just the newly-heard
+  // tail on each tick instead of replacing the whole line, matching how
+  // Claude/Gemini's voice UIs settle words in progressively.
+  const transcriptWords = useTranscriptWords(interim)
+
+  // ── Press-and-hold (walkie-talkie) mic — the ONE control for voice input ──
+  // A single button: press and hold to talk, release to send. No mode
+  // toggle, no tap-to-speak alternative — one button, one gesture, one
+  // mental model (same pattern as WhatsApp voice messages and Claude's
+  // mobile push-to-talk). A single native recognition session stays open for
+  // the whole hold (see useHybridVoiceInput.startHold/release), so natural
+  // pauses don't end the turn. Crucially, the mic is NEVER restarted by a
+  // timer or effect: only an explicit press starts it and only an explicit
+  // release (or the inverse guard below, when Bede starts a turn) stops it.
+  // That's the whole point — the earlier "voice mode" auto-restarted the mic
+  // on a timer after every turn, which re-ran the timing-fragile listen
+  // heuristics endlessly and bred recurring audio bugs.
+  const holdingRef = useRef(false)
+
+  const holdStart = (e: React.PointerEvent) => {
+    logDebug(`holdStart type=${e.type} isStreaming=${isStreaming} sessionPaused=${sessionPaused} isTranscribing=${isTranscribing} holdingRef=${holdingRef.current}`)
+    if (isStreaming || sessionPaused || isTranscribing) return
+    e.preventDefault()
+    // Dismiss any open on-screen keyboard before starting to listen. If the
+    // child tapped into the text box earlier and then switches to voice
+    // without tapping away first, the keyboard on iOS Safari stays open for
+    // the whole hold: it eats a large slice of the viewport, so Bede's next
+    // reply renders partly underneath the input bar (reads as "cut off"),
+    // and its own close/reopen animation can shift the mic button's layout
+    // mid-gesture. Voice input never needs the keyboard, so clear focus from
+    // whatever's currently focused (if anything) up front.
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    holdingRef.current = true
+    startHold()
+  }
+
+  const holdEnd = (e: React.PointerEvent) => {
+    logDebug(`holdEnd type=${e.type} holdingRef=${holdingRef.current}`)
+    if (!holdingRef.current) return
+    holdingRef.current = false
+    release()
+  }
+
+  const awaitingChildTurn =
+    !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { inputRef.current = input }, [input])
@@ -474,7 +675,15 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         }
       }
       flushPendingSpeech()
-      if (ttsEnabled && speechSegments.length) await speak(speechSegments.join(' '))
+      // Fire-and-forget, deliberately not awaited: isSpeaking (a separate,
+      // independently-tracked state from useTextToSpeech) already gates the
+      // mic/turn-coordination effects below on its own, so nothing else
+      // needs isStreaming to stay true for however long TTS synthesis takes
+      // — including its own retries against a slow or rate-limited OpenAI.
+      // Awaiting here used to mean the send button, mic, and text input all
+      // sat blocked/spinning for the full duration of every TTS attempt;
+      // homeschool-tutor's SocraticChat.tsx never had this coupling.
+      if (ttsEnabled && speechSegments.length) speak(speechSegments.join(' '))
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {
@@ -484,9 +693,32 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       }
     } finally {
       setIsStreaming(false)
+      // Subject-advance itself now happens in the turnJustEnded effect
+      // below, once isSpeaking (not just isStreaming) has also settled —
+      // advancing while Bede's own transition line is still playing would
+      // cut it off mid-sentence.
+    }
+  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+
+  // Fires once when a turn's text AND speech have both genuinely finished
+  // (not just the text) — see the fire-and-forget speak() comment above for
+  // why these can no longer be assumed to finish together. Currently only
+  // used for the deferred subject-advance that used to live in send()'s own
+  // finally block; the mic-restart/keepalive effects further below already
+  // watch isStreaming and isSpeaking independently and don't need this.
+  const turnActiveRef = useRef(false)
+  useEffect(() => {
+    const turnActiveNow = isStreaming || isSpeaking
+    if (turnActiveNow) {
+      turnActiveRef.current = true
+      return
+    }
+    if (turnActiveRef.current) {
+      turnActiveRef.current = false
       if (advanceSubjectRef.current) {
         advanceSubjectRef.current = false
-        // Brief pause so the child can read Bede's transition line first.
+        // Brief pause so the child can read (and hear, if TTS is on)
+        // Bede's transition line first.
         setTimeout(() => {
           const idx = subjects.indexOf(subject)
           const next = idx >= 0 ? subjects[idx + 1] : undefined
@@ -494,7 +726,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         }, 2500)
       }
     }
-  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+  }, [isStreaming, isSpeaking, subject, subjects])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return
@@ -512,7 +744,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // (not as effect dependencies) so a child mid-typing or mid-drawing is
   // never interrupted — those are exactly the moments this must stay quiet.
   useEffect(() => {
-    if (isStreaming || isSpeaking) return
+    if (isStreaming || isSpeaking || sessionPaused) return
     if (consecutiveAutoContinues.current >= MAX_CONSECUTIVE_AUTO_CONTINUES) return
     const id = setTimeout(() => {
       if (inputRef.current.trim() || showCanvas) return  // actively composing or drawing — leave them be
@@ -521,13 +753,17 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     }, IDLE_CONTINUE_MS)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isSpeaking, showCanvas, messages])
+  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused])
 
   const send = (overrideMsg?: string) => {
     // overrideMsg lets dictation mode send a transcript directly, without a
     // setInput()-then-read round trip through React state.
     const msg = (overrideMsg ?? input).trim()
-    if ((!msg && !pendingDrawing) || isStreaming) return
+    logDebug(`send() called msg=${JSON.stringify(msg)} isStreaming=${isStreaming} sessionPaused=${sessionPaused} pendingDrawing=${!!pendingDrawing}`)
+    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused) {
+      logDebug('send() GUARD BLOCKED — returning early')
+      return
+    }
     stopSpeech()
     stopListening()
     setInput('')
@@ -539,34 +775,12 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
 
-  const toggleMic = () => {
-    if (voiceMode) {
-      setVoiceMode(false)
-      stopListening()
-    } else {
-      setVoiceMode(true)
-      startListening()
-    }
-  }
-
-  // Dictation-mode keepalive: while the mic is on, it stays LIVE whenever
-  // Bede isn't thinking (streaming) or talking (speaking) and the canvas is
-  // closed — no matter how recognition went quiet (an utterance finished,
-  // silence timed out). The learner never re-taps the mic between turns;
-  // tapping it off is the only way out. The short delay debounces the
-  // recognition engine's restart cycles.
-  useEffect(() => {
-    if (!voiceMode || !sttSupported || showCanvas || isStreaming || isSpeaking || isListening) return
-    const id = setTimeout(() => startListening(), 400)
-    return () => clearTimeout(id)
-  }, [voiceMode, sttSupported, showCanvas, isStreaming, isSpeaking, isListening, startListening])
-
   // Inverse guard: the moment a turn starts (including the idle-continue
   // nudge), the mic must be OFF, or it would hear Bede's own voice as the
   // learner's answer.
   useEffect(() => {
-    if ((isStreaming || isSpeaking) && isListening) stopListening()
-  }, [isStreaming, isSpeaking, isListening, stopListening])
+    if ((isStreaming || isSpeaking || sessionPaused) && isListening) stopListening()
+  }, [isStreaming, isSpeaking, sessionPaused, isListening, stopListening])
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a
@@ -600,11 +814,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   }
 
   return (
-    // Chat mode leaves the plain white behind for a nature palette — warm
-    // parchment tan flowing into light sage, with leaf-green accents on the
-    // speaking surfaces (user bubbles, send button). All from the existing
-    // parchment/sage scales, i.e. colors that exist in nature.
-    <div className="flex flex-col h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-sage-100">
+    // Chat mode leaves the plain white behind for a nature palette — the
+    // default is warm parchment tan flowing into light sage, with leaf-green
+    // accents on the speaking surfaces (user bubbles, send button), and the
+    // visitor can pick a different nature-drawn background from the header's
+    // ThemePicker (persisted per device via useChatTheme).
+    <div className={`flex flex-col h-screen ${theme.bgClass}`}>
+      <DebugOverlay />
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still
@@ -612,7 +828,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       <header className="bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
         <div className="flex items-center gap-3">
           <img
-            src={`${import.meta.env.BASE_URL}bede-icon.png`}
+            src={`${import.meta.env.BASE_URL}bede-icon.webp`}
             alt="Bede"
             className={`w-8 h-8 rounded-full object-cover shrink-0 transition-transform duration-150 ${
               isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
@@ -620,8 +836,25 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           />
           <div className="flex-1 min-w-0 truncate">
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
-            <span className="text-gray-400 text-xs ml-2">with {displayName}</span>
+            <span className="text-gray-400 text-xs ml-2">{t('chatScreen.withName', { name: displayName })}</span>
           </div>
+          {!parentControls.appearanceLocked && (
+            <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
+          )}
+          {/* Parent controls — the header's upper right, next to where the
+              appearance picker lives, under the fixed text-size control:
+              the familiar corner for settings. Stays visible when the
+              appearance lock hides the picker (it's how you unlock). */}
+          <ParentControlsMenu controls={parentControls} onChange={setParentControls} />
+        </div>
+        {/* header (code/Ask Bede/Mastery preview/Feedback/Finish) gets its
+            own wrapping row instead of sharing the icon/name/settings row
+            above — on a phone, five extra text links crammed into that one
+            row is what was actually crowding the top-left corner (every
+            item bunching up and wrapping unpredictably). flex-wrap here
+            lets it break across two lines cleanly on a narrow screen
+            instead of squeezing everything into one illegible strip. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
           {header}
         </div>
         {/* Full-width row of its own — on a phone, cramming this into the row
@@ -631,7 +864,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             core to showing Bede's range, so it gets guaranteed full width. */}
         <div className="mt-2">
           <label htmlFor="subject-select" className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide leading-none block mb-1">
-            Learning Subject
+            {t('chatScreen.learningSubject')}
           </label>
           <select
             id="subject-select"
@@ -639,23 +872,77 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onChange={(e) => setSubject(e.target.value as Subject)}
             className="w-full text-sm font-medium border border-sage-300 rounded-lg pl-3 pr-2 py-2 bg-white text-sage-800 hover:border-sage-400 cursor-pointer transition-colors"
           >
-            {subjects.map((s) => <option key={s} value={s}>{SUBJECT_LABELS[s]}</option>)}
+            {subjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
           </select>
         </div>
       </header>
 
+      {/* Chat body + input share one relative wrapper so the mandatory
+          break / session-over overlay can cover both while leaving the
+          header (parent controls, Finish) reachable — a demo visitor is
+          never locked away from ending or adjusting the session. */}
+      <div className="flex-1 flex flex-col min-h-0 relative">
+      {sessionPaused && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
+          <div className={`bg-white rounded-2xl border shadow-xl p-8 max-w-sm w-full text-center ${isConcluded ? 'border-sage-200' : 'border-amber-200'}`}>
+            {isConcluded ? (
+              <>
+                <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
+                  <Check size={24} className="text-sage-600" />
+                </div>
+                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionPaused.greatWorkToday')}</h2>
+                <p className="text-sm text-gray-600 mb-1">
+                  {t('sessionPaused.finishedLearningTime', { name: displayName })}
+                </p>
+                <p className="text-sm text-gray-500">{t('sessionPaused.useFinishAbove')}</p>
+              </>
+            ) : (
+              <>
+                <Coffee size={36} className="mx-auto mb-4 text-amber-500" />
+                <h2 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionPaused.breakTime')}</h2>
+                <p className="text-sm text-gray-600 mb-1">{t('sessionPaused.workedHard', { name: displayName })}</p>
+                <p className="text-sm text-gray-500 mb-4">{t('sessionPaused.stepAway')}</p>
+                {breakActivity && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
+                    {t(`breakActivities.${sessionPhase.cycleIndex % BREAK_ACTIVITIES.length}`, breakActivity.prompt)}
+                  </div>
+                )}
+                <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(sessionPhase.remainingSecs)}</div>
+                <p className="text-xs text-gray-400">{t('sessionPaused.untilNextBlock')}</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={displayName} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayName} bubbleClass={bubble.className} />
         ))}
         {isStreaming && messages.at(-1)?.content === '' && !messages.at(-1)?.visualAid && (
           <div className="flex items-center gap-2 text-sage-700 text-sm">
-            <Loader2 size={14} className="animate-spin" /> <span>Bede is thinking…</span>
+            <Loader2 size={14} className="animate-spin" /> <span>{t('chatScreen.bedeThinking')}</span>
           </div>
         )}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200">{interim}…</div>
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border border-sage-200">
+              {transcriptWords.map(({ text, key, isNew }) => (
+                <span
+                  key={key}
+                  className={isNew ? 'text-gray-400 italic animate-slide-up inline-block mr-1' : 'text-sage-900 font-semibold inline-block mr-1'}
+                >
+                  {text}
+                </span>
+              ))}
+              <span className="text-sage-400">…</span>
+            </div>
+          </div>
+        )}
+        {isTranscribing && (
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 flex items-center gap-2">
+              <Loader2 size={12} className="animate-spin" /> {t('chatScreen.transcribing')}
+            </div>
           </div>
         )}
         <div ref={bottomRef} />
@@ -664,14 +951,14 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
           <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
-          <div className="flex-1 text-xs text-sage-800">Drawing ready. Add a note, or just send it.</div>
+          <div className="flex-1 text-xs text-sage-800">{t('chatScreen.drawingReady')}</div>
           <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
         </div>
       )}
 
       <div className="px-4 py-3 bg-parchment-50 border-t border-sage-200">
         <div className="flex gap-2 items-end">
-          <button onClick={() => setShowCanvas(true)} disabled={isStreaming} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
+          <button onClick={() => setShowCanvas(true)} disabled={isStreaming || sessionPaused} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
           </button>
           <input
@@ -684,7 +971,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           <button
             onClick={() => narrationFileInputRef.current?.click()}
             disabled={isStreaming || uploadingNarration}
-            title="Upload narration from your notebook (e.g. inq)"
+            title={t('chatScreen.uploadNarration')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
@@ -693,37 +980,51 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleMic} disabled={!voiceMode && isStreaming} title={voiceMode ? 'Voice conversation on — tap to end' : 'Start a voice conversation'} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${voiceMode ? (isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-red-500 text-white') : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
-              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            <button
+              onPointerDown={holdStart}
+              onPointerUp={holdEnd}
+              onPointerLeave={holdEnd}
+              onPointerCancel={holdEnd}
+              disabled={isStreaming || sessionPaused || isTranscribing}
+              title={isTranscribing ? t('chatScreen.transcribing') : (isListening ? t('chatScreen.micHoldListening') : t('chatScreen.micHoldToTalk'))}
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
+            >
+              {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
             </button>
           )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-            disabled={isStreaming}
-            placeholder={isListening ? 'Listening… speak now' : voiceMode ? 'Voice conversation on — waiting for Bede…' : 'Type or tap the mic to speak…'}
+            disabled={isStreaming || sessionPaused}
+            placeholder={isListening ? t('chatScreen.placeholderHoldListening') : awaitingChildTurn ? t('chatScreen.placeholderYourTurn') : t('chatScreen.placeholderTypeOrMic')}
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />
-          <button onClick={() => send()} disabled={isStreaming || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
+          <button onClick={() => send()} disabled={isStreaming || sessionPaused || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
       </div>
+      </div>
 
       {showCanvas && (
-        <HandwritingCanvas
-          onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
-          onCancel={() => setShowCanvas(false)}
-          subject={subject}
-        />
+        <Suspense fallback={null}>
+          <HandwritingCanvas
+            onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
+            onCancel={() => setShowCanvas(false)}
+            subject={subject}
+            gradeStage={demoGradeStage()}
+          />
+        </Suspense>
       )}
     </div>
   )
 }
 
-function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName: string }) {
+// bubbleClass: the reader's chosen bubble color (useChatTheme) — passed down
+// from the one hook instance in ChatScreen rather than re-subscribing per bubble.
+function MessageBubble({ msg, studentName, bubbleClass }: { msg: DisplayMessage; studentName: string; bubbleClass: string }) {
   if (msg.role === 'system') {
     return <div className="flex justify-center"><div className="text-xs text-gray-400 bg-white border border-gray-100 rounded-full px-3 py-1 italic">{msg.content}</div></div>
   }
@@ -750,9 +1051,10 @@ function MessageBubble({ msg, studentName }: { msg: DisplayMessage; studentName:
   const isUser = msg.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? 'bg-sage-600 text-white rounded-br-sm' : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? `${bubbleClass} text-white rounded-br-sm` : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
         {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
-        {isUser && <div className="text-xs font-semibold text-sage-100 mb-1">{studentName}</div>}
+        {/* white/85 (not a sage tint) so the name stays legible on every bubble color */}
+        {isUser && <div className="text-xs font-semibold text-white/85 mb-1">{studentName}</div>}
         <div className="whitespace-pre-wrap">{renderEmphasis(msg.content)}</div>
       </div>
     </div>
@@ -786,6 +1088,10 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (n: n
   )
 }
 
+// Values stay in English — sent server-side into the admin-facing feedback
+// email body (buildSurveyMessage below), never shown to the child. Only the
+// displayed <option> label is localized, via DEMO_FEATURE_KEYS below
+// (index-aligned, same pattern as breakActivities.ts's category/index split).
 const DEMO_FEATURE_OPTIONS = [
   'Socratic hints & questions',
   'Handwriting / drawing canvas',
@@ -793,6 +1099,10 @@ const DEMO_FEATURE_OPTIONS = [
   'Switching between subjects',
   "Bede's tone & personality",
   'Session summary email',
+]
+const DEMO_FEATURE_KEYS = [
+  'summary.featureSocratic', 'summary.featureHandwriting', 'summary.featureVoice',
+  'summary.featureSubjects', 'summary.featureTone', 'summary.featureEmail',
 ]
 
 // ── End-of-demo diagnostic notes + email capture ─────────────────────────────
@@ -812,6 +1122,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
   feedbackEnabled: boolean
   onDone: () => void
 }) {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -864,8 +1175,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
         err instanceof TrialEmailCappedError
           ? err.message
           : err instanceof TrialSessionEndedError
-            ? 'Your session has ended, so this could not be sent.'
-            : friendlyErrorMessage(err, 'Could not send the email.')
+            ? t('summary.sessionEndedCantSend')
+            : friendlyErrorMessage(err, t('summary.couldNotSendEmail'), t)
       )
     }
   }
@@ -893,26 +1204,25 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
-          <h1 className="text-xl font-display font-bold text-gray-800">That's a wrap!</h1>
+          <h1 className="text-xl font-display font-bold text-gray-800">{t('summary.thatsAWrap')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Thanks for trying Bede with {config.student_name}.
+            {t('summary.thanksForTrying', { name: config.student_name })}
           </p>
         </div>
 
         {status === 'sent' ? (
           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
             <Check size={18} className="shrink-0" />
-            Sent to {email}. This address wasn't saved anywhere.
+            {t('summary.sentTo', { email })}
           </div>
         ) : (
           <form onSubmit={handleSend} className="mb-6">
             <label htmlFor="demo-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
               <Mail size={15} />
-              Want Bede's notes from today's demo?
+              {t('summary.wantNotes')}
             </label>
             <p className="text-xs text-gray-500 mb-2.5">
-              An informal impression from this one short session, not an official evaluation. Sent once
-              to the address below. Never stored, and never shown to {config.student_name}.
+              {t('summary.notesDisclaimer', { name: config.student_name })}
             </p>
             <div className="flex gap-2">
               <input
@@ -921,7 +1231,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t('summary.emailPlaceholder')}
                 className="input flex-1 min-w-0"
               />
               <button
@@ -929,7 +1239,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 disabled={status === 'sending'}
                 className="px-4 py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 shrink-0"
               >
-                {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send'}
+                {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : t('summary.send')}
               </button>
             </div>
             {status === 'error' && <p className="text-xs text-red-600 mt-2">{errorMsg}</p>}
@@ -941,22 +1251,22 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
           {improvementStatus === 'sent' ? (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
               <Check size={18} className="shrink-0" />
-              Thanks — this genuinely helps shape what's next.
+              {t('summary.thanksHelps')}
             </div>
           ) : (
             <form onSubmit={handleImprovementSubmit}>
               <p className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-3">
                 <MessageSquare size={15} />
-                Help us improve — a few quick questions
+                {t('summary.helpUsImprove')}
               </p>
 
-              <StarRating value={overallRating} onChange={setOverallRating} label="Overall, how was this demo?" />
-              <StarRating value={teachingRating} onChange={setTeachingRating} label="How did Bede's Socratic teaching style feel?" />
-              <StarRating value={easeRating} onChange={setEaseRating} label="How easy was the demo to use?" />
+              <StarRating value={overallRating} onChange={setOverallRating} label={t('summary.overallRatingLabel')} />
+              <StarRating value={teachingRating} onChange={setTeachingRating} label={t('summary.teachingRatingLabel')} />
+              <StarRating value={easeRating} onChange={setEaseRating} label={t('summary.easeRatingLabel')} />
 
               <div className="mb-3">
                 <label htmlFor="demo-feature" className="block text-xs font-semibold text-navy-700 mb-1">
-                  Which feature stood out most? <span className="font-normal text-gray-400">(optional)</span>
+                  {t('summary.whichFeature')} <span className="font-normal text-gray-400">{t('codeScreen.optional')}</span>
                 </label>
                 <select
                   id="demo-feature"
@@ -964,9 +1274,9 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   onChange={(e) => setFavoriteFeature(e.target.value)}
                   className="input w-full"
                 >
-                  <option value="">Choose one...</option>
-                  {DEMO_FEATURE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                  <option value="">{t('summary.chooseOne')}</option>
+                  {DEMO_FEATURE_OPTIONS.map((opt, i) => (
+                    <option key={opt} value={opt}>{t(DEMO_FEATURE_KEYS[i])}</option>
                   ))}
                 </select>
               </div>
@@ -974,11 +1284,11 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
               <StarRating
                 value={recommendRating}
                 onChange={setRecommendRating}
-                label="How likely are you to recommend Bede to another homeschool family?"
+                label={t('summary.recommendRatingLabel')}
               />
 
               <label htmlFor="demo-improvement" className="block text-xs font-semibold text-navy-700 mb-1">
-                Anything we should improve? <span className="font-normal text-gray-400">(optional)</span>
+                {t('summary.anythingToImprove')} <span className="font-normal text-gray-400">{t('codeScreen.optional')}</span>
               </label>
               <textarea
                 id="demo-improvement"
@@ -986,7 +1296,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 onChange={(e) => setImprovementMessage(e.target.value)}
                 rows={2}
                 maxLength={2000}
-                placeholder="What worked, what didn't, what you wish it did..."
+                placeholder={t('summary.improvementPlaceholder')}
                 className="input w-full resize-none mb-2.5"
               />
               <label className="flex items-start gap-2 text-xs text-gray-600 mb-2.5 cursor-pointer">
@@ -997,8 +1307,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   className="mt-0.5"
                 />
                 <span>
-                  I'm this learner's parent or guardian, and you may follow up with me by email
-                  <span className="text-gray-400"> — we never ask a child for their own email</span>
+                  {t('summary.parentGuardianCheckbox')}
+                  <span className="text-gray-400"> {t('summary.neverAskChild')}</span>
                 </span>
               </label>
               {isParentGuardian && (
@@ -1006,7 +1316,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   type="email"
                   value={followupEmail}
                   onChange={(e) => setFollowupEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('summary.emailPlaceholder')}
                   className="input w-full mb-2.5"
                 />
               )}
@@ -1015,10 +1325,10 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 disabled={improvementStatus === 'sending' || !overallRating}
                 className="w-full py-2 bg-sage-100 text-sage-700 rounded-xl font-semibold text-sm hover:bg-sage-200 transition-colors disabled:opacity-40"
               >
-                {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Send feedback'}
+                {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : t('summary.sendFeedback')}
               </button>
               {improvementStatus === 'error' && (
-                <p className="text-xs text-red-600 mt-2">Could not send this right now — please try again later.</p>
+                <p className="text-xs text-red-600 mt-2">{t('summary.couldNotSendFeedback')}</p>
               )}
             </form>
           )}
@@ -1029,7 +1339,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
           onClick={onDone}
           className="w-full py-3 bg-navy-100 text-navy-700 rounded-xl font-semibold hover:bg-navy-200 transition-colors"
         >
-          Done
+          {t('summary.done')}
         </button>
       </div>
     </div>
@@ -1619,6 +1929,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   onOpenSandbox: () => void
   onOpenDiagnostic: () => void
 }) {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<SessionConfig | null>(null)
   const [error, setError] = useState('')
   const [finished, setFinished] = useState(false)
@@ -1690,6 +2001,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
         speakToken={token}
         onSessionInvalid={onSessionEnded}
         sessionStateRef={sessionStateRef}
+        sessionStartedAt={sessionStartRef.current}
         header={
           <>
             <div className="flex items-center gap-1 text-xs font-mono tabular-nums text-gray-400">
@@ -1697,29 +2009,39 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
             </div>
             <button
               onClick={onOpenSandbox}
-              title="Preview the parent-only direct-answer sandbox"
+              title={t('header.askBedeTooltip')}
               className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
-              <FlaskConical size={12} /> Ask Bede
+              <FlaskConical size={12} /> {t('header.askBede')}
             </button>
             <button
               onClick={onOpenDiagnostic}
-              title="Preview live mastery tracking for this session"
+              title={t('header.masteryPreviewTooltip')}
               className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
-              <GraduationCap size={12} /> Mastery preview
+              <GraduationCap size={12} /> {t('header.masteryPreview')}
             </button>
             {feedbackEnabled && (
               <button
                 onClick={() => setShowFeedback(true)}
-                title="Tell us what's working and what isn't"
+                title={t('header.feedbackTooltip')}
                 className="flex items-center gap-1 text-xs text-navy-500 hover:text-navy-700 underline"
               >
-                <MessageSquare size={12} /> Feedback
+                <MessageSquare size={12} /> {t('header.feedback')}
               </button>
             )}
-            <button onClick={() => setFinished(true)} title="Finish the demo and optionally get Bede's notes by email" className="text-xs text-gray-400 hover:text-gray-600 underline">
-              Finish demo
+            {/* basis-full forces this onto its own guaranteed line inside the
+                flex-wrap row above, regardless of how any given browser
+                computes the wrap point for the items before it — reported
+                on iPhone 16/Chrome (i.e. WebKit) staying on one line with
+                the other four items and ending up hidden directly behind
+                the fixed TextSizeControl button (main.tsx) rather than
+                wrapping the way it correctly did in every width/zoom
+                combination tested against Chromium. flex-basis: 100% is a
+                deterministic line-break, not a width computation the two
+                engines could disagree on. */}
+            <button onClick={() => setFinished(true)} title={t('header.finishDemoTooltip')} className="basis-full text-xs text-gray-400 hover:text-gray-600 underline">
+              {t('header.finishDemo')}
             </button>
           </>
         }
@@ -1729,16 +2051,17 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
 }
 
 function SessionEndedScreen({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
         <KeyRound size={32} className="text-navy-400 mx-auto mb-3" />
-        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">Your session has ended</h1>
+        <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionEnded.title')}</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Generate a new code to keep exploring Bede.
+          {t('sessionEnded.body')}
         </p>
         <button onClick={onRetry} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
-          Generate a new code
+          {t('sessionEnded.generateNewCode')}
         </button>
       </div>
     </div>

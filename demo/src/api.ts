@@ -129,12 +129,16 @@ export async function generateDemoCode(studentName?: string, grade?: string): Pr
 }
 
 /** Exchanges a code from generateDemoCode() for a JWT. One-time only — the
- *  backend rejects a code that's already been redeemed once. */
-export async function loginWithCode(code: string): Promise<{ token: string; expiresAt: number | null }> {
+ *  backend rejects a code that's already been redeemed once. locale is the
+ *  visitor's own choice from CodeScreen's language toggle (see
+ *  docs/LOCALIZATION.md) — the backend embeds it as a JWT claim exactly the
+ *  same way it does for the real app's parent/child logins; no backend
+ *  change was needed to support the demo_code role here. */
+export async function loginWithCode(code: string, locale?: string): Promise<{ token: string; expiresAt: number | null }> {
   const res = await fetch(`${apiBase()}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: 'demo_code', credential: code }),
+    body: JSON.stringify(locale ? { role: 'demo_code', credential: code, locale } : { role: 'demo_code', credential: code }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -142,6 +146,26 @@ export async function loginWithCode(code: string): Promise<{ token: string; expi
   }
   const data = await res.json()
   return { token: data.access_token, expiresAt: decodeExpiry(data.access_token) }
+}
+
+export interface AvailableLocale {
+  code: string
+  name: string
+}
+
+// Public, pre-auth — CodeScreen calls this on mount to decide whether to
+// render the language toggle at all. Empty array on an English-only
+// deployment (the default), same "toggle just isn't there" behavior as
+// homeschool-tutor's Login.tsx.
+export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
+  try {
+    const res = await fetch(`${apiBase()}/auth/locales`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.locales ?? []
+  } catch {
+    return []
+  }
 }
 
 /** Instantly invalidates the demo code server-side (see auth.py's
@@ -197,6 +221,46 @@ export async function speakViaBackend(
 }
 
 export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'plans' | 'other' | 'beta_close'
+
+/** Wakes the demo backend the moment the page loads. The demo API sleeps
+ *  between visitors on Render's free plan, and without this the FIRST real
+ *  request (generating a code) silently eats the whole cold start — the
+ *  visitor just sees a long spinner. Pinging /health at page load starts
+ *  the wake-up in parallel with the part of the visit that needs no
+ *  server at all: reading the consent notice and typing a name. Fire and
+ *  forget — a failure means nothing here (the backend may simply still be
+ *  waking, or the demo unconfigured), and every real call handles its own
+ *  errors. */
+export function warmDemoBackend(): void {
+  try {
+    fetch(`${apiBase()}/health`).catch(() => {})
+  } catch {
+    // VITE_DEMO_API_BASE unset (apiBase throws) — nothing to warm.
+  }
+}
+
+/** Server-side Whisper transcription — the fallback when the browser's own
+ *  speech recognition is unsupported, errors out, or stalls (a Chrome update
+ *  once broke it outright). Returns '' on any failure so the caller simply
+ *  ends the attempt instead of surfacing an error mid-conversation. Nothing
+ *  is stored server-side; the result comes back inline. */
+export async function transcribeFallback(token: string, wavBlob: Blob, language = 'en'): Promise<string> {
+  try {
+    const form = new FormData()
+    form.append('audio', wavBlob, 'audio.wav')
+    form.append('language', language)
+    const res = await fetch(`${apiBase()}/voice/transcribe`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    if (!res.ok) return ''
+    const data = await res.json()
+    return data.text ?? ''
+  } catch {
+    return ''
+  }
+}
 
 /** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
  *  showing the feedback button at all, so it never appears only to fail on

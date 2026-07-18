@@ -1,0 +1,354 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:8897e449-c00a-495d-ac9a-60207c90fa41",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-07-18T14:17:50Z",
+    "component": {
+      "type": "application",
+      "name": "homeschool-api",
+      "version": "unversioned"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "anthropic",
+      "version": "0.40.0",
+      "purl": "pkg:pypi/anthropic@0.40.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "openai",
+      "version": "1.40.0",
+      "purl": "pkg:pypi/openai@1.40.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fastapi",
+      "version": "0.115.0",
+      "purl": "pkg:pypi/fastapi@0.115.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "uvicorn",
+      "version": "0.32.0",
+      "purl": "pkg:pypi/uvicorn@0.32.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "python-dotenv",
+      "version": "1.0.0",
+      "purl": "pkg:pypi/python-dotenv@1.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pydantic",
+      "version": "2.9.0",
+      "purl": "pkg:pypi/pydantic@2.9.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pydantic-settings",
+      "version": "2.6.0",
+      "purl": "pkg:pypi/pydantic-settings@2.6.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sse-starlette",
+      "version": "2.1.0",
+      "purl": "pkg:pypi/sse-starlette@2.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "python-multipart",
+      "version": "0.0.12",
+      "purl": "pkg:pypi/python-multipart@0.0.12",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pycryptodome",
+      "version": "3.21.0",
+      "purl": "pkg:pypi/pycryptodome@3.21.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "asyncpg",
+      "version": "0.30.0",
+      "purl": "pkg:pypi/asyncpg@0.30.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sqlalchemy",
+      "version": "2.0.36",
+      "purl": "pkg:pypi/sqlalchemy@2.0.36",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "1.26.0",
+      "purl": "pkg:pypi/numpy@1.26.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "scipy",
+      "version": "1.13.0",
+      "purl": "pkg:pypi/scipy@1.13.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "librosa",
+      "version": "0.10.0",
+      "purl": "pkg:pypi/librosa@0.10.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "soundfile",
+      "version": "0.12.0",
+      "purl": "pkg:pypi/soundfile@0.12.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "faster-whisper",
+      "version": "1.0.0",
+      "purl": "pkg:pypi/faster-whisper@1.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "resemblyzer",
+      "version": "0.1.1",
+      "purl": "pkg:pypi/resemblyzer@0.1.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "webauthn",
+      "version": "2.0.0",
+      "purl": "pkg:pypi/webauthn@2.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pyotp",
+      "version": "2.9.0",
+      "purl": "pkg:pypi/pyotp@2.9.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "email-validator",
+      "version": "2.2.0",
+      "purl": "pkg:pypi/email-validator@2.2.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "httpx",
+      "version": "0.27.0",
+      "purl": "pkg:pypi/httpx@0.27.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pypdf",
+      "version": "5.0.0",
+      "purl": "pkg:pypi/pypdf@5.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pytest",
+      "version": "8.0.0",
+      "purl": "pkg:pypi/pytest@8.0.0",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pytest-asyncio",
+      "version": "0.24.0",
+      "purl": "pkg:pypi/pytest-asyncio@0.24.0",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "aiosqlite",
+      "version": "0.20.0",
+      "purl": "pkg:pypi/aiosqlite@0.20.0",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "bede:versionConstraint",
+          "value": "lower-bound only (>=), not an exact pin"
+        }
+      ]
+    }
+  ]
+}

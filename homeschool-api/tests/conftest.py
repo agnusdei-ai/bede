@@ -12,9 +12,27 @@ os.environ.setdefault("MASTER_SECRET", "test-master-secret-" + "y" * 32)
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost/testdb")
 os.environ.setdefault("DEMO_PIN", "384756")
 
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+
+
+@pytest.fixture(autouse=True)
+def _clear_readonly_prompt_caches():
+    """services/ai_service.py caches _load_mastery_vector_readonly and
+    _load_processing_style_readonly per student_name for several minutes
+    (a real perf fix — see _READONLY_PROMPT_CACHE_TTL_SECONDS' comment).
+    That cache is module-global, so without resetting it here, one test's
+    result for a given student_name could silently leak into a later test
+    reusing the same name (several test files use "Sam"). Autouse so no
+    test file needs to remember to ask for this."""
+    import services.ai_service as ai_service_module
+    ai_service_module._mastery_vector_cache.clear()
+    ai_service_module._processing_style_cache.clear()
+    yield
+    ai_service_module._mastery_vector_cache.clear()
+    ai_service_module._processing_style_cache.clear()
 
 
 @pytest_asyncio.fixture

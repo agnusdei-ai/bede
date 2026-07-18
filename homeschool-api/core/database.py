@@ -80,7 +80,15 @@ class AuditLog(Base):
     """One AES-GCM-encrypted record per audit event."""
     __tablename__ = "audit_log"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # BigInteger().with_variant(Integer(), "sqlite"): on Postgres this is a
+    # real BIGINT/BIGSERIAL identity column, unchanged from before. Plain
+    # BigInteger doesn't get SQLite's "INTEGER PRIMARY KEY" rowid-alias
+    # autoincrement (SQLite only special-cases the exact type name
+    # "INTEGER"), which otherwise makes every insert under a SQLite test
+    # engine fail with a NOT NULL constraint on id.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -152,6 +160,49 @@ class LearnerProfile(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class LearnerBehaviorCheck(Base):
+    """
+    A deliberately minimal, parent-only sanity check on one claim: does
+    Bede's own processing_style adaptation (services/ai_service.py's
+    _processing_style_note, which asks Bede to reach for a specific tool
+    more often for a given profile) actually change its behavior. This is
+    NOT a psychometric instrument and makes no claim that categorizing a
+    child this way improves learning outcomes — the "learning styles"
+    literature this profile is loosely modeled on (VAK/VARK) is itself
+    contested for that stronger claim (see Pashler et al. 2008). It only
+    answers the narrower, verifiable question: since being profiled this
+    way, how often has Bede actually followed through.
+
+    Exists only for a student CURRENTLY profiled with one of
+    routers/narration.py's TRACKABLE_STYLES (kinesthetic, reading_writing,
+    visual — see that constant's own comment for why auditory isn't
+    among them: no honest tool-level signal exists for it, nudge only).
+    build_profile creates/resets this row when a profile newly becomes one
+    of those three (including switching FROM one trackable style TO a
+    different one — the count doesn't carry over) and deletes it the
+    moment a resynthesis moves the student off all three. No event log,
+    no per-turn timestamps, no narration content — a single running count
+    plus the date counting started. What increments it depends on which
+    style is active (see ai_service.py's three _increment_behavior_check
+    call sites): kinesthetic counts invite_handwriting calls WITH
+    `elements` set (a structured DITK task); reading_writing counts
+    invite_handwriting calls WITHOUT `elements` (a plain written
+    narration); visual counts successfully-resolved show_visual_aid
+    calls. profile_enc holds encrypt_json({"count": int}); "since" is a
+    plain (non-sensitive) timestamp, left unencrypted like every other
+    table's created_at/updated_at column.
+    """
+    __tablename__ = "learner_behavior_checks"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    since: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    count_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
 
 class MasteryProfile(Base):

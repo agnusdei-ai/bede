@@ -8,4 +8,9 @@ venv/
 # never committed
 models/kokoro/*.onnx
 models/kokoro/*.bin
+
+# faster-whisper fallback-STT weights — baked into the Docker image at build
+# time (see Dockerfile); a local dev checkout downloads them here on first
+# use instead. Never committed either way.
+models/whisper/
 scripts/voice_samples/

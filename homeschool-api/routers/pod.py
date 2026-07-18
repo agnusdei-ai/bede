@@ -7,16 +7,18 @@ by their name from the session URL. All configs are AES-256-GCM encrypted
 at rest — no plaintext student data is written to the database.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import licensing
+from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
 from core.deps import require_parent, require_real_user
 from core.encryption import decrypt_json, encrypt_json
 from models.schemas import PodConfigsRequest, SessionConfig, VoiceNarrationPreferenceRequest
+from services.student_deletion import delete_all_student_data
 
 router = APIRouter(prefix="/pod", tags=["pod"])
 
@@ -35,6 +37,24 @@ async def save_pod_configs(
     always present by the time this runs (core/config.py rejects startup
     without one), so this is a defense-in-depth check, not the primary gate.
     """
+    # Required the moment this deployment OFFERS a non-English login choice
+    # at all (settings.locale != "en"), not just for students a parent
+    # expects to use it — the toggle lives on the login screen itself
+    # (Login.tsx), per-login, so ANY student could land in a non-English
+    # session on any given day once the option exists. See core/config.py's
+    # comment on `locale` for the full "toggle availability, not active
+    # language" reframing this check predates but still matches exactly.
+    if settings.locale != "en":
+        missing = [c.student_name for c in req.configs if c.sex is None]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Sex must be set for every student once {settings.locale!r} is offered as a login "
+                    f"language on this deployment, so Bede can address them grammatically correctly: {', '.join(missing)}"
+                ),
+            )
+
     license_info = licensing.get_license(settings.license_key)
     if license_info is not None:
         result = await db.execute(select(StudentConfig.student_name))
@@ -127,14 +147,26 @@ async def update_voice_narration_preference(
 @router.delete("/configs/{student_name}", status_code=204)
 async def delete_student_config(
     student_name: str,
+    request: Request,
     _: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Parent removes a student from the pod."""
-    result = await db.execute(
-        select(StudentConfig).where(StudentConfig.student_name == student_name)
+    """
+    Parent permanently deletes a student and ALL of their data — not just
+    removal from today's pod. Before this, this route only deleted the
+    StudentConfig row; every other per-student table (narration history,
+    learner profile, mastery tracking, session transcripts, usage events,
+    voice enrollment) silently persisted forever with no way for a parent
+    to actually remove it. See services/student_deletion.py for the full
+    list and reasoning. Idempotent — deleting a student with no data
+    (or already deleted) still returns 204, since the end state is
+    identical either way.
+    """
+    counts = await delete_all_student_data(db, student_name)
+    await log_event(
+        AuditEvent.STUDENT_DATA_DELETED,
+        role="parent",
+        student_name=student_name,
+        detail=f"rows_deleted={sum(counts.values())}",
+        **audit_from_request(request),
     )
-    row = result.scalar_one_or_none()
-    if row:
-        await db.delete(row)
-        await db.commit()

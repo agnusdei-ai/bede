@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from core import constitution
 from core.config import settings
 from core.database import AsyncSessionLocal, create_tables, engine
 from core.encryption import initialize_encryption
@@ -29,12 +30,35 @@ async def _warm_voice_models():
     use. Purely best-effort: each loader logs-and-degrades on its own when a
     package/model isn't installed, and all of them stay lazy anyway — this
     task just fires them early, off the event loop, without delaying boot.
+
+    Resemblyzer speaker verification is skipped entirely on a demo
+    deployment (settings.is_demo_deployment): core/deps.py's require_parent
+    and require_real_user both reject the "demo_code" role outright, and
+    /voice/enroll, /voice/verify, and /voice/override are the ONLY callers
+    of services/voice_auth.py's encoder — so on this deployment shape the
+    model is structurally unreachable by any request that can ever occur,
+    and preloading it is pure waste on principle.
+
+    Don't overestimate what this alone saves, though: measured directly,
+    skipping it only trims ~30MB of live RSS (642MB vs 674MB, both fully
+    warmed). The dominant memory cost — PyTorch, ~480MB just to import —
+    loads regardless, because ctranslate2 (services/transcription.py's
+    faster-whisper backend, which the demo DOES need for its STT fallback)
+    opportunistically imports torch itself whenever it's installed in the
+    environment, and torch is a hard dependency of resemblyzer either way.
+    So this process still sits close to Render's free-tier 512MB web-service
+    memory limit even with this skip in place — see docs/DEMO_HOSTING.md
+    for the actual mitigation (a larger Render plan) for a real "exceeded
+    its memory limit" OOM incident on bede-demo-api. A family's self-hosted
+    instance never sets DEMO_PIN, so this leaves real voice biometric child
+    authentication completely untouched there.
     """
     from services import transcription, voice_auth, voice_synthesis
 
     loop = asyncio.get_running_loop()
     try:
-        await loop.run_in_executor(None, voice_auth.preload)
+        if not settings.is_demo_deployment:
+            await loop.run_in_executor(None, voice_auth.preload)
         await loop.run_in_executor(None, transcription.preload)
         await voice_synthesis.preload()
         log.info("Voice model warm-up finished")
@@ -42,19 +66,59 @@ async def _warm_voice_models():
         log.warning("Voice model warm-up failed — models will load lazily on first use", exc_info=True)
 
 
+_DATA_PURGE_INTERVAL_SECONDS = 6 * 60 * 60  # every 6 hours
+
+
+async def _periodic_data_purge():
+    """
+    Runs the demo's own retention policy (services/interaction_signals.py's
+    _RETENTION_DAYS-day-old DemoInteractionSignal rows) automatically for the
+    life of this process, instead of relying on a human remembering to run
+    scripts/export_interaction_signals.py — see docs/DATA_RETENTION.md for
+    the full retention policy this is one piece of. A real family's own
+    data (StudentConfig, VoiceProfile, narration history, etc.) is
+    deliberately NOT swept here — that data is retained until the parent
+    explicitly deletes it (routers/pod.py's DELETE /pod/configs/{student}),
+    never on a timer, since a family may use the same student profile for
+    years. Self-contained and best-effort: one failed sweep logs a warning
+    and tries again next interval rather than crashing the whole process.
+    """
+    from services.interaction_signals import purge_old_signals
+
+    while True:
+        await asyncio.sleep(_DATA_PURGE_INTERVAL_SECONDS)
+        try:
+            deleted = await purge_old_signals()
+            if deleted:
+                log.info("Periodic data purge: removed %d expired demo interaction-signal row(s)", deleted)
+        except Exception:
+            log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Startup:
-      1. Create database tables (idempotent — safe on every boot)
-      2. Load or generate device_salt and DATA_KEY from the DB
+      1. Verify Bede's constitution (tamper-evident, digest-pinned — see
+         core/constitution.py) BEFORE anything else, including database
+         initialization. Already checked once at import time as a
+         module-level side effect; re-checked explicitly here so the
+         ordering guarantee doesn't depend on which module happened to
+         import core.constitution first.
+      2. Create database tables (idempotent — safe on every boot)
+      3. Load or generate device_salt and DATA_KEY from the DB
          PBKDF2 key derivation runs in a thread pool so the event loop
          is not blocked during the ~1.5 s CPU-bound operation.
-      3. Kick off the voice-model warm-up in the background (non-blocking).
+      4. Kick off the voice-model warm-up in the background (non-blocking).
+      5. Start the periodic data-retention purge loop (non-blocking) — see
+         docs/DATA_RETENTION.md.
     Shutdown:
-      4. Dispose the connection pool cleanly.
+      6. Dispose the database connection pool cleanly.
+      7. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
     """
     try:
+        constitution.get_constitution()
+        log.info("Constitution verified ✓")
         await create_tables()
         async with AsyncSessionLocal() as db:
             await initialize_encryption(settings.master_secret, db)
@@ -64,13 +128,20 @@ async def lifespan(app: FastAPI):
         sys.exit(1)
 
     warmup_task = asyncio.create_task(_warm_voice_models())
+    purge_task = asyncio.create_task(_periodic_data_purge())
 
     yield
 
     warmup_task.cancel()
+    purge_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")
+
+    from services import email_service, voice_synthesis
+    await voice_synthesis.aclose_http_client()
+    await email_service.aclose_http_client()
+    log.info("Pooled HTTP clients closed")
 
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────

@@ -32,6 +32,8 @@ import VisualAidCard from './VisualAidCard'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './BedeMark'
 import { useConsent } from './useConsent'
 import ConsentModal from './ConsentModal'
+import { logDebug } from './debugBus'
+import { DebugOverlay } from './DebugOverlay'
 
 interface DisplayMessage {
   id: string
@@ -525,7 +527,10 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
       // A walkie-talkie release delivers a finished utterance — send it the
       // moment it's final, same as tapping Send after typing.
-      onFinal: (transcript) => send(transcript),
+      onFinal: (transcript) => {
+        logDebug(`App.onFinal transcript=${JSON.stringify(transcript)}`)
+        send(transcript)
+      },
     })
 
   // Word-level diff of the live interim transcript, called unconditionally
@@ -550,6 +555,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const holdingRef = useRef(false)
 
   const holdStart = (e: React.PointerEvent) => {
+    logDebug(`holdStart type=${e.type} isStreaming=${isStreaming} sessionPaused=${sessionPaused} isTranscribing=${isTranscribing} holdingRef=${holdingRef.current}`)
     if (isStreaming || sessionPaused || isTranscribing) return
     e.preventDefault()
     // Dismiss any open on-screen keyboard before starting to listen. If the
@@ -565,7 +571,8 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     startHold()
   }
 
-  const holdEnd = () => {
+  const holdEnd = (e: React.PointerEvent) => {
+    logDebug(`holdEnd type=${e.type} holdingRef=${holdingRef.current}`)
     if (!holdingRef.current) return
     holdingRef.current = false
     release()
@@ -752,7 +759,11 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // overrideMsg lets dictation mode send a transcript directly, without a
     // setInput()-then-read round trip through React state.
     const msg = (overrideMsg ?? input).trim()
-    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused) return
+    logDebug(`send() called msg=${JSON.stringify(msg)} isStreaming=${isStreaming} sessionPaused=${sessionPaused} pendingDrawing=${!!pendingDrawing}`)
+    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused) {
+      logDebug('send() GUARD BLOCKED — returning early')
+      return
+    }
     stopSpeech()
     stopListening()
     setInput('')
@@ -809,6 +820,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // visitor can pick a different nature-drawn background from the header's
     // ThemePicker (persisted per device via useChatTheme).
     <div className={`flex flex-col h-screen ${theme.bgClass}`}>
+      <DebugOverlay />
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still

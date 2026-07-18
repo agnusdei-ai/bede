@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useVoiceRecorder } from './useVoiceRecorder'
 import { transcribeFallback } from './api'
+import { logDebug } from './debugBus'
 
 /**
  * Voice input for the chat mic button. Tries the native Web Speech API first
@@ -84,8 +85,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const recorder = useVoiceRecorder({
     maxDurationMs: MAX_RECORDING_MS,
     onComplete: async (wavBlob) => {
+      logDebug(`recorder.onComplete size=${wavBlob.size}`)
       setMode('transcribing')
       const text = token ? await transcribeFallback(token, wavBlob, language.slice(0, 2)) : ''
+      logDebug(`recorder.onComplete transcribed text=${JSON.stringify(text)}`)
       setMode('idle')
       if (text) onFinal?.(text)
     },
@@ -96,7 +99,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // for the fallback on the same attempt (stopping native recognition
     // fires its onend a tick later) — only the first should start the
     // recorder, or two overlapping recording sessions get opened.
-    if (modeRef.current === 'recording' || modeRef.current === 'transcribing') return
+    logDebug(`startFallback() mode=${modeRef.current}`)
+    if (modeRef.current === 'recording' || modeRef.current === 'transcribing') {
+      logDebug('startFallback() GUARD BLOCKED')
+      return
+    }
     clearWatchdog()
     setMode('recording')
     recorder.startRecording()
@@ -105,10 +112,14 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const native = useSpeechRecognition({
     language,
     onFinal: (transcript) => {
+      logDebug(`native.onFinal transcript=${JSON.stringify(transcript)} holdMode=${holdModeRef.current} released=${releasedRef.current} mode=${modeRef.current}`)
       if (holdModeRef.current) {
         // Walkie-talkie: keep the mic open across pauses. Stash each final
         // segment; release() sends the whole thing once the child lets go.
-        if (releasedRef.current) return
+        if (releasedRef.current) {
+          logDebug('native.onFinal DROPPED — already released')
+          return
+        }
         // A final result is proof of life just like an interim (some engines
         // can emit a final without ever emitting an interim first) — disarm
         // the hold-start watchdog below so it can't fire after the fact.
@@ -185,7 +196,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // hold-to-talk (hold=true). Uses modeRef (synchronous) rather than the mode
   // state so a fast press right after release isn't blocked by a stale render.
   const _start = useCallback((hold: boolean) => {
-    if (modeRef.current !== 'idle') return
+    logDebug(`_start(hold=${hold}) mode=${modeRef.current}`)
+    if (modeRef.current !== 'idle') {
+      logDebug('_start() GUARD BLOCKED — mode not idle')
+      return
+    }
     stoppedByUserRef.current = false
     releasedRef.current = false
     holdModeRef.current = hold
@@ -274,6 +289,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // interim the engine hasn't promoted yet — exactly once. Unlike stop()
   // (which cancels and discards), release() delivers the transcript.
   const release = useCallback(() => {
+    logDebug(`release() ENTER mode=${modeRef.current}`)
     clearWatchdog()
     clearHoldSafety()
     if (modeRef.current === 'native') {
@@ -283,6 +299,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       native.stop()
       recorder.cancelPrewarm()
       const text = [accumRef.current.trim(), salvage].filter(Boolean).join(' ').trim()
+      logDebug(`release() native branch accum=${JSON.stringify(accumRef.current)} salvage=${JSON.stringify(salvage)} text=${JSON.stringify(text)}`)
       accumRef.current = ''
       lastInterimRef.current = ''
       holdModeRef.current = false
@@ -291,8 +308,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     } else if (modeRef.current === 'recording') {
       // Native wasn't available for this press; the recorder is capturing.
       // Stopping it runs onComplete → transcribe → onFinal (sends once).
+      logDebug('release() recording branch — calling recorder.stopRecording()')
       holdModeRef.current = false
       recorder.stopRecording()
+    } else {
+      logDebug(`release() NO-OP branch mode=${modeRef.current}`)
     }
     // idle / transcribing: nothing to release.
   }, [native, recorder, clearWatchdog, clearHoldSafety, setMode, onFinal])

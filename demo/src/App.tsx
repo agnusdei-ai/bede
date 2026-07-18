@@ -552,6 +552,15 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const holdStart = (e: React.PointerEvent) => {
     if (isStreaming || sessionPaused || isTranscribing) return
     e.preventDefault()
+    // Dismiss any open on-screen keyboard before starting to listen. If the
+    // child tapped into the text box earlier and then switches to voice
+    // without tapping away first, the keyboard on iOS Safari stays open for
+    // the whole hold: it eats a large slice of the viewport, so Bede's next
+    // reply renders partly underneath the input bar (reads as "cut off"),
+    // and its own close/reopen animation can shift the mic button's layout
+    // mid-gesture. Voice input never needs the keyboard, so clear focus from
+    // whatever's currently focused (if anything) up front.
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
     holdingRef.current = true
     startHold()
   }

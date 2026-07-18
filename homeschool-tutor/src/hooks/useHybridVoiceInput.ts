@@ -105,10 +105,25 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const native = useSpeechRecognition({
     language,
     onFinal: (transcript) => {
+      // DUPLICATE-SEND BUG (confirmed live via on-screen tracing in the demo
+      // app, same hook, mirrored here): release() sets
+      // releasedRef.current = true AND holdModeRef.current = false
+      // synchronously, then calls native.stop() — but stop() does not cut
+      // off an in-flight SpeechRecognition instantly. Safari/Chrome can
+      // still deliver one more (often longer/more complete) final onresult
+      // a tick later, i.e. AFTER holdModeRef.current is already false. That
+      // used to fall all the way through to the unconditional send below,
+      // which only exists for the tap-to-speak (non-hold) path and never
+      // checked releasedRef — sending the same turn a second time
+      // (sometimes byte-identical, if the trailing final matches what
+      // release() already salvaged from the interim). releasedRef.current
+      // is the one flag that stays true across that entire async gap
+      // regardless of what holdModeRef.current is doing — checking it
+      // FIRST, unconditionally, closes the gap for both modes.
+      if (releasedRef.current) return
       if (holdModeRef.current) {
         // Walkie-talkie: keep the mic open across pauses. Stash each final
         // segment; release() sends the whole thing once the child lets go.
-        if (releasedRef.current) return
         // A final result is proof of life just like an interim (some engines
         // can emit a final without ever emitting an interim first) — disarm
         // the hold-start watchdog below so it can't fire after the fact.

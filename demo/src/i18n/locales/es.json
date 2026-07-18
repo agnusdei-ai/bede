@@ -22,16 +22,11 @@
     "transcribing": "Transcribiendo…",
     "drawingReady": "Dibujo listo. Agrega una nota o simplemente envíalo.",
     "uploadNarration": "Sube una narración de tu cuaderno (por ejemplo, inq)",
-    "placeholderListening": "Escuchando… habla ahora",
     "placeholderHoldListening": "Escuchando… suelta cuando termines",
     "placeholderYourTurn": "Tu turno — mantén presionado el micrófono para hablar",
     "placeholderTypeOrMic": "Escribe o toca el micrófono para hablar…",
-    "micOnTooltip": "Escuchando… toca para detener",
-    "micOffTooltip": "Toca para hablar",
     "micHoldToTalk": "Mantén presionado y habla",
-    "micHoldListening": "Escuchando… suelta cuando termines",
-    "walkieOn": "Mantener para hablar está activado · toca para volver a tocar para hablar",
-    "walkieOff": "Activar mantener para hablar (mantén presionado el micrófono mientras hablas)"
+    "micHoldListening": "Escuchando… suelta cuando termines"
   },
   "header": {
     "askBede": "Pregúntale a Bede",

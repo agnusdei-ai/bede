@@ -101,7 +101,7 @@ routers/
   narration.py       Narration assessment history + learner profile: GET/POST /narration/{student}/profile, GET /narration/{student}/assessments, GET /narration/{student}/behavior-check (parent-only processing_style-adaptation observation for TRACKABLE_STYLES — see LearnerBehaviorCheck)
 services/
   ai_service.py      stream_tutor_response() + generate_session_summary(); _constitution_preamble() prepends the verified constitution to every persona/summary/profile-synthesis prompt. Its module-level `_client` is resolved through services/adapters/ (get_default_client()), NOT hardcoded to Anthropic — see docs/PROVIDER_ADAPTERS.md
-  adapters/          Provider-adapter layer decoupling the tutor from any single LLM vendor. base.py (Anthropic-shaped vocabulary + ChatAdapter Protocol), anthropic_adapter.py (returns a real anthropic.AsyncAnthropic), openai_compatible_adapter.py (ONE class translating Anthropic↔OpenAI /v1/chat/completions — covers OpenAI, a self-hosted vLLM/Qwen3-Coder server, Mistral, any OpenAI-compatible endpoint), router.py (get_default_client() picks the first CONFIGURED adapter in BEDE_ADAPTER_ORDER — default "local,anthropic", never requires ANTHROPIC_API_KEY to boot; resolve_with_failover() is the opt-in Phase-6 failover client). The default treats a local vLLM server as primary and Anthropic as optional fallback, for the account-closure case — see docs/PROVIDER_ADAPTERS.md
+  adapters/          Provider-adapter layer decoupling the tutor from any single LLM vendor. base.py (Anthropic-shaped vocabulary + ChatAdapter Protocol), anthropic_adapter.py (returns a real anthropic.AsyncAnthropic), openai_compatible_adapter.py (ONE class translating Anthropic↔OpenAI /v1/chat/completions — covers OpenAI, a self-hosted vLLM/Qwen3-Coder server, Mistral, any OpenAI-compatible endpoint), router.py (get_default_client() picks the first CONFIGURED adapter in BEDE_ADAPTER_ORDER — default "local,anthropic", never requires ANTHROPIC_API_KEY to boot; resolve_with_failover() is the opt-in Phase-6 failover client). The library/self-hosted default treats a local vLLM server as primary and Anthropic as optional fallback, for the account-closure case. **The public Render demo overrides this**: `render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral` for the `bede-demo-api` service specifically, since Render has no GPU (the `local` adapter can't run there) and the demo boots/serves without any Anthropic dependency — see docs/PROVIDER_ADAPTERS.md (merged in PR #159).
   moderation.py      classify_child_message() — AIUC-1 B005 automated moderation classifier (Haiku, reuses session_model/ANTHROPIC_API_KEY) run before every tutoring turn; fails open on any error, self_harm routes through the same safeguarding crisis path as check_safeguarding, prompt_injection is logged but never blocks alone — see docs/SECURITY.md
   voice_auth.py      Resemblyzer speaker embedding + MFCC similarity scoring
   transcription.py   Whisper transcription for voice enrollment phrases
@@ -172,10 +172,26 @@ finalizeAssistantMessage() → promotes placeholder to a real message, sets isSt
 
 ## Models
 
-- **Tutor:** `claude-sonnet-4-6` (streaming, `max_tokens: 400`, tight for Mater Amabilis brevity)
-- **Summary:** `claude-haiku-4-5-20251001` (non-streaming, `max_tokens: 600`, end-of-session parent report)
+Which model actually serves a tutor turn now depends on `services/adapters/` (see
+above) — the first *configured* adapter in `BEDE_ADAPTER_ORDER` wins, and each
+adapter has its own model setting in `core/config.py`:
 
-To change models, update `tutor_model` / `session_model` in `core/config.py`.
+- **Anthropic** (`tutor_model`/`session_model`) — `claude-sonnet-4-6` (streaming,
+  `max_tokens: 400`, tight for Mater Amabilis brevity) /
+  `claude-haiku-4-5-20251001` (non-streaming, `max_tokens: 600`, end-of-session
+  parent report). This is the model pair a self-hosted deployment gets when
+  `anthropic` resolves (the library default, `local,anthropic`, falls through
+  to this once `ANTHROPIC_API_KEY` is the only thing configured).
+- **OpenAI** (`openai_model`, default `gpt-4.1-mini`) and **Mistral**
+  (`mistral_model`, default `mistral-large-latest`) — the models the public
+  Render demo actually uses in production, since its `BEDE_ADAPTER_ORDER=openai,mistral`.
+- **Local** (`local_llm_model`, default `Qwen/Qwen3-Coder-30B-A3B-Instruct`) —
+  the self-hosted vLLM option; needs a GPU (see docs/PROVIDER_ADAPTERS.md's
+  hardware tiers).
+
+To change which model a given adapter uses, update its `*_model` setting in
+`core/config.py`; to change which adapter wins, update `BEDE_ADAPTER_ORDER`
+(or `render.yaml`'s copy of it for the demo).
 
 ## Security Constraints
 
@@ -185,7 +201,7 @@ see **[docs/SECURITY.md](docs/SECURITY.md)**. If something has actually
 gone wrong, or you've found a vulnerability in Bede's code, see
 **[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)** and the
 root-level **[SECURITY.md](SECURITY.md)**. For the dependency SBOM and
-what actually flows to Anthropic/OpenAI/Resend at runtime, see
+what actually flows to Anthropic/OpenAI/Mistral/Resend at runtime, see
 **[docs/VENDOR_DATA_FLOW.md](docs/VENDOR_DATA_FLOW.md)**
 (`docs/sbom/`, regenerable via `scripts/generate_sbom.py`). For live
 red-team probing of the actual tutoring persona against the real model

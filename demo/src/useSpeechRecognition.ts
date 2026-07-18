@@ -42,8 +42,13 @@ export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, onN
     setInterim('')
   }, [])
 
-  const start = useCallback(() => {
+  // continuousOverride lets a caller force continuous mode for THIS start only
+  // (walkie-talkie hold-to-talk keeps one recognition session open across
+  // natural pauses so nothing is sent until the child releases) without
+  // changing the hook's default for tap-to-speak callers.
+  const start = useCallback((continuousOverride?: boolean) => {
     if (!isSupported || isListening) return
+    const cont = continuousOverride ?? continuous
     let gotFinalResult = false
     let sawNoSpeech = false
 
@@ -51,7 +56,7 @@ export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, onN
     const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rec: any = new SpeechRecognitionCtor()
-    rec.continuous = continuous
+    rec.continuous = cont
     rec.interimResults = true
     rec.lang = language
     rec.maxAlternatives = 1
@@ -74,7 +79,7 @@ export function useSpeechRecognition({ onFinal, onError, onEndWithoutResult, onN
         gotFinalResult = true
         onFinal?.(finalText.trim())
         setInterim('')
-        if (!continuous) stop()
+        if (!cont) stop()
       }
     }
 

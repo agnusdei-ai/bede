@@ -27,6 +27,12 @@ You can answer me in whichever way feels easiest:
 - **Tap the microphone** 🎤 once and say your answer, like you're chatting with
   a friend. As soon as you're done talking, it sends itself — no need to tap
   Send too. Want to say something else? Just tap the microphone again.
+- Prefer a **walkie-talkie**? Tap the little radio button 📻 next to the
+  microphone to switch it on. Now you **press and hold** the microphone while
+  you talk — take all the little pauses you need — and let go when you're done.
+  The moment you let go, I hear the whole thing. When it's your turn again, the
+  microphone gives a gentle glow to remind you to press and hold. Tap the radio
+  button again any time to go back to the tap-once way.
 - **Tap the pencil** ✏️ to draw or write your answer by hand — I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
   paper for math, dots for shapes and patterns, music staff paper, a nature

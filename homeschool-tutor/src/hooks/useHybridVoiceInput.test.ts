@@ -59,16 +59,29 @@ class FakeSpeechRecognition {
       results: [{ 0: { transcript: text }, isFinal: false, length: 1 }],
     })
   }
+
+  emitFinal(text: string) {
+    this.onresult?.({
+      resultIndex: 0,
+      results: [{ 0: { transcript: text }, isFinal: true, length: 1 }],
+    })
+  }
 }
 
 let lastInstance: FakeSpeechRecognition
+// Counts how many native recognition sessions were ever constructed — the
+// walkie-talkie invariant is that exactly ONE is created per explicit user
+// press, and nothing (no timer, no effect) ever spins up another on its own.
+let constructCount = 0
 
 beforeEach(() => {
   vi.useFakeTimers()
   startRecording.mockClear()
+  constructCount = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).SpeechRecognition = class {
     constructor() {
+      constructCount++
       lastInstance = new FakeSpeechRecognition()
       return lastInstance
     }
@@ -131,5 +144,93 @@ describe('useHybridVoiceInput stall watchdog', () => {
     act(() => result.current.start())
 
     expect(startRecording).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
+  it('keeps one session open across natural pauses and sends the accumulated transcript once on release', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    // Press and hold: a single CONTINUOUS native session starts.
+    act(() => result.current.startHold())
+    expect(constructCount).toBe(1)
+    expect(lastInstance.continuous).toBe(true)
+
+    // The child talks in bursts with real pauses between them. Each burst
+    // settles into a FINAL segment; nothing is sent yet — it accumulates.
+    act(() => lastInstance.emitInterim('the quick'))
+    act(() => lastInstance.emitFinal('the quick brown fox'))
+    act(() => vi.advanceTimersByTime(3000))
+    act(() => lastInstance.emitFinal('jumps over'))
+    expect(onFinal).not.toHaveBeenCalled()
+
+    // A pause longer than the tap-mode stall window must NOT fall back to
+    // recording in hold mode — the child, not a timer, decides when it ends.
+    act(() => vi.advanceTimersByTime(6000))
+    expect(startRecording).not.toHaveBeenCalled()
+
+    // Child lets go: the whole utterance is delivered exactly once.
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('the quick brown fox jumps over')
+    // Still only ever ONE native session — nothing restarted it.
+    expect(constructCount).toBe(1)
+  })
+
+  it('salvages the latest interim on release when the engine never promoted it to a final segment', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    // The child spoke but the engine only ever produced interim text (no
+    // final settled before release) — release must still send what it heard.
+    act(() => lastInstance.emitInterim('hello Bede'))
+    act(() => result.current.release())
+
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('hello Bede')
+  })
+
+  it('does not send anything when the child releases without having spoken', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => result.current.release())
+
+    expect(onFinal).not.toHaveBeenCalled()
+  })
+
+  it('never restarts recognition on its own after a tap utterance settles (no auto-restart loop)', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.start())
+    expect(constructCount).toBe(1)
+
+    // A finished tap utterance sends and goes idle.
+    act(() => lastInstance.emitFinal('done'))
+    expect(onFinal).toHaveBeenCalledTimes(1)
+
+    // Let a long time pass with no user interaction whatsoever. The old
+    // "voice mode" would have re-armed the mic on a timer here; the hook must
+    // never construct a second session on its own.
+    act(() => vi.advanceTimersByTime(60000))
+    expect(constructCount).toBe(1)
+    expect(startRecording).not.toHaveBeenCalled()
+  })
+
+  it('discards the utterance on stop() (cancel) without sending, even mid-hold', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitFinal('never mind'))
+    // stop() is cancel, not release — nothing should be delivered.
+    act(() => result.current.stop())
+
+    expect(onFinal).not.toHaveBeenCalled()
+    expect(constructCount).toBe(1)
   })
 })

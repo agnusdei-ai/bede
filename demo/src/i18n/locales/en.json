@@ -23,9 +23,15 @@
     "drawingReady": "Drawing ready. Add a note, or just send it.",
     "uploadNarration": "Upload narration from your notebook (e.g. inq)",
     "placeholderListening": "Listening… speak now",
+    "placeholderHoldListening": "Listening… let go when you're done",
+    "placeholderYourTurn": "Your turn — press and hold the mic to talk",
     "placeholderTypeOrMic": "Type or tap the mic to speak…",
     "micOnTooltip": "Listening… tap to stop",
-    "micOffTooltip": "Tap to speak"
+    "micOffTooltip": "Tap to speak",
+    "micHoldToTalk": "Press and hold, then talk",
+    "micHoldListening": "Listening… let go when you're done",
+    "walkieOn": "Hold-to-talk is on · tap to switch back to tap-to-speak",
+    "walkieOff": "Turn on hold-to-talk (press and hold the mic while you speak)"
   },
   "header": {
     "askBede": "Ask Bede",

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
+import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
@@ -109,13 +109,59 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // produces garbled transcripts regardless of how well the rest of the UI
   // is translated. Propagates to both the native Web Speech recognizer and
   // the server Whisper fallback's language hint — see useHybridVoiceInput.ts.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, stop: stopListening } = useHybridVoiceInput({
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, startHold, release, stop: stopListening } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
-    // A tap started this utterance specifically to speak an answer — send
+    // A tap (or a walkie-talkie release) delivers a finished utterance — send
     // it the moment it's final, same as tapping Send after typing.
     onFinal: (transcript) => send(transcript),
   })
+
+  // ── Walkie-talkie (press-and-hold) mode ───────────────────────────────────
+  // Off by default: the proven tap-to-speak-one-utterance flow. When on, the
+  // child presses and holds the mic to talk and releases to send — a single
+  // native recognition session stays open for the whole hold (see
+  // useHybridVoiceInput.startHold/release), so natural pauses don't end the
+  // turn. Crucially, the mic is NEVER restarted by a timer or effect: only an
+  // explicit press starts it and only an explicit release (or the inverse
+  // guard below, when Bede starts a turn) stops it. That's the whole point —
+  // the earlier "voice mode" auto-restarted the mic on a timer after every
+  // turn, which re-ran the timing-fragile listen heuristics endlessly and bred
+  // recurring audio bugs. Hold-to-talk keeps one bounded session per press.
+  const [walkieTalkie, setWalkieTalkie] = useState(false)
+  // Tracks an active press so pointerup/pointerleave only release a hold we
+  // actually started (a stray pointerleave with no prior press is a no-op).
+  const holdingRef = useRef(false)
+
+  const holdStart = (e: React.PointerEvent) => {
+    if (!walkieTalkie || isStreaming || breakActive || isTranscribing) return
+    e.preventDefault()
+    holdingRef.current = true
+    startHold()
+  }
+
+  const holdEnd = () => {
+    if (!holdingRef.current) return
+    holdingRef.current = false
+    release()
+  }
+
+  const toggleWalkie = () => {
+    setWalkieTalkie((on) => {
+      if (on) {
+        // Turning hold-to-talk OFF mid-press must not leave a hot mic behind.
+        holdingRef.current = false
+        stopListening()
+      }
+      return !on
+    })
+  }
+
+  // When hold-to-talk is on and it's genuinely the child's turn (nothing is
+  // streaming, speaking, transcribing, listening, or on break), show a clear
+  // "your turn — press and hold" cue instead of auto-listening.
+  const awaitingChildTurn =
+    walkieTalkie && !isStreaming && !isSpeaking && !isListening && !isTranscribing && !breakActive
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -334,15 +380,16 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     }
   }
 
-  // Voice mode's hands-free loop: once a turn is fully over — the stream
-  // has finished AND (if TTS is going to speak the reply) Bede's own voice
-  // has stopped playing — restart listening automatically. Keyed off BOTH
-  // isStreaming and isSpeaking transitioning together rather than either
+  // Detects the moment a turn fully ends — the stream has finished AND (if TTS
+  // is going to speak the reply) Bede's own voice has stopped playing — to
+  // drive subject transitions and the silence timer. It deliberately does NOT
+  // restart the mic: an earlier "voice mode" auto-restarted listening here on
+  // every turn, and re-running the timing-fragile listen heuristics endlessly
+  // bred recurring audio bugs (see the walkie-talkie note above). Keyed off
+  // BOTH isStreaming and isSpeaking transitioning together rather than either
   // alone, since whether TTS actually queues audio for a given turn (empty
-  // response, TTS off/unsupported, or the backend having nothing configured)
-  // isn't known in advance — this way the mic never has to guess, and never
-  // restarts while Bede's own voice is still playing (which would otherwise
-  // let the mic pick up Bede's reply as if the child said it).
+  // response, TTS off/unsupported, or nothing configured) isn't known in
+  // advance — this way it never has to guess when the turn is truly over.
   useEffect(() => {
     const turnActiveNow = isStreaming || isSpeaking
     if (turnActiveNow) {
@@ -541,23 +588,54 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             </button>
           )}
 
-          {/* Mic button — tap to speak one answer; tap again to cancel it
-              early. Disabled while Bede is busy, on a break, or a fallback
-              recording is being transcribed. */}
+          {/* Walkie-talkie toggle — flips the mic between tap-to-speak (default)
+              and press-and-hold. Kept as its own control so the proven
+              tap-to-speak flow stays the default and the child opts in. */}
           {sttSupported && (
             <button
-              onClick={toggleMic}
+              onClick={toggleWalkie}
+              disabled={isStreaming || breakActive || isTranscribing}
+              title={walkieTalkie ? t('chat.walkieOn') : t('chat.walkieOff')}
+              aria-pressed={walkieTalkie}
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
+                walkieTalkie
+                  ? 'bg-sage-600 text-white'
+                  : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'
+              }`}
+            >
+              <Radio size={18} />
+            </button>
+          )}
+
+          {/* Mic button. In tap-to-speak: tap to start one utterance, tap again
+              to cancel. In walkie-talkie: press and hold to talk, release to
+              send — pointer handlers (not onClick) drive it, and touch-none
+              stops the long-press menu / scroll / text selection on tablets.
+              Disabled while Bede is busy, on a break, or transcribing. */}
+          {sttSupported && (
+            <button
+              onClick={walkieTalkie ? undefined : toggleMic}
+              onPointerDown={walkieTalkie ? holdStart : undefined}
+              onPointerUp={walkieTalkie ? holdEnd : undefined}
+              onPointerLeave={walkieTalkie ? holdEnd : undefined}
+              onPointerCancel={walkieTalkie ? holdEnd : undefined}
               disabled={isStreaming || breakActive || isTranscribing}
               title={
-                isListening
-                  ? t('chat.micListeningTapToStop')
-                  : isTranscribing
+                isTranscribing
                   ? t('chat.transcribing')
+                  : walkieTalkie
+                  ? isListening
+                    ? t('chat.micHoldListening')
+                    : t('chat.micHoldToTalk')
+                  : isListening
+                  ? t('chat.micListeningTapToStop')
                   : t('chat.micTapToSpeak')
               }
-              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${
                 isListening
                   ? 'bg-red-500 text-white animate-pulse'
+                  : awaitingChildTurn
+                  ? 'bg-sage-500 text-white animate-pulse ring-2 ring-sage-300'
                   : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'
               }`}
             >
@@ -574,7 +652,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               breakActive
                 ? t('chat.placeholderOnBreak')
                 : isListening
-                ? t('chat.placeholderListening')
+                ? walkieTalkie
+                  ? t('chat.placeholderHoldListening')
+                  : t('chat.placeholderListening')
+                : awaitingChildTurn
+                ? t('chat.placeholderYourTurn')
                 : sttSupported
                 ? t('chat.placeholderTypeOrMic')
                 : t('chat.placeholderShareThoughts')
@@ -592,7 +674,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
-          {sttSupported ? t('chat.hintEnterOrMic') : t('chat.hintEnterOnly')}
+          {sttSupported
+            ? walkieTalkie
+              ? t('chat.hintHoldToTalk')
+              : t('chat.hintEnterOrMic')
+            : t('chat.hintEnterOnly')}
         </p>
       </div>
 

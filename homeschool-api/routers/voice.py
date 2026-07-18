@@ -166,7 +166,8 @@ async def transcribe(
     # and this endpoint is safe to expose at demo scope: stateless (the
     # result is returned inline, nothing stored), size-capped by
     # _validate_audio, rate-limited under the per-IP voice bucket, and
-    # backed by the lightweight 'tiny' Whisper model in a worker thread.
+    # backed by the 'base' Whisper model in a worker thread.
+    # (upgraded from 'tiny' for better accuracy on real utterances)
     auth: dict = Depends(require_auth),
 ):
     """

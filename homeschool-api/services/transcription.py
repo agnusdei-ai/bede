@@ -8,7 +8,13 @@ Model sizes vs speed (single inference on CPU):
   base   ~74M params   ~1s    – slightly better accuracy
   small  ~244M params  ~3s    – best accuracy/speed trade-off for 2h session
 
-We default to 'tiny' so the first download is fast and CPU usage stays low.
+We default to 'base' — 'tiny' shipped noticeably worse transcripts once real
+sentences (not just isolated enrollment phrases) started flowing through the
+fallback path, including every walkie-talkie hold-to-talk turn on a browser
+without native SpeechRecognition. 'base' roughly doubles inference time
+(~1s vs ~0.5s per utterance on CPU) but is still comfortably fast enough for
+a single child utterance, and its accuracy jump is worth that trade for a
+feature children actually rely on to be understood correctly.
 
 Everything CPU-bound here (model load AND inference) runs in a thread-pool
 executor, never on the asyncio event loop. FastAPI serves every request —
@@ -23,7 +29,7 @@ import threading
 
 logger = logging.getLogger(__name__)
 
-_WHISPER_MODEL_SIZE = "tiny"
+_WHISPER_MODEL_SIZE = "base"
 
 _model = None
 _model_load_attempted = False

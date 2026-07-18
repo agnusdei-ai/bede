@@ -95,7 +95,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // The watchdog and native recognition's own onend/onerror can BOTH ask
     // for the fallback on the same attempt (stopping native recognition
     // fires its onend a tick later) — only the first should start the
-    // recorder, or two overlapping MediaRecorder sessions get opened.
+    // recorder, or two overlapping recording sessions get opened.
     if (modeRef.current === 'recording' || modeRef.current === 'transcribing') return
     clearWatchdog()
     setMode('recording')
@@ -302,9 +302,12 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     isListening: mode === 'native' || mode === 'recording',
     isTranscribing: mode === 'transcribing',
     interim: native.interim,
-    // MediaRecorder + getUserMedia cover every evergreen browser, so the mic
+    // getUserMedia + AudioContext (the fallback's raw-PCM capture path —
+    // see useVoiceRecorder) cover every evergreen browser, so the mic
     // button no longer needs to hide itself when native recognition is absent.
-    isSupported: native.isSupported || (!!navigator.mediaDevices?.getUserMedia && !!window.MediaRecorder),
+    isSupported:
+      native.isSupported ||
+      (!!navigator.mediaDevices?.getUserMedia && !!(window.AudioContext || (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext)),
     start,
     startHold,
     release,

@@ -1,52 +1,21 @@
 // Mirror of homeschool-tutor/src/utils/audioUtils.ts for the demo app.
 /**
- * Convert a MediaRecorder blob (WebM/Opus) to a WAV Blob via the AudioContext
- * pipeline. The server's soundfile/librosa expect standard PCM WAV.
+ * Pure PCM → WAV helpers used by useVoiceRecorder's raw-capture pipeline.
  *
- * Flow: MediaRecorder chunks → Blob → ArrayBuffer → AudioContext.decodeAudioData
- *       → Float32Array (mono, 16 kHz) → WAV header + PCM bytes → Blob
+ * These used to also be reached via a MediaRecorder-blob → decodeAudioData
+ * conversion step (convertToWav), but decodeAudioData proved unreliable
+ * specifically for decoding a browser's OWN MediaRecorder output on iOS
+ * Safari (fragmented MP4/AAC container quirks; the promise can reject or —
+ * worse — the surrounding onstop handler's rejection went unhandled,
+ * leaving the recorder stuck "listening" forever with nothing ever shown to
+ * the user and no visible error). useVoiceRecorder now taps raw PCM
+ * directly off the live audio graph (the same tap point the level-meter
+ * AnalyserNode already used) and only ever calls the pure functions below —
+ * no encode/decode round trip, so no codec/container compatibility surface
+ * remains to fail on any browser.
  */
 
-export async function convertToWav(
-  chunks: Blob[],
-  targetSampleRate = 16000
-): Promise<Blob> {
-  const rawBlob = new Blob(chunks, { type: 'audio/webm' })
-  const arrayBuffer = await rawBlob.arrayBuffer()
-
-  const offlineCtx = new OfflineAudioContext(1, 1, targetSampleRate)
-  let audioBuffer: AudioBuffer
-
-  try {
-    audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer)
-  } catch {
-    // Some browsers can't decode WebM in OfflineAudioContext — use regular AudioContext
-    const tmpCtx = new AudioContext()
-    audioBuffer = await tmpCtx.decodeAudioData(arrayBuffer.slice(0))
-    await tmpCtx.close()
-  }
-
-  // Mix to mono
-  const numChannels = audioBuffer.numberOfChannels
-  const length = audioBuffer.length
-  const mono = new Float32Array(length)
-  for (let c = 0; c < numChannels; c++) {
-    const ch = audioBuffer.getChannelData(c)
-    for (let i = 0; i < length; i++) mono[i] += ch[i]
-  }
-  for (let i = 0; i < length; i++) mono[i] /= numChannels
-
-  // Resample to targetSampleRate if needed
-  let samples: Float32Array = mono
-  if (audioBuffer.sampleRate !== targetSampleRate) {
-    samples = resample(mono, audioBuffer.sampleRate, targetSampleRate)
-  }
-
-  const wavBuffer = encodeWav(samples, targetSampleRate)
-  return new Blob([wavBuffer], { type: 'audio/wav' })
-}
-
-function resample(input: Float32Array, fromRate: number, toRate: number): Float32Array<ArrayBuffer> {
+export function resample(input: Float32Array, fromRate: number, toRate: number): Float32Array<ArrayBuffer> {
   const ratio = fromRate / toRate
   const outputLength = Math.floor(input.length / ratio)
   const output = new Float32Array(outputLength) as Float32Array<ArrayBuffer>
@@ -60,7 +29,7 @@ function resample(input: Float32Array, fromRate: number, toRate: number): Float3
   return output
 }
 
-function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+export function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
   const buffer = new ArrayBuffer(44 + samples.length * 2)
   const view = new DataView(buffer)
 
@@ -90,18 +59,4 @@ function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
   }
 
   return buffer
-}
-
-/** Get the best available MediaRecorder mimeType */
-export function getBestMimeType(): string {
-  const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/ogg;codecs=opus',
-    'audio/mp4',
-  ]
-  for (const type of candidates) {
-    if (MediaRecorder.isTypeSupported(type)) return type
-  }
-  return ''
 }

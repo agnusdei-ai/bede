@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
 import {
   streamTutorChat, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -518,31 +518,31 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // is translated. Propagates to both the native Web Speech recognizer
   // (useSpeechRecognition's `lang`) and the server Whisper fallback
   // (transcribeFallback's language hint) — see useHybridVoiceInput.ts.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, start: startListening, startHold, release, stop: stopListening } =
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening } =
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
-      // A tap (or a walkie-talkie release) delivers a finished utterance — send
-      // it the moment it's final, same as tapping Send after typing.
+      // A walkie-talkie release delivers a finished utterance — send it the
+      // moment it's final, same as tapping Send after typing.
       onFinal: (transcript) => send(transcript),
     })
 
-  // ── Walkie-talkie (press-and-hold) mode ───────────────────────────────────
-  // Off by default: the proven tap-to-speak-one-utterance flow. When on, the
-  // child presses and holds the mic to talk and releases to send — a single
-  // native recognition session stays open for the whole hold (see
-  // useHybridVoiceInput.startHold/release), so natural pauses don't end the
-  // turn. Crucially, the mic is NEVER restarted by a timer or effect: only an
-  // explicit press starts it and only an explicit release (or the inverse
-  // guard below, when Bede starts a turn) stops it. That's the whole point —
-  // the earlier "voice mode" auto-restarted the mic on a timer after every
-  // turn, which re-ran the timing-fragile listen heuristics endlessly and bred
-  // recurring audio bugs. Hold-to-talk keeps one bounded session per press.
-  const [walkieTalkie, setWalkieTalkie] = useState(false)
+  // ── Press-and-hold (walkie-talkie) mic — the ONE control for voice input ──
+  // A single button: press and hold to talk, release to send. No mode
+  // toggle, no tap-to-speak alternative — one button, one gesture, one
+  // mental model (same pattern as WhatsApp voice messages and Claude's
+  // mobile push-to-talk). A single native recognition session stays open for
+  // the whole hold (see useHybridVoiceInput.startHold/release), so natural
+  // pauses don't end the turn. Crucially, the mic is NEVER restarted by a
+  // timer or effect: only an explicit press starts it and only an explicit
+  // release (or the inverse guard below, when Bede starts a turn) stops it.
+  // That's the whole point — the earlier "voice mode" auto-restarted the mic
+  // on a timer after every turn, which re-ran the timing-fragile listen
+  // heuristics endlessly and bred recurring audio bugs.
   const holdingRef = useRef(false)
 
   const holdStart = (e: React.PointerEvent) => {
-    if (!walkieTalkie || isStreaming || sessionPaused || isTranscribing) return
+    if (isStreaming || sessionPaused || isTranscribing) return
     e.preventDefault()
     holdingRef.current = true
     startHold()
@@ -554,18 +554,8 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     release()
   }
 
-  const toggleWalkie = () => {
-    setWalkieTalkie((on) => {
-      if (on) {
-        holdingRef.current = false
-        stopListening()
-      }
-      return !on
-    })
-  }
-
   const awaitingChildTurn =
-    walkieTalkie && !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
+    !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { inputRef.current = input }, [input])
@@ -755,13 +745,6 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     setPendingDrawing(null)
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: fullMsg }])
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
-  }
-
-  // Tap starts listening for one utterance; tapping again while listening
-  // cancels it without sending, rather than submitting a partial transcript.
-  const toggleMic = () => {
-    if (isListening) stopListening()
-    else startListening()
   }
 
   // Inverse guard: the moment a turn starts (including the idle-continue
@@ -958,19 +941,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {sttSupported && (
-            <button onClick={toggleWalkie} disabled={isStreaming || sessionPaused || isTranscribing} title={walkieTalkie ? t('chatScreen.walkieOn') : t('chatScreen.walkieOff')} aria-pressed={walkieTalkie} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${walkieTalkie ? 'bg-sage-600 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}>
-              <Radio size={18} />
-            </button>
-          )}
-          {sttSupported && (
             <button
-              onClick={walkieTalkie ? undefined : toggleMic}
-              onPointerDown={walkieTalkie ? holdStart : undefined}
-              onPointerUp={walkieTalkie ? holdEnd : undefined}
-              onPointerLeave={walkieTalkie ? holdEnd : undefined}
-              onPointerCancel={walkieTalkie ? holdEnd : undefined}
+              onPointerDown={holdStart}
+              onPointerUp={holdEnd}
+              onPointerLeave={holdEnd}
+              onPointerCancel={holdEnd}
               disabled={isStreaming || sessionPaused || isTranscribing}
-              title={isTranscribing ? t('chatScreen.transcribing') : walkieTalkie ? (isListening ? t('chatScreen.micHoldListening') : t('chatScreen.micHoldToTalk')) : (isListening ? t('chatScreen.micOnTooltip') : t('chatScreen.micOffTooltip'))}
+              title={isTranscribing ? t('chatScreen.transcribing') : (isListening ? t('chatScreen.micHoldListening') : t('chatScreen.micHoldToTalk'))}
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-red-500 text-white animate-pulse' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
             >
               {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
@@ -981,7 +958,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={isStreaming || sessionPaused}
-            placeholder={isListening ? (walkieTalkie ? t('chatScreen.placeholderHoldListening') : t('chatScreen.placeholderListening')) : awaitingChildTurn ? t('chatScreen.placeholderYourTurn') : t('chatScreen.placeholderTypeOrMic')}
+            placeholder={isListening ? t('chatScreen.placeholderHoldListening') : awaitingChildTurn ? t('chatScreen.placeholderYourTurn') : t('chatScreen.placeholderTypeOrMic')}
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />

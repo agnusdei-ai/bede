@@ -166,15 +166,15 @@ in `MISTRAL_API_KEY` and `OPENAI_API_KEY` from Render's dashboard (both
 `sync: false`, per docs/DEMO_HOSTING.md's setup walkthrough) —
 `ANTHROPIC_API_KEY` is left declared but optional/unused by default here.
 
-**"Fallback" here means boot-time preference, not live failover.**
-`get_default_client()` resolves once, at startup, to the first *configured*
-adapter in the order — so OpenAI only takes over if `MISTRAL_API_KEY` is
-removed/unset and the service restarts, not automatically mid-outage if
-Mistral starts erroring while still configured. True live failover (auto-retry
-OpenAI the moment Mistral 401s/429s/times out on a request already in flight)
-requires wiring `router.resolve_with_failover()` into `services/ai_service.py`
-in place of `get_default_client()` — that helper already exists and is tested,
-it's just not the active code path today.
+**This is live failover, not just a boot-time preference.**
+`services/ai_service.py`'s `_client` is resolved via
+`router.resolve_with_failover()` (Phase 6), which wraps every adapter in
+`BEDE_ADAPTER_ORDER` behind a `FailoverClient`: if Mistral errors with an
+auth/rate-limit/connection failure on a request, that same request
+automatically retries against OpenAI before any content is streamed back —
+no restart or key removal needed. A short in-memory circuit breaker then
+skips Mistral on subsequent calls for ~60s rather than re-paying its timeout
+every time, and resets once a call to it succeeds again.
 
 ### Local self-hosted vLLM + Qwen3-Coder-30B-A3B-Instruct (needs a GPU)
 

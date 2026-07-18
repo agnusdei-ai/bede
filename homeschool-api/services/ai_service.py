@@ -27,16 +27,19 @@ log = logging.getLogger(__name__)
 # Single shared async client — avoids re-initialising on every request.
 # Resolved through the provider-adapter router (services/adapters/) rather than
 # constructed directly, so WHICH vendor backs the tutor is configurable and no
-# longer hardcoded to Anthropic. The default config still resolves this to a
-# real anthropic.AsyncAnthropic when only ANTHROPIC_API_KEY is set, so the
-# object's shape (.messages.stream / .messages.create, Anthropic-shaped in/out)
-# is identical and every existing call site and test is unaffected. When the
-# deployment has moved off Anthropic (e.g. a local vLLM/Qwen3-Coder server via
-# LOCAL_LLM_BASE_URL), this resolves to that adapter instead — see
-# docs/PROVIDER_ADAPTERS.md.
-from services.adapters.router import get_default_client
+# longer hardcoded to Anthropic. Uses the Phase-6 failover router rather than
+# the plain first-configured resolver: if the primary adapter errors with an
+# auth/rate-limit/connection failure, the request automatically retries the
+# next adapter in BEDE_ADAPTER_ORDER (e.g. Mistral -> OpenAI on the Render
+# demo) before any content is streamed back, and a short circuit breaker skips
+# a recently-failed provider on subsequent calls instead of paying its timeout
+# every time. With only one adapter configured (e.g. ANTHROPIC_API_KEY alone,
+# the test default), this is a no-op passthrough — same object shape
+# (.messages.stream / .messages.create, Anthropic-shaped in/out), so every
+# existing call site and test is unaffected. See docs/PROVIDER_ADAPTERS.md.
+from services.adapters.router import resolve_with_failover
 
-_client = get_default_client()
+_client = resolve_with_failover()
 
 # Max conversation turns sent to Claude per request (sliding window)
 _HISTORY_WINDOW = 20

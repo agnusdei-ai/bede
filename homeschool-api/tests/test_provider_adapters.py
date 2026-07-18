@@ -401,6 +401,60 @@ async def test_failover_create_falls_through_to_the_next_adapter():
     assert fc._breaker.is_open("local")
 
 
+def test_ai_service_client_is_wired_through_the_failover_router():
+    """ai_service._client must be a FailoverClient (Phase-6 live failover),
+    not the plain first-configured-adapter resolver — otherwise a primary
+    outage (e.g. Mistral erroring while its key is still valid on the Render
+    demo) would never fail over to the secondary mid-request."""
+    assert isinstance(ai_service._client, router.FailoverClient)
+    # And the drop-in contract every existing test relies on must still hold:
+    # a stable .messages object exposing .stream/.create, so
+    # patch.object(ai_service._client.messages, "stream"/"create", ...) works
+    # exactly as it did against a single adapter.
+    assert hasattr(ai_service._client.messages, "stream")
+    assert hasattr(ai_service._client.messages, "create")
+
+
+@pytest.mark.asyncio
+async def test_generate_session_summary_fails_over_to_the_next_adapter(monkeypatch):
+    """End-to-end through ai_service: if the primary adapter's create() raises
+    an auth/connection-style error, generate_session_summary() must still
+    succeed by transparently retrying the next configured adapter, instead of
+    surfacing the primary's failure to the caller."""
+    s = _settings(
+        bede_adapter_order="mistral,openai",
+        mistral_api_key="sk-mistral",  # both configured; fake adapters injected below
+        openai_api_key="sk-openai",
+    )
+    fc = router.FailoverClient(s)
+    fake_response = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text="All done for today!")],
+        usage=SimpleNamespace(input_tokens=900, output_tokens=250),
+    )
+    bad = SimpleNamespace(
+        messages=SimpleNamespace(create=AsyncMock(side_effect=ConnectionError("mistral down")))
+    )
+    good = SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(return_value=fake_response)))
+    fc._built = {"mistral": bad, "openai": good}
+    monkeypatch.setattr(ai_service, "_client", fc)
+
+    req = SessionSummaryRequest(
+        session_config=_config(),
+        conversation_history=[ChatMessage(role="user", content="We finished our math lesson.")],
+        subjects_completed=[Subject.mathematics],
+        duration_minutes=30,
+    )
+    record = AsyncMock()
+    with patch("core.api_usage.record_usage", record):
+        result = await ai_service.generate_session_summary(req)
+
+    assert result == "All done for today!"
+    bad.messages.create.assert_awaited()
+    good.messages.create.assert_awaited()
+    assert fc._breaker.is_open("mistral")
+    record.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_failover_skips_a_tripped_adapter_on_the_next_call():
     s = _settings(

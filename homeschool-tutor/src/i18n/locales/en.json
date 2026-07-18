@@ -185,7 +185,14 @@
     "noteForBedePlaceholder": "e.g. Focus on multiplication facts 6–9 today.",
     "stageDescGrammar": "Grammar Stage",
     "stageDescLogic": "Logic Stage",
-    "stageDescRhetoric": "Rhetoric Stage"
+    "stageDescRhetoric": "Rhetoric Stage",
+    "companionModeLabel": "How would you like to start with Bede?",
+    "companionModeBookCompanion": "Book Companion",
+    "companionModeBookCompanionDesc": "Light touch — Bede joins whatever books you're already reading. Nothing new to plan.",
+    "companionModeGuided": "A Bit More Structure",
+    "companionModeGuidedDesc": "Book-based discussion plus a few core subjects.",
+    "companionModeFullPlan": "Full Daily Plan",
+    "companionModeFullPlanDesc": "Bede covers the full Mater Amabilis subject rotation."
   },
   "progress": {
     "advance": "Advance",

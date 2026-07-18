@@ -118,6 +118,8 @@ models/
 
 **processing_style adaptation:** `_processing_style_note` (`services/ai_service.py`) nudges Bede's tool choice per the synthesized learner profile — kinesthetic (favor `invite_handwriting` WITH `elements`, a structured DITK task), reading_writing (favor `invite_handwriting` WITHOUT `elements`, plain written narration), visual (favor `show_visual_aid` when this subject has one available), auditory (favor oral narration/discussion/recitation — a behavioral nudge only, no tool call to count). For the three tool-backed styles, each matching call also increments `LearnerBehaviorCheck` (`_increment_behavior_check`; row lifecycle in `routers/narration.py`'s `TRACKABLE_STYLES`/`_sync_behavior_check`) — a minimal, parent-only, encrypted count of whether that profile's own nudge is actually changing Bede's behavior, surfaced on the Progress page. It is deliberately not a psychometric claim that any of these labels improves learning, and auditory is deliberately excluded from the counter — no honest tool-level signal exists for it (almost all ordinary Socratic dialogue already is auditory).
 
+**companion_mode (setup-time preset):** `SessionConfig.companion_mode` (`models/schemas.py`) is a parent-chosen starting point at setup — `ParentSetup.tsx`'s preset picker ("Book Companion" / "A Bit More Structure" / "Full Daily Plan") — for how much of the day Bede should drive versus defer to the family's own physical books. Picking a preset pre-fills the subject list and session length below it (both remain freely editable, and the preset doesn't itself restrict which subjects can be picked). `full_plan` is the default and the only value that existed before this field — `_companion_mode_note` (`services/ai_service.py`, wired into the STATIC prompt block, `_build_static_prompt`, not the per-subject block, since it's a session-long framing) returns `""` for it, so today's prompt is byte-for-byte unchanged for every family that never touches this setting. `book_companion`/`guided` add a `<companion_mode_guidance>` block nudging Bede to anchor questions on whatever the family is already reading (via `current_unit`/`lesson_focus`) and keep a lighter tool-call footprint — meant for families new to homeschooling, or adopting AI deliberately and cautiously, per `docs/PARENT_SETUP.md`'s §5.
+
 ### Frontend (`homeschool-tutor/src/`)
 
 ```
@@ -126,7 +128,7 @@ guards/
   AppShell.tsx       Token validation on mount + inactivity timeout (30 min) — sets ready:true before rendering
 pages/
   Login.tsx          Parent password / child PIN tabs; voice-verify phase if voice_required
-  ParentSetup.tsx    Configure up to 10 students per pod with subject/grade/context
+  ParentSetup.tsx    Configure up to 10 students per pod with subject/grade/context; each student card opens with a companion_mode preset picker (Book Companion / A Bit More Structure / Full Daily Plan) that pre-fills subjects + session length, still freely editable after
   PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet" + "Delete all data…" (type-to-confirm modal, calls the cascading DELETE — see docs/DATA_RETENTION.md)
   TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay
   Progress.tsx       Parent-only: narration history, learner profile (+ behavior-check observation for kinesthetic/reading_writing/visual profiles), math mastery summary, AI usage — non-exhaustive, see the page itself

@@ -16,6 +16,7 @@ from models.schemas import (
     Subject,
     ChatMessage,
     GradeStage,
+    CompanionMode,
     SUBJECT_LABELS,
     SessionSummaryRequest,
 )
@@ -764,6 +765,46 @@ machine contribution stays clear.
 </ai_literacy_guardrails>"""
 
 
+def _companion_mode_note(config: SessionConfig) -> str:
+    """Optional framing for families who chose a lighter-touch starting
+    point at setup (ParentSetup.tsx's preset picker — see
+    models.schemas.CompanionMode) over the full subject rotation. Meant
+    for families new to homeschooling, or easing into AI deliberately and
+    cautiously — the note nudges Bede to anchor on the family's own
+    physical books and keep a light technological footprint, without
+    touching sacred_rules or ai_literacy_guardrails above (which already
+    cover the deeper "AI must never substitute for human effort or
+    relationships" ground this builds on, not repeats).
+
+    full_plan (today's default, and every config saved before this field
+    existed) returns "" so the static prompt stays byte-for-byte
+    unchanged for every family that never touches this setting — same
+    "" convention as _locale_directive's "en" case below.
+    """
+    if config.companion_mode == CompanionMode.book_companion:
+        return f"""
+
+<companion_mode_guidance>
+This family chose to start with Bede as a companion to books they're already reading together, not a full \
+daily curriculum — likely new to homeschooling, or easing into AI deliberately and cautiously, and both deserve \
+an unhurried pace. Early in a subject, ask what {config.student_name} is currently reading or what book prompted \
+today's lesson, and let your Socratic questions grow out of THAT text rather than an agenda of your own — the \
+parent's current_unit and lesson_focus notes, when set, tell you what that is. Favor spoken discussion and oral \
+narration over handwriting or visual-aid tools unless the family's own materials call for writing something \
+down. You are here alongside the books, not instead of them.
+</companion_mode_guidance>"""
+    if config.companion_mode == CompanionMode.guided:
+        return f"""
+
+<companion_mode_guidance>
+This family chose a middle path at setup: more structure than a pure book-companion session, but still a \
+lighter touch than the full rotation. Where {config.student_name}'s own books or the parent's current_unit and \
+lesson_focus notes point to something specific, anchor your questions there before falling back on this \
+subject's own general content.
+</companion_mode_guidance>"""
+    return ""
+
+
 def _locale_directive(config: SessionConfig, locale: str = "en") -> str:
     """Native-language generation, not machine translation: told once here,
     Claude writes its reply directly in the target language from the start,
@@ -1068,7 +1109,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}
+{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \

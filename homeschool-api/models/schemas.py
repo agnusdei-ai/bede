@@ -39,6 +39,21 @@ class TermSchedule(str, Enum):
     quarterly = "quarterly"   # 4 quarters per year
 
 
+class CompanionMode(str, Enum):
+    """A parent-chosen starting point at setup (ParentSetup.tsx's preset
+    picker) for how much of the day Bede should drive versus defer to the
+    family's own physical books and materials — meant for families new to
+    homeschooling, or easing into AI deliberately, who want a lighter
+    footprint than the full subject rotation. full_plan is the default and
+    matches every config saved before this field existed: it changes
+    nothing (see services/ai_service.py's _companion_mode_note, which
+    returns "" for full_plan, keeping today's prompt byte-for-byte
+    unchanged for anyone who never touches this setting)."""
+    book_companion = "book_companion"   # lightest touch — anchors on the family's own books
+    guided = "guided"                   # middle ground — book-based, with more structure
+    full_plan = "full_plan"             # today's default — Bede drives the full rotation
+
+
 # Foundational core areas the parent tracks term-by-term. Every learner is
 # expected to be EXPOSED to all of a term's topics and to reach MASTERY of
 # the parent's chosen topics (up to 3 per area per term) — see
@@ -172,6 +187,11 @@ class SessionConfig(BaseModel):
     # (ADD/ADHD tendencies especially), choice happens with the parent,
     # not mid-lesson. A parent-role session still sees the picker.
     appearance_locked: bool = False
+    # Parent's chosen starting point (see CompanionMode) — how much Bede
+    # drives the day versus defers to the family's own books. Purely a
+    # behavioral framing layered into the prompt (_companion_mode_note);
+    # does NOT itself constrain which subjects can be selected above.
+    companion_mode: CompanionMode = CompanionMode.full_plan
 
     # ── Term schedule & outcomes ──────────────────────────────────────────
     # Mater Amabilis default is a 3-term year; quarterly gives 4. current_term

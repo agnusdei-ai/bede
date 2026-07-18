@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea } from '../types'
+import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode } from '../types'
 import { SUBJECTS, CORE_AREAS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
@@ -19,6 +19,50 @@ const GRADE_STAGES: Array<{ label: string; value: GradeStage; descriptionKey: st
   { label: '6–8', value: '6-8', descriptionKey: 'parentSetup.stageDescRhetoric', emoji: '🎓' },
 ]
 
+// A "start here" preset, not a lock — picking one fills in selected_subjects
+// and session_cap_minutes as sensible defaults; both remain freely editable
+// afterward via their own controls below. Meets a family where they are:
+// new to homeschooling or easing into AI deliberately (book_companion),
+// wanting a bit more structure (guided), or ready for the full rotation
+// (full_plan — matches blankStudent()'s existing default exactly, so
+// picking it after another preset restores today's original behavior).
+// See models/schemas.py's CompanionMode for the backend-side rationale —
+// full_plan also changes nothing about Bede's own tutoring prompt; the
+// other two lightly reframe it (services/ai_service.py's _companion_mode_note).
+const COMPANION_MODES: Array<{
+  value: CompanionMode
+  labelKey: string
+  descriptionKey: string
+  emoji: string
+  subjects: Subject[]
+  sessionCapMinutes: number
+}> = [
+  {
+    value: 'book_companion',
+    labelKey: 'parentSetup.companionModeBookCompanion',
+    descriptionKey: 'parentSetup.companionModeBookCompanionDesc',
+    emoji: '📖',
+    subjects: ['living_books', 'morning_time'],
+    sessionCapMinutes: 60,
+  },
+  {
+    value: 'guided',
+    labelKey: 'parentSetup.companionModeGuided',
+    descriptionKey: 'parentSetup.companionModeGuidedDesc',
+    emoji: '🧭',
+    subjects: ['living_books', 'morning_time', 'language_arts', 'nature_study'],
+    sessionCapMinutes: 90,
+  },
+  {
+    value: 'full_plan',
+    labelKey: 'parentSetup.companionModeFullPlan',
+    descriptionKey: 'parentSetup.companionModeFullPlanDesc',
+    emoji: '🗓️',
+    subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
+    sessionCapMinutes: 120,
+  },
+]
+
 interface StudentForm {
   student_name: string
   grade: string
@@ -27,6 +71,7 @@ interface StudentForm {
   // SessionConfig.sex. '' means unset; only required when systemStatus's
   // locale is a grammatically gendered language (see requireSex below).
   sex: '' | 'male' | 'female'
+  companion_mode: CompanionMode
   selected_subjects: Subject[]
   lesson_focus: string
   faith_emphasis: string
@@ -50,6 +95,7 @@ const blankStudent = (): StudentForm => ({
   grade: '',
   grade_stage: '3-5',
   sex: '',
+  companion_mode: 'full_plan',
   selected_subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
   lesson_focus: '',
   faith_emphasis: '',
@@ -139,6 +185,7 @@ export default function ParentSetup() {
       current_unit: s.current_unit.trim() || undefined,
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
+      companion_mode: s.companion_mode,
       session_cap_minutes: Math.max(30, Math.min(240, s.session_cap_minutes)),
       screen_time_limit_minutes: s.screen_time_limit_enabled ? s.screen_time_limit_minutes : null,
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
@@ -395,6 +442,36 @@ function StudentCard({
               <div className="text-xs text-gray-400 leading-tight">{t(s.descriptionKey)}</div>
             </button>
           ))}
+        </div>
+
+        {/* Companion mode — a starting point, not a lock; picking one fills
+            in subjects + session length below, both still freely editable
+            afterward. Meets the family where they are: new to homeschooling
+            or easing into AI deliberately, wanting more structure, or ready
+            for the full rotation. */}
+        <div>
+          <label className="label">{t('parentSetup.companionModeLabel')}</label>
+          <div className="grid grid-cols-3 gap-2">
+            {COMPANION_MODES.map((m) => (
+              <button
+                key={m.value}
+                onClick={() => onUpdate({
+                  companion_mode: m.value,
+                  selected_subjects: m.subjects,
+                  session_cap_minutes: m.sessionCapMinutes,
+                })}
+                className={`rounded-xl border-2 p-2.5 text-left transition-all ${
+                  student.companion_mode === m.value
+                    ? 'border-navy-500 bg-navy-50'
+                    : 'border-gray-200 bg-white hover:border-navy-200'
+                }`}
+              >
+                <div className="text-lg mb-0.5">{m.emoji}</div>
+                <div className="font-semibold text-xs text-gray-800">{t(m.labelKey)}</div>
+                <div className="text-xs text-gray-400 leading-tight">{t(m.descriptionKey)}</div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Sex — only asked when the deployment's locale needs it for

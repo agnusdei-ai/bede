@@ -114,13 +114,29 @@ Nothing said there is ever saved — no transcript, no student record. Leave
 ## 5. Setting up each student
 
 1. Log in with the **parent password** → you land on **Setup**.
-2. Add each student: name, grade, and subjects. Grade is free text — use `K` for
+2. Add each student: name and grade. Grade is free text — use `K` for
    Kindergarten, or a number like `4` or `8`. The grade *stage* buttons (K–2 / 3–5 /
    6–8) set Bede's tone; the grade itself determines which curriculum content
    (books, math scope, composer/artist study) Bede draws from.
-3. Toggle **voice required** off only for a student who can't do voice verification
+3. Choose **how you'd like to start with Bede** — this is a starting point, not
+   a lock, and every part of it stays editable afterward:
+   - **Book Companion** — the lightest touch. Bede joins whatever books your
+     family is already reading together, with nothing new to plan. Meant for
+     families new to homeschooling, or easing into AI deliberately and
+     cautiously, who want Bede anchored on their own physical books rather
+     than driving the day.
+   - **A Bit More Structure** — book-based discussion plus a few core
+     subjects, a middle ground between the two.
+   - **Full Daily Plan** — Bede covers the full Mater Amabilis subject
+     rotation (the previous, and still the default, behavior).
+
+   Picking one fills in a sensible subject list and session length below —
+   you can still add, remove, or adjust either afterward using their own
+   controls. This doesn't limit *which* subjects are available to pick from,
+   only what's pre-selected to start.
+4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
-4. If your deployment offers a language other than English at login (`LOCALE`
+5. If your deployment offers a language other than English at login (`LOCALE`
    set in `.env` — see `docs/LOCALIZATION.md`), a **Sex** field appears for
    each student — Male or Female. This isn't optional once the toggle is
    enabled: Spanish, Italian, and Polish all require it to address your
@@ -130,20 +146,21 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    let you save a student without it set. On an English-only deployment
    (the default, no toggle offered at all), you'll never see this field at
    all.
-5. Set the **session length** if the default doesn't suit. Every session ends on
-   its own when this time is up. The default is two hours, and four hours is the
-   most the app will ever allow — that ceiling is built in and cannot be raised.
-6. Decide whether to **lock chat appearance**. The chat has a small palette where
+6. Set the **session length** if the starting point you chose doesn't quite
+   suit. Every session ends on its own when this time is up. The overall
+   ceiling is four hours — that's built in and cannot be raised, whichever
+   starting point you picked.
+7. Decide whether to **lock chat appearance**. The chat has a small palette where
    a learner can pick a background theme and the color of their own speech
    bubbles. If choices like that pull your child away from the lesson (children
    with attention challenges especially), turn the lock on: the palette
    disappears from their sessions entirely. You can still open a session
    yourself as the parent, set a look you both like, and leave it locked.
-7. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
+8. Save, then from the **Pod Dashboard**, enroll each child's voice: they'll record
    the passphrase three times. This only needs to happen once per child.
 
 **The language choice lives on the login screen, not on a student's profile.**
-Once you've set `LOCALE` (step 4 above), everyone who logs in — you or any of
+Once you've set `LOCALE` (step 5 above), everyone who logs in — you or any of
 your children — sees an English/Español toggle right on the login screen
 itself, chosen fresh every time. It isn't tied to which child is logging in:
 the same child can be in English one day and Spanish the next, and a

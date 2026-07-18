@@ -54,6 +54,13 @@ export interface SessionConfig {
   // still sees it. Defaults false/absent for configs saved before this
   // field existed.
   appearance_locked?: boolean
+  // Parent's chosen starting point at setup (see CompanionMode below) —
+  // how much Bede drives the day versus defers to the family's own
+  // books. Purely a behavioral framing (services/ai_service.py's
+  // _companion_mode_note); doesn't itself constrain which subjects can
+  // be selected. Defaults to 'full_plan' (today's behavior, unchanged)
+  // for configs saved before this field existed.
+  companion_mode?: CompanionMode
   // ── Term schedule & outcomes ────────────────────────────────────────────
   // Mater Amabilis default is a 3-term (trimester) year; quarterly gives 4.
   term_schedule?: TermSchedule
@@ -66,6 +73,11 @@ export interface SessionConfig {
 }
 
 export type TermSchedule = 'trimester' | 'quarterly'
+
+// See models/schemas.py's CompanionMode for the full rationale. Mirrors
+// GradeStage's shape: a small, stable string union kept in sync by hand
+// with the backend enum, same convention already used throughout this file.
+export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
 
 // Foundational core areas tracked term-by-term — mirrors
 // homeschool-api/models/schemas.py CORE_AREAS.

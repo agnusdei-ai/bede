@@ -197,7 +197,8 @@ export async function* streamTutorChat(
   childMessage: string,
   signal?: AbortSignal,
   drawingImageDataUrl?: string | null,
-  timeOfDay?: TimeOfDay | null
+  timeOfDay?: TimeOfDay | null,
+  localDate?: string | null
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${BASE}/tutor/chat`, {
     method: 'POST',
@@ -212,6 +213,7 @@ export async function* streamTutorChat(
       child_message: childMessage,
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
       local_time_of_day: timeOfDay ?? null,
+      local_date: localDate ?? null,
     }),
     signal,
   })

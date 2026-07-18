@@ -67,6 +67,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     displayMessages,
     isStreaming,
     timeOfDay,
+    localDate,
     startAssistantStream,
     addUserMessage,
     appendAssistantChunk,
@@ -267,6 +268,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       abortRef.current.signal,
       undefined,
       state.timeOfDay,
+      state.localDate,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening])
@@ -304,6 +306,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       abortRef.current.signal,
       undefined,
       state.timeOfDay,
+      state.localDate,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
@@ -360,11 +363,12 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       abortRef.current.signal,
       drawingToSend,
       timeOfDay,
+      localDate,
     )
     await consumeTurnStream(stream)
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
-    timeOfDay, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
+    timeOfDay, localDate, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
   ])
 
   const onKey = (e: React.KeyboardEvent) => {

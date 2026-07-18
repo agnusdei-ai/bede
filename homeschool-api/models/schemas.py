@@ -224,6 +224,14 @@ class TutorRequest(BaseModel):
     # sandbox, in which case Bede just doesn't adjust its greeting/prayer
     # framing for time of day.
     local_time_of_day: Optional[Literal["morning", "afternoon", "evening"]] = None
+    # The child's device calendar date at login (see sessionStore.ts's
+    # deriveLocalDate) — used so the weekly poetry/prayer rotation
+    # (services/poetry_catalog.py, services/prayer_catalog.py) picks the
+    # week the child's own calendar is actually on, not the server's
+    # (which could disagree near a Sunday/Monday boundary if the server
+    # runs in a different timezone, e.g. UTC). None for older clients /
+    # the sandbox, in which case the catalogs fall back to date.today().
+    local_date: Optional[date] = None
 
 
 class NarrationUploadRequest(BaseModel):

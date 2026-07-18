@@ -265,6 +265,37 @@ long, the form says plainly that Bede is waking up rather than leaving an
 unexplained spinner. Neither replaces the keep-alive above — they just
 soften the one cold start it doesn't cover.
 
+## Memory limits (free plan)
+
+Distinct from the cold-start problem above: Render's free web-service plan
+caps RAM at **512MB**, and `bede-demo-api`'s own dependencies sit close to
+that ceiling from imports alone, before a single request is served —
+`resemblyzer`'s speaker-verification model pulls in the full PyTorch
+runtime (~480MB just to import), and `services/transcription.py`'s
+faster-whisper fallback STT (`ctranslate2`) opportunistically imports torch
+itself the moment it's installed in the environment, regardless of whether
+`resemblyzer` ever runs. A real incident confirmed this: Render's
+"exceeded its memory limit" alert fired for `bede-demo-api`, triggering an
+automatic restart that made the demo briefly unreachable.
+
+`main.py`'s `_warm_voice_models()` now skips preloading `resemblyzer`
+entirely on a demo deployment (`settings.is_demo_deployment`) — voice
+biometric auth (`/voice/enroll`, `/voice/verify`, `/voice/override`) is
+parent-only and structurally unreachable by the demo's `demo_code` role
+either way, so preloading it was pure waste on this deployment shape. Be
+clear-eyed about what this buys, though: measured directly, it only trims
+~30MB of live RSS. The dominant cost (torch, ~480MB) loads regardless,
+because the demo genuinely does need faster-whisper for its own STT
+fallback, and `ctranslate2` pulls torch in the moment it's present in the
+environment — this fix doesn't eliminate that.
+
+If OOM restarts recur, the real fix is more RAM, not just no-spin-down:
+confirm current specs on Render's pricing page before upgrading — the
+Starter plan historically matches the free plan's RAM (it buys no
+spin-down, not more memory), so eliminating this specific failure mode
+needs whichever tier actually raises the memory allocation, not just the
+next plan up.
+
 ## Expecting a crowd? (public events, ~100 simultaneous users)
 
 The frontend is static files on GitHub Pages — it scales to any audience

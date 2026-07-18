@@ -4,6 +4,7 @@ import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } fr
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
+import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -116,6 +117,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     // moment it's final, same as tapping Send after typing.
     onFinal: (transcript) => send(transcript),
   })
+
+  // Word-level diff of the live interim transcript, called unconditionally
+  // (rules of hooks) even though it's only rendered while isListening &&
+  // interim below — lets the transcript bubble fade in just the newly-heard
+  // tail on each tick instead of replacing the whole line, matching how
+  // Claude/Gemini's voice UIs settle words in progressively.
+  const transcriptWords = useTranscriptWords(interim)
 
   // ── Press-and-hold (walkie-talkie) mic — the ONE control for voice input ──
   // A single button: press and hold to talk, release to send. No mode
@@ -477,8 +485,16 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         {/* Interim speech-to-text preview */}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft">
-              {interim}…
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border border-sage-200">
+              {transcriptWords.map(({ text, key, isNew }) => (
+                <span
+                  key={key}
+                  className={isNew ? 'text-sage-500 italic animate-slide-up inline-block mr-1' : 'text-sage-800 inline-block mr-1'}
+                >
+                  {text}
+                </span>
+              ))}
+              <span className="text-sage-400">…</span>
             </div>
           </div>
         )}
@@ -586,9 +602,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               }
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${
                 isListening
-                  ? 'bg-red-500 text-white animate-pulse'
+                  ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft'
                   : awaitingChildTurn
-                  ? 'bg-sage-500 text-white animate-pulse ring-2 ring-sage-300'
+                  ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300'
                   : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'
               }`}
             >

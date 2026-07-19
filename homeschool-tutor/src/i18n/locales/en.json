@@ -52,6 +52,10 @@
   "chat": {
     "bedeThinking": "Bede is thinking…",
     "transcribing": "Transcribing…",
+    "voiceReviewSend": "Send",
+    "voiceReviewCancel": "Cancel",
+    "debugShow": "Show debug panel",
+    "debugHide": "Hide debug panel",
     "drawingReady": "Drawing ready. Add a note, or just send it.",
     "drawOrWrite": "Draw or write by hand",
     "uploadNarration": "Upload narration from your notebook (e.g. inq)",

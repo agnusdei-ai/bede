@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug } from 'lucide-react'
 import {
-  streamTutorChat, logout, getDemoConfig,
+  streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
   fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales,
@@ -16,6 +16,8 @@ import { useHybridVoiceInput } from './useHybridVoiceInput'
 import { useTranscriptWords } from './useTranscriptWords'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
+import DebugOverlay from './DebugOverlay'
+import { logDebug } from './debugBus'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
 // visits never open, and keeping it out of the entry bundle makes first
 // paint lighter for everyone. It loads the moment the pencil is tapped
@@ -482,6 +484,11 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
+  // A finished voice recording sits here for review — Send or Cancel —
+  // instead of going straight to Bede the instant the mic is released.
+  const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null)
+  // Off by default — see DebugOverlay.tsx. Session-only, not persisted.
+  const [showDebug, setShowDebug] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState(true)
   const [uploadingNarration, setUploadingNarration] = useState(false)
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
@@ -524,9 +531,11 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
-      // A walkie-talkie release delivers a finished utterance — send it the
-      // moment it's final, same as tapping Send after typing.
-      onFinal: (transcript) => send(transcript),
+      // A walkie-talkie release used to send the moment a transcript was
+      // final — now it's held for review instead (see pendingVoiceTranscript
+      // above): the child can see exactly what was heard and Send or Cancel
+      // rather than it going to Bede sight-unseen.
+      onFinal: (transcript) => setPendingVoiceTranscript(transcript),
     })
 
   // Word-level diff of the live interim transcript, called unconditionally
@@ -551,8 +560,26 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const holdingRef = useRef(false)
 
   const holdStart = (e: React.PointerEvent) => {
-    if (isStreaming || sessionPaused || isTranscribing) return
+    if (isStreaming || sessionPaused || isTranscribing) {
+      logDebug(`holdStart type=${e.type} BLOCKED isStreaming=${isStreaming} sessionPaused=${sessionPaused} isTranscribing=${isTranscribing}`)
+      return
+    }
+    logDebug(`holdStart type=${e.type} isSpeaking=${isSpeaking}`)
     e.preventDefault()
+    // Interrupt Bede the instant the child presses the mic — deliberately
+    // BEFORE anything else below. Pressing to talk while Bede is still
+    // speaking is the whole point of a press-and-hold control (a real
+    // walkie-talkie cuts the other party off the moment you key up); Bede
+    // isn't owed the last word. Synchronous, not awaited, so isSpeaking
+    // flips false in the same render pass startHold()'s isListening=true
+    // lands in — see the (now-removed) guard effect this replaces, which
+    // used to stopListening() a press-triggered session a tick later
+    // because isSpeaking briefly overlapped isListening.
+    stopSpeech()
+    // Pressing again while a previous recording is still awaiting review
+    // discards it and starts fresh — the natural "never mind, let me
+    // re-record" gesture, no separate Cancel tap required first.
+    setPendingVoiceTranscript(null)
     // Dismiss any open on-screen keyboard before starting to listen. If the
     // child tapped into the text box earlier and then switches to voice
     // without tapping away first, the keyboard on iOS Safari stays open for
@@ -566,8 +593,9 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     startHold()
   }
 
-  const holdEnd = () => {
+  const holdEnd = (e: React.PointerEvent) => {
     if (!holdingRef.current) return
+    logDebug(`holdEnd type=${e.type}`)
     holdingRef.current = false
     release()
   }
@@ -765,12 +793,21 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
 
-  // Inverse guard: the moment a turn starts (including the idle-continue
-  // nudge), the mic must be OFF, or it would hear Bede's own voice as the
-  // learner's answer.
-  useEffect(() => {
-    if ((isStreaming || isSpeaking || sessionPaused) && isListening) stopListening()
-  }, [isStreaming, isSpeaking, sessionPaused, isListening, stopListening])
+  // Voice review: the child presses Send on the transcript they were just
+  // shown, or Cancel to discard it — nothing reaches Bede without one of
+  // these (see pendingVoiceTranscript / the useHybridVoiceInput onFinal above).
+  const confirmVoiceTranscript = () => {
+    if (!pendingVoiceTranscript?.trim()) return
+    logDebug(`voice review CONFIRMED text="${pendingVoiceTranscript}"`)
+    const text = pendingVoiceTranscript
+    setPendingVoiceTranscript(null)
+    send(text)
+  }
+
+  const cancelVoiceTranscript = () => {
+    logDebug(`voice review CANCELLED text="${pendingVoiceTranscript}"`)
+    setPendingVoiceTranscript(null)
+  }
 
   // Lets a child bring narration written offline with a smart pen/notebook
   // (e.g. inq — its own AI already transcribed the handwriting to a
@@ -810,6 +847,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // visitor can pick a different nature-drawn background from the header's
     // ThemePicker (persisted per device via useChatTheme).
     <div className={`flex flex-col h-screen ${theme.bgClass}`}>
+      {showDebug && <DebugOverlay onClose={() => setShowDebug(false)} />}
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still
@@ -934,6 +972,30 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             </div>
           </div>
         )}
+        {/* Voice review — nothing recorded reaches Bede until this is
+            confirmed. Pressing the mic again discards it and re-records
+            (see holdStart); Cancel just discards. */}
+        {pendingVoiceTranscript !== null && (
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
+              <span className="text-sage-900">{pendingVoiceTranscript}</span>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={cancelVoiceTranscript}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-sage-700 bg-white border border-sage-300 hover:bg-sage-50 transition-colors"
+                >
+                  {t('chatScreen.voiceReviewCancel')}
+                </button>
+                <button
+                  onClick={confirmVoiceTranscript}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-navy-500 hover:bg-navy-600 transition-colors"
+                >
+                  {t('chatScreen.voiceReviewSend')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -967,6 +1029,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           </button>
           <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
+          </button>
+          {/* Voice-flow debug panel toggle — off by default, see DebugOverlay.tsx */}
+          <button
+            onClick={() => setShowDebug((v) => !v)}
+            className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${showDebug ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'}`}
+          >
+            <Bug size={18} />
           </button>
           {sttSupported && (
             <button
@@ -1926,6 +1995,12 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   const [showFeedback, setShowFeedback] = useState(false)
   const sessionStartRef = useRef(Date.now())
   const sessionStateRef = useRef<{ history: ChatMessage[]; subjectsCompleted: Subject[] }>({ history: [], subjectsCompleted: [] })
+  // Derived once from sessionStartRef (never recomputed) — matches
+  // homeschool-tutor/src/store/sessionStore.ts's "read once at session
+  // start" semantics: a session that runs past an hour boundary keeps
+  // greeting/prayer-framing itself the way it opened rather than flipping
+  // mid-session. See api.ts's deriveTimeOfDay for the actual bucketing.
+  const timeOfDay = useMemo(() => deriveTimeOfDay(new Date(sessionStartRef.current)), [])
 
   useEffect(() => {
     getDemoConfig(token).then(setConfig).catch((err) => setError(friendlyErrorMessage(err, 'Could not start your session')))
@@ -1936,8 +2011,8 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
 
   const runChat = useCallback(
     (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal),
-    [token, config],
+      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, timeOfDay),
+    [token, config, timeOfDay],
   )
 
   const handleLogout = () => {

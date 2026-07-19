@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, Sparkles, Bug } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
@@ -11,7 +11,9 @@ import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
+import DebugOverlay from './DebugOverlay'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
+import { logDebug } from '../hooks/debugBus'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -30,6 +32,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
+  // A finished voice recording sits here for review — Send or Cancel —
+  // instead of going straight to Bede the instant the mic is released.
+  const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null)
+  // Off by default — see DebugOverlay.tsx. Session-only, not persisted.
+  const [showDebug, setShowDebug] = useState(false)
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -115,9 +122,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
-    // A walkie-talkie release delivers a finished utterance — send it the
-    // moment it's final, same as tapping Send after typing.
-    onFinal: (transcript) => send(transcript),
+    // A walkie-talkie release used to send the moment a transcript was
+    // final — now it's held for review instead (see pendingVoiceTranscript
+    // above): the child can see exactly what was heard and Send or Cancel
+    // rather than it going to Bede sight-unseen.
+    onFinal: (transcript) => setPendingVoiceTranscript(transcript),
   })
 
   // Word-level diff of the live interim transcript, called unconditionally
@@ -144,8 +153,26 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   const holdingRef = useRef(false)
 
   const holdStart = (e: React.PointerEvent) => {
-    if (isStreaming || breakActive || isTranscribing) return
+    if (isStreaming || breakActive || isTranscribing) {
+      logDebug(`holdStart type=${e.type} BLOCKED isStreaming=${isStreaming} breakActive=${breakActive} isTranscribing=${isTranscribing}`)
+      return
+    }
+    logDebug(`holdStart type=${e.type} isSpeaking=${isSpeaking}`)
     e.preventDefault()
+    // Interrupt Bede the instant the child presses the mic — deliberately
+    // BEFORE anything else below. Pressing to talk while Bede is still
+    // speaking is the whole point of a press-and-hold control (a real
+    // walkie-talkie cuts the other party off the moment you key up); Bede
+    // isn't owed the last word. Synchronous, not awaited, so isSpeaking
+    // flips false in the same render pass startHold()'s isListening=true
+    // lands in — see the (now-removed) guard effect this replaces, which
+    // used to stopListening() a press-triggered session a tick later
+    // because isSpeaking briefly overlapped isListening.
+    stopSpeech()
+    // Pressing again while a previous recording is still awaiting review
+    // discards it and starts fresh — the natural "never mind, let me
+    // re-record" gesture, no separate Cancel tap required first.
+    setPendingVoiceTranscript(null)
     // Dismiss any open on-screen keyboard before starting to listen. If the
     // child tapped into the text box earlier and then switches to voice
     // without tapping away first, the keyboard on iOS Safari stays open for
@@ -159,8 +186,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     startHold()
   }
 
-  const holdEnd = () => {
+  const holdEnd = (e: React.PointerEvent) => {
     if (!holdingRef.current) return
+    logDebug(`holdEnd type=${e.type}`)
     holdingRef.current = false
     release()
   }
@@ -372,6 +400,22 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     timeOfDay, localDate, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
   ])
 
+  // Voice review: the child presses Send on the transcript they were just
+  // shown, or Cancel to discard it — nothing reaches Bede without one of
+  // these (see pendingVoiceTranscript / the useHybridVoiceInput onFinal above).
+  const confirmVoiceTranscript = useCallback(() => {
+    if (!pendingVoiceTranscript?.trim()) return
+    logDebug(`voice review CONFIRMED text="${pendingVoiceTranscript}"`)
+    const text = pendingVoiceTranscript
+    setPendingVoiceTranscript(null)
+    send(text)
+  }, [pendingVoiceTranscript, send])
+
+  const cancelVoiceTranscript = useCallback(() => {
+    logDebug(`voice review CANCELLED text="${pendingVoiceTranscript}"`)
+    setPendingVoiceTranscript(null)
+  }, [pendingVoiceTranscript])
+
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -428,14 +472,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // fires into a session the child has already left.
   useEffect(() => clearInactivityTimer, [clearInactivityTimer])
 
-  // The inverse guard: the moment a turn starts (Bede thinking or
-  // speaking), the mic must be OFF — otherwise a [CONTINUE]-initiated turn
-  // could leave a kept-alive mic hot while Bede talks, and it would hear
-  // Bede's own voice as the child's answer.
-  useEffect(() => {
-    if ((isStreaming || isSpeaking) && isListening) stopListening()
-  }, [isStreaming, isSpeaking, isListening, stopListening])
-
   // A break can end mid-"turn-just-ended" window (the effect above skips
   // re-arming while breakActive is true and doesn't get a second chance
   // once turnActiveRef has already been cleared) — re-arm the silence timer
@@ -484,6 +520,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
   return (
     <div className="flex flex-col h-full">
+      {showDebug && <DebugOverlay onClose={() => setShowDebug(false)} />}
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
@@ -516,6 +553,30 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
               <Loader2 size={12} className="animate-spin" /> {t('chat.transcribing')}
+            </div>
+          </div>
+        )}
+        {/* Voice review — nothing recorded reaches Bede until this is
+            confirmed. Pressing the mic again discards it and re-records
+            (see holdStart); Cancel just discards. */}
+        {pendingVoiceTranscript !== null && (
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
+              <span className="text-sage-900">{pendingVoiceTranscript}</span>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={cancelVoiceTranscript}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-sage-700 bg-white border border-sage-300 hover:bg-sage-50 transition-colors"
+                >
+                  {t('chat.voiceReviewCancel')}
+                </button>
+                <button
+                  onClick={confirmVoiceTranscript}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-navy-500 hover:bg-navy-600 transition-colors"
+                >
+                  {t('chat.voiceReviewSend')}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -594,6 +655,17 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               )}
             </button>
           )}
+
+          {/* Voice-flow debug panel toggle — off by default, see DebugOverlay.tsx */}
+          <button
+            onClick={() => setShowDebug((v) => !v)}
+            title={showDebug ? t('chat.debugHide') : t('chat.debugShow')}
+            className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
+              showDebug ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
+            }`}
+          >
+            <Bug size={18} />
+          </button>
 
           {/* The ONE voice control: press and hold the mic to talk, release to
               send. No mode toggle, no tap-to-speak alternative — pointer

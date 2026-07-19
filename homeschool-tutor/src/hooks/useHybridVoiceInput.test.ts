@@ -326,7 +326,7 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
     act(() => result.current.startHold())
     act(() => lastInstance.emitFinal('are you still there'))
     // No release() call at all — simulates a pointerup that never arrived.
-    act(() => vi.advanceTimersByTime(60000))
+    act(() => vi.advanceTimersByTime(120000))
 
     expect(onFinal).toHaveBeenCalledTimes(1)
     expect(onFinal).toHaveBeenCalledWith('are you still there')
@@ -344,7 +344,7 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
 
     // Letting the old safety timer's window elapse afterward must not fire
     // a second, stale release.
-    act(() => vi.advanceTimersByTime(60000))
+    act(() => vi.advanceTimersByTime(120000))
     expect(onFinal).toHaveBeenCalledTimes(1)
   })
 

@@ -25,6 +25,19 @@ const NATIVE_STALL_TIMEOUT_MS = 4000
 // fallback, so a missed release degrades to "the turn ended a bit early"
 // rather than "the mic is stuck forever with no way to clear it."
 const HOLD_SAFETY_TIMEOUT_MS = 120000
+// Belt-and-suspenders for a real reported failure: a child interrupted Bede
+// mid-speech, native recognition produced nothing at all (see the stall
+// watchdog above), the recorder fallback kicked in, and the mic never
+// recovered — later presses silently no-op'd forever. Root cause: the
+// recorder's onComplete had no try/catch around the transcription network
+// call, so any thrown error (a transient fetch failure, malformed JSON,
+// whatever) skipped straight past the `setMode('idle')` that was supposed
+// to run after it, stranding `mode` at 'transcribing' permanently (fixed
+// below). This timer is the second layer: even a silent no-op that never
+// reaches onComplete at all (e.g. stopRecording() called before
+// startRecording()'s own async setup — see useVoiceRecorder.ts — has
+// populated its refs) still can't leave `mode` stuck at 'recording' forever.
+const RECORDING_SAFETY_TIMEOUT_MS = 10000
 // Was 8000ms, then 60000ms — both still too short for a child working
 // through a longer spoken answer out loud, especially one who pauses to
 // think mid-explanation. The walkie-talkie hold-to-talk mode (meant to
@@ -75,6 +88,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const accumRef = useRef('')
   const lastInterimRef = useRef('')
   const holdSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const recordingSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Always points at the CURRENT release() so the hold-safety timer (armed
   // inside _start, defined below) can call it without a forward reference —
   // updated on every render, right after release is (re)created.
@@ -93,13 +107,35 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     holdSafetyRef.current = null
   }, [])
 
+  const clearRecordingSafety = useCallback(() => {
+    if (recordingSafetyRef.current) clearTimeout(recordingSafetyRef.current)
+    recordingSafetyRef.current = null
+  }, [])
+
   const recorder = useVoiceRecorder({
     maxDurationMs: MAX_RECORDING_MS,
     onComplete: async (wavBlob) => {
+      // Recording actually completed and handed off — the safety timeout
+      // below (armed in startFallback) exists for the case where THIS
+      // callback never runs at all; now that it has, disarm it.
+      clearRecordingSafety()
       setMode('transcribing')
-      const text = token ? await transcribeFallback(token, wavBlob, language.slice(0, 2)) : ''
-      setMode('idle')
-      if (text) onFinal?.(text)
+      try {
+        const text = token ? await transcribeFallback(token, wavBlob, language.slice(0, 2)) : ''
+        if (text) onFinal?.(text)
+      } catch (err) {
+        // Real reported bug: a thrown/rejected transcription call (a
+        // transient fetch failure, malformed JSON, whatever) used to skip
+        // straight past the setMode('idle') below, stranding `mode` at
+        // 'transcribing' permanently — the mic looked and behaved as
+        // though stuck, with isTranscribing disabling the button and no
+        // event ever left to clear it. try/catch/finally here guarantees
+        // idle is always reached regardless of how transcription fails.
+        logDebug(`transcribeFallback threw: ${err instanceof Error ? err.message : String(err)}`)
+        setMicError('unavailable')
+      } finally {
+        setMode('idle')
+      }
     },
     onError: (reason) => {
       // getUserMedia() is also called speculatively by recorder.prewarm()
@@ -112,6 +148,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       logDebug(`recorder onError reason=${reason}`)
       clearWatchdog()
       clearHoldSafety()
+      clearRecordingSafety()
       holdModeRef.current = false
       accumRef.current = ''
       setMode('idle')
@@ -129,7 +166,23 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     clearWatchdog()
     setMode('recording')
     recorder.startRecording()
-  }, [clearWatchdog, recorder, setMode])
+    // Second layer of recovery alongside onComplete's own try/catch above:
+    // covers a silent no-op rather than a thrown error — e.g. release()
+    // calling recorder.stopRecording() before startRecording()'s own async
+    // setup (see useVoiceRecorder.ts) has populated its refs yet, which
+    // returns early without ever invoking onComplete at all. Cleared the
+    // moment onComplete actually runs; if it never does, this forces mode
+    // back to idle instead of leaving the mic permanently unresponsive.
+    clearRecordingSafety()
+    recordingSafetyRef.current = setTimeout(() => {
+      recordingSafetyRef.current = null
+      if (modeRef.current === 'recording') {
+        logDebug('recording safety timeout — forcing back to idle')
+        setMode('idle')
+        setMicError('unavailable')
+      }
+    }, RECORDING_SAFETY_TIMEOUT_MS)
+  }, [clearWatchdog, clearRecordingSafety, recorder, setMode])
 
   const native = useSpeechRecognition({
     language,
@@ -331,6 +384,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     releasedRef.current = true
     clearWatchdog()
     clearHoldSafety()
+    clearRecordingSafety()
     if (modeRef.current === 'native') {
       native.stop()
       recorder.cancelPrewarm()
@@ -339,7 +393,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     holdModeRef.current = false
     accumRef.current = ''
     setMode('idle')
-  }, [native, recorder, clearWatchdog, clearHoldSafety, setMode])
+  }, [native, recorder, clearWatchdog, clearHoldSafety, clearRecordingSafety, setMode])
 
   // Walkie-talkie release: the child let go of the button. Send whatever the
   // engine has captured so far — accumulated final segments plus the latest

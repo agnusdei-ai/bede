@@ -613,7 +613,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const awaitingChildTurn =
     !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // The live interim transcript, the "transcribing…" indicator, and the
+  // voice-review confirm/cancel card (below) are all rendered inside the
+  // scroll container but aren't part of `messages` — a real reported gap:
+  // pressing and holding the mic could leave the transcript rendering below
+  // the fold with nothing to bring it into view, since this effect
+  // previously only reacted to new messages.
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, isListening, interim, isTranscribing, pendingVoiceTranscript])
   useEffect(() => { inputRef.current = input }, [input])
 
   // Debounced (not on every streamed token — see the module docstring

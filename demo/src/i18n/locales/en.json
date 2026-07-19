@@ -28,7 +28,9 @@
     "placeholderYourTurn": "Your turn — press and hold the mic to talk",
     "placeholderTypeOrMic": "Type or tap the mic to speak…",
     "micHoldToTalk": "Press and hold, then talk",
-    "micHoldListening": "Listening… let go when you're done"
+    "micHoldListening": "Listening… let go when you're done",
+    "micPermissionDenied": "I can't hear you — this browser has blocked the microphone. You can still type your answer, or check the browser's microphone permission for this site.",
+    "micUnavailable": "I can't hear you right now — something's wrong with the microphone. You can still type your answer instead."
   },
   "header": {
     "askBede": "Ask Bede",

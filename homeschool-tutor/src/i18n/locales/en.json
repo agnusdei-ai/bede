@@ -75,6 +75,8 @@
     "micHoldToTalk": "Press and hold, then talk",
     "micHoldListening": "Listening… let go when you're done",
     "micYourTurn": "Your turn — press and hold to talk",
+    "micPermissionDenied": "I can't hear you — this browser has blocked the microphone. You can still type your answer, or ask a parent to turn on microphone access in the browser's settings.",
+    "micUnavailable": "I can't hear you right now — something's wrong with the microphone. You can still type your answer instead.",
     "placeholderOnBreak": "On a break. Bede will be here when you return.",
     "placeholderHoldListening": "Listening… let go when you're done",
     "placeholderYourTurn": "Your turn — press and hold the mic to talk",

@@ -119,7 +119,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // produces garbled transcripts regardless of how well the rest of the UI
   // is translated. Propagates to both the native Web Speech recognizer and
   // the server Whisper fallback's language hint — see useHybridVoiceInput.ts.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening } = useHybridVoiceInput({
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
     // A walkie-talkie release used to send the moment a transcript was
@@ -128,6 +128,17 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     // rather than it going to Bede sight-unseen.
     onFinal: (transcript) => setPendingVoiceTranscript(transcript),
   })
+
+  // Surface the one mic failure that used to be completely silent: a denied
+  // or unavailable microphone left the press-and-hold button just... doing
+  // nothing, with no error anywhere. Reuses the same chat-message error
+  // pattern as consumeTurnStream's stream errors below, so it reads like a
+  // normal part of the conversation rather than a separate alert overlay.
+  useEffect(() => {
+    if (!micError) return
+    addToolMessage('error', `⚠️ ${t(micError === 'permission-denied' ? 'chat.micPermissionDenied' : 'chat.micUnavailable')}`)
+    clearMicError()
+  }, [micError, clearMicError, addToolMessage, t])
 
   // Word-level diff of the live interim transcript, called unconditionally
   // (rules of hooks) even though it's only rendered while isListening &&

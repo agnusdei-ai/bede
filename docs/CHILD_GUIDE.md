@@ -33,7 +33,9 @@ You can answer me in whichever way feels easiest:
 - **Press and hold the microphone** 🎤 while you talk — like a walkie-talkie —
   take all the little pauses you need, then **let go when you're done**. The
   moment you let go, I hear the whole thing. When it's your turn again, the
-  microphone gives a gentle glow to remind you to press and hold.
+  microphone gives a gentle glow to remind you to press and hold. If I ever
+  say I can't hear you, it just means this tablet's microphone needs a
+  parent's okay — you can always keep going by typing instead.
 - **Tap the pencil** ✏️ to draw or write your answer by hand — I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
   paper for math, dots for shapes and patterns, music staff paper, a nature

@@ -244,3 +244,69 @@ describe('useVoiceRecorder mic prewarming (iOS Safari user-gesture requirement)'
     expect(onComplete).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('useVoiceRecorder getUserMedia failure reporting', () => {
+  // Mirror of homeschool-tutor/src/hooks/useVoiceRecorder.test.ts's same
+  // block — see that file's comment for the full rationale. Regression
+  // coverage for a real gap: getUserMedia() rejecting used to be swallowed
+  // into a bare console.error with no way for a caller to know.
+
+  it('classifies NotAllowedError as permission-denied', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
+      throw new DOMException('Permission denied', 'NotAllowedError')
+    })
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(onError).toHaveBeenCalledWith('permission-denied')
+  })
+
+  it('classifies the legacy PermissionDeniedError name as permission-denied too', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
+      throw new DOMException('Permission denied', 'PermissionDeniedError')
+    })
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(onError).toHaveBeenCalledWith('permission-denied')
+  })
+
+  it('classifies any other getUserMedia failure as unavailable', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
+      throw new DOMException('No microphone found', 'NotFoundError')
+    })
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(onError).toHaveBeenCalledWith('unavailable')
+  })
+
+  it('does not start recording (isRecording stays false) after a getUserMedia failure', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
+      throw new DOMException('Permission denied', 'NotAllowedError')
+    })
+    const { result } = renderHook(() => useVoiceRecorder({}))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(result.current.isRecording).toBe(false)
+  })
+})

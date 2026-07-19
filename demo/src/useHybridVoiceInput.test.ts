@@ -14,16 +14,17 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { startRecording, prewarm, cancelPrewarm, recorderOptions } = vi.hoisted(() => ({
+const { startRecording, prewarm, cancelPrewarm, recorderOptions, transcribeFallback } = vi.hoisted(() => ({
   startRecording: vi.fn(),
   prewarm: vi.fn(),
   cancelPrewarm: vi.fn(),
   // Captures the options useHybridVoiceInput passes to useVoiceRecorder —
-  // tests below call recorderOptions.current.onError(...) directly to
-  // simulate getUserMedia() rejecting, the same way the real hook would
-  // report it back (see useVoiceRecorder.ts's getStream catch).
+  // tests below call recorderOptions.current.onError(...)/onComplete(...)
+  // directly to simulate the recorder finishing (or failing) a real
+  // recording, the same way it would report it back for real.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recorderOptions: { current: null as any },
+  transcribeFallback: vi.fn(),
 }))
 
 vi.mock('./useVoiceRecorder', () => ({
@@ -40,6 +41,8 @@ vi.mock('./useVoiceRecorder', () => ({
     }
   },
 }))
+
+vi.mock('./api', () => ({ transcribeFallback }))
 
 import { useHybridVoiceInput } from './useHybridVoiceInput'
 
@@ -93,6 +96,8 @@ beforeEach(() => {
   startRecording.mockClear()
   prewarm.mockClear()
   cancelPrewarm.mockClear()
+  transcribeFallback.mockReset()
+  transcribeFallback.mockResolvedValue('')
   recorderOptions.current = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).SpeechRecognition = class {
@@ -338,6 +343,90 @@ describe('useHybridVoiceInput mic errors (demo)', () => {
     expect(result.current.micError).toBe('permission-denied')
 
     act(() => result.current.startHold())
+    expect(result.current.micError).toBe(null)
+  })
+})
+
+describe('useHybridVoiceInput stuck-mode recovery (recorder fallback, demo)', () => {
+  // Mirror of homeschool-tutor/src/hooks/useHybridVoiceInput.test.ts's same
+  // block — see that file's comment for the full rationale. Regression
+  // coverage for a real reported failure: a child interrupted Bede
+  // mid-speech, native recognition produced nothing, the recorder fallback
+  // kicked in, and the mic never recovered for the rest of the session.
+
+  beforeEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).SpeechRecognition
+  })
+
+  it('returns to idle and surfaces an error when the transcription call rejects, instead of stranding mode at transcribing', async () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    expect(result.current.isListening).toBe(true)
+
+    transcribeFallback.mockRejectedValueOnce(new Error('network error'))
+    await act(async () => {
+      await recorderOptions.current.onComplete(new Blob())
+    })
+
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.isListening).toBe(false)
+    expect(result.current.micError).toBe('unavailable')
+    expect(onFinal).not.toHaveBeenCalled()
+  })
+
+  it('still delivers the transcript and clears any error when transcription succeeds', async () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    transcribeFallback.mockResolvedValueOnce('hello Bede')
+    await act(async () => {
+      await recorderOptions.current.onComplete(new Blob())
+    })
+
+    expect(onFinal).toHaveBeenCalledWith('hello Bede')
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe(null)
+  })
+
+  it('the recording safety timeout forces mode back to idle if the recorder never reports completion', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(result.current.isListening).toBe(true)
+
+    act(() => vi.advanceTimersByTime(10000))
+
+    expect(result.current.isListening).toBe(false)
+    expect(result.current.micError).toBe('unavailable')
+  })
+
+  it('does not fire the recording safety timeout once the recording completes in time', async () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    transcribeFallback.mockResolvedValueOnce('quick answer')
+    await act(async () => {
+      await recorderOptions.current.onComplete(new Blob())
+    })
+    expect(result.current.micError).toBe(null)
+
+    act(() => vi.advanceTimersByTime(10000))
+    expect(result.current.micError).toBe(null)
+    expect(result.current.isListening).toBe(false)
+  })
+
+  it('cancelling with stop() disarms the recording safety timeout too', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    act(() => result.current.stop())
+    expect(result.current.isListening).toBe(false)
+
+    act(() => vi.advanceTimersByTime(10000))
     expect(result.current.micError).toBe(null)
   })
 })

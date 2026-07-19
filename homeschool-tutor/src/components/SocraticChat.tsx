@@ -361,9 +361,18 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSubject, !!sessionConfig, !!token])
 
+  // The live interim transcript, the "transcribing…" indicator, and the
+  // voice-review confirm/cancel card (below) are all rendered inside this
+  // scroll container but aren't part of displayMessages — a real reported
+  // gap: pressing and holding the mic could leave the transcript rendering
+  // below the fold with nothing to bring it into view, since this effect
+  // previously only reacted to new messages. Reacting to the voice-flow
+  // state directly means the view follows what the child is actually
+  // seeing happen (their own words appearing) the same way it already
+  // follows Bede's replies.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [displayMessages])
+  }, [displayMessages, isListening, interim, isTranscribing, pendingVoiceTranscript])
 
   const handleDrawingSubmit = (imageDataUrl: string) => {
     setPendingDrawing(imageDataUrl)

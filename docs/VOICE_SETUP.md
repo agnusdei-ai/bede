@@ -267,6 +267,84 @@ browser's own site settings (the padlock/site-info icon next to the address
 bar → Microphone), not in Bede — this change only makes the existing
 denial visible instead of silent.
 
+## Troubleshooting: the mic gets permanently stuck after the child interrupts Bede mid-speech
+
+Reported with a live debug-panel trace (see `DebugOverlay.tsx`): a child
+pressed the mic while Bede was still talking (a normal barge-in — see the
+`stopSpeech()` note in `SocraticChat.tsx`'s `holdStart`), native
+recognition produced *zero* signal for that press (no interim, no final —
+the same category of silent failure the stall watchdog above exists for),
+the recorder fallback kicked in as designed, and then the mic never
+recovered for the rest of the session: later presses did nothing at all,
+with no further debug output even logged. Root cause: `useHybridVoiceInput.ts`'s
+recorder `onComplete` callback had no `try`/`catch` around the transcription
+network call —
+
+```js
+onComplete: async (wavBlob) => {
+  setMode('transcribing')
+  const text = token ? await transcribeFallback(token, wavBlob, ...) : ''
+  setMode('idle')  // never reached if the line above throws
+  if (text) onFinal?.(text)
+},
+```
+
+— so any thrown/rejected transcription call (a transient fetch failure, a
+malformed JSON response, anything) skipped straight past the
+`setMode('idle')` that was supposed to run right after it. `mode` was left
+permanently stranded at `'transcribing'`, which disables the mic button via
+`isTranscribing` — with no timer or event left anywhere to ever clear it.
+Since a disabled `<button>` doesn't dispatch pointer events at all, later
+presses produced no debug output whatsoever, which is exactly the "stuck"
+symptom the trace showed.
+
+Two fixes, both defense-in-depth for the same failure class:
+
+1. The transcription call is now wrapped in `try`/`catch`/`finally` —
+   `setMode('idle')` runs unconditionally in the `finally` block, so a
+   failed transcription surfaces a `micError` (reusing the same
+   `chat.micUnavailable` message and UI path as the permission-denial fix
+   above) instead of silently stranding the mode forever.
+2. A new `RECORDING_SAFETY_TIMEOUT_MS` (10s) timer, armed the moment the
+   recorder fallback starts and disarmed the moment it actually completes
+   (success or failure), catches the *other* way this could theoretically
+   still hang: `recorder.stopRecording()` (in `useVoiceRecorder.ts`)
+   silently no-ops (`if (!processor || !audioCtx || !stream) return`) if
+   called before `startRecording()`'s own async setup has finished
+   populating those refs — a real, if rare, race that would otherwise never
+   call `onComplete` at all. Mirrors `HOLD_SAFETY_TIMEOUT_MS`'s existing
+   "never trust a single point of recovery" philosophy in the same file.
+
+**Fixed in both copies** of `useHybridVoiceInput.ts` — same
+independent-codebases caveat as every other voice-pipeline fix in this
+file. Why interrupting Bede specifically seemed to trigger native
+recognition's silent failure in the first place wasn't conclusively
+root-caused (a live device with real speech hardware would be needed, not
+available in the sandbox this was fixed in) — the working theory is some
+form of audio-focus contention between `stopSpeech()`'s abrupt playback
+cutoff and `SpeechRecognition.start()` firing moments later in the same
+call stack, a known category of browser quirk. Regardless of that trigger,
+both fixes above close off the *consequence* (mode getting permanently
+stuck) for good.
+
+## Troubleshooting: the live transcript while speaking is off-screen
+
+Reported with a screenshot: while holding the mic and talking, the child's
+own words never appeared on screen at all — not missing, just scrolled out
+of view below the input bar. Root cause: the live interim transcript, the
+"transcribing…" indicator, and the voice-review confirm/cancel card are all
+rendered inside the scrollable message list (`SocraticChat.tsx`/`App.tsx`),
+but they aren't part of the `displayMessages`/`messages` array — they're
+synthesized from separate `useHybridVoiceInput` state. The auto-scroll
+effect that keeps the latest content in view only re-ran when the message
+list itself changed, so appending any of these three transient elements
+never triggered a scroll — if the chat was already scrolled up, or the
+previous message filled the viewport, the child's live transcript rendered
+below the fold with nothing bringing it into view. Fixed by adding
+`isListening`, `interim`, `isTranscribing`, and `pendingVoiceTranscript` to
+that effect's dependency array in both files, so the view now follows the
+child's own words the same way it already follows Bede's replies.
+
 ## Under the hood: connection reuse for OpenAI TTS and email
 
 `services/voice_synthesis.py`'s OpenAI TTS calls (and, for the same reason,

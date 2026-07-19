@@ -7,7 +7,7 @@
   "display": "standalone",
   "orientation": "any",
   "background_color": "#faf8f0",
-  "theme_color": "#5a8a72",
+  "theme_color": "#7c8a5a",
   "icons": [
     {
       "src": "/bede-icon.png",

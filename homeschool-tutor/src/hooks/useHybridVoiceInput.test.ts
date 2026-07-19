@@ -417,14 +417,22 @@ describe('useHybridVoiceInput mic errors', () => {
     expect(startRecording).not.toHaveBeenCalled()
   })
 
-  it('also treats service-not-allowed as permission-denied', () => {
+  it('falls back to the recorder for service-not-allowed instead of assuming the mic itself is blocked', () => {
+    // Real reported case: iOS in-app browsers (WhatsApp, Instagram, etc.)
+    // return 'service-not-allowed' near-instantly with no permission
+    // prompt ever shown, because the on-device Speech RECOGNITION SERVICE
+    // isn't available to third-party WebViews — but plain getUserMedia
+    // microphone capture (what the recorder fallback needs) is often still
+    // fine in that same context. Treating this the same as 'not-allowed'
+    // (a real prior bug) told a family their mic was blocked without ever
+    // giving the working fallback a chance.
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
 
     act(() => result.current.start())
     act(() => lastInstance.emitError('service-not-allowed'))
 
-    expect(result.current.micError).toBe('permission-denied')
-    expect(startRecording).not.toHaveBeenCalled()
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    expect(result.current.micError).toBe(null)
   })
 
   it('still falls back to the recorder for a non-permission native error', () => {

@@ -7,6 +7,8 @@
 // removed too (single-active-session collisions under concurrent visitors);
 // the self-service one-time code below is the sole entry point now.
 
+import { logDebug } from './debugBus'
+
 export type GradeStage = 'K-2' | '3-5' | '6-8'
 
 export const SUBJECTS = [
@@ -474,6 +476,12 @@ export async function* streamTutorChat(
   signal?: AbortSignal,
   timeOfDay?: TimeOfDay | null,
 ): AsyncGenerator<StreamChunk> {
+  const localDate = deriveLocalDate()
+  // The debug panel is the only way a report like "greeting doesn't match
+  // the time of day" or "wrong week's poem" can actually be diagnosed
+  // remotely — neither value was ever traced anywhere before, so a family
+  // hitting either had no way to show what the client thought "now" was.
+  logDebug(`streamTutorChat local_date=${localDate} local_time_of_day=${timeOfDay ?? 'null'}`)
   const res = await fetch(`${apiBase()}/tutor/chat`, {
     method: 'POST',
     headers: {
@@ -486,7 +494,7 @@ export async function* streamTutorChat(
       conversation_history: history,
       child_message: childMessage,
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
-      local_date: deriveLocalDate(),
+      local_date: localDate,
       local_time_of_day: timeOfDay ?? null,
     }),
     signal,

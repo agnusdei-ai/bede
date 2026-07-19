@@ -144,7 +144,7 @@ components/
 store/
   sessionStore.ts    Zustand store (persisted to sessionStorage — auth fields only)
 services/
-  api.ts             fetch wrappers for all REST endpoints
+  api.ts             fetch wrappers for all REST endpoints; `streamTutorChat` logs the `local_date`/`local_time_of_day` it's about to send via `debugBus.logDebug()` — previously untraceable, so a "wrong greeting" or "wrong week's poem" report had no way to show what the client thought "now" was
   voiceApi.ts        Voice enrollment/verification API calls
 hooks/
   useSpeechRecognition.ts  Web Speech API (Chrome/Edge/Safari); interim results

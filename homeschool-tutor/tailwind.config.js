@@ -21,17 +21,21 @@ export default {
         '9xl': ['9.2rem', { lineHeight: '1' }],
       },
       colors: {
+        // Dark olive green (hue-rotated from the original leaf-green ramp,
+        // same lightness/step structure — see the "sage" name, kept as-is
+        // since it's referenced by hundreds of sage-* classes across both
+        // apps; only the hex values moved).
         sage: {
-          50: '#f0f7f0',
-          100: '#d8edd9',
-          200: '#b3dbb5',
-          300: '#80c184',
-          400: '#52a558',
-          500: '#348a3a',
-          600: '#266e2c',
-          700: '#1f5825',
-          800: '#1b4620',
-          900: '#173a1c',
+          50: '#f5f7f0',
+          100: '#e7edd8',
+          200: '#cfdcb2',
+          300: '#aec37e',
+          400: '#8fab4c',
+          500: '#73902e',
+          600: '#5b7321',
+          700: '#495c1b',
+          800: '#3a4918',
+          900: '#313d14',
         },
         navy: {
           50:  '#f0f4fb',

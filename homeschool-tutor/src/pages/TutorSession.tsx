@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare } from 'lucide-react'
+import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare, HelpCircle } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import SocraticChat from '../components/SocraticChat'
 import SubjectDrawer from '../components/SubjectDrawer'
 import FeedbackModal from '../components/FeedbackModal'
 import ThemePicker from '../components/ThemePicker'
+import MeetBede from '../components/MeetBede'
 import { useChatTheme } from '../hooks/useChatTheme'
+import { useMeetBede } from '../hooks/useMeetBede'
 import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
 import { SUBJECT_MAP } from '../types'
 import {
@@ -40,6 +42,16 @@ export default function TutorSession() {
   const { theme, setThemeId, bubble, setBubbleId } = useChatTheme()
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
+  // Hooks must run unconditionally (see the sessionConfig-null comment
+  // below), so this reads before sessionConfig is known — '' is a safe
+  // placeholder key since MeetBede is never actually shown until
+  // sessionConfig exists (introOpen below is gated on role === 'child',
+  // which is null until sessionConfig loads).
+  const { seen: introSeen, markSeen: markIntroSeen } = useMeetBede(sessionConfig?.student_name ?? '')
+  // Lets a child reopen the introduction later from the header's "?" — a
+  // one-time-only screen with no way back would mean a kid who skimmed it
+  // nervously the first time never gets a second look.
+  const [introReopened, setIntroReopened] = useState(false)
 
   useEffect(() => {
     // Checked once so the button never appears only to fail on submit on a
@@ -202,6 +214,9 @@ export default function TutorSession() {
   )
 
   const subjectInfo = SUBJECT_MAP[currentSubject]
+  // Parent-role sessions (previewing/testing, e.g. straight from ParentSetup's
+  // single-student shortcut) never see this — it's written to the child.
+  const showIntro = role === 'child' && (!introSeen || introReopened)
 
   return (
     // Chat mode leaves the plain white behind for a nature palette — the
@@ -253,6 +268,16 @@ export default function TutorSession() {
           <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
         )}
 
+        {role === 'child' && (
+          <button
+            onClick={() => setIntroReopened(true)}
+            title={t('tutorSession.meetBedeAgainTooltip')}
+            className="p-2 text-gray-400 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors"
+          >
+            <HelpCircle size={15} />
+          </button>
+        )}
+
         {feedbackEnabled && (
           <button
             onClick={() => setShowFeedback(true)}
@@ -287,6 +312,14 @@ export default function TutorSession() {
 
       {/* ── Full-height chat ── */}
       <main className="flex-1 overflow-hidden relative">
+        {showIntro ? (
+          <MeetBede
+            studentName={sessionConfig.student_name}
+            gradeStage={sessionConfig.grade_stage}
+            onDone={() => { markIntroSeen(); setIntroReopened(false) }}
+          />
+        ) : (
+        <>
         {/* Session-concluded overlay — the session cap reached (every grade) */}
         {showConcludedMessage && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
@@ -339,6 +372,8 @@ export default function TutorSession() {
           </div>
         )}
         <SocraticChat breakActive={isOnBreak || showConcludedMessage} gradeStage={sessionConfig.grade_stage} />
+        </>
+        )}
       </main>
 
       {/* ── Subject drawer ── */}

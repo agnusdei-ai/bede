@@ -24,6 +24,7 @@
     "backToLogin": "Back to login",
     "learningSubject": "Learning Subject",
     "feedbackTooltip": "Tell us what's working and what isn't",
+    "meetBedeAgainTooltip": "Meet Bede again",
     "endSessionTooltip": "End session & generate summary",
     "logoutTooltip": "Log out",
     "greatWorkToday": "Great work today!",
@@ -48,6 +49,16 @@
     "emailPlaceholder": "you@example.com",
     "send": "Send",
     "doneReturnHome": "Done — Return Home"
+  },
+  "meetBede": {
+    "title": "Hi {{name}}, I'm Bede!",
+    "subtitle": "Before we start, here's how our lessons work.",
+    "pointQuestions": "I'll mostly ask you questions instead of giving you answers — that's how we think things through together.",
+    "pointMic": "Press and hold the microphone button to talk to me, like a walkie-talkie. Let go when you're done.",
+    "pointPencil": "Sometimes I'll ask you to draw, write, or show your work — just tap the pencil button when that happens.",
+    "pointBreaks": "We'll take a break every hour. Rest your eyes, stretch, or go outside for a bit.",
+    "safetyNote": "If anything ever feels confusing, upsetting, or isn't about your lesson, stop and go find your mom or dad.",
+    "begin": "Let's begin!"
   },
   "chat": {
     "bedeThinking": "Bede is thinking…",

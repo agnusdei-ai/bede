@@ -130,10 +130,12 @@ pages/
   Login.tsx          Parent password / child PIN tabs; voice-verify phase if voice_required
   ParentSetup.tsx    Configure up to 10 students per pod with subject/grade/context; each student card opens with a companion_mode preset picker (Book Companion / A Bit More Structure / Full Daily Plan) that pre-fills subjects + session length, still freely editable after
   PodDashboard.tsx   Per-student "Open on This Device" + "Copy Link for Tablet" + "Delete all data…" (type-to-confirm modal, calls the cascading DELETE — see docs/DATA_RETENTION.md)
-  TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay
+  TutorSession.tsx   Main session view — timer, subject sidebar, chat, break overlay; shows `MeetBede` full-screen in place of the break/summary overlays + `SocraticChat` whenever `showIntro` (child role, not yet seen this device, or reopened via the header's "?" button) is true
   Progress.tsx       Parent-only: narration history, learner profile (+ behavior-check observation for kinesthetic/reading_writing/visual profiles), math mastery summary, AI usage — non-exhaustive, see the page itself
 components/
-  SocraticChat.tsx   Chat UI + SSE stream consumer + Bede opener ([START] sentinel)
+  SocraticChat.tsx   Chat UI + SSE stream consumer + Bede opener ([START] sentinel); press-and-hold mic (`useHybridVoiceInput`'s `holdStart`/`holdEnd`) shows a Confirm/Cancel review step before sending rather than sending on release, and calls `stopSpeech()` synchronously on `holdStart` so a child can barge in over Bede's TTS mid-sentence; a header Bug-icon button toggles `DebugOverlay`
+  MeetBede.tsx       One-time, skippable "Meet Bede" introduction (mic/pencil/breaks/safety, condensed from docs/CHILD_GUIDE.md) shown before a child's first-ever session on a device — see `useMeetBede.ts`. Demo is deliberately excluded: its sessions are short `demo_code` previews with no persistent per-student identity to gate "has this child seen it" against.
+  DebugOverlay.tsx   Fixed-position, screenshot-able voice-flow debug panel (monospace, green-on-black) fed by `hooks/debugBus.ts`'s pub/sub ring buffer; Clear/Close controls
   SessionTimer.tsx   Countdown display; grade-aware (K-3 vs 4-8)
   SubjectNav.tsx     Sidebar subject list with completion tracking
   VoiceVerification.tsx  Child voice passphrase check at session start
@@ -147,8 +149,11 @@ services/
 hooks/
   useSpeechRecognition.ts  Web Speech API (Chrome/Edge/Safari); interim results
   useTextToSpeech.ts       Browser TTS for Bede's responses
-  useVoiceRecorder.ts      MediaRecorder for voice enrollment audio
+  useVoiceRecorder.ts      MediaRecorder for voice enrollment audio; recordings capped at 120s (`MAX_RECORDING_MS`/`HOLD_SAFETY_TIMEOUT_MS`)
+  useHybridVoiceInput.ts   Press-and-hold (walkie-talkie) mic: native Web Speech API with recorder+Whisper fallback; `debugBus.logDebug()` calls at every guard/branch for `DebugOverlay`
   useChatTheme.ts          localStorage-backed theme/bubble preference (CHAT_THEMES, BUBBLE_COLORS; instances synced via window event)
+  useMeetBede.ts           localStorage-backed, per-student, per-device flag (`hasSeenMeetBede`/`markSeen`) gating `MeetBede`'s one-time appearance; versioned key prefix so future content changes can force re-display
+  debugBus.ts              Pub/sub ring-buffer logger (`logDebug`, `subscribeDebug`, `clearDebugEntries`, `MAX_ENTRIES=100`) backing `DebugOverlay`
 utils/
   gradeTimer.ts      Session hard stop for every grade (SessionConfig.session_cap_minutes: 2h default, 4h schema-enforced max) + mandatory 10-min break each hour; K-3 additionally paces subjects in 20-min blocks
   breakActivities.ts Off-screen break suggestions (nature / faith / eyes / movement rotation)

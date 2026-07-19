@@ -1,5 +1,6 @@
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, LicenseStatus } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
+import { logDebug } from '../hooks/debugBus'
 
 const BASE = '/api'
 
@@ -200,6 +201,11 @@ export async function* streamTutorChat(
   timeOfDay?: TimeOfDay | null,
   localDate?: string | null
 ): AsyncGenerator<StreamChunk> {
+  // The debug panel is the only way a report like "greeting doesn't match
+  // the time of day" or "wrong week's poem" can actually be diagnosed
+  // remotely — neither value was ever traced anywhere before, so a family
+  // hitting either had no way to show what the client thought "now" was.
+  logDebug(`streamTutorChat local_date=${localDate ?? 'null'} local_time_of_day=${timeOfDay ?? 'null'}`)
   const res = await fetch(`${BASE}/tutor/chat`, {
     method: 'POST',
     headers: {

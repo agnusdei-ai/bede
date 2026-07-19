@@ -1,0 +1,64 @@
+name: Frontend regression tests
+
+# Closes a real gap: test.yml ("Backend regression tests") never covered
+# either frontend app — its path filters only match homeschool-api/** and
+# the two script dirs, so a demo/** or homeschool-tutor/**-only PR got zero
+# CI checks at all (confirmed directly: PR #182 and #185 both showed
+# mergeable_state clean with total_count: 0 check-runs, merged on local
+# `npx tsc --noEmit` + `npx vitest run` output instead of any automated
+# gate). This workflow is that gate, mirroring test.yml's own
+# push(main)/pull_request/workflow_dispatch trigger shape and per-job
+# path-filtered structure, just for the two Vite/React apps instead of
+# the Python backend.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'homeschool-tutor/**'
+      - 'demo/**'
+      - '.github/workflows/frontend-tests.yml'
+  pull_request:
+    paths:
+      - 'homeschool-tutor/**'
+      - 'demo/**'
+      - '.github/workflows/frontend-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  homeschool-tutor-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: homeschool-tutor/package-lock.json
+      - name: Install dependencies
+        working-directory: homeschool-tutor
+        run: npm ci
+      - name: Type-check
+        working-directory: homeschool-tutor
+        run: npx tsc --noEmit
+      - name: Run tests
+        working-directory: homeschool-tutor
+        run: npm test
+
+  demo-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - name: Install dependencies
+        working-directory: demo
+        run: npm ci
+      - name: Type-check
+        working-directory: demo
+        run: npx tsc --noEmit
+      - name: Run tests
+        working-directory: demo
+        run: npm test

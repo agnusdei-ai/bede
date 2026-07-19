@@ -193,6 +193,16 @@ every time it comes up. This is separate from — and doesn't replace —
 Bede's own freshly-worded opening and closing prayer each day (rule 10 of Bede's
 persona), which stays personal to that day rather than a fixed recitation.
 
+**The term selector (in "Term & mastery outcomes") does more than track mastery
+topics.** Art & Music picture study follows the Mater Amabilis practice of one
+composer or artist per term — which artist is showing is tied directly to the
+**Term** dropdown you set there, not to the calendar or how many sessions
+you've run. If you never advance it, your child sees the same handful of
+pictures for that one artist indefinitely — nothing rotates it for you.
+Advance the term yourself each time your family's own term/quarter turns
+over. (The weekly poem and prayer above are different — those rotate
+automatically off the calendar and need no action from you.)
+
 **Composition is encouraged, never required.** At least once per session,
 Bede invites your child to spend about ten minutes on a piece of their own
 handwritten work — a written narration, a nature journal entry, math worked

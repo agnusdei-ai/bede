@@ -229,6 +229,44 @@ throw, rather than relying on a watchdog that would never get set up.
 and `demo/src/useHybridVoiceInput.ts` — same independent-codebases caveat as
 every other voice-pipeline fix in this file.
 
+## Troubleshooting: pressing the mic does nothing when the browser has blocked microphone access
+
+Reported as: the child presses and holds the mic, nothing happens — no
+"Listening…" state, no error, no transcript, just silence, with no way to
+tell whether the tap didn't register or something is actually wrong. Root
+cause: both voice-input paths ultimately depend on the same browser
+microphone permission — native `SpeechRecognition` and the recording
+fallback's own `getUserMedia()` call (`useVoiceRecorder.ts`) — and neither
+one told the rest of the app anything when that permission was denied.
+`getUserMedia()` rejecting was caught and logged to the browser console
+only; `useHybridVoiceInput.ts` had already flipped its internal mode to
+`'recording'` in anticipation of the fallback succeeding, and nothing ever
+moved it back, so the mic button looked and behaved as if it were
+permanently mid-press with zero indication why.
+
+Both hooks now report *why* a mic attempt failed instead of swallowing it:
+`useVoiceRecorder.ts` classifies the rejection (`NotAllowedError`/
+`PermissionDeniedError` → `'permission-denied'`, anything else — no
+hardware, mic already in use, etc. — → `'unavailable'`) and reports it via
+a new `onError` callback; `useHybridVoiceInput.ts` also checks native
+`SpeechRecognition`'s own `'not-allowed'`/`'service-not-allowed'` error
+codes directly, so a browser that blocks the mic at the native-recognition
+step gets the same clear signal without wastefully trying (and failing at)
+the recording fallback too. Either path now returns the mic to idle and
+sets a `micError` the hook exposes, which `SocraticChat.tsx`/`App.tsx` show
+as a plain-language chat message (`chat.micPermissionDenied` /
+`chat.micUnavailable` — see the child-facing copy in `en.json`/`es.json`):
+"I can't hear you — this browser has blocked the microphone..." with a
+pointer to type instead or have a parent check the browser's site
+permissions. **Fixed in both copies** of `useHybridVoiceInput.ts` and
+`useVoiceRecorder.ts` — same independent-codebases caveat as every other
+voice-pipeline fix in this file.
+
+If a family reports this after updating, the actual fix is usually in the
+browser's own site settings (the padlock/site-info icon next to the address
+bar → Microphone), not in Bede — this change only makes the existing
+denial visible instead of silent.
+
 ## Under the hood: connection reuse for OpenAI TTS and email
 
 `services/voice_synthesis.py`'s OpenAI TTS calls (and, for the same reason,

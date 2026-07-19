@@ -16,21 +16,31 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { startRecording, prewarm, cancelPrewarm } = vi.hoisted(() => ({
+const { startRecording, prewarm, cancelPrewarm, recorderOptions } = vi.hoisted(() => ({
   startRecording: vi.fn(),
   prewarm: vi.fn(),
   cancelPrewarm: vi.fn(),
+  // Captures the options useHybridVoiceInput passes to useVoiceRecorder —
+  // tests below call recorderOptions.current.onError(...) directly to
+  // simulate getUserMedia() rejecting, the same way the real hook would
+  // report it back (see useVoiceRecorder.ts's getStream catch).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recorderOptions: { current: null as any },
 }))
 
 vi.mock('./useVoiceRecorder', () => ({
-  useVoiceRecorder: () => ({
-    isRecording: false,
-    level: 0,
-    startRecording,
-    stopRecording: vi.fn(),
-    prewarm,
-    cancelPrewarm,
-  }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  useVoiceRecorder: (opts: any) => {
+    recorderOptions.current = opts
+    return {
+      isRecording: false,
+      level: 0,
+      startRecording,
+      stopRecording: vi.fn(),
+      prewarm,
+      cancelPrewarm,
+    }
+  },
 }))
 
 import { useHybridVoiceInput } from './useHybridVoiceInput'
@@ -72,6 +82,10 @@ class FakeSpeechRecognition {
       results: [{ 0: { transcript: text }, isFinal: true, length: 1 }],
     })
   }
+
+  emitError(error: string) {
+    this.onerror?.({ error })
+  }
 }
 
 let lastInstance: FakeSpeechRecognition
@@ -85,6 +99,7 @@ beforeEach(() => {
   startRecording.mockClear()
   prewarm.mockClear()
   cancelPrewarm.mockClear()
+  recorderOptions.current = null
   constructCount = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).SpeechRecognition = class {
@@ -373,5 +388,102 @@ describe('useHybridVoiceInput walkie-talkie (hold-to-talk)', () => {
     act(() => lastInstance.emitFinal('And feeling good'))
 
     expect(onFinal).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useHybridVoiceInput mic errors', () => {
+  // Regression coverage for a real gap: pressing the mic when the browser
+  // has blocked microphone access used to do nothing at all — no error, no
+  // way out, `mode` just stuck (see useVoiceRecorder.ts's startRecording,
+  // whose `if (!stream) return` had no way to tell this hook anything went
+  // wrong). These tests prove the hook now surfaces a `micError` and always
+  // returns to idle instead of hanging.
+
+  it('surfaces a permission-denied error and returns to idle when native reports not-allowed, without a redundant fallback attempt', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitError('not-allowed'))
+
+    expect(result.current.micError).toBe('permission-denied')
+    expect(result.current.isListening).toBe(false)
+    // Falling back would just hit the same blocked permission again — the
+    // hook should report the failure directly instead of wasting a round trip.
+    expect(startRecording).not.toHaveBeenCalled()
+  })
+
+  it('also treats service-not-allowed as permission-denied', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.start())
+    act(() => lastInstance.emitError('service-not-allowed'))
+
+    expect(result.current.micError).toBe('permission-denied')
+    expect(startRecording).not.toHaveBeenCalled()
+  })
+
+  it('still falls back to the recorder for a non-permission native error', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.start())
+    act(() => lastInstance.emitError('network'))
+
+    // Unrelated to permissions — the existing fallback behavior must be unchanged.
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    expect(result.current.micError).toBe(null)
+  })
+
+  it('surfaces the recorder fallback\'s own getUserMedia failure and returns to idle instead of hanging in "recording" mode', () => {
+    // Native unsupported at all (e.g. Firefox) — goes straight to the
+    // recorder fallback, which is where a real permission/hardware failure
+    // would otherwise leave `mode` stuck forever with isListening still true.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).SpeechRecognition
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(result.current.isListening).toBe(true)
+
+    // Simulates useVoiceRecorder.ts's getStream() catch calling back with
+    // 'unavailable' (e.g. NotFoundError — no microphone hardware).
+    act(() => recorderOptions.current.onError('unavailable'))
+
+    expect(result.current.micError).toBe('unavailable')
+    expect(result.current.isListening).toBe(false)
+  })
+
+  it('ignores a recorder error while native is still the active attempt (prewarm is speculative)', () => {
+    // recorder.prewarm() fires speculatively alongside every native attempt,
+    // before it's known whether the fallback will even be needed (see
+    // useHybridVoiceInput.ts's _start). A prewarm failure must not kill a
+    // native session that's still live and might succeed on its own.
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => recorderOptions.current.onError('permission-denied'))
+
+    expect(result.current.micError).toBe(null)
+    expect(result.current.isListening).toBe(true)
+
+    // Native goes on to work fine despite the prewarm's speculative failure.
+    act(() => lastInstance.emitFinal('hello'))
+    act(() => result.current.release())
+    expect(onFinal).toHaveBeenCalledWith('hello')
+    expect(result.current.micError).toBe(null)
+  })
+
+  it('clears a stale mic error on the next press', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitError('not-allowed'))
+    expect(result.current.micError).toBe('permission-denied')
+
+    // A fresh press (permission granted this time, or the child just tries
+    // again) must not carry the old error forward.
+    act(() => result.current.startHold())
+    expect(result.current.micError).toBe(null)
   })
 })

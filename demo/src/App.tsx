@@ -527,7 +527,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // is translated. Propagates to both the native Web Speech recognizer
   // (useSpeechRecognition's `lang`) and the server Whisper fallback
   // (transcribeFallback's language hint) — see useHybridVoiceInput.ts.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening } =
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError } =
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
@@ -537,6 +537,16 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
       // rather than it going to Bede sight-unseen.
       onFinal: (transcript) => setPendingVoiceTranscript(transcript),
     })
+
+  // Surface the one mic failure that used to be completely silent: a denied
+  // or unavailable microphone left the press-and-hold button just... doing
+  // nothing, with no error anywhere. Reuses the same system-message error
+  // pattern as the stream/file-read errors below.
+  useEffect(() => {
+    if (!micError) return
+    setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t(micError === 'permission-denied' ? 'chatScreen.micPermissionDenied' : 'chatScreen.micUnavailable')}` }])
+    clearMicError()
+  }, [micError, clearMicError, t])
 
   // Word-level diff of the live interim transcript, called unconditionally
   // (rules of hooks) even though it's only rendered while isListening &&

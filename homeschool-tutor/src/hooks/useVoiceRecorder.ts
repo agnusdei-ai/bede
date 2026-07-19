@@ -20,9 +20,18 @@ import { logDebug } from './debugBus'
  * is no container or codec to decode, on any browser.
  */
 
+/** 'permission-denied' when the browser/OS blocked the mic (or the child
+ *  dismissed the prompt); 'unavailable' for anything else getUserMedia can
+ *  fail with (no device, hardware in use, insecure context, ...). */
+export type MicErrorReason = 'permission-denied' | 'unavailable'
+
 interface RecordingOptions {
   maxDurationMs?: number
   onComplete?: (wavBlob: Blob) => void
+  /** Fired whenever getUserMedia() rejects — the only signal that a press
+   *  is about to silently do nothing (see startRecording's `if (!stream)
+   *  return` below, which has no other way to tell the caller). */
+  onError?: (reason: MicErrorReason) => void
 }
 
 // Below this, a recording is almost certainly an accidental micro-tap (a
@@ -39,7 +48,7 @@ const MIN_RECORDING_MS = 400
 // removed in any current browser, including iOS Safari).
 const PROCESSOR_BUFFER_SIZE = 4096
 
-export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: RecordingOptions = {}) {
+export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: RecordingOptions = {}) {
   const [isRecording, setIsRecording] = useState(false)
   const [level, setLevel] = useState(0) // 0–1 volume level for visualisation
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -60,11 +69,14 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
   const getStream = useCallback((constraints: MediaStreamConstraints['audio']) =>
     navigator.mediaDevices
       .getUserMedia({ audio: constraints })
-      .catch((): MediaStream | null => {
-        console.error('Microphone access denied')
+      .catch((err: unknown): MediaStream | null => {
+        console.error('Microphone access denied', err)
+        const name = err instanceof DOMException ? err.name : ''
+        const reason: MicErrorReason = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? 'permission-denied' : 'unavailable'
+        onError?.(reason)
         return null
       })
-  , [])
+  , [onError])
 
   const MIC_CONSTRAINTS = {
     sampleRate: 16000,

@@ -43,9 +43,17 @@ interface Options {
 }
 
 type Mode = 'idle' | 'native' | 'recording' | 'transcribing'
+export type MicError = 'permission-denied' | 'unavailable'
 
 export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
+  // Surfaces the one failure mode that used to be totally silent: a denied
+  // or unavailable microphone left `mode` stuck (see startRecording's
+  // `if (!stream) return` in useVoiceRecorder, which has no other way to
+  // report back) with nothing telling the visitor why the mic button just
+  // stopped doing anything. Callers show this once, then call clearMicError.
+  const [micError, setMicError] = useState<MicError | null>(null)
+  const clearMicError = useCallback(() => setMicError(null), [])
   // Mirrored in a ref so callbacks fired from browser events (recognition
   // onend, the watchdog timer) see the CURRENT mode, not a stale closure —
   // startFallback below relies on this to dedupe.
@@ -90,6 +98,22 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       const text = token ? await transcribeFallback(token, wavBlob, language.slice(0, 2)) : ''
       setMode('idle')
       if (text) onFinal?.(text)
+    },
+    onError: (reason) => {
+      // getUserMedia() is also called speculatively by recorder.prewarm()
+      // (see _start below) before native recognition has even had a chance
+      // to work — a prewarm failing while mode is still 'native' doesn't
+      // mean THIS press is doomed, so only react once the recorder fallback
+      // is actually the active path (mode has already been switched to
+      // 'recording' by startFallback below).
+      if (modeRef.current !== 'recording') return
+      logDebug(`recorder onError reason=${reason}`)
+      clearWatchdog()
+      clearHoldSafety()
+      holdModeRef.current = false
+      accumRef.current = ''
+      setMode('idle')
+      setMicError(reason)
     },
   })
 
@@ -147,8 +171,26 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       recorder.cancelPrewarm()
       onFinal?.(transcript)
     },
-    onError: () => {
-      if (!stoppedByUserRef.current) startFallback()
+    onError: (error) => {
+      if (stoppedByUserRef.current) return
+      // 'not-allowed'/'service-not-allowed' (the Web Speech API's own
+      // permission-denied codes) mean the SAME getUserMedia-backed
+      // permission the recorder fallback would also need is already
+      // blocked — falling back would just fail again the same way (or
+      // throw a second, redundant permission prompt). Surface it directly
+      // instead of wasting a round trip through the fallback.
+      if (error === 'not-allowed' || error === 'service-not-allowed') {
+        logDebug(`native onError permission denied (${error})`)
+        clearWatchdog()
+        clearHoldSafety()
+        recorder.cancelPrewarm()
+        holdModeRef.current = false
+        accumRef.current = ''
+        setMode('idle')
+        setMicError('permission-denied')
+        return
+      }
+      startFallback()
     },
     onEndWithoutResult: () => {
       if (!stoppedByUserRef.current) startFallback()
@@ -215,6 +257,9 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     holdModeRef.current = hold
     accumRef.current = ''
     lastInterimRef.current = ''
+    // A fresh press means a fresh attempt — don't let a previous failure's
+    // banner linger once the child tries again.
+    setMicError(null)
 
     if (native.isSupported) {
       setMode('native')
@@ -328,6 +373,8 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     isListening: mode === 'native' || mode === 'recording',
     isTranscribing: mode === 'transcribing',
     interim: native.interim,
+    micError,
+    clearMicError,
     // getUserMedia + AudioContext (the fallback's raw-PCM capture path —
     // see useVoiceRecorder) cover every evergreen browser, so the mic
     // button no longer needs to hide itself when native recognition is absent.

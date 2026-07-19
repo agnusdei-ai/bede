@@ -28,7 +28,9 @@
     "placeholderYourTurn": "Tu turno — mantén presionado el micrófono para hablar",
     "placeholderTypeOrMic": "Escribe o toca el micrófono para hablar…",
     "micHoldToTalk": "Mantén presionado y habla",
-    "micHoldListening": "Escuchando… suelta cuando termines"
+    "micHoldListening": "Escuchando… suelta cuando termines",
+    "micPermissionDenied": "No puedo escucharte — este navegador ha bloqueado el micrófono. Puedes escribir tu respuesta, o revisar el permiso de micrófono del navegador para este sitio.",
+    "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar."
   },
   "header": {
     "askBede": "Pregúntale a Bede",

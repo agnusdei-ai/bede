@@ -24,6 +24,7 @@
     "backToLogin": "Volver al inicio de sesión",
     "learningSubject": "Materia de aprendizaje",
     "feedbackTooltip": "Cuéntanos qué funciona y qué no",
+    "meetBedeAgainTooltip": "Conoce a Bede otra vez",
     "endSessionTooltip": "Terminar sesión y generar resumen",
     "logoutTooltip": "Cerrar sesión",
     "greatWorkToday": "¡Excelente trabajo hoy!",
@@ -48,6 +49,16 @@
     "emailPlaceholder": "tu@ejemplo.com",
     "send": "Enviar",
     "doneReturnHome": "Listo — Volver al inicio"
+  },
+  "meetBede": {
+    "title": "¡Hola {{name}}, soy Bede!",
+    "subtitle": "Antes de empezar, así es como funcionan nuestras lecciones.",
+    "pointQuestions": "Casi siempre te haré preguntas en lugar de darte las respuestas — así es como pensamos las cosas juntos.",
+    "pointMic": "Mantén presionado el botón del micrófono para hablar conmigo, como un walkie-talkie. Suéltalo cuando termines.",
+    "pointPencil": "A veces te pediré que dibujes, escribas o muestres tu trabajo — solo toca el botón del lápiz cuando eso pase.",
+    "pointBreaks": "Tomaremos un descanso cada hora. Descansa los ojos, estírate o sal afuera un rato.",
+    "safetyNote": "Si algo alguna vez te parece confuso, molesto, o no tiene que ver con tu lección, detente y busca a tu mamá o papá.",
+    "begin": "¡Empecemos!"
   },
   "chat": {
     "bedeThinking": "Bede está pensando…",

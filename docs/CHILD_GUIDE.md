@@ -20,6 +20,10 @@ Hi! I'm **Bede**. I'll be your tutor while you learn today.
    you, not just anyone with the PIN.
 4. If I don't recognize your voice, that's okay — a parent can approve your session
    instead. It happens sometimes, especially if you have a cold!
+5. The very first time you log in, I'll show you a quick "Meet Bede" screen — the
+   short version of everything on this page. Tap **Let's begin!** when you're ready,
+   and you won't see it again automatically. If you ever want to see it again, tap
+   the **?** near the top of the screen.
 
 ## Talking with me
 

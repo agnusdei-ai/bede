@@ -17,7 +17,7 @@ from anthropic.types import RawContentBlockDeltaEvent, RawContentBlockStartEvent
 
 from models.schemas import CompanionMode, GradeStage, SessionConfig, Subject
 from services import ai_service
-from services.ai_service import _build_static_prompt, _companion_mode_note
+from services.ai_service import _build_subject_prompt, _build_static_prompt, _companion_mode_note
 
 
 def _config(companion_mode: CompanionMode = CompanionMode.full_plan) -> SessionConfig:
@@ -55,6 +55,27 @@ def test_build_static_prompt_omits_note_for_full_plan():
 def test_build_static_prompt_includes_note_for_book_companion():
     prompt = _build_static_prompt(_config(CompanionMode.book_companion))
     assert "companion_mode_guidance" in prompt
+
+
+@pytest.mark.asyncio
+async def test_book_companion_does_not_suppress_the_composition_invitation():
+    """Regression test for a real conflict this field's own first release
+    shipped with: book_companion's "favor spoken discussion... over
+    handwriting" line and _composition_note's separate once-per-session
+    "encourage... via invite_handwriting" guarantee were both present, with
+    no carve-out, in the same prompt — directly contradictory instructions
+    for every family that picked Book Companion. Asserts both survive
+    together: the static block still nudges away from handwriting during
+    ordinary dialogue, but the subject block's composition invitation is
+    both present and explicitly excepted from that nudge."""
+    config = _config(CompanionMode.book_companion)
+    static_prompt = _build_static_prompt(config)
+    subject_prompt = await _build_subject_prompt(config, Subject.living_books, history=[])
+
+    assert "Favor spoken discussion and oral narration over handwriting" in static_prompt
+    assert "does NOT apply to the session's own once-a-day composition invitation" in static_prompt
+    assert "COMPOSITION THIS SESSION" in subject_prompt
+    assert "encourage a sustained piece of handwritten composition via `invite_handwriting`" in subject_prompt
 
 
 # ── End-to-end: stream_tutor_response forwards it into the STATIC block ────

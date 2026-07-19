@@ -780,6 +780,16 @@ def _companion_mode_note(config: SessionConfig) -> str:
     existed) returns "" so the static prompt stays byte-for-byte
     unchanged for every family that never touches this setting — same
     "" convention as _locale_directive's "en" case below.
+
+    book_companion's "favor spoken discussion... over handwriting" line
+    explicitly carves out _composition_note's separate, once-per-session
+    guarantee (docs/PARENT_SETUP.md's "Composition is encouraged, never
+    required") — without that carve-out, this note and _composition_note
+    gave Bede directly contradictory instructions in the same prompt for
+    every book_companion family (a real regression this field's own
+    first release shipped with, caught after the fact rather than by any
+    test — see test_companion_mode.py's
+    test_book_companion_does_not_suppress_the_composition_invitation).
     """
     if config.companion_mode == CompanionMode.book_companion:
         return f"""
@@ -790,8 +800,10 @@ daily curriculum — likely new to homeschooling, or easing into AI deliberately
 an unhurried pace. Early in a subject, ask what {config.student_name} is currently reading or what book prompted \
 today's lesson, and let your Socratic questions grow out of THAT text rather than an agenda of your own — the \
 parent's current_unit and lesson_focus notes, when set, tell you what that is. Favor spoken discussion and oral \
-narration over handwriting or visual-aid tools unless the family's own materials call for writing something \
-down. You are here alongside the books, not instead of them.
+narration over handwriting or visual-aid tools during ordinary dialogue, unless the family's own materials call \
+for writing something down — this does NOT apply to the session's own once-a-day composition invitation (see \
+below, if it appears this turn): take that one normally, in whichever form fits this child's stage. You are here \
+alongside the books, not instead of them.
 </companion_mode_guidance>"""
     if config.companion_mode == CompanionMode.guided:
         return f"""

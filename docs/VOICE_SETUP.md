@@ -249,12 +249,12 @@ Both hooks now report *why* a mic attempt failed instead of swallowing it:
 `PermissionDeniedError` → `'permission-denied'`, anything else — no
 hardware, mic already in use, etc. — → `'unavailable'`) and reports it via
 a new `onError` callback; `useHybridVoiceInput.ts` also checks native
-`SpeechRecognition`'s own `'not-allowed'`/`'service-not-allowed'` error
-codes directly, so a browser that blocks the mic at the native-recognition
-step gets the same clear signal without wastefully trying (and failing at)
-the recording fallback too. Either path now returns the mic to idle and
-sets a `micError` the hook exposes, which `SocraticChat.tsx`/`App.tsx` show
-as a plain-language chat message (`chat.micPermissionDenied` /
+`SpeechRecognition`'s own `'not-allowed'` error code directly, so a browser
+that blocks the microphone permission itself at the native-recognition step
+gets the same clear signal without wastefully trying (and failing at) the
+recording fallback too. Either path now returns the mic to idle and sets a
+`micError` the hook exposes, which `SocraticChat.tsx`/`App.tsx` show as a
+plain-language chat message (`chat.micPermissionDenied` /
 `chat.micUnavailable` — see the child-facing copy in `en.json`/`es.json`):
 "I can't hear you — this browser has blocked the microphone..." with a
 pointer to type instead or have a parent check the browser's site
@@ -262,10 +262,56 @@ permissions. **Fixed in both copies** of `useHybridVoiceInput.ts` and
 `useVoiceRecorder.ts` — same independent-codebases caveat as every other
 voice-pipeline fix in this file.
 
+**`'not-allowed'` only, deliberately not `'service-not-allowed'` too** — an
+earlier version of this fix treated both the same way, which turned out to
+be its own bug; see the next section.
+
 If a family reports this after updating, the actual fix is usually in the
 browser's own site settings (the padlock/site-info icon next to the address
 bar → Microphone), not in Bede — this change only makes the existing
 denial visible instead of silent.
+
+## Troubleshooting: voice input reports "blocked" inside an app's in-app browser (WhatsApp, Instagram, etc.), even though the mic itself might actually work
+
+Reported with a live debug-panel trace: opening Bede's link from inside
+WhatsApp (its own embedded in-app browser, not real Safari — note the
+"← WhatsApp" back button in the browser chrome) made every single mic
+press fail immediately (~10ms, no permission prompt ever shown) with
+native `SpeechRecognition`'s `'service-not-allowed'` error — and, after the
+fix in the section above shipped, that surfaced as "I can't hear you — this
+browser has blocked the microphone," even though the *same device's* real
+Safari had used voice input successfully minutes earlier in the same
+session.
+
+Root cause of the false "blocked" report: the fix above initially treated
+`'not-allowed'` and `'service-not-allowed'` as the same thing — reasoning
+that both meant the getUserMedia-backed microphone permission was already
+denied, so falling back to server-side transcription would just fail the
+same way. That reasoning is correct for `'not-allowed'` but wrong for
+`'service-not-allowed'`, which is a narrower signal: the browser's SPEECH
+RECOGNITION *SERVICE* specifically is unavailable — on iOS, third-party
+in-app browsers (WhatsApp, Instagram, and similar embedded WebViews) don't
+carry the entitlement for Apple's on-device Speech framework that real
+Safari has, so on-device recognition fails instantly with this exact code.
+That says nothing about whether plain microphone capture
+(`getUserMedia()`, which the recording + server-Whisper fallback uses)
+works in that same embedded browser — it very often still does.
+
+`'service-not-allowed'` now falls through to the recorder fallback like
+any other non-permission native error, instead of being told the mic is
+blocked before ever trying. If `getUserMedia()` genuinely is also
+unavailable there, the recorder's own `onError` (from the section above)
+still reports that correctly — this fix doesn't remove error reporting,
+it just gives the fallback path a real chance first. **Fixed in both
+copies** of `useHybridVoiceInput.ts` — same independent-codebases caveat
+as every other voice-pipeline fix in this file.
+
+If a family reports voice input not working inside a specific app's
+in-app browser, the most reliable fix is usually to open the link in the
+device's real default browser instead (on iOS, the share/menu button in
+most in-app browsers offers "Open in Safari" or similar) — that's what
+gives native on-device speech recognition its best shot, with the
+server-side fallback as a safety net either way.
 
 ## Troubleshooting: the mic gets permanently stuck after the child interrupts Bede mid-speech
 

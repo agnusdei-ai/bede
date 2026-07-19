@@ -226,13 +226,22 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     },
     onError: (error) => {
       if (stoppedByUserRef.current) return
-      // 'not-allowed'/'service-not-allowed' (the Web Speech API's own
-      // permission-denied codes) mean the SAME getUserMedia-backed
+      // Only 'not-allowed' means the SAME getUserMedia-backed microphone
       // permission the recorder fallback would also need is already
-      // blocked — falling back would just fail again the same way (or
-      // throw a second, redundant permission prompt). Surface it directly
-      // instead of wasting a round trip through the fallback.
-      if (error === 'not-allowed' || error === 'service-not-allowed') {
+      // blocked — falling back there would just fail again the same way.
+      // 'service-not-allowed' is a DIFFERENT thing: the browser's SPEECH
+      // RECOGNITION SERVICE specifically is unavailable (real reported
+      // case: iOS's embedded in-app browsers — WhatsApp, Instagram, etc. —
+      // consistently return this within ~10ms, no permission prompt ever
+      // shown, because Apple's on-device Speech entitlement isn't granted
+      // to third-party WebViews; the SAME device's real Safari worked
+      // fine). That says nothing about whether plain getUserMedia
+      // microphone capture works in that same context — it very often
+      // still does — so this case gets a genuine shot at the recorder +
+      // server-Whisper fallback instead of being told the mic is blocked
+      // before ever trying. If getUserMedia turns out to ALSO be blocked
+      // there, the recorder's own onError (below) reports that correctly.
+      if (error === 'not-allowed') {
         logDebug(`native onError permission denied (${error})`)
         clearWatchdog()
         clearHoldSafety()

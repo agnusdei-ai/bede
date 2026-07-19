@@ -73,7 +73,9 @@ There's no rush and no wrong way to think out loud.
 - After each hour, the screen will pause for a real break — ten minutes away from
   the screen. Go outside, look at something far away, or say a quiet prayer. I'll
   suggest something each time. When the break ends, we pick up right where we
-  left off.
+  left off. If you're away for too long during a break (more than 5 minutes)
+  I'll sign you out for safekeeping — just log back in with your PIN when
+  you're ready to continue.
 - When your learning time for the day is finished, I'll tell you and wrap things
   up myself. Great work deserves a real ending!
 

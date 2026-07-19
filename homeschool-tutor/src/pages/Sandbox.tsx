@@ -74,7 +74,10 @@ export default function Sandbox() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-parchment-50">
+    // h-dvh, not h-screen — see TutorSession.tsx's identical fix for why
+    // 100vh gets the mobile browser's collapsing address-bar chrome wrong,
+    // pushing this fixed header into the page's own scroll.
+    <div className="h-dvh flex flex-col bg-parchment-50">
       {/* Header */}
       <header className="shrink-0 bg-white border-b border-navy-100 px-4 py-3 flex items-center gap-3">
         <button

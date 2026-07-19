@@ -187,6 +187,16 @@ a countdown in the header shortly before each transition. On top of all
 this, you can still set a stricter total screen-time cap per student, with a
 longer eye-rest break, from the student's settings.
 
+**A break that's never returned to logs itself out.** If nobody touches the
+tablet for 5 minutes while a break screen is showing, the session ends
+automatically and returns to the login screen — whether it's your child's
+session or your own. This is separate from (and much shorter than) the
+general 30-minute inactivity timeout that applies the rest of the time,
+which stays generous so a child reading or thinking through a question
+isn't logged out just for sitting still — a break screen is the one moment
+there's genuinely nothing left to do on-screen, so a device left unattended
+there doesn't need to stay signed in.
+
 **Morning Time includes a weekly prayer, word for word.** Once a week, Bede leads
 your child through one of the Church's own traditional prayers — the Our Father,
 the Hail Mary, and similar universally-known texts — in whichever language was

@@ -421,6 +421,13 @@ const IDLE_CONTINUE_SENTINEL = '[CONTINUE]'
 const IDLE_CONTINUE_MS = 60_000
 const MAX_CONSECUTIVE_AUTO_CONTINUES = 2
 
+// Mirrors homeschool-tutor/src/pages/TutorSession.tsx's identical constant
+// and rationale: a break/concluded overlay tells the visitor there's
+// nothing to do here right now — if nobody touches the page for this long
+// while it's showing, the trial session is almost certainly just sitting
+// abandoned rather than genuinely paused.
+const BREAK_INACTIVITY_LOGOUT_MS = 5 * 60 * 1000
+
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
@@ -474,6 +481,29 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   const isConcluded = sessionPhase.phase === 'concluded'
   const sessionPaused = isSessionBreak || isConcluded
   const breakActivity = isSessionBreak ? pickBreakActivity(sessionPhase.cycleIndex) : null
+
+  // Break/concluded-inactivity auto-logout — see BREAK_INACTIVITY_LOGOUT_MS
+  // above. Only active while sessionPaused (unlike ChatScreen's other
+  // effects, this one doesn't need a ref-bridging trick: there's no
+  // conditional early return before it, so it's safe to gate the whole
+  // effect on sessionPaused directly).
+  const lastBreakActivityRef = useRef(Date.now())
+  useEffect(() => {
+    if (!sessionPaused) return
+    lastBreakActivityRef.current = Date.now()
+    const resetBreakActivity = () => { lastBreakActivityRef.current = Date.now() }
+    const events = ['pointerdown', 'keydown', 'touchstart']
+    events.forEach((e) => window.addEventListener(e, resetBreakActivity, { passive: true }))
+    const id = setInterval(() => {
+      if (Date.now() - lastBreakActivityRef.current > BREAK_INACTIVITY_LOGOUT_MS) {
+        onSessionInvalid?.()
+      }
+    }, 15000)
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetBreakActivity))
+      clearInterval(id)
+    }
+  }, [sessionPaused, onSessionInvalid])
 
   const [subject, setSubject] = useState<Subject>(() =>
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
@@ -862,7 +892,16 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     // accents on the speaking surfaces (user bubbles, send button), and the
     // visitor can pick a different nature-drawn background from the header's
     // ThemePicker (persisted per device via useChatTheme).
-    <div className={`flex flex-col h-screen ${theme.bgClass}`}>
+    // h-dvh (dynamic viewport height), not h-screen (100vh) — on mobile
+    // Safari/Chrome, 100vh is computed as if the address-bar chrome were
+    // always collapsed, so it's routinely TALLER than what's actually
+    // visible. That extra height pushed this fixed header (shrink-0) into
+    // the page's own overflow, so scrolling the chat dragged the whole
+    // page — header included — off-screen, needing several scroll-back-up
+    // attempts to reach the subject switcher again. dvh tracks the real
+    // visible viewport as the chrome shows/hides, so this container's
+    // height always matches what's actually on screen.
+    <div className={`flex flex-col h-dvh ${theme.bgClass}`}>
       {showDebug && <DebugOverlay onClose={() => setShowDebug(false)} />}
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
@@ -1486,7 +1525,10 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-parchment-50">
+    // h-dvh, not h-screen — see ChatScreen's identical fix above for why
+    // 100vh gets the mobile browser's collapsing address-bar chrome wrong,
+    // pushing this fixed header into the page's own scroll.
+    <div className="flex flex-col h-dvh bg-parchment-50">
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still
@@ -1689,7 +1731,10 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-parchment-50">
+    // h-dvh, not h-screen — see ChatScreen's identical fix above for why
+    // 100vh gets the mobile browser's collapsing address-bar chrome wrong,
+    // pushing this fixed header into the page's own scroll.
+    <div className="flex flex-col h-dvh bg-parchment-50">
       {/* pr-14 reserves clearance for TextSizeControl (main.tsx, fixed
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still

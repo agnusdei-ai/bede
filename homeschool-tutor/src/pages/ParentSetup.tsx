@@ -699,6 +699,12 @@ function StudentCard({
                   ? t('parentSetup.trimesterYear')
                   : t('parentSetup.quarterYear')} · {t('parentSetup.termMasterySuffix')}
               </p>
+              {/* current_term also drives Art & Music's one-artist-per-term
+                  picture study (services/ai_service.py's _TERM_ARTISTS) —
+                  nothing else in the UI says so, so a parent who never
+                  advances this sees the same handful of pictures for
+                  months without knowing why. */}
+              <p className="text-xs text-gray-400 mt-0.5">{t('parentSetup.termAdvanceHint')}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <select

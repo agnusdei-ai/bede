@@ -2,7 +2,9 @@
 
 *A note to parents: this page is written directly to your child — print it, read it
 together the first time, or just hand over the tablet. Nothing here requires the
-parent password.*
+parent password. For the parent-facing version of the same ideas — what Bede's
+Socratic method actually is, and how to ask the same kind of question yourself —
+see [docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md).*
 
 ---
 

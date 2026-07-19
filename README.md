@@ -15,6 +15,7 @@ voice biometrics authenticate children at session start.
 | See what's retained and how to delete it | [docs/DATA_RETENTION.md](docs/DATA_RETENTION.md) — per-table retention policy and how to permanently delete a student's data |
 | ...the technical/ops reference for that | [docs/PRODUCTION_SETUP.md](docs/PRODUCTION_SETUP.md) — `make setup`, day-to-day commands, database options |
 | Show my child how to use it | [docs/CHILD_GUIDE.md](docs/CHILD_GUIDE.md) — written directly to the child |
+| Understand and join in the Socratic method myself | [docs/SOCRATIC_METHOD.md](docs/SOCRATIC_METHOD.md) — what Bede actually does, and how to ask the same kind of question yourself |
 | Set up Bede's spoken voice | [docs/VOICE_SETUP.md](docs/VOICE_SETUP.md) — OpenAI TTS (`gpt-4o-mini-tts`) |
 | Host the public demo | [docs/DEMO_HOSTING.md](docs/DEMO_HOSTING.md) — a Render Blueprint is included |
 | Work on the codebase itself | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — local dev for each app, project layout |

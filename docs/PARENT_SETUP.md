@@ -134,6 +134,11 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    you can still add, remove, or adjust either afterward using their own
    controls. This doesn't limit *which* subjects are available to pick from,
    only what's pre-selected to start.
+
+   Whichever you pick, Bede is a partner in your family's teaching, not a
+   replacement for it — see **[docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md)**
+   for what "Socratic" actually means in practice and how to ask the same
+   kind of question yourself, alongside Bede.
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`

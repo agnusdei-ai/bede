@@ -52,6 +52,10 @@
   "chat": {
     "bedeThinking": "Bede está pensando…",
     "transcribing": "Transcribiendo…",
+    "voiceReviewSend": "Enviar",
+    "voiceReviewCancel": "Cancelar",
+    "debugShow": "Mostrar panel de depuración",
+    "debugHide": "Ocultar panel de depuración",
     "drawingReady": "Dibujo listo. Agrega una nota o simplemente envíalo.",
     "drawOrWrite": "Dibujar o escribir a mano",
     "uploadNarration": "Sube una narración de tu cuaderno (por ejemplo, inq)",

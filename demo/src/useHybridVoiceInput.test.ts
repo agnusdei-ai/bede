@@ -159,7 +159,7 @@ describe('useHybridVoiceInput walkie-talkie hold safety (demo)', () => {
 
     act(() => result.current.startHold())
     act(() => lastInstance.emitFinal('are you still there'))
-    act(() => vi.advanceTimersByTime(60000))
+    act(() => vi.advanceTimersByTime(120000))
 
     expect(onFinal).toHaveBeenCalledTimes(1)
     expect(onFinal).toHaveBeenCalledWith('are you still there')
@@ -175,7 +175,7 @@ describe('useHybridVoiceInput walkie-talkie hold safety (demo)', () => {
     act(() => result.current.release())
     expect(onFinal).toHaveBeenCalledTimes(1)
 
-    act(() => vi.advanceTimersByTime(60000))
+    act(() => vi.advanceTimersByTime(120000))
     expect(onFinal).toHaveBeenCalledTimes(1)
   })
 

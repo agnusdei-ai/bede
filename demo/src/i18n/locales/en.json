@@ -20,6 +20,8 @@
     "learningSubject": "Learning Subject",
     "bedeThinking": "Bede is thinking…",
     "transcribing": "Transcribing…",
+    "voiceReviewSend": "Send",
+    "voiceReviewCancel": "Cancel",
     "drawingReady": "Drawing ready. Add a note, or just send it.",
     "uploadNarration": "Upload narration from your notebook (e.g. inq)",
     "placeholderHoldListening": "Listening… let go when you're done",

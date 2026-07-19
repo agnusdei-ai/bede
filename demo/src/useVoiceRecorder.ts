@@ -1,6 +1,7 @@
 // Mirror of homeschool-tutor/src/hooks/useVoiceRecorder.ts for the demo app.
 import { useState, useRef, useCallback } from 'react'
 import { resample, encodeWav } from './audioUtils'
+import { logDebug } from './debugBus'
 
 /**
  * Raw-PCM capture hook used for voice enrollment and verification audio
@@ -114,6 +115,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
   }, [])
 
   const stopRecording = useCallback(async () => {
+    logDebug('useVoiceRecorder.stopRecording()')
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     if (animRef.current) cancelAnimationFrame(animRef.current)
     analyserRef.current = null
@@ -185,6 +187,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete }: Recording
 
   const startRecording = useCallback(async () => {
     if (isRecording) return
+    logDebug('useVoiceRecorder.startRecording()')
     pcmChunksRef.current = []
 
     // Reuse a stream prewarm() already opened synchronously inside the

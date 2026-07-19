@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useVoiceRecorder } from './useVoiceRecorder'
 import { transcribeFallback } from '../services/voiceApi'
+import { logDebug } from './debugBus'
 
 /**
  * Voice input for the chat mic button. Tries the native Web Speech API first
@@ -23,16 +24,18 @@ const NATIVE_STALL_TIMEOUT_MS = 4000
 // real release) after the same ceiling already used for the recording
 // fallback, so a missed release degrades to "the turn ended a bit early"
 // rather than "the mic is stuck forever with no way to clear it."
-const HOLD_SAFETY_TIMEOUT_MS = 60000
-// Was 8000ms — far too short for a real spoken answer once a child is
-// actually explaining their thinking out loud, and the walkie-talkie
-// hold-to-talk mode (which is meant to support longer, paused-and-resumed
-// answers) falls into this exact recorder whenever native recognition
-// isn't supported or throws synchronously on press (see the catch in
-// _start below) — so this cap silently truncated long walkie-talkie
-// answers on any browser without native SpeechRecognition (Firefox,
-// some Android WebViews), not just short tap-to-speak utterances.
-const MAX_RECORDING_MS = 60000
+const HOLD_SAFETY_TIMEOUT_MS = 120000
+// Was 8000ms, then 60000ms — both still too short for a child working
+// through a longer spoken answer out loud, especially one who pauses to
+// think mid-explanation. The walkie-talkie hold-to-talk mode (meant to
+// support exactly that: longer, paused-and-resumed answers) falls into
+// this exact recorder whenever native recognition isn't supported or
+// throws synchronously on press (see the catch in _start below), so this
+// cap silently truncated long walkie-talkie answers on any browser
+// without native SpeechRecognition (Firefox, some Android WebViews), not
+// just short tap-to-speak utterances. 120s matches HOLD_SAFETY_TIMEOUT_MS
+// above so neither path caps sooner than the other.
+const MAX_RECORDING_MS = 120000
 
 interface Options {
   token: string | null
@@ -97,6 +100,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // fires its onend a tick later) — only the first should start the
     // recorder, or two overlapping recording sessions get opened.
     if (modeRef.current === 'recording' || modeRef.current === 'transcribing') return
+    logDebug(`startFallback() from mode=${modeRef.current}`)
     clearWatchdog()
     setMode('recording')
     recorder.startRecording()
@@ -120,7 +124,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       // is the one flag that stays true across that entire async gap
       // regardless of what holdModeRef.current is doing — checking it
       // FIRST, unconditionally, closes the gap for both modes.
-      if (releasedRef.current) return
+      if (releasedRef.current) {
+        logDebug(`native.onFinal IGNORED (already released) text="${transcript}"`)
+        return
+      }
       if (holdModeRef.current) {
         // Walkie-talkie: keep the mic open across pauses. Stash each final
         // segment; release() sends the whole thing once the child lets go.
@@ -129,11 +136,13 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
         // the hold-start watchdog below so it can't fire after the fact.
         clearWatchdog()
         accumRef.current = accumRef.current ? `${accumRef.current} ${transcript}` : transcript
+        logDebug(`native.onFinal accumulated (hold) segment="${transcript}" accum="${accumRef.current}"`)
         // The interim that preceded this segment is now baked into it — drop
         // it so release()'s salvage can't re-append text already accumulated.
         lastInterimRef.current = ''
         return
       }
+      logDebug(`native.onFinal (tap) text="${transcript}"`)
       clearWatchdog()
       setMode('idle')
       recorder.cancelPrewarm()
@@ -201,6 +210,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // state so a fast press right after release isn't blocked by a stale render.
   const _start = useCallback((hold: boolean) => {
     if (modeRef.current !== 'idle') return
+    logDebug(`_start(hold=${hold}) nativeSupported=${native.isSupported}`)
     stoppedByUserRef.current = false
     releasedRef.current = false
     holdModeRef.current = hold
@@ -270,6 +280,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const startHold = useCallback(() => _start(true), [_start])
 
   const stop = useCallback(() => {
+    logDebug(`stop() (cancel) from mode=${modeRef.current}`)
     stoppedByUserRef.current = true
     releasedRef.current = true
     clearWatchdog()
@@ -289,6 +300,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // interim the engine hasn't promoted yet — exactly once. Unlike stop()
   // (which cancels and discards), release() delivers the transcript.
   const release = useCallback(() => {
+    logDebug(`release() from mode=${modeRef.current} accum="${accumRef.current}" interim="${lastInterimRef.current}"`)
     clearWatchdog()
     clearHoldSafety()
     if (modeRef.current === 'native') {

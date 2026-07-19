@@ -447,6 +447,23 @@ export function deriveLocalDate(): string {
   return `${y}-${m}-${d}`
 }
 
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening'
+
+// Mirrors homeschool-tutor/src/store/sessionStore.ts's deriveTimeOfDay —
+// see that file's comment for the exact hour boundaries and why Bede's
+// greeting/prayer framing needs this. Unlike deriveLocalDate above, this
+// is meant to be called ONCE per session (DemoFlow derives it from
+// sessionStartRef, the same stable timestamp already used for the
+// session's hard-stop/break rules) rather than fresh per request — a
+// session that happens to run past an hour boundary should keep
+// greeting/framing itself the way it opened, not flip mid-session.
+export function deriveTimeOfDay(date: Date): TimeOfDay {
+  const hour = date.getHours()
+  if (hour < 12) return 'morning'
+  if (hour < 17) return 'afternoon'
+  return 'evening'
+}
+
 export async function* streamTutorChat(
   token: string,
   config: SessionConfig,
@@ -455,6 +472,7 @@ export async function* streamTutorChat(
   childMessage: string,
   drawingImageDataUrl: string | null,
   signal?: AbortSignal,
+  timeOfDay?: TimeOfDay | null,
 ): AsyncGenerator<StreamChunk> {
   const res = await fetch(`${apiBase()}/tutor/chat`, {
     method: 'POST',
@@ -469,6 +487,7 @@ export async function* streamTutorChat(
       child_message: childMessage,
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
       local_date: deriveLocalDate(),
+      local_time_of_day: timeOfDay ?? null,
     }),
     signal,
   })

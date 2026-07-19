@@ -206,7 +206,7 @@ function demoGradeStage(): string {
   return '3-5'
 }
 
-function CodeScreen({ onLoggedIn }: {
+export function CodeScreen({ onLoggedIn }: {
   onLoggedIn: (token: string, code: string) => void
 }) {
   const { t } = useTranslation()
@@ -220,6 +220,14 @@ function CodeScreen({ onLoggedIn }: {
   const [slowHint, setSlowHint] = useState(false)
   const { hasConsented, giveConsent } = useConsent()
   const formContainerRef = useRef<HTMLDivElement>(null)
+  // Real reported gap: the "Privacy Notice" link in the amber box below
+  // just opened the static privacy.html page in a new tab — for a
+  // returning visitor (hasConsented already true, so ConsentModal never
+  // auto-shows), clicking it did nothing "for acceptance" at all. This
+  // lets that same click re-surface ConsentModal on demand, same as a
+  // first-time visitor sees it, with the static page still reachable from
+  // inside the modal for the full text.
+  const [reviewConsent, setReviewConsent] = useState(false)
 
   // Language toggle — only rendered when the backend actually offers a
   // non-English locale (GET /auth/locales). Restored from sessionStorage so
@@ -248,8 +256,8 @@ function CodeScreen({ onLoggedIn }: {
   // actually makes the dimmed form behind the modal unreachable — by tab
   // order, screen readers, and clicks alike — not just visually obscured.
   useEffect(() => {
-    if (formContainerRef.current) formContainerRef.current.inert = !hasConsented
-  }, [hasConsented])
+    if (formContainerRef.current) formContainerRef.current.inert = !hasConsented || reviewConsent
+  }, [hasConsented, reviewConsent])
 
   const handleClick = async () => {
     unlockSpeechForSession() // must happen synchronously in this gesture — see useTextToSpeech.ts
@@ -374,7 +382,26 @@ function CodeScreen({ onLoggedIn }: {
             <Trans
               i18nKey="codeScreen.privacyNotice"
               components={{
-                link: <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900" />,
+                // Named privacyLink, deliberately NOT "link" — that's a
+                // real, void HTML element name (<link rel="stylesheet">),
+                // and Trans's underlying string parser treats any tag name
+                // matching a known HTML void element as self-closing
+                // regardless of the custom component it's mapped to. That
+                // silently orphaned "Privacy Notice" as plain sibling text
+                // AFTER an empty, invisible <a>/<button> instead of as its
+                // children — the text was visible but never actually
+                // inside the clickable element, so nothing happened when
+                // pressed. Confirmed via a real DOM inspection (not just
+                // reasoning about it): a fresh render's innerHTML showed
+                // `<button ...></button>Privacy Notice`, text and element
+                // as unrelated siblings.
+                privacyLink: (
+                  <button
+                    type="button"
+                    onClick={() => setReviewConsent(true)}
+                    className="underline hover:text-amber-900 bg-transparent border-0 p-0 cursor-pointer"
+                  />
+                ),
               }}
             />
           </p>
@@ -401,7 +428,9 @@ function CodeScreen({ onLoggedIn }: {
         </div>
       </div>
     </div>
-    {!hasConsented && <ConsentModal onAgree={giveConsent} />}
+    {(!hasConsented || reviewConsent) && (
+      <ConsentModal onAgree={() => { giveConsent(); setReviewConsent(false) }} />
+    )}
     </>
   )
 }

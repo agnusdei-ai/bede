@@ -10,7 +10,7 @@
     "gradeDefault": "Usar el valor predeterminado (grado 4)",
     "kindergarten": "Preescolar",
     "gradeN": "Grado {{n}}",
-    "privacyNotice": "Tu conversación nunca se guarda. <link>Aviso de Privacidad</link>",
+    "privacyNotice": "Tu conversación nunca se guarda. <privacyLink>Aviso de Privacidad</privacyLink>",
     "generateCode": "Generar mi código",
     "wakingUp": "Despertando a Bede… la primera visita después de un tiempo puede tardar hasta un minuto. Gracias por tu paciencia.",
     "couldNotStartSession": "No se pudo iniciar una sesión"

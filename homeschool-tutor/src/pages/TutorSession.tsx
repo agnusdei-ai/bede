@@ -20,6 +20,18 @@ import { renderEmphasis } from '../utils/renderEmphasis'
 import { pickBreakActivity } from '../utils/breakActivities'
 import { Coffee, Eye } from 'lucide-react'
 
+// A break screen tells the child to step away from the device — if nobody
+// comes back to it (taps, types, or otherwise touches the page) for this
+// long, the session is almost certainly just sitting abandoned on a shared
+// tablet rather than genuinely paused. Deliberately shorter than
+// AppShell.tsx's own 30-minute general inactivity timeout, which has to
+// stay generous for ACTIVE learning (a child reading a physical book or
+// thinking through a Socratic question can easily go several minutes
+// without touching the screen) — this one only ever counts down while a
+// break overlay is actually showing, where there's no legitimate reason to
+// still be interacting at all.
+const BREAK_INACTIVITY_LOGOUT_MS = 5 * 60 * 1000
+
 export default function TutorSession() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -96,6 +108,35 @@ export default function TutorSession() {
     const id = setInterval(() => setCapTick((n) => n + 1), 15000)
     return () => clearInterval(id)
   }, [sessionConfig, sessionStartedAt])
+
+  // Break-inactivity auto-logout. isOnBreak itself isn't computed until
+  // after the sessionConfig-null guard below, but hooks must run
+  // unconditionally — same bridge-via-ref pattern as endSessionRef above:
+  // this effect (declared here, before the guard) reads isOnBreakRef's
+  // CURRENT value from inside its interval callback, while the ref itself
+  // is kept in sync by a plain assignment right after isOnBreak is computed
+  // further down (plain assignments aren't hooks, so they're safe to place
+  // after the guard). lastBreakActivityRef resets on ANY interaction
+  // regardless of break state — harmless while not on break, and means the
+  // 5-minute countdown always reflects genuinely how long it's been since
+  // the child last touched anything, not just how long the break has run.
+  const isOnBreakRef = useRef(false)
+  const lastBreakActivityRef = useRef(Date.now())
+  useEffect(() => {
+    const resetBreakActivity = () => { lastBreakActivityRef.current = Date.now() }
+    const events = ['pointerdown', 'keydown', 'touchstart']
+    events.forEach((e) => window.addEventListener(e, resetBreakActivity, { passive: true }))
+    const id = setInterval(() => {
+      if (isOnBreakRef.current && Date.now() - lastBreakActivityRef.current > BREAK_INACTIVITY_LOGOUT_MS) {
+        logout()
+        navigate('/', { replace: true })
+      }
+    }, 15000)
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetBreakActivity))
+      clearInterval(id)
+    }
+  }, [logout, navigate])
   useEffect(() => {
     if (!sessionConfig || !sessionStartedAt) return
     const { phase } = getPhase(
@@ -165,6 +206,10 @@ export default function TutorSession() {
   const isEyeRestBreak = screenPhase?.phase === 'break'
 
   const isOnBreak = isSubjectBreak || isSessionBreak || isEyeRestBreak
+  // Keeps the pre-guard break-inactivity effect (above) in sync — a plain
+  // assignment, not a hook, so it's safe to run after the sessionConfig
+  // guard even though the effect itself had to be declared before it.
+  isOnBreakRef.current = isOnBreak
   const breakRemainingSecs = isEyeRestBreak
     ? screenPhase!.remainingSecs
     : isSessionBreak
@@ -224,7 +269,18 @@ export default function TutorSession() {
     // accents on the speaking surfaces (see SocraticChat), and the reader
     // can pick a different nature-drawn background from the header's
     // ThemePicker (persisted per device via useChatTheme).
-    <div className={`h-screen flex flex-col ${theme.bgClass} overflow-hidden`}>
+    // h-dvh (dynamic viewport height), not h-screen (100vh, a fixed unit
+    // computed as if the mobile browser's address-bar chrome were always
+    // collapsed). On mobile Safari/Chrome, 100vh is routinely TALLER than
+    // what's actually visible whenever that chrome is showing — the extra
+    // height pushed the header (shrink-0, meant to stay fixed while only
+    // the chat below scrolls) into the page's own overflow, so scrolling
+    // the chat dragged the whole page including the header off-screen,
+    // needing several scroll-back-up attempts to reach the subject
+    // switcher again. dvh tracks the real visible viewport as the browser
+    // chrome shows/hides, so this container's height always matches what's
+    // actually on screen and the header never leaves it.
+    <div className={`h-dvh flex flex-col ${theme.bgClass} overflow-hidden`}>
       {/* ── Minimal header ── */}
       <header className="pt-safe bg-parchment-50 border-b border-sage-200 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
         <img src="/bede-icon.webp" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />

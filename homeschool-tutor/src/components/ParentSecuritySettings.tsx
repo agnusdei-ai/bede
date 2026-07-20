@@ -139,7 +139,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                     {status.security_keys.map((k) => (
                       <li key={k.id} className="flex items-center justify-between text-sm bg-navy-50 rounded-lg px-3 py-2">
                         <span className="text-gray-700">{k.nickname}</span>
-                        <button onClick={() => handleRemoveKey(k.id)} disabled={busy} className="text-gray-400 hover:text-red-600">
+                        <button onClick={() => handleRemoveKey(k.id)} disabled={busy} title="Remove this security key" className="text-gray-500 hover:text-red-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 rounded">
                           <Trash2 size={14} />
                         </button>
                       </li>
@@ -162,7 +162,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                       >
                         {busy ? <Loader2 size={14} className="animate-spin" /> : null} Tap key now
                       </button>
-                      <button onClick={() => setAddingKey(false)} className="px-3 py-2 text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                      <button onClick={() => setAddingKey(false)} className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -182,7 +182,7 @@ export default function ParentSecuritySettings({ token }: Props) {
             {status?.totp_enabled ? (
               <div className="flex items-center justify-between text-sm bg-navy-50 rounded-lg px-3 py-2">
                 <span className="text-gray-700">Enabled</span>
-                <button onClick={handleDisableTotp} disabled={busy} className="text-xs text-gray-400 hover:text-red-600 underline">Disable</button>
+                <button onClick={handleDisableTotp} disabled={busy} className="text-xs text-gray-500 hover:text-red-600 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 rounded">Disable</button>
               </div>
             ) : totpEnrolling && totpSecret ? (
               <form onSubmit={handleConfirmTotp} className="space-y-2">
@@ -207,7 +207,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                   >
                     Confirm
                   </button>
-                  <button type="button" onClick={() => { setTotpEnrolling(false); setTotpSecret(null) }} className="px-3 py-2 text-sm text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => { setTotpEnrolling(false); setTotpSecret(null) }} className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">
                     Cancel
                   </button>
                 </div>

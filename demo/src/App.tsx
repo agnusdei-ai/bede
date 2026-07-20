@@ -1087,7 +1087,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
           <img src={pendingDrawing} alt="Your drawing" className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
           <div className="flex-1 text-xs text-sage-800">{t('chatScreen.drawingReady')}</div>
-          <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+          <button onClick={() => setPendingDrawing(null)} title={t('chatScreen.removeDrawing')} className="text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 rounded"><X size={14} /></button>
         </div>
       )}
 
@@ -1143,7 +1143,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             rows={2}
             className="flex-1 resize-none rounded-lg border border-sage-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-400 bg-white"
           />
-          <button onClick={() => send()} disabled={isStreaming || sessionPaused || (!input.trim() && !pendingDrawing)} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0">
+          <button onClick={() => send()} disabled={isStreaming || sessionPaused || (!input.trim() && !pendingDrawing)} title={t('chatScreen.sendMessage')} className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-1">
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
@@ -2194,7 +2194,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
                 combination tested against Chromium. flex-basis: 100% is a
                 deterministic line-break, not a width computation the two
                 engines could disagree on. */}
-            <button onClick={() => setFinished(true)} title={t('header.finishDemoTooltip')} className="basis-full text-xs text-gray-400 hover:text-gray-600 underline">
+            <button onClick={() => setFinished(true)} title={t('header.finishDemoTooltip')} className="basis-full text-xs text-gray-500 hover:text-gray-700 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">
               {t('header.finishDemo')}
             </button>
           </>

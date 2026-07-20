@@ -105,7 +105,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
               <button
                 type="button"
                 onClick={() => setShowParentModal(false)}
-                className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded"
               >
                 Cancel
               </button>
@@ -140,7 +140,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
             </button>
             <p className="text-sm text-gray-500">Click the mic and speak clearly</p>
             {/* Requires the parent password — never bypasses voice auth silently */}
-            <button onClick={handleParentOverride} className="text-xs text-gray-400 hover:text-gray-600 underline">
+            <button onClick={handleParentOverride} className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">
               Skip voice check (parent mode)
             </button>
           </div>

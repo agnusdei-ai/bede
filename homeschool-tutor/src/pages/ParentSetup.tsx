@@ -228,7 +228,7 @@ export default function ParentSetup() {
             </div>
             <p className="text-sm text-gray-500 mt-1">{t('parentSetup.subtitle')}</p>
           </div>
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 underline">
+          <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">
             {t('parentSetup.logOut')}
           </button>
         </div>

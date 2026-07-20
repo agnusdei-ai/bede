@@ -14,7 +14,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { startRecording, prewarm, cancelPrewarm, recorderOptions, transcribeFallback } = vi.hoisted(() => ({
+const { startRecording, prewarm, cancelPrewarm, recorderOptions, transcribeFallback, enterRecordingAudioSession, restorePlaybackAudioSession } = vi.hoisted(() => ({
   startRecording: vi.fn(),
   prewarm: vi.fn(),
   cancelPrewarm: vi.fn(),
@@ -25,6 +25,8 @@ const { startRecording, prewarm, cancelPrewarm, recorderOptions, transcribeFallb
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recorderOptions: { current: null as any },
   transcribeFallback: vi.fn(),
+  enterRecordingAudioSession: vi.fn(),
+  restorePlaybackAudioSession: vi.fn(),
 }))
 
 vi.mock('./useVoiceRecorder', () => ({
@@ -43,6 +45,7 @@ vi.mock('./useVoiceRecorder', () => ({
 }))
 
 vi.mock('./api', () => ({ transcribeFallback }))
+vi.mock('./audioSession', () => ({ enterRecordingAudioSession, restorePlaybackAudioSession }))
 
 import { useHybridVoiceInput } from './useHybridVoiceInput'
 
@@ -98,6 +101,8 @@ beforeEach(() => {
   cancelPrewarm.mockClear()
   transcribeFallback.mockReset()
   transcribeFallback.mockResolvedValue('')
+  enterRecordingAudioSession.mockClear()
+  restorePlaybackAudioSession.mockClear()
   recorderOptions.current = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).SpeechRecognition = class {
@@ -444,5 +449,65 @@ describe('useHybridVoiceInput stuck-mode recovery (recorder fallback, demo)', ()
 
     act(() => vi.advanceTimersByTime(10000))
     expect(result.current.micError).toBe(null)
+  })
+})
+
+describe('useHybridVoiceInput audio session', () => {
+  // Mirror of homeschool-tutor/src/hooks/useHybridVoiceInput.test.ts's own
+  // "audio session" block — see that file for the full story. Regression
+  // coverage for a real reported bug: on iOS Safari, using the press-to-talk
+  // mic mid-session caused Bede's spoken replies to switch from whatever
+  // output was selected (Bluetooth speaker, headphones) to the device's own
+  // built-in "browser embedded" speaker, and never settle back. See
+  // audioSession.ts.
+  it('enters the recording audio session as soon as native listening starts', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    // Mounting idle already fires the "restore playback" branch once —
+    // clear that before asserting on the transition this test cares about.
+    restorePlaybackAudioSession.mockClear()
+
+    act(() => result.current.start())
+
+    expect(enterRecordingAudioSession).toHaveBeenCalled()
+    expect(restorePlaybackAudioSession).not.toHaveBeenCalled()
+  })
+
+  it('restores the playback audio session once release() delivers the transcript', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    expect(enterRecordingAudioSession).toHaveBeenCalled()
+    restorePlaybackAudioSession.mockClear()
+
+    act(() => lastInstance.emitFinal('hello Bede'))
+    act(() => result.current.release())
+
+    expect(restorePlaybackAudioSession).toHaveBeenCalled()
+  })
+
+  it('restores the playback audio session when the recorder fallback finishes transcribing', async () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    restorePlaybackAudioSession.mockClear()
+
+    transcribeFallback.mockResolvedValueOnce('hello Bede')
+    await act(async () => {
+      await recorderOptions.current.onComplete(new Blob())
+    })
+
+    expect(restorePlaybackAudioSession).toHaveBeenCalled()
+  })
+
+  it('restores the playback audio session when stop() cancels an in-progress hold', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    restorePlaybackAudioSession.mockClear()
+
+    act(() => result.current.stop())
+
+    expect(restorePlaybackAudioSession).toHaveBeenCalled()
   })
 })

@@ -10,7 +10,7 @@
     "gradeDefault": "Use the default (grade 4)",
     "kindergarten": "Kindergarten",
     "gradeN": "Grade {{n}}",
-    "privacyNotice": "Your conversation is never stored. <link>Privacy Notice</link>",
+    "privacyNotice": "Your conversation is never stored. <privacyLink>Privacy Notice</privacyLink>",
     "generateCode": "Generate my code",
     "wakingUp": "Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.",
     "couldNotStartSession": "Could not start a session"

@@ -351,6 +351,18 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const _start = useCallback((hold: boolean) => {
     if (modeRef.current !== 'idle') return
     logDebug(`_start(hold=${hold}) nativeSupported=${native.isSupported}`)
+    // Switch the AudioSession category to recording-capable SYNCHRONOUSLY,
+    // right here — not via the mode-driven effect below. That effect only
+    // runs after this render commits, but prewarm() and native.start() (and,
+    // when native isn't supported, startFallback()'s own
+    // recorder.startRecording()) call getUserMedia() synchronously in this
+    // SAME call stack, a beat before the effect would ever fire. Right after
+    // Bede finishes speaking the session is still pinned to 'playback', so
+    // that race loses every time: getUserMedia() rejects with "AudioSession
+    // category is not compatible with audio capture" — confirmed via a real
+    // debug-panel trace — silently swallowing whatever the child says in
+    // that first press.
+    enterRecordingAudioSession()
     stoppedByUserRef.current = false
     releasedRef.current = false
     holdModeRef.current = hold

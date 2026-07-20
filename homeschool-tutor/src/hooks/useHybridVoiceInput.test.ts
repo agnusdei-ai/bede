@@ -663,6 +663,29 @@ describe('useHybridVoiceInput audio session', () => {
 
     expect(restorePlaybackAudioSession).toHaveBeenCalled()
   })
+
+  it('enters the recording audio session before opening any getUserMedia stream (prewarm), not after', () => {
+    // Regression test for a real reported bug: a real debug-panel trace
+    // showed getUserMedia() rejecting with "AudioSession category is not
+    // compatible with audio capture" right after Bede finished speaking —
+    // the FIRST press-and-hold after Bede talks captured nothing at all.
+    // Root cause: the audio-session switch used to only happen in the
+    // mode-driven effect below, which runs after the render commits — a
+    // beat AFTER prewarm()/native.start() had already called getUserMedia()
+    // synchronously in the same call stack as _start() itself, while the
+    // session was still pinned to 'playback'. Call order (not just "was it
+    // called") is what actually distinguishes the fix: enterRecordingAudioSession
+    // must happen before prewarm, not merely by the time this assertion runs.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+
+    expect(enterRecordingAudioSession).toHaveBeenCalled()
+    expect(prewarm).toHaveBeenCalled()
+    const audioSessionCallOrder = enterRecordingAudioSession.mock.invocationCallOrder[0]
+    const prewarmCallOrder = prewarm.mock.invocationCallOrder[0]
+    expect(audioSessionCallOrder).toBeLessThan(prewarmCallOrder)
+  })
 })
 
 describe('useHybridVoiceInput no-speech-heard feedback', () => {

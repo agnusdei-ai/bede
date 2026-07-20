@@ -457,6 +457,45 @@ call inside `getStream()`'s own catch block, alongside the existing
 own DevTools console, invisible in any on-screen `DebugOverlay` trace a
 remote user could actually screenshot and send us.
 
+## Troubleshooting: the very first press-and-hold right after Bede speaks captures nothing at all
+
+That `logDebug()` line added above immediately paid off — a follow-up trace
+showed a first hold ending with `accum=""` `interim=""` (nothing captured
+whatsoever), and a rejection logged a few ms after `_start`:
+`getStream() rejected name=InvalidStateError message=AudioSession category
+is not compatible with audio capture.` This is iOS Safari's
+`navigator.audioSession` (see `audioSession.ts`) rejecting `getUserMedia()`
+because the session was still pinned to `'playback'` — Bede had just
+finished speaking — at the exact moment the press tried to open the mic.
+
+Root cause: the switch to a recording-capable `AudioSession` category
+(`enterRecordingAudioSession()`) only ran inside a `useEffect` keyed on
+`mode`, which fires *after* the render commits. But `_start()` calls
+`recorder.prewarm()` and `native.start()` — both of which trigger
+`getUserMedia()` — synchronously, in the very same call stack that also
+calls `setMode('native')`, a beat *before* that effect gets a chance to run.
+Right after Bede's TTS ends, that race loses every time: the session is
+still `'playback'` when `getUserMedia()` fires. Native Web Speech
+Recognition depends on the same category internally (see `audioSession.ts`'s
+own comment), so this doesn't just break the recorder fallback — it can
+silently swallow the very words native recognition was supposed to hear,
+which is exactly what a parent reported as "Bede doesn't capture the initial
+input." (Native recognition's *own* internal `getUserMedia` call isn't
+perfectly synchronous the way `prewarm()`'s is, so it sometimes wins this
+same race on a later press — which is why the symptom reads as intermittent
+rather than a hard, everytime failure.)
+
+Fix, in both copies of `useHybridVoiceInput.ts`: `_start()` now calls
+`enterRecordingAudioSession()` synchronously, as its very first action —
+before `prewarm()`, before `native.start()`, before anything else that could
+touch the microphone — rather than waiting on the mode-driven effect. No
+added delay: switching `audioSession.type` is a plain synchronous property
+set, so doing it eagerly costs nothing and closes the race outright, for
+both the native-recognition path and the direct-to-recorder path (when
+native isn't supported at all). The mode-driven effect is left in place
+unchanged for the "restore to playback" side, which was never time-critical
+the same way.
+
 ## Troubleshooting: the live transcript while speaking is off-screen
 
 Reported with a screenshot: while holding the mic and talking, the child's

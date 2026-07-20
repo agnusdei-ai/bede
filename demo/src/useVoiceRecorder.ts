@@ -72,6 +72,13 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: 
       .catch((err: unknown): MediaStream | null => {
         console.error('Microphone access denied', err)
         const name = err instanceof DOMException ? err.name : ''
+        // Also on-screen (logDebug), not just the browser console — the
+        // console.error above is invisible in a DebugOverlay screenshot,
+        // which is the only trace a remote user can actually send us. This
+        // is the one line that reveals WHICH getUserMedia failure occurred
+        // (NotReadableError/device-in-use vs. NotFoundError vs. genuine
+        // permission denial), which the reason classification below throws away.
+        logDebug(`getStream() rejected name=${name || 'unknown'} message=${err instanceof Error ? err.message : String(err)}`)
         const reason: MicErrorReason = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? 'permission-denied' : 'unavailable'
         onError?.(reason)
         return null
@@ -210,8 +217,25 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: 
     // prewarm() above for why a cold call from anywhere else is not.
     const pending = prewarmPromiseRef.current ?? getStream(MIC_CONSTRAINTS)
     prewarmPromiseRef.current = null
-    const stream = prewarmStreamRef.current ?? (await pending)
+    let stream = prewarmStreamRef.current ?? (await pending)
     prewarmStreamRef.current = null
+    if (!stream) {
+      // The prewarmed stream can fail from mic contention with whatever
+      // else grabbed the microphone right at the start of the press (most
+      // often native Web Speech Recognition's own internal capture) — a
+      // transient race, not a real "no mic available" situation. By the
+      // time the fallback is actually needed (native has stalled for
+      // NATIVE_STALL_TIMEOUT_MS and native.stop() has already run), that
+      // contention is gone, so a fresh getUserMedia() call here often
+      // succeeds even though the prewarm attempt didn't. Confirmed via a
+      // real debug-panel trace: the prewarm failure never even reached
+      // onError (mode was still 'native' when it rejected, so the guard in
+      // useHybridVoiceInput correctly ignored it) but the fallback then
+      // silently gave up on that same stale, already-failed promise instead
+      // of trying again — turning a one-off race into a hard failure.
+      logDebug('startRecording(): prewarmed stream unavailable — retrying getUserMedia() fresh')
+      stream = await getStream(MIC_CONSTRAINTS)
+    }
     if (!stream) return
 
     const audioCtx = new AudioContext()

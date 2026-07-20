@@ -417,6 +417,46 @@ device to actually reproduce, not available in the sandbox this was fixed
 in) — this fix closes off the *consequence* (a lost answer with no
 feedback) rather than the underlying recognition-service flakiness itself.
 
+## Troubleshooting: the recorder fallback itself reports "I can't hear you right now" right after switching over
+
+Reported with a live debug-panel trace, immediately after the fix above
+shipped: the stall watchdog correctly fired and handed off to the recorder
+fallback (`startFallback()` → `useVoiceRecorder.startRecording()`, right on
+schedule), but the fallback then failed outright with the `'unavailable'`
+`MicError` — twice in a row, on consecutive holds in the same session — with
+no `recorder onError reason=...` trace line anywhere to explain why.
+
+Root cause: `_start()` calls `recorder.prewarm()` — a `getUserMedia()` call
+made *in parallel* with native Web Speech Recognition grabbing the
+microphone for its own internal capture, so the fallback stream is ready the
+instant it's needed (see the "permanently stuck" section above for why this
+has to happen synchronously inside the press gesture). On some
+devices/browsers those two concurrent mic opens contend, and prewarm's call
+can lose that race and reject (e.g. `NotReadableError`, "device in use") —
+a transient hiccup, correctly ignored while `mode` is still `'native'` (a
+prewarm failing doesn't mean the whole press is doomed). But
+`startRecording()` then reused that same *stale, already-settled* promise
+when the fallback actually engaged, seconds later — by which point native
+had already released its own grab (`native.stop()` already ran), so a fresh
+request would very likely have succeeded. A settled promise is truthy, so
+`prewarmPromiseRef.current ?? getStream(...)` never fell through to retry;
+`startRecording()` just gave up on the stale failure instead, explaining
+both the missing trace line (the *original* rejection was reported once,
+early, while `mode` was still `'native'`, and the caller's own guard
+correctly suppressed reacting to it then — but no second attempt was ever
+made once the fallback needed the mic for real) and why it repeated on every
+subsequent hold in the same session (the same contention recurs at the
+start of each one).
+
+Fix, in both copies of `useVoiceRecorder.ts`: `startRecording()` now retries
+`getUserMedia()` fresh whenever the prewarmed stream turns out to be `null`,
+instead of treating that stale failure as final. Also added a `logDebug()`
+call inside `getStream()`'s own catch block, alongside the existing
+`console.error` — the underlying `DOMException` name (which classifies
+`permission-denied` vs. `unavailable`) previously only reached the browser's
+own DevTools console, invisible in any on-screen `DebugOverlay` trace a
+remote user could actually screenshot and send us.
+
 ## Troubleshooting: the live transcript while speaking is off-screen
 
 Reported with a screenshot: while holding the mic and talking, the child's

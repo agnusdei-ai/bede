@@ -3,6 +3,7 @@ import { useSpeechRecognition } from './useSpeechRecognition'
 import { useVoiceRecorder } from './useVoiceRecorder'
 import { transcribeFallback } from '../services/voiceApi'
 import { logDebug } from './debugBus'
+import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../utils/audioSession'
 
 /**
  * Voice input for the chat mic button. Tries the native Web Speech API first
@@ -96,6 +97,20 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // Gates native onFinal after release so the trailing async final that
   // Safari/Chrome emit a tick after stop() doesn't re-add already-salvaged text.
   const releasedRef = useRef(false)
+
+  // Pin WebKit's audio session category to match whether the mic is
+  // actually capturing right now — see utils/audioSession.ts for why. Reacts
+  // to `mode` (not individual start/stop call sites) so every path that
+  // ends listening — release(), stop(), native's onFinal/onError/onNoSpeech,
+  // the stall watchdog's fallback handoff — is covered by one effect instead
+  // of needing a call threaded into each of them individually.
+  useEffect(() => {
+    if (mode === 'native' || mode === 'recording') {
+      enterRecordingAudioSession()
+    } else {
+      restorePlaybackAudioSession()
+    }
+  }, [mode])
 
   const clearWatchdog = useCallback(() => {
     if (watchdogRef.current) clearTimeout(watchdogRef.current)

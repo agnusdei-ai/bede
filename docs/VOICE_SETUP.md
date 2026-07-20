@@ -391,6 +391,48 @@ below the fold with nothing bringing it into view. Fixed by adding
 that effect's dependency array in both files, so the view now follows the
 child's own words the same way it already follows Bede's replies.
 
+## Troubleshooting: Bede's voice switches from the family's chosen output to the device's built-in speaker mid-lesson
+
+Reported as: audio "switching to browser embedded [sound] instead of mobile
+audio" during a lesson, specifically tied to using the press-to-talk mic —
+and once it happens, playback doesn't settle back onto one output for the
+rest of the session; each mic press re-triggers the same switch. This is a
+routing issue, not a volume/mute one: whatever output the family had
+actually selected (a Bluetooth speaker, wired headphones, AirPlay) gets
+overridden by the tablet's own built-in speaker/earpiece, and Bede's voice
+noticeably changes character (quieter, more "in the device") as a result.
+
+Root cause: on iOS/iPadOS Safari, opening ANY microphone stream —
+`useHybridVoiceInput.ts`'s own recorder fallback/prewarm
+(`useVoiceRecorder.ts`), or native `SpeechRecognition`'s own internal
+capture, which uses `getUserMedia` under the hood regardless of whether
+this app calls it directly — switches WebKit's *audio session category*
+into a mode that can route subsequent `<audio>`/TTS playback through the
+device's built-in earpiece speaker rather than whatever output was actually
+selected. Nothing in the app was ever telling WebKit to switch the session
+back once the mic closed, so the override could persist for the rest of the
+lesson, with every subsequent press-to-talk re-triggering it.
+
+Fix: `utils/audioSession.ts` wraps WebKit's `navigator.audioSession` API
+(iOS/iPadOS 17+; unsupported everywhere else, so every call is a
+feature-checked, try/catch-guarded best-effort no-op on Android
+Chrome/desktop/older iOS — nothing to break there). `useHybridVoiceInput.ts`
+now has a `useEffect` reacting to its own `mode` state: `'native'` or
+`'recording'` (the mic is actually capturing) pins the session to
+`'play-and-record'`; anything else (`'idle'`, `'transcribing'`) pins it back
+to `'playback'`, telling WebKit to route audio to the family's actual
+chosen output again. Driven off `mode` rather than threaded into every
+individual call site (`release()`, `stop()`, native's
+`onFinal`/`onError`/`onNoSpeech`, the stall watchdog's fallback handoff)
+means every path that starts or stops listening is covered by one effect.
+
+**Fixed in both copies** of `useHybridVoiceInput.ts` (and a new
+`audioSession.ts` in each) — same independent-codebases caveat as every
+other voice-pipeline fix in this file. Android Chrome has no equivalent
+public API for a page to control audio session category directly, so this
+fix is iOS/iPadOS-specific; Android's own routing behavior around
+`getUserMedia` wasn't reported as broken and is left alone.
+
 ## Under the hood: connection reuse for OpenAI TTS and email
 
 `services/voice_synthesis.py`'s OpenAI TTS calls (and, for the same reason,

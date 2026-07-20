@@ -6,6 +6,10 @@
 # Local Postgres backups (make db-backup) — never commit these
 /backups/
 
+# scripts/build_pages_site.sh's assembled Cloudflare Pages output —
+# regenerated on every build, never committed (see docs/DEMO_HOSTING.md)
+/publish/
+
 # Generated per-deployment — embeds this deployment's real CA cert
 sage-root-ca.crt
 bede-ipad.mobileconfig

@@ -311,3 +311,76 @@ describe('useVoiceRecorder getUserMedia failure reporting', () => {
     expect(result.current.isRecording).toBe(false)
   })
 })
+
+describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream failed', () => {
+  // Regression test for a real reported bug: prewarm() opens its
+  // getUserMedia() stream in parallel with native Web Speech Recognition's
+  // own internal mic capture at the start of a hold. On some devices those
+  // two contend and prewarm's call rejects (e.g. NotReadableError) — a
+  // transient race, not a real "no mic" situation. By the time the fallback
+  // actually needs the mic (seconds later, after native has stalled out and
+  // released its own grab), that contention has typically cleared. But
+  // startRecording() used to reuse the stale, already-failed prewarm promise
+  // (a settled promise is truthy, so `??` never fell through to a fresh
+  // call) and give up outright — turning a one-off race into a hard,
+  // silent failure for the whole press, with no retry ever attempted.
+  it('retries getUserMedia() fresh and succeeds once the contention has cleared', async () => {
+    const fakeTrack = { stop: vi.fn() }
+    const fakeStream = { getTracks: () => [fakeTrack] } as unknown as MediaStream
+    const getUserMedia = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException('Device in use', 'NotReadableError'))
+      .mockResolvedValueOnce(fakeStream)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
+
+    const onComplete = vi.fn()
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onComplete, onError }))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    // Flush the failed prewarm attempt before the fallback ever asks for it.
+    await act(async () => {})
+    expect(onError).toHaveBeenCalledWith('unavailable')
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
+    expect(result.current.isRecording).toBe(true)
+
+    act(() => vi.advanceTimersByTime(500))
+    await act(async () => {
+      await result.current.stopRecording()
+    })
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('still reports unavailable if the retry also fails', async () => {
+    const getUserMedia = vi.fn(async () => {
+      throw new DOMException('Device in use', 'NotReadableError')
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
+
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    await act(async () => {})
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
+    expect(onError).toHaveBeenCalledTimes(2)
+    expect(onError).toHaveBeenLastCalledWith('unavailable')
+    expect(result.current.isRecording).toBe(false)
+  })
+})

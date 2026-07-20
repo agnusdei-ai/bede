@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare, HelpCircle } from 'lucide-react'
+import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare, HelpCircle, Bug } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import SocraticChat from '../components/SocraticChat'
 import SubjectDrawer from '../components/SubjectDrawer'
 import FeedbackModal from '../components/FeedbackModal'
 import ThemePicker from '../components/ThemePicker'
 import MeetBede from '../components/MeetBede'
+import DebugOverlay from '../components/DebugOverlay'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useMeetBede } from '../hooks/useMeetBede'
 import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
@@ -54,6 +55,12 @@ export default function TutorSession() {
   const { theme, setThemeId, bubble, setBubbleId } = useChatTheme()
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
+  // Voice-flow debug panel — a developer/tester tool, not something an
+  // ordinary parent or child ever needs. Lives here in the header, not
+  // among SocraticChat's own input-bar controls (mic, pencil, send), so
+  // it's never mixed in among the things a family actually taps during a
+  // lesson. Off by default — see DebugOverlay.tsx.
+  const [showDebug, setShowDebug] = useState(false)
   // Hooks must run unconditionally (see the sessionConfig-null comment
   // below), so this reads before sessionConfig is known — '' is a safe
   // placeholder key since MeetBede is never actually shown until
@@ -281,6 +288,7 @@ export default function TutorSession() {
     // chrome shows/hides, so this container's height always matches what's
     // actually on screen and the header never leaves it.
     <div className={`h-dvh flex flex-col ${theme.bgClass} overflow-hidden`}>
+      {showDebug && <DebugOverlay onClose={() => setShowDebug(false)} />}
       {/* ── Minimal header ── */}
       <header className="pt-safe bg-parchment-50 border-b border-sage-200 shrink-0 min-h-14 flex items-center px-4 py-2 gap-2">
         <img src="/bede-icon.webp" alt="Bede" className="w-6 h-6 rounded-full object-cover shrink-0" />
@@ -323,6 +331,20 @@ export default function TutorSession() {
         {(role === 'parent' || !sessionConfig.appearance_locked) && (
           <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
         )}
+
+        {/* Voice-flow debug panel — a developer/tester tool, not something an
+            ordinary parent or child ever needs, so it's deliberately set
+            apart from the real session controls to its right (a border-l
+            divider, muted styling) rather than mixed in among them. */}
+        <button
+          onClick={() => setShowDebug((v) => !v)}
+          title="Debug panel (developer tool)"
+          className={`p-1.5 rounded-lg transition-colors border-l border-gray-200 pl-2.5 ml-0.5 ${
+            showDebug ? 'text-navy-600 bg-gray-100' : 'text-gray-300 hover:text-gray-500'
+          }`}
+        >
+          <Bug size={14} />
+        </button>
 
         {role === 'child' && (
           <button

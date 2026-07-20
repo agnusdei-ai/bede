@@ -603,7 +603,11 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // pattern as the stream/file-read errors below.
   useEffect(() => {
     if (!micError) return
-    setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t(micError === 'permission-denied' ? 'chatScreen.micPermissionDenied' : 'chatScreen.micUnavailable')}` }])
+    const micErrorKey =
+      micError === 'permission-denied' ? 'chatScreen.micPermissionDenied'
+      : micError === 'no-speech-heard' ? 'chatScreen.micNoSpeechHeard'
+      : 'chatScreen.micUnavailable'
+    setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t(micErrorKey)}` }])
     clearMicError()
   }, [micError, clearMicError, t])
 

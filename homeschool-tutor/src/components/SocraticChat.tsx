@@ -179,7 +179,11 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // auto-restart into the same failure indefinitely.
   useEffect(() => {
     if (!micError) return
-    addToolMessage('error', `⚠️ ${t(micError === 'permission-denied' ? 'chat.micPermissionDenied' : 'chat.micUnavailable')}`)
+    const micErrorKey =
+      micError === 'permission-denied' ? 'chat.micPermissionDenied'
+      : micError === 'no-speech-heard' ? 'chat.micNoSpeechHeard'
+      : 'chat.micUnavailable'
+    addToolMessage('error', `⚠️ ${t(micErrorKey)}`)
     clearMicError()
     if (!isContinuous) return
     consecutiveVoiceFailuresRef.current += 1

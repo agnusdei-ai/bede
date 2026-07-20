@@ -77,6 +77,7 @@
     "micYourTurn": "Tu turno — mantén presionado para hablar",
     "micPermissionDenied": "No puedo escucharte — este navegador ha bloqueado el micrófono. Puedes escribir tu respuesta, o pedirle a un padre que active el acceso al micrófono en la configuración del navegador.",
     "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar.",
+    "micNoSpeechHeard": "No logré escucharte bien. Intenta mantener presionado el micrófono y hablar un poco más cerca, o escribe tu respuesta.",
     "placeholderOnBreak": "En un descanso. Bede estará aquí cuando regreses.",
     "placeholderHoldListening": "Escuchando… suelta cuando termines",
     "placeholderYourTurn": "Tu turno — mantén presionado el micrófono para hablar",

@@ -140,12 +140,13 @@ services:
       # never match, silently CORS-blocking every request from the demo.
       #
       # agnusdei.ai and bede.ai are both listed ahead of actually moving the
-      # demo to either one (see demo/public/CNAME and docs/DEMO_HOSTING.md's
-      # "Custom domain" section) — an unused origin here is inert, so listing
-      # both candidates now means flipping the live domain later needs no
-      # backend redeploy. Drop whichever one doesn't end up in use once
-      # that's settled, and drop the agnusdei-ai.github.io fallback once the
-      # custom domain is confirmed working, to keep this list minimal again.
+      # demo to either one (see docs/DEMO_HOSTING.md's "Custom domain: moving
+      # to Cloudflare Pages" section) — an unused origin here is inert, so
+      # listing both candidates now means flipping the live domain later
+      # needs no backend redeploy. Drop whichever one doesn't end up in use
+      # once that's settled, and drop the agnusdei-ai.github.io fallback once
+      # the custom domain is confirmed working, to keep this list minimal
+      # again.
       - key: CORS_ORIGINS
         value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://bede.ai,https://www.bede.ai
       - key: DISABLE_API_DOCS

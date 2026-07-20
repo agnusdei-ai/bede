@@ -70,11 +70,28 @@ stage is the single most useful thing in this guide:
 | **Logic** | 3–5 | Reasoning about what's been gathered — cause and effect, "why," categorizing, forming a first opinion with a reason behind it. | "Why do you think that happened?" "What would happen if...?" "How is this like/unlike the other one?" Written narration starts here, but stays occasional, not the norm. |
 | **Rhetoric** | 6–8 | Debate, persuasive argument, nuance, defending a claim against an opposing view. | "What's the strongest argument *against* your position?" "How would you convince someone who disagreed?" Writing becomes the norm, not the exception. |
 
+Pacing matters as much as the question itself. Bede caps how far it presses
+on a single idea before backing off to something simpler or moving on: two
+follow-up questions on the very same idea is Bede's own outer limit before
+it simplifies, offers a hint, or moves on — and for Grammar-stage children
+(K–2) specifically, usually just *one* follow-up round is enough. If your
+child's answer touches several things at once, Bede deliberately follows
+just one thread rather than chasing all of them — and never bundles two
+questions into a single sentence for a K–2 child ("why did that happen, and
+what do you think comes next?" is really two questions at once). The same
+restraint helps at the dinner table: for a younger child especially, one
+simple, single-idea question, one round of follow-up, then let it rest —
+piling on is what turns a wondering conversation into an interrogation.
+
 ## What not to do (Bede doesn't do it either)
 
 - **Don't quiz.** A question with only one acceptable answer, asked to check
   a box, isn't Socratic — it's a test wearing a question mark. Bede's own
   narration checks are explicitly *never* a quiz; keep yours the same way.
+- **Don't stack questions.** One question, one idea, at a time — especially
+  for a younger child. A compound question ("what happened, and why?") asks
+  them to juggle two things at once instead of following one thought all the
+  way through.
 - **Don't rescue with the answer.** The hardest habit to break, especially
   mid-frustration. When your child is stuck, Bede's rule is to slow down and
   offer a gentler, more concrete version of the *same* question — an easier

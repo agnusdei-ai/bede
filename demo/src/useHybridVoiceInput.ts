@@ -17,7 +17,23 @@ import { enterRecordingAudioSession, restorePlaybackAudioSession } from './audio
  * attempt) as well as Firefox, which never implemented the API at all.
  */
 
-const NATIVE_STALL_TIMEOUT_MS = 4000
+// Was 4000ms. Lowered after a real debug-panel trace: a child's genuine,
+// several-seconds-long answer to Bede produced ZERO native results (no
+// interim, no final — the exact "Safari can accept the mic press and never
+// fire ONE SINGLE onresult" failure mode described below) on two separate
+// presses in the same session, both released at ~3.3-3.5s — just under the
+// old 4000ms threshold, so the watchdog never got a chance to switch to the
+// Whisper fallback before the child let go, and the whole answer was lost
+// with nothing sent to Bede at all. Safe to lower: this watchdog is
+// PERMANENTLY disarmed the moment even one interim result ever arrives (see
+// the interim effect below), so shortening it only affects the case where
+// native has produced literally nothing yet — never a hold that's actually
+// in progress and making progress.
+const NATIVE_STALL_TIMEOUT_MS = 2500
+// Below this, an empty release() from native mode is almost certainly an
+// accidental brief tap, not a real speech attempt gone unheard — no need to
+// alarm the child/parent over a stray touch. See release()'s own comment.
+const MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK = 1200
 // Hold-to-talk has no per-utterance stall watchdog by design (the child, not
 // a timer, decides when a turn ends — see the effect below). But since the
 // single mic button is now ALWAYS hold-to-talk with no manual toggle to
@@ -57,7 +73,7 @@ interface Options {
 }
 
 type Mode = 'idle' | 'native' | 'recording' | 'transcribing'
-export type MicError = 'permission-denied' | 'unavailable'
+export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard'
 
 export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
@@ -86,6 +102,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const holdModeRef = useRef(false)
   const accumRef = useRef('')
   const lastInterimRef = useRef('')
+  // When THIS press began — release() uses it to tell a real, unheard
+  // multi-second answer (worth surfacing, see MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK)
+  // apart from an accidental brief tap (not worth alarming anyone over).
+  const holdStartedAtRef = useRef(0)
   const holdSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const recordingSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Always points at the CURRENT release() so the hold-safety timer (armed
@@ -334,6 +354,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     holdModeRef.current = hold
     accumRef.current = ''
     lastInterimRef.current = ''
+    holdStartedAtRef.current = Date.now()
     // A fresh press means a fresh attempt — don't let a previous failure's
     // banner linger once the child tries again.
     setMicError(null)
@@ -432,11 +453,23 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       native.stop()
       recorder.cancelPrewarm()
       const text = [accumRef.current.trim(), salvage].filter(Boolean).join(' ').trim()
+      const heldMs = Date.now() - holdStartedAtRef.current
       accumRef.current = ''
       lastInterimRef.current = ''
       holdModeRef.current = false
       setMode('idle')
-      if (text) onFinal?.(text)
+      if (text) {
+        onFinal?.(text)
+      } else if (heldMs >= MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK) {
+        // Native ran for a real, multi-second hold and produced literally
+        // nothing — no interim, no final, and never even the browser's own
+        // "no-speech" event (that case already goes idle silently via
+        // onNoSpeech above). Confirmed via a real debug-panel trace: this
+        // used to just silently send nothing, leaving the child's whole
+        // answer lost with no sign anything went wrong.
+        logDebug(`release() from native produced nothing after a ${heldMs}ms hold — surfacing to the user`)
+        setMicError('no-speech-heard')
+      }
     } else if (modeRef.current === 'recording') {
       // Native wasn't available for this press; the recorder is capturing.
       // Stopping it runs onComplete → transcribe → onFinal (sends once).

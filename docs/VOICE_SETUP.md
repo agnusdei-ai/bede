@@ -373,6 +373,50 @@ call stack, a known category of browser quirk. Regardless of that trigger,
 both fixes above close off the *consequence* (mode getting permanently
 stuck) for good.
 
+## Troubleshooting: a real, multi-second answer produces nothing at all, with no error shown
+
+Reported with a live debug-panel trace (see `DebugOverlay.tsx`): a child
+held the mic and answered a question out loud for ~3.3-3.5 seconds — twice
+in the same session — and native recognition produced *zero* signal the
+entire time (no interim, no final), the exact "Safari can accept the mic
+press and then never fire ONE SINGLE onresult for the entire hold" failure
+mode `_start`'s own comment already documented. The existing stall watchdog
+exists precisely to catch this, but at its old 4000ms threshold it never
+got the chance: both holds were released at ~3.3-3.5s, just under the
+watchdog's deadline, so `release()` ran with `mode` still `'native'` and
+nothing ever accumulated — the child's whole answer was silently lost, with
+nothing sent to Bede and no sign anything had gone wrong. The debug trace's
+repeated very-short re-presses (76ms, 53ms) right around the same failures
+read exactly like a confused child trying again after nothing seemed to
+happen.
+
+Two changes, addressing the same trace:
+
+1. **`NATIVE_STALL_TIMEOUT_MS` lowered from 4000ms to 2500ms.** Safe to
+   lower because this watchdog is *permanently disarmed* the moment even a
+   single interim result ever arrives (see the interim effect) — shortening
+   it only changes how long the app waits before deciding "native has
+   produced literally nothing yet," never a hold that's actually making
+   progress. A hold like the one in the trace now hits the watchdog *while
+   still held*, switching over to the recorder+Whisper fallback partway
+   through instead of reaching `release()` with nothing at all.
+2. **`release()` itself now recognizes the narrower remaining gap** — a
+   hold released between `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` (1200ms, below
+   which an empty release is almost certainly just an accidental brief tap,
+   not worth alarming anyone over) and the stall watchdog's own deadline,
+   that still produced nothing. `MicError` gained a third value,
+   `'no-speech-heard'` (alongside `'permission-denied'`/`'unavailable'`),
+   surfaced through the same `SocraticChat.tsx`/`App.tsx` chat-message path
+   as the other two, telling the child plainly rather than staying silent.
+
+**Fixed in both copies** of `useHybridVoiceInput.ts` — same
+independent-codebases caveat as every other voice-pipeline fix in this
+file. As with the "permanently stuck" bug above, *why* native produced zero
+signal for this specific device/session wasn't root-caused (needs a live
+device to actually reproduce, not available in the sandbox this was fixed
+in) — this fix closes off the *consequence* (a lost answer with no
+feedback) rather than the underlying recognition-service flakiness itself.
+
 ## Troubleshooting: the live transcript while speaking is off-screen
 
 Reported with a screenshot: while holding the mic and talking, the child's

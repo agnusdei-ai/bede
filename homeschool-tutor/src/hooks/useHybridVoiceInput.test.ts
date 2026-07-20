@@ -664,3 +664,73 @@ describe('useHybridVoiceInput audio session', () => {
     expect(restorePlaybackAudioSession).toHaveBeenCalled()
   })
 })
+
+describe('useHybridVoiceInput no-speech-heard feedback', () => {
+  // Regression coverage for a real reported failure, confirmed via a
+  // debug-panel trace: a child held the mic and answered for ~3.3-3.5s,
+  // native recognition produced NO interim and NO final the entire time
+  // (the documented "Safari can accept the mic press and never fire one
+  // single onresult" failure mode), and the child released just under the
+  // old 4000ms stall watchdog — so the whole answer was silently lost with
+  // nothing sent to Bede and no sign anything went wrong. See
+  // NATIVE_STALL_TIMEOUT_MS/MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK.
+  it('surfaces no-speech-heard when a hold produces nothing and is released before the stall watchdog fires', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    // No interim, no final. Released between MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK
+    // (1200ms) and NATIVE_STALL_TIMEOUT_MS (2500ms) — long enough to be a
+    // real speech attempt, but before the watchdog itself would have
+    // switched over to the recorder fallback.
+    act(() => vi.advanceTimersByTime(1800))
+    act(() => result.current.release())
+
+    expect(onFinal).not.toHaveBeenCalled()
+    expect(result.current.micError).toBe('no-speech-heard')
+  })
+
+  it('falls back to the recorder instead once the stall watchdog fires mid-hold', () => {
+    // The real trace this regression covers (~3.3-3.5s of nothing) now
+    // hits the (lowered) stall watchdog WHILE STILL HELD rather than
+    // reaching release() with nothing at all — the watchdog switching to
+    // the Whisper fallback partway through is the better outcome, and
+    // no-speech-heard becomes the narrower safety net for holds released
+    // just before that point (see the test above).
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    act(() => vi.advanceTimersByTime(2600))
+
+    expect(startRecording).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not surface no-speech-heard for an accidental brief tap', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => vi.advanceTimersByTime(150))
+    act(() => result.current.release())
+
+    expect(onFinal).not.toHaveBeenCalled()
+    expect(result.current.micError).toBe(null)
+  })
+
+  it('does not surface no-speech-heard when the hold actually captured something', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    // An early interim is proof native is alive — permanently disarms the
+    // stall watchdog for this hold (see the interim effect), same as a
+    // real long answer with natural pauses.
+    act(() => lastInstance.emitInterim('the'))
+    act(() => vi.advanceTimersByTime(3300))
+    act(() => lastInstance.emitFinal('the quick brown fox'))
+    act(() => result.current.release())
+
+    expect(onFinal).toHaveBeenCalledWith('the quick brown fox')
+    expect(result.current.micError).toBe(null)
+  })
+})

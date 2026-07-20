@@ -511,3 +511,61 @@ describe('useHybridVoiceInput audio session', () => {
     expect(restorePlaybackAudioSession).toHaveBeenCalled()
   })
 })
+
+describe('useHybridVoiceInput no-speech-heard feedback', () => {
+  // Mirror of homeschool-tutor/src/hooks/useHybridVoiceInput.test.ts's own
+  // "no-speech-heard feedback" block — see that file for the full story.
+  // Regression coverage for a real reported failure, confirmed via a
+  // debug-panel trace: a child held the mic and answered for ~3.3-3.5s,
+  // native recognition produced NO interim and NO final the entire time,
+  // and the child released just under the old 4000ms stall watchdog — so
+  // the whole answer was silently lost with nothing sent to Bede and no
+  // sign anything went wrong. See NATIVE_STALL_TIMEOUT_MS/
+  // MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK.
+  it('surfaces no-speech-heard when a hold produces nothing and is released before the stall watchdog fires', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => vi.advanceTimersByTime(1800))
+    act(() => result.current.release())
+
+    expect(onFinal).not.toHaveBeenCalled()
+    expect(result.current.micError).toBe('no-speech-heard')
+  })
+
+  it('falls back to the recorder instead once the stall watchdog fires mid-hold', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    act(() => vi.advanceTimersByTime(2600))
+
+    expect(startRecording).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not surface no-speech-heard for an accidental brief tap', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => vi.advanceTimersByTime(150))
+    act(() => result.current.release())
+
+    expect(onFinal).not.toHaveBeenCalled()
+    expect(result.current.micError).toBe(null)
+  })
+
+  it('does not surface no-speech-heard when the hold actually captured something', () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    act(() => lastInstance.emitInterim('the'))
+    act(() => vi.advanceTimersByTime(3300))
+    act(() => lastInstance.emitFinal('the quick brown fox'))
+    act(() => result.current.release())
+
+    expect(onFinal).toHaveBeenCalledWith('the quick brown fox')
+    expect(result.current.micError).toBe(null)
+  })
+})

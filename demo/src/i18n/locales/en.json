@@ -31,6 +31,7 @@
     "micHoldListening": "Listening… let go when you're done",
     "micPermissionDenied": "I can't hear you — this browser has blocked the microphone. You can still type your answer, or check the browser's microphone permission for this site.",
     "micUnavailable": "I can't hear you right now — something's wrong with the microphone. You can still type your answer instead.",
+    "micNoSpeechHeard": "I didn't quite catch that. Try holding the mic and talking a bit closer, or type your answer instead.",
     "sendMessage": "Send",
     "removeDrawing": "Remove drawing"
   },

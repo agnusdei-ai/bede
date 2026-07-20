@@ -31,6 +31,7 @@
     "micHoldListening": "Escuchando… suelta cuando termines",
     "micPermissionDenied": "No puedo escucharte — este navegador ha bloqueado el micrófono. Puedes escribir tu respuesta, o revisar el permiso de micrófono del navegador para este sitio.",
     "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar.",
+    "micNoSpeechHeard": "No logré escucharte bien. Intenta mantener presionado el micrófono y hablar un poco más cerca, o escribe tu respuesta.",
     "sendMessage": "Enviar",
     "removeDrawing": "Quitar dibujo"
   },

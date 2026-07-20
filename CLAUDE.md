@@ -73,9 +73,13 @@ The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it
 All from `.env` (gitignored — never commit) — see `.env.example` for the
 full, current list with comments, or `docs/PRODUCTION_SETUP.md` for the
 narrative version. In production mode (`PRODUCTION=true`), the API rejects
-startup if any credential matches a known-weak default, or if `CHILD_PIN`/
+startup if any credential matches a known-weak default, if `CHILD_PIN`/
 `DEMO_PIN` isn't a strong pattern (enforced by `model_validator` in
-`core/config.py` — see `pin_is_strong()` for the exact rules).
+`core/config.py` — see `pin_is_strong()` for the exact rules), or if none
+of `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`MISTRAL_API_KEY`/
+`LOCAL_LLM_BASE_URL` is set (`reject_no_ai_provider_configured_in_production`
+— at least one AI provider is required, but never a specific one; see
+`docs/PROVIDER_ADAPTERS.md`).
 
 ## Architecture
 
@@ -213,7 +217,8 @@ see **[docs/SECURITY.md](docs/SECURITY.md)**. If something has actually
 gone wrong, or you've found a vulnerability in Bede's code, see
 **[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)** and the
 root-level **[SECURITY.md](SECURITY.md)**. For the dependency SBOM and
-what actually flows to Anthropic/OpenAI/Mistral/Resend at runtime, see
+what actually flows to Anthropic/OpenAI/Mistral/Resend at runtime (or
+nothing at all, for the self-hosted local model option), see
 **[docs/VENDOR_DATA_FLOW.md](docs/VENDOR_DATA_FLOW.md)**
 (`docs/sbom/`, regenerable via `scripts/generate_sbom.py`). For live
 red-team probing of the actual tutoring persona against the real model

@@ -10,7 +10,14 @@ vendor risk assessment or a substitute for reviewing each vendor's own
 terms, DPA, and subprocessor list yourself** before you decide whether
 they're acceptable for your family or your deployment.
 
-## Anthropic — required
+## AI provider — exactly one of these is required, never a specific one
+
+Bede talks to a provider ADAPTER, not a hardcoded vendor (`services/adapters/`
+— see `docs/PROVIDER_ADAPTERS.md`). A deployment picks one of Anthropic,
+OpenAI, Mistral, or a self-hosted local model via `BEDE_ADAPTER_ORDER`;
+`core/config.py` refuses to start in production unless at least one is
+configured, but never requires a specific one. **What's sent is identical
+regardless of which adapter is active** — only the destination changes:
 
 **What's sent:** every tutoring turn's full context — the system prompt
 (the digest-pinned constitution, Bede's persona/rules, the current
@@ -18,18 +25,32 @@ subject's guidance, the processing-style note, any parent-supplied
 `lesson_focus`/`faith_emphasis`/`current_unit`), the conversation history
 for the current subject, and the child's current message. If the child
 used the handwriting canvas, that turn also includes the drawing as a
-base64-encoded image. End-of-session summaries (`generate_session_summary`)
-send the session's message history to produce the parent-facing report.
-A separate, second call (`services/moderation.py`'s `classify_child_message`,
-AIUC-1 B005) sends just the child's current message — not the system
-prompt or conversation history — for content-safety classification before
-the main tutoring call proceeds.
+base64-encoded image (only reaches the model intact with a vision-capable
+provider — see `docs/PROVIDER_ADAPTERS.md`'s note on this). End-of-session
+summaries (`generate_session_summary`) send the session's message history
+to produce the parent-facing report. A separate, second call
+(`services/moderation.py`'s `classify_child_message`, AIUC-1 B005) sends
+just the child's current message — not the system prompt or conversation
+history — for content-safety classification before the main tutoring call
+proceeds. Both calls go through the same adapter as ordinary tutoring.
 
-**Why it's required:** Anthropic's Claude models are Bede — there's no
-tutoring without this call. `core/config.py` pins `tutor_model` (streaming,
-`claude-sonnet-4-6`) and `session_model` (non-streaming,
-`claude-haiku-4-5-20251001`, end-of-session summary and moderation
-classification both).
+**Where it actually goes, per provider:**
+
+- **Anthropic** — `https://api.anthropic.com`. See [Anthropic's Privacy
+  Policy and Commercial Terms of Service](https://www.anthropic.com/legal)
+  for their retention and training-use commitments.
+- **OpenAI** — `https://api.openai.com` (the chat adapter; distinct from
+  OpenAI TTS below, a separate feature/use of the same vendor). See
+  [OpenAI's Privacy Policy and API data usage
+  policies](https://openai.com/policies/).
+- **Mistral** — `https://api.mistral.ai`. See [Mistral's Privacy
+  Policy](https://mistral.ai/terms/).
+- **A self-hosted local model — nothing leaves your machine at all.** The
+  local adapter (`LOCAL_LLM_BASE_URL`) points at a vLLM server you run
+  yourself (open-weight `Qwen/Qwen3-Coder-30B-A3B-Instruct` by default) —
+  no vendor, no account, no third-party data flow for tutoring at all. If
+  it's reachable over your LAN/VPN only (as `docs/PROVIDER_ADAPTERS.md`
+  recommends), this section of vendor exposure is simply zero.
 
 **What doesn't get sent:** raw encryption key material, other students'
 data, voice biometric embeddings, or anything from the parent's own
@@ -37,10 +58,10 @@ account credentials — none of that is ever placed in a prompt. Credential-
 shaped text a child or parent types is redacted before it reaches this
 call (`_redact_credentials`, AIUC-1 A008 — see `docs/SECURITY.md`).
 
-**Your own review:** see [Anthropic's Privacy Policy and Commercial Terms
-of Service](https://www.anthropic.com/legal) for their retention and
-training-use commitments for API traffic — this document describes what
-Bede sends, not what Anthropic does with it afterward.
+**Your own review:** whichever provider a deployment actually uses, review
+that vendor's own privacy policy and terms yourself — this document
+describes what Bede sends, not what any given vendor does with it
+afterward.
 
 ## OpenAI — optional, two independent features
 

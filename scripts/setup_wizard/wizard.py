@@ -121,7 +121,7 @@ def _narration_block(clip: str, enable_mic: bool) -> str:
             '🎤 Voice commands: off</button>'
             '<div class="voice-hint">Voice commands only control choices and '
             'navigation (e.g. "on this computer", "submit") — always type '
-            'your password, PIN, and API key.</div>'
+            'your password, PIN, and provider credentials.</div>'
         )
         # Deliberately built as a separate string, included only when
         # enable_mic is True — omitted entirely (not just runtime-guarded)
@@ -223,6 +223,7 @@ def _narration_block(clip: str, enable_mic: bool) -> str:
 def render_form(error: str = "", banner: str = "", values: dict | None = None) -> str:
     v = values or {}
     db_choice = v.get("db_choice", "local")
+    provider = v.get("provider", "anthropic")
     body = []
     body.append("<h1>Let's set up Bede</h1>")
     body.append(_narration_block("welcome", enable_mic=True))
@@ -233,9 +234,67 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
         body.append(f'<div class="error">{html.escape(error)}</div>')
     body.append('<form method="POST" action="/submit">')
 
-    body.append('<label>Anthropic (Claude) API key</label>')
-    body.append('<div class="hint">Get one free at <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a> — this is what powers Bede\'s tutoring.</div>')
+    body.append('<label>Which AI provider should Bede use for tutoring?</label>')
+    body.append('<div class="hint">Pick one — you can add a backup provider later by editing .env yourself, see docs/PROVIDER_ADAPTERS.md.</div>')
+    body.append(f"""
+    <label class="choice {'selected' if provider == 'anthropic' else ''}">
+      <input type="radio" name="provider" value="anthropic" onclick="showProvider('anthropic')" {'checked' if provider == 'anthropic' else ''}>
+      <span class="choice-title">Anthropic (Claude)</span>
+      <div class="choice-desc">Cloud, pay-as-you-go. Get a key free at console.anthropic.com.</div>
+    </label>
+    <label class="choice {'selected' if provider == 'openai' else ''}">
+      <input type="radio" name="provider" value="openai" onclick="showProvider('openai')" {'checked' if provider == 'openai' else ''}>
+      <span class="choice-title">OpenAI</span>
+      <div class="choice-desc">Cloud, pay-as-you-go. Get a key at platform.openai.com/api-keys.</div>
+    </label>
+    <label class="choice {'selected' if provider == 'mistral' else ''}">
+      <input type="radio" name="provider" value="mistral" onclick="showProvider('mistral')" {'checked' if provider == 'mistral' else ''}>
+      <span class="choice-title">Mistral AI</span>
+      <div class="choice-desc">Cloud, pay-as-you-go. Get a key at console.mistral.ai.</div>
+    </label>
+    <label class="choice {'selected' if provider == 'local' else ''}">
+      <input type="radio" name="provider" value="local" onclick="showProvider('local')" {'checked' if provider == 'local' else ''}>
+      <span class="choice-title">A self-hosted model on my own server</span>
+      <div class="choice-desc">Open-weight, no account, no per-message cost — but needs a separate computer with a capable GPU running it. See docs/PROVIDER_ADAPTERS.md if you haven't set one up yet.</div>
+    </label>
+    """)
+
+    def _field_style(name: str) -> str:
+        return "" if provider == name else 'style="display:none"'
+
+    body.append(f'<div id="provider_anthropic" {_field_style("anthropic")}>')
+    body.append('<label>Anthropic API key</label>')
     body.append(f'<input type="text" name="anthropic_key" value="{html.escape(v.get("anthropic_key", ""))}" placeholder="sk-ant-...">')
+    body.append('</div>')
+
+    body.append(f'<div id="provider_openai" {_field_style("openai")}>')
+    body.append('<label>OpenAI API key</label>')
+    body.append(f'<input type="text" name="openai_key" value="{html.escape(v.get("openai_key", ""))}" placeholder="sk-proj-...">')
+    body.append('</div>')
+
+    body.append(f'<div id="provider_mistral" {_field_style("mistral")}>')
+    body.append('<label>Mistral API key</label>')
+    body.append(f'<input type="text" name="mistral_key" value="{html.escape(v.get("mistral_key", ""))}" placeholder="...">')
+    body.append('</div>')
+
+    body.append(f'<div id="provider_local" {_field_style("local")}>')
+    body.append('<label>Your model server\'s address</label>')
+    body.append('<div class="hint">The OpenAI-compatible /v1 endpoint URL, e.g. http://your-gpu-box.lan:8000/v1</div>')
+    body.append(f'<input type="text" name="local_base_url" value="{html.escape(v.get("local_base_url", ""))}" placeholder="http://your-gpu-box.lan:8000/v1">')
+    body.append('</div>')
+
+    body.append("""
+    <script>
+    function showProvider(p) {
+      ['anthropic', 'openai', 'mistral', 'local'].forEach(function(name) {
+        document.getElementById('provider_' + name).style.display = (name === p) ? 'block' : 'none';
+      });
+      document.querySelectorAll('input[name=provider]').forEach(function(el) {
+        el.closest('.choice').classList.toggle('selected', el.checked);
+      });
+    }
+    </script>
+    """)
 
     body.append('<label>Where should Bede store its data?</label>')
     body.append(f"""
@@ -295,6 +354,20 @@ def render_success() -> str:
     return _PAGE_HEAD + body + _PAGE_TAIL
 
 
+_PROVIDER_ENV_LINES = {
+    "anthropic": lambda f: f"ANTHROPIC_API_KEY={f['anthropic_key']}\n",
+    "openai": lambda f: f"OPENAI_API_KEY={f['openai_key']}\n",
+    "mistral": lambda f: f"MISTRAL_API_KEY={f['mistral_key']}\n",
+    "local": lambda f: f"LOCAL_LLM_BASE_URL={f['local_base_url']}\n",
+}
+_PROVIDER_FIELD_NAMES = {
+    "anthropic": "anthropic_key",
+    "openai": "openai_key",
+    "mistral": "mistral_key",
+    "local": "local_base_url",
+}
+
+
 def build_env_file(fields: dict) -> str:
     secret_key = secrets.token_hex(32)
     master_secret = secrets.token_hex(32)
@@ -312,10 +385,13 @@ def build_env_file(fields: dict) -> str:
     else:
         cors = "https://localhost,http://ui:80"
 
+    provider = fields.get("provider", "anthropic")
+    provider_lines = f"BEDE_ADAPTER_ORDER={provider}\n" + _PROVIDER_ENV_LINES[provider](fields)
+
     return (
         "# Generated by Bede's setup wizard\n"
         "# DO NOT commit this file — it contains secrets.\n\n"
-        f"ANTHROPIC_API_KEY={fields['anthropic_key']}\n"
+        f"{provider_lines}"
         f"SECRET_KEY={secret_key}\n"
         f"MASTER_SECRET={master_secret}\n"
         f"PARENT_PASSWORD={fields['parent_password']}\n"
@@ -329,10 +405,22 @@ def build_env_file(fields: dict) -> str:
     )
 
 
+_PROVIDER_LABELS = {
+    "anthropic": "your Anthropic API key",
+    "openai": "your OpenAI API key",
+    "mistral": "your Mistral API key",
+    "local": "your model server's address",
+}
+
+
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
-    if not fields.get("anthropic_key", "").strip():
-        return "Please enter your Anthropic API key."
+    provider = fields.get("provider", "anthropic")
+    if provider not in _PROVIDER_FIELD_NAMES:
+        return "Please choose an AI provider."
+    field_name = _PROVIDER_FIELD_NAMES[provider]
+    if not fields.get(field_name, "").strip():
+        return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
     if fields.get("db_choice") == "managed" and not fields.get("database_url", "").strip():
         return "Please enter your database connection string, or choose \"On this computer\" instead."
     if len(fields.get("parent_password", "")) < 8:
@@ -401,6 +489,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = parse_qs(raw)
         fields = {k: v[0] for k, v in parsed.items()}
         fields.setdefault("db_choice", "local")
+        fields.setdefault("provider", "anthropic")
 
         error = validate(fields)
         if error:

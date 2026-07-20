@@ -20,9 +20,10 @@ terminal:
 ```bash
 make setup        # or: bash setup.sh
 ```
-An interactive wizard: it asks for your Anthropic API key, your database
-choice (see below), a parent password, and a child PIN, generates the
-cryptographic secrets, writes `.env`, and starts everything.
+An interactive wizard: it asks which AI provider Bede should use (see
+below — no single vendor is required), your database choice (see below), a
+parent password, and a child PIN, generates the cryptographic secrets,
+writes `.env`, and starts everything.
 
 **Browser wizard** — no terminal typing at all, for anyone who isn't
 comfortable with the above. Requires [Docker Desktop](https://docker.com/products/docker-desktop)
@@ -63,6 +64,26 @@ PIN, and API key always have to be typed, never spoken.
 > (`setup-gui.command`/`setup-gui.bat`) run on a Linux runner under the
 > hood, so a literal double-click on macOS/Windows hasn't been observed —
 > if that differs for you, please report back.
+
+## Choosing an AI provider
+
+`make setup` asks which of these you want — pick whichever fits your
+family, there's no default to fight against:
+
+1. **Anthropic (Claude)** or **OpenAI** or **Mistral AI** — cloud,
+   pay-as-you-go, needs an account and API key with that provider.
+2. **A self-hosted model on your own server** — open-weight
+   (`Qwen/Qwen3-Coder-30B-A3B-Instruct` by default), no account, no
+   per-message cost. Needs a separate computer with a capable GPU running
+   it (NVIDIA/Linux only — see `docs/PROVIDER_ADAPTERS.md` for hardware
+   tiers and setup); the machine running Bede itself just points at that
+   server's network address.
+
+Whichever you pick, `core/config.py` refuses to start in production if
+none of them ends up configured — but never requires a *specific* one.
+See `docs/PROVIDER_ADAPTERS.md` for the full picture, including how to add
+a second provider afterward (by hand-editing `.env`) so Bede automatically
+fails over to it if the first becomes unavailable.
 
 ## Choosing a database
 
@@ -129,10 +150,16 @@ HTTPS with no browser chrome.
 ## Required environment variables
 
 All from `.env` (gitignored — never commit). See `.env.example` for the
-full list, with comments: `ANTHROPIC_API_KEY`, `SECRET_KEY`,
-`MASTER_SECRET`, `PARENT_PASSWORD`, `CHILD_PIN`, `DATABASE_URL`,
-`CORS_ORIGINS`, `LICENSE_KEY` (see **Licensing** below). Optional:
-`OPENAI_API_KEY` for voice (see `docs/VOICE_SETUP.md`), `RESEND_API_KEY`
+full list, with comments: `SECRET_KEY`, `MASTER_SECRET`,
+`PARENT_PASSWORD`, `CHILD_PIN`, `DATABASE_URL`, `CORS_ORIGINS`,
+`LICENSE_KEY` (see **Licensing** below), and at least one of
+`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `MISTRAL_API_KEY` /
+`LOCAL_LLM_BASE_URL` (see **Choosing an AI provider** above and
+`docs/PROVIDER_ADAPTERS.md`) — `core/config.py` rejects startup in
+production if none of the four is set. Optional:
+`OPENAI_API_KEY` also powers voice (see `docs/VOICE_SETUP.md`) — the same
+key doubles for both if you're already using OpenAI as your AI provider.
+`RESEND_API_KEY`
 for the post-session diagnostic email, `PARENT_EMAIL` for an urgent alert
 when Bede detects a child in distress or danger (reuses `RESEND_API_KEY`),
 `SANDBOX_PIN` to unlock a direct-answer "Ask Bede" chat for you to

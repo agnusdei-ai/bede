@@ -36,6 +36,11 @@ You can answer me in whichever way feels easiest:
   microphone gives a gentle glow to remind you to press and hold. If I ever
   say I can't hear you, it just means this tablet's microphone needs a
   parent's okay — you can always keep going by typing instead.
+- If your parent turns on **Voice on** 📻 (the little radio icon next to the
+  microphone), you don't need to press and hold at all — I'll just start
+  listening on my own when it's your turn. Talk whenever you're ready, and
+  when you're done I'll hear you and answer. Tap the microphone anytime to
+  go back to press-and-hold instead.
 - **Tap the pencil** ✏️ to draw or write your answer by hand — I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
   paper for math, dots for shapes and patterns, music staff paper, a nature

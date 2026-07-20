@@ -286,6 +286,20 @@ to them. Do **not** share the parent password with your child; there's no legiti
 reason they'd need it day-to-day, and it's the one credential that can override
 their voice check.
 
+**Press-and-hold vs. hands-free voice.** By default the mic works like a
+walkie-talkie — press and hold to talk, let go to send. If pressing and
+holding is getting in the way (a common request from parents of younger
+children especially), tap the small radio-icon button next to the
+microphone to switch to **Voice on**: Bede starts listening on its own
+whenever it's your child's turn, no button press needed. This is entirely
+opt-in and stays off unless someone taps it — it's a per-device setting
+(stored on that tablet, not tied to the student), so switching it on one
+tablet doesn't change any other. If the microphone has trouble hearing
+reliably in this mode, Bede switches back to press-and-hold on its own
+after a few failed attempts and says so in the chat — nothing gets stuck.
+Tapping the microphone itself at any time also switches straight back to
+press-and-hold.
+
 The writing pad (the pencil icon in a session) has a print button if your child
 prefers a real pencil to a stylus — it prints at true page size on any printer
 connected to their tablet, with handwriting ruling scaled to their `GradeStage`

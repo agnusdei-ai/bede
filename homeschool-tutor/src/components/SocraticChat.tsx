@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, Sparkles, Bug } from 'lucide-react'
+import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
@@ -12,7 +12,6 @@ import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
-import DebugOverlay from './DebugOverlay'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 
@@ -47,8 +46,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // A finished voice recording sits here for review — Send or Cancel —
   // instead of going straight to Bede the instant the mic is released.
   const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null)
-  // Off by default — see DebugOverlay.tsx. Session-only, not persisted.
-  const [showDebug, setShowDebug] = useState(false)
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -624,7 +621,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
   return (
     <div className="flex flex-col h-full">
-      {showDebug && <DebugOverlay onClose={() => setShowDebug(false)} />}
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
@@ -759,17 +755,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               )}
             </button>
           )}
-
-          {/* Voice-flow debug panel toggle — off by default, see DebugOverlay.tsx */}
-          <button
-            onClick={() => setShowDebug((v) => !v)}
-            title={showDebug ? t('chat.debugHide') : t('chat.debugShow')}
-            className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${
-              showDebug ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
-            }`}
-          >
-            <Bug size={18} />
-          </button>
 
           {/* Hold-to-talk vs. opt-in continuous "Voice on" — see
               useVoiceModePreference.ts. Defaults to hold-to-talk for every

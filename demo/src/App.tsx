@@ -961,6 +961,21 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
               the familiar corner for settings. Stays visible when the
               appearance lock hides the picker (it's how you unlock). */}
           <ParentControlsMenu controls={parentControls} onChange={setParentControls} />
+          {/* Voice-flow debug panel toggle — a developer/tester tool, not
+              something an ordinary visitor ever needs, so it's deliberately
+              separated from the actual interaction controls in the input bar
+              below (mic, pencil, send, etc.) rather than mixed in among
+              them. A border-l divider plus muted styling (vs. the sage
+              accent every real user control uses) marks it as
+              administrative, not part of the lesson itself. Off by default —
+              see DebugOverlay.tsx. */}
+          <button
+            onClick={() => setShowDebug((v) => !v)}
+            title="Debug panel (developer tool)"
+            className={`p-1.5 rounded-lg transition-colors border-l border-gray-200 pl-2.5 ml-0.5 flex-shrink-0 ${showDebug ? 'text-navy-600 bg-gray-100' : 'text-gray-300 hover:text-gray-500'}`}
+          >
+            <Bug size={15} />
+          </button>
         </div>
         {/* header (code/Ask Bede/Mastery preview/Feedback/Finish) gets its
             own wrapping row instead of sharing the icon/name/settings row
@@ -1117,13 +1132,6 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           </button>
           <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
-          </button>
-          {/* Voice-flow debug panel toggle — off by default, see DebugOverlay.tsx */}
-          <button
-            onClick={() => setShowDebug((v) => !v)}
-            className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${showDebug ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'}`}
-          >
-            <Bug size={18} />
           </button>
           {sttSupported && (
             <button

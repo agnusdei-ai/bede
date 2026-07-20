@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, Sparkles, Bug } from 'lucide-react'
+import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, Sparkles, Bug } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
+import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
@@ -24,6 +25,17 @@ import { logDebug } from '../hooks/debugBus'
 // demo/src/App.tsx's IDLE_CONTINUE_MS/MAX_CONSECUTIVE_AUTO_CONTINUES.
 const INACTIVITY_TIMEOUT_MS = 60_000
 const MAX_CONSECUTIVE_CONTINUES = 2
+// Continuous "Voice on" mode's circuit breaker — falls back to hold-to-talk
+// after this many consecutive mic failures in a row rather than looping
+// silently. See the micError effect and the continuous-mode auto-start
+// effect below.
+const MAX_CONSECUTIVE_VOICE_FAILURES = 3
+// Defense-in-depth against a rapid restart loop (the exact failure class
+// the earlier "voice mode" bred by restarting on a bare timer) — even
+// though the auto-start effect below is driven by state transitions, not a
+// timer, this floor guarantees consecutive auto-starts are never closer
+// together than this.
+const MIN_MS_BETWEEN_AUTO_STARTS = 800
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const { t, i18n } = useTranslation()
@@ -66,6 +78,21 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // flight, so the effect below can detect the moment it fully ends —
   // see its own comment for why this needs both isStreaming and isSpeaking.
   const turnActiveRef = useRef(false)
+
+  // ── Voice mode: hold-to-talk (default) vs. opt-in continuous "Voice on" ──
+  // See useVoiceModePreference.ts for the persistence model and why
+  // continuous mode is safe to reintroduce now despite the tap-to-speak
+  // comment above: the restart this time is driven by an explicit state
+  // transition (Bede's turn actually finishing, tracked by turnActiveRef),
+  // never a bare timer.
+  const { setMode: setVoiceMode, isContinuous } = useVoiceModePreference()
+  const consecutiveVoiceFailuresRef = useRef(0)
+  const lastAutoStartRef = useRef(0)
+  // send() is defined further down (after useHybridVoiceInput, which needs
+  // onFinal above it) — this ref lets continuous mode's onFinal call the
+  // CURRENT send() without a forward-reference error. Same pattern
+  // useHybridVoiceInput.ts itself uses for releaseRef.
+  const sendRef = useRef<(overrideMsg?: string) => void>(() => {})
 
   const {
     token,
@@ -119,14 +146,25 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // produces garbled transcripts regardless of how well the rest of the UI
   // is translated. Propagates to both the native Web Speech recognizer and
   // the server Whisper fallback's language hint — see useHybridVoiceInput.ts.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError } = useHybridVoiceInput({
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
     // A walkie-talkie release used to send the moment a transcript was
     // final — now it's held for review instead (see pendingVoiceTranscript
     // above): the child can see exactly what was heard and Send or Cancel
-    // rather than it going to Bede sight-unseen.
-    onFinal: (transcript) => setPendingVoiceTranscript(transcript),
+    // rather than it going to Bede sight-unseen. Continuous "Voice on" mode
+    // is the one exception — the whole point is hands-free, so it sends
+    // straight through (via sendRef, see above) instead of waiting for a
+    // review tap that would defeat the purpose.
+    onFinal: (transcript) => {
+      if (isContinuous) {
+        logDebug(`continuous voice onFinal — auto-sending text="${transcript}"`)
+        consecutiveVoiceFailuresRef.current = 0
+        sendRef.current(transcript)
+      } else {
+        setPendingVoiceTranscript(transcript)
+      }
+    },
   })
 
   // Surface the one mic failure that used to be completely silent: a denied
@@ -134,11 +172,23 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // nothing, with no error anywhere. Reuses the same chat-message error
   // pattern as consumeTurnStream's stream errors below, so it reads like a
   // normal part of the conversation rather than a separate alert overlay.
+  // In continuous mode this also feeds the circuit breaker: a denied
+  // permission falls back to hold-to-talk immediately (no amount of
+  // retrying will fix a blocked permission), and MAX_CONSECUTIVE_VOICE_FAILURES
+  // other failures in a row does the same, rather than continuing to
+  // auto-restart into the same failure indefinitely.
   useEffect(() => {
     if (!micError) return
     addToolMessage('error', `⚠️ ${t(micError === 'permission-denied' ? 'chat.micPermissionDenied' : 'chat.micUnavailable')}`)
     clearMicError()
-  }, [micError, clearMicError, addToolMessage, t])
+    if (!isContinuous) return
+    consecutiveVoiceFailuresRef.current += 1
+    if (micError === 'permission-denied' || consecutiveVoiceFailuresRef.current >= MAX_CONSECUTIVE_VOICE_FAILURES) {
+      consecutiveVoiceFailuresRef.current = 0
+      setVoiceMode('hold')
+      addToolMessage('error', `⚠️ ${t('chat.voiceModeFallbackMessage')}`)
+    }
+  }, [micError, clearMicError, addToolMessage, t, isContinuous, setVoiceMode])
 
   // Word-level diff of the live interim transcript, called unconditionally
   // (rules of hooks) even though it's only rendered while isListening &&
@@ -420,6 +470,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     timeOfDay, localDate, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
   ])
 
+  // Keeps sendRef (declared above useHybridVoiceInput, before send() exists)
+  // pointing at the current send() on every render — no dependency array,
+  // deliberately: this must never go stale the way a memoized effect could.
+  useEffect(() => {
+    sendRef.current = send
+  })
+
   // Voice review: the child presses Send on the transcript they were just
   // shown, or Cancel to discard it — nothing reaches Bede without one of
   // these (see pendingVoiceTranscript / the useHybridVoiceInput onFinal above).
@@ -487,6 +544,29 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       }
     }
   }, [isStreaming, isSpeaking, breakActive, nextSubject, clearInactivityTimer, sendContinue])
+
+  // Continuous "Voice on" mode: once it's genuinely the child's turn (the
+  // same awaitingChildTurn signal the hold-to-talk mic's own idle styling
+  // uses below), start listening on its own — no press required. Driven
+  // entirely by awaitingChildTurn's own state transitions (which already
+  // require isStreaming/isSpeaking/isListening/isTranscribing/breakActive to
+  // all be settled), never a bare timer — the specific difference from the
+  // earlier "voice mode" that auto-restarted on an interval and bred
+  // recurring audio bugs (see the press-and-hold comment above).
+  // MIN_MS_BETWEEN_AUTO_STARTS is defense-in-depth against a rapid-restart
+  // loop even so; MAX_CONSECUTIVE_VOICE_FAILURES (the micError effect above)
+  // falls back to hold-to-talk after repeated failures rather than looping
+  // silently forever.
+  useEffect(() => {
+    if (!isContinuous || !sttSupported) return
+    if (!awaitingChildTurn) return
+    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    const now = Date.now()
+    if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
+    lastAutoStartRef.current = now
+    logDebug('continuous voice mode — auto-starting listening for the child\'s turn')
+    start()
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript, start])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
@@ -687,21 +767,50 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             <Bug size={18} />
           </button>
 
-          {/* The ONE voice control: press and hold the mic to talk, release to
-              send. No mode toggle, no tap-to-speak alternative — pointer
-              handlers (not onClick) drive it, and touch-none stops the
-              long-press menu / scroll / text selection on tablets. Disabled
-              while Bede is busy, on a break, or transcribing. */}
+          {/* Hold-to-talk vs. opt-in continuous "Voice on" — see
+              useVoiceModePreference.ts. Defaults to hold-to-talk for every
+              family; tapping this only switches the PREFERENCE, never
+              starts/stops listening itself. */}
           {sttSupported && (
             <button
-              onPointerDown={holdStart}
-              onPointerUp={holdEnd}
-              onPointerLeave={holdEnd}
-              onPointerCancel={holdEnd}
+              onClick={() => setVoiceMode(isContinuous ? 'hold' : 'continuous')}
+              title={t('chat.voiceModeToggleTooltip')}
+              aria-label={isContinuous ? t('chat.voiceModeContinuous') : t('chat.voiceModeHold')}
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 ${
+                isContinuous ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
+              }`}
+            >
+              <Radio size={18} />
+            </button>
+          )}
+
+          {/* The voice control: hold-to-talk by default — press and hold the
+              mic to talk, release to send, pointer handlers (not onClick)
+              drive it, and touch-none stops the long-press menu / scroll /
+              text selection on tablets. In continuous "Voice on" mode, Bede
+              listens on its own between turns (see the auto-start effect
+              above) and this button instead just switches back to
+              hold-to-talk on a tap — a one-tap escape hatch, never a hold
+              gesture while continuous mode is active. Disabled while Bede is
+              busy, on a break, or transcribing. */}
+          {sttSupported && (
+            <button
+              {...(isContinuous
+                ? { onClick: () => setVoiceMode('hold') }
+                : {
+                    onPointerDown: holdStart,
+                    onPointerUp: holdEnd,
+                    onPointerLeave: holdEnd,
+                    onPointerCancel: holdEnd,
+                  })}
               disabled={isStreaming || breakActive || isTranscribing}
               title={
                 isTranscribing
                   ? t('chat.transcribing')
+                  : isContinuous
+                  ? isListening
+                    ? t('chat.micContinuousListening')
+                    : t('chat.micContinuousWaiting')
                   : isListening
                   ? t('chat.micHoldListening')
                   : t('chat.micHoldToTalk')
@@ -709,6 +818,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${
                 isListening
                   ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft'
+                  : isContinuous
+                  ? 'bg-navy-100 text-navy-600 ring-2 ring-navy-200 animate-pulse-soft'
                   : awaitingChildTurn
                   ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300'
                   : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'

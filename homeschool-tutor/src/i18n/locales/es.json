@@ -89,7 +89,13 @@
     "drawingAlt": "Tu dibujo",
     "youFallback": "Tú",
     "sendMessage": "Enviar",
-    "removeDrawing": "Quitar dibujo"
+    "removeDrawing": "Quitar dibujo",
+    "voiceModeHold": "Mantener presionado",
+    "voiceModeContinuous": "Voz activada",
+    "voiceModeToggleTooltip": "Cambia entre mantener presionado y voz manos libres",
+    "micContinuousListening": "Escuchando — toca para volver a mantener presionado",
+    "micContinuousWaiting": "Voz activada — Bede escuchará cuando sea tu turno",
+    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras."
   },
   "podDashboard": {
     "noStudentsTitle": "No hay estudiantes configurados",

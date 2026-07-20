@@ -433,6 +433,57 @@ public API for a page to control audio session category directly, so this
 fix is iOS/iPadOS-specific; Android's own routing behavior around
 `getUserMedia` wasn't reported as broken and is left alone.
 
+## Feature: continuous "Voice on" mode (opt-in, hold-to-talk stays the default)
+
+Reported by a parent: "I don't really want to hold it down." Press-and-hold
+is the well-considered default (see the "mic gets permanently stuck" and
+"switches audio output" sections above for why it replaced two earlier,
+less reliable designs — a plain tap-to-speak, and before that a
+fully-automatic "voice mode"), but a family can now opt into a genuinely
+hands-free alternative: tap the `Radio`-icon pill next to the mic
+(`SocraticChat.tsx`) to switch from **Hold to talk** to **Voice on**. The
+preference is per-device, stored in `localStorage`
+(`useVoiceModePreference.ts`, `bede-voice-mode`) the same way as the chat
+theme — deliberately *not* synced server-side to follow the student to
+another tablet, since hands-free behavior is sensitive to that specific
+device's own microphone/speaker setup.
+
+**How it behaves once on:** the mic starts listening on its own the moment
+it's genuinely the child's turn (nothing streaming, Bede not speaking, not
+on a break, not already listening/transcribing) — no press needed. A
+finished utterance sends itself immediately, bypassing the hold-to-talk
+mode's Confirm/Cancel review step (holding a hands-free turn for a manual
+tap would defeat the point). Tapping the mic button itself while continuous
+mode is active switches straight back to hold-to-talk — a one-tap escape
+hatch, not a hold gesture.
+
+**Why this isn't the same bug that got the earlier "voice mode" removed:**
+that design restarted listening on a **bare timer** after every turn, which
+meant every restart re-ran the same timing-fragile "is the browser still
+listening?" heuristics on a fixed schedule regardless of what was actually
+happening — the documented cause of its recurring audio bugs. Continuous
+mode's restart is instead driven entirely by an explicit **state
+transition** — `SocraticChat.tsx`'s own `awaitingChildTurn` flag flipping
+true, the same signal the hold-to-talk button's idle styling already uses —
+never a timer. `MIN_MS_BETWEEN_AUTO_STARTS` (800ms) is defense-in-depth
+against a rapid-restart loop even so. This also lands after, and directly
+benefits from, two fixes earlier in this same file: the mic-stuck-after-
+interruption fix and the iOS audio-session/output-routing fix, both of
+which address failure classes that repeated mic opens would otherwise
+aggravate.
+
+**Circuit breaker:** `MAX_CONSECUTIVE_VOICE_FAILURES` (3) consecutive mic
+failures in a row — or a single `'permission-denied'`, which no amount of
+retrying fixes — automatically switches the preference back to hold-to-talk
+and tells the child in a plain chat message (`chat.voiceModeFallbackMessage`),
+rather than continuing to silently auto-restart into the same failure.
+
+**Not yet built:** a UI affordance to tune recognition accuracy/language
+model bias (a parent also asked for this) — that needs a specific
+reproduction (what was misheard, which language/accent, native recognition
+vs. the Whisper fallback) to act on, the same way every other voice fix in
+this file started from a debug-panel trace rather than a general request.
+
 ## Under the hood: connection reuse for OpenAI TTS and email
 
 `services/voice_synthesis.py`'s OpenAI TTS calls (and, for the same reason,

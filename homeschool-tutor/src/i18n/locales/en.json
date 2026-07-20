@@ -89,7 +89,13 @@
     "drawingAlt": "Your drawing",
     "youFallback": "You",
     "sendMessage": "Send",
-    "removeDrawing": "Remove drawing"
+    "removeDrawing": "Remove drawing",
+    "voiceModeHold": "Hold to talk",
+    "voiceModeContinuous": "Voice on",
+    "voiceModeToggleTooltip": "Switch between press-and-hold and hands-free voice",
+    "micContinuousListening": "Listening — tap to switch back to hold-to-talk",
+    "micContinuousWaiting": "Voice on — Bede will listen when it's your turn",
+    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime."
   },
   "podDashboard": {
     "noStudentsTitle": "No Students Configured",

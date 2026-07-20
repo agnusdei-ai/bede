@@ -7,16 +7,19 @@ already thought to write a pattern for. This adds a second, broader layer:
 a real classifier call, run before every tutoring turn, for content
 categories no fixed phrase list can enumerate.
 
-Deliberately reuses the Anthropic dependency this app already requires for
-every tutoring turn rather than adding a new one — docs/LOCALIZATION.md's
-localization-scope notes explicitly flagged "a parallel safety-classifier
-model (e.g. a self-hosted quantized Llama, or a third-party moderation
-API)" as cutting against this app's minimal-ops, family-LAN deployment
-model. That objection is about a NEW model to host or a NEW vendor to
-send a child's conversation to. Classifying with the same Haiku model
-already configured as `session_model`, over the same already-required
-`ANTHROPIC_API_KEY`, introduces neither — no new service to run, no new
-account to create, no new data recipient.
+Deliberately reuses the same adapter-resolved client every tutoring turn
+already goes through (services/ai_service.py's `_client` — whichever of
+Anthropic, OpenAI, Mistral, or a local self-hosted model this deployment
+has configured, see services/adapters/) rather than adding a new one —
+docs/LOCALIZATION.md's localization-scope notes explicitly flagged "a
+parallel safety-classifier model (e.g. a self-hosted quantized Llama, or a
+third-party moderation API)" as cutting against this app's minimal-ops,
+family-LAN deployment model. That objection is about a NEW model to host
+or a NEW vendor to send a child's conversation to. Classifying with the
+same model already configured as `session_model` — routed through
+whichever adapter this deployment already uses for tutoring — introduces
+neither — no new service to run, no new account to create, no new data
+recipient.
 
 Fails open by design: a classifier outage, timeout, or malformed response
 never blocks a tutoring turn — it's logged and the turn proceeds, the same

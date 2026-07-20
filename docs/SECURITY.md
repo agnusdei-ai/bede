@@ -126,7 +126,10 @@ list as items are closed.
   361 components with license data where npm records it), regenerable via
   `scripts/generate_sbom.py`. `docs/VENDOR_DATA_FLOW.md` covers what
   actually flows to each third party at runtime (distinct from the
-  dependency list): the full prompt context to Anthropic (required), text
+  dependency list): the full prompt context to whichever AI provider this
+  deployment is configured to use (Anthropic, OpenAI, Mistral, or a
+  self-hosted local model that never sends anything off-machine at all —
+  see `docs/PROVIDER_ADAPTERS.md`), text
   sent to OpenAI's TTS API specifically — clarifying that voice
   *enrollment* transcription is local Whisper, not a network call, despite
   sharing a vendor name — and the four independent Resend email triggers.
@@ -143,10 +146,13 @@ list as items are closed.
   patterns, not a replacement for them), violence, sexual_content,
   hate_or_harassment, and prompt_injection (logged for visibility, never
   blocks alone — see the module docstring for why). Deliberately reuses
-  the already-required `ANTHROPIC_API_KEY` rather than adding a new vendor
-  or a self-hosted model — `docs/LOCALIZATION.md` had explicitly flagged
-  that exact tradeoff as the reason a "parallel safety-classifier model"
-  was out of scope for that work; this closes it without introducing
+  the same adapter-resolved client every tutoring turn already goes
+  through (`services/ai_service.py`'s `_client` — Anthropic, OpenAI,
+  Mistral, or a local self-hosted model, whichever this deployment has
+  configured; see `docs/PROVIDER_ADAPTERS.md`) rather than adding a new
+  vendor or a second model to host — `docs/LOCALIZATION.md` had explicitly
+  flagged that exact tradeoff as the reason a "parallel safety-classifier
+  model" was out of scope for that work; this closes it without introducing
   either objection. Fails open twice over (inside `classify_child_message`
   itself, and again at the router call site) so a classifier outage never
   blocks a legitimate tutoring turn. **Real cost/latency tradeoff, stated

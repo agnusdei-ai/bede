@@ -385,6 +385,36 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def reject_no_ai_provider_configured_in_production(self) -> "Settings":
+        """services/adapters/router.py never REQUIRES any single vendor's
+        credentials to be present — an unconfigured adapter is simply
+        skipped, and the router still returns something so the app boots
+        (see get_default_client's own docstring). That's the right behavior
+        at the router layer (never take the whole tutor down over one
+        misconfigured entry), but it means a deployment with ZERO providers
+        configured at all boots clean and then fails on the first real
+        request — a confusing runtime error instead of a clear one at
+        startup. This validator is the fail-fast counterpart: at least ONE
+        of Anthropic, OpenAI, Mistral, or a local self-hosted model must be
+        configured before a real family deployment goes live. Deliberately
+        does not care WHICH one — that choice belongs entirely to the family
+        (see docs/PROVIDER_ADAPTERS.md and setup.sh's provider picker)."""
+        if not self.is_production:
+            return self
+        if not (
+            self.anthropic_api_key
+            or self.local_llm_base_url
+            or self.openai_api_key
+            or self.mistral_api_key
+        ):
+            raise ValueError(
+                "Production mode is enabled but no AI provider is configured — set one of "
+                "ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, or LOCAL_LLM_BASE_URL "
+                "(see docs/PROVIDER_ADAPTERS.md)"
+            )
+        return self
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

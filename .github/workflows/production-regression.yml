@@ -84,6 +84,31 @@ jobs:
           docker compose config --quiet
           docker compose config --services | grep -q '^db$'
           rm .env
+      - name: Validate no-Anthropic mode (local self-hosted provider only)
+        # The actual point of removing docker-compose.yml's old
+        # `ANTHROPIC_API_KEY:?required` — proves a family can configure
+        # Bede with ONLY a self-hosted model and no cloud AI account at
+        # all, not just that ANTHROPIC_API_KEY happens to be unset while
+        # some other required var papers over it.
+        run: |
+          cat > .env <<EOF
+          BEDE_ADAPTER_ORDER=local
+          LOCAL_LLM_BASE_URL=http://gpu-box.lan:8000/v1
+          SECRET_KEY=test
+          MASTER_SECRET=test
+          PARENT_PASSWORD=test
+          CHILD_PIN=602656
+          DATABASE_URL=postgresql+asyncpg://user:pass@host/db
+          LICENSE_KEY=${CI_TEST_LICENSE_KEY}
+          EOF
+          docker compose config --quiet
+          # Confirm the interpolated config genuinely carries no Anthropic
+          # credential and does carry the local provider's — a config that
+          # silently fell back to some other default would still pass a
+          # bare `--quiet` check.
+          docker compose config | grep -q 'ANTHROPIC_API_KEY: ""'
+          docker compose config | grep -q 'LOCAL_LLM_BASE_URL: http://gpu-box.lan:8000/v1'
+          rm .env
 
   wizard-end-to-end:
     runs-on: ubuntu-latest

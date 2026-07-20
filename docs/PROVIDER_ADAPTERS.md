@@ -147,6 +147,15 @@ the public internet.
 
 ## Setup guide — configuring and installing each adapter
 
+**For a first-time family install, `setup.sh`/`setup-gui` (see
+`docs/PRODUCTION_SETUP.md`) ask which provider to use and write the right
+`.env` lines for you** — no single vendor is required to get through
+setup, and `core/config.py` rejects startup in production if none of the
+four ends up configured. The steps below are for configuring an adapter by
+hand afterward — adding a second one for failover, switching providers, or
+setting one up outside the wizard (e.g. `render.yaml` for a cloud
+deployment).
+
 ### OpenAI (cloud, no local install)
 
 1. Create an account and API key at [platform.openai.com](https://platform.openai.com/api-keys),

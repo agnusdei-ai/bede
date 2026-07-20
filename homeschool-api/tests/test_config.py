@@ -230,3 +230,89 @@ def test_real_family_production_without_demo_pin_still_requires_license():
             master_secret="b" * 40,
             demo_pin="",
         )
+
+
+# ── AI provider — at least one required, but never a specific one ──────────
+# conftest.py sets ANTHROPIC_API_KEY=sk-ant-test-key as a process-wide env
+# default, so every test below that means to exercise "nothing configured"
+# passes anthropic_api_key="" explicitly to opt back out of it — same
+# pattern the license/demo_pin tests above use for DEMO_PIN.
+
+def test_no_ai_provider_configured_rejected_in_production(valid_license):
+    with pytest.raises(ValueError, match="no AI provider is configured"):
+        Settings(
+            production="true",
+            secret_key="a" * 40,
+            parent_password="a-strong-password",
+            child_pin="602656",
+            master_secret="b" * 40,
+            license_key=valid_license,
+            demo_pin="",
+            anthropic_api_key="",
+        )
+
+
+def test_anthropic_alone_satisfies_the_ai_provider_requirement(valid_license):
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        license_key=valid_license,
+        demo_pin="",
+        anthropic_api_key="sk-ant-real",
+    )
+    assert s.anthropic_api_key == "sk-ant-real"
+
+
+def test_local_llm_alone_satisfies_the_ai_provider_requirement(valid_license):
+    """The whole point of the local adapter — no cloud account needed at
+    all, including Anthropic's."""
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        license_key=valid_license,
+        demo_pin="",
+        anthropic_api_key="",
+        local_llm_base_url="http://gpu-box.lan:8000/v1",
+    )
+    assert s.local_llm_base_url == "http://gpu-box.lan:8000/v1"
+
+
+def test_openai_alone_satisfies_the_ai_provider_requirement(valid_license):
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        license_key=valid_license,
+        demo_pin="",
+        anthropic_api_key="",
+        openai_api_key="sk-proj-real",
+    )
+    assert s.openai_api_key == "sk-proj-real"
+
+
+def test_mistral_alone_satisfies_the_ai_provider_requirement(valid_license):
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        license_key=valid_license,
+        demo_pin="",
+        anthropic_api_key="",
+        mistral_api_key="real-mistral-key",
+    )
+    assert s.mistral_api_key == "real-mistral-key"
+
+
+def test_ai_provider_requirement_does_not_apply_outside_production():
+    s = Settings(anthropic_api_key="", local_llm_base_url="", openai_api_key="", mistral_api_key="")
+    assert s.anthropic_api_key == ""

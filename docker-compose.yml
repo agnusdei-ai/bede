@@ -1,13 +1,24 @@
 # ── Bede Homeschool Tutor — secure deployment ─────────────────────────────────
 #
 # Required env vars (set in .env or shell — never hardcoded here):
-#   ANTHROPIC_API_KEY   Claude API key
 #   SECRET_KEY          JWT signing key   (openssl rand -hex 32)
 #   MASTER_SECRET       Encryption master secret (openssl rand -hex 32)
 #   PARENT_PASSWORD     Parent login password
 #   CHILD_PIN           Child login PIN
 #   DATABASE_URL        PostgreSQL connection string — see "Storage model" below
 #   LICENSE_KEY         Offline license certificate — see docs/PRODUCTION_SETUP.md#licensing
+#
+# AI provider — pick at least ONE (setup.sh/setup-gui ask you to choose):
+#   ANTHROPIC_API_KEY   Claude API key — console.anthropic.com
+#   OPENAI_API_KEY      OpenAI API key — platform.openai.com
+#   MISTRAL_API_KEY     Mistral API key — console.mistral.ai
+#   LOCAL_LLM_BASE_URL  A self-hosted, open-weight model's /v1 endpoint (no
+#                       account, no per-message cost — needs your own GPU
+#                       server, see docs/PROVIDER_ADAPTERS.md)
+# core/config.py refuses to start in production if none of these are set.
+# BEDE_ADAPTER_ORDER picks which configured one Bede actually uses — see
+# docs/PROVIDER_ADAPTERS.md for the full picture (multiple can be configured
+# at once for automatic failover).
 #
 # Storage model — two options, see docs/PRODUCTION_SETUP.md:
 #   1. Managed Postgres (Neon/Supabase/etc., the original default) — nothing
@@ -39,16 +50,31 @@ services:
         condition: service_healthy
         required: false
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - MASTER_SECRET=${MASTER_SECRET:?MASTER_SECRET is required}
       - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
       - LICENSE_KEY=${LICENSE_KEY:?LICENSE_KEY is required — issue one with homeschool-api/scripts/issue_license.py, see docs/PRODUCTION_SETUP.md#licensing}
-      # Optional — leave unset to skip cloud voice entirely; the browser's
-      # own built-in speech takes over automatically. See docs/VOICE_SETUP.md.
+      # AI provider — none of these is individually required; core/config.py
+      # instead requires at least ONE of them to be non-empty once
+      # PRODUCTION=true (see reject_no_ai_provider_configured_in_production).
+      # setup.sh/setup-gui write exactly one of these blocks based on which
+      # provider you picked. See docs/PROVIDER_ADAPTERS.md.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+      - MISTRAL_MODEL=${MISTRAL_MODEL:-mistral-large-latest}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-}
+      - LOCAL_LLM_API_KEY=${LOCAL_LLM_API_KEY:-not-needed}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      - BEDE_ADAPTER_ORDER=${BEDE_ADAPTER_ORDER:-local,anthropic}
+      - BEDE_FORCE_ADAPTER=${BEDE_FORCE_ADAPTER:-}
+      # OpenAI TTS (Bede's spoken voice) — a separate, unrelated use of
+      # OPENAI_API_KEY above (services/voice_synthesis.py). Optional either
+      # way; leave unset to skip cloud voice entirely — the browser's own
+      # built-in speech takes over automatically. See docs/VOICE_SETUP.md.
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
       - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-fable}
       # Optional — leave RESEND_API_KEY unset to disable the post-session

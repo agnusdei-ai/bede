@@ -10,8 +10,12 @@ a form in your browser. The whole setup takes under 20 minutes either way.
 - A computer, mini-PC, NAS, or Raspberry Pi to act as the "server" — it runs all the
   time your family uses Bede, and everyone's tablets connect to it over your home Wi-Fi.
 - [Docker](https://docs.docker.com/get-docker/) installed on that machine.
-- An [Anthropic API key](https://console.anthropic.com/) (this is what powers Bede's
-  actual tutoring conversation).
+- An AI provider for Bede's actual tutoring conversation — pick whichever
+  fits your family, `make setup` asks and there's no default forced on you:
+  an [Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/api-keys),
+  or [Mistral](https://console.mistral.ai/) account (cloud, pay-as-you-go),
+  or a self-hosted open-weight model on your own GPU server (no account,
+  no per-message cost — see `docs/PROVIDER_ADAPTERS.md`).
 - A database — `make setup` asks which you want:
   - **Local Postgres (recommended)** — nothing to sign up for. It runs
     alongside Bede in Docker on your own machine; nothing leaves your house.
@@ -99,9 +103,10 @@ trips this, your child sees a gentle redirect back to the lesson (not the
 and it's recorded in the audit log; three or more in a short window from
 one address triggers the same security-alert email as above. This runs on
 every single message (not just flagged ones), which means a small, real
-cost on your Anthropic bill per message and a brief pause (well under a
-second, typically) before Bede's reply starts — there's no setting to turn
-it off, the same way the distress check isn't optional either.
+cost per message with your chosen AI provider (free if you're running the
+self-hosted local model) and a brief pause (well under a second,
+typically) before Bede's reply starts — there's no setting to turn it off,
+the same way the distress check isn't optional either.
 
 **Want to test or explore how Bede responds, without a real tutoring session?**
 Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod

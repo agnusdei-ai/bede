@@ -51,6 +51,18 @@ def test_get_renders_form(running_wizard):
     assert 'name="anthropic_key"' in body
 
 
+def test_get_renders_all_four_provider_choices(running_wizard):
+    """No single vendor should be baked into the form — a family can pick
+    any of the four adapters services/adapters/ supports, including the
+    open, no-account local self-hosted option."""
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    for value in ("anthropic", "openai", "mistral", "local"):
+        assert f'name="provider" value="{value}"' in body
+    assert 'name="openai_key"' in body
+    assert 'name="mistral_key"' in body
+    assert 'name="local_base_url"' in body
+
+
 def test_weak_pin_rejected_without_writing_env(running_wizard):
     with pytest.raises(urllib.error.HTTPError) as exc_info:
         _post(running_wizard, {
@@ -127,6 +139,99 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
 
     mode = stat.S_IMODE(os.stat(wizard.ENV_PATH).st_mode)
     assert mode == 0o600
+
+
+def test_valid_openai_submission_writes_correct_env(running_wizard):
+    resp = _post(running_wizard, {
+        "provider": "openai",
+        "openai_key": "sk-proj-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    assert resp.status == 200
+    env = open(wizard.ENV_PATH).read()
+    assert "BEDE_ADAPTER_ORDER=openai" in env
+    assert "OPENAI_API_KEY=sk-proj-real-key" in env
+    assert "ANTHROPIC_API_KEY" not in env
+
+
+def test_valid_mistral_submission_writes_correct_env(running_wizard):
+    _post(running_wizard, {
+        "provider": "mistral",
+        "mistral_key": "real-mistral-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    env = open(wizard.ENV_PATH).read()
+    assert "BEDE_ADAPTER_ORDER=mistral" in env
+    assert "MISTRAL_API_KEY=real-mistral-key" in env
+    assert "ANTHROPIC_API_KEY" not in env
+
+
+def test_valid_local_submission_writes_correct_env(running_wizard):
+    """The actual open, no-account path — no vendor credential at all."""
+    _post(running_wizard, {
+        "provider": "local",
+        "local_base_url": "http://gpu-box.lan:8000/v1",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    env = open(wizard.ENV_PATH).read()
+    assert "BEDE_ADAPTER_ORDER=local" in env
+    assert "LOCAL_LLM_BASE_URL=http://gpu-box.lan:8000/v1" in env
+    assert "ANTHROPIC_API_KEY" not in env
+    assert "OPENAI_API_KEY" not in env
+    assert "MISTRAL_API_KEY" not in env
+
+
+def test_missing_credential_for_chosen_provider_rejected(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "provider": "openai",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": "602656",
+            "license_key": "eyJ.test-license-key",
+        })
+    assert exc_info.value.code == 400
+    assert "OpenAI API key" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_missing_local_server_url_rejected(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "provider": "local",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": "602656",
+            "license_key": "eyJ.test-license-key",
+        })
+    assert exc_info.value.code == 400
+    assert "model server" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_omitted_provider_field_defaults_to_anthropic(running_wizard):
+    """Backward-compat: a submission with no `provider` field at all (an
+    old cached form, a direct API caller) still resolves to the
+    long-standing default rather than erroring confusingly."""
+    _post(running_wizard, {
+        "anthropic_key": "sk-ant-default-path",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    env = open(wizard.ENV_PATH).read()
+    assert "BEDE_ADAPTER_ORDER=anthropic" in env
+    assert "ANTHROPIC_API_KEY=sk-ant-default-path" in env
 
 
 def test_valid_managed_db_submission_has_no_local_db_settings(running_wizard):
@@ -206,11 +311,14 @@ def test_form_page_includes_narration_and_mic_controls(running_wizard):
     body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
     assert "playNarration('welcome')" in body
     assert "toggleVoiceCommands" in body
-    assert "always type your password, PIN, and API key" in body
+    assert "always type your password, PIN, and provider credentials" in body
     # Voice commands must never target secret input fields by name.
     assert 'name=parent_password' not in body
     assert 'name=child_pin' not in body
     assert 'name=anthropic_key' not in body
+    assert 'name=openai_key' not in body
+    assert 'name=mistral_key' not in body
+    assert 'name=local_base_url' not in body
     assert 'name=license_key' not in body
 
 

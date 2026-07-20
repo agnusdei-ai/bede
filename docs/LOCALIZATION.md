@@ -366,10 +366,11 @@ explicitly not built here, each for a concrete reason:
   **The dedicated-classifier decision this deferred has since been
   made** (`services/moderation.py`, AIUC-1 B005 — see `docs/SECURITY.md`),
   and it sidesteps both objections above by construction: it classifies
-  with the same Haiku model already configured as `session_model`, over
-  the already-required `ANTHROPIC_API_KEY` — no second model to host, no
-  new vendor receiving a child's conversation. Locale isn't threaded
-  through it at all; it classifies content categories (self-harm,
+  through the same adapter-resolved client every tutoring turn already
+  uses (Anthropic, OpenAI, Mistral, or a local self-hosted model, whichever
+  this deployment has configured — see `docs/PROVIDER_ADAPTERS.md`) — no
+  second model to host, no new vendor receiving a child's conversation.
+  Locale isn't threaded through it at all; it classifies content categories (self-harm,
   violence, sexual content, hate speech, prompt injection), not language,
   so it works identically regardless of which locale a session runs in.
 

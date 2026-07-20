@@ -30,7 +30,9 @@
     "micHoldToTalk": "Mantén presionado y habla",
     "micHoldListening": "Escuchando… suelta cuando termines",
     "micPermissionDenied": "No puedo escucharte — este navegador ha bloqueado el micrófono. Puedes escribir tu respuesta, o revisar el permiso de micrófono del navegador para este sitio.",
-    "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar."
+    "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar.",
+    "sendMessage": "Enviar",
+    "removeDrawing": "Quitar dibujo"
   },
   "header": {
     "askBede": "Pregúntale a Bede",

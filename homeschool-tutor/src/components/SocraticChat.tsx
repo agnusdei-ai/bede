@@ -608,7 +608,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
           <img src={pendingDrawing} alt={t('chat.drawingAlt')} className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
           <div className="flex-1 text-xs text-sage-800">{t('chat.drawingReady')}</div>
-          <button onClick={() => setPendingDrawing(null)} className="text-gray-400 hover:text-gray-600">
+          <button onClick={() => setPendingDrawing(null)} title={t('chat.removeDrawing')} className="text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 rounded">
             <X size={14} />
           </button>
         </div>
@@ -741,7 +741,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
           <button
             onClick={() => send()}
             disabled={isStreaming || breakActive || (!input.trim() && !pendingDrawing)}
-            className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0"
+            title={t('chat.sendMessage')}
+            className="p-2.5 rounded-lg bg-sage-500 text-white hover:bg-sage-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 disabled:hover:scale-100 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-1"
           >
             {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>

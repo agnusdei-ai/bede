@@ -87,7 +87,9 @@
     "nextSubjectFallback": "Let's move on to our next subject!",
     "couldNotReadFile": "Could not read that file",
     "drawingAlt": "Your drawing",
-    "youFallback": "You"
+    "youFallback": "You",
+    "sendMessage": "Send",
+    "removeDrawing": "Remove drawing"
   },
   "podDashboard": {
     "noStudentsTitle": "No Students Configured",

@@ -138,5 +138,15 @@
   ],
   "common": {
     "networkError": "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
+  },
+  "consent": {
+    "beforeYouBegin": "Before you begin",
+    "betaNotice": "This is a public beta — please read this first.",
+    "bullet1": "<strong>Your conversation is never stored.</strong> Nothing you or your learner says is saved, ever.",
+    "bullet2": "<strong>Anonymized patterns may be reviewed</strong> — which teaching techniques were used, never what was said — to help us improve Bede.",
+    "bullet3": "<strong>Name and grade personalize this session</strong> — kept up to 6 hours (sooner if you log out), then deleted automatically. Never part of any permanent record.",
+    "bullet4": "<strong>Feedback is optional.</strong> Parents/guardians may leave an email for follow-up — we never ask a child for their own.",
+    "readPrivacyNotice": "Read the full Privacy Notice, including our COPPA parental notice",
+    "agree": "I understand and agree — let's begin"
   }
 }

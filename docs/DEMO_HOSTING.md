@@ -152,89 +152,95 @@ no code change required either way.
 3. Open the deployed demo, click **"Generate my code"**, and confirm Bede's
    voice comes through.
 
-## Custom domain (optional)
+Accurate for the current GitHub Pages setup. Once the Cloudflare Pages
+migration below is complete, step 1's variable moves to the Pages project's
+own Environment variables (Settings → Environment variables) instead of a
+GitHub Actions repository variable, and step 2 becomes "trigger a redeploy
+from the Cloudflare dashboard" instead of re-running a GitHub Actions
+workflow — see that section for the full setup.
 
-To serve the demo from your own apex domain (e.g. `agnusdei.ai`) instead of
-`agnusdei-ai.github.io/bede/`:
+## Custom domain: moving to Cloudflare Pages
 
-1. **DNS** — at your domain's DNS provider, replace whatever's currently at
-   the apex (`@`) with four `A` records, all pointing at GitHub Pages:
-   `185.199.108.153`, `185.199.109.153`, `185.199.110.153`,
-   `185.199.111.153`. (A `CNAME` record can't be used at a zone apex per
-   DNS rules — that's why it's four `A` records instead of the single
-   `CNAME` a subdomain like `demo.agnusdei.ai` could use instead.) Optionally
-   add a `www` `CNAME` pointing at `<owner>.github.io` if you want
-   `www.yourdomain` to resolve too — GitHub Pages will redirect it to the
-   apex automatically once both are configured.
-2. **Repo** — `site/CNAME` already contains the target domain, but nothing
-   publishes it yet (see "Why the apex isn't just the demo" below) — do this
-   step and the next one together, not this one in advance. Restore the
-   "Assemble Pages site" step in `.github/workflows/deploy-demo.yml` (or
-   rewrite the workflow to publish `site/` some other way) so the deployed
-   artifact actually includes `site/CNAME`, and push that once DNS is live,
-   not before.
-3. **GitHub Pages settings** — once DNS has propagated (can take anywhere
-   from minutes to a few hours) *and* the CNAME-carrying deploy from step 2
-   has run at least once, go to `agnusdei-ai/bede` → **Settings → Pages**
-   and confirm the **Custom domain** field shows the right value (GitHub
-   usually fills it in automatically from the published `CNAME` file; enter
-   it by hand if it didn't). GitHub verifies the DNS and provisions a free
-   TLS certificate automatically — this can't succeed before DNS is live,
-   since verification fails against a domain that isn't pointed at GitHub
-   yet.
-4. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists both
-   `agnusdei.ai` and `bede.ai` (plus their `www` variants) ahead of time, so
-   switching the live domain later needs no backend redeploy. Trim it back
-   to just whichever domain is actually in use once that's settled, and drop
-   the `agnusdei-ai.github.io` fallback once the custom domain is confirmed
-   working end to end. The demo living under `/bede/` rather than at the
-   domain root doesn't affect this at all — a browser's CORS `Origin` header
-   is always just `scheme://host[:port]`, never a path.
-5. **Confirm** — open the new domain, generate a code, and confirm the chat
-   works (a CORS mismatch here shows up as every `/tutor/chat` request
-   silently failing in the browser console, not a visible error banner).
+The demo currently lives at `agnusdei-ai.github.io/bede/` — GitHub Pages,
+deploying `demo/dist` directly (`.github/workflows/deploy-demo.yml`). The
+plan is to move the real apex domain (`agnusdei.ai`) onto **Cloudflare
+Pages** instead of GitHub Pages, hosting `site/` (the company's own home
+page — a small, hand-written static page, `site/index.html`, no build step,
+no framework, with a "Meet Bede →" link to `/bede/`) at the root and the
+interactive demo nested under `/bede/` beneath it, matching that link.
 
-### Why the apex isn't just the demo (and why that's not deployed yet)
+**Why Cloudflare Pages and not a GitHub Pages custom domain** (the
+originally-planned approach): a first attempt at exactly this apex/subpath
+split on GitHub Pages caused a real near-outage. **GitHub Pages
+auto-detects a `CNAME` file anywhere in the published artifact and silently
+turns on the custom-domain setting from it** — no visit to Settings → Pages
+required. Publishing `site/CNAME` (which held `agnusdei.ai`) as part of the
+artifact quietly pointed the whole deployment at that domain, and since DNS
+was never pointed at GitHub Pages for it, the result wasn't "shows the
+wrong page," it was the site becoming unreachable entirely — on top of a
+*second*, independent bug in the same attempt (the demo itself moving to a
+doubled `/bede/bede/` path). Cloudflare Pages has no equivalent
+auto-detection footgun: a custom domain is attached explicitly, in the
+dashboard or via API, never inferred from a file in the build output. The
+old `site/CNAME` file has been removed from the repo entirely rather than
+carried forward inert — Cloudflare doesn't read it, and leaving a
+GitHub-Pages-specific trigger file lying around after deliberately moving
+away from GitHub Pages custom domains is exactly the kind of thing that
+causes this same class of mistake again later.
 
-The domain's root (`agnusdei.ai`) is meant to eventually be the company's
-home page, not the interactive demo — Bede is meant to be the first of
-several products, not the only thing the domain will ever host. The repo
-has the pieces for that: `site/` (a small, hand-written static page,
-`site/index.html`, no build step, no framework, with a "Meet Bede →" link)
-and `site/CNAME` (`agnusdei.ai`).
+`scripts/build_pages_site.sh` does the assembly (`site/` at the output
+root, a fresh `demo/dist` build nested under `<output>/bede/`) — the same
+shape the original GitHub Pages plan called for, just via a plain shell
+script instead of a workflow step, so it runs identically whether Cloudflare
+invokes it or you run it locally to preview.
 
-**But the live workflow does not publish `site/` yet — it deploys `demo/dist`
-directly, exactly as it did before this idea existed.** That's deliberate,
-learned the hard way: a first attempt published `site/`'s contents at the
-artifact root and nested `demo/dist` under `/bede/` within it. That broke
-the *only* URL that's actually live right now, `agnusdei-ai.github.io/bede/`
-(the `/bede/` segment there comes from the repo being named `bede` — it has
-nothing to do with the subpath restructuring). Two separate problems, either
-one enough to cause an outage on its own:
+**One-time Cloudflare Pages setup:**
 
-1. The demo moved to `agnusdei-ai.github.io/bede/bede/` — the doubled path
-   nobody would guess or already has linked.
-2. Worse: **GitHub Pages auto-detects a `CNAME` file in whatever gets
-   published and silently turns on the custom-domain setting from it** —
-   no visit to Settings → Pages required. Publishing `site/CNAME` as part of
-   the artifact quietly pointed the whole deployment at `agnusdei.ai`, and
-   since DNS was never pointed at GitHub Pages for that domain, the result
-   wasn't "shows the wrong page," it was the site becoming unreachable
-   entirely.
-
-**If you're reading this after that happened once already:** check
-`agnusdei-ai/bede` → **Settings → Pages** — if **Custom domain** shows
-`agnusdei.ai`, clear that field now (leave it blank) and save. It'll stay
-that way until you deliberately redo the steps below.
-
-**To actually do the apex/subpath split, do it as one coordinated change,**
-not two separate ones — reintroducing the "Assemble Pages site" step
-(`site/` at the artifact root, `demo/dist` copied to `<root>/bede/`, matching
-what's already written in `site/index.html`'s `/bede/` link) at the same
-time as the DNS + GitHub Pages steps below, so there's no window where a
-CNAME is live in the deployed artifact but DNS isn't ready to answer for it.
-The commit history has the original "Assemble Pages site" step if you want
-to restore it verbatim rather than rewrite it.
+1. Create a Cloudflare account if you don't have one, and add `agnusdei.ai`
+   as a site (**Add a site** → enter the domain). Cloudflare will show you
+   two nameservers to set at your domain registrar — this is the one step
+   only you can do (registrar access, not something scriptable from here).
+   DNS propagation after the nameserver change can take anywhere from
+   minutes to about 24 hours.
+2. **Workers & Pages → Create → Pages → Connect to Git**, select
+   `agnusdei-ai/bede`. Configure the build:
+   - **Build command**: `bash scripts/build_pages_site.sh`
+   - **Build output directory**: `publish`
+   - **Root directory**: `/` (repo root — the script itself `cd`s into
+     `demo/` as needed)
+3. **Environment variables** (Pages project → Settings → Environment
+   variables): add `VITE_DEMO_API_BASE` = your Render backend URL (no
+   trailing slash) — same value the old GitHub Actions `vars.VITE_DEMO_API_BASE`
+   held. Vite bakes this in at build time, so it must be set here, not just
+   on the backend.
+4. **Custom domains** (Pages project → Custom domains): add `agnusdei.ai`
+   (and `www.agnusdei.ai` if you want that to resolve too — Cloudflare
+   offers a one-click redirect rule for it). Cloudflare issues and manages
+   the TLS certificate automatically once the domain's nameservers are
+   actually pointed at Cloudflare from step 1.
+5. **While you're already touching DNS for this domain**, add Resend's
+   domain-verification records (TXT/DKIM, from Resend's dashboard → your
+   domain → DNS records) for `agnusdei.ai` too, if you haven't — this is
+   what `RESEND_FROM_ADDRESS` needs to actually be able to send mail (see
+   "Wiring the demo frontend to it" above and `services/email_service.py`'s
+   `email_configured()`), and doing it in the same DNS session avoids a
+   second round of propagation waiting later.
+6. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists
+   `agnusdei.ai` and `bede.ai` (plus `www` variants) ahead of time, so this
+   needs no backend redeploy. Trim it back to just whichever domain is
+   actually in use once settled, and drop the `agnusdei-ai.github.io`
+   fallback once the custom domain is confirmed working end to end.
+7. **Confirm** — open `agnusdei.ai` (the home page) and `agnusdei.ai/bede/`
+   (the demo), generate a code, and confirm the chat works. A CORS mismatch
+   here shows up as every `/tutor/chat` request silently failing in the
+   browser console, not a visible error banner.
+8. **Only once the above is confirmed working**, retire the GitHub Pages
+   path so there's exactly one live copy, not two silently drifting apart:
+   delete or disable `.github/workflows/deploy-demo.yml`, and in
+   `agnusdei-ai/bede` → **Settings → Pages**, set the source back to
+   **None**. Do this step last, deliberately — not as part of the same push
+   that sets up Cloudflare, so there's never a window where neither is
+   serving the domain correctly.
 
 ## Cold starts (free plan)
 

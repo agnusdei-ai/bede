@@ -138,5 +138,15 @@
   ],
   "common": {
     "networkError": "No se pudo conectar con el servidor. Puede estar despertando después de estar inactivo. Espera unos segundos e inténtalo de nuevo."
+  },
+  "consent": {
+    "beforeYouBegin": "Antes de comenzar",
+    "betaNotice": "Esta es una beta pública — por favor lee esto primero.",
+    "bullet1": "<strong>Tu conversación nunca se guarda.</strong> Nada de lo que tú o tu estudiante digan se guarda, jamás.",
+    "bullet2": "<strong>Se pueden revisar patrones anonimizados</strong> — qué técnicas de enseñanza se usaron, nunca lo que se dijo — para ayudarnos a mejorar a Bede.",
+    "bullet3": "<strong>El nombre y el grado personalizan esta sesión</strong> — se conservan hasta 6 horas (antes si cierras sesión), y luego se eliminan automáticamente. Nunca forman parte de un registro permanente.",
+    "bullet4": "<strong>Los comentarios son opcionales.</strong> Los padres o tutores pueden dejar un correo electrónico para dar seguimiento — nunca le pedimos a un niño el suyo.",
+    "readPrivacyNotice": "Lee el Aviso de Privacidad completo, incluyendo nuestro aviso parental de COPPA",
+    "agree": "Entiendo y acepto — comencemos"
   }
 }

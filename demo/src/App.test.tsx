@@ -27,6 +27,7 @@ vi.mock('./api', async (importOriginal) => {
 })
 
 import { CodeScreen } from './App'
+import i18n from './i18n'
 
 beforeEach(() => {
   fetchAvailableLocales.mockResolvedValue([])
@@ -35,6 +36,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  i18n.changeLanguage('en')
 })
 
 describe('CodeScreen privacy notice link', () => {
@@ -68,5 +70,38 @@ describe('CodeScreen privacy notice link', () => {
     })
 
     expect(screen.getByText('Before you begin')).toBeTruthy()
+  })
+})
+
+describe('ConsentModal localization', () => {
+  it('renders the Spanish consent text and links to the Spanish Privacy Notice when the session locale is es', async () => {
+    await i18n.changeLanguage('es')
+
+    await act(async () => {
+      render(<CodeScreen onLoggedIn={vi.fn()} />)
+    })
+
+    expect(screen.getByText('Antes de comenzar')).toBeTruthy()
+    // Bullet text must render as actual content, not orphaned sibling text
+    // outside its <strong> — the same failure class as the privacyLink bug
+    // above, guarded here since these bullets also use Trans with a custom
+    // components map.
+    expect(
+      screen.getByText((_, node) => node?.textContent === 'Tu conversación nunca se guarda. Nada de lo que tú o tu estudiante digan se guarda, jamás.')
+    ).toBeTruthy()
+
+    const privacyLink = screen.getByRole('link', { name: /Aviso de Privacidad/ })
+    expect(privacyLink.getAttribute('href')).toBe('/privacy.es.html')
+  })
+
+  it('links to the English Privacy Notice when the session locale is en', async () => {
+    await i18n.changeLanguage('en')
+
+    await act(async () => {
+      render(<CodeScreen onLoggedIn={vi.fn()} />)
+    })
+
+    const privacyLink = screen.getByRole('link', { name: /Read the full Privacy Notice/ })
+    expect(privacyLink.getAttribute('href')).toBe('/privacy.html')
   })
 })

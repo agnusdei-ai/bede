@@ -196,6 +196,28 @@ every call site that passes it a `t` function (`CodeScreen` and
 `App.tsx` — mostly inside the still-untranslated sandbox/diagnostic screens
 — keep their existing English fallback text, same disclosed boundary.
 
+**`ConsentModal` and the static Privacy Notice page**: `ConsentModal.tsx` (the
+"Before you begin" dialog gating entry to the demo — every visitor sees this,
+not an optional preview surface) is now translated via the `consent.*` i18next
+namespace, closing a gap that previously left this dialog, including its
+COPPA parental-notice link text, in English even when Español was selected.
+Its linked Privacy Notice — `demo/public/privacy.html`, a static page
+deliberately outside the SPA/React-Router tree so it works standalone and
+survives a JS failure (see `ConsentModal.tsx`'s own comment) — cannot be
+translated at runtime the way a React component can; it now has a sibling
+static file, `demo/public/privacy.es.html`, and `ConsentModal` links to
+whichever one matches `i18n.language`. The Spanish privacy page is an
+AI-drafted translation of the English page's content, not independently
+drafted legal text, and is disclosed as such in a footnote on the page itself
+pending native-speaker/legal review — same disclosure pattern as the
+"Spanish beta testing" section in `docs/DEMO_HOSTING.md`. It is scoped to
+this demo's existing English content only; it does not attempt to address
+jurisdiction-specific children's-privacy regimes beyond COPPA (e.g. Mexico's
+LFPDPPP, Spain's LOPDGDD) — see the "`es` is Mexican Spanish, not
+pan-Hispanic-neutral" section below for why the demo's `es` locale is scoped
+to Mexico specifically, which is the most directly relevant regime if that
+work is taken on.
+
 Subject labels specifically (`demo/src/api.ts`'s `SUBJECT_LABELS`) are
 locale-aware via a `subjects.*` i18next namespace at the one place they're
 rendered (`ChatScreen`'s subject `<select>`) — this is narrower than fully

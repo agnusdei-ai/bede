@@ -316,6 +316,7 @@ async def session_summary(
     req: SessionSummaryRequest,
     request: Request,
     auth: dict = Depends(require_parent),   # parent only
+    db: AsyncSession = Depends(get_db),
 ):
     """Generate end-of-session parent report. Parent role required."""
     await log_event(
@@ -325,7 +326,7 @@ async def session_summary(
         detail=f"duration={req.duration_minutes}min",
         **audit_from_request(request),
     )
-    summary = await generate_session_summary(req, locale=auth.get("locale", "en"))
+    summary = await generate_session_summary(req, locale=auth.get("locale", "en"), db=db)
     return {"summary": summary}
 
 
@@ -334,6 +335,7 @@ async def email_summary(
     req: EmailSummaryRequest,
     request: Request,
     auth: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Generate the same end-of-session summary as /summary, then email it once
@@ -362,7 +364,13 @@ async def email_summary(
                 detail="This session has already sent its one diagnostic email",
             )
 
-    summary = await generate_session_summary(req, locale=auth.get("locale", "en"))
+    # db only for the real parent role — never demo_code, whose student_name
+    # isn't guaranteed isolated from a real family's and whose evidence never
+    # lands in the real diagnostic_evidence_log table anyway (see
+    # generate_session_summary's own docstring on this same gate).
+    summary = await generate_session_summary(
+        req, locale=auth.get("locale", "en"), db=db if role == "parent" else None,
+    )
     html_body = build_summary_email_html(req.session_config.student_name, summary)
     sent = await send_email(
         to_address=req.email,

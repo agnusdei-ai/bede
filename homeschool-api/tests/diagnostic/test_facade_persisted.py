@@ -157,10 +157,10 @@ async def test_corrupted_existing_row_degrades_to_cold_start_instead_of_raising(
 
 
 @pytest.mark.asyncio
-async def test_evidence_log_stays_empty_when_flag_is_off_by_default(db_session):
+async def test_evidence_log_stays_empty_when_flag_is_off(db_session, monkeypatch):
     from sqlalchemy import select
 
-    assert settings.diagnostic_evidence_log_enabled is False
+    monkeypatch.setattr(settings, "diagnostic_evidence_log_enabled", False)
 
     await process_evidence(db_session, "Sophia", "probe.cc.rote_count_20", "correct", 1.0, "K-2")
 

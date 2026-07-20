@@ -243,11 +243,16 @@ class Settings(BaseSettings):
     voice_threshold_medium: float = 0.68  # parent override available
 
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
-    # Off by default — the strictest reading of "never persist raw evidence"
-    # (docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §5.3). When False, only the
-    # encrypted MasteryProfile vector is written; DiagnosticEvidenceLog (the
-    # derived-delta audit trail) stays empty even though the table exists.
-    diagnostic_evidence_log_enabled: bool = False
+    # On by default — this is what powers the end-of-session "Math Skill
+    # Growth" before/after report (services.diagnostic.get_session_growth,
+    # wired into generate_session_summary). Still only ever the derived
+    # deltas (skill_id, prior->posterior, probe_id, model_used, timestamp),
+    # never a transcript or probe text — same privacy class as
+    # NarrationAssessment (docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §5.3).
+    # When False, only the encrypted MasteryProfile vector is written;
+    # DiagnosticEvidenceLog stays empty and session summaries fall back to
+    # not mentioning skill growth at all (no data to report it from).
+    diagnostic_evidence_log_enabled: bool = True
 
     # ── Demo interaction-pattern analysis (optional) ──────────────────────────
     # On by default for demo sessions only (never parent/child production) —

@@ -33,7 +33,7 @@ years and nothing here assumes otherwise.
 | `learner_profiles` | Bede's synthesized learner-type read (trivium stage, processing style, etc.) |
 | `learner_behavior_checks` | The minimal kinesthetic/reading-writing/visual adaptation counter (see `CLAUDE.md`'s "processing_style adaptation" note for what this is and isn't) |
 | `mastery_profiles` | The math skill-mastery vector (IRT/CDM/KST — see `docs/diagnostic/`) |
-| `diagnostic_evidence_log` | Derived probe deltas feeding the vector above (off by default — `DIAGNOSTIC_EVIDENCE_LOG_ENABLED`) |
+| `diagnostic_evidence_log` | Derived probe deltas (skill_id, prior→posterior, probe_id, model_used, timestamp — never a transcript or probe text) feeding both the vector above and the end-of-session Math Skill Growth report; on by default (`DIAGNOSTIC_EVIDENCE_LOG_ENABLED`) |
 | `session_transcripts` | The full encrypted session transcript, for parent review |
 | `api_usage_events` | Per-call token counts (student-scoped rows only — see below) |
 

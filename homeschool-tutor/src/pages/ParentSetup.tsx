@@ -284,7 +284,7 @@ export default function ParentSetup() {
                 <span
                   className={`flex items-center gap-1.5 ${
                     systemStatus.license.tier === 'trial' &&
-                    systemStatus.license.days_remaining !== null &&
+                    systemStatus.license.days_remaining != null &&
                     systemStatus.license.days_remaining <= 7
                       ? 'text-amber-700 font-medium'
                       : ''
@@ -292,14 +292,14 @@ export default function ParentSetup() {
                   title={t('parentSetup.licenseTooltip', { licensee: systemStatus.license.licensee, seats: systemStatus.license.seats })}
                 >
                   {systemStatus.license.tier === 'trial' &&
-                  systemStatus.license.days_remaining !== null &&
+                  systemStatus.license.days_remaining != null &&
                   systemStatus.license.days_remaining <= 7 ? (
                     <AlertTriangle size={13} />
                   ) : (
                     <KeyRound size={13} />
                   )}
                   {systemStatus.license.tier === 'trial'
-                    ? systemStatus.license.days_remaining !== null && systemStatus.license.days_remaining >= 0
+                    ? systemStatus.license.days_remaining != null && systemStatus.license.days_remaining >= 0
                       ? t('parentSetup.trialDaysLeft', { count: systemStatus.license.days_remaining })
                       : t('parentSetup.trialExpired')
                     : systemStatus.license.tier === 'coop' ? t('parentSetup.coopLicense') : t('parentSetup.coreLicense')}

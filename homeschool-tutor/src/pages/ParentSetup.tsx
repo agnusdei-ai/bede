@@ -8,7 +8,8 @@ import { SUBJECTS, CORE_AREAS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import { listVoiceProfiles } from '../services/voiceApi'
-import { fetchSystemStatus, savePodConfigs, type SystemStatus } from '../services/api'
+import { fetchSystemStatus, isFeedbackEnabled, savePodConfigs, type SystemStatus } from '../services/api'
+import BetaIntakeModal from '../components/BetaIntakeModal'
 
 // label is a numeric grade range, not a translated word — same across
 // locales. descriptionKey resolves through i18n at render time since this
@@ -119,7 +120,7 @@ const blankStudent = (): StudentForm => ({
 export default function ParentSetup() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { setSessionConfig, startSession, setPodStudents, logout, token } = useSessionStore()
+  const { setSessionConfig, startSession, podStudents, setPodStudents, logout, token } = useSessionStore()
 
   const [students, setStudents] = useState<StudentForm[]>([blankStudent()])
   const [enrolledProfiles, setEnrolledProfiles] = useState<string[]>([])
@@ -128,6 +129,12 @@ export default function ParentSetup() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [hitlConsent, setHitlConsent] = useState(false)
+  const [feedbackEnabled, setFeedbackEnabled] = useState(false)
+  // Set only when this save was this family's very first-ever pod (see
+  // handleSavePod) — holds the saved configs so BetaIntakeModal's onDone can
+  // finish the same navigation handleSavePod would have done immediately,
+  // once the one-time intake prompt is skipped or submitted.
+  const [pendingFirstSaveConfigs, setPendingFirstSaveConfigs] = useState<SessionConfig[] | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -135,6 +142,7 @@ export default function ParentSetup() {
     fetchSystemStatus(token)
       .then(setSystemStatus)
       .catch(() => setStatusError(true))
+    isFeedbackEnabled().then(setFeedbackEnabled)
   }, [token])
 
   const isEnrolled = (name: string) =>
@@ -198,21 +206,35 @@ export default function ParentSetup() {
         ]).filter(([, topics]) => (topics as string[]).length > 0),
       ),
     }))
+    // Capture BEFORE savePodConfigs/setPodStudents below overwrite it — this
+    // is the one moment that can tell "first pod this family has ever
+    // created" from "adding another student to an existing pod."
+    const isFirstEverPod = podStudents.length === 0
     try {
       await savePodConfigs(token, configs)
       setPodStudents(configs)
-      // Single-student shortcut: start session directly
-      if (configs.length === 1) {
-        setSessionConfig(configs[0])
-        startSession()
-        navigate('/session')
+      if (isFirstEverPod && feedbackEnabled) {
+        // Hold off on navigating — BetaIntakeModal's onDone finishes this
+        // exact navigation once the one-time prompt is skipped or sent.
+        setPendingFirstSaveConfigs(configs)
       } else {
-        navigate('/pod')
+        proceedAfterSave(configs)
       }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('parentSetup.saveFailed'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Single-student shortcut: start session directly
+  const proceedAfterSave = (configs: SessionConfig[]) => {
+    if (configs.length === 1) {
+      setSessionConfig(configs[0])
+      startSession()
+      navigate('/session')
+    } else {
+      navigate('/pod')
     }
   }
 
@@ -352,6 +374,17 @@ export default function ParentSetup() {
           )}
         </button>
       </div>
+
+      {pendingFirstSaveConfigs && token && (
+        <BetaIntakeModal
+          token={token}
+          onDone={() => {
+            const configs = pendingFirstSaveConfigs
+            setPendingFirstSaveConfigs(null)
+            proceedAfterSave(configs)
+          }}
+        />
+      )}
     </div>
   )
 }

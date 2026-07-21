@@ -168,9 +168,21 @@ def test_other_categories_still_get_the_beta_feedback_heading():
     assert "Bede demo lead" not in html
 
 
-def test_feedback_prefix_only_treats_plans_specially():
+def test_onboarding_category_gets_its_own_heading_not_a_feedback_heading():
+    """A real family's one-time "what are you hoping Bede helps with" intake
+    (BetaIntakeModal, collected before they've used the product at all)
+    reuses this exact pipeline but shouldn't read like ordinary in-use
+    feedback under "Bede beta feedback"."""
+    html = build_feedback_email_html("onboarding", "Hoping for more confident narration", "parent")
+    assert "Bede beta onboarding" in html
+    assert "Bede beta feedback" not in html
+    assert "Bede demo lead" not in html
+
+
+def test_feedback_prefix_treats_plans_and_onboarding_specially():
     assert _feedback_prefix("plans") == "Bede demo lead"
-    for category in ("cx", "ux", "content_quality", "other", "anything-unrecognized"):
+    assert _feedback_prefix("onboarding") == "Bede beta onboarding"
+    for category in ("cx", "ux", "content_quality", "other", "beta_close", "anything-unrecognized"):
         assert _feedback_prefix(category) == "Bede beta feedback"
 
 

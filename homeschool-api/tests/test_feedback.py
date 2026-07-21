@@ -133,6 +133,31 @@ def test_beta_close_category_works_without_contact_email():
 
 
 @pytest.mark.asyncio
+async def test_onboarding_category_reuses_the_exact_same_pipeline(monkeypatch):
+    """A real beta family's one-time "what are you hoping Bede helps with"
+    intake prompt (BetaIntakeModal, shown once right after first pod setup)
+    is also just this category value — same pipeline, no contact_email
+    needed since the parent is already authenticated."""
+    monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
+
+    sent_calls = []
+
+    async def fake_send_feedback(**kwargs):
+        sent_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr("routers.feedback.send_feedback", fake_send_feedback)
+
+    result = await submit_feedback(
+        FeedbackRequest(category="onboarding", message="Hoping for more confident narration"),
+        _fake_request(),
+        auth={"role": "parent"},
+    )
+    assert result == {"sent": True}
+    assert sent_calls[0]["category"] == "onboarding"
+
+
+@pytest.mark.asyncio
 async def test_feedback_enabled_reflects_configuration(monkeypatch):
     monkeypatch.setattr(settings, "resend_api_key", "")
     monkeypatch.setattr(settings, "feedback_email", "")

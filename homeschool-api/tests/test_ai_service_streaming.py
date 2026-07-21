@@ -81,7 +81,7 @@ def _config() -> SessionConfig:
     return SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
 
 
-async def _run_stream(events) -> list[dict]:
+async def _run_stream(events, locale: str = "en") -> list[dict]:
     with patch.object(ai_service._client.messages, "stream", side_effect=_stream_of(events)):
         chunks = [
             chunk
@@ -90,6 +90,7 @@ async def _run_stream(events) -> list[dict]:
                 subject=Subject.living_books,
                 history=[],
                 child_message="Tell me about the river.",
+                locale=locale,
             )
         ]
     return [json.loads(c) for c in chunks]
@@ -145,7 +146,7 @@ async def test_celebrate_discovery_as_the_last_block_gets_a_fallback_question():
     assert parsed[-1] == {"type": "done"}
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert text_chunks, "no fallback question was appended after a questionless tool card"
-    assert text_chunks[-1]["content"].strip() in ai_service._CELEBRATION_FALLBACK_QUESTIONS
+    assert text_chunks[-1]["content"].strip() in ai_service._CELEBRATION_FALLBACK_QUESTIONS["en"]
 
 
 @pytest.mark.asyncio
@@ -170,7 +171,7 @@ async def test_connect_to_faith_without_reflection_question_gets_a_fallback():
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert text_chunks, "connect_to_faith with no reflection_question should still get a fallback"
-    assert text_chunks[-1]["content"].strip() in ai_service._FAITH_FALLBACK_QUESTIONS
+    assert text_chunks[-1]["content"].strip() in ai_service._FAITH_FALLBACK_QUESTIONS["en"]
 
 
 @pytest.mark.asyncio
@@ -185,16 +186,16 @@ async def test_celebration_fallback_never_uses_a_faith_question_and_vice_versa()
     ))
     celebration_parsed = await _run_stream(celebration_events)
     celebration_text = [p for p in celebration_parsed if p["type"] == "text"][-1]["content"].strip()
-    assert celebration_text in ai_service._CELEBRATION_FALLBACK_QUESTIONS
-    assert celebration_text not in ai_service._FAITH_FALLBACK_QUESTIONS
+    assert celebration_text in ai_service._CELEBRATION_FALLBACK_QUESTIONS["en"]
+    assert celebration_text not in ai_service._FAITH_FALLBACK_QUESTIONS["en"]
 
     faith_events = list(_tool_use_events(
         "toolu_1", "connect_to_faith", {"connection": "Just as the river never stops moving, God's care never stops either."},
     ))
     faith_parsed = await _run_stream(faith_events)
     faith_text = [p for p in faith_parsed if p["type"] == "text"][-1]["content"].strip()
-    assert faith_text in ai_service._FAITH_FALLBACK_QUESTIONS
-    assert faith_text not in ai_service._CELEBRATION_FALLBACK_QUESTIONS
+    assert faith_text in ai_service._FAITH_FALLBACK_QUESTIONS["en"]
+    assert faith_text not in ai_service._CELEBRATION_FALLBACK_QUESTIONS["en"]
 
 
 @pytest.mark.asyncio
@@ -207,6 +208,58 @@ async def test_connect_to_faith_with_reflection_question_gets_no_fallback():
 
     text_chunks = [p for p in parsed if p["type"] == "text"]
     assert not text_chunks, "connect_to_faith already had its own reflection_question — no fallback should be added"
+
+
+# ── Locale-aware fallback questions ──────────────────────────────────────────
+#
+# Real reported bug: this fallback is server-side text with no model in the
+# loop at all (see the "ends_on_questionless_tool" handling in
+# stream_tutor_response), so a Spanish-locale session got an English question
+# injected mid-conversation on whichever turn happened to end on a
+# questionless tool card — the one place in the whole pipeline that broke a
+# Spanish session's immersion unconditionally, not just as an occasional
+# model lapse. See docs/LOCALIZATION.md.
+
+@pytest.mark.asyncio
+async def test_celebrate_discovery_fallback_is_spanish_for_es_locale():
+    events = list(_tool_use_events(
+        "toolu_1", "celebrate_discovery",
+        {"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
+    ))
+    parsed = await _run_stream(events, locale="es")
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert text_chunks, "no fallback question was appended after a questionless tool card"
+    fallback = text_chunks[-1]["content"].strip()
+    assert fallback in ai_service._CELEBRATION_FALLBACK_QUESTIONS["es"]
+    assert fallback not in ai_service._CELEBRATION_FALLBACK_QUESTIONS["en"]
+
+
+@pytest.mark.asyncio
+async def test_connect_to_faith_fallback_is_spanish_for_es_locale():
+    events = list(_tool_use_events(
+        "toolu_1", "connect_to_faith",
+        {"connection": "Just as the river never stops moving, God's care never stops either."},
+    ))
+    parsed = await _run_stream(events, locale="es")
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert text_chunks, "connect_to_faith with no reflection_question should still get a fallback"
+    fallback = text_chunks[-1]["content"].strip()
+    assert fallback in ai_service._FAITH_FALLBACK_QUESTIONS["es"]
+    assert fallback not in ai_service._FAITH_FALLBACK_QUESTIONS["en"]
+
+
+@pytest.mark.asyncio
+async def test_fallback_defaults_to_english_for_a_locale_with_no_translation_yet():
+    events = list(_tool_use_events(
+        "toolu_1", "celebrate_discovery",
+        {"specific_insight": "the river carves the canyon", "encouragement": "That's real thinking!"},
+    ))
+    parsed = await _run_stream(events, locale="xx")
+
+    text_chunks = [p for p in parsed if p["type"] == "text"]
+    assert text_chunks[-1]["content"].strip() in ai_service._CELEBRATION_FALLBACK_QUESTIONS["en"]
 
 
 @pytest.mark.asyncio

@@ -321,14 +321,21 @@ export interface UsageSummary {
 // GET /admin/status. Null on the wire (see routers/admin.py) when
 // LICENSE_KEY is unset — dev/self-managed mode, or the operator's public
 // demo (Settings.is_demo_deployment exempts it from needing one). A real
-// family production deployment always has one (core/config.py refuses to
-// boot without a valid one there), so this is effectively always present
-// for that case.
+// family production deployment is REQUIRED to have one, enforced by the
+// license gate (core/license_state.py + LicenseGateMiddleware) rather
+// than a boot refusal — so a gated instance can report ok:false with a
+// problem message and no license identity at all. `source` says where
+// the effective key came from: 'db' = applied in-app (renewal), 'env' =
+// the key the deployment was installed with.
 export interface LicenseStatus {
-  tier: 'trial' | 'core' | 'coop'
-  licensee: string
-  seats: number
-  expires: string | null
-  days_remaining: number | null
-  is_expired: boolean
+  ok: boolean
+  required: boolean
+  source: 'db' | 'env' | 'none'
+  problem: string | null
+  tier?: 'trial' | 'core' | 'coop'
+  licensee?: string
+  seats?: number
+  expires?: string | null
+  days_remaining?: number | null
+  is_expired?: boolean
 }

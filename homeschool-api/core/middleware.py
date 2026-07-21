@@ -19,6 +19,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+from core import license_state
 from core.audit import AuditEvent, log_event
 from core.config import settings
 
@@ -203,6 +204,39 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
 
         return await call_next(request)
+
+
+class LicenseGateMiddleware(BaseHTTPMiddleware):
+    """When a production instance has no usable license (missing, invalid,
+    or expired — see core/license_state.py), restrict the API to exactly
+    the surface a parent needs to FIX that in-app: logging in (auth + any
+    enrolled second factor) and the license endpoints themselves. This
+    replaces the old refuse-to-boot behavior — an expired license used to
+    brick the instance until someone edited .env on the server; now the
+    parent pastes the renewed key into the UI and the gate lifts live, no
+    restart. Never active in dev or on the public demo (same exemptions
+    the old startup check had)."""
+
+    _ALLOWED_PREFIXES = ("/auth/", "/mfa/", "/admin/license")
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if not license_state.is_gated():
+            return await call_next(request)
+        path = request.url.path
+        if (
+            request.method == "OPTIONS"  # CORS preflight must always answer
+            or path == "/health"
+            or any(path.startswith(p) for p in self._ALLOWED_PREFIXES)
+        ):
+            return await call_next(request)
+        return JSONResponse(
+            {
+                "detail": license_state.current().problem
+                or "A valid license is required — a parent can apply one from Setup.",
+                "code": "license_required",
+            },
+            status_code=403,
+        )
 
 
 # ── Session fingerprint helpers (called from route handlers) ─────────────────

@@ -16,7 +16,7 @@ from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 from fastapi import HTTPException
 
-from core import licensing
+from core import license_state, licensing
 from core.config import settings
 from models.schemas import GradeStage, PodConfigsRequest, SessionConfig
 from routers.pod import save_pod_configs
@@ -36,8 +36,10 @@ def _b64url(data: bytes) -> str:
 
 @pytest.fixture
 def license_with_seats(monkeypatch):
-    """Signs and installs a license with the given seat count as
-    settings.license_key for the duration of one test."""
+    """Signs a license with the given seat count and makes it the EFFECTIVE
+    license via core/license_state.py — the seat cap reads the effective
+    license now (a DB-applied key can beat the env one), not
+    settings.license_key directly."""
     def _make(seats: int) -> str:
         key = ECC.generate(curve="ed25519")
         monkeypatch.setattr(licensing, "PUBLIC_KEY_PEM", key.public_key().export_key(format="PEM"))
@@ -50,8 +52,10 @@ def license_with_seats(monkeypatch):
         signature = eddsa.new(key, "rfc8032").sign(payload_bytes)
         lic = f"{_b64url(payload_bytes)}.{_b64url(signature)}"
         monkeypatch.setattr(settings, "license_key", lic)
+        license_state.refresh(lic, None, required=False)
         return lic
-    return _make
+    yield _make
+    license_state.refresh("", None, required=False)
 
 
 def _config(name: str) -> SessionConfig:

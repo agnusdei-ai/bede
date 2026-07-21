@@ -317,7 +317,19 @@ connected to their tablet, with handwriting ruling scaled to their `GradeStage`
 (wide 5/8" primary ruling for K-2, standard 3/8" for 3-5, narrower 1/4" for 6-8),
 so what comes out matches ordinary classroom handwriting paper.
 
-## 9. Checking in afterward
+## 9. Renewing or upgrading your license
+
+You never need to touch the server for this. When your renewal or upgrade
+email arrives with a new license key, log in with the parent password, open
+**Setup**, and find the **License** card near the bottom. It shows your
+current license (who it's for, how many students, when it renews) and a box
+to paste the new key into. Press **Apply** and it takes effect right away.
+
+If a license ever lapses before you renew, Bede pauses tutoring and says
+why — but your login and the License card keep working, so pasting the new
+key is all it takes to pick back up. Nothing is lost while paused.
+
+## 10. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
   Bede's sense of how that child learns best — available from the very first session

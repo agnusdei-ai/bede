@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 
 from fastapi import Depends
-from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -72,6 +72,25 @@ class EncryptionConfig(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class LicenseConfig(Base):
+    """The license key applied from the parent UI (PUT /admin/license) — a
+    renewal/upgrade path that needs no .env edit and no restart. A single
+    well-known row; the signed license text is not secret material (it's
+    the same token the customer received by email, verifiable only against
+    the embedded public key), so it's stored as plain text. Selection
+    between this and the env LICENSE_KEY happens in core/license_state.py."""
+    __tablename__ = "license_config"
+
+    key: Mapped[str] = mapped_column(String(50), primary_key=True, default="license")
+    license_text: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 

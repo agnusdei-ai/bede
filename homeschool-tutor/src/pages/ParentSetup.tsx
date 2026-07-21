@@ -7,6 +7,7 @@ import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, Compan
 import { SUBJECTS, CORE_AREAS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
+import LicenseSettings from '../components/LicenseSettings'
 import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, isFeedbackEnabled, savePodConfigs, type SystemStatus } from '../services/api'
 import BetaIntakeModal from '../components/BetaIntakeModal'
@@ -283,7 +284,7 @@ export default function ParentSetup() {
                 <span
                   className={`flex items-center gap-1.5 ${
                     systemStatus.license.tier === 'trial' &&
-                    systemStatus.license.days_remaining !== null &&
+                    systemStatus.license.days_remaining != null &&
                     systemStatus.license.days_remaining <= 7
                       ? 'text-amber-700 font-medium'
                       : ''
@@ -291,14 +292,14 @@ export default function ParentSetup() {
                   title={t('parentSetup.licenseTooltip', { licensee: systemStatus.license.licensee, seats: systemStatus.license.seats })}
                 >
                   {systemStatus.license.tier === 'trial' &&
-                  systemStatus.license.days_remaining !== null &&
+                  systemStatus.license.days_remaining != null &&
                   systemStatus.license.days_remaining <= 7 ? (
                     <AlertTriangle size={13} />
                   ) : (
                     <KeyRound size={13} />
                   )}
                   {systemStatus.license.tier === 'trial'
-                    ? systemStatus.license.days_remaining !== null && systemStatus.license.days_remaining >= 0
+                    ? systemStatus.license.days_remaining != null && systemStatus.license.days_remaining >= 0
                       ? t('parentSetup.trialDaysLeft', { count: systemStatus.license.days_remaining })
                       : t('parentSetup.trialExpired')
                     : systemStatus.license.tier === 'coop' ? t('parentSetup.coopLicense') : t('parentSetup.coreLicense')}
@@ -311,6 +312,7 @@ export default function ParentSetup() {
         </div>
 
         <ParentSecuritySettings token={token!} />
+        <LicenseSettings token={token!} />
 
         {/* Student cards */}
         <div className="space-y-4">

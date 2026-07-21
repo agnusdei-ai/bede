@@ -102,18 +102,50 @@ _QUESTIONLESS_TOOLS = {"celebrate_discovery", "connect_to_faith"}
 # confusing even for a child who WAS just following along, let alone at a
 # 3rd-grade level. Each list below is written for the one specific moment
 # it always follows, so what it's asking about is concrete and immediate.
-_CELEBRATION_FALLBACK_QUESTIONS = [
-    "What was the first clue that helped you notice that?",
-    "Can you find one more example like that one?",
-    "How did you figure that out?",
-    "What do you want to try next?",
-]
-_FAITH_FALLBACK_QUESTIONS = [
-    "Has something like that ever made you feel thankful too?",
-    "What's one way you could thank God for that today?",
-    "How does thinking about that make you feel?",
-    "What do you think that shows us about God's care for us?",
-]
+#
+# Keyed by locale, not a single flat list — a real reported bug: this
+# fallback is server-side text, emitted with NO model involved at all (see
+# the "ends_on_questionless_tool" handling below), so it used to speak
+# English every single time regardless of the session's own locale — the
+# one place in the whole tutoring pipeline that unconditionally broke a
+# Spanish session's immersion, mid-conversation, on a random ~turn. Unlike
+# _rule_lang_note's redundant reminder elsewhere (insurance against the
+# MODEL occasionally lapsing into English), this had no model in the loop
+# to instruct at all; the only fix is translating the fallback text itself.
+# Falls back to the "en" list for any locale without its own translation yet
+# (see core/config.py's SUPPORTED_LOCALES for what's actually live).
+_CELEBRATION_FALLBACK_QUESTIONS = {
+    "en": [
+        "What was the first clue that helped you notice that?",
+        "Can you find one more example like that one?",
+        "How did you figure that out?",
+        "What do you want to try next?",
+    ],
+    "es": [
+        "¿Cuál fue la primera pista que te ayudó a notar eso?",
+        "¿Puedes encontrar un ejemplo más como ese?",
+        "¿Cómo lo descubriste?",
+        "¿Qué te gustaría intentar después?",
+    ],
+}
+_FAITH_FALLBACK_QUESTIONS = {
+    "en": [
+        "Has something like that ever made you feel thankful too?",
+        "What's one way you could thank God for that today?",
+        "How does thinking about that make you feel?",
+        "What do you think that shows us about God's care for us?",
+    ],
+    "es": [
+        # "gratitud"/"cuidado" (nouns) rather than a gendered adjective like
+        # "agradecido/a" — see docs/LOCALIZATION.md's "Sex, not gender-neutral
+        # hedging" section; this fallback has no config.sex in scope to pick
+        # the right gendered form, so the fix is phrasing that needs none.
+        "¿Alguna vez algo así también te hizo sentir gratitud?",
+        "¿De qué manera podrías darle gracias a Dios por eso hoy?",
+        "¿Cómo te hace sentir pensar en eso?",
+        "¿Qué crees que eso nos muestra sobre el cuidado de Dios por nosotros?",
+    ],
+}
 
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
@@ -228,8 +260,18 @@ TUTOR_TOOLS = [
     {
         "name": "celebrate_discovery",
         "description": (
-            "Celebrate a specific insight the child just made. "
-            "Specific praise ('I noticed you connected X to Y') beats generic praise ('good job')."
+            # No literal quotable English example sentence here on purpose —
+            # a live Spanish-locale trace showed Bede's own specific_insight/
+            # encouragement text mid-sentence-switching into English ("I
+            # noticed you saw that reconocer que es un hijo único de Dios..."),
+            # closely echoing the phrasing an earlier draft of this
+            # description quoted verbatim ('I noticed you connected X to Y').
+            # Describing the PRINCIPLE (specific beats generic) without
+            # handing the model an English sentence to pattern-match against
+            # removes that risk without weakening the guidance for English
+            # sessions at all.
+            "Celebrate a specific insight the child just made — name the exact connection or reasoning "
+            "step they took, not just that they got it right. Specific beats generic."
         ),
         "input_schema": {
             "type": "object",
@@ -2204,9 +2246,11 @@ async def stream_tutor_response(
                         tool_calls_buffer.pop(block_id, None)
 
         if ends_on_questionless_tool == "celebrate_discovery":
-            yield json.dumps({'type': 'text', 'content': f" {random.choice(_CELEBRATION_FALLBACK_QUESTIONS)}"})
+            questions = _CELEBRATION_FALLBACK_QUESTIONS.get(locale, _CELEBRATION_FALLBACK_QUESTIONS["en"])
+            yield json.dumps({'type': 'text', 'content': f" {random.choice(questions)}"})
         elif ends_on_questionless_tool == "connect_to_faith":
-            yield json.dumps({'type': 'text', 'content': f" {random.choice(_FAITH_FALLBACK_QUESTIONS)}"})
+            questions = _FAITH_FALLBACK_QUESTIONS.get(locale, _FAITH_FALLBACK_QUESTIONS["en"])
+            yield json.dumps({'type': 'text', 'content': f" {random.choice(questions)}"})
 
         final_message = None
         try:

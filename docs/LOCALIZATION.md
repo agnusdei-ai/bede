@@ -289,6 +289,64 @@ this — it already carries verified Spanish text for the Church's own
 traditional prayers (Our Father, etc.), a different case from quoting an
 individually-authored poem.
 
+## Troubleshooting: Bede reverts to English (or mixes languages mid-sentence) partway through a Spanish session
+
+Reported directly, with a live trace: a parent noticed Bede in `es` mode
+"reverting to bilingual / English modality" — one whole turn in plain
+English (`"What was the first clue that helped you notice that?"`), and a
+separate turn mixing English into the middle of an otherwise-Spanish
+sentence (`"...Eso es un gran regalo. I noticed you saw that reconocer que
+es un hijo único de Dios que ama su fe."`). Two distinct, real causes, not
+one:
+
+1. **A 100%-reproducible server-side bug, not a model lapse.** The exact
+   English sentence from the first example is one of
+   `_CELEBRATION_FALLBACK_QUESTIONS`' four hardcoded strings
+   (`services/ai_service.py`) — `stream_tutor_response`'s own code appends
+   one of these, with no model involved at all, whenever a turn ends on a
+   questionless tool (`celebrate_discovery`/`connect_to_faith`) without the
+   model supplying its own follow-up question (see the `test_ai_service_streaming.py`
+   tests for why that fallback exists in the first place: a guarantee, not a
+   request, against the turn just stopping with nothing for the child to
+   respond to). Both fallback lists were hardcoded English-only with no
+   locale awareness whatsoever — unlike everywhere else in this file, which
+   threads `locale` through explicitly, this one code path broke a Spanish
+   session's immersion unconditionally on whichever turn happened to trigger
+   it. **Fixed** by keying both lists by locale (`{"en": [...], "es": [...]}`,
+   falling back to `"en"` for any locale without its own translation yet)
+   and threading `locale` into which list `random.choice` draws from.
+2. **A likely model-generation contributor**, matching the "Spanglish kink"
+   pattern from the poetry catalog section above: `celebrate_discovery`'s
+   own tool `description` used to contain a literal, quotable English
+   example sentence — `'I noticed you connected X to Y'` — as guidance for
+   what "specific praise" looks like. The reported mixed-language text
+   (`"I noticed you saw that..."`) echoes that exact phrasing closely enough
+   that the tool description itself is the likely source the model drew on
+   while composing its Spanish `specific_insight`/`encouragement` fields.
+   **Fixed** by rephrasing the description to state the underlying principle
+   (specific beats generic) without a literal English sentence to
+   pattern-match against — no change to the guidance's substance, so English
+   sessions are unaffected.
+
+Both fixes are localized to `services/ai_service.py`; no frontend change was
+needed. `_locale_directive`'s own carve-out ("Tool names and any structured
+data you produce stay exactly as documented below, in English") was never
+meant to cover prose field VALUES like `specific_insight`/`encouragement` —
+only the tool's name and genuinely structural data (e.g. `elements` lists,
+enum values) — but the ambiguity was real enough that it's worth stating
+explicitly here for the next person debugging a similar report: any tool
+whose field values render as user-facing text (`celebrate_discovery`,
+`connect_to_faith`, `offer_socratic_hint`, `show_visual_aid`,
+`invite_handwriting`'s `prompt`) must have those values written in the
+session's own language like everything else Bede says — only the tool
+*name* itself and non-prose structured values are the English exception.
+Other tool descriptions (`request_narration`, `invite_handwriting`) still
+carry their own literal English example phrases and weren't touched here —
+no evidence tied them to this specific report, and `invite_handwriting`'s
+description in particular is large and carefully iterated on; a future
+mixed-language report tied to one of those tools would be the trigger to
+revisit them the same way.
+
 ## Sex, not gender-neutral hedging
 
 Spanish, Italian, and Polish all require grammatically correct address —

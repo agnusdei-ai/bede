@@ -17,6 +17,16 @@
     "voiceNamePrompt": "Escribe tu nombre para la verificación de voz:",
     "voiceNamePlaceholder": "Sofía"
   },
+  "betaIntake": {
+    "title": "Una pregunta rápida antes de empezar",
+    "subtitle": "Totalmente opcional — puedes omitirla.",
+    "questionLabel": "¿Qué esperas que Bede te ayude a lograr?",
+    "placeholder": "por ejemplo: más confianza al narrar, mañanas más tranquilas, mayor independencia en el aprendizaje…",
+    "skip": "Omitir",
+    "submit": "Enviar",
+    "thanks": "Gracias — esto realmente nos ayuda a mejorar.",
+    "continue": "Continuar"
+  },
   "tutorSession": {
     "loadingSession": "Cargando tu sesión…",
     "sessionNotFound": "Sesión no encontrada",

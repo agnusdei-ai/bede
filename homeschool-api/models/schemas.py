@@ -401,8 +401,17 @@ class FeedbackRequest(BaseModel):
     the field is even shown, since unlike the rest of this endpoint's
     traffic, a volunteered email address is unambiguous personal
     information, not an anonymized signal.
+
+    "onboarding" is a real beta family's own one-time intake prompt
+    (BetaIntakeModal, homeschool-tutor/src/components) shown once, right
+    after a parent completes their very first pod setup — "what are you
+    hoping Bede helps with," collected before they've used the product at
+    all rather than after, unlike every other category here. Same pipeline,
+    same contract; just a distinct subject-line prefix (see
+    services/email_service.py's _feedback_prefix) so it doesn't read like
+    ordinary in-use feedback.
     """
-    category: Literal["cx", "ux", "content_quality", "plans", "other", "beta_close"]
+    category: Literal["cx", "ux", "content_quality", "plans", "other", "beta_close", "onboarding"]
     message: str = Field(..., min_length=1, max_length=2000)
     rating: Optional[int] = Field(None, ge=1, le=5)
     contact_email: Optional[EmailStr] = None

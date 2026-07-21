@@ -140,16 +140,22 @@ _CATEGORY_LABELS = {
     "plans": "🎯 Interested in plans",
     "other": "Other",
     "beta_close": "💬 End-of-demo suggestion",
+    "onboarding": "🌱 New family's first-day hopes",
 }
 
 
 def _feedback_prefix(category: str) -> str:
-    """"plans" is a demo lead, not product feedback — reads oddly under a
-    "beta feedback" heading, so it gets its own prefix even though it
-    shares every other part of this pipeline (same inbox, same template,
-    same one-outbound-email contract) with routers/feedback.py's original
-    cx/ux/content_quality/other categories."""
-    return "Bede demo lead" if category == "plans" else "Bede beta feedback"
+    """"plans" is a demo lead, not product feedback, and "onboarding" is
+    collected before a family has used the product at all — both read oddly
+    under a "beta feedback" heading, so each gets its own prefix even though
+    they share every other part of this pipeline (same inbox, same
+    template, same one-outbound-email contract) with routers/feedback.py's
+    original cx/ux/content_quality/other categories."""
+    if category == "plans":
+        return "Bede demo lead"
+    if category == "onboarding":
+        return "Bede beta onboarding"
+    return "Bede beta feedback"
 
 
 def build_feedback_email_html(

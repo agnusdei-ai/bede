@@ -232,6 +232,17 @@ is in the middle of, and if the child declines, he accepts that and moves
 on. If you'd like the composition pointed somewhere particular, mention it
 in the student's lesson note and Bede will fold it in.
 
+**The very first time you save a student here, you'll see one extra, fully
+optional prompt** — "What are you most hoping Bede helps with?" — before
+you're taken on to the session or pod dashboard. This is a one-time beta
+check-in, not part of ordinary setup: it helps whoever runs this deployment
+understand what new families are hoping for, before they've used Bede at
+all. Skip it with no consequence if you'd rather get straight to the
+lesson — it never appears again once you've added your first student. (It
+only appears at all if the deployment has feedback collection turned on; if
+you don't see it, that's why.) You can always share feedback later too, any
+time, from the message-bubble icon in a session's own header.
+
 ## 6. Getting each child onto their own tablet
 
 **First, each new device needs to trust your server's certificate** — a

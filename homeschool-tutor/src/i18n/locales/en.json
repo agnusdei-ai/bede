@@ -17,6 +17,16 @@
     "voiceNamePrompt": "Enter your name for the voice check:",
     "voiceNamePlaceholder": "Emma"
   },
+  "betaIntake": {
+    "title": "One quick question before you begin",
+    "subtitle": "Totally optional — skip anytime.",
+    "questionLabel": "What are you most hoping Bede helps with?",
+    "placeholder": "e.g. building narration confidence, a lighter homeschool morning, more independent learning…",
+    "skip": "Skip",
+    "submit": "Send",
+    "thanks": "Thank you — this genuinely helps shape what's next.",
+    "continue": "Continue"
+  },
   "tutorSession": {
     "loadingSession": "Loading your session…",
     "sessionNotFound": "Session not found",

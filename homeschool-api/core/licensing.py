@@ -38,7 +38,7 @@ from Crypto.Signature import eddsa
 # scripts/generate_license_keypair.py; the matching private key lives
 # offline, outside this repo.
 PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAVqix4xZoEWWs/P4ZAznq06Fsjpt4qy2a560Egq2RNks=
+MCowBQYDK2VwAyEABpTf5ffiiNf0OItRYP3R2pLb7ij/KtNOS73WPBq57N4=
 -----END PUBLIC KEY-----"""
 
 _VALID_TIERS = {"trial", "core", "coop"}

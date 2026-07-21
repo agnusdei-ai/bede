@@ -7,6 +7,7 @@ import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, Compan
 import { SUBJECTS, CORE_AREAS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
+import LicenseSettings from '../components/LicenseSettings'
 import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, isFeedbackEnabled, savePodConfigs, type SystemStatus } from '../services/api'
 import BetaIntakeModal from '../components/BetaIntakeModal'
@@ -311,6 +312,7 @@ export default function ParentSetup() {
         </div>
 
         <ParentSecuritySettings token={token!} />
+        <LicenseSettings token={token!} />
 
         {/* Student cards */}
         <div className="space-y-4">

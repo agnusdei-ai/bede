@@ -55,6 +55,7 @@ class AuditEvent:
     DIAGNOSTIC_VIEW          = "diagnostic.view"
     FEEDBACK_SUBMITTED       = "feedback.submitted"
     STUDENT_DATA_DELETED     = "student.data_deleted"
+    LICENSE_APPLIED          = "license.applied"
     ANOMALY_ALERT            = "security.anomaly_alert"
     MODERATION_FLAGGED       = "moderation.flagged"
 

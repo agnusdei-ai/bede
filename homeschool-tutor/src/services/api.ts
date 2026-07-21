@@ -300,6 +300,29 @@ export interface SystemStatus {
   license: LicenseStatus | null
 }
 
+export async function fetchLicenseStatus(token: string): Promise<LicenseStatus | null> {
+  const res = await fetch(`${BASE}/admin/license`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load license status')
+  const data = await res.json()
+  return data.license
+}
+
+/** Applies a new license key (renewal/upgrade) — verified server-side and
+ *  effective immediately, no restart. Throws with the server's own message
+ *  on an invalid or expired key. */
+export async function applyLicenseKey(token: string, licenseKey: string): Promise<LicenseStatus | null> {
+  const res = await fetch(`${BASE}/admin/license`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ license_key: licenseKey }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || 'Could not apply that license key')
+  return data.license
+}
+
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {
   const res = await fetch(`${BASE}/admin/status`, {
     headers: { Authorization: `Bearer ${token}` },

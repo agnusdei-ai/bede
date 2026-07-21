@@ -21,7 +21,7 @@ import pytest
 from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 
-from core import licensing
+from core import license_state, licensing
 from core.config import Settings
 
 
@@ -114,29 +114,43 @@ def test_unset_sandbox_pin_never_blocks_production_startup(valid_license):
 
 # ── LICENSE_KEY ──────────────────────────────────────────────────────────
 
-def test_missing_license_key_rejected_in_production():
-    with pytest.raises(ValueError, match="LICENSE_KEY is not set"):
-        Settings(
-            production="true",
-            secret_key="a" * 40,
-            parent_password="a-strong-password",
-            child_pin="602656",
-            master_secret="b" * 40,
-            demo_pin="",
-        )
+# Licensing is no longer a hard Settings validator — a missing/invalid/
+# expired key used to refuse to construct Settings (and therefore refuse to
+# boot), which turned every renewal into a customer-side .env edit and made
+# an expiry brick the instance. Boot now always succeeds; the enforcement
+# moved to core/license_state.py + LicenseGateMiddleware (production boots
+# into a gated "license required" mode instead). The gate behavior itself
+# is covered in tests/test_license_state.py.
+
+def test_missing_license_key_boots_into_gated_mode_not_refusal():
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        demo_pin="",
+    )
+    state = license_state.refresh("", None, required=s.is_production and not s.is_demo_deployment)
+    assert not state.ok and state.required
+    assert license_state.is_gated()
+    license_state.refresh("", None, required=False)
 
 
-def test_invalid_license_key_rejected_in_production():
-    with pytest.raises(ValueError, match="LICENSE_KEY is invalid"):
-        Settings(
-            production="true",
-            secret_key="a" * 40,
-            parent_password="a-strong-password",
-            child_pin="602656",
-            master_secret="b" * 40,
-            license_key="not-a-real-license",
-            demo_pin="",
-        )
+def test_invalid_license_key_boots_into_gated_mode_not_refusal():
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        license_key="not-a-real-license",
+        demo_pin="",
+    )
+    state = license_state.refresh(s.license_key, None, required=True)
+    assert not state.ok and "invalid" in (state.problem or "")
+    assert license_state.is_gated()
+    license_state.refresh("", None, required=False)
 
 
 def test_valid_license_key_accepted_in_production(valid_license):
@@ -157,7 +171,7 @@ def test_license_key_not_required_outside_production():
     assert s.license_key == ""
 
 
-def test_expired_license_key_rejected_in_production(monkeypatch):
+def test_expired_license_key_gates_production(monkeypatch):
     import base64 as _b64
     from datetime import timedelta
 
@@ -172,16 +186,21 @@ def test_expired_license_key_rejected_in_production(monkeypatch):
     signature = eddsa.new(key, "rfc8032").sign(payload_bytes)
     expired_license = f"{_b64url(payload_bytes)}.{_b64url(signature)}"
 
-    with pytest.raises(ValueError, match="LICENSE_KEY expired"):
-        Settings(
-            production="true",
-            secret_key="a" * 40,
-            parent_password="a-strong-password",
-            child_pin="602656",
-            master_secret="b" * 40,
-            license_key=expired_license,
-            demo_pin="",
-        )
+    # Boot succeeds; the gate comes up instead, with a message naming the
+    # expiry so the parent knows exactly what to fix.
+    Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        license_key=expired_license,
+        demo_pin="",
+    )
+    state = license_state.refresh(expired_license, None, required=True)
+    assert not state.ok and "expired" in (state.problem or "")
+    assert license_state.is_gated()
+    license_state.refresh("", None, required=False)
 
 
 # ── Public demo exemption ──────────────────────────────────────────────────
@@ -219,17 +238,30 @@ def test_is_demo_deployment_reflects_demo_pin():
 
 
 def test_real_family_production_without_demo_pin_still_requires_license():
-    """The exemption must not accidentally widen to all of production —
-    a real family install (demo_pin empty) still needs a valid license."""
-    with pytest.raises(ValueError, match="LICENSE_KEY is not set"):
-        Settings(
-            production="true",
-            secret_key="a" * 40,
-            parent_password="a-strong-password",
-            child_pin="602656",
-            master_secret="b" * 40,
-            demo_pin="",
-        )
+    """The demo exemption must not accidentally widen to all of production —
+    a real family install (demo_pin empty) is still REQUIRED to carry a
+    license. Enforcement is the license gate now, not a boot refusal."""
+    s = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        demo_pin="",
+    )
+    assert s.is_production and not s.is_demo_deployment
+    state = license_state.refresh("", None, required=True)
+    assert not state.ok and license_state.is_gated()
+    demo = Settings(
+        production="true",
+        secret_key="a" * 40,
+        parent_password="a-strong-password",
+        child_pin="602656",
+        master_secret="b" * 40,
+        demo_pin="749283",
+    )
+    state = license_state.refresh("", None, required=demo.is_production and not demo.is_demo_deployment)
+    assert state.ok and not license_state.is_gated()
 
 
 # ── AI provider — at least one required, but never a specific one ──────────

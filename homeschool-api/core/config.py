@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import List
 
-from core import licensing
 from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
 
 # Placeholder RESEND_FROM_ADDRESS — example.com can never be a verified
@@ -359,36 +358,19 @@ class Settings(BaseSettings):
             )
         return self
 
-    @model_validator(mode="after")
-    def reject_missing_or_invalid_license_in_production(self) -> "Settings":
-        """A real family deployment running PRODUCTION=true must carry a
-        genuine, unexpired license. The operator's own public demo is
-        exempt (see is_demo_deployment) — it's a stateless, zero-seat
-        instance that exists specifically to be frictionless for
-        prospective customers to try, so gating it behind the same
-        paid-license check it's meant to sell is counterproductive, and
-        there's no per-family seat count to enforce there in the first
-        place. Kept as its own validator, separate from
-        reject_weak_defaults_in_production above, since a license problem
-        is a distinct failure mode (missing/invalid/expired, not "using a
-        dev default") worth its own clear error message."""
-        if not self.is_production or self.is_demo_deployment:
-            return self
-        if not self.license_key:
-            raise ValueError(
-                "Production mode is enabled but LICENSE_KEY is not set — issue one with "
-                "scripts/issue_license.py (see docs/PRODUCTION_SETUP.md#licensing)"
-            )
-        try:
-            info = licensing.verify_license(self.license_key)
-        except licensing.InvalidLicenseError as exc:
-            raise ValueError(f"LICENSE_KEY is invalid: {exc}") from exc
-        if info.is_expired:
-            raise ValueError(
-                f"LICENSE_KEY expired on {info.expires.isoformat()} "
-                f"({info.tier} license for {info.licensee!r}) — renew to continue running in production"
-            )
-        return self
+    # NOTE — the license is deliberately NOT validated here anymore. It used
+    # to be a hard model_validator that refused to construct Settings (and
+    # therefore refused to boot) on a missing/invalid/expired LICENSE_KEY.
+    # That turned every renewal into a customer-side .env edit, and an
+    # expiry bricked the instance until someone edited that file. Licensing
+    # is now resolved at startup in main.py's lifespan via
+    # core/license_state.py — a valid license stored in the DATABASE (pasted
+    # into the parent UI, PUT /admin/license) wins over the env key, and an
+    # unlicensed production instance boots into a gated "license required"
+    # mode (core/middleware.py's LicenseGateMiddleware) where the parent can
+    # log in and paste a key, instead of refusing to start. Production
+    # non-demo deployments are exactly as licensed as before — just not
+    # brickable over an expiry.
 
     @model_validator(mode="after")
     def reject_no_ai_provider_configured_in_production(self) -> "Settings":

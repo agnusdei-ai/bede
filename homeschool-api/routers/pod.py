@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import licensing
+from core import license_state
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
@@ -31,11 +31,13 @@ async def save_pod_configs(
 ) -> None:
     """
     Parent saves all student configs for today's pod. Upserts per student
-    name. Enforces the license's seat cap when a license is configured
-    (unset LICENSE_KEY — dev/self-managed mode — skips this, same
-    "empty = disabled" pattern as DEMO_PIN); in production a license is
-    always present by the time this runs (core/config.py rejects startup
-    without one), so this is a defense-in-depth check, not the primary gate.
+    name. Enforces the seat cap of the EFFECTIVE license (core/
+    license_state.py — a key applied in-app via POST /admin/license wins
+    over the env LICENSE_KEY, so an upgrade to more seats takes effect
+    without a restart). No license at all — dev/self-managed mode — skips
+    this, same "empty = disabled" pattern as DEMO_PIN; in production an
+    unlicensed instance never reaches this handler (LicenseGateMiddleware
+    blocks it), so this is a defense-in-depth check, not the primary gate.
     """
     # Required the moment this deployment OFFERS a non-English login choice
     # at all (settings.locale != "en"), not just for students a parent
@@ -55,7 +57,7 @@ async def save_pod_configs(
                 ),
             )
 
-    license_info = licensing.get_license(settings.license_key)
+    license_info = license_state.effective_info()
     if license_info is not None:
         result = await db.execute(select(StudentConfig.student_name))
         existing_names = {row[0] for row in result.all()}

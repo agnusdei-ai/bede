@@ -169,27 +169,36 @@ ever saved), `WEBAUTHN_RP_ID`/TOTP settings for parent MFA.
 
 ## Licensing
 
-Once `PRODUCTION=true`, Bede refuses to start without a valid `LICENSE_KEY`
-(`core/config.py`'s `reject_missing_or_invalid_license_in_production`
-validator, mirroring the same fail-fast pattern as its weak-credential
-checks). A license is a compact, **offline-verifiable** certificate — no
-phone-home, no license server, no telemetry. Verification happens entirely
-against a public key embedded in `homeschool-api/core/licensing.py`; your
-server never needs outbound network access to prove it's licensed, and it
-never reports back to us.
+Once `PRODUCTION=true`, Bede requires a valid license. A license is a
+compact, **offline-verifiable** certificate — no phone-home, no license
+server, no telemetry. Verification happens entirely against a public key
+embedded in `homeschool-api/core/licensing.py`; your server never needs
+outbound network access to prove it's licensed, and it never reports back
+to us.
 
 **Getting one:** if you purchased Bede or started a trial, you were given a
-`LICENSE_KEY=...` line — paste it into `.env` as-is (both setup wizards —
-terminal and browser — also prompt for it directly and write it for you).
+license key. The setup wizards (terminal and browser) prompt for it at
+install time. After that, you never edit a file again: renewals and
+upgrades are pasted straight into the app — log in as the parent, open
+Setup, and use the **License** card. The new key is verified and takes
+effect immediately, no restart.
+
+**What happens without a valid license:** the instance still boots, but
+into a gated "license required" mode (`core/license_state.py` +
+`LicenseGateMiddleware`): tutoring and every other endpoint answer with a
+clear message, while parent login and the License card keep working — so
+an expired license is fixed by pasting the renewal into the UI, never by
+SSH-ing into the server. The key applied in-app is stored in the database
+and wins over the `.env` key.
 
 **What it controls today:**
-- Startup itself — a missing, tampered, or expired license refuses to boot
-  (check `make logs` for the exact reason if the API container won't come
-  up after a license change).
+- The gate above — an unlicensed production instance can't tutor until a
+  valid key is applied (in-app or in `.env`).
 - The pod's seat cap — `POST /pod/configs` (`routers/pod.py`) rejects
-  adding a student past your license's `seats` count.
-- The parent dashboard's status strip shows your tier, licensee, and (for a
-  trial) days remaining, sourced from `GET /admin/status`.
+  adding a student past the effective license's `seats` count.
+- The parent dashboard's status strip and the License card show your tier,
+  licensee, seats, and days remaining (`GET /admin/status`,
+  `GET /admin/license`).
 
 **Tiers:** `trial` (must carry an expiry — a fully-featured, time-limited
 evaluation), `core` (a single household, up to `seats` students), `coop`

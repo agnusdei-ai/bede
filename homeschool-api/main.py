@@ -7,11 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution
+from core import constitution, license_state
 from core.config import settings
-from core.database import AsyncSessionLocal, create_tables, engine
+from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
-from core.middleware import ExfiltrationGuard, RateLimitMiddleware, SecurityHeadersMiddleware
+from core.middleware import ExfiltrationGuard, LicenseGateMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
@@ -109,12 +109,17 @@ async def lifespan(app: FastAPI):
       3. Load or generate device_salt and DATA_KEY from the DB
          PBKDF2 key derivation runs in a thread pool so the event loop
          is not blocked during the ~1.5 s CPU-bound operation.
-      4. Kick off the voice-model warm-up in the background (non-blocking).
-      5. Start the periodic data-retention purge loop (non-blocking) — see
+      4. Resolve the effective license (core/license_state.py): a valid
+         license stored in the DB (applied from the parent UI) wins over
+         the env LICENSE_KEY. An unlicensed production instance boots into
+         a gated "license required" mode (LicenseGateMiddleware) instead
+         of refusing to start — the parent renews in-app, no .env edit.
+      5. Kick off the voice-model warm-up in the background (non-blocking).
+      6. Start the periodic data-retention purge loop (non-blocking) — see
          docs/DATA_RETENTION.md.
     Shutdown:
-      6. Dispose the database connection pool cleanly.
-      7. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
+      7. Dispose the database connection pool cleanly.
+      8. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
     """
     try:
         constitution.get_constitution()
@@ -123,6 +128,13 @@ async def lifespan(app: FastAPI):
         async with AsyncSessionLocal() as db:
             await initialize_encryption(settings.master_secret, db)
         log.info("Encryption initialised ✓")
+        async with AsyncSessionLocal() as db:
+            db_license = await db.get(LicenseConfig, "license")
+        license_state.refresh(
+            settings.license_key,
+            db_license.license_text if db_license else None,
+            required=settings.is_production and not settings.is_demo_deployment,
+        )
     except RuntimeError as exc:
         log.critical("FATAL: %s", exc)
         sys.exit(1)
@@ -174,6 +186,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+# Innermost (declared last): the license gate — when an unlicensed
+# production instance is in "license required" mode, only login/MFA and
+# the license endpoints pass; everything else gets a clear 403. Inside
+# CORS so gated responses still carry CORS headers the browser can read.
+app.add_middleware(LicenseGateMiddleware)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)

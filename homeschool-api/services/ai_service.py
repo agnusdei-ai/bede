@@ -278,7 +278,21 @@ TUTOR_TOOLS = [
             "properties": {
                 "specific_insight": {
                     "type": "string",
-                    "description": "The exact thing the child discovered or reasoned well — one short clause, not a full sentence",
+                    # `_process_tool_use` appends this after the literal words
+                    # "I noticed you saw that " — a live transcript showed the
+                    # model filling this in third person using the child's own
+                    # name ("...that Norah recognized..."), which reads as
+                    # Bede narrating about the child to someone else rather
+                    # than speaking to her, right after addressing her
+                    # directly as "you" earlier in the very same card. Phrase
+                    # explicitly required since nothing here previously said
+                    # what grammatical person continues that sentence.
+                    "description": (
+                        "The exact thing the child discovered or reasoned well — one short clause, not a full "
+                        "sentence, and phrased in second person to continue the sentence \"I noticed you saw "
+                        "that ___\" (e.g. \"you connected the two ideas\"). Never third person and never the "
+                        "child's own name here, even if you address them by name elsewhere in this same card."
+                    ),
                 },
                 "encouragement": {
                     "type": "string",

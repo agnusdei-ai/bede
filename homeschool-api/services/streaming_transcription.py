@@ -103,11 +103,26 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
         is_finished = session.finished
         text = ""
         if audio_snapshot:
+            # Elapsed-time log — previously the only visibility into this
+            # pipeline was client-side (DebugOverlay), which can show a
+            # "Transcribing…" spinner sitting for a long time after release()
+            # but has no way to say WHY: whether the final pass itself is
+            # just slow on this host's CPU (every pass re-transcribes the
+            # WHOLE buffer — see this file's own docstring), or it's queued
+            # behind an in-flight partial pass the coalescing design can't
+            # cancel. This is the one number that distinguishes the two.
+            started_at = time.monotonic()
             try:
                 result = await transcribe_audio(audio_snapshot, language=session.language)
                 text = result.get("text", "")
             except Exception:
                 log.exception("streaming_transcription worker failed for session %s", session_id)
+            finally:
+                log.info(
+                    "streaming_transcription: session=%s pass=%s audio_bytes=%d elapsed=%.2fs",
+                    session_id, "final" if is_finished else "partial", len(audio_snapshot),
+                    time.monotonic() - started_at,
+                )
         await session.queue.put({"type": "final" if is_finished else "partial", "text": text})
         if is_finished:
             await session.queue.put({"type": "done"})

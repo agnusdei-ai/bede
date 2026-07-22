@@ -312,12 +312,12 @@ describe('useHybridVoiceInput chunk upload cadence', () => {
     expect(pushVoiceStreamChunk).not.toHaveBeenCalled()
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2500)
+      await vi.advanceTimersByTimeAsync(4000)
     })
     expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2500)
+      await vi.advanceTimersByTimeAsync(4000)
     })
     expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(2)
   })
@@ -328,7 +328,7 @@ describe('useHybridVoiceInput chunk upload cadence', () => {
 
     await act(async () => {
       result.current.startHold()
-      await vi.advanceTimersByTimeAsync(2500)
+      await vi.advanceTimersByTimeAsync(4000)
     })
     expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
 

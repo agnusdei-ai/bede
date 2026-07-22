@@ -212,6 +212,75 @@ IP running an unusually large number of simultaneous or extremely long
 holds) rather than `voice` — the fix separates the two failure modes, it
 doesn't make rate limiting disappear entirely.
 
+## Troubleshooting: "Transcribing…" sits for a while after releasing the mic
+
+Reported on the public demo, same debug-panel-trace session as the
+rate-limit issue above: a hold (~7.4s, `_start()` attempt 14) released
+cleanly (`useVoiceRecorder.stopRecording()` logged right on release), but
+the "Transcribing…" spinner then sat for a noticeably long time before the
+final text ever arrived.
+
+This is unambiguously a server-side delay, not a client bug: once
+`release()` fires, the client is doing nothing but waiting on the SSE
+stream's `'final'`+`'done'` events (`consumeEvents()` in
+`useHybridVoiceInput.ts`) — there is no client-side logic left to go wrong
+at that point.
+
+**What's architecturally true regardless of hardware**, from
+`services/streaming_transcription.py`'s own design: every transcription
+pass re-transcribes the *whole* growing buffer, not just the newest audio
+(faster-whisper has no incremental-streaming mode — see that file's
+docstring), and the per-session worker processes exactly one pass at a
+time (deliberate — it's what coalesces rapid chunk uploads instead of
+queueing redundant overlapping Whisper calls). Two consequences follow
+directly from that:
+
+1. **Total CPU-seconds per hold scales faster than the hold's own
+   length.** A 10-second hold with partial passes at 2.5s/5s/7.5s plus a
+   final pass at release doesn't transcribe 10 seconds of audio once — it
+   transcribes roughly 2.5+5+7.5+10 = 25 "seconds of audio" worth of
+   Whisper calls, all serialized. Shortening the chunk-upload interval (to
+   feel more "live") directly increases this multiplier.
+2. **The final pass can get stuck behind an in-flight partial pass the
+   coalescing design has no way to cancel.** If `finish()` arrives while a
+   partial pass (over slightly-stale audio) is still running, the final
+   pass — the one thing the child is actually waiting on — can't start
+   until that in-flight pass completes, even though its result is about to
+   be superseded.
+
+**What's NOT yet confirmed**: the exact magnitude of the delay, and
+whether it's dominated by (1) the final pass's own inherent cost
+(proportional to total hold length, on whatever CPU tier the deployment
+runs — the public demo's Render instance in particular), (2) the
+in-flight-partial-blocking case above, or (3) contention from *multiple
+concurrent visitors'* voice sessions on a shared host, each pass competing
+for the same limited CPU. This sandbox has no access to the deployed
+instance's real CPU tier or live request concurrency, so this could not be
+measured directly — only reasoned about from the architecture.
+
+**What shipped**: two changes, one diagnostic and one mitigation.
+
+1. **A per-pass timing log** (`streaming_transcription.py`'s worker loop) —
+   `streaming_transcription: session=<id> pass=partial|final
+   audio_bytes=<n> elapsed=<seconds>` on every single transcription call.
+   This is the one number that was missing to actually distinguish the
+   three candidate causes above next time this is reported — check
+   Render's server logs for it.
+2. **`CHUNK_UPLOAD_INTERVAL_MS` raised from 2500ms to 4000ms** (both
+   copies of `useHybridVoiceInput.ts`) — a real, provable reduction in
+   total wasted CPU work per hold (fewer partial passes means less audio
+   re-transcribed overall, and less chance a partial pass is still running
+   when release() arrives), at the minor cost of live partial text
+   updating somewhat less often during a long hold. This directly helps
+   failure mode (2) above and reduces the *frequency* component of (1);
+   it does **not** reduce the inherent cost of the final pass itself if a
+   slow/shared CPU tier turns out to be the dominant factor — that would
+   need a smaller Whisper model, a beefier instance, or skipping partial
+   transcription entirely (a bigger, not-yet-made change). Treat this as a
+   reasoned mitigation shipped alongside real diagnostics, not a confirmed
+   complete fix — the next live trace with the new timing log will say
+   which further step (if any) is actually needed.
+
 ## Troubleshooting (historical): the microphone stopped working after a browser update
 
 The section below predates the server-side-streaming rewrite above and

@@ -34,13 +34,18 @@ import { enterRecordingAudioSession, restorePlaybackAudioSession } from './audio
  */
 
 // How often, while a turn is open, to upload the growing audio buffer for a
-// fresh transcription pass. Short enough that partial text updates feel
-// roughly live; long enough to stay comfortably under the per-IP voice rate
-// limit (homeschool-api's core/middleware.py, 20/min default) even across a
-// long hold — a 2.5s cadence keeps a full 120s hold (see
-// HOLD_SAFETY_TIMEOUT_MS below) to ~48 uploads plus start/finish, not
-// literally at the limit but not wastefully far under it either.
-const CHUNK_UPLOAD_INTERVAL_MS = 2500
+// fresh transcription pass. Was 2500ms — raised after a real reported delay:
+// every pass re-transcribes the WHOLE growing buffer (faster-whisper has no
+// incremental mode), and the backend's per-session worker processes exactly
+// one pass at a time, so a shorter interval means more total CPU-seconds
+// spent on partial passes that get thrown away, competing with (and
+// sometimes still running when) the one pass that actually matters — the
+// final pass release() is waiting on. A longer interval cuts that wasted
+// work without losing the "still listening" live-partial-text feedback
+// entirely. See docs/VOICE_SETUP.md's transcription-delay section — a
+// server-side per-pass timing log now exists there too, since this was a
+// reasoned mitigation, not a confirmed full fix.
+const CHUNK_UPLOAD_INTERVAL_MS = 4000
 // Below this, an empty release() is almost certainly an accidental brief
 // tap, not a real speech attempt gone unheard — no need to alarm the
 // child/parent over a stray touch.

@@ -199,6 +199,12 @@ class Settings(BaseSettings):
     rate_limit_auth_per_minute: int = 10
     rate_limit_api_per_minute: int = 120
     rate_limit_voice_per_minute: int = 20
+    # Separate, more generous bucket for the mechanics of an ALREADY-started
+    # streaming-transcription session (POST /voice/stream/{id}/chunk|finish,
+    # GET /voice/stream/{id}/events) — see RateLimitMiddleware's own comment
+    # for why these must not share rate_limit_voice_per_minute with new
+    # session starts. RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE env var.
+    rate_limit_voice_stream_session_per_minute: int = 120
 
     # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
     # An extra PIN — same "empty = disabled" pattern and strength rules as

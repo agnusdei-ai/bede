@@ -30,7 +30,14 @@ _rate_windows: dict[str, list[float]] = defaultdict(list)
 # Per-minute limits come from settings (RATE_LIMIT_*_PER_MINUTE env vars —
 # see core/config.py), so an operator expecting a crowd behind one shared IP
 # can raise them from the deployment dashboard instead of editing code.
-# Defaults: auth 10, api 120, voice 20 per IP per minute.
+# Defaults: auth 10, api 120, voice 20, voice_stream_session 120 per IP per minute.
+
+# Matches the sub-resource calls of an already-started streaming-transcription
+# session — POST /voice/stream/{id}/chunk, POST /voice/stream/{id}/finish,
+# GET /voice/stream/{id}/events — but not POST /voice/stream/start itself
+# (no session id segment there), which stays in the stricter "voice" bucket
+# as the real new-attempt signal. See the dispatch() comment below.
+_VOICE_STREAM_SESSION_PATH = re.compile(r"/voice/stream/[^/]+/(chunk|finish|events)$")
 
 
 def _check_rate(ip: str, bucket: str, limit: int, window_sec: int = 60) -> bool:
@@ -184,6 +191,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         if "/auth/" in path:
             bucket, limit = "auth", settings.rate_limit_auth_per_minute
+        elif _VOICE_STREAM_SESSION_PATH.search(path):
+            # Mechanics of a session /voice/stream/start already approved —
+            # NOT a new attempt. A single hold can only ever produce a
+            # bounded number of these (a handful of chunk uploads capped by
+            # useHybridVoiceInput's own upload interval and max hold
+            # duration, one finish, one events stream), so counting them
+            # against the same budget as new-session starts punishes
+            # ordinary multi-turn conversation, not abuse. Real regression
+            # this fixes: the streaming-transcription rewrite (see
+            # docs/VOICE_SETUP.md) turned one voice utterance into ~4
+            # requests instead of the old single-shot /voice/transcribe's 1,
+            # so as few as 5 taps in a minute could exhaust the 20/min
+            # "voice" bucket outright — confirmed live on the public demo via
+            # a debug-panel trace showing startVoiceStream failing on every
+            # attempt after a handful of presses.
+            bucket, limit = "voice_stream_session", settings.rate_limit_voice_stream_session_per_minute
         elif "/voice/" in path:
             bucket, limit = "voice", settings.rate_limit_voice_per_minute
         else:

@@ -574,18 +574,15 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // on every turn, and any hiccup on any restart surfaced as a recurring,
   // hard-to-pin-down audio bug).
 
-  // Hybrid voice input (native Web Speech first, recording + server Whisper
-  // when it's unsupported, errors, or stalls) — the same resilience the real
-  // app has. A browser update once removed working speech recognition from
-  // under us; with the fallback, the mic degrades to a slightly slower path
-  // instead of dying silently.
+  // Voice input records raw PCM locally and streams it to the server for
+  // chunked Whisper transcription over SSE (see useHybridVoiceInput.ts) —
+  // no browser-native SpeechRecognition involved, so there's no dependency
+  // on a given browser/OS shipping a working (or any) speech engine.
   //
   // language must follow the session's own locale (i18n.language), not the
-  // 'en-US' default — a Spanish session recognizing speech as English
-  // produces garbled transcripts regardless of how well the rest of the UI
-  // is translated. Propagates to both the native Web Speech recognizer
-  // (useSpeechRecognition's `lang`) and the server Whisper fallback
-  // (transcribeFallback's language hint) — see useHybridVoiceInput.ts.
+  // 'en-US' default — a Spanish session transcribed as English produces
+  // garbled transcripts regardless of how well the rest of the UI is
+  // translated. Propagates through to the server's Whisper language hint.
   const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError } =
     useHybridVoiceInput({
       token,

@@ -1,69 +1,58 @@
-// Mirror of homeschool-tutor/src/hooks/useHybridVoiceInput.ts for the demo app —
-// the demo HAS a backend now (see docs/DEMO_HOSTING.md), so browser speech
-// failures fall back to server Whisper exactly like the real app.
+// Mirror of homeschool-tutor/src/hooks/useHybridVoiceInput.ts for the demo app.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSpeechRecognition } from './useSpeechRecognition'
 import { useVoiceRecorder } from './useVoiceRecorder'
-import { transcribeFallback } from './api'
+import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents } from './api'
 import { logDebug } from './debugBus'
 import { enterRecordingAudioSession, restorePlaybackAudioSession } from './audioSession'
 
 /**
- * Voice input for the chat mic button. Tries the native Web Speech API first
- * (instant, free, works well on Chrome/Edge) but falls back to recording +
- * server-side Whisper transcription whenever native recognition is
- * unsupported, errors out, or stalls — which covers Safari/iOS's documented
- * failure modes (silent stop after the first phrase, no result on first
- * attempt) as well as Firefox, which never implemented the API at all.
+ * Voice input for the chat mic button. Server-side streaming transcription
+ * (chunked Whisper over SSE — see homeschool-api/services/streaming_transcription.py)
+ * is now the ONLY path. Browser-native SpeechRecognition was removed
+ * entirely: across this app's history it was the source of nearly every
+ * voice-pipeline bug fought here — WebKit audio-session races, native
+ * failing to even start within 10-30ms on some devices, an ever-more-
+ * elaborate stall watchdog trying to paper over undocumented per-browser
+ * behavior. The client always captures raw mic audio locally
+ * (useVoiceRecorder.ts, the fallback path already proven reliable) and
+ * periodically uploads the growing buffer to the backend; partial and final
+ * transcripts arrive over an SSE stream. See docs/VOICE_SETUP.md's
+ * "server-side streaming transcription" section for the full history of why.
+ *
+ * KNOWN GAP: native SpeechRecognition's own endpointing (detecting "the
+ * child stopped talking" without an explicit release) had no equivalent
+ * built here — that's real, unbuilt work (client-side silence/voice-
+ * activity detection), not something this rewrite quietly solved. hold-to-
+ * talk (startHold/release) is unaffected, since the child's own release()
+ * already marks the end of a turn explicitly. start() (tap mode, used only
+ * by homeschool-tutor's opt-in, off-by-default continuous "Voice on" mode)
+ * now behaves like startHold() and needs an explicit release() the same
+ * way — continuous mode's own call site never calls one, so a turn there
+ * will run for the full HOLD_SAFETY_TIMEOUT_MS ceiling before auto-
+ * finishing rather than ending snappily when the child stops talking. See
+ * docs/VOICE_SETUP.md for the follow-up this needs.
  */
 
-// Was 4000ms. Lowered after a real debug-panel trace: a child's genuine,
-// several-seconds-long answer to Bede produced ZERO native results (no
-// interim, no final — the exact "Safari can accept the mic press and never
-// fire ONE SINGLE onresult" failure mode described below) on two separate
-// presses in the same session, both released at ~3.3-3.5s — just under the
-// old 4000ms threshold, so the watchdog never got a chance to switch to the
-// Whisper fallback before the child let go, and the whole answer was lost
-// with nothing sent to Bede at all. Safe to lower: this watchdog is
-// PERMANENTLY disarmed the moment even one interim result ever arrives (see
-// the interim effect below), so shortening it only affects the case where
-// native has produced literally nothing yet — never a hold that's actually
-// in progress and making progress.
-const NATIVE_STALL_TIMEOUT_MS = 2500
-// Below this, an empty release() from native mode is almost certainly an
-// accidental brief tap, not a real speech attempt gone unheard — no need to
-// alarm the child/parent over a stray touch. See release()'s own comment.
+// How often, while a turn is open, to upload the growing audio buffer for a
+// fresh transcription pass. Short enough that partial text updates feel
+// roughly live; long enough to stay comfortably under the per-IP voice rate
+// limit (homeschool-api's core/middleware.py, 20/min default) even across a
+// long hold — a 2.5s cadence keeps a full 120s hold (see
+// HOLD_SAFETY_TIMEOUT_MS below) to ~48 uploads plus start/finish, not
+// literally at the limit but not wastefully far under it either.
+const CHUNK_UPLOAD_INTERVAL_MS = 2500
+// Below this, an empty release() is almost certainly an accidental brief
+// tap, not a real speech attempt gone unheard — no need to alarm the
+// child/parent over a stray touch.
 const MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK = 1200
-// Hold-to-talk has no per-utterance stall watchdog by design (the child, not
-// a timer, decides when a turn ends — see the effect below). But since the
-// single mic button is now ALWAYS hold-to-talk with no manual toggle to
-// escape a stuck state, an unbounded hold is no longer just "long" — it's a
-// real dead end if a release event is ever missed (a touch pointerup that
-// doesn't reach the button, a dropped event on some Android WebView, etc.).
-// This safety net auto-releases (sending whatever was captured, same as a
-// real release) after the same ceiling already used for the recording
-// fallback, so a missed release degrades to "the turn ended a bit early"
-// rather than "the mic is stuck forever with no way to clear it."
+// Bounds the worst case where a release event never reaches the button at
+// all (a missed pointerup, a dropped touch event on some Android WebView) —
+// applies to EVERY turn, not just an explicit hold (see the KNOWN GAP note
+// above: without native's own endpointing, start()'s continuous-mode
+// callers have no other way to end a turn at all). Matches
+// useVoiceRecorder's own MAX_RECORDING_MS, the real ceiling for how long a
+// single turn's audio graph stays open.
 const HOLD_SAFETY_TIMEOUT_MS = 120000
-// Belt-and-suspenders for a real reported failure: a child interrupted Bede
-// mid-speech, native recognition produced nothing at all (see the stall
-// watchdog above), the recorder fallback kicked in, and the mic never
-// recovered — later presses silently no-op'd forever. Root cause: the
-// recorder's onComplete had no try/catch around the transcription network
-// call, so any thrown error (a transient fetch failure, malformed JSON,
-// whatever) skipped straight past the `setMode('idle')` that was supposed
-// to run after it, stranding `mode` at 'transcribing' permanently (fixed
-// below). This timer is the second layer: even a silent no-op that never
-// reaches onComplete at all (e.g. stopRecording() called before
-// startRecording()'s own async setup — see useVoiceRecorder.ts — has
-// populated its refs) still can't leave `mode` stuck at 'recording' forever.
-const RECORDING_SAFETY_TIMEOUT_MS = 10000
-// Was 8000ms, then 60000ms — kept in sync with
-// homeschool-tutor/src/hooks/useHybridVoiceInput.ts; both were too short
-// once a child is really answering out loud, especially one who pauses to
-// think mid-explanation, and walkie-talkie hold-to-talk falls into this
-// recorder whenever native recognition isn't supported or throws
-// synchronously on press, silently truncating longer held answers.
 const MAX_RECORDING_MS = 120000
 
 interface Options {
@@ -72,478 +61,251 @@ interface Options {
   language?: string
 }
 
-type Mode = 'idle' | 'native' | 'recording' | 'transcribing'
+type Mode = 'idle' | 'recording' | 'transcribing'
 export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard'
 
 export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
+  const [interim, setInterim] = useState('')
   // Surfaces the one failure mode that used to be totally silent: a denied
-  // or unavailable microphone left `mode` stuck (see startRecording's
-  // `if (!stream) return` in useVoiceRecorder, which has no other way to
-  // report back) with nothing telling the visitor why the mic button just
-  // stopped doing anything. Callers show this once, then call clearMicError.
+  // or unavailable microphone left `mode` stuck with nothing telling the
+  // visitor why the mic button just stopped doing anything. Callers show
+  // this once, then call clearMicError.
   const [micError, setMicError] = useState<MicError | null>(null)
   const clearMicError = useCallback(() => setMicError(null), [])
-  // Mirrored in a ref so callbacks fired from browser events (recognition
-  // onend, the watchdog timer) see the CURRENT mode, not a stale closure —
-  // startFallback below relies on this to dedupe.
+  // Mirrored in a ref so callbacks fired from timers/async work see the
+  // CURRENT mode, not a stale closure.
   const modeRef = useRef<Mode>('idle')
   const setMode = useCallback((m: Mode) => {
     modeRef.current = m
     _setMode(m)
   }, [])
-  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const stoppedByUserRef = useRef(false)
-  // Hold-to-talk (walkie-talkie) state. In hold mode the native session runs
-  // CONTINUOUS for the whole press so natural pauses don't end it; final
-  // segments accumulate in accumRef and are sent exactly once on explicit
-  // release(). No timer or effect ever restarts recognition — only a user
-  // press starts it and only a user release ends it.
-  const holdModeRef = useRef(false)
-  const accumRef = useRef('')
-  const lastInterimRef = useRef('')
-  // When THIS press began — release() uses it to tell a real, unheard
-  // multi-second answer (worth surfacing, see MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK)
-  // apart from an accidental brief tap (not worth alarming anyone over).
   const holdStartedAtRef = useRef(0)
   const holdSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const recordingSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const chunkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
+  // Bumped on every _start()/stop()/release() — lets in-flight async work
+  // from a PREVIOUS turn (an SSE loop still reading, a chunk upload still in
+  // flight) recognize it's stale and stop touching shared state, so a fast
+  // press-release-press sequence can't let two attempts cross wires.
+  const attemptRef = useRef(0)
   // Always points at the CURRENT release() so the hold-safety timer (armed
-  // inside _start, defined below) can call it without a forward reference —
-  // updated on every render, right after release is (re)created.
+  // inside _start) can call it without a forward reference.
   const releaseRef = useRef<() => void>(() => {})
-  // Gates native onFinal after release so the trailing async final that
-  // Safari/Chrome emit a tick after stop() doesn't re-add already-salvaged text.
-  const releasedRef = useRef(false)
 
   // Pin WebKit's audio session category to match whether the mic is
   // actually capturing right now — see audioSession.ts for why. Reacts to
   // `mode` (not individual start/stop call sites) so every path that ends
-  // listening — release(), stop(), native's onFinal/onError/onNoSpeech, the
-  // stall watchdog's fallback handoff — is covered by one effect instead of
-  // needing a call threaded into each of them individually.
+  // listening is covered by one effect instead of needing a call threaded
+  // into each of them individually.
   useEffect(() => {
-    if (mode === 'native' || mode === 'recording') {
+    if (mode === 'recording') {
       enterRecordingAudioSession()
     } else {
       restorePlaybackAudioSession()
     }
   }, [mode])
 
-  const clearWatchdog = useCallback(() => {
-    if (watchdogRef.current) clearTimeout(watchdogRef.current)
-    watchdogRef.current = null
-  }, [])
-
   const clearHoldSafety = useCallback(() => {
     if (holdSafetyRef.current) clearTimeout(holdSafetyRef.current)
     holdSafetyRef.current = null
   }, [])
 
-  const clearRecordingSafety = useCallback(() => {
-    if (recordingSafetyRef.current) clearTimeout(recordingSafetyRef.current)
-    recordingSafetyRef.current = null
+  const clearChunkTimer = useCallback(() => {
+    if (chunkTimerRef.current) clearInterval(chunkTimerRef.current)
+    chunkTimerRef.current = null
   }, [])
 
   const recorder = useVoiceRecorder({
     maxDurationMs: MAX_RECORDING_MS,
-    onStarted: () => {
-      // Recording is confirmed genuinely underway — the safety timeout's
-      // only real purpose (catching stopRecording() called before
-      // startRecording()'s own async setup ever populated its refs, a
-      // narrow race that would show up almost immediately) is done being
-      // needed. Clearing it here, not just in onComplete below, matters for
-      // a still-in-progress hold: a real trace showed the 10s timeout
-      // firing WHILE a child was still legitimately mid-answer, wiping
-      // `mode` back to 'idle' and showing "can't hear you" out from under
-      // an active recording that never actually failed — MAX_RECORDING_MS
-      // (120s, matching native hold-to-talk's own HOLD_SAFETY_TIMEOUT_MS)
-      // is the real ceiling for a long hold now, enforced inside
-      // useVoiceRecorder itself.
-      clearRecordingSafety()
-    },
-    onStopped: () => {
-      // Real reported bug: a hold released before MIN_RECORDING_MS (an
-      // accidental brief tap while already in the fallback-recorder path)
-      // discards silently in useVoiceRecorder — onComplete never fires for
-      // it — which used to leave `mode` stuck at 'recording' with nothing
-      // to recover it short of the safety timeout, silently swallowing
-      // every press in between. onComplete already moves mode to
-      // 'transcribing' for a real capture (so this check correctly no-ops
-      // then); this only fires the reset for the cases that never got that
-      // far.
-      if (modeRef.current === 'recording') {
-        clearRecordingSafety()
-        setMode('idle')
-      }
-    },
-    onComplete: async (wavBlob) => {
-      // Recording actually completed and handed off — the safety timeout
-      // below (armed in startFallback) exists for the case where THIS
-      // callback never runs at all; now that it has, disarm it.
-      clearRecordingSafety()
-      setMode('transcribing')
-      try {
-        const text = token ? await transcribeFallback(token, wavBlob, language.slice(0, 2)) : ''
-        if (text) onFinal?.(text)
-      } catch (err) {
-        // Real reported bug: a thrown/rejected transcription call (a
-        // transient fetch failure, malformed JSON, whatever) used to skip
-        // straight past the setMode('idle') below, stranding `mode` at
-        // 'transcribing' permanently — the mic looked and behaved as
-        // though stuck, with isTranscribing disabling the button and no
-        // event ever left to clear it. try/catch/finally here guarantees
-        // idle is always reached regardless of how transcription fails.
-        logDebug(`transcribeFallback threw: ${err instanceof Error ? err.message : String(err)}`)
-        setMicError('unavailable')
-      } finally {
-        setMode('idle')
-      }
-    },
     onError: (reason) => {
-      // getUserMedia() is also called speculatively by recorder.prewarm()
-      // (see _start below) before native recognition has even had a chance
-      // to work — a prewarm failing while mode is still 'native' doesn't
-      // mean THIS press is doomed, so only react once the recorder fallback
-      // is actually the active path (mode has already been switched to
-      // 'recording' by startFallback below).
-      if (modeRef.current !== 'recording') return
       logDebug(`recorder onError reason=${reason}`)
-      clearWatchdog()
       clearHoldSafety()
-      clearRecordingSafety()
-      holdModeRef.current = false
-      accumRef.current = ''
+      clearChunkTimer()
+      attemptRef.current += 1
       setMode('idle')
       setMicError(reason)
     },
   })
 
-  const startFallback = useCallback(() => {
-    // The watchdog and native recognition's own onend/onerror can BOTH ask
-    // for the fallback on the same attempt (stopping native recognition
-    // fires its onend a tick later) — only the first should start the
-    // recorder, or two overlapping recording sessions get opened.
-    if (modeRef.current === 'recording' || modeRef.current === 'transcribing') return
-    logDebug(`startFallback() from mode=${modeRef.current}`)
-    clearWatchdog()
-    setMode('recording')
-    recorder.startRecording()
-    // Second layer of recovery alongside onComplete's own try/catch above:
-    // covers a silent no-op rather than a thrown error — e.g. release()
-    // calling recorder.stopRecording() before startRecording()'s own async
-    // setup (see useVoiceRecorder.ts) has populated its refs yet, which
-    // returns early without ever invoking onComplete at all. Cleared the
-    // moment onComplete actually runs; if it never does, this forces mode
-    // back to idle instead of leaving the mic permanently unresponsive.
-    clearRecordingSafety()
-    recordingSafetyRef.current = setTimeout(() => {
-      recordingSafetyRef.current = null
-      if (modeRef.current === 'recording') {
-        logDebug('recording safety timeout — forcing back to idle')
-        setMode('idle')
-        setMicError('unavailable')
-      }
-    }, RECORDING_SAFETY_TIMEOUT_MS)
-  }, [clearWatchdog, clearRecordingSafety, recorder, setMode])
-
-  const native = useSpeechRecognition({
-    language,
-    onFinal: (transcript) => {
-      // THE DUPLICATE-SEND BUG: release() sets releasedRef.current = true
-      // AND holdModeRef.current = false SYNCHRONOUSLY, then calls
-      // native.stop() — but stop() does not cut off an in-flight
-      // SpeechRecognition instantly. Safari/Chrome can still deliver one
-      // more (now-complete, and often longer/more accurate) final onresult
-      // a tick later, i.e. AFTER holdModeRef.current is already false. That
-      // used to fall all the way through to the unconditional send at the
-      // bottom of this callback, which only exists for the tap-to-speak
-      // (non-hold) path and has no idea release() already delivered this
-      // utterance — sending the SAME turn a second time (occasionally
-      // byte-identical, if the trailing final matches the interim release()
-      // already salvaged; otherwise a longer variant of the same turn).
-      // releasedRef.current is the one flag that stays true across that
-      // entire async gap regardless of what holdModeRef.current is doing —
-      // checking it FIRST, unconditionally, closes the gap for both modes.
-      if (releasedRef.current) {
-        logDebug(`native.onFinal IGNORED (already released) text="${transcript}"`)
-        return
-      }
-      if (holdModeRef.current) {
-        // Walkie-talkie: keep the mic open across pauses. Stash each final
-        // segment; release() sends the whole thing once the child lets go.
-        // A final result is proof of life just like an interim (some engines
-        // can emit a final without ever emitting an interim first) — disarm
-        // the hold-start watchdog below so it can't fire after the fact.
-        clearWatchdog()
-        accumRef.current = accumRef.current ? `${accumRef.current} ${transcript}` : transcript
-        logDebug(`native.onFinal accumulated (hold) segment="${transcript}" accum="${accumRef.current}"`)
-        // The interim that preceded this segment is now baked into it — drop
-        // it so release()'s salvage can't re-append text already accumulated.
-        lastInterimRef.current = ''
-        return
-      }
-      logDebug(`native.onFinal (tap) text="${transcript}"`)
-      clearWatchdog()
-      setMode('idle')
-      recorder.cancelPrewarm()
-      onFinal?.(transcript)
-    },
-    onError: (error) => {
-      if (stoppedByUserRef.current) return
-      // Only 'not-allowed' means the SAME getUserMedia-backed microphone
-      // permission the recorder fallback would also need is already
-      // blocked — falling back there would just fail again the same way.
-      // 'service-not-allowed' is a DIFFERENT thing: the browser's SPEECH
-      // RECOGNITION SERVICE specifically is unavailable (real reported
-      // case: iOS's embedded in-app browsers — WhatsApp, Instagram, etc. —
-      // consistently return this within ~10ms, no permission prompt ever
-      // shown, because Apple's on-device Speech entitlement isn't granted
-      // to third-party WebViews; the SAME device's real Safari worked
-      // fine). That says nothing about whether plain getUserMedia
-      // microphone capture works in that same context — it very often
-      // still does — so this case gets a genuine shot at the recorder +
-      // server-Whisper fallback instead of being told the mic is blocked
-      // before ever trying. If getUserMedia turns out to ALSO be blocked
-      // there, the recorder's own onError (below) reports that correctly.
-      if (error === 'not-allowed') {
-        logDebug(`native onError permission denied (${error})`)
-        clearWatchdog()
-        clearHoldSafety()
-        recorder.cancelPrewarm()
-        holdModeRef.current = false
-        accumRef.current = ''
-        setMode('idle')
-        setMicError('permission-denied')
-        return
-      }
-      startFallback()
-    },
-    onEndWithoutResult: () => {
-      if (!stoppedByUserRef.current) startFallback()
-    },
-    onNoSpeech: () => {
-      // Nobody spoke — nothing to transcribe, so don't burn a Whisper round
-      // trip on 8s of silence. Go idle; SocraticChat's dictation keepalive
-      // restarts the mic if voice mode is still on.
-      clearWatchdog()
-      setMode('idle')
-      recorder.cancelPrewarm()
-    },
-  })
-
-  // Interim results prove native recognition is alive and hearing the
-  // child — each new one RE-ARMS the stall watchdog instead of disarming it
-  // outright. A one-shot disarm (the original approach) left the session
-  // with NO stall protection at all for the rest of the utterance the
-  // moment a single interim result had ever arrived — but Safari's
-  // documented failure mode (see useSpeechRecognition.ts) is stalling out
-  // completely PARTWAY through a longer utterance, not just at the very
-  // start, and a one-shot disarm meant that later stall just sat there
-  // "listening" forever with nothing ever reaching Bede. A rolling window
-  // catches a stall at any point while staying just as tolerant of
-  // Chrome's real pattern (interim results throughout a long utterance, one
-  // FINAL transcript only once the child stops) — a fresh interim keeps
-  // re-arming the window well inside the stall timeout as long as
-  // recognition is still actually making progress.
-  useEffect(() => {
-    if (modeRef.current !== 'native' || !native.interim) return
-    // Remember the latest interim so release() can salvage a transcript the
-    // engine hasn't yet promoted to a final segment.
-    lastInterimRef.current = native.interim
-    // In hold-to-talk the child is deliberately in control of when the turn
-    // ends (release), so a mid-utterance pause must NOT trip the stall
-    // watchdog and dump into the recording fallback. But the FIRST interim
-    // is still proof native is alive — disarm the hold-start watchdog
-    // (armed in _start below) for good, then stop; don't rearm it, since
-    // later pauses are the child's call, not a timer's.
-    if (holdModeRef.current) {
-      clearWatchdog()
-      // First proof native is alive for this hold — the prewarmed mic
-      // stream (opened below in _start, in case a fallback turns out to be
-      // needed) is no longer going to be used, so release it now rather
-      // than holding the mic open pointlessly for the rest of the press.
-      recorder.cancelPrewarm()
-      return
+  // Uploads whatever's been captured so far, if anything and if this
+  // attempt is still the current one — called on the chunk-upload interval
+  // and once more, immediately, right at release() so the FINAL chunk
+  // reflects audio up to the actual release moment rather than however
+  // stale the last interval tick was.
+  const uploadSnapshot = useCallback(async (attempt: number) => {
+    const sessionId = sessionIdRef.current
+    if (!token || !sessionId || attemptRef.current !== attempt) return
+    const wavBlob = recorder.snapshotWav()
+    if (!wavBlob) return
+    try {
+      await pushVoiceStreamChunk(token, sessionId, wavBlob)
+    } catch (err) {
+      // A single dropped chunk isn't fatal — the NEXT upload (interval tick
+      // or the release-time final push) carries everything captured so far
+      // anyway, since uploads are never deltas. Only a hard failure to ever
+      // get a session started, or the final push failing too, surfaces to
+      // the child (handled at those call sites).
+      logDebug(`pushVoiceStreamChunk failed: ${err instanceof Error ? err.message : String(err)}`)
     }
-    clearWatchdog()
-    watchdogRef.current = setTimeout(() => {
-      native.stop()
-      startFallback()
-    }, NATIVE_STALL_TIMEOUT_MS)
-  }, [native.interim, native.stop, clearWatchdog, startFallback, recorder])
+  }, [token, recorder])
 
-  // Shared entry point for both tap-to-speak (hold=false) and walkie-talkie
-  // hold-to-talk (hold=true). Uses modeRef (synchronous) rather than the mode
-  // state so a fast press right after release isn't blocked by a stale render.
-  const _start = useCallback((hold: boolean) => {
+  // Consumes the SSE event stream for one turn's session — the ONE place
+  // responsible for the whole post-processing once a turn ends: updates
+  // `interim` on each partial, and once the stream itself closes (its own
+  // 'final' then 'done', or an error), delivers onFinal and returns mode to
+  // idle. release() below only has to trigger the upload+finish sequence
+  // that makes the server produce those events; it doesn't duplicate any of
+  // this handling itself.
+  const consumeEvents = useCallback(async (sessionId: string, attempt: number) => {
+    if (!token) return
+    let finalText = ''
+    try {
+      for await (const event of streamVoiceEvents(token, sessionId)) {
+        if (attemptRef.current !== attempt) return
+        if (event.type === 'partial') {
+          setInterim(event.text)
+        } else if (event.type === 'final') {
+          finalText = event.text
+          setInterim(event.text)
+        } else if (event.type === 'error') {
+          logDebug(`voice stream event error: ${event.message}`)
+        }
+      }
+    } catch (err) {
+      logDebug(`voice event stream failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    if (attemptRef.current !== attempt) return
+    clearHoldSafety()
+    const text = finalText.trim()
+    const heldMs = Date.now() - holdStartedAtRef.current
+    setMode('idle')
+    if (text) {
+      onFinal?.(text)
+    } else if (heldMs >= MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK) {
+      // A real, multi-second turn produced literally nothing. Confirmed via
+      // a real debug-panel trace in the native-SpeechRecognition era: this
+      // used to just silently send nothing, leaving the child's whole
+      // answer lost with no sign anything went wrong.
+      logDebug(`voice stream produced nothing after a ${heldMs}ms turn — surfacing to the user`)
+      setMicError('no-speech-heard')
+    }
+  }, [token, onFinal, clearHoldSafety, setMode])
+
+  // Shared entry point for both start() and startHold() — functionally
+  // identical now (see the KNOWN GAP note above for why start()'s own
+  // continuous-mode caller doesn't behave quite like it used to).
+  const _start = useCallback(() => {
     if (modeRef.current !== 'idle') return
-    logDebug(`_start(hold=${hold}) nativeSupported=${native.isSupported}`)
-    stoppedByUserRef.current = false
-    releasedRef.current = false
-    holdModeRef.current = hold
-    accumRef.current = ''
-    lastInterimRef.current = ''
+    const attempt = ++attemptRef.current
+    logDebug(`_start() attempt=${attempt}`)
     holdStartedAtRef.current = Date.now()
+    sessionIdRef.current = null
+    setInterim('')
     // A fresh press means a fresh attempt — don't let a previous failure's
     // banner linger once the child tries again.
     setMicError(null)
 
-    if (native.isSupported) {
-      setMode('native')
-      // Switch the AudioSession category to recording-capable SYNCHRONOUSLY,
-      // right here, immediately before prewarm() — not via the mode-driven
-      // effect below (which only runs after this render commits, a beat too
-      // late) and, just as deliberately, NOT before native.start() below.
-      // An earlier version of this fix called this before EVERYTHING,
-      // including native.start(), on the theory that native recognition
-      // also needs the category switched (it does use getUserMedia
-      // internally — see audioSession.ts). That theory was never actually
-      // confirmed by a trace — only prewarm()'s own getStream() failure
-      // was. A later real trace showed native.start() failing within
-      // 10-30ms on EVERY press once that broader call shipped — consistent
-      // with forcing a WebKit audio-session category change in the same
-      // tick as starting native SpeechRecognition breaking its own
-      // initialization, a different race than the one being fixed. Scoping
-      // this back to only the call that was actually proven to need it
-      // resolves that regression.
-      enterRecordingAudioSession()
-      // Open the fallback recorder's mic stream NOW, synchronously, inside
-      // this same press-gesture call stack — before we even know whether
-      // native recognition will work. iOS Safari only honors getUserMedia()
-      // requests initiated directly inside a user gesture; if native stalls
-      // and the watchdog below has to fall back several seconds from now,
-      // that fallback runs from a setTimeout callback, well outside any
-      // gesture — a getUserMedia() call made cold at that point is exactly
-      // the case Safari silently blocks. Priming here sidesteps that: by
-      // the time the fallback might be needed, the stream request was
-      // already made at the right moment and is just waiting to be reused.
-      recorder.prewarm()
-      try {
-        native.start(hold)
-      } catch {
-        // iOS Safari can throw synchronously out of start() (e.g. its own
-        // notion of "already started" or a permission-state edge case)
-        // instead of delivering it as an onerror event. If that throw isn't
-        // caught here, the watchdog below never gets registered at all —
-        // mode stays stuck at 'native' forever with no event and no timer
-        // ever going to rescue it. Fall back immediately; a synchronous
-        // throw means native recognition definitely isn't going to work for
-        // this attempt.
-        startFallback()
-        return
-      }
-      // In hold-to-talk the child, not a timer, decides when the turn ends,
-      // so once native has proven it's alive, the stall watchdog must not
-      // fight the user over a natural pause — see the interim effect above,
-      // which disarms (and never rearms) this same timer on first signal.
-      // But Safari (esp. iOS) can accept the mic press and then never fire
-      // ONE SINGLE onresult for the entire hold — no interim, no final,
-      // nothing (see useSpeechRecognition.ts) — and unlike tap-to-speak,
-      // hold mode can't lean on onEndWithoutResult firing after release()
-      // to catch this: release() sets stoppedByUserRef BEFORE stopping
-      // native specifically to suppress that signal, so a fallback
-      // recording doesn't start moments after the child already let go.
-      // So arm the SAME watchdog here too (for both modes) — for hold mode
-      // it only fires if literally nothing has happened yet, and switches
-      // this hold over to the recorder fallback while the child is still
-      // holding, so release() still has real audio to send.
-      watchdogRef.current = setTimeout(() => {
-        native.stop()
-        startFallback()
-      }, NATIVE_STALL_TIMEOUT_MS)
-      if (hold) {
-        // See HOLD_SAFETY_TIMEOUT_MS above — bounds the worst case where a
-        // release event never reaches the button at all.
-        holdSafetyRef.current = setTimeout(() => {
-          holdSafetyRef.current = null
-          if (holdModeRef.current) releaseRef.current()
-        }, HOLD_SAFETY_TIMEOUT_MS)
-      }
-    } else {
-      // No prewarm() call precedes this path (there's no native attempt to
-      // prewarm alongside), so the same synchronous audio-session switch
-      // belongs here too, immediately before the recorder's own
-      // getUserMedia() call inside startFallback() → recorder.startRecording().
-      enterRecordingAudioSession()
-      startFallback()
-    }
-  }, [native, startFallback, setMode])
+    // Switch the AudioSession category to recording-capable SYNCHRONOUSLY,
+    // right here, before anything touches the mic — not via the mode-driven
+    // effect above, which only runs after this render commits, a beat too
+    // late for iOS Safari's own getUserMedia timing. See audioSession.ts and
+    // docs/VOICE_SETUP.md's audio-session-race troubleshooting sections.
+    enterRecordingAudioSession()
+    setMode('recording')
+    recorder.startRecording()
 
-  const start = useCallback(() => _start(false), [_start])
-  const startHold = useCallback(() => _start(true), [_start])
+    holdSafetyRef.current = setTimeout(() => {
+      holdSafetyRef.current = null
+      releaseRef.current()
+    }, HOLD_SAFETY_TIMEOUT_MS)
+
+    if (!token) {
+      logDebug('_start: no token, cannot open a streaming session')
+      clearHoldSafety()
+      setMode('idle')
+      setMicError('unavailable')
+      return
+    }
+
+    startVoiceStream(token, language.slice(0, 2))
+      .then((sessionId) => {
+        if (attemptRef.current !== attempt) return // turn already ended
+        sessionIdRef.current = sessionId
+        consumeEvents(sessionId, attempt)
+        chunkTimerRef.current = setInterval(() => uploadSnapshot(attempt), CHUNK_UPLOAD_INTERVAL_MS)
+      })
+      .catch((err) => {
+        logDebug(`startVoiceStream failed: ${err instanceof Error ? err.message : String(err)}`)
+        if (attemptRef.current !== attempt) return
+        // No streaming session, and no native fallback anymore — this turn
+        // genuinely can't be transcribed at all.
+        clearHoldSafety()
+        setMode('idle')
+        setMicError('unavailable')
+      })
+  }, [token, language, recorder, consumeEvents, uploadSnapshot, clearHoldSafety, setMode])
+
+  const start = useCallback(() => _start(), [_start])
+  const startHold = useCallback(() => _start(), [_start])
 
   const stop = useCallback(() => {
     logDebug(`stop() (cancel) from mode=${modeRef.current}`)
-    stoppedByUserRef.current = true
-    releasedRef.current = true
-    clearWatchdog()
+    attemptRef.current += 1 // invalidates any in-flight chunk upload / SSE consumer
     clearHoldSafety()
-    clearRecordingSafety()
-    if (modeRef.current === 'native') {
-      native.stop()
-      recorder.cancelPrewarm()
-    }
+    clearChunkTimer()
     if (modeRef.current === 'recording') recorder.stopRecording()
-    holdModeRef.current = false
-    accumRef.current = ''
+    const sessionId = sessionIdRef.current
+    sessionIdRef.current = null
+    if (token && sessionId) finishVoiceStream(token, sessionId).catch(() => {})
+    setInterim('')
     setMode('idle')
-  }, [native, recorder, clearWatchdog, clearHoldSafety, clearRecordingSafety, setMode])
+  }, [token, recorder, clearHoldSafety, clearChunkTimer, setMode])
 
-  // Walkie-talkie release: the child let go of the button. Send whatever the
-  // engine has captured so far — accumulated final segments plus the latest
-  // interim the engine hasn't promoted yet — exactly once. Unlike stop()
-  // (which cancels and discards), release() delivers the transcript.
+  // The child let go of the button (or, for continuous mode, some other
+  // caller decided the turn is over). Pushes one final chunk reflecting
+  // everything up to this exact moment, then signals finish — the SSE
+  // consumer already running (started back in _start) sees the resulting
+  // 'final'+'done' events and handles onFinal delivery + returning to idle
+  // itself (see consumeEvents above). Unlike stop() (which cancels and
+  // discards), release() delivers the transcript.
   const release = useCallback(() => {
-    logDebug(`release() from mode=${modeRef.current} accum="${accumRef.current}" interim="${lastInterimRef.current}"`)
-    clearWatchdog()
-    clearHoldSafety()
-    if (modeRef.current === 'native') {
-      stoppedByUserRef.current = true
-      releasedRef.current = true
-      const salvage = lastInterimRef.current.trim()
-      native.stop()
-      recorder.cancelPrewarm()
-      const text = [accumRef.current.trim(), salvage].filter(Boolean).join(' ').trim()
-      const heldMs = Date.now() - holdStartedAtRef.current
-      accumRef.current = ''
-      lastInterimRef.current = ''
-      holdModeRef.current = false
+    logDebug(`release() from mode=${modeRef.current}`)
+    if (modeRef.current !== 'recording') return
+    const attempt = attemptRef.current
+    const sessionId = sessionIdRef.current
+    clearChunkTimer()
+    recorder.stopRecording()
+    setMode('transcribing')
+
+    if (!token || !sessionId) {
+      // Never got a session at all — no SSE consumer running to bring this
+      // back to idle on its own.
+      clearHoldSafety()
       setMode('idle')
-      if (text) {
-        onFinal?.(text)
-      } else if (heldMs >= MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK) {
-        // Native ran for a real, multi-second hold and produced literally
-        // nothing — no interim, no final, and never even the browser's own
-        // "no-speech" event (that case already goes idle silently via
-        // onNoSpeech above). Confirmed via a real debug-panel trace: this
-        // used to just silently send nothing, leaving the child's whole
-        // answer lost with no sign anything went wrong.
-        logDebug(`release() from native produced nothing after a ${heldMs}ms hold — surfacing to the user`)
-        setMicError('no-speech-heard')
-      }
-    } else if (modeRef.current === 'recording') {
-      // Native wasn't available for this press; the recorder is capturing.
-      // Stopping it runs onComplete → transcribe → onFinal (sends once).
-      holdModeRef.current = false
-      recorder.stopRecording()
+      return
     }
-    // idle / transcribing: nothing to release.
-  }, [native, recorder, clearWatchdog, clearHoldSafety, setMode, onFinal])
+    ;(async () => {
+      await uploadSnapshot(attempt)
+      try {
+        await finishVoiceStream(token, sessionId)
+      } catch (err) {
+        logDebug(`finishVoiceStream failed: ${err instanceof Error ? err.message : String(err)}`)
+        // consumeEvents' own stream-read will also fail/end without a
+        // 'final' in this case and already returns mode to idle itself —
+        // no separate handling needed here.
+      }
+    })()
+  }, [token, recorder, clearChunkTimer, clearHoldSafety, uploadSnapshot, setMode])
   releaseRef.current = release
 
   return {
-    isListening: mode === 'native' || mode === 'recording',
+    isListening: mode === 'recording',
     isTranscribing: mode === 'transcribing',
-    interim: native.interim,
+    interim,
     micError,
     clearMicError,
-    // getUserMedia + AudioContext (the fallback's raw-PCM capture path —
-    // see useVoiceRecorder) cover every evergreen browser, so the mic
-    // button no longer needs to hide itself when native recognition is absent.
-    isSupported:
-      native.isSupported ||
-      (!!navigator.mediaDevices?.getUserMedia && !!(window.AudioContext || (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext)),
+    isSupported: !!navigator.mediaDevices?.getUserMedia && !!(window.AudioContext || (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext),
     start,
     startHold,
     release,

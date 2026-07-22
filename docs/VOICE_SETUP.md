@@ -80,7 +80,86 @@ current app build first; this class of autoplay restriction has historically
 gotten stricter across browser versions, not looser, so a stale deployment
 is the most likely cause.
 
-## Troubleshooting: the microphone stopped working after a browser update
+## Voice input: server-side streaming transcription (chunked Whisper over SSE)
+
+**As of this rewrite, browser-native `SpeechRecognition` has been removed
+entirely from both apps.** Every section below that talks about "native
+recognition," a "stall watchdog," `useSpeechRecognition.ts`, or a hybrid
+native-with-a-recorder-fallback design is **historical** — it documents real
+bugs fought and fixed across that architecture's lifetime, kept for context,
+but the code it describes no longer exists. This section describes the
+current design.
+
+**Why native was removed, not just patched again:** across this file's own
+history (the many "Fixed in both copies" sections below), browser-native
+speech recognition was the single largest source of voice-pipeline bugs in
+this app — WebKit audio-session races, native failing to even *start* within
+10-30ms on some devices, an ever-more-elaborate stall watchdog trying to
+paper over undocumented, per-browser, sometimes per-OS-version failure
+modes that could only ever be root-caused after the fact from a live
+debug-panel trace. Each fix closed one specific failure mode; none of them
+addressed the underlying problem, which is that native recognition's
+behavior isn't actually specified or reliable across browsers. Removing it
+outright, rather than continuing to patch around it, was a deliberate
+architecture decision, not an incremental fix.
+
+**How it works now:** the mic button (`useHybridVoiceInput.ts`, identical
+design in both `homeschool-tutor/src/hooks/` and `demo/src/`) always
+captures raw PCM audio locally via `useVoiceRecorder.ts` — the same
+recording path that used to be the *fallback*, now the only path. While a
+press is held, the hook uploads a snapshot of everything captured so far
+roughly every 2.5 seconds (`CHUNK_UPLOAD_INTERVAL_MS`) to
+`POST /voice/stream/{id}/chunk`. `homeschool-api/services/streaming_transcription.py`
+holds one in-memory session per active turn, with a single worker loop that
+re-transcribes the *whole growing buffer* (not a delta — `faster-whisper` is
+batch-only, with no native incremental-streaming mode) each time new audio
+arrives, coalescing any upload that lands while a transcription is already
+in flight rather than queueing redundant overlapping Whisper calls. Results
+stream back to the client over `GET /voice/stream/{id}/events`, an SSE
+endpoint following the exact same pattern `/tutor/chat` already used
+(`sse_starlette.EventSourceResponse`, plain JSON lines, no native
+`EventSource` — that API can't attach the `Authorization` header this
+endpoint requires, so both apps consume it via `fetch()` + a manual
+`ReadableStream` reader instead, same as the tutor chat stream). Releasing
+the mic button pushes one final chunk and calls
+`POST /voice/stream/{id}/finish`; the server transcribes the final buffer
+once more, emits a `'final'` event, then `'done'` closes the stream.
+
+**Single-process, in-memory only.** Streaming sessions live in a plain
+Python dict inside the API process, not a shared store — fine for this
+app's current single-instance deployment model, but a future move to
+multiple horizontally-scaled API instances (or Render's autoscaling) would
+need a shared backing store (e.g. Redis) for a session to survive routing to
+a different instance mid-turn. Abandoned/orphaned sessions (a browser tab
+closed mid-hold, a dropped connection) are swept after 180 seconds of no
+activity, so nothing leaks indefinitely.
+
+**Known gap: no real end-of-speech detection.** Hold-to-talk
+(`startHold`/`release`) is unaffected by this — the child's own release()
+already marks the end of a turn explicitly, exactly as before. But
+`start()` (tap mode) is only ever called by each app's opt-in, off-by-default
+**continuous "Voice on" mode** (see that feature's own section further
+below), which used to rely entirely on native recognition's own autonomous
+endpointing to decide a turn was over and fire `onFinal` on its own — there
+was never an explicit `release()` call on that path. With native gone,
+`start()` now behaves exactly like `startHold()` and needs an explicit end
+signal the same way; continuous mode's call site still doesn't provide one,
+so as of this rewrite a continuous-mode turn runs for the full
+`HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before auto-finishing,
+instead of ending snappily the moment the child actually stops talking.
+This is a real, known regression for that one opt-in feature specifically —
+not something this rewrite silently papered over — and needs real
+client-side silence/voice-activity detection as a follow-up before
+continuous mode is genuinely usable again. Hold-to-talk (the default for
+every family) is fully unaffected.
+
+## Troubleshooting (historical): the microphone stopped working after a browser update
+
+The section below predates the server-side-streaming rewrite above and
+describes the now-removed native/fallback hybrid design. Kept for
+historical context only — with native `SpeechRecognition` gone entirely,
+there is no longer a "browser broke recognition" failure mode to fall back
+from in the first place.
 
 Browsers periodically change or break their built-in speech recognition —
 a Chrome update once removed working recognition outright (the mic appears,
@@ -124,7 +203,7 @@ If you maintain a custom Dockerfile or build pipeline for this service,
 make sure it keeps that pre-download `RUN` step, or the fallback STT path
 will silently stop working the same way once deployed read-only.
 
-## Troubleshooting: the mic shows "listening" but nothing reaches Bede
+## Troubleshooting (historical): the mic shows "listening" but nothing reaches Bede
 
 Reported on Safari/iOS: the mic indicator stays lit, the child speaks, and
 the conversation just goes quiet — no transcript, no error, no fallback.
@@ -204,7 +283,7 @@ its own effect that waits for both `isStreaming` and `isSpeaking` to settle
 — so a subject transition still won't cut off Bede's spoken line
 mid-sentence, it just no longer blocks the rest of the UI while waiting.
 
-## Troubleshooting: the mic shows "Listening…" forever and nothing ever reaches Bede, even after waiting
+## Troubleshooting (historical): the mic shows "Listening…" forever and nothing ever reaches Bede, even after waiting
 
 A more persistent variant of the Safari/iOS stall covered above — reported
 specifically as voice input never producing any interpreted text at all, not
@@ -229,7 +308,7 @@ throw, rather than relying on a watchdog that would never get set up.
 and `demo/src/useHybridVoiceInput.ts` — same independent-codebases caveat as
 every other voice-pipeline fix in this file.
 
-## Troubleshooting: pressing the mic does nothing when the browser has blocked microphone access
+## Troubleshooting (historical): pressing the mic does nothing when the browser has blocked microphone access
 
 Reported as: the child presses and holds the mic, nothing happens — no
 "Listening…" state, no error, no transcript, just silence, with no way to
@@ -271,7 +350,7 @@ browser's own site settings (the padlock/site-info icon next to the address
 bar → Microphone), not in Bede — this change only makes the existing
 denial visible instead of silent.
 
-## Troubleshooting: voice input reports "blocked" inside an app's in-app browser (WhatsApp, Instagram, etc.), even though the mic itself might actually work
+## Troubleshooting (historical): voice input reports "blocked" inside an app's in-app browser (WhatsApp, Instagram, etc.), even though the mic itself might actually work
 
 Reported with a live debug-panel trace: opening Bede's link from inside
 WhatsApp (its own embedded in-app browser, not real Safari — note the
@@ -313,7 +392,7 @@ most in-app browsers offers "Open in Safari" or similar) — that's what
 gives native on-device speech recognition its best shot, with the
 server-side fallback as a safety net either way.
 
-## Troubleshooting: the mic gets permanently stuck after the child interrupts Bede mid-speech
+## Troubleshooting (historical): the mic gets permanently stuck after the child interrupts Bede mid-speech
 
 Reported with a live debug-panel trace (see `DebugOverlay.tsx`): a child
 pressed the mic while Bede was still talking (a normal barge-in — see the
@@ -373,7 +452,7 @@ call stack, a known category of browser quirk. Regardless of that trigger,
 both fixes above close off the *consequence* (mode getting permanently
 stuck) for good.
 
-## Troubleshooting: a real, multi-second answer produces nothing at all, with no error shown
+## Troubleshooting (historical): a real, multi-second answer produces nothing at all, with no error shown
 
 Reported with a live debug-panel trace (see `DebugOverlay.tsx`): a child
 held the mic and answered a question out loud for ~3.3-3.5 seconds — twice
@@ -417,7 +496,7 @@ device to actually reproduce, not available in the sandbox this was fixed
 in) — this fix closes off the *consequence* (a lost answer with no
 feedback) rather than the underlying recognition-service flakiness itself.
 
-## Troubleshooting: the recorder fallback itself reports "I can't hear you right now" right after switching over
+## Troubleshooting (historical): the recorder fallback itself reports "I can't hear you right now" right after switching over
 
 Reported with a live debug-panel trace, immediately after the fix above
 shipped: the stall watchdog correctly fired and handed off to the recorder
@@ -457,7 +536,7 @@ call inside `getStream()`'s own catch block, alongside the existing
 own DevTools console, invisible in any on-screen `DebugOverlay` trace a
 remote user could actually screenshot and send us.
 
-## Troubleshooting: the very first press-and-hold right after Bede speaks captures nothing at all
+## Troubleshooting (historical): the very first press-and-hold right after Bede speaks captures nothing at all
 
 That `logDebug()` line added above immediately paid off — a follow-up trace
 showed a first hold ending with `accum=""` `interim=""` (nothing captured
@@ -496,7 +575,7 @@ native isn't supported at all). The mode-driven effect is left in place
 unchanged for the "restore to playback" side, which was never time-critical
 the same way.
 
-## Troubleshooting: push-to-talk regressed right after the fix above — native fails instantly on every press, and long holds get cut off mid-answer
+## Troubleshooting (historical): push-to-talk regressed right after the fix above — native fails instantly on every press, and long holds get cut off mid-answer
 
 Reported directly, with two live traces, immediately after the fix above
 shipped to the public demo. Every single press in both traces showed
@@ -579,6 +658,13 @@ child's own words the same way it already follows Bede's replies.
 
 ## Troubleshooting: Bede's voice switches from the family's chosen output to the device's built-in speaker mid-lesson
 
+**Still current** (unlike most of the sections above) — the mechanism this
+section describes is exactly how `audioSession.ts` still works after the
+server-side-streaming rewrite, just with one fewer `mode` value: the effect
+now reacts to `mode === 'recording'` alone (native's own `'native'` mode no
+longer exists), still pinning the session to `'play-and-record'` while
+capturing and back to `'playback'` otherwise.
+
 Reported as: audio "switching to browser embedded [sound] instead of mobile
 audio" during a lesson, specifically tied to using the press-to-talk mic —
 and once it happens, playback doesn't settle back onto one output for the
@@ -642,6 +728,19 @@ mode's Confirm/Cancel review step (holding a hands-free turn for a manual
 tap would defeat the point). Tapping the mic button itself while continuous
 mode is active switches straight back to hold-to-talk — a one-tap escape
 hatch, not a hold gesture.
+
+**Known gap since the server-side-streaming rewrite above:** this mode's
+"a finished utterance sends itself immediately" behavior relied entirely on
+browser-native recognition's own autonomous end-of-speech detection —
+`start()` was called once and native's own engine decided when the turn was
+over. With native removed, `start()` now needs an explicit `release()` the
+same way `startHold()` always has, and this feature's own call site
+(`SocraticChat.tsx`'s auto-start effect) doesn't provide one. In practice
+this means a continuous-mode turn currently runs for the full 120-second
+hold-safety ceiling before auto-finishing, rather than ending promptly when
+the child stops talking — a real regression for this one opt-in feature
+until client-side silence/voice-activity detection is built as a follow-up.
+Hold-to-talk (the default for every family) is unaffected.
 
 **Why this isn't the same bug that got the earlier "voice mode" removed:**
 that design restarted listening on a **bare timer** after every turn, which

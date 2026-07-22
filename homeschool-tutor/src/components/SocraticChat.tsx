@@ -134,15 +134,15 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   }, [ttsEnabled, toggleTTSLocal, sessionConfig, setSessionConfig, token])
 
   // ── Speech recognition: child speaks instead of typing ──────────────────
-  // Native Web Speech API first, auto-falls back to recording + server-side
-  // Whisper transcription when it's unsupported, errors, or silently stalls
-  // (Safari/iOS are known to do this — see useHybridVoiceInput).
+  // Records raw PCM locally and streams it to the server for chunked
+  // Whisper transcription over SSE (see useHybridVoiceInput.ts) — no
+  // browser-native SpeechRecognition involved, so there's no dependency on
+  // a given browser/OS shipping a working (or any) speech engine.
   //
   // language must follow the session's own locale (i18n.language), not the
-  // 'en-US' default — a Spanish session recognizing speech as English
-  // produces garbled transcripts regardless of how well the rest of the UI
-  // is translated. Propagates to both the native Web Speech recognizer and
-  // the server Whisper fallback's language hint — see useHybridVoiceInput.ts.
+  // 'en-US' default — a Spanish session transcribed as English produces
+  // garbled transcripts regardless of how well the rest of the UI is
+  // translated. Propagates through to the server's Whisper language hint.
   const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
@@ -558,6 +558,16 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // loop even so; MAX_CONSECUTIVE_VOICE_FAILURES (the micError effect above)
   // falls back to hold-to-talk after repeated failures rather than looping
   // silently forever.
+  //
+  // KNOWN GAP (see useHybridVoiceInput.ts's own top-of-file comment): this
+  // call site never calls release() — it relied on native SpeechRecognition's
+  // own autonomous end-of-speech detection to fire onFinal on its own. Now
+  // that native is gone, start() behaves like startHold() and needs an
+  // explicit end signal; without one, a continuous-mode turn runs for the
+  // full HOLD_SAFETY_TIMEOUT_MS (120s) before auto-finishing instead of
+  // ending snappily when the child stops talking. Real client-side silence/
+  // voice-activity detection is the follow-up this needs — see
+  // docs/VOICE_SETUP.md.
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return

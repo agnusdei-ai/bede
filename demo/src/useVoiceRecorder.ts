@@ -25,6 +25,23 @@ import { logDebug } from './debugBus'
  *  fail with (no device, hardware in use, insecure context, ...). */
 export type MicErrorReason = 'permission-denied' | 'unavailable'
 
+/** Shared by stopRecording() (the final encode) and snapshotWav() (a
+ *  non-destructive mid-recording peek for the streaming-transcription
+ *  chunk-upload loop — see useHybridVoiceInput.ts) — merges captured PCM
+ *  chunks, resamples to 16kHz if needed, and encodes to a WAV blob. */
+function _encodeChunksToWav(chunks: Float32Array[], nativeSampleRate: number): Blob {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const merged = new Float32Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.length
+  }
+  const samples = nativeSampleRate === 16000 ? merged : resample(merged, nativeSampleRate, 16000)
+  const wavBuffer = encodeWav(samples, 16000)
+  return new Blob([wavBuffer], { type: 'audio/wav' })
+}
+
 interface RecordingOptions {
   maxDurationMs?: number
   onComplete?: (wavBlob: Blob) => void
@@ -206,17 +223,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
       return
     }
 
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
-    const merged = new Float32Array(totalLength)
-    let offset = 0
-    for (const chunk of chunks) {
-      merged.set(chunk, offset)
-      offset += chunk.length
-    }
-
-    const samples = nativeSampleRate === 16000 ? merged : resample(merged, nativeSampleRate, 16000)
-    const wavBuffer = encodeWav(samples, 16000)
-    const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' })
+    const wavBlob = _encodeChunksToWav(chunks, nativeSampleRate)
     onComplete?.(wavBlob)
     onStopped?.()
   }, [onComplete, onStopped])
@@ -299,5 +306,16 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     timeoutRef.current = setTimeout(stopRecording, maxDurationMs)
   }, [isRecording, maxDurationMs, stopRecording, getStream, onStarted])
 
-  return { isRecording, level, startRecording, stopRecording, prewarm, cancelPrewarm }
+  // Non-destructive: does NOT clear pcmChunksRef the way stopRecording()
+  // does, since the caller (the streaming-transcription chunk-upload loop)
+  // always wants everything captured so far, not a delta since the last
+  // snapshot — matching how the server always re-transcribes the whole
+  // growing buffer too. Returns null before the audio graph is actually up
+  // (audioCtxRef not yet set, or nothing captured yet).
+  const snapshotWav = useCallback((): Blob | null => {
+    if (!audioCtxRef.current || pcmChunksRef.current.length === 0) return null
+    return _encodeChunksToWav(pcmChunksRef.current, audioCtxRef.current.sampleRate)
+  }, [])
+
+  return { isRecording, level, startRecording, stopRecording, snapshotWav, prewarm, cancelPrewarm }
 }

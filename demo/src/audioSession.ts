@@ -8,10 +8,8 @@
  * by a feature check plus try/catch.
  *
  * Why this exists: opening ANY getUserMedia() audio stream — the mic
- * button's own recorder fallback/prewarm (useVoiceRecorder.ts), or native
- * SpeechRecognition's own internal capture (useSpeechRecognition.ts), which
- * uses getUserMedia under the hood regardless of whether this app calls it
- * directly — switches WebKit's audio session into a mode that can route
+ * button's own recorder/prewarm (useVoiceRecorder.ts) — switches WebKit's
+ * audio session into a mode that can route
  * subsequent Bede TTS playback through the device's built-in earpiece
  * speaker instead of whatever output was actually selected (a Bluetooth
  * speaker, wired headphones, AirPlay). Reported (in the real app, same

@@ -42,7 +42,6 @@
     "masteryPreviewTooltip": "Preview live mastery tracking for this session",
     "feedback": "Feedback",
     "feedbackTooltip": "Tell us what's working and what isn't",
-    "finishDemo": "Finish demo",
     "finishDemoTooltip": "Finish the demo and optionally get Bede's notes by email"
   },
   "sessionPaused": {

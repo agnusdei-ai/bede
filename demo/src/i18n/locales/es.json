@@ -42,7 +42,6 @@
     "masteryPreviewTooltip": "Vista previa del seguimiento del dominio en vivo para esta sesión",
     "feedback": "Comentarios",
     "feedbackTooltip": "Cuéntanos qué funciona y qué no",
-    "finishDemo": "Finalizar demo",
     "finishDemoTooltip": "Finaliza la demo y, si quieres, recibe las notas de Bede por correo electrónico"
   },
   "sessionPaused": {

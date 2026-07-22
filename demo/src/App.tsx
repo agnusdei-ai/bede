@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -471,6 +471,12 @@ interface ChatScreenProps {
   code: string
   speakToken?: string | null // lets voice output use the backend's TTS instead of just the browser's
   header: React.ReactNode
+  // Icon button rendered in the icon row, immediately beside the Debug
+  // toggle — see that button's own comment for why. Used to live inside
+  // `header` as a bare text link forced onto its own flex-wrap line (a
+  // workaround for a WebKit wrap bug); this prop moves it out of that row
+  // entirely instead of just restyling it in place.
+  onFinishDemo: () => void
   onSessionInvalid?: () => void // route to the "session ended" screen instead of an inline error
   // Kept up to date with the conversation so far so the end-of-demo email
   // screen can send it, without lifting message state itself out of this
@@ -481,7 +487,7 @@ interface ChatScreenProps {
   sessionStartedAt: number
 }
 
-function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
@@ -958,6 +964,22 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
               the familiar corner for settings. Stays visible when the
               appearance lock hides the picker (it's how you unlock). */}
           <ParentControlsMenu controls={parentControls} onChange={setParentControls} />
+          {/* Ends the demo — an icon button living here, grouped with the
+              other real controls, rather than a text link forced onto its
+              own guaranteed line down in the flex-wrap info row (see that
+              row's own history: it used to hide behind the fixed
+              TextSizeControl button on some WebKit builds when crammed in
+              alongside four other links; living here sidesteps that class of
+              bug entirely instead of working around it in place). Debug
+              keeps its own divider and muted styling immediately after this
+              as the one clearly-administrative control. */}
+          <button
+            onClick={onFinishDemo}
+            title={t('header.finishDemoTooltip')}
+            className="p-1.5 rounded-lg transition-colors text-gray-500 hover:text-navy-600 hover:bg-navy-50 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400"
+          >
+            <LogOut size={15} />
+          </button>
           {/* Voice-flow debug panel toggle — a developer/tester tool, not
               something an ordinary visitor ever needs, so it's deliberately
               separated from the actual interaction controls in the input bar
@@ -974,13 +996,16 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             <Bug size={15} />
           </button>
         </div>
-        {/* header (code/Ask Bede/Mastery preview/Feedback/Finish) gets its
-            own wrapping row instead of sharing the icon/name/settings row
-            above — on a phone, five extra text links crammed into that one
-            row is what was actually crowding the top-left corner (every
-            item bunching up and wrapping unpredictably). flex-wrap here
-            lets it break across two lines cleanly on a narrow screen
-            instead of squeezing everything into one illegible strip. */}
+        {/* header (code/Ask Bede/Mastery preview/Feedback) gets its own
+            wrapping row instead of sharing the icon/name/settings row
+            above — on a phone, extra text links crammed into that one row
+            is what was actually crowding the top-left corner (every item
+            bunching up and wrapping unpredictably). flex-wrap here lets it
+            break across two lines cleanly on a narrow screen instead of
+            squeezing everything into one illegible strip. (Finish demo used
+            to live in this row too, forced onto its own guaranteed line to
+            dodge a WebKit wrap bug — it's now an icon button up in the row
+            above, beside Debug, which sidesteps that whole class of bug.) */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
           {header}
         </div>
@@ -1216,7 +1241,7 @@ function MessageBubble({ msg, studentName, bubbleClass }: { msg: DisplayMessage;
 function StarRating({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
   return (
     <div className="mb-3">
-      <p className="text-xs font-semibold text-navy-700 mb-1">{label}</p>
+      <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">{label}</p>
       <div className="flex gap-1" role="radiogroup" aria-label={label}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
@@ -1230,7 +1255,10 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (n: n
           >
             <Star
               size={20}
-              className={n <= value ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}
+              // Brand gold, matching FeedbackModal's own stars for the
+              // identical rating widget — Tailwind's default amber read as
+              // a different, off-brand yellow next to it.
+              className={n <= value ? 'fill-gold-400 text-gold-500' : 'text-gray-300'}
             />
           </button>
         ))}
@@ -1351,7 +1379,9 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
   }
 
   return (
-    <div className="min-h-screen bg-parchment-50 flex items-center justify-center p-4">
+    // Gradient background matches CodeScreen/SessionEndedScreen — this used
+    // to be the only end-state screen with a flat fill instead.
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
@@ -1368,8 +1398,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
           </div>
         ) : (
           <form onSubmit={handleSend} className="mb-6">
-            <label htmlFor="demo-email" className="flex items-center gap-1.5 text-sm font-semibold text-navy-700 mb-1.5">
-              <Mail size={15} />
+            <label htmlFor="demo-email" className="flex items-center gap-1.5 text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1.5">
+              <Mail size={14} />
               {t('summary.wantNotes')}
             </label>
             <p className="text-xs text-gray-500 mb-2.5">
@@ -1383,7 +1413,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('summary.emailPlaceholder')}
-                className="input flex-1 min-w-0"
+                className="flex-1 min-w-0 text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
               />
               <button
                 type="submit"
@@ -1398,7 +1428,12 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
         )}
 
         {feedbackEnabled && (
-        <div className="border-t border-navy-100 pt-5 mb-6">
+        // A gently tinted box, not just a border-top divider — the same
+        // "distinct callout" pattern CodeScreen's own privacy notice uses,
+        // reused here so two different concerns on one card (session notes
+        // vs. the improve-Bede survey) read as two, not one long
+        // undifferentiated scroll.
+        <div className="bg-parchment-100/50 border border-navy-100 rounded-xl p-4 mb-6">
           {improvementStatus === 'sent' ? (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
               <Check size={18} className="shrink-0" />
@@ -1416,14 +1451,14 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
               <StarRating value={easeRating} onChange={setEaseRating} label={t('summary.easeRatingLabel')} />
 
               <div className="mb-3">
-                <label htmlFor="demo-feature" className="block text-xs font-semibold text-navy-700 mb-1">
-                  {t('summary.whichFeature')} <span className="font-normal text-gray-400">{t('codeScreen.optional')}</span>
+                <label htmlFor="demo-feature" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+                  {t('summary.whichFeature')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
                 </label>
                 <select
                   id="demo-feature"
                   value={favoriteFeature}
                   onChange={(e) => setFavoriteFeature(e.target.value)}
-                  className="input w-full"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy-400"
                 >
                   <option value="">{t('summary.chooseOne')}</option>
                   {DEMO_FEATURE_OPTIONS.map((opt, i) => (
@@ -1438,8 +1473,8 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 label={t('summary.recommendRatingLabel')}
               />
 
-              <label htmlFor="demo-improvement" className="block text-xs font-semibold text-navy-700 mb-1">
-                {t('summary.anythingToImprove')} <span className="font-normal text-gray-400">{t('codeScreen.optional')}</span>
+              <label htmlFor="demo-improvement" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+                {t('summary.anythingToImprove')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
               </label>
               <textarea
                 id="demo-improvement"
@@ -1448,7 +1483,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                 rows={2}
                 maxLength={2000}
                 placeholder={t('summary.improvementPlaceholder')}
-                className="input w-full resize-none mb-2.5"
+                className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 mb-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-navy-400"
               />
               <label className="flex items-start gap-2 text-xs text-gray-600 mb-2.5 cursor-pointer">
                 <input
@@ -1468,13 +1503,13 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
                   value={followupEmail}
                   onChange={(e) => setFollowupEmail(e.target.value)}
                   placeholder={t('summary.emailPlaceholder')}
-                  className="input w-full mb-2.5"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 mb-2.5 focus:outline-none focus:ring-2 focus:ring-navy-400"
                 />
               )}
               <button
                 type="submit"
                 disabled={improvementStatus === 'sending' || !overallRating}
-                className="w-full py-2 bg-sage-100 text-sage-700 rounded-xl font-semibold text-sm hover:bg-sage-200 transition-colors disabled:opacity-40"
+                className="w-full py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50"
               >
                 {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : t('summary.sendFeedback')}
               </button>
@@ -2193,21 +2228,9 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
                 <MessageSquare size={12} /> {t('header.feedback')}
               </button>
             )}
-            {/* basis-full forces this onto its own guaranteed line inside the
-                flex-wrap row above, regardless of how any given browser
-                computes the wrap point for the items before it — reported
-                on iPhone 16/Chrome (i.e. WebKit) staying on one line with
-                the other four items and ending up hidden directly behind
-                the fixed TextSizeControl button (main.tsx) rather than
-                wrapping the way it correctly did in every width/zoom
-                combination tested against Chromium. flex-basis: 100% is a
-                deterministic line-break, not a width computation the two
-                engines could disagree on. */}
-            <button onClick={() => setFinished(true)} title={t('header.finishDemoTooltip')} className="basis-full text-xs text-gray-500 hover:text-gray-700 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">
-              {t('header.finishDemo')}
-            </button>
           </>
         }
+        onFinishDemo={() => setFinished(true)}
       />
     </>
   )

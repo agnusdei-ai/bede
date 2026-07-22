@@ -30,23 +30,23 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: demo/package-lock.json
-      - name: Install
-        working-directory: demo
-        run: npm ci
-      - name: Build demo
-        working-directory: demo
-        # VITE_DEMO_API_BASE must point at a publicly-reachable homeschool-api
-        # deployment with DEMO_PIN set (Settings -> Secrets and variables ->
-        # Actions -> Variables -> New repository variable). Baked in at build
-        # time since this is a static site — there is no server here to read
-        # it from at runtime.
+      - name: Build combined site (marketing page + demo)
+        # Assembles site/ (the marketing home page) at the output root and
+        # a fresh demo/dist build nested under /bede/ — the same publish/
+        # layout scripts/build_pages_site.sh produces for Cloudflare, so
+        # GitHub Pages and Cloudflare serve identical content. Runs npm ci
+        # and npm run build internally; VITE_DEMO_API_BASE must point at a
+        # publicly-reachable homeschool-api deployment with DEMO_PIN set
+        # (Settings -> Secrets and variables -> Actions -> Variables) since
+        # it's baked in at build time — there is no server here to read it
+        # from at runtime.
         env:
           VITE_DEMO_API_BASE: ${{ vars.VITE_DEMO_API_BASE }}
-        run: npm run build
+        run: bash scripts/build_pages_site.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: demo/dist
+          path: publish
 
   deploy:
     needs: build

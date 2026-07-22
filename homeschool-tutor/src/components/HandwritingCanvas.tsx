@@ -601,38 +601,18 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-parchment-50">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white shadow-sm border-b border-parchment-200 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 bg-white shadow-sm border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
         {/* Cancel */}
         <button
           onClick={onCancel}
-          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors flex-shrink-0"
         >
           <X size={18} />
           <span className="text-sm font-medium">Cancel</span>
         </button>
 
-        {/* Paper picker — the child's choice, regardless of subject. Six
-            styles can outgrow a portrait tablet between Cancel and the
-            action buttons, so the strip scrolls sideways rather than
-            wrapping or squashing its neighbors. */}
-        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 min-w-0 overflow-x-auto mx-2">
-          {PAPER_ORDER.map((style) => (
-            <button
-              key={style}
-              onClick={() => setPaperStyle(style)}
-              aria-pressed={paperStyle === style}
-              title={`${PAPER_LABEL[style]} paper`}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
-                paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {PAPER_LABEL[style]}
-            </button>
-          ))}
-        </div>
-
         {/* Right actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={handleUndo}
             disabled={strokeCount === 0}
@@ -676,6 +656,33 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             <Check size={16} />
             <span>Done</span>
           </button>
+        </div>
+      </div>
+
+      {/* Paper picker — the child's choice, regardless of subject. Its own
+          row, not squeezed between Cancel and the action buttons: on a
+          phone-width screen (not just the "portrait tablet" the old inline
+          layout was sized for), Cancel plus five action buttons alone
+          already consume nearly the full width, which used to leave this
+          picker no visible room at all — zero paper-type labels showing and
+          the Done button clipped off the right edge of the screen, a real
+          reported bug. A full-width row has enough space for all six styles
+          on most phones; overflow-x-auto is the fallback for the narrowest. */}
+      <div className="flex items-center gap-1 px-4 py-1.5 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1">
+          {PAPER_ORDER.map((style) => (
+            <button
+              key={style}
+              onClick={() => setPaperStyle(style)}
+              aria-pressed={paperStyle === style}
+              title={`${PAPER_LABEL[style]} paper`}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
+                paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {PAPER_LABEL[style]}
+            </button>
+          ))}
         </div>
       </div>
 

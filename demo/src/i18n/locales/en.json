@@ -13,7 +13,14 @@
     "privacyNotice": "Your conversation is never stored. <privacyLink>Privacy Notice</privacyLink>",
     "generateCode": "Generate my code",
     "wakingUp": "Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.",
-    "couldNotStartSession": "Could not start a session"
+    "couldNotStartSession": "Could not start a session",
+    "whyBedeHeading": "Why families choose Bede",
+    "whyBedeCopilotTitle": "Co-pilot, not autopilot",
+    "whyBedeCopilotDesc": "You set the subjects and boundaries — Bede never replaces a parent's own judgment.",
+    "whyBedeSocraticTitle": "A Socratic dialogue engine",
+    "whyBedeSocraticDesc": "Bede asks patient, well-paced questions instead of handing over answers.",
+    "whyBedeFamilyTitle": "Built for real families",
+    "whyBedeFamilyDesc": "From the kitchen table to a small co-op — encrypted, and built for children on purpose."
   },
   "chatScreen": {
     "withName": "with {{name}}",

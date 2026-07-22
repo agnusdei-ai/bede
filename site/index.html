@@ -229,6 +229,146 @@
       color: #8a8a8a;
     }
 
+    .feature {
+      padding: 3.5rem 1.5rem 3rem;
+    }
+
+    .feature-inner {
+      max-width: 60rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .feature-eyebrow {
+      font-family: Georgia, serif;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--olive-600);
+      margin: 0 0 0.5rem;
+    }
+
+    .feature h2 {
+      font-family: 'Palatino Linotype', Palatino, serif;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      color: var(--navy-800);
+      margin: 0 0 0.5rem;
+    }
+
+    .feature .subhead {
+      font-size: 1rem;
+      color: #4a4a4a;
+      max-width: 40rem;
+      margin: 0 auto 2.5rem;
+      line-height: 1.6;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+      margin: 0 0 3rem;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      text-align: left;
+    }
+
+    .compare-col {
+      padding: 1.75rem;
+      background: var(--parchment-50);
+    }
+
+    .compare-col.after {
+      background: rgba(250, 237, 198, 0.4);
+      border-left: 1px solid var(--parchment-200);
+    }
+
+    .compare-col h3 {
+      font-family: Georgia, serif;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 1.1rem;
+    }
+
+    .compare-col.before h3 { color: #8a7a4a; }
+    .compare-col.after h3 { color: var(--olive-600); }
+
+    .compare-col ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    .compare-col li {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: #4a4a4a;
+    }
+
+    .compare-col li strong {
+      display: block;
+      font-family: Georgia, serif;
+      color: var(--navy-800);
+      margin-bottom: 0.15rem;
+    }
+
+    .workflow-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      background: var(--parchment-50);
+      border: 1px solid var(--parchment-200);
+      border-radius: 0.75rem;
+      padding: 2rem;
+      margin: 0 0 2.5rem;
+    }
+
+    .workflow-step {
+      flex: 1 1 12rem;
+      max-width: 15rem;
+      padding: 0 1rem;
+    }
+
+    .workflow-step strong {
+      display: block;
+      font-family: Georgia, serif;
+      color: var(--navy-800);
+      margin-bottom: 0.3rem;
+    }
+
+    .workflow-step span {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #55554f;
+    }
+
+    .workflow-arrow {
+      color: var(--olive-500);
+      font-weight: bold;
+      font-size: 1.4rem;
+      padding: 0 0.5rem;
+    }
+
+    .feature-notes {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1.5rem 2.5rem;
+      font-size: 0.88rem;
+      color: #6a6a63;
+    }
+
+    @media (max-width: 640px) {
+      .workflow-arrow {
+        transform: rotate(90deg);
+      }
+    }
+
     footer {
       padding: 1.5rem;
       font-size: 0.8rem;
@@ -317,6 +457,83 @@
         </div>
       </div>
       <p class="soon">More from Agnus Dei Technologies is on the way.</p>
+    </div>
+  </section>
+
+  <section class="feature">
+    <div class="feature-inner">
+      <p class="feature-eyebrow">Unify the Fragments</p>
+      <h2>The Bede Difference</h2>
+      <p class="subhead">
+        Most digital learning tools treat education like a factory line —
+        rigid, fragmented, and disconnected from the classical tradition.
+        Bede is built the other way around: one guided place for a parent
+        to lead a child through the Trivium, with the family's own
+        judgment always in charge.
+      </p>
+
+      <div class="compare">
+        <div class="compare-col before">
+          <h3>The Current Chaos</h3>
+          <ul>
+            <li><strong>Rigid &amp; closed.</strong> Mass-market apps lock families into a fixed, one-size-fits-all path with little room for a parent's own direction.</li>
+            <li><strong>App fatigue.</strong> Separate tools for reading, narration, and progress tracking leave parents juggling logins instead of teaching.</li>
+            <li><strong>Algorithmic chaos.</strong> General-purpose AI chatbots hallucinate, aren't built for children, and carry no formation of their own.</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <h3>The Bede Freedom</h3>
+          <ul>
+            <li><strong>Your books, your pace.</strong> You choose the subjects, texts, and topics each day — while Bede's own character and safety rules stay fixed and tamper-evident, never quietly changed by anyone, including us.</li>
+            <li><strong>One guided session.</strong> Socratic dialogue, narration, and a parent-facing progress summary live together, subject by subject, in a single sitting.</li>
+            <li><strong>Built for children, on purpose.</strong> An encrypted, self-hosted environment with real-time content moderation — built for family-aligned learning, not engagement or ad revenue.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="feature-eyebrow">Core Capabilities</p>
+      <h2>How Bede Empowers the Educator</h2>
+      <div class="subject-grid" style="margin-bottom: 2.5rem;">
+        <div class="subject-card">
+          <h3>Co-Pilot, not Autopilot</h3>
+          <p>Bede never replaces a parent's authority. You set the subjects, texts, and boundaries in Parent Setup, and a private "Ask Bede" sandbox lets you preview how it responds before your child ever does.</p>
+        </div>
+        <div class="subject-card">
+          <h3>A Socratic Dialogue Engine</h3>
+          <p>Purpose-built for the Grammar and Logic stages of childhood. Instead of handing over answers, Bede asks patient, well-paced questions — never more than a round or two on the same idea before easing off.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Built for Real Families</h3>
+          <p>Whether you're at the kitchen table or running a small co-op, configure up to ten students in a pod, each with their own grade level, subjects, and daily plan.</p>
+        </div>
+      </div>
+
+      <p class="feature-eyebrow">See It in Action</p>
+      <h2>Experience Bede in 3 Simple Steps</h2>
+      <div class="workflow-strip">
+        <div class="workflow-step">
+          <strong>Set the Day</strong>
+          <span>A parent picks the subjects, grade level, and any current book or lesson focus — once, in Parent Setup.</span>
+        </div>
+        <div class="workflow-arrow">&#10132;</div>
+        <div class="workflow-step">
+          <strong>Engage in Dialogue</strong>
+          <span>Bede leads a Socratic conversation across ten classical subjects — listening, asking, and adjusting to how the child answers.</span>
+        </div>
+        <div class="workflow-arrow">&#10132;</div>
+        <div class="workflow-step">
+          <strong>Review the Growth</strong>
+          <span>A parent-facing summary reports real progress after each session — never a guess, and never a score placed on a child's inner or spiritual life.</span>
+        </div>
+      </div>
+
+      <a class="cta" href="/bede/">Try the Demo →</a>
+
+      <div class="feature-notes" style="margin-top: 2.5rem;">
+        <span>🔒 AES-256-GCM encrypted at rest</span>
+        <span>🏠 Self-hosted, on your own network</span>
+        <span>&#10013; Rooted in the classical Catholic tradition</span>
+      </div>
     </div>
   </section>
 

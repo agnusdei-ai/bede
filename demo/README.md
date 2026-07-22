@@ -71,3 +71,12 @@ deployment the production app uses (`services/ai_service.py`).
 Left out because they need a real family's own deployment: voice-biometric
 login, encrypted persistent storage, multi-student pods, and progress
 tracking.
+
+## "Why families choose Bede" panel
+
+`CodeScreen` (in `src/App.tsx`) renders a compact three-item panel below the
+login card — a condensed echo of the marketing site's "The Bede Difference"
+section (`site/index.html`), just enough to orient a first-time visitor
+without turning this one-click entry point into a scrolling landing page.
+Copy lives under `codeScreen.whyBede*` in `src/i18n/locales/en.json` and
+`es.json`, same localization convention as the rest of `CodeScreen`.

@@ -123,10 +123,15 @@
       max-width: 36rem;
       margin: 0 0 2.5rem;
       position: relative;
-      padding-bottom: 56.25%; /* 16:9 */
+      padding-bottom: 56.25%; /* 16:9, used for the placeholder and any future landscape video */
       border-radius: 0.75rem;
       overflow: hidden;
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .video-wrap.vertical {
+      max-width: 20rem;
+      padding-bottom: 177.78%; /* 9:16, for a YouTube Shorts style vertical video */
     }
 
     .video-wrap iframe {
@@ -589,13 +594,19 @@
     &copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.
   </footer>
   <script>
-    // To add the intro video: paste the ID from its YouTube URL (the part
-    // after "v=", e.g. "dQw4w9WgXcQ" from youtube.com/watch?v=dQw4w9WgXcQ)
-    // below, then push — no build step, no rebuild pipeline, this file is
-    // served as-is. Leave it blank to keep showing the placeholder.
-    const YOUTUBE_VIDEO_ID = '';
+    // To add the intro video: paste the ID from its YouTube URL below, then
+    // push — no build step, no rebuild pipeline, this file is served as-is.
+    // Leave YOUTUBE_VIDEO_ID blank to keep showing the placeholder.
+    // The ID is the same part of the URL either way:
+    //   youtube.com/watch?v=dQw4w9WgXcQ          -> "dQw4w9WgXcQ"
+    //   youtube.com/shorts/dQw4w9WgXcQ            -> "dQw4w9WgXcQ"
+    // Set YOUTUBE_VIDEO_VERTICAL to true for a YouTube Shorts style
+    // (portrait) video, false for a normal landscape video.
+    const YOUTUBE_VIDEO_ID = 'M7OV1-RrK2M';
+    const YOUTUBE_VIDEO_VERTICAL = true;
 
     const videoWrap = document.getElementById('video-wrap');
+    if (YOUTUBE_VIDEO_VERTICAL) videoWrap.classList.add('vertical');
     videoWrap.innerHTML = YOUTUBE_VIDEO_ID
       ? `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}"
            title="Agnus Dei Technologies: Meet Bede"

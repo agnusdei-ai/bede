@@ -13,7 +13,14 @@
     "privacyNotice": "Tu conversación nunca se guarda. <privacyLink>Aviso de Privacidad</privacyLink>",
     "generateCode": "Generar mi código",
     "wakingUp": "Despertando a Bede… la primera visita después de un tiempo puede tardar hasta un minuto. Gracias por tu paciencia.",
-    "couldNotStartSession": "No se pudo iniciar una sesión"
+    "couldNotStartSession": "No se pudo iniciar una sesión",
+    "whyBedeHeading": "Por qué las familias eligen a Bede",
+    "whyBedeCopilotTitle": "Copiloto, no piloto automático",
+    "whyBedeCopilotDesc": "Tú decides las materias y los límites — Bede nunca reemplaza el criterio de un padre o madre.",
+    "whyBedeSocraticTitle": "Un motor de diálogo socrático",
+    "whyBedeSocraticDesc": "Bede hace preguntas pacientes y bien medidas en lugar de dar las respuestas.",
+    "whyBedeFamilyTitle": "Hecho para familias reales",
+    "whyBedeFamilyDesc": "Desde la mesa de la cocina hasta una pequeña cooperativa educativa — cifrado, y pensado para niños a propósito."
   },
   "chatScreen": {
     "withName": "con {{name}}",

@@ -291,7 +291,7 @@ export function CodeScreen({ onLoggedIn }: {
         for the localStorage flag this checks/sets. */}
     <div
       ref={formContainerRef}
-      className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4"
+      className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
     >
       <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
         {/* Language toggle — only rendered when this deployment offers one */}
@@ -425,6 +425,39 @@ export function CodeScreen({ onLoggedIn }: {
         <div className="flex flex-col items-center gap-1.5 mt-5">
           <AgnusDeiLogo className="h-8 opacity-80" />
           <TrademarkNotice className="text-center" />
+        </div>
+      </div>
+
+      {/* A compact, non-interactive echo of the marketing site's "Bede
+          Difference" section (see site/index.html) — just enough to orient
+          a first-time visitor before they click Generate, without turning
+          this one-click entry point into a scrolling landing page. */}
+      <div className={`w-full max-w-sm transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-navy-400 mb-3">
+          {t('codeScreen.whyBedeHeading')}
+        </p>
+        <div className="space-y-2.5">
+          <div className="bg-white/80 rounded-xl border border-navy-100 shadow-sm px-4 py-3 flex items-start gap-3">
+            <Sparkles size={18} className="text-gold-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{t('codeScreen.whyBedeCopilotTitle')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t('codeScreen.whyBedeCopilotDesc')}</p>
+            </div>
+          </div>
+          <div className="bg-white/80 rounded-xl border border-navy-100 shadow-sm px-4 py-3 flex items-start gap-3">
+            <GraduationCap size={18} className="text-navy-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{t('codeScreen.whyBedeSocraticTitle')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t('codeScreen.whyBedeSocraticDesc')}</p>
+            </div>
+          </div>
+          <div className="bg-white/80 rounded-xl border border-navy-100 shadow-sm px-4 py-3 flex items-start gap-3">
+            <Lock size={18} className="text-sage-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{t('codeScreen.whyBedeFamilyTitle')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t('codeScreen.whyBedeFamilyDesc')}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

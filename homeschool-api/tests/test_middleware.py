@@ -69,6 +69,22 @@ def _rate_limited_app() -> FastAPI:
     def voice_verify():
         return {"ok": True}
 
+    @app.post("/voice/stream/start")
+    def voice_stream_start():
+        return {"ok": True}
+
+    @app.post("/voice/stream/{session_id}/chunk")
+    def voice_stream_chunk(session_id: str):
+        return {"ok": True}
+
+    @app.post("/voice/stream/{session_id}/finish")
+    def voice_stream_finish(session_id: str):
+        return {"ok": True}
+
+    @app.get("/voice/stream/{session_id}/events")
+    def voice_stream_events(session_id: str):
+        return {"ok": True}
+
     @app.get("/tutor/chat")
     def other():
         return {"ok": True}
@@ -99,6 +115,53 @@ def test_rate_limit_middleware_buckets_are_independent(monkeypatch):
     assert client.get("/auth/login").status_code == 429
     assert client.get("/voice/verify").status_code == 200
     assert client.get("/tutor/chat").status_code == 200
+
+
+# Regression coverage for a real failure confirmed live on the public demo
+# via a debug-panel trace: startVoiceStream failing on every attempt after
+# only a handful of mic presses. Root cause — one voice utterance under the
+# streaming-transcription rewrite costs ~4 requests (start, events, at least
+# one chunk, finish) against what used to be a "20 utterances/minute" budget
+# sized for the old single-shot /voice/transcribe (1 request per utterance).
+def test_voice_stream_start_uses_the_stricter_voice_bucket(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_voice_per_minute", 2)
+    client = TestClient(_rate_limited_app())
+    assert client.post("/voice/stream/start").status_code == 200
+    assert client.post("/voice/stream/start").status_code == 200
+    assert client.post("/voice/stream/start").status_code == 429
+
+
+def test_voice_stream_session_mechanics_do_not_share_the_new_session_bucket(monkeypatch):
+    from core.config import settings
+
+    # A tiny "voice" (new-session) budget, exhausted immediately — but the
+    # already-approved session's own chunk/finish/events calls must still go
+    # through, since they aren't new attempts. This is the actual regression:
+    # before the fix, these shared the same bucket as /voice/stream/start and
+    # a real multi-turn conversation could exhaust it after only a few taps.
+    monkeypatch.setattr(settings, "rate_limit_voice_per_minute", 1)
+    client = TestClient(_rate_limited_app())
+    assert client.post("/voice/stream/start").status_code == 200
+    assert client.post("/voice/stream/start").status_code == 429
+
+    for _ in range(10):
+        assert client.post("/voice/stream/sess-1/chunk").status_code == 200
+    assert client.post("/voice/stream/sess-1/finish").status_code == 200
+    assert client.get("/voice/stream/sess-1/events").status_code == 200
+
+
+def test_voice_stream_session_bucket_has_its_own_limit(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_voice_stream_session_per_minute", 2)
+    client = TestClient(_rate_limited_app())
+    assert client.post("/voice/stream/sess-1/chunk").status_code == 200
+    assert client.post("/voice/stream/sess-1/chunk").status_code == 200
+    assert client.post("/voice/stream/sess-1/chunk").status_code == 429
+    # Still independent from the "voice" (new-session) bucket.
+    assert client.post("/voice/stream/start").status_code == 200
 
 
 # ── ExfiltrationGuard ────────────────────────────────────────────────────────

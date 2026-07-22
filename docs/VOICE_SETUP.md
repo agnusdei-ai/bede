@@ -153,6 +153,65 @@ client-side silence/voice-activity detection as a follow-up before
 continuous mode is genuinely usable again. Hold-to-talk (the default for
 every family) is fully unaffected.
 
+## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
+
+Reported live on the public demo shortly after the server-side-streaming
+rewrite above shipped, confirmed via two debug-panel traces roughly a
+minute apart: the first several mic presses in a session worked normally
+(`_start()` → `useVoiceRecorder.startRecording()` → `release()` →
+`useVoiceRecorder.stopRecording()`, clean), then every subsequent press
+failed instantly with `startVoiceStream failed: Could not start voice
+streaming` — never even reaching `useVoiceRecorder.startRecording()` — and
+the child saw `chat.micUnavailable` ("I can't hear you right now —
+something's wrong with the microphone") on every attempt from then on, for
+the rest of the session.
+
+Root cause: `POST /voice/stream/start` returning `!res.ok` is exactly what
+`startVoiceStream()` (`api.ts`) turns into that error message — and
+`core/middleware.py`'s `RateLimitMiddleware` treats *any* path containing
+`/voice/` as one shared bucket, capped at `rate_limit_voice_per_minute`
+(20/minute per IP by default). That limit was sized for the old
+architecture, where **one voice utterance cost exactly one request**
+(`POST /voice/transcribe`). The streaming rewrite costs far more per
+utterance against the same unchanged budget:
+
+- `POST /voice/stream/start` — 1
+- `GET /voice/stream/{id}/events` — 1
+- at least one `POST /voice/stream/{id}/chunk` (`release()` always pushes a
+  final snapshot even for a very short hold; longer holds add one more per
+  `CHUNK_UPLOAD_INTERVAL_MS`, 2.5s)
+- `POST /voice/stream/{id}/finish` — 1
+
+That's a **minimum of four requests per single tap**, even an accidental
+brief one — against a budget that used to allow 20 entire utterances per
+minute. As few as five taps in one minute (completely ordinary behavior —
+a child re-pressing after nothing seemed to happen, exactly what both
+traces showed) now exhausts the whole bucket, and every mic press for the
+rest of that 60-second window gets a 429 back immediately, surfaced as a
+hardware-sounding error that has nothing to do with the actual microphone.
+
+Fix: `POST /voice/stream/start` (the real "new attempt" signal — matching
+the old architecture's one-request-per-utterance semantics) stays in the
+stricter `voice` bucket unchanged. `POST /voice/stream/{id}/chunk`,
+`POST /voice/stream/{id}/finish`, and `GET /voice/stream/{id}/events` — the
+bounded, mechanical follow-up calls of a session that already passed that
+check — now share a separate, more generous `voice_stream_session` bucket
+(`rate_limit_voice_stream_session_per_minute`, 120/minute by default)
+instead. A single approved hold can only ever generate a handful of these
+(capped by the upload interval and `HOLD_SAFETY_TIMEOUT_MS`), so they were
+never the right thing to gate against new-attempt abuse in the first
+place — counting them there just punished ordinary multi-turn
+conversation. See `core/middleware.py`'s `RateLimitMiddleware.dispatch()`
+and `tests/test_middleware.py`'s `test_voice_stream_session_mechanics_do_not_share_the_new_session_bucket`
+(verified via the standard break-then-restore discipline: reverted the
+fix, confirmed the new tests actually fail, restored it).
+
+If a family reports this again after updating, check whether the
+`voice_stream_session` bucket itself is now the one being hit (a single
+IP running an unusually large number of simultaneous or extremely long
+holds) rather than `voice` — the fix separates the two failure modes, it
+doesn't make rate limiting disappear entirely.
+
 ## Troubleshooting (historical): the microphone stopped working after a browser update
 
 The section below predates the server-side-streaming rewrite above and

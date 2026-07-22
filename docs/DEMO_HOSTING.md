@@ -161,13 +161,17 @@ workflow — see that section for the full setup.
 
 ## Custom domain: moving to Cloudflare Pages
 
-The demo currently lives at `agnusdei-ai.github.io/bede/` — GitHub Pages,
-deploying `demo/dist` directly (`.github/workflows/deploy-demo.yml`). The
-plan is to move the real apex domain (`agnusdei.ai`) onto **Cloudflare
-Pages** instead of GitHub Pages, hosting `site/` (the company's own home
-page — a small, hand-written static page, `site/index.html`, no build step,
-no framework, with a "Meet Bede →" link to `/bede/`) at the root and the
-interactive demo nested under `/bede/` beneath it, matching that link.
+GitHub Pages (`.github/workflows/deploy-demo.yml`) and a Cloudflare Worker
+both serve the same combined build today, assembled by
+`scripts/build_pages_site.sh`: `site/` (the company's own home page — a
+small, hand-written static page, `site/index.html`, no build step, no
+framework, with a "Meet Bede →" link to `/bede/`) at the root, and the
+interactive demo nested under `/bede/` beneath it, matching that link. So
+`agnusdei-ai.github.io` shows the marketing page and
+`agnusdei-ai.github.io/bede/` shows the demo — same shape as the Cloudflare
+deployment below. The plan is to move the real apex domain (`agnusdei.ai`)
+onto **Cloudflare Pages** instead of GitHub Pages, keeping this same
+site/demo split.
 
 **Why Cloudflare Pages and not a GitHub Pages custom domain** (the
 originally-planned approach): a first attempt at exactly this apex/subpath
@@ -189,10 +193,10 @@ away from GitHub Pages custom domains is exactly the kind of thing that
 causes this same class of mistake again later.
 
 `scripts/build_pages_site.sh` does the assembly (`site/` at the output
-root, a fresh `demo/dist` build nested under `<output>/bede/`) — the same
-shape the original GitHub Pages plan called for, just via a plain shell
-script instead of a workflow step, so it runs identically whether Cloudflare
-invokes it or you run it locally to preview.
+root, a fresh `demo/dist` build nested under `<output>/bede/`) — a plain
+shell script rather than logic duplicated per platform, so it runs
+identically whether GitHub Actions invokes it (`deploy-demo.yml`),
+Cloudflare invokes it, or you run it locally to preview.
 
 **One-time Cloudflare Pages setup:**
 

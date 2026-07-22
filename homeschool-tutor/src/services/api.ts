@@ -144,8 +144,12 @@ const SSE_STALL_TIMEOUT_MS = 60_000
 
 class StreamStallError extends Error {}
 
-/** Shared line-buffered SSE parser used by both the tutor and sandbox chat streams. */
-async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
+/** Shared line-buffered SSE parser used by the tutor, sandbox, and
+ *  voice-streaming chat streams — generic over the event shape since the
+ *  voice stream (VoiceStreamEvent, see services/voiceApi.ts) and tutor
+ *  chat stream (StreamChunk) differ, but both are a sequence of plain-JSON
+ *  "data: " lines ending in a {type: 'done'} sentinel. */
+export async function* parseSSEStream<T extends { type: string }>(res: Response): AsyncGenerator<T> {
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -179,7 +183,7 @@ async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
         const jsonStr = line.slice(6).trim()
         if (!jsonStr) continue
         try {
-          const chunk: StreamChunk = JSON.parse(jsonStr)
+          const chunk: T = JSON.parse(jsonStr)
           yield chunk
           if (chunk.type === 'done') return
         } catch {
@@ -228,7 +232,7 @@ export async function* streamTutorChat(
     throw new Error('Tutor request failed — check your connection')
   }
 
-  yield* parseSSEStream(res)
+  yield* parseSSEStream<StreamChunk>(res)
 }
 
 /**
@@ -284,7 +288,7 @@ export async function* streamSandboxChat(
   if (res.status === 404) throw new Error('Sandbox mode is not enabled on this deployment')
   if (!res.ok) throw new Error('Sandbox request failed — check your connection')
 
-  yield* parseSSEStream(res)
+  yield* parseSSEStream<StreamChunk>(res)
 }
 
 // ── Admin ────────────────────────────────────────────────────────────────────

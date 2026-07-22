@@ -1,10 +1,15 @@
+import json
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sse_starlette.sse import EventSourceResponse
 from typing import List
 
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core.database import get_db
 from core.deps import require_auth, require_parent, require_real_user
+from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from services.voice_auth import (
     delete_profile,
     enroll_student,
@@ -13,6 +18,12 @@ from services.voice_auth import (
     verify_student,
 )
 from services.transcription import transcribe_audio
+from services.streaming_transcription import (
+    events as stream_events,
+    finish_session,
+    push_chunk,
+    start_session,
+)
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -178,3 +189,59 @@ async def transcribe(
     _validate_audio(data, audio.filename or "audio")
     result = await transcribe_audio(data, language=language)
     return {"text": result.get("text", ""), "language": result.get("language", language)}
+
+
+# ── Streaming (SSE) transcription ─────────────────────────────────────────────
+#
+# Primary voice-input path, replacing browser-native SpeechRecognition
+# entirely (see services/streaming_transcription.py's module docstring for
+# why, and docs/VOICE_SETUP.md). The client always captures raw mic audio
+# locally and periodically POSTs the growing buffer to /chunk; each push is
+# re-transcribed server-side and the result appears on the /events SSE
+# stream. Four small endpoints rather than one bidirectional connection —
+# a plain POST per chunk is broadly compatible (including iOS Safari, which
+# has inconsistent support for streaming request bodies), and SSE is the
+# proven pattern already used for /tutor/chat.
+
+class StreamStartRequest(BaseModel):
+    language: str = "en"
+
+
+@router.post("/stream/start")
+async def stream_start(req: StreamStartRequest, auth: dict = Depends(require_auth)):
+    return {"session_id": start_session(language=req.language)}
+
+
+@router.post("/stream/{session_id}/chunk")
+async def stream_chunk(
+    session_id: str,
+    audio: UploadFile = File(...),
+    auth: dict = Depends(require_auth),
+):
+    data = await audio.read()
+    _validate_audio(data, audio.filename or "audio")
+    if not push_chunk(session_id, data):
+        raise HTTPException(status_code=404, detail="Unknown or finished streaming session")
+    return {"accepted": True}
+
+
+@router.post("/stream/{session_id}/finish")
+async def stream_finish(session_id: str, auth: dict = Depends(require_auth)):
+    if not finish_session(session_id):
+        raise HTTPException(status_code=404, detail="Unknown or already-finished streaming session")
+    return {"accepted": True}
+
+
+@router.get("/stream/{session_id}/events")
+async def stream_events_endpoint(session_id: str, auth: dict = Depends(require_auth)):
+    """
+    Consumed via fetch() + a manual stream reader on the client (see
+    services/api.ts's parseSSEStream), NOT the browser's native EventSource
+    API — EventSource can't attach an Authorization header, and this
+    endpoint needs one like every other authenticated route here.
+    """
+    async def event_generator():
+        async for item in with_stall_timeout(stream_events(session_id), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS):
+            yield json.dumps(item)
+
+    return EventSourceResponse(event_generator(), media_type="text/event-stream")

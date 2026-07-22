@@ -45,6 +45,17 @@ export type StreamChunk =
   | { type: 'subject_complete'; reason: 'mastery' | 'frustration'; content: string }
   | { type: 'done' }
 
+/** Events from GET /voice/stream/{id}/events — see homeschool-api's
+ *  services/streaming_transcription.py. 'partial' arrives roughly once per
+ *  chunk upload interval while still holding, 'final' once after finish(),
+ *  'done' closes the stream, 'error' means the session id itself wasn't
+ *  recognized (expired/unknown). */
+export type VoiceStreamEvent =
+  | { type: 'partial'; text: string }
+  | { type: 'final'; text: string }
+  | { type: 'done' }
+  | { type: 'error'; message: string }
+
 // Must point at a real, publicly-reachable homeschool-api deployment with
 // DEMO_PIN set. Baked in at build time — set via VITE_DEMO_API_BASE. Without
 // it, generateDemoCode() below surfaces a clear "not enabled" error the
@@ -241,27 +252,63 @@ export function warmDemoBackend(): void {
   }
 }
 
-/** Server-side Whisper transcription — the fallback when the browser's own
- *  speech recognition is unsupported, errors out, or stalls (a Chrome update
- *  once broke it outright). Returns '' on any failure so the caller simply
- *  ends the attempt instead of surfacing an error mid-conversation. Nothing
- *  is stored server-side; the result comes back inline. */
-export async function transcribeFallback(token: string, wavBlob: Blob, language = 'en'): Promise<string> {
-  try {
-    const form = new FormData()
-    form.append('audio', wavBlob, 'audio.wav')
-    form.append('language', language)
-    const res = await fetch(`${apiBase()}/voice/transcribe`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    })
-    if (!res.ok) return ''
-    const data = await res.json()
-    return data.text ?? ''
-  } catch {
-    return ''
-  }
+// ── Server-side streaming transcription (primary voice-input path) ──────────
+//
+// Replaces browser-native SpeechRecognition entirely — see
+// useHybridVoiceInput.ts and homeschool-api's services/streaming_transcription.py
+// for the full design. The client always captures raw mic audio locally
+// (useVoiceRecorder.ts) and periodically uploads the growing buffer here;
+// each upload is re-transcribed server-side and the result appears on the
+// SSE event stream below.
+
+/** Starts a new server-side streaming-transcription session. Returns its id
+ *  — pass it to pushVoiceStreamChunk/finishVoiceStream/streamVoiceEvents. */
+export async function startVoiceStream(token: string, language = 'en'): Promise<string> {
+  const res = await fetch(`${apiBase()}/voice/stream/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ language }),
+  })
+  if (!res.ok) throw new Error('Could not start voice streaming')
+  const data = await res.json()
+  return data.session_id as string
+}
+
+/** Uploads the FULL audio captured so far (not a delta) — the server always
+ *  re-transcribes the whole growing buffer, matching how useVoiceRecorder.ts
+ *  already accumulates one continuous PCM capture per hold. Throws on
+ *  failure; the caller decides whether a single dropped chunk is worth
+ *  surfacing (the next chunk a few seconds later carries everything anyway). */
+export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob): Promise<void> {
+  const form = new FormData()
+  form.append('audio', wavBlob, 'chunk.wav')
+  const res = await fetch(`${apiBase()}/voice/stream/${sessionId}/chunk`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) throw new Error('Voice chunk upload failed')
+}
+
+/** Signals no more chunks are coming — the server transcribes the final
+ *  buffer once more, emits a 'final' event, then 'done' closes the stream. */
+export async function finishVoiceStream(token: string, sessionId: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/voice/stream/${sessionId}/finish`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Voice stream finish failed')
+}
+
+/** Consumed via fetch() + parseSSEStream, NOT the browser's native
+ *  EventSource API — EventSource can't attach an Authorization header (see
+ *  homeschool-api's routers/voice.py's stream_events_endpoint docstring). */
+export async function* streamVoiceEvents(token: string, sessionId: string): AsyncGenerator<VoiceStreamEvent> {
+  const res = await fetch(`${apiBase()}/voice/stream/${sessionId}/events`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not open the voice event stream')
+  yield* parseSSEStream<VoiceStreamEvent>(res)
 }
 
 /** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
@@ -389,8 +436,12 @@ const SSE_STALL_TIMEOUT_MS = 60_000
 
 class StreamStallError extends Error {}
 
-/** Shared line-buffered SSE parser used by the tutor, sandbox, and diagnostic chat streams. */
-async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
+/** Shared line-buffered SSE parser used by the tutor, sandbox, diagnostic,
+ *  and voice-streaming chat streams — generic over the event shape since
+ *  the voice stream (VoiceStreamEvent) and tutor chat stream (StreamChunk)
+ *  differ, but both are a sequence of plain-JSON "data: " lines ending in
+ *  a {type: 'done'} sentinel. */
+async function* parseSSEStream<T extends { type: string }>(res: Response): AsyncGenerator<T> {
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -422,7 +473,7 @@ async function* parseSSEStream(res: Response): AsyncGenerator<StreamChunk> {
       const jsonStr = line.slice(6).trim()
       if (!jsonStr) continue
       try {
-        const chunk: StreamChunk = JSON.parse(jsonStr)
+        const chunk: T = JSON.parse(jsonStr)
         yield chunk
         if (chunk.type === 'done') return
       } catch {
@@ -503,7 +554,7 @@ export async function* streamTutorChat(
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended. Generate a new code to keep going.')
   if (!res.ok) throw new Error('Tutor request failed. Check your connection.')
 
-  yield* parseSSEStream(res)
+  yield* parseSSEStream<StreamChunk>(res)
 }
 
 /**
@@ -537,7 +588,7 @@ export async function* streamSandboxDemoChat(
   if (res.status === 401) throw new TrialSessionEndedError('Your session has ended. Generate a new code to keep going.')
   if (!res.ok) throw new Error('Sandbox request failed. Check your connection.')
 
-  yield* parseSSEStream(res)
+  yield* parseSSEStream<StreamChunk>(res)
 }
 
 // ── Diagnostic preview (demo-scoped, no separate login) ───────────────────────
@@ -619,5 +670,5 @@ export async function* streamDiagnosticChat(
   if (res.status === 429) throw await diagnosticQuotaError(res)
   if (!res.ok) throw new Error('Diagnostic chat request failed. Check your connection.')
 
-  yield* parseSSEStream(res)
+  yield* parseSSEStream<StreamChunk>(res)
 }

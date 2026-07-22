@@ -130,15 +130,20 @@ default** (`SocraticChat.tsx` and the demo's `ChatScreen`, both via
 dictation ("listening") still recognizing speech as English inside a
 Spanish session — the mic button worked and transcribed *something*, but
 against the wrong language model, so a Spanish-speaking child's actual
-words came back garbled. `useHybridVoiceInput`/`useSpeechRecognition`
-always supported a `language` parameter (default `'en-US'`) and propagated
-it correctly to both the native Web Speech API's `lang` and the server
-Whisper fallback's language hint (`transcribeFallback`) — the bug was
-purely that neither call site ever passed anything but the default. Both
-now pass `i18n.language === 'es' ? 'es-MX' : 'en-US'`. Voice *biometric*
-verification (`VoiceVerification.tsx`, login-time passphrase check) was
-never affected — it's acoustic speaker-embedding comparison
-(`services/voice_auth.py`), not language-dependent transcription.
+words came back garbled. `useHybridVoiceInput` always supported a
+`language` parameter (default `'en-US'`) and propagated it correctly to
+the server Whisper transcription's language hint — the bug was purely that
+neither call site ever passed anything but the default. Both now pass
+`i18n.language === 'es' ? 'es-MX' : 'en-US'`. (At the time this was fixed,
+that language hint reached both the native Web Speech API's `lang` and the
+server Whisper fallback; browser-native SpeechRecognition was later
+removed entirely in favor of server-side streaming transcription as the
+sole path — see `docs/VOICE_SETUP.md` — but the locale-propagation fix
+described here still applies unchanged to that single remaining path.)
+Voice *biometric* verification (`VoiceVerification.tsx`, login-time
+passphrase check) was never affected — it's acoustic speaker-embedding
+comparison (`services/voice_auth.py`), not language-dependent
+transcription.
 
 **Currently translated:** `Login.tsx`, `TutorSession.tsx`, `SocraticChat.tsx`,
 `ParentSetup.tsx`, `PodDashboard.tsx`, and `Progress.tsx` — every screen a

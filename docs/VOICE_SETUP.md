@@ -496,6 +496,69 @@ native isn't supported at all). The mode-driven effect is left in place
 unchanged for the "restore to playback" side, which was never time-critical
 the same way.
 
+## Troubleshooting: push-to-talk regressed right after the fix above — native fails instantly on every press, and long holds get cut off mid-answer
+
+Reported directly, with two live traces, immediately after the fix above
+shipped to the public demo. Every single press in both traces showed
+`startFallback() from mode=native` within **10-30ms** of the press starting
+— not the 2500ms stall watchdog, `native.start()` itself failing to even
+begin, on literally every attempt. That forced every hold into the recorder
+fallback path, which then exposed two more, compounding bugs:
+
+1. A hold released before `MIN_RECORDING_MS` (400ms) while already in the
+   fallback path — an accidental brief tap, easy to trigger when native is
+   failing this fast — gets silently discarded inside `useVoiceRecorder`'s
+   `stopRecording()`, whose early-return path never calls `onComplete`.
+   `useHybridVoiceInput`'s `mode` had no other way to learn the recording
+   ended, so it stayed stuck at `'recording'` — silently swallowing every
+   subsequent press — until `RECORDING_SAFETY_TIMEOUT_MS` (10s) eventually
+   forced it back to idle.
+2. That same 10-second safety timeout doesn't just recover a genuinely stuck
+   state — it fires against a **real, still-in-progress hold**, too. A trace
+   showed it firing at the 10s mark while a child was still actively
+   holding and speaking, wiping `mode` back to idle and showing "can't hear
+   you" nearly a full second *before* the child even released the button,
+   orphaning a recording that was never actually broken.
+
+**Root cause of the instant native failure (the actual regression):** the
+fix directly above made `enterRecordingAudioSession()` run before
+*everything* in `_start()`, including immediately before `native.start()`.
+The reasoning at the time was that native recognition also depends on the
+audio session category internally (true — see `audioSession.ts`'s own
+comment) — but that was never confirmed by a trace, only `prewarm()`'s own
+`getStream()` failure was. Forcing a WebKit audio-session category change in
+the exact same tick as calling `native.start()` turned out to break native's
+*own* initialization outright — a different race than the one being fixed,
+introduced by the fix, and far more damaging: instead of an occasional lost
+first press, it failed **every single press** in both reported traces.
+
+Fix, in both copies of `useHybridVoiceInput.ts` and `useVoiceRecorder.ts`:
+
+1. `enterRecordingAudioSession()` is scoped back to only the two call sites
+   actually proven to need it — immediately before `recorder.prewarm()`,
+   and immediately before `startFallback()` in the "native isn't supported
+   at all" branch — never before `native.start()` itself.
+2. `useVoiceRecorder` gained two new callbacks: `onStarted` (fires the
+   moment the audio graph is genuinely live) and `onStopped` (fires at the
+   end of *every* `stopRecording()` call, regardless of outcome — produced
+   a blob, discarded as too short, or had nothing to stop). `onStarted`
+   clears the recording safety timeout as soon as recording is confirmed
+   underway, so it stops being a hold-duration cap and goes back to its
+   original, narrow purpose (catching a recording that never started at
+   all) — `MAX_RECORDING_MS` (120s, matching native hold-to-talk's own
+   `HOLD_SAFETY_TIMEOUT_MS`) is the real ceiling for a long hold now.
+   `onStopped` gives `useHybridVoiceInput` a callback-based signal for "this
+   recording has finished" that fires even when `onComplete` doesn't (the
+   too-short-discard case), so `mode` returns to idle immediately instead of
+   waiting on that same safety timeout as the only way out.
+
+This is the second time a fix to this exact call site (`enterRecordingAudioSession()`'s
+placement in `_start()`) has needed correcting after shipping — worth
+internalizing for next time: a WebKit-specific audio-session race is very
+hard to reason about from first principles alone, and "native also probably
+needs this" is a hypothesis, not a finding, until an actual trace confirms
+which specific call it was racing against.
+
 ## Troubleshooting: the live transcript while speaking is off-screen
 
 Reported with a screenshot: while holding the mic and talking, the child's

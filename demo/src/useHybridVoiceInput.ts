@@ -147,6 +147,36 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
 
   const recorder = useVoiceRecorder({
     maxDurationMs: MAX_RECORDING_MS,
+    onStarted: () => {
+      // Recording is confirmed genuinely underway — the safety timeout's
+      // only real purpose (catching stopRecording() called before
+      // startRecording()'s own async setup ever populated its refs, a
+      // narrow race that would show up almost immediately) is done being
+      // needed. Clearing it here, not just in onComplete below, matters for
+      // a still-in-progress hold: a real trace showed the 10s timeout
+      // firing WHILE a child was still legitimately mid-answer, wiping
+      // `mode` back to 'idle' and showing "can't hear you" out from under
+      // an active recording that never actually failed — MAX_RECORDING_MS
+      // (120s, matching native hold-to-talk's own HOLD_SAFETY_TIMEOUT_MS)
+      // is the real ceiling for a long hold now, enforced inside
+      // useVoiceRecorder itself.
+      clearRecordingSafety()
+    },
+    onStopped: () => {
+      // Real reported bug: a hold released before MIN_RECORDING_MS (an
+      // accidental brief tap while already in the fallback-recorder path)
+      // discards silently in useVoiceRecorder — onComplete never fires for
+      // it — which used to leave `mode` stuck at 'recording' with nothing
+      // to recover it short of the safety timeout, silently swallowing
+      // every press in between. onComplete already moves mode to
+      // 'transcribing' for a real capture (so this check correctly no-ops
+      // then); this only fires the reset for the cases that never got that
+      // far.
+      if (modeRef.current === 'recording') {
+        clearRecordingSafety()
+        setMode('idle')
+      }
+    },
     onComplete: async (wavBlob) => {
       // Recording actually completed and handed off — the safety timeout
       // below (armed in startFallback) exists for the case where THIS
@@ -349,18 +379,6 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const _start = useCallback((hold: boolean) => {
     if (modeRef.current !== 'idle') return
     logDebug(`_start(hold=${hold}) nativeSupported=${native.isSupported}`)
-    // Switch the AudioSession category to recording-capable SYNCHRONOUSLY,
-    // right here — not via the mode-driven effect below. That effect only
-    // runs after this render commits, but prewarm() and native.start() (and,
-    // when native isn't supported, startFallback()'s own
-    // recorder.startRecording()) call getUserMedia() synchronously in this
-    // SAME call stack, a beat before the effect would ever fire. Right after
-    // Bede finishes speaking the session is still pinned to 'playback', so
-    // that race loses every time: getUserMedia() rejects with "AudioSession
-    // category is not compatible with audio capture" — confirmed via a real
-    // debug-panel trace — silently swallowing whatever the child says in
-    // that first press.
-    enterRecordingAudioSession()
     stoppedByUserRef.current = false
     releasedRef.current = false
     holdModeRef.current = hold
@@ -373,6 +391,23 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
 
     if (native.isSupported) {
       setMode('native')
+      // Switch the AudioSession category to recording-capable SYNCHRONOUSLY,
+      // right here, immediately before prewarm() — not via the mode-driven
+      // effect below (which only runs after this render commits, a beat too
+      // late) and, just as deliberately, NOT before native.start() below.
+      // An earlier version of this fix called this before EVERYTHING,
+      // including native.start(), on the theory that native recognition
+      // also needs the category switched (it does use getUserMedia
+      // internally — see audioSession.ts). That theory was never actually
+      // confirmed by a trace — only prewarm()'s own getStream() failure
+      // was. A later real trace showed native.start() failing within
+      // 10-30ms on EVERY press once that broader call shipped — consistent
+      // with forcing a WebKit audio-session category change in the same
+      // tick as starting native SpeechRecognition breaking its own
+      // initialization, a different race than the one being fixed. Scoping
+      // this back to only the call that was actually proven to need it
+      // resolves that regression.
+      enterRecordingAudioSession()
       // Open the fallback recorder's mic stream NOW, synchronously, inside
       // this same press-gesture call stack — before we even know whether
       // native recognition will work. iOS Safari only honors getUserMedia()
@@ -426,6 +461,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
         }, HOLD_SAFETY_TIMEOUT_MS)
       }
     } else {
+      // No prewarm() call precedes this path (there's no native attempt to
+      // prewarm alongside), so the same synchronous audio-session switch
+      // belongs here too, immediately before the recorder's own
+      // getUserMedia() call inside startFallback() → recorder.startRecording().
+      enterRecordingAudioSession()
       startFallback()
     }
   }, [native, startFallback, setMode])

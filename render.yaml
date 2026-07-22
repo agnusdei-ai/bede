@@ -143,12 +143,14 @@ services:
       # demo to either one (see docs/DEMO_HOSTING.md's "Custom domain: moving
       # to Cloudflare Pages" section) — an unused origin here is inert, so
       # listing both candidates now means flipping the live domain later
-      # needs no backend redeploy. Drop whichever one doesn't end up in use
-      # once that's settled, and drop the agnusdei-ai.github.io fallback once
-      # the custom domain is confirmed working, to keep this list minimal
-      # again.
+      # needs no backend redeploy. bede.agnusdei.workers.dev is the
+      # Cloudflare Worker's own default preview domain, needed until the
+      # agnusdei.ai nameservers are pointed at Cloudflare. Drop whichever
+      # candidate domain doesn't end up in use once that's settled, and drop
+      # the agnusdei-ai.github.io and workers.dev fallbacks once the custom
+      # domain is confirmed working, to keep this list minimal again.
       - key: CORS_ORIGINS
-        value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://bede.ai,https://www.bede.ai
+        value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://bede.ai,https://www.bede.ai,https://bede.agnusdei.workers.dev
       - key: DISABLE_API_DOCS
         value: "true"
       - key: PRODUCTION

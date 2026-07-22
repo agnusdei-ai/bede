@@ -123,7 +123,7 @@
       max-width: 36rem;
       margin: 0 0 2.5rem;
       position: relative;
-      padding-bottom: 56.25%; /* 16:9, used for the placeholder and any future landscape video */
+      aspect-ratio: 16 / 9; /* used for the placeholder and any future landscape video */
       border-radius: 0.75rem;
       overflow: hidden;
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
@@ -131,7 +131,7 @@
 
     .video-wrap.vertical {
       max-width: 20rem;
-      padding-bottom: 177.78%; /* 9:16, for a YouTube Shorts style vertical video */
+      aspect-ratio: 9 / 16; /* for a YouTube Shorts style vertical video */
     }
 
     .video-wrap iframe {

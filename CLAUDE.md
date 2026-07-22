@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-**Agnus Dei / Bede** — a self-hosted, LAN-deployed Catholic Classical homeschool AI tutor. A parent configures each student's daily plan; students connect from their own tablets. Claude (Bede persona) tutors via Socratic dialogue, agentic tools, and subject-specific personas. All student data is AES-256-GCM encrypted at rest; voice biometrics authenticate children at session start.
+**Agnus Dei / Bede** — a self-hosted, LAN-deployed, Charlotte Mason-inspired classical homeschool AI tutor. A parent configures each student's daily plan; students connect from their own tablets. Claude (Bede persona) tutors via Socratic dialogue, agentic tools, and subject-specific personas. All student data is AES-256-GCM encrypted at rest; voice biometrics authenticate children at session start.
 
 ## Bede's Constitution
 

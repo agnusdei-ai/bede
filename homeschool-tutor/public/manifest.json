@@ -1,7 +1,7 @@
 {
   "name": "Agnus Dei Technologies — Bede™ Tutor",
   "short_name": "Bede",
-  "description": "Catholic Classical homeschool AI tutor",
+  "description": "Charlotte Mason-inspired classical homeschool AI tutor",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

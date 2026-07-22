@@ -1,0 +1,22 @@
+{
+  // Cloudflare Workers Static Assets config for the combined agnusdei.ai
+  // site: site/ (company home page) at the root, demo/dist/ (the
+  // interactive Bede demo) nested under /bede/ — see
+  // scripts/build_pages_site.sh, which assembles both into publish/.
+  //
+  // Cloudflare's current "Workers & Pages" onboarding funnels new projects
+  // through the Workers flow (`npx wrangler deploy`) rather than the
+  // classic Pages "build output directory" UI field — this config file is
+  // what tells that deploy command where the static assets actually live.
+  // No `main` field is needed: a Worker with only an `assets` block and no
+  // script deploys as pure static hosting, no compute.
+  //
+  // See docs/DEMO_HOSTING.md's "Custom domain: moving to Cloudflare Pages"
+  // section for the full one-time project setup (build command, env vars,
+  // custom domain).
+  "name": "bede",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./publish"
+  }
+}

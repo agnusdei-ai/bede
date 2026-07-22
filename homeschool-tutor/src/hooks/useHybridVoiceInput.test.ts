@@ -602,6 +602,72 @@ describe('useHybridVoiceInput stuck-mode recovery (recorder fallback)', () => {
     act(() => vi.advanceTimersByTime(10000))
     expect(result.current.micError).toBe(null)
   })
+
+  // Regression coverage for a real reported bug, found via a live
+  // debug-panel trace: the 10s recording safety timeout used to be the
+  // ONLY thing that ever cleared, and it only cleared on onComplete — so a
+  // child who held the mic and genuinely kept talking past 10 seconds got
+  // cut off mid-answer, mode wiped back to idle and an "unavailable" error
+  // shown, even though the recording was never actually stuck. onStarted
+  // now clears the safety timeout as soon as recording is CONFIRMED
+  // underway, not just once it completes.
+  it('does not fire the recording safety timeout against a hold that is confirmed started and still in progress', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    act(() => recorderOptions.current.onStarted())
+
+    // Well past the old 10s cap — the hold is still legitimately ongoing,
+    // nothing has completed or errored.
+    act(() => vi.advanceTimersByTime(15000))
+
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBe(null)
+  })
+
+  // Regression coverage for the other half of the same trace: a hold
+  // released before MIN_RECORDING_MS while already in the fallback-recorder
+  // path gets silently discarded inside useVoiceRecorder (onComplete never
+  // fires for it) — onStopped is the only remaining signal, and used to be
+  // absent entirely, leaving mode stuck at 'recording' until the 10s safety
+  // timeout eventually bailed it out, silently swallowing every press in
+  // between.
+  it('returns to idle immediately when a too-short recording is discarded, without waiting for the safety timeout', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    act(() => result.current.startHold())
+    expect(result.current.isListening).toBe(true)
+
+    // Simulates useVoiceRecorder's own too-short-to-transcribe discard path:
+    // onStopped fires, onComplete never does.
+    act(() => recorderOptions.current.onStopped())
+
+    expect(result.current.isListening).toBe(false)
+    expect(result.current.micError).toBe(null)
+
+    // A fresh press right after must actually start a new attempt, not be
+    // silently swallowed by a mode still stuck at 'recording'.
+    act(() => result.current.startHold())
+    expect(result.current.isListening).toBe(true)
+  })
+
+  it('onStopped does not interfere with a completed recording already past the recording stage', async () => {
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+
+    act(() => result.current.startHold())
+    transcribeFallback.mockResolvedValueOnce('a real answer')
+    await act(async () => {
+      await recorderOptions.current.onComplete(new Blob())
+      // useVoiceRecorder always calls onStopped right after onComplete —
+      // mode is already 'transcribing' by then, so this must be a no-op.
+      recorderOptions.current.onStopped()
+    })
+
+    expect(onFinal).toHaveBeenCalledWith('a real answer')
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe(null)
+  })
 })
 
 describe('useHybridVoiceInput audio session', () => {

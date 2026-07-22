@@ -32,6 +32,16 @@ interface RecordingOptions {
    *  is about to silently do nothing (see startRecording's `if (!stream)
    *  return` below, which has no other way to tell the caller). */
   onError?: (reason: MicErrorReason) => void
+  /** Fired the moment recording is genuinely underway (the audio graph is
+   *  live) — lets a caller-side "did this even start" safety timeout clear
+   *  itself instead of running for its full fixed duration against a real,
+   *  in-progress hold. See useHybridVoiceInput.ts's RECORDING_SAFETY_TIMEOUT_MS. */
+  onStarted?: () => void
+  /** Fired at the end of every stopRecording() call, regardless of outcome
+   *  (produced a blob, discarded as too short, or had nothing to stop) —
+   *  the one reliable "this recording is now fully finished" signal, unlike
+   *  onComplete which only fires when there's audio worth transcribing. */
+  onStopped?: () => void
 }
 
 // Below this, a recording is almost certainly an accidental micro-tap (a
@@ -48,7 +58,7 @@ const MIN_RECORDING_MS = 400
 // removed in any current browser, including iOS Safari).
 const PROCESSOR_BUFFER_SIZE = 4096
 
-export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: RecordingOptions = {}) {
+export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, onStarted, onStopped }: RecordingOptions = {}) {
   const [isRecording, setIsRecording] = useState(false)
   const [level, setLevel] = useState(0) // 0–1 volume level for visualisation
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -146,6 +156,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: 
     const silence = silenceRef.current
     if (!processor || !audioCtx || !stream) {
       setIsRecording(false)
+      onStopped?.()
       return
     }
 
@@ -186,7 +197,12 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: 
     pcmChunksRef.current = []
 
     if (durationMs < MIN_RECORDING_MS) {
-      // Too short to be real speech — discard without transcribing.
+      // Too short to be real speech — discard without transcribing. Still
+      // notify onStopped: a real reported bug had this early return leave
+      // the CALLER's own mode stuck at "recording" forever (onComplete,
+      // the only signal the caller otherwise had, never fires here), with
+      // nothing to recover it short of a much-later safety timeout.
+      onStopped?.()
       return
     }
 
@@ -202,7 +218,8 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: 
     const wavBuffer = encodeWav(samples, 16000)
     const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' })
     onComplete?.(wavBlob)
-  }, [onComplete])
+    onStopped?.()
+  }, [onComplete, onStopped])
 
   const startRecording = useCallback(async () => {
     if (isRecording) return
@@ -276,10 +293,11 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError }: 
     streamRef.current = stream
     startedAtRef.current = Date.now()
     setIsRecording(true)
+    onStarted?.()
 
     // Auto-stop at maxDuration
     timeoutRef.current = setTimeout(stopRecording, maxDurationMs)
-  }, [isRecording, maxDurationMs, stopRecording, getStream])
+  }, [isRecording, maxDurationMs, stopRecording, getStream, onStarted])
 
   return { isRecording, level, startRecording, stopRecording, prewarm, cancelPrewarm }
 }

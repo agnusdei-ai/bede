@@ -191,3 +191,34 @@ async def test_sweep_loop_evicts_sessions_idle_past_the_ttl(monkeypatch):
     await st._sweep_loop()
 
     assert session_id not in st._sessions
+
+
+@pytest.mark.asyncio
+async def test_each_transcription_pass_logs_its_own_elapsed_time(monkeypatch, caplog):
+    """Regression for a real reported delay: a child released the mic and
+    the UI sat on "Transcribing…" for a while, with no way to tell from a
+    client-side DebugOverlay trace alone whether that was the final pass
+    itself being slow (every pass re-transcribes the WHOLE growing buffer)
+    or it queued up behind an in-flight partial pass the coalescing design
+    can't cancel. This is the one number that tells them apart — see
+    docs/VOICE_SETUP.md's transcription-delay section."""
+    async def fake_transcribe(audio_bytes, language="en"):
+        await asyncio.sleep(0.01)
+        return {"text": "hello", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    with caplog.at_level("INFO", logger="services.streaming_transcription"):
+        session_id = st.start_session(language="en")
+        st.push_chunk(session_id, b"some-audio-bytes")
+        st.finish_session(session_id)
+
+        events_seen = [item async for item in st.events(session_id)]
+
+    assert [e["type"] for e in events_seen] == ["final", "done"]
+    pass_logs = [r for r in caplog.records if "streaming_transcription: session=" in r.message]
+    assert pass_logs, "no per-pass timing log was emitted"
+    assert f"session={session_id}" in pass_logs[-1].message
+    assert "pass=final" in pass_logs[-1].message
+    assert "audio_bytes=16" in pass_logs[-1].message
+    assert "elapsed=" in pass_logs[-1].message

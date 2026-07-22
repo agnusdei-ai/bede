@@ -123,10 +123,15 @@
       max-width: 36rem;
       margin: 0 0 2.5rem;
       position: relative;
-      padding-bottom: 56.25%; /* 16:9 */
+      aspect-ratio: 16 / 9; /* used for the placeholder and any future landscape video */
       border-radius: 0.75rem;
       overflow: hidden;
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .video-wrap.vertical {
+      max-width: 20rem;
+      aspect-ratio: 9 / 16; /* for a YouTube Shorts style vertical video */
     }
 
     .video-wrap iframe {
@@ -413,9 +418,24 @@
       width: 100%;
       text-align: center;
     }
+
+    .beta-banner {
+      background: var(--navy-800);
+      color: var(--parchment-50);
+      text-align: center;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .beta-banner strong {
+      color: var(--gold-300);
+    }
   </style>
 </head>
 <body>
+  <div class="beta-banner">
+    <strong>Public beta now open.</strong> Free to use through August 25.
+  </div>
   <main class="hero">
     <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
     <h1>Agnus Dei Technologies</h1>
@@ -447,11 +467,13 @@
     <div class="founder-inner">
       <p class="feature-eyebrow">From the Founder</p>
       <blockquote>
-        &ldquo;I decided to model Bede after a Benedictine monk who lived at
-        an abbey and was excellent at teaching Philosophy and history of
-        the institutions that formed that we now know as the Church. He
-        was a great mentor, counselor, and exemplary teacher that taught
-        in the style of Socrates.&rdquo;
+        &ldquo;I named Bede after the Venerable Bede, a Benedictine monk who
+        chronicled the History of the early institutions that formed the
+        Church we know today. The persona also honors a monk who taught
+        me at Portsmouth Abbey, weaving Christian Doctrine, Humanities,
+        and History together in his courses. He was a patient mentor
+        and counselor who taught in the style of Socrates, and he
+        shaped how I teach today.&rdquo;
       </blockquote>
       <cite>Kristian Gonzalez, Founder. A lifelong learner, AI enthusiast, architect, and developer.</cite>
     </div>
@@ -589,13 +611,19 @@
     &copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.
   </footer>
   <script>
-    // To add the intro video: paste the ID from its YouTube URL (the part
-    // after "v=", e.g. "dQw4w9WgXcQ" from youtube.com/watch?v=dQw4w9WgXcQ)
-    // below, then push — no build step, no rebuild pipeline, this file is
-    // served as-is. Leave it blank to keep showing the placeholder.
-    const YOUTUBE_VIDEO_ID = '';
+    // To add the intro video: paste the ID from its YouTube URL below, then
+    // push — no build step, no rebuild pipeline, this file is served as-is.
+    // Leave YOUTUBE_VIDEO_ID blank to keep showing the placeholder.
+    // The ID is the same part of the URL either way:
+    //   youtube.com/watch?v=dQw4w9WgXcQ          -> "dQw4w9WgXcQ"
+    //   youtube.com/shorts/dQw4w9WgXcQ            -> "dQw4w9WgXcQ"
+    // Set YOUTUBE_VIDEO_VERTICAL to true for a YouTube Shorts style
+    // (portrait) video, false for a normal landscape video.
+    const YOUTUBE_VIDEO_ID = 'M7OV1-RrK2M';
+    const YOUTUBE_VIDEO_VERTICAL = true;
 
     const videoWrap = document.getElementById('video-wrap');
+    if (YOUTUBE_VIDEO_VERTICAL) videoWrap.classList.add('vertical');
     videoWrap.innerHTML = YOUTUBE_VIDEO_ID
       ? `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}"
            title="Agnus Dei Technologies: Meet Bede"

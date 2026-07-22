@@ -265,6 +265,17 @@ this repo, don't stop at opening a PR and waiting — drive it to done:
 This is a standing rule for this repo across sessions, not a one-off for
 whichever task prompted it.
 
+**Carve-out for the public-facing demo/marketing pages (`site/`, `demo/`):**
+step 3 above does NOT apply to changes under these two directories. Instead:
+run a thorough self-review (the `/code-review` or `/security-review` skill,
+whichever fits the change) on the diff, report the findings, and then wait
+for the user's explicit sign-off before merging — no auto-merge. These paths
+are the first thing a prospective family sees, and copy/content changes in
+particular (not just code) carry a higher risk of drifting from what the
+product actually does, so they get an extra human checkpoint the rest of the
+repo doesn't require. Everything else about the workflow (test first, open a
+PR with a real test plan, tell the user once merged) still applies.
+
 ## Standing Workflow: Feature Documentation
 
 Every feature or user-facing behavior change introduced to this repo needs

@@ -12,7 +12,7 @@ pydantic-settings>=2.14.2
 sse-starlette>=2.1.0
 python-multipart>=0.0.12
 # Encryption at rest (AES-256-GCM, no cffi dependency)
-pycryptodome>=3.21.0
+pycryptodome>=3.23.0
 # Managed PostgreSQL async driver + ORM
 asyncpg>=0.30.0
 sqlalchemy[asyncio]>=2.0.36

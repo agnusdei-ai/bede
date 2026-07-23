@@ -174,7 +174,7 @@ jobs:
           [ "$(stat -c '%a' .env)" = "600" ]
 
       - name: Upload .env as an artifact for the next job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wizard-generated-env
           path: .env

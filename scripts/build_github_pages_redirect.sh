@@ -5,9 +5,25 @@ set -euo pipefail
 # the canonical build (site/ + demo) is Cloudflare's own deployment, at
 # https://bede.agnusdei.workers.dev/ (and, once agnusdei.ai's nameservers are
 # pointed at Cloudflare, that same Worker under the custom domain instead).
-# Keeping the old GitHub Pages URLs alive as redirects means any link
+# Keeping the old GitHub Pages URL alive as a redirect means any link
 # already shared or bookmarked still lands somewhere real, without this
 # repo having to keep two independently live copies from drifting apart.
+#
+# IMPORTANT: this repo's project-page URL is permanently
+# https://agnusdei-ai.github.io/bede/ (GitHub derives the path from the repo
+# name, "bede") — confirmed directly from a real deploy-pages run's own
+# "Evaluated environment url" log line. The bare https://agnusdei-ai.github.io/
+# root is NOT reachable for this repo at all (it 404s) and nothing in this
+# script's output can change that — only a custom domain, or a separate repo
+# literally named agnusdei-ai.github.io, could claim that root. An earlier
+# version of this script published a second file nested under publish/bede/,
+# assuming it would land at /bede/ — but since the artifact's own top level
+# already IS /bede/, that nested file was actually unreachable at
+# /bede/bede/, and the top-level file was a redirect to the marketing page,
+# not the demo. That silently broke the one URL actually shared throughout
+# this project's beta (agnusdei-ai.github.io/bede/) until caught by a real
+# 404 report. Only ONE redirect file is produced now, at the artifact root,
+# targeting the demo — the URL that was actually being shared.
 #
 # GitHub Pages has no server-side redirect support (no _redirects file,
 # no rewrite rules) — a client-side meta-refresh + JS redirect, with a
@@ -19,35 +35,25 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-MARKETING_URL="https://bede.agnusdei.workers.dev/"
 DEMO_URL="https://bede.agnusdei.workers.dev/bede/"
 
-make_redirect() {
-  local out_file="$1"
-  local target="$2"
-  local label="$3"
-  mkdir -p "$(dirname "$out_file")"
-  cat > "$out_file" <<EOF
+echo "Assembling publish/ (a single redirect stub) ..."
+rm -rf publish
+mkdir -p publish
+cat > publish/index.html <<EOF
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=${target}" />
-  <link rel="canonical" href="${target}" />
+  <meta http-equiv="refresh" content="0; url=${DEMO_URL}" />
+  <link rel="canonical" href="${DEMO_URL}" />
   <title>Agnus Dei Technologies</title>
 </head>
 <body>
-  <script>location.replace("${target}");</script>
-  <p>This page has moved. <a href="${target}">Continue to ${label}</a>.</p>
+  <script>location.replace("${DEMO_URL}");</script>
+  <p>This page has moved. <a href="${DEMO_URL}">Continue to the Bede demo</a>.</p>
 </body>
 </html>
 EOF
-}
-
-echo "Assembling publish/ (redirect stubs only) ..."
-rm -rf publish
-mkdir -p publish
-make_redirect publish/index.html "$MARKETING_URL" "Agnus Dei Technologies"
-make_redirect publish/bede/index.html "$DEMO_URL" "the Bede demo"
 
 echo "Done — publish/ is ready to deploy."

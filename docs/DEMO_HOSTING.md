@@ -182,14 +182,34 @@ beneath it, matching that link. So `bede.agnusdei.workers.dev` shows the
 marketing page and `bede.agnusdei.workers.dev/bede/` shows the demo.
 
 GitHub Pages (`.github/workflows/deploy-demo.yml`) no longer serves a live
-copy of that build — it publishes two tiny redirect stubs instead
-(`scripts/build_github_pages_redirect.sh`), so `agnusdei-ai.github.io`
-forwards to `bede.agnusdei.workers.dev/` and `agnusdei-ai.github.io/bede/`
-forwards to `bede.agnusdei.workers.dev/bede/`. This keeps any link already
-shared or bookmarked against the old GitHub Pages URLs landing somewhere
+copy of that build — it publishes one tiny redirect stub instead
+(`scripts/build_github_pages_redirect.sh`), forwarding to
+`bede.agnusdei.workers.dev/bede/` (the demo — the URL actually shared
+throughout this project's beta).
+
+**This repo's GitHub Pages URL is permanently
+`https://agnusdei-ai.github.io/bede/`** — GitHub derives the path from the
+repo name ("bede"), the same way it would for any project-page repo not
+literally named `<owner>.github.io`. Confirmed directly from a real
+`deploy-pages` run's own log line: `Evaluated environment url:
+https://agnusdei-ai.github.io/bede/`. The bare `https://agnusdei-ai.github.io/`
+root is **not reachable at all for this repo** — it 404s, and nothing this
+repo publishes can change that (only a custom domain, or a separate repo
+literally named `agnusdei-ai.github.io`, could claim that root). An earlier
+version of this script tried to publish two files — one at the artifact
+root, one nested under `publish/bede/`, assuming the nested one would land
+at `/bede/` — but since the artifact's own root already **is** `/bede/`,
+that nested file was actually unreachable at `/bede/bede/`, and the
+top-level file (a redirect to the marketing page, not the demo) was what
+`agnusdei-ai.github.io/bede/` actually served. That silently broke the one
+URL this project had been sharing, until a real 404 report caught it —
+worth remembering if this ever needs touching again: there is exactly one
+reachable path here, not two.
+
+This keeps the one link already shared or bookmarked landing somewhere
 real, without this repo having to keep two independently live copies from
 drifting apart. GitHub Pages has no server-side redirect support (no
-`_redirects` file, no rewrite rules), so these are client-side
+`_redirects` file, no rewrite rules), so this is client-side
 (`<meta http-equiv="refresh">` + a JS `location.replace()`, with a plain
 link as a no-JS fallback) — the standard workaround for a GitHub Pages
 redirect.
@@ -267,10 +287,10 @@ Cloudflare invokes it, or you run it locally to preview.
    browser console, not a visible error banner.
 8. GitHub Pages doesn't need retiring the way an earlier version of this
    plan assumed — it's already just a redirect to
-   `bede.agnusdei.workers.dev` (see "GitHub Pages now redirects" above), not
-   a second live copy. Once `agnusdei.ai` is confirmed working, update
-   `scripts/build_github_pages_redirect.sh`'s `MARKETING_URL`/`DEMO_URL` to
-   point at `agnusdei.ai` instead, so old GitHub Pages links forward to the
+   `bede.agnusdei.workers.dev/bede/` (see "GitHub Pages now redirects"
+   above), not a second live copy. Once `agnusdei.ai` is confirmed working,
+   update `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` to point at
+   `agnusdei.ai/bede/` instead, so the old GitHub Pages link forwards to the
    final domain rather than the workers.dev one.
 
 ## Cold starts (free plan)

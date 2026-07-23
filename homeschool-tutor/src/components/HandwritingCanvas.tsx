@@ -86,12 +86,19 @@ const GRAPH_LINE_COLOR = '#c9d6e8'
 const COMPOSITION_RULE_COLOR = '#a9c3dc'
 const COMPOSITION_MIDLINE_COLOR = '#c7d8ea'
 
-const GRAPH_SPACING = 24
-// Dot-grid paper: same pitch as the graph grid so work translates between
-// the two, but only the intersections are marked — dots guide without
-// boxing the child in, which suits geometry constructions, multiplication
-// arrays, symmetry work, and freehand-but-tidy diagrams.
-const DOT_SPACING = 24
+// Graph/dot grid scaled to grade stage, using the same real-world classroom
+// paper sizes a parent would actually buy — K-2 gets big 1" squares (easy
+// counting, coloring, and early arrays); 3-5 gets a standard 1/2" grid; 6-8
+// gets the tighter 1/4" grid this canvas always drew before grade scaling
+// existed (standard pre-algebra/engineering graph paper). Dots share the
+// same pitch as the graph grid at each stage so work translates between the
+// two paper styles.
+const GRID_SPACING_BY_STAGE: Record<string, number> = {
+  'K-2': 1 * PRINT_DPI,
+  '3-5': 0.5 * PRINT_DPI,
+  '6-8': 0.25 * PRINT_DPI,
+}
+const DEFAULT_GRID_SPACING = GRID_SPACING_BY_STAGE['3-5']
 const DOT_RADIUS = 1.5
 // Composition ruling scaled to the writer, not one-size-fits-all, using
 // the real inch spacings of classroom ruled paper (converted to px at
@@ -114,14 +121,21 @@ const DEFAULT_RULING = RULING_BY_STAGE['3-5']
 const JOURNAL_SPLIT_RATIO = 0.58
 const JOURNAL_DATE_LINE_Y = 34
 const JOURNAL_DATE_LINE_WIDTH = 150
-// Musical staff paper: five lines per staff. The line gap is generous
-// (beginner manuscript paper, not engraver-tight) so a child can place
-// note heads between lines with a stylus or pencil after printing.
-const STAFF_LINE_GAP = 12
-// Top of one staff to the top of the next — leaves clear space between
-// staves for lyrics, solfège syllables, or ledger lines.
-const STAFF_GROUP_SPACING = 96
-const STAFF_TOP_MARGIN = 48
+// Musical staff paper: five lines per staff. K-2 gets "big note" beginner
+// manuscript paper — the noticeably wider line gap published beginner staff
+// paper uses so a young child can place large note heads by hand; 3-5 and
+// 6-8 both use standard manuscript spacing (staff notation itself doesn't
+// shrink with age the way handwriting ruling does, so there's no reason to
+// tighten it further for older students — this is the exact spacing this
+// canvas always drew before grade scaling existed). groupSpacing (top of one
+// staff to the top of the next) and topMargin scale with lineGap so the
+// clear space around each staff stays proportional at every stage.
+const STAFF_BY_STAGE: Record<string, { lineGap: number; groupSpacing: number; topMargin: number }> = {
+  'K-2': { lineGap: 0.1875 * PRINT_DPI, groupSpacing: 1.25 * PRINT_DPI, topMargin: 0.5 * PRINT_DPI },
+  '3-5': { lineGap: 0.125 * PRINT_DPI, groupSpacing: 1 * PRINT_DPI, topMargin: 0.5 * PRINT_DPI },
+  '6-8': { lineGap: 0.125 * PRINT_DPI, groupSpacing: 1 * PRINT_DPI, topMargin: 0.5 * PRINT_DPI },
+}
+const DEFAULT_STAFF = STAFF_BY_STAGE['3-5']
 
 type PaperStyle = 'composition' | 'graph' | 'dots' | 'staff' | 'journal' | 'blank'
 
@@ -190,6 +204,8 @@ function drawPaper(
   style: PaperStyle,
   bg: string,
   ruling: { lineHeight: number; midline: boolean },
+  gridSpacing: number,
+  staff: { lineGap: number; groupSpacing: number; topMargin: number },
 ) {
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, width, height)
@@ -205,13 +221,13 @@ function drawPaper(
     ctx.strokeStyle = gridColor
     ctx.lineWidth = 1
     ctx.setLineDash([])
-    for (let x = GRAPH_SPACING; x < width; x += GRAPH_SPACING) {
+    for (let x = gridSpacing; x < width; x += gridSpacing) {
       ctx.beginPath()
       ctx.moveTo(x + 0.5, 0)
       ctx.lineTo(x + 0.5, height)
       ctx.stroke()
     }
-    for (let y = GRAPH_SPACING; y < height; y += GRAPH_SPACING) {
+    for (let y = gridSpacing; y < height; y += gridSpacing) {
       ctx.beginPath()
       ctx.moveTo(0, y + 0.5)
       ctx.lineTo(width, y + 0.5)
@@ -224,8 +240,8 @@ function drawPaper(
     // A dot at every grid intersection, none on the edges — the ink-dot
     // color leans on the ruling color so dots survive dark paper too.
     ctx.fillStyle = dark ? 'rgba(255,255,255,0.4)' : ruleColor
-    for (let x = DOT_SPACING; x < width; x += DOT_SPACING) {
-      for (let y = DOT_SPACING; y < height; y += DOT_SPACING) {
+    for (let x = gridSpacing; x < width; x += gridSpacing) {
+      for (let y = gridSpacing; y < height; y += gridSpacing) {
         ctx.beginPath()
         ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2)
         ctx.fill()
@@ -240,9 +256,9 @@ function drawPaper(
     ctx.setLineDash([])
     // Whole staves only — a staff that would run off the bottom edge is
     // omitted rather than drawn partially (four lines is not a staff).
-    for (let top = STAFF_TOP_MARGIN; top + 4 * STAFF_LINE_GAP <= height; top += STAFF_GROUP_SPACING) {
+    for (let top = staff.topMargin; top + 4 * staff.lineGap <= height; top += staff.groupSpacing) {
       for (let line = 0; line < 5; line++) {
-        const y = top + line * STAFF_LINE_GAP
+        const y = top + line * staff.lineGap
         ctx.beginPath()
         ctx.moveTo(0, y + 0.5)
         ctx.lineTo(width, y + 0.5)
@@ -314,6 +330,8 @@ type Tool = 'pen' | 'eraser'
 export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeStage }: HandwritingCanvasProps) {
   const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
   const ruling = RULING_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_RULING
+  const gridSpacing = GRID_SPACING_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_GRID_SPACING
+  const staff = STAFF_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_STAFF
   const [paperColor, setPaperColor] = useState<string>(PARCHMENT_BG)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -380,8 +398,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     canvas.height = CANVAS_HEIGHT * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, paperStyle, paperColor, ruling)
-  }, [paperStyle, paperColor, ruling])
+    drawPaper(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, paperStyle, paperColor, ruling, gridSpacing, staff)
+  }, [paperStyle, paperColor, ruling, gridSpacing, staff])
 
   // Redraw all strokes from scratch onto the canvas
   const redrawAll = useCallback(() => {
@@ -393,7 +411,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     // Clear to paper (background + ruling/grid)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling, gridSpacing, staff)
 
     // Replay all strokes — an "eraser" stroke is just one whose color is the
     // background color, so replaying strokes in order naturally covers
@@ -421,7 +439,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       }
       ctx.stroke()
     }
-  }, [paperStyle, paperColor, ruling])
+  }, [paperStyle, paperColor, ruling, gridSpacing, staff])
 
   useEffect(() => {
     initCanvas()
@@ -560,7 +578,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     const dpr = dprRef.current
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling)
+    drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling, gridSpacing, staff)
   }
 
   const handleDone = () => {

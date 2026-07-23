@@ -15,7 +15,7 @@ python-multipart>=0.0.12
 pycryptodome>=3.21.0
 # Managed PostgreSQL async driver + ORM
 asyncpg>=0.30.0
-sqlalchemy[asyncio]>=2.0.36
+sqlalchemy[asyncio]>=2.0.51
 # Voice authentication + transcription
 numpy>=1.26.0
 scipy>=1.13.0

@@ -26,7 +26,7 @@ soundfile>=0.12.0
 # entirely, since it doesn't share openai-whisper's PyTorch runtime. See
 # services/transcription.py and docs/VOICE_SETUP.md.
 faster-whisper>=1.0.0
-resemblyzer>=0.1.1
+resemblyzer>=0.1.4
 # Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
 webauthn>=2.0.0
 pyotp>=2.9.0

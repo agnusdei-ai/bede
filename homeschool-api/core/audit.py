@@ -60,6 +60,7 @@ class AuditEvent:
     MODERATION_FLAGGED       = "moderation.flagged"
     TOOL_INVOKED             = "tool.invoked"
     TOOL_CALL_SUPPRESSED     = "tool.call_suppressed"
+    ADVERSARIAL_DETECTED     = "adversarial.detected"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -95,6 +96,13 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # one legitimate turn has never needed this many tool calls — so it
     # alerts immediately, same as ExfiltrationGuard's suspicious_request.
     AuditEvent.TOOL_CALL_SUPPRESSED: (1, 1),
+    # services/policy_engine.py's decide() output, logged whenever ANY of
+    # the four new adversarial categories are detected (blocking or not) —
+    # same "routine boundary-testing happens, a sustained pattern is what's
+    # worth a parent's attention" reasoning as MODERATION_FLAGGED above,
+    # since jailbreak_intent/social_engineering specifically never block a
+    # turn on their own and would otherwise generate no other alert signal.
+    AuditEvent.ADVERSARIAL_DETECTED: (3, 600),
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
 

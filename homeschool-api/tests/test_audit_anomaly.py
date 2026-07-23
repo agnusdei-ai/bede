@@ -98,6 +98,18 @@ def test_check_anomaly_tool_invoked_fires_at_forty_not_one():
     assert _check_anomaly(AuditEvent.TOOL_INVOKED, ip) == 40
 
 
+def test_check_anomaly_adversarial_detected_fires_at_three_not_one():
+    """Mirrors MODERATION_FLAGGED's reasoning: services/policy_engine.py's
+    decide() logs this for jailbreak_intent/social_engineering too, which
+    never block a turn on their own — a single hit is routine boundary-
+    testing, a sustained pattern from one address is what's worth a
+    parent's attention."""
+    ip = "8.8.4.4"
+    assert _check_anomaly(AuditEvent.ADVERSARIAL_DETECTED, ip) is None
+    assert _check_anomaly(AuditEvent.ADVERSARIAL_DETECTED, ip) is None
+    assert _check_anomaly(AuditEvent.ADVERSARIAL_DETECTED, ip) == 3
+
+
 def test_check_anomaly_tool_call_suppressed_fires_immediately():
     """A single trip of stream_tutor_response's per-turn tool-call cap is
     already anomalous by construction (see _MAX_TOOL_CALLS_PER_TURN) —

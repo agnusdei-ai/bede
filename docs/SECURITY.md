@@ -154,6 +154,48 @@ list as items are closed.
   call (anomalous by construction — one legitimate turn has never needed
   more than the cap). Covered by `tests/test_tool_call_audit.py` and the
   new rules in `tests/test_audit_anomaly.py`.
+- **Adversarial resilience pipeline (extends B005/E009), closed
+  2026-07-23.** `routers/tutor.py`'s `chat()` now runs
+  `User Input → Adversarial Detection → Policy Engine → Tutor State Machine
+  → Action Validator → Parent/Student` as additive stages layered on top of
+  the pre-existing safeguarding/moderation gate — see `CLAUDE.md`'s
+  "Adversarial resilience pipeline" section for the full code-level
+  mapping. Adds real detection + policy for four categories a fixed
+  phrase list, and the original five B005 categories, didn't cover:
+  jailbreak framing ("DAN mode", "developer mode", "pretend you have no
+  rules"), policy-override attempts (false claims of parent/admin/developer
+  authority demanding a rules/safety-filter bypass), conversational data-
+  exfiltration attempts (asking Bede to disclose its system prompt, repeat
+  prior context verbatim, or reveal other students'/server data — distinct
+  from `core/middleware.py`'s pre-existing `ExfiltrationGuard`, which is the
+  HTTP response-body variant of the same concern), and social engineering
+  (sustained pressure/guilt/urgency aimed at getting Bede to break its own
+  rules). Two tiers, no added latency or vendor cost: Tier 1
+  (`services/adversarial_detection.py`'s `detect_tier1`) is free, instant,
+  deterministic regex, curated for near-zero false positives against
+  ordinary K-8 Socratic dialogue and creative-writing roleplay, and is the
+  only signal still available during a moderation-classifier outage; Tier 2
+  extends `services/moderation.py`'s existing per-turn classifier call with
+  the same four categories (no second LLM call). `services/policy_engine.py`'s
+  `decide()` tiers the response: policy_override_attempt/
+  data_exfiltration_attempt redirect the turn on a Tier 1 hit OR a Tier 2
+  flag at medium+ confidence; jailbreak_intent/social_engineering never
+  redirect alone, at any confidence — the same reasoning `moderation.py`
+  already documents for why `prompt_injection` doesn't block alone (real
+  lesson content looks like these categories often enough that blocking
+  would cost more than it defends, and this app's architecture has no
+  secret for a successful jailbreak to actually leak). Every detection,
+  blocking or not, is audit-logged as `AuditEvent.ADVERSARIAL_DETECTED` and
+  feeds a new E009 anomaly rule (3 in 10 minutes from one IP — same
+  "routine boundary-testing vs. a sustained pattern" threshold
+  `MODERATION_FLAGGED` uses), so the categories that never block on their
+  own still surface to a parent if they recur. Explicitly does **not**
+  include live adversarial pentesting against the running persona — see the
+  open gap above; that remains a separate, human/AI-red-team engagement
+  outside this codebase, which this pipeline is meant to be tested against,
+  not a substitute for. Covered by `tests/test_adversarial_detection.py`,
+  `tests/test_policy_engine.py`, `tests/test_adversarial_router.py`, and
+  the new rule in `tests/test_audit_anomaly.py`.
 - **B005 real-time input filtering — dedicated classifier, closed
   2026-07-17.** `_INJECTION_PATTERN`/`check_safeguarding` are fast, free
   regexes but only catch phrasing someone already wrote a pattern for —

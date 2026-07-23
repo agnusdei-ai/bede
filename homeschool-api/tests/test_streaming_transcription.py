@@ -222,3 +222,50 @@ async def test_each_transcription_pass_logs_its_own_elapsed_time(monkeypatch, ca
     assert "pass=final" in pass_logs[-1].message
     assert "audio_bytes=16" in pass_logs[-1].message
     assert "elapsed=" in pass_logs[-1].message
+
+
+# ── Ownership (IDOR guard) ───────────────────────────────────────────────────
+# routers/voice.py's _stream_owner() passes this through so a session
+# started by one authenticated identity can't be pushed to, finished, or
+# read by another — see push_chunk's own docstring for why a mismatch must
+# read identically to "unknown session".
+
+@pytest.mark.asyncio
+async def test_push_chunk_rejects_a_different_owner():
+    session_id = st.start_session(language="en", owner="AAA111")
+    assert st.push_chunk(session_id, b"audio", owner="BBB222") is False
+
+
+@pytest.mark.asyncio
+async def test_push_chunk_accepts_the_matching_owner():
+    session_id = st.start_session(language="en", owner="AAA111")
+    assert st.push_chunk(session_id, b"audio", owner="AAA111") is True
+
+
+@pytest.mark.asyncio
+async def test_finish_session_rejects_a_different_owner():
+    session_id = st.start_session(language="en", owner="parent")
+    assert st.finish_session(session_id, owner="child") is False
+    # The real owner can still finish it — the mismatch didn't corrupt state.
+    assert st.finish_session(session_id, owner="parent") is True
+
+
+@pytest.mark.asyncio
+async def test_events_reports_unknown_for_a_different_owner():
+    session_id = st.start_session(language="en", owner="AAA111")
+    events_seen = [item async for item in st.events(session_id, owner="BBB222")]
+    assert events_seen == [{"type": "error", "message": "unknown or expired session"}]
+    # Unlike a real "unknown session" read, this must NOT tear down the
+    # session — it genuinely exists, just not for this caller.
+    assert session_id in st._sessions
+
+
+@pytest.mark.asyncio
+async def test_default_empty_owner_preserves_prior_no_owner_behavior():
+    """Every call in this file above this section never passes owner= at
+    all — the default "" on both start and later calls must keep comparing
+    equal, so none of that existing coverage silently started exercising
+    the ownership check instead of what it was written to test."""
+    session_id = st.start_session(language="en")
+    assert st.push_chunk(session_id, b"audio") is True
+    assert st.finish_session(session_id) is True

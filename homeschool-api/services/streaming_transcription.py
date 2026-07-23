@@ -44,6 +44,16 @@ _SWEEP_INTERVAL_SECONDS = 60.0
 @dataclass
 class _Session:
     language: str = "en"
+    # Which authenticated identity started this session (routers/voice.py's
+    # _stream_owner — auth["code"] for a demo visitor, auth["role"]
+    # otherwise). session_id is already a random 122-bit token, but nothing
+    # previously stopped a second authenticated caller who somehow learned
+    # another session's id from reading its chunks or transcript — matters
+    # most for the demo, where many independent concurrent visitors share
+    # one role and instance. Defaults to "" so every pre-existing caller
+    # that never passed an owner (this file's own test suite) keeps working
+    # unchanged — "" on both sides still compares equal.
+    owner: str = ""
     audio: bytes = b""
     finished: bool = False
     last_touched: float = field(default_factory=time.monotonic)
@@ -60,21 +70,24 @@ _sessions: dict[str, _Session] = {}
 _sweep_task: Optional[asyncio.Task] = None
 
 
-def start_session(language: str = "en") -> str:
+def start_session(language: str = "en", owner: str = "") -> str:
     session_id = uuid.uuid4().hex
-    session = _Session(language=language)
+    session = _Session(language=language, owner=owner)
     session.worker = asyncio.create_task(_worker_loop(session_id, session))
     _sessions[session_id] = session
     _ensure_sweeper()
     return session_id
 
 
-def push_chunk(session_id: str, audio_bytes: bytes) -> bool:
+def push_chunk(session_id: str, audio_bytes: bytes, owner: str = "") -> bool:
     """Fast and synchronous — never blocks on transcription itself, so chunk
     upload cadence never gets throttled by whisper's own latency. Returns
-    False for an unknown or already-finished session (caller 404s)."""
+    False for an unknown or already-finished session, OR a real session
+    started by a DIFFERENT owner (caller 404s either way — an ownership
+    mismatch must never be distinguishable from the session simply not
+    existing, or it becomes an oracle for probing valid session ids)."""
     session = _sessions.get(session_id)
-    if session is None or session.finished:
+    if session is None or session.finished or session.owner != owner:
         return False
     session.audio = audio_bytes
     session.last_touched = time.monotonic()
@@ -82,9 +95,9 @@ def push_chunk(session_id: str, audio_bytes: bytes) -> bool:
     return True
 
 
-def finish_session(session_id: str) -> bool:
+def finish_session(session_id: str, owner: str = "") -> bool:
     session = _sessions.get(session_id)
-    if session is None or session.finished:
+    if session is None or session.finished or session.owner != owner:
         return False
     session.finished = True
     session.last_touched = time.monotonic()
@@ -129,13 +142,16 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
             return
 
 
-async def events(session_id: str) -> AsyncIterator[dict]:
+async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
     """Drained by the SSE endpoint. Self-cleans on normal completion (a
     'done' item) or the consumer disconnecting early (the finally block) —
     the periodic sweep below is only the backstop for a session nobody ever
-    reads from at all."""
+    reads from at all. A session owned by someone else reports the same
+    "unknown or expired" message a truly-missing session would — see
+    push_chunk's docstring for why an ownership mismatch must never read
+    differently from a 404."""
     session = _sessions.get(session_id)
-    if session is None:
+    if session is None or session.owner != owner:
         yield {"type": "error", "message": "unknown or expired session"}
         return
     try:

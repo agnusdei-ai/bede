@@ -207,9 +207,24 @@ class StreamStartRequest(BaseModel):
     language: str = "en"
 
 
+def _stream_owner(auth: dict) -> str:
+    """Binds a streaming-transcription session to the identity that started
+    it. session_id is already a random 122-bit token (uuid4), but nothing
+    previously stopped a second authenticated caller — parent, child, or a
+    DIFFERENT demo visitor — who somehow learned another session's id from
+    pushing chunks into it or reading its transcript. Matters most for the
+    demo, where many independent concurrent visitors share the same role on
+    one instance: auth["code"] is the one thing that's actually unique per
+    visitor there. Parent/child are single shared-credential roles in this
+    app's single-tenant design (docs/SECURITY.md's scope statement — one
+    family, one parent_password, one child_pin), so role alone is the right
+    granularity for them; there's no separate per-child identity to bind to."""
+    return auth.get("code") or auth.get("role", "")
+
+
 @router.post("/stream/start")
 async def stream_start(req: StreamStartRequest, auth: dict = Depends(require_auth)):
-    return {"session_id": start_session(language=req.language)}
+    return {"session_id": start_session(language=req.language, owner=_stream_owner(auth))}
 
 
 @router.post("/stream/{session_id}/chunk")
@@ -220,14 +235,14 @@ async def stream_chunk(
 ):
     data = await audio.read()
     _validate_audio(data, audio.filename or "audio")
-    if not push_chunk(session_id, data):
+    if not push_chunk(session_id, data, owner=_stream_owner(auth)):
         raise HTTPException(status_code=404, detail="Unknown or finished streaming session")
     return {"accepted": True}
 
 
 @router.post("/stream/{session_id}/finish")
 async def stream_finish(session_id: str, auth: dict = Depends(require_auth)):
-    if not finish_session(session_id):
+    if not finish_session(session_id, owner=_stream_owner(auth)):
         raise HTTPException(status_code=404, detail="Unknown or already-finished streaming session")
     return {"accepted": True}
 
@@ -240,8 +255,10 @@ async def stream_events_endpoint(session_id: str, auth: dict = Depends(require_a
     API — EventSource can't attach an Authorization header, and this
     endpoint needs one like every other authenticated route here.
     """
+    owner = _stream_owner(auth)
+
     async def event_generator():
-        async for item in with_stall_timeout(stream_events(session_id), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS):
+        async for item in with_stall_timeout(stream_events(session_id, owner=owner), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS):
             yield json.dumps(item)
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")

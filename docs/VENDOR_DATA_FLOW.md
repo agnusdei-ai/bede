@@ -120,11 +120,17 @@ depend on matching Python/Node versions locally. Two caveats to know about
 before treating either file as authoritative for an audit:
 
 - **Backend versions are declared floors, not exact pins.**
-  `requirements.txt` uses `>=` with no upper bound (see `docs/SECURITY.md`),
-  so `backend.cdx.json` records the minimum version each dependency is
-  allowed to resolve to, not necessarily what's actually running in any
-  given deployment. Run `pip freeze` inside your own running container if
-  you need exact installed versions.
+  `requirements.txt` uses `>=` with no upper bound, so `backend.cdx.json`
+  records the minimum version each dependency is allowed to resolve to,
+  not necessarily what's actually running in any given deployment. Run
+  `pip freeze` inside your own running container if you need exact
+  installed versions. The security-relevant half of this (an unpinned
+  install silently resolving to a *vulnerable* transitive version) is
+  covered separately from the SBOM: `.github/dependabot.yml` opens a
+  weekly update PR for every ecosystem in this repo, and `.github/
+  workflows/test.yml`/`frontend-tests.yml` run `pip-audit`/`npm audit`
+  against the exact versions each PR would ship, on every push — see
+  `docs/SECURITY.md`'s "Closed gaps" for when this was added.
 - **Frontend versions are exact**, since `package-lock.json` pins real
   resolved versions — those entries are a genuine, accurate snapshot as of
   whenever the lockfile was last updated.

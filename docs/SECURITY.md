@@ -72,8 +72,146 @@ list as items are closed.
   tracks this — same in-house-not-independent caveat applies, and same
   git-SHA-pinned tracking format as the adversarial probes above, so
   findings can be correlated release-to-release once testing starts.
+- **Parent MFA is opt-in, not required.** WebAuthn/TOTP only gate login once
+  a parent has separately enrolled a method (`services/mfa_service.py`) — a
+  family that never visits MFA setup runs single-factor (password only) on
+  the role that can view/delete all student data and the audit log.
+  Whether to require enrollment (and the UX for a family locked out of
+  their only factor) is a product decision, not a pure code fix — flagged
+  here rather than changed unilaterally.
+- **No account lockout on repeated auth failures, only after-the-fact
+  alerting.** `core/audit.py`'s E009 anomaly watch emails a parent after 5
+  failed logins or 3 fingerprint mismatches in 10 minutes, but never blocks
+  the next attempt — a slow/distributed brute force against
+  `PARENT_PASSWORD` or a TOTP code isn't actually stopped. Real lockout
+  needs a design decision (duration, self-service unlock path so a family
+  doesn't brick their own access) rather than a quick reuse of the existing
+  rate-limit bucket.
+- **Logout doesn't revoke JWTs.** Parent/child tokens are stateless with no
+  server-side session to invalidate (`routers/auth.py`'s own docstring
+  states this plainly) — a stolen token remains valid until natural expiry
+  (up to 8h parent, 4h child) even after clicking "logout." The only real
+  revocation lever today is rotating `SECRET_KEY`
+  (`docs/INCIDENT_RESPONSE.md`), which kills every session at once. A
+  server-side revocation list would need shared/persistent storage this
+  single-process app doesn't otherwise require — a real architecture
+  change, not logged as "closed" alongside today's smaller fixes.
+- **`RateLimitMiddleware` and the E009 anomaly watch are in-memory,
+  per-process — same class of gap already disclosed for
+  `services/streaming_transcription.py` and the OpenAI TTS httpx pool
+  (`docs/VOICE_SETUP.md`), but never previously stated for rate
+  limiting/anomaly detection specifically.** On a horizontally-scaled
+  deployment, the effective limit becomes `limit × instance count` and the
+  anomaly thresholds become correspondingly easier to stay under by
+  spreading requests across instances. Not a gap for this app's actual
+  target (a self-hosted single-family instance, or the demo's current
+  single-instance Render deployment) — would need a shared store (Redis)
+  behind a real multi-replica deployment, which nothing in this app runs
+  today.
+- **Backend `requirements.txt` is floor-pinned (`>=`, no upper bound), with
+  no lockfile.** Unlike the frontend's exact-pinned `package-lock.json`, a
+  fresh `pip install` at two different points in time can resolve
+  different transitive versions — CI (`test.yml`) reinstalls fresh on every
+  run rather than from a hash-pinned lockfile. The new `pip-audit` step
+  (below) catches a *known-vulnerable* version whenever it's resolved, but
+  doesn't make installs reproducible. A real fix (pip-tools/`pip-compile`,
+  or switching to Poetry/uv with a lockfile) touches every dependency in
+  the tree and needs its own compatibility pass — out of scope for a
+  same-day hardening pass.
+- **GitHub Actions are pinned to mutable version tags (`@v4`), not commit
+  SHAs.** Common practice, but a compromised upstream Action could push a
+  same-tag update that CI trusts automatically. Low severity, deferred in
+  favor of the higher-value fixes below; `dependabot.yml`'s new
+  `github-actions` ecosystem entry (below) at least surfaces version bumps
+  for review rather than them happening silently.
+- **Branch-protection / required-status-checks configuration on `main` is
+  not verifiable from the repository itself** — it's a GitHub repo-settings
+  concern, not a file in this codebase. `frontend-tests.yml`'s own header
+  comment documents a real past instance of this gap (PRs #182/#185 merged
+  with zero CI checks run, before that workflow existed to cover
+  `homeschool-tutor/`/`demo/`). Worth confirming directly in GitHub
+  settings — required checks and force-push protection — before a
+  production release; not something a code change can confirm or fix.
 
 ## Closed gaps
+
+- **Pre-production hardening pass, closed 2026-07-23.** A code-level survey
+  ahead of the beta-to-production transition found several gaps beyond the
+  two already tracked above — some real and previously undocumented
+  anywhere, some already disclosed in scattered docs/code comments but
+  never centralized. Fixed in this pass:
+  - **`SECRET_KEY`/`PARENT_PASSWORD`/`MASTER_SECRET` had no length/strength
+    floor in production**, only an exact-match check against the known dev
+    defaults — unlike `CHILD_PIN`/`DEMO_PIN`/`SANDBOX_PIN`, which already
+    ran through `pin_is_strong()`. A hand-edited `.env` with
+    `PARENT_PASSWORD=a` or `SECRET_KEY=x` booted cleanly in production.
+    `core/config.py`'s `reject_weak_defaults_in_production` now also
+    enforces a minimum length (32 chars for the two secrets, matching their
+    own dev-default placeholders' "-32-chars-min" naming; 8 chars for
+    `PARENT_PASSWORD`, the same minimum `setup.sh`/the setup wizard already
+    enforce interactively). Covered by
+    `tests/test_config_production_hardening.py`.
+  - **`DISABLE_API_DOCS`/`CORS_ORIGINS` had no production validator at
+    all.** Both wizards and `render.yaml` set them correctly, but nothing
+    in `Settings` stopped a hand-edited production `.env` from booting with
+    `/docs`/`/redoc`/`/openapi.json` (the full internal admin/audit/license
+    endpoint schema) publicly reachable, or a CORS wildcard defeating the
+    "explicit whitelist, no wildcards" design `cors_origins`'s own comment
+    already stated as intentional. New
+    `reject_exposed_docs_and_wildcard_cors_in_production` validator closes
+    both; the wildcard check runs regardless of production mode, since
+    `allow_credentials=True` makes it a misconfiguration at any time.
+  - **Voice streaming-transcription sessions had no ownership check** — an
+    IDOR-shaped gap. `POST/GET /voice/stream/{id}/...` only required a
+    valid token of any role, not that the caller was the one who started
+    that specific session. Low practical risk given a random 122-bit
+    session id, but the real exposure is the public demo, where many
+    independent concurrent visitors share the `demo_code` role on one
+    instance. `services/streaming_transcription.py`'s session state now
+    carries an `owner` (the demo visitor's unique `code`, or `role` for the
+    single-shared-credential parent/child roles), checked on every
+    chunk/finish/events call; a mismatch reads identically to "unknown
+    session" rather than leaking that a given id exists. Covered by new
+    tests in `tests/test_streaming_transcription.py` and
+    `tests/test_voice_stream_router.py`.
+  - **No automated dependency-vulnerability scanning existed anywhere** —
+    the CycloneDX SBOM (`docs/sbom/`) is a point-in-time inventory, never a
+    signal that anything installed has a new CVE, and no
+    Dependabot/CodeQL/`pip-audit`/`npm audit` step existed in any of the
+    five GitHub Actions workflows. Added `.github/dependabot.yml` (weekly
+    update PRs for the backend's pip tree, both frontend apps' npm trees,
+    and GitHub Actions themselves) plus a `pip-audit`/`npm audit` step in
+    `test.yml`/`frontend-tests.yml` so a known-vulnerable dependency —
+    existing or newly introduced by a PR — fails CI immediately rather than
+    waiting for the next scheduled scan. Zero vulnerabilities found in any
+    of the three dependency trees as of this pass.
+  - **`make db-backup` wrote an unencrypted SQL dump with default file
+    permissions** — inconsistent with `.env`, which CI explicitly asserts
+    is `600` (`production-regression.yml`). Most sensitive columns are
+    pre-encrypted at the application layer, but the `encryption_config`
+    table (the KEK-wrapped `DATA_KEY`) is in the same dump. The `Makefile`
+    target now `chmod 700`s the `backups/` directory and `chmod 600`s each
+    dump file immediately after `pg_dump` completes.
+  - **Most GitHub Actions workflows ran with no explicit `permissions:`
+    block**, relying on the org/repo default rather than declaring the
+    least privilege each job actually needs. `test.yml`,
+    `frontend-tests.yml`, `production-regression.yml`, and
+    `keep-demo-warm.yml` now all explicitly declare `contents: read` — none
+    of them write to the repo, comment on a PR, or create a release.
+  - **A stale cross-reference** in `docs/VENDOR_DATA_FLOW.md` pointed to
+    this file for a dependency-pinning detail that was never actually
+    written here — fixed, and the note now also points at the new
+    `pip-audit`/Dependabot mitigation above.
+
+  Deliberately **not** addressed in this pass — real gaps, but each needs
+  either a product/UX decision or a larger architecture change rather than
+  a same-day fix; see "Known open gaps" above for the full reasoning on
+  each: parent MFA being opt-in, no account-lockout mechanism, JWT logout
+  not being real revocation, the in-memory/per-process scope of rate
+  limiting and anomaly detection, the unpinned backend dependency tree
+  lacking a lockfile, GitHub Actions being tag-pinned rather than
+  SHA-pinned, and `main`'s branch-protection configuration (unverifiable
+  from the repo itself).
 
 - **Credential/secret pattern redaction (A008), closed 2026-07-17.**
   `_redact_credentials`/`_CREDENTIAL_PATTERN` (`services/ai_service.py`)

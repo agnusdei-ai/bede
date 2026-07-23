@@ -21,6 +21,11 @@ on:
       - '.github/workflows/test.yml'
   workflow_dispatch:
 
+# No job here writes to the repo, comments on a PR, or creates a release —
+# the default token only ever needs to check out code.
+permissions:
+  contents: read
+
 jobs:
   api-tests:
     runs-on: ubuntu-latest
@@ -32,6 +37,16 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-api
         run: pip install -r requirements-dev.txt
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: homeschool-api
+        # Complements dependabot.yml's weekly PRs with an immediate,
+        # per-push/PR signal — fails the build the moment a dependency
+        # (existing or newly added in this PR) has a known CVE, rather than
+        # waiting for the next scheduled Dependabot run.
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+          pip-audit -r requirements-dev.txt
       - name: Run tests
         working-directory: homeschool-api
         run: python -m pytest tests/ -v

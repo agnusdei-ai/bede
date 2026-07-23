@@ -249,7 +249,13 @@ nothing at all, for the self-hosted local model option), see
 red-team probing of the actual tutoring persona against the real model
 (costs real API money, not part of the test suite or CI), see
 `scripts/adversarial_probe.py` and its transcripts/findings in
-`docs/adversarial-probes/`.
+`docs/adversarial-probes/`. For pentesting the *deployed environment*
+instead (network, auth/session binding, rate limiting, container
+hardening, TLS config, encryption at rest) — including a self-hosted
+deployer testing their own instance — see
+**[docs/environment-pentests/README.md](docs/environment-pentests/README.md)**,
+which tracks findings pinned to the git SHA tested so they can be
+correlated release-to-release.
 
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401

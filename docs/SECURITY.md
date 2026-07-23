@@ -64,6 +64,14 @@ list as items are closed.
   itself. `scripts/adversarial_probe.py` is a real, reusable asset for
   that engagement (or for periodic in-house re-runs between engagements),
   not a replacement for it.
+- **Environment/infrastructure pentesting — not yet run.** Everything above
+  covers the tutoring persona; nothing has yet independently verified that
+  the *deployed* environment (network exposure, auth/session binding, rate
+  limiting, container hardening, TLS config, encryption at rest) actually
+  holds up the way its code reads. `docs/environment-pentests/README.md`
+  tracks this — same in-house-not-independent caveat applies, and same
+  git-SHA-pinned tracking format as the adversarial probes above, so
+  findings can be correlated release-to-release once testing starts.
 
 ## Closed gaps
 

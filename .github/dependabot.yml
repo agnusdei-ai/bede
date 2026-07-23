@@ -1,65 +1,20 @@
 version: 2
 
-# Automated dependency-update PRs — the SBOM (docs/sbom/, regenerable via
-# scripts/generate_sbom.py) is a point-in-time inventory of what's
-# installed, never a signal that any of it has a new CVE. This is the piece
-# that was missing: something that actually watches for known
-# vulnerabilities and opens a PR, on a schedule, without a human having to
-# remember to check. See docs/SECURITY.md's "Known open gaps" for the
-# pre-existing state this closes.
-updates:
-  - package-ecosystem: "pip"
-    directory: "/homeschool-api"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-
-  - package-ecosystem: "npm"
-    directory: "/homeschool-tutor"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    groups:
-      # react and react-dom (plus their @types) must move together — a
-      # solo bump of one leaves npm's peer-dependency resolution broken
-      # (this is exactly what PR #267 did, mirrored by #250 in /demo,
-      # both bumping only half the pair). Grouping makes that
-      # structurally impossible: Dependabot can only propose them in the
-      # same PR from here on.
-      react:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
-    ignore:
-      # A major-version bump (e.g. tailwindcss 3->4, PR #254) is a
-      # breaking change that usually needs a real migration — CSS import
-      # syntax, PostCSS plugin package, etc. — not something to
-      # auto-generate as a routine PR indistinguishable from a patch
-      # bump. Majors still show up in Dependabot's UI/alerts; they just
-      # don't open a PR on their own anymore.
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: "npm"
-    directory: "/demo"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    groups:
-      react:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+# Dependabot version updates are DISABLED (empty `updates:` list) — two
+# separate incomplete bumps landed on main the same day (PR #267 moved
+# react to 19.x without react-dom, PR #250 did the mirror-image in /demo;
+# PR #254/#266 auto-merged a breaking tailwindcss 3->4 major with no
+# migration), each individually plausible-looking but breaking `npm ci`/
+# the production build once merged. See PR #274 for the fix and the fuller
+# incident writeup.
+#
+# This trades away the automated CVE-watch PR #274's dependabot.yml
+# grouping/major-version-guard follow-up was trying to preserve (see
+# docs/SECURITY.md's "Known open gaps" — that gap is now open again).
+# Dependabot's *security alerts* (the Security tab / vulnerability
+# banner) are a separate GitHub feature from version-update PRs and are
+# unaffected by this file either way — only the automated "bump this
+# dependency" PRs are turned off here. Re-enabling later just means
+# restoring a non-empty `updates:` list (see PR #274's diff for the
+# grouped/guarded version that was in place before this).
+updates: []

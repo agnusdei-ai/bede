@@ -25,7 +25,17 @@
 
 databases:
   - name: bede-demo-db
-    plan: free
+    # Paid tier, not free — deliberately upgraded at some point after this
+    # Blueprint's first deploy (most likely to avoid the free Postgres
+    # tier's periodic expiry/recreation, unlike a free web service, which
+    # just cold-starts rather than actually disappearing). This value MUST
+    # match the database's actual current plan in Render's dashboard:
+    # Blueprint sync refuses to auto-downgrade a database as a safety
+    # guard, so a mismatch here (e.g. this file still saying `free` after
+    # a dashboard upgrade) fails every single sync with
+    # "databases[0].plan cannot downgrade database from X to Y" until
+    # corrected — exactly what happened before this comment was added.
+    plan: basic-256mb
     databaseName: bede_demo
     user: bede
 

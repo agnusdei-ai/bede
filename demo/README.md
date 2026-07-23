@@ -53,13 +53,17 @@ VITE_DEMO_API_BASE=https://your-backend.example.com npm run build     # outputs 
 
 The build uses a relative base path for its own assets, so the output works
 whether it's served from a domain root or a subpath — which it is in
-practice: `.github/workflows/deploy-demo.yml` publishes this build under
-`/bede/`, alongside a separate small company landing page (`site/`) at the
-domain root — see `docs/DEMO_HOSTING.md`'s "Why the apex isn't just the
-demo" for the full picture. `VITE_DEMO_API_BASE` itself must still be an
-absolute URL, since it points at a different host entirely; the workflow
-reads it from the `VITE_DEMO_API_BASE` repository variable (Settings →
-Secrets and variables → Actions → Variables) automatically.
+practice: `scripts/build_pages_site.sh` publishes this build under `/bede/`,
+alongside a separate small company landing page (`site/`) at the domain
+root, deployed to Cloudflare (`bede.agnusdei.workers.dev`) via Cloudflare's
+own Git integration — see `docs/DEMO_HOSTING.md`'s "GitHub Pages now
+redirects" section for the full picture, including why GitHub Pages itself
+no longer builds or serves this app directly (`.github/workflows/deploy-demo.yml`
+now only publishes a redirect to the Cloudflare deployment).
+`VITE_DEMO_API_BASE` itself must still be an absolute URL, since it points
+at a different host entirely; it's set in the Cloudflare project's own Build
+→ Environment variables (see `docs/DEMO_HOSTING.md`'s "Wiring the demo
+frontend to it"), not a GitHub Actions variable.
 
 ## What's included vs. left out
 

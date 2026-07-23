@@ -140,8 +140,8 @@ services:
       # never match, silently CORS-blocking every request from the demo.
       #
       # agnusdei.ai and bede.ai are both listed ahead of actually moving the
-      # demo to either one (see docs/DEMO_HOSTING.md's "Custom domain: moving
-      # to Cloudflare Pages" section) — an unused origin here is inert, so
+      # demo to either one (see docs/DEMO_HOSTING.md's "GitHub Pages now
+      # redirects" section) — an unused origin here is inert, so
       # listing both candidates now means flipping the live domain later
       # needs no backend redeploy. bede.agnusdei.workers.dev is the
       # Cloudflare Worker's own default preview domain, needed until the

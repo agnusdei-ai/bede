@@ -35,7 +35,7 @@ email-validator>=2.3.0
 # Async HTTP client — used by services/email_service.py (Resend) and
 # services/voice_synthesis.py (OpenAI TTS). Was already a transitive
 # dependency; pinned explicitly since both modules import it directly.
-httpx>=0.27.0
+httpx>=0.28.1
 # Pure-Python PDF text extraction (no native/compiled deps, safe for the
 # read-only/cap_drop container) — used by services/document_extraction.py to
 # read narration transcripts exported from a smart pen/notebook app.

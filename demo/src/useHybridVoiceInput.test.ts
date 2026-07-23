@@ -346,6 +346,38 @@ describe('useHybridVoiceInput chunk upload cadence (demo)', () => {
     // further growth from repeated interval ticks.
     expect(pushVoiceStreamChunk.mock.calls.length).toBeLessThanOrEqual(callsAtRelease + 1)
   })
+
+  it('uploads a final chunk on release even for a hold shorter than the chunk interval', async () => {
+    vi.useFakeTimers()
+    // Simulates the real useVoiceRecorder's behavior: stopRecording()
+    // synchronously clears the state snapshotWav() depends on, before its
+    // own internal await resolves. A real regression had release() call
+    // snapshotWav() AFTER stopRecording(), which then always saw it already
+    // cleared and silently uploaded nothing for any hold shorter than
+    // CHUNK_UPLOAD_INTERVAL_MS (so the periodic tick never got a chance to
+    // fire even once) — every such turn transcribed as literally nothing.
+    let hasAudio = true
+    stopRecording.mockImplementation(async () => {
+      hasAudio = false
+    })
+    snapshotWav.mockImplementation(() => (hasAudio ? new Blob(['pcm']) : null))
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    await act(async () => {
+      result.current.startHold()
+      await vi.advanceTimersByTimeAsync(500) // well under CHUNK_UPLOAD_INTERVAL_MS
+    })
+    expect(pushVoiceStreamChunk).not.toHaveBeenCalled()
+
+    await act(async () => {
+      result.current.release()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
+    expect(pushVoiceStreamChunk.mock.calls[0][2]).toBeInstanceOf(Blob)
+  })
 })
 
 describe('useHybridVoiceInput mic errors (demo)', () => {

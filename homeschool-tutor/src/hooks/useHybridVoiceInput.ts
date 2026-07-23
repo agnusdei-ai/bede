@@ -139,10 +139,14 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // and once more, immediately, right at release() so the FINAL chunk
   // reflects audio up to the actual release moment rather than however
   // stale the last interval tick was.
-  const uploadSnapshot = useCallback(async (attempt: number) => {
+  const uploadSnapshot = useCallback(async (attempt: number, preCapturedBlob?: Blob | null) => {
     const sessionId = sessionIdRef.current
     if (!token || !sessionId || attemptRef.current !== attempt) return
-    const wavBlob = recorder.snapshotWav()
+    // release() below passes its own pre-captured blob, taken BEFORE
+    // recorder.stopRecording() clears the refs snapshotWav() reads — see
+    // that call site for why calling snapshotWav() fresh here would be too
+    // late for a release-time upload.
+    const wavBlob = preCapturedBlob !== undefined ? preCapturedBlob : recorder.snapshotWav()
     if (!wavBlob) return
     try {
       await pushVoiceStreamChunk(token, sessionId, wavBlob)
@@ -281,6 +285,16 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     const attempt = attemptRef.current
     const sessionId = sessionIdRef.current
     clearChunkTimer()
+    // Snapshot whatever's been captured so far BEFORE stopRecording() —
+    // stopRecording() synchronously nulls out the refs snapshotWav() reads
+    // (its own guard against a double-release re-processing the same audio
+    // twice), so calling snapshotWav() any later than this line always sees
+    // them already cleared and returns null. That silently skipped the
+    // final chunk on EVERY release, regardless of hold length — confirmed
+    // via a real debug-panel trace: any hold shorter than
+    // CHUNK_UPLOAD_INTERVAL_MS (so the periodic tick never fired even once)
+    // produced a transcript of literally nothing, every single time.
+    const finalWavBlob = recorder.snapshotWav()
     recorder.stopRecording()
     setMode('transcribing')
 
@@ -292,7 +306,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       return
     }
     ;(async () => {
-      await uploadSnapshot(attempt)
+      await uploadSnapshot(attempt, finalWavBlob)
       try {
         await finishVoiceStream(token, sessionId)
       } catch (err) {

@@ -7,10 +7,11 @@ import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
 import ParentMfaVerification from '../components/ParentMfaVerification'
+import AccountRecovery from '../components/AccountRecovery'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
 import type { VerifyResult } from '../services/voiceApi'
 
-type Phase = 'login' | 'voice-verify' | 'parent-mfa'
+type Phase = 'login' | 'voice-verify' | 'parent-mfa' | 'account-recovery'
 
 export default function Login() {
   const { t, i18n } = useTranslation()
@@ -133,6 +134,10 @@ export default function Login() {
     )
   }
 
+  if (phase === 'account-recovery') {
+    return <AccountRecovery onDone={() => setPhase('login')} />
+  }
+
   if (phase === 'voice-verify') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100">
@@ -253,6 +258,16 @@ export default function Login() {
               />
             </div>
           </div>
+
+          {role === 'parent' && (
+            <button
+              type="button"
+              onClick={() => setPhase('account-recovery')}
+              className="text-xs text-navy-500 hover:text-navy-700 hover:underline -mt-2"
+            >
+              Forgot password?
+            </button>
+          )}
 
           {role === 'child' && !studentFromUrl && (
             <div className="flex items-start gap-2.5 bg-navy-50 border border-navy-200 rounded-lg px-3 py-2.5">

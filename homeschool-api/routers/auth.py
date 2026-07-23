@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.audit import AuditEvent, audit_from_request, log_event_nowait
+from core import parent_lockout
+from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
 from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
 from core.deps import require_auth
 from core.middleware import compute_fingerprint
+from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
 from models.schemas import DemoCodeRequest, DemoCodeResponse, LoginRequest, TokenResponse, VALID_GRADES
 from services import mfa_service
@@ -87,9 +89,28 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     locale = req.locale if req.locale == settings.locale else "en"
 
     if req.role == "parent":
-        if not hmac.compare_digest(req.credential, settings.parent_password):
+        locked_until = await parent_lockout.check_locked(db)
+        if locked_until is not None:
+            log_event_nowait(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="locked out", **ctx)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    "Too many incorrect attempts — locked until "
+                    f"{locked_until.strftime('%H:%M UTC')}. Use account recovery if you've lost your password."
+                ),
+            )
+
+        if not await verify_parent_password(db, req.credential):
+            triggered = await parent_lockout.record_failure(db)
             log_event_nowait(AuditEvent.AUTH_FAILURE, role="parent", success=False, **ctx)
+            if triggered is not None:
+                await log_event(
+                    AuditEvent.ACCESS_DENIED, role="parent", success=False,
+                    detail=f"account locked until {triggered.isoformat()}", **ctx,
+                )
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        await parent_lockout.record_success(db)
+        cv = current_credentials_version()
 
         # Password alone isn't enough once a security key or TOTP app is
         # enrolled — issue a short-lived "parent_pending" token that can only
@@ -103,7 +124,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             # this password step, and MFA completing a moment later
             # shouldn't silently reset it back to English.
             pending_token = create_access_token(
-                {"sub": "parent", "role": "parent_pending", "locale": locale},
+                {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv},
                 fingerprint=fp,
                 expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
             )
@@ -134,6 +155,11 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # (core/demo_code_session.py) — no separate jti needed since each
         # code is already unique to whoever generated it.
         token_data["code"] = req.credential
+    if req.role == "parent":
+        # See core/deps.py's cv check — reached only for a parent with no
+        # MFA enrolled (the MFA branch above already embedded cv on its own
+        # pending token and returned early).
+        token_data["cv"] = cv
 
     # demo_code tokens skip IP+UA fingerprint binding (parent/child keep it
     # unchanged). Real bug this fixes: a demo visitor's IP legitimately

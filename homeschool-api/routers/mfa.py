@@ -20,19 +20,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event
-from core.config import settings
+from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
 from core.deps import require_mfa_pending, require_parent
 from core.middleware import compute_fingerprint
+from core.parent_credential import set_parent_password_override, verify_parent_password
 from core.security import create_access_token
 from models.schemas import (
+    ChangePasswordRequest,
     TokenResponse,
     TotpConfirmRequest,
     TotpVerifyRequest,
     WebAuthnAuthVerifyRequest,
     WebAuthnRegisterVerifyRequest,
 )
-from services import mfa_service
+from services import mfa_service, parent_recovery
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 
@@ -46,6 +48,7 @@ async def status_(db: AsyncSession = Depends(get_db), _: dict = Depends(require_
         "webauthn_available": mfa_service.webauthn_enabled(),
         "security_keys": keys,
         "totp_enabled": bool(totp and totp.confirmed),
+        "recovery_code_enabled": await parent_recovery.has_recovery_code(db),
     }
 
 
@@ -109,16 +112,87 @@ async def totp_disable(db: AsyncSession = Depends(get_db), _: dict = Depends(req
     return {"success": True}
 
 
+# ── Recovery code (services/parent_recovery.py) ──────────────────────────────
+# The "PIN" leg of the ≥2-of-{recovery_code, totp, webauthn} account-
+# recovery scheme (routers/recovery.py) — enrolled here, used there.
+
+@router.post("/recovery-code/enroll")
+async def recovery_code_enroll(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    """Generates a brand new code, replacing any prior one. The plaintext
+    is returned exactly once, at this call — same "shown once" contract as
+    TOTP's own secret (see totp_enroll above)."""
+    code = await parent_recovery.enroll_recovery_code(db)
+    await log_event(
+        AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+        detail="recovery code enrolled", **audit_from_request(request),
+    )
+    return {"recovery_code": code}
+
+
+@router.delete("/recovery-code")
+async def recovery_code_disable(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    await parent_recovery.revoke_recovery_code(db)
+    await log_event(
+        AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+        detail="recovery code revoked", **audit_from_request(request),
+    )
+    return {"success": True}
+
+
+# ── Change password (requires a full parent session) ────────────────────────
+# The non-emergency counterpart to routers/recovery.py's "I'm locked out"
+# flow — a parent who's already logged in changing their password on
+# purpose. Both paths funnel through the same
+# core.parent_credential.set_parent_password_override, so both get the
+# same length floor and the same credentials_version bump that ends every
+# other outstanding session.
+
+@router.post("/change-password")
+async def change_password(
+    req: ChangePasswordRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    ctx = audit_from_request(request)
+    if not await verify_parent_password(db, req.current_password):
+        await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="change-password: wrong current password", **ctx)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
+    if len(req.new_password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"New password must be at least {MIN_PASSWORD_LENGTH} characters",
+        )
+    await set_parent_password_override(db, req.new_password)
+    await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="password changed", **ctx)
+    return {"success": True}
+
+
 # ── Completing a pending login (requires "parent_pending", not full parent) ─
 
-def _issue_parent_token(request: Request, locale: str = "en") -> str:
+def _issue_parent_token(request: Request, locale: str = "en", cv: int | None = None) -> str:
     """locale comes from the pending token's own claim (see routers/auth.py's
     login()) — the parent picked their language at the password step, and
-    completing MFA a moment later shouldn't silently reset it to English."""
+    completing MFA a moment later shouldn't silently reset it to English.
+    cv likewise carries through from the pending token (core/deps.py's
+    credentials_version check) rather than being re-read here — the pending
+    token was only issued because it already matched at the password step
+    a moment earlier."""
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
+    payload = {"sub": "parent", "role": "parent", "locale": locale}
+    if cv is not None:
+        payload["cv"] = cv
     return create_access_token(
-        {"sub": "parent", "role": "parent", "locale": locale},
+        payload,
         fingerprint=fp,
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
     )
@@ -144,7 +218,8 @@ async def webauthn_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="webauthn login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Security key verification failed")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="webauthn login", **ctx)
-    return TokenResponse(access_token=_issue_parent_token(request, pending.get("locale", "en")), role="parent")
+    token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
+    return TokenResponse(access_token=token, role="parent")
 
 
 @router.post("/totp/authenticate/verify", response_model=TokenResponse)
@@ -159,4 +234,5 @@ async def totp_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="totp login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect or reused code")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="totp login", **ctx)
-    return TokenResponse(access_token=_issue_parent_token(request, pending.get("locale", "en")), role="parent")
+    token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
+    return TokenResponse(access_token=token, role="parent")

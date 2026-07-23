@@ -108,6 +108,29 @@ self-hosted local model) and a brief pause (well under a second,
 typically) before Bede's reply starts — there's no setting to turn it off,
 the same way the distress check isn't optional either.
 
+**Protecting your parent password, and what to do if you lose it.** Your
+parent password can now be changed from inside the app — log in as
+parent, then on the "Plan Today's Pod" screen open **Security keys &
+authenticator app**, which also has a Change password option — rather
+than editing `.env` on the server and restarting. Changing it (or
+recovering access, below) immediately signs out every other device that
+was logged in as parent, so a stolen session doesn't linger alongside
+your new one.
+
+For extra protection, the same Security panel lets you add a hardware
+security key or an authenticator app (TOTP) as a second login factor, and
+generate a **recovery code** — a one-time backup credential shown once,
+meant to be saved somewhere safe (a password manager, or written down).
+If you ever forget your password *and* lose access to your second factor,
+the login screen's "Forgot password?" link lets you back in by proving
+**any two** of: the recovery code, your authenticator app, or your
+security key — never just one. This only works if you've enrolled at
+least two of those three ahead of time, so it's worth setting up now,
+before you actually need it, not after. Ten wrong password attempts in a
+row locks parent login for 15 minutes (you'll get a warning email well
+before that point) — the recovery flow above is the way back in if that's
+because you've genuinely forgotten, not just mistyped once.
+
 **Want to test or explore how Bede responds, without a real tutoring session?**
 Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod
 Dashboard. It's a direct-answer chat just for you — Bede answers plainly

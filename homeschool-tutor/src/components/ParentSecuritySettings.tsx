@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, KeyRound, Loader2, ShieldCheck, Smartphone, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, ChevronUp, KeyRound, Loader2, Lock, ShieldCheck, Smartphone, Trash2 } from 'lucide-react'
 import {
   fetchMfaStatus, webauthnRegisterOptions, webauthnRegisterVerify, deleteSecurityKey,
-  enrollTotp, confirmTotp, disableTotp, type MfaStatus,
+  enrollTotp, confirmTotp, disableTotp, changePassword, enrollRecoveryCode, disableRecoveryCode,
+  type MfaStatus,
 } from '../services/api'
 import { registerSecurityKey, webauthnSupported } from '../services/webauthn'
+import { useSessionStore } from '../store/sessionStore'
+
+// Not currently localized (plain English strings) — same disclosed,
+// deliberate gap as FeedbackModal.tsx.
 
 interface Props {
   token: string
 }
 
 export default function ParentSecuritySettings({ token }: Props) {
+  const navigate = useNavigate()
+  const logout = useSessionStore((s) => s.logout)
   const [expanded, setExpanded] = useState(false)
   const [status, setStatus] = useState<MfaStatus | null>(null)
   const [error, setError] = useState('')
@@ -24,6 +32,15 @@ export default function ParentSecuritySettings({ token }: Props) {
   const [totpSecret, setTotpSecret] = useState<{ secret: string; otpauth_uri: string } | null>(null)
   const [totpCode, setTotpCode] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Change password
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  // Recovery code
+  const [newRecoveryCode, setNewRecoveryCode] = useState<string | null>(null)
 
   const load = () => fetchMfaStatus(token).then(setStatus).catch(() => setError('Could not load security settings'))
 
@@ -100,6 +117,60 @@ export default function ParentSecuritySettings({ token }: Props) {
       await load()
     } catch {
       setError('Could not disable the authenticator app')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Changing the password bumps credentials_version (core/parent_credential.py)
+  // — that invalidates every outstanding parent token, INCLUDING the one this
+  // very request used, the instant it commits. There's no next click to wait
+  // for: log out and send the parent back to login with their new password
+  // immediately, rather than letting them hit a confusing 401 on whatever
+  // they tap next.
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match')
+      return
+    }
+    setBusy(true)
+    try {
+      await changePassword(token, currentPassword, newPassword)
+      logout()
+      navigate('/', { replace: true })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not change password')
+      setBusy(false)
+    }
+  }
+
+  const handleEnrollRecoveryCode = async () => {
+    setError('')
+    setBusy(true)
+    try {
+      const result = await enrollRecoveryCode(token)
+      setNewRecoveryCode(result.recovery_code)
+      await load()
+    } catch {
+      setError('Could not generate a recovery code')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleDisableRecoveryCode = async () => {
+    setBusy(true)
+    try {
+      await disableRecoveryCode(token)
+      await load()
+    } catch {
+      setError('Could not remove the recovery code')
     } finally {
       setBusy(false)
     }
@@ -215,6 +286,99 @@ export default function ParentSecuritySettings({ token }: Props) {
             ) : (
               <button onClick={handleStartTotp} disabled={busy} className="text-xs text-navy-600 hover:text-navy-800 underline">
                 + Enable authenticator app
+              </button>
+            )}
+          </div>
+
+          {/* Recovery code — the "PIN" leg of account recovery (Login.tsx's
+              "Forgot password?" flow needs >=2 of: this, TOTP, a security key) */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <KeyRound size={13} /> Account recovery code
+            </h3>
+            <p className="text-xs text-gray-500 mb-2">
+              Lets you regain access if you forget your password and lose a second factor. Enroll this
+              plus at least one of the two above — recovery needs any two.
+            </p>
+            {newRecoveryCode ? (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Save this now — it won't be shown again.
+                </p>
+                <code className="block text-sm bg-navy-50 rounded-lg px-3 py-2 break-all select-all tracking-wide">{newRecoveryCode}</code>
+                <button
+                  onClick={() => setNewRecoveryCode(null)}
+                  className="text-xs text-navy-600 hover:text-navy-800 underline"
+                >
+                  Done
+                </button>
+              </div>
+            ) : status?.recovery_code_enabled ? (
+              <div className="flex items-center justify-between text-sm bg-navy-50 rounded-lg px-3 py-2">
+                <span className="text-gray-700">Enabled</span>
+                <div className="flex items-center gap-3">
+                  <button onClick={handleEnrollRecoveryCode} disabled={busy} className="text-xs text-navy-600 hover:text-navy-800 underline">Regenerate</button>
+                  <button onClick={handleDisableRecoveryCode} disabled={busy} className="text-xs text-gray-500 hover:text-red-600 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 rounded">Remove</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={handleEnrollRecoveryCode} disabled={busy} className="text-xs text-navy-600 hover:text-navy-800 underline">
+                + Generate a recovery code
+              </button>
+            )}
+          </div>
+
+          {/* Change password */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Lock size={13} /> Password
+            </h3>
+            {changingPassword ? (
+              <form onSubmit={handleChangePassword} className="space-y-2">
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Current password"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password (8+ characters)"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                />
+                <p className="text-xs text-gray-400">
+                  You'll be signed out of every device after this — log back in with the new password.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={busy || !currentPassword || !newPassword || !confirmPassword}
+                    className="flex-1 py-2 bg-navy-500 text-white rounded-lg text-sm font-medium hover:bg-navy-600 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    {busy ? <Loader2 size={14} className="animate-spin" /> : null} Change password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setChangingPassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword('') }}
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button onClick={() => setChangingPassword(true)} className="text-xs text-navy-600 hover:text-navy-800 underline">
+                Change password
               </button>
             )}
           </div>

@@ -397,6 +397,96 @@ class ParentTotpConfig(Base):
     )
 
 
+class ParentCredentialOverride(Base):
+    """
+    Single row (key="password") that, when present, WINS over the env
+    PARENT_PASSWORD — same "DB value wins over env, live, no restart"
+    precedence core/license_state.py already established for LICENSE_KEY,
+    applied here for the same reason: PARENT_PASSWORD used to live only in
+    .env, which made it impossible to actually change from inside the
+    running app, forgotten or not. See core/parent_credential.py, the only
+    module that reads/writes this table.
+
+    hash/salt (core/credential_hash.py's PBKDF2-HMAC-SHA256, NOT this app's
+    usual reversible AES-256-GCM encrypt_json) since a password is a
+    verify-only secret — it should never need to be decrypted back to
+    plaintext the way, say, a TOTP secret does.
+
+    credentials_version increments on every change and is embedded in every
+    parent/parent_pending JWT at issuance (core/deps.py checks it against
+    the cached current value on every request) — the mechanism that makes
+    "recover access, set a new password" actually END a takeover, not just
+    add a new valid session alongside whatever token an attacker already
+    holds. See docs/SECURITY.md's "Closed gaps" for the full design.
+    """
+    __tablename__ = "parent_credential_override"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    credentials_version: Mapped[int] = mapped_column(default=1, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class ParentRecoveryCode(Base):
+    """
+    Single row (key="recovery") holding a high-entropy backup code, shown to
+    the parent exactly once at enrollment (same "shown once, only the hash
+    persists" contract as ParentTotpConfig's secret) — one of the ≥2 factors
+    services/parent_recovery.py requires to regain access when
+    PARENT_PASSWORD and any authenticator are both lost. Hashed like
+    ParentCredentialOverride, for the same reason — this is the "PIN" leg
+    of the 2-of-3 recovery scheme, deliberately a NEW random secret rather
+    than reusing CHILD_PIN or PARENT_PASSWORD, so a leaked recovery code
+    doesn't also expose a day-to-day login credential and vice versa.
+    """
+    __tablename__ = "parent_recovery_code"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class ParentLoginLockout(Base):
+    """
+    Single row (key="parent") tracking consecutive PARENT_PASSWORD
+    failures for account-lockout purposes. Role-scoped, not per-IP —
+    unlike core/middleware.py's RateLimitMiddleware, which is deliberately
+    per-IP (a shared LAN/conference-room IP shouldn't share one budget) —
+    because this app has exactly one parent identity, so an attacker
+    spreading attempts across IPs should still trip a role-scoped lockout
+    even though each IP individually stays under the rate limiter's
+    threshold.
+
+    DB-backed rather than the in-memory pattern core/audit.py's anomaly
+    watch and RateLimitMiddleware use (docs/SECURITY.md's "Known open
+    gaps" already discloses that in-memory limitation for those) —
+    specifically because a lockout that silently resets on every container
+    restart isn't a real lockout.
+    """
+    __tablename__ = "parent_login_lockout"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    failure_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class DemoCodeSession(Base):
     """
     Postgres-backed replacement for core/demo_code_session.py's old

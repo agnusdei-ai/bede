@@ -78,24 +78,18 @@ list as items are closed.
   the role that can view/delete all student data and the audit log.
   Whether to require enrollment (and the UX for a family locked out of
   their only factor) is a product decision, not a pure code fix — flagged
-  here rather than changed unilaterally.
-- **No account lockout on repeated auth failures, only after-the-fact
-  alerting.** `core/audit.py`'s E009 anomaly watch emails a parent after 5
-  failed logins or 3 fingerprint mismatches in 10 minutes, but never blocks
-  the next attempt — a slow/distributed brute force against
-  `PARENT_PASSWORD` or a TOTP code isn't actually stopped. Real lockout
-  needs a design decision (duration, self-service unlock path so a family
-  doesn't brick their own access) rather than a quick reuse of the existing
-  rate-limit bucket.
-- **Logout doesn't revoke JWTs.** Parent/child tokens are stateless with no
-  server-side session to invalidate (`routers/auth.py`'s own docstring
-  states this plainly) — a stolen token remains valid until natural expiry
-  (up to 8h parent, 4h child) even after clicking "logout." The only real
-  revocation lever today is rotating `SECRET_KEY`
-  (`docs/INCIDENT_RESPONSE.md`), which kills every session at once. A
-  server-side revocation list would need shared/persistent storage this
-  single-process app doesn't otherwise require — a real architecture
-  change, not logged as "closed" alongside today's smaller fixes.
+  here rather than changed unilaterally. Account recovery for that
+  locked-out case is now closed (see Closed gaps), which removes the
+  biggest objection to eventually requiring MFA — it no longer means "one
+  lost device bricks the account."
+- **Child role has no equivalent lockout/recovery scheme.** Everything in
+  the newly-closed account-lockout/recovery work below is parent-only —
+  `CHILD_PIN` still has no lockout of its own. Deliberately out of scope:
+  this app's single-tenant design (docs/SECURITY.md's Society-pillar scope
+  statement) makes the parent the ultimate authority over the one shared
+  child credential, so "recovery" for a locked-out child is simply "ask a
+  parent to change `CHILD_PIN`" — a capability that already exists (parent
+  settings), not a gap.
 - **`RateLimitMiddleware` and the E009 anomaly watch are in-memory,
   per-process — same class of gap already disclosed for
   `services/streaming_transcription.py` and the OpenAI TTS httpx pool
@@ -134,6 +128,80 @@ list as items are closed.
   production release; not something a code change can confirm or fix.
 
 ## Closed gaps
+
+- **Parent account lockout + recovery, ending a stolen-credential
+  takeover, closed 2026-07-23.** Follows directly from the pre-production
+  hardening pass below: that pass closed the "weak password accepted"
+  gap, but a real question remained — if `PARENT_PASSWORD` (or a device
+  holding the only enrolled second factor) genuinely leaks or is lost,
+  what actually happens? Three real gaps, closed together because they
+  compound each other:
+  - **PARENT_PASSWORD lived only in `.env`, so it could never actually be
+    changed from inside the running app** — forgotten or not, changing it
+    meant editing a file on the server and restarting. `core/
+    parent_credential.py` adds a DB-backed override that wins over the
+    env default, live, no restart — the exact same precedence
+    `core/license_state.py` already established for `LICENSE_KEY` (a DB
+    value applied in-app wins over the env default), applied here for the
+    same reason. A deployment that never touches this sees zero behavior
+    change; `POST /mfa/change-password` (a full parent session changing
+    its own password on purpose) is the new in-app path.
+  - **No account lockout, only after-the-fact E009 alerting.** The
+    anomaly watch (`core/audit.py`) already emailed a parent after 5
+    failed logins in 10 minutes, but never blocked the next attempt — a
+    slow or distributed brute force against `PARENT_PASSWORD` wasn't
+    actually stopped. `core/parent_lockout.py` adds a DB-backed (survives
+    a restart, unlike the anomaly watch's in-memory window — see the
+    still-open gap above for that distinction), role-scoped lockout: 10
+    failures in a 30-minute window locks the parent role for 15 minutes.
+    Deliberately above the anomaly watch's own 5-failure alert threshold,
+    so a parent who mistypes their password gets a heads-up email before
+    they'd ever actually get locked out.
+  - **A locked-out parent had no way back in short of server access, and
+    "logout" never actually revoked a JWT** (a stolen token stayed valid
+    up to 8h regardless of what the legitimate parent did afterward — the
+    only real revocation lever was rotating `SECRET_KEY`, which logs out
+    the *entire* family, not just the compromised session).
+    `services/parent_recovery.py` adds a recovery code — a
+    high-entropy backup credential, shown once at enrollment, deliberately
+    independent of both `PARENT_PASSWORD` and `CHILD_PIN` so a leak of one
+    doesn't expose the others. `routers/recovery.py`'s public (necessarily
+    — a locked-out parent has no session to authenticate with) `/auth/
+    recovery/*` endpoints require proving **at least 2** of {recovery
+    code, TOTP, WebAuthn} — never just one — before issuing a narrowly-
+    scoped token good for exactly one thing: setting a new password.
+    Every credential change (in-app or via recovery) bumps a
+    `credentials_version` embedded in every parent/parent_pending JWT at
+    issuance and checked on every request (`core/deps.py`) — the piece
+    that makes "recover access, set a new password" actually **end** a
+    takeover: every other outstanding session, including an attacker's
+    stolen token, stops working the instant the change commits, rather
+    than lingering until natural expiry alongside the new one.
+
+  All secrets that only ever need verifying, never redisplaying (the
+  password override, the recovery code) are hashed with PBKDF2-HMAC-
+  SHA256 (`core/credential_hash.py`, reusing the exact KDF primitive
+  `core/encryption.py`'s key derivation already depends on) rather than
+  this app's usual reversible AES-256-GCM encryption — a strictly
+  stronger property for a verify-only secret.
+
+  **Voice biometrics are deliberately NOT a recovery factor** — see the
+  persona/account-security discussion this closes: the current speaker-
+  verification implementation (`services/voice_auth.py`) has no random
+  challenge phrase or liveness detection, so it's a soft, parent-
+  overridable identity signal, not a spoof-resistant credential a
+  security-critical recovery flow should ever accept alone or in
+  combination.
+
+  Child-role lockout/recovery is explicitly out of scope — see "Known
+  open gaps" above for why that's a non-gap in this app's single-tenant
+  design, not a deferred item.
+
+  Covered by `tests/test_credential_hash.py`, `tests/
+  test_parent_credential.py`, `tests/test_parent_lockout.py`, `tests/
+  test_parent_recovery.py`, `tests/test_auth_login_lockout.py`, `tests/
+  test_recovery_router.py`, `tests/test_mfa_password_and_recovery_
+  endpoints.py`, and `tests/test_deps_credentials_version.py`.
 
 - **Pre-production hardening pass, closed 2026-07-23.** A code-level survey
   ahead of the beta-to-production transition found several gaps beyond the

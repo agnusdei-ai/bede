@@ -7,12 +7,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution, license_state
+from core import constitution, license_state, parent_credential
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
 from core.middleware import ExfiltrationGuard, LicenseGateMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
-from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -114,12 +114,16 @@ async def lifespan(app: FastAPI):
          the env LICENSE_KEY. An unlicensed production instance boots into
          a gated "license required" mode (LicenseGateMiddleware) instead
          of refusing to start — the parent renews in-app, no .env edit.
-      5. Kick off the voice-model warm-up in the background (non-blocking).
-      6. Start the periodic data-retention purge loop (non-blocking) — see
+      5. Sync core/parent_credential.py's in-process credentials_version
+         cache from the DB — same DB-wins-over-env precedent as licensing,
+         applied to PARENT_PASSWORD (core/deps.py checks this cache on
+         every parent/parent_pending request, not the DB directly).
+      6. Kick off the voice-model warm-up in the background (non-blocking).
+      7. Start the periodic data-retention purge loop (non-blocking) — see
          docs/DATA_RETENTION.md.
     Shutdown:
-      7. Dispose the database connection pool cleanly.
-      8. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
+      8. Dispose the database connection pool cleanly.
+      9. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
     """
     try:
         constitution.get_constitution()
@@ -135,6 +139,8 @@ async def lifespan(app: FastAPI):
             db_license.license_text if db_license else None,
             required=settings.is_production and not settings.is_demo_deployment,
         )
+        async with AsyncSessionLocal() as db:
+            await parent_credential.refresh_from_db(db)
     except RuntimeError as exc:
         log.critical("FATAL: %s", exc)
         sys.exit(1)
@@ -195,6 +201,7 @@ app.add_middleware(LicenseGateMiddleware)
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(mfa.router)
+app.include_router(recovery.router)
 app.include_router(tutor.router)
 app.include_router(narration.router)
 app.include_router(transcripts.router)

@@ -16,6 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.demo_code_session import code_exists as demo_code_exists
 from core.middleware import compute_fingerprint
+from core.parent_credential import current_credentials_version
 from core.security import decode_token, validate_fingerprint
 
 _bearer = HTTPBearer()
@@ -45,6 +46,26 @@ async def _validate_token(request: Request, credentials: HTTPAuthorizationCreden
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session cannot be used from a different device — please log in again",
         )
+
+    # Only parent/parent_pending tokens carry a 'cv' (credentials_version)
+    # claim — see core/parent_credential.py. A mismatch means the password
+    # changed (in-app change, or the 2-factor recovery flow) after this
+    # token was issued: the whole point of that mechanism is that an old
+    # token, including one an attacker may be holding, must stop working
+    # the moment a new password is set, not linger until natural expiry.
+    if payload.get("role") in ("parent", "parent_pending") and "cv" in payload:
+        if payload["cv"] != current_credentials_version():
+            await log_event(
+                AuditEvent.TOKEN_INVALID,
+                role=payload.get("role"),
+                success=False,
+                detail="credentials_version mismatch — password changed since this token was issued",
+                **ctx,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your password was changed — please log in again",
+            )
 
     return payload
 
@@ -118,6 +139,33 @@ async def require_mfa_pending(
             detail="No second-factor verification is pending",
         )
 
+    return payload
+
+
+async def require_parent_recovery(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Validate JWT + fingerprint for the transient "parent_recovery" role
+    only — issued by routers/recovery.py's verify() once the parent has
+    proven >=2 of {recovery_code, totp, webauthn}, and usable for exactly
+    one thing: POST /auth/recovery/reset-password. Deliberately a separate
+    role from "parent_pending" (which means "password already verified,
+    second factor still needed") — recovery is a different trust path
+    entirely, reached WITHOUT the password."""
+    payload = await _validate_token(request, credentials)
+    if payload.get("role") != "parent_recovery":
+        await log_event(
+            AuditEvent.ACCESS_DENIED,
+            role=payload.get("role"),
+            success=False,
+            detail="Not a pending recovery session",
+            **audit_from_request(request),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No account recovery is in progress",
+        )
     return payload
 
 

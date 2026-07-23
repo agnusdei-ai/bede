@@ -363,6 +363,31 @@ class TotpVerifyRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=8)
 
 
+class ChangePasswordRequest(BaseModel):
+    """Requires a full parent session (not recovery) — a parent who's
+    already logged in changing their password on purpose. See
+    ChangePasswordRecoveryRequest for the "I'm locked out" counterpart."""
+    current_password: str
+    new_password: str = Field(..., min_length=1, max_length=200)
+
+
+# ── Parent account recovery (routers/recovery.py) ────────────────────────────
+# "≥2 of {recovery_code, totp_code, webauthn_credential}" — exactly which
+# fields are set is what determines which factors were attempted; see
+# routers/recovery.py's own verify() for the counting logic. All optional
+# here since a real request only ever supplies whichever 2 the parent
+# actually has.
+
+class RecoveryVerifyRequest(BaseModel):
+    recovery_code: Optional[str] = None
+    totp_code: Optional[str] = None
+    webauthn_credential: Optional[dict] = None
+
+
+class ChangePasswordRecoveryRequest(BaseModel):
+    new_password: str = Field(..., min_length=1, max_length=200)
+
+
 class SessionSummaryRequest(BaseModel):
     session_config: SessionConfig
     conversation_history: List[ChatMessage]

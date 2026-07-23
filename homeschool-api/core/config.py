@@ -12,6 +12,13 @@ from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
 # the same as an empty string — see that module for the full explanation.
 DEFAULT_RESEND_FROM_ADDRESS = "Bede <bede@example.com>"
 
+# Public (not module-private) since core/parent_credential.py's change-
+# password/recovery-reset flow enforces the exact same floor when a parent
+# sets a NEW password in-app — one source of truth for both the startup
+# validator below and that later-added path.
+MIN_SECRET_LENGTH = 32
+MIN_PASSWORD_LENGTH = 8
+
 # Single source of truth for which LOCALE values this deployment accepts,
 # and the display name services/ai_service.py's _locale_directive uses when
 # instructing Bede to converse natively in that language. "en" is the
@@ -292,15 +299,14 @@ class Settings(BaseSettings):
 
     # SECRET_KEY/MASTER_SECRET: matches the dev-default placeholders' own
     # "-32-chars-min" naming — SECRET_KEY signs every JWT (core/security.py),
-    # MASTER_SECRET derives the encryption key hierarchy (core/encryption.py),
-    # and neither has any other length enforcement anywhere in the app.
-    _MIN_SECRET_LENGTH = 32
+    # MASTER_SECRET derives the encryption key hierarchy (core/encryption.py).
     # PARENT_PASSWORD: the same minimum setup.sh and scripts/setup_wizard/
     # wizard.py already enforce interactively — this is the corresponding
     # boot-time check for a deployment whose .env was hand-edited afterward
     # (e.g. during incident-response containment, docs/INCIDENT_RESPONSE.md)
-    # rather than created through either wizard.
-    _MIN_PASSWORD_LENGTH = 8
+    # rather than created through either wizard. Both are the module-level
+    # MIN_SECRET_LENGTH/MIN_PASSWORD_LENGTH above — also reused by
+    # core/parent_credential.py's in-app password change/recovery flow.
 
     @model_validator(mode="after")
     def reject_unsupported_locale(self) -> "Settings":
@@ -344,16 +350,16 @@ class Settings(BaseSettings):
         problems = []
         if self.secret_key in self._WEAK_SECRETS:
             problems.append("SECRET_KEY is set to the default dev value")
-        elif len(self.secret_key) < self._MIN_SECRET_LENGTH:
+        elif len(self.secret_key) < MIN_SECRET_LENGTH:
             problems.append(
-                f"SECRET_KEY must be at least {self._MIN_SECRET_LENGTH} characters — "
+                f"SECRET_KEY must be at least {MIN_SECRET_LENGTH} characters — "
                 "it signs every JWT (core/security.py)"
             )
         if self.parent_password in self._WEAK_SECRETS:
             problems.append("PARENT_PASSWORD is set to the default dev value")
-        elif len(self.parent_password) < self._MIN_PASSWORD_LENGTH:
+        elif len(self.parent_password) < MIN_PASSWORD_LENGTH:
             problems.append(
-                f"PARENT_PASSWORD must be at least {self._MIN_PASSWORD_LENGTH} characters — "
+                f"PARENT_PASSWORD must be at least {MIN_PASSWORD_LENGTH} characters — "
                 "the same minimum setup.sh and the setup wizard already enforce interactively"
             )
         if self.child_pin in self._WEAK_SECRETS:
@@ -379,9 +385,9 @@ class Settings(BaseSettings):
             )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")
-        elif len(self.master_secret) < self._MIN_SECRET_LENGTH:
+        elif len(self.master_secret) < MIN_SECRET_LENGTH:
             problems.append(
-                f"MASTER_SECRET must be at least {self._MIN_SECRET_LENGTH} characters — "
+                f"MASTER_SECRET must be at least {MIN_SECRET_LENGTH} characters — "
                 "it derives the encryption key hierarchy (core/encryption.py)"
             )
         if problems:

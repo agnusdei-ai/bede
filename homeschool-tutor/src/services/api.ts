@@ -74,6 +74,7 @@ export interface MfaStatus {
   webauthn_available: boolean
   security_keys: Array<{ id: number; nickname: string; created_at: string }>
   totp_enabled: boolean
+  recovery_code_enabled: boolean
 }
 
 export async function fetchMfaStatus(token: string): Promise<MfaStatus> {
@@ -120,6 +121,76 @@ export const webauthnAuthVerify = async (pendingToken: string, credential: objec
   toLoginResult(await postJson('/mfa/webauthn/authenticate/verify', pendingToken, { credential }))
 export const totpAuthVerify = async (pendingToken: string, code: string): Promise<LoginResult> =>
   toLoginResult(await postJson('/mfa/totp/authenticate/verify', pendingToken, { code }))
+
+// Change password (requires a full parent session — the non-emergency
+// counterpart to the recovery flow below):
+export async function changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+  await postJson('/mfa/change-password', token, { current_password: currentPassword, new_password: newPassword })
+}
+
+// Recovery-code enrollment (the "PIN" leg of account recovery below):
+export const enrollRecoveryCode = (token: string): Promise<{ recovery_code: string }> =>
+  postJson('/mfa/recovery-code/enroll', token)
+
+export async function disableRecoveryCode(token: string): Promise<void> {
+  const res = await fetch(`${BASE}/mfa/recovery-code`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to remove the recovery code')
+}
+
+// ── Parent account recovery (public — no session required; that's the point) ─
+
+export interface RecoveryMethods {
+  recovery_code: boolean
+  totp: boolean
+  webauthn: boolean
+  recovery_possible: boolean
+}
+
+export async function fetchRecoveryMethods(): Promise<RecoveryMethods> {
+  const res = await fetch(`${BASE}/auth/recovery/methods`)
+  if (!res.ok) throw new Error('Could not check account recovery availability')
+  return res.json()
+}
+
+export async function recoveryWebauthnOptions(): Promise<object> {
+  const res = await fetch(`${BASE}/auth/recovery/webauthn/options`, { method: 'POST' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'No security key is enrolled')
+  }
+  return res.json()
+}
+
+export interface RecoveryVerifyPayload {
+  recovery_code?: string
+  totp_code?: string
+  webauthn_credential?: object
+}
+
+export async function verifyRecovery(payload: RecoveryVerifyPayload): Promise<{ recovery_token: string }> {
+  const res = await fetch(`${BASE}/auth/recovery/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Could not verify enough recovery factors')
+  }
+  return res.json()
+}
+
+export async function resetPasswordRecovery(recoveryToken: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${BASE}/auth/recovery/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${recoveryToken}` },
+    body: JSON.stringify({ new_password: newPassword }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Could not reset the password')
+  }
+}
 
 // ── Streaming tutor chat ─────────────────────────────────────────────────────
 

@@ -64,12 +64,31 @@ exposed this way (never raw key material).
    or your family (a forgotten device, a mistyped PIN) versus genuinely
    unfamiliar.
 2. **Contain.**
+   - **Suspect a stolen or leaked `PARENT_PASSWORD` specifically?** Use the
+     in-app path first — Settings → Security → Change password (or, if
+     you're the one locked out, the login screen's "Forgot password?"
+     flow, which needs any 2 of a recovery code/authenticator app/
+     security key). Either way, this immediately invalidates every
+     outstanding parent session — including whatever token an attacker
+     might be holding — without touching `CHILD_PIN` or logging out the
+     kids mid-lesson. Prefer this over the `SECRET_KEY` option below
+     whenever the suspected exposure is the parent password specifically;
+     it's the more targeted tool now that it exists (see
+     `docs/SECURITY.md`'s "Closed gaps").
    - Rotating `SECRET_KEY` in `.env` and running `make restart` immediately
      invalidates **every** issued JWT — every parent and child session gets
-     logged out. Safe, reversible, no data loss. Do this first if you
-     suspect a stolen session token.
+     logged out, not just parent. Safe, reversible, no data loss. Still the
+     right call for anything broader than a single leaked parent password
+     — a suspected `CHILD_PIN` leak, a compromised device, or any doubt
+     about the blast radius.
    - Change `PARENT_PASSWORD`/`CHILD_PIN` in `.env` and `make restart` if
-     you suspect either was guessed or observed.
+     you'd rather not use the in-app change-password path above (e.g. you
+     suspect the app itself, not just the credential) — note `.env`'s
+     `PARENT_PASSWORD` is only the *fallback* once an in-app change has
+     ever been made; from that point on, changing it here alone won't
+     take effect until the in-app override is also cleared (Settings →
+     Security), or you rotate `SECRET_KEY` above to force everyone back to
+     a fresh login regardless.
    - **Do not rotate `MASTER_SECRET` as a containment step.**
      `core/encryption.py`'s docstring is explicit about this:  changing it
      makes **all** previously stored data permanently unreadable — every

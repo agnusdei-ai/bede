@@ -39,9 +39,11 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
+from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
 from services.moderation import classify_child_message
+from services.policy_engine import decide as decide_policy
 from services.voice_synthesis import synthesis_configured, synthesize_speech
 
 log = logging.getLogger(__name__)
@@ -209,6 +211,33 @@ async def chat(
                 yield json.dumps({'type': 'text', 'content': safeguarding_response(auth.get("locale", "en"))})
             else:
                 yield json.dumps({'type': 'text', 'content': moderation_redirect_response(auth.get("locale", "en"))})
+            yield json.dumps({'type': 'done'})
+            return
+
+        # Policy Engine — the second stage of the adversarial-resilience
+        # pipeline (services/policy_engine.py). Reuses this same `moderation`
+        # result (no second classifier call) plus a free Tier 1 regex pass
+        # (services/adversarial_detection.py) to catch jailbreak/policy-
+        # override/data-exfiltration/social-engineering framing the original
+        # five moderation categories above don't cover. Only reached once a
+        # turn has already survived safeguarding + the original moderation
+        # block, so this can never widen what those two already redirect.
+        signals = build_signals(req.child_message, moderation)
+        policy = decide_policy(signals)
+        if policy.detected_categories:
+            await log_event(
+                AuditEvent.ADVERSARIAL_DETECTED,
+                role=auth.get("role"),
+                student_name=req.session_config.student_name,
+                success=True,
+                detail=(
+                    f"categories={','.join(sorted(policy.detected_categories))} "
+                    f"blocked={policy.should_redirect}"
+                ),
+                **audit_from_request(request),
+            )
+        if policy.should_redirect:
+            yield json.dumps({'type': 'text', 'content': moderation_redirect_response(auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
             return
 

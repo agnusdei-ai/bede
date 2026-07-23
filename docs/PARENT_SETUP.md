@@ -344,9 +344,12 @@ press-and-hold.
 
 The writing pad (the pencil icon in a session) has a print button if your child
 prefers a real pencil to a stylus — it prints at true page size on any printer
-connected to their tablet, with handwriting ruling scaled to their `GradeStage`
-(wide 5/8" primary ruling for K-2, standard 3/8" for 3-5, narrower 1/4" for 6-8),
-so what comes out matches ordinary classroom handwriting paper.
+connected to their tablet, with every paper style scaled to their `GradeStage`
+the way real classroom paper is: composition ruling (wide 5/8" primary for K-2,
+standard 3/8" for 3-5, narrower 1/4" for 6-8), graph/dot grid (big 1" squares
+for K-2, standard 1/2" for 3-5, tighter 1/4" for 6-8), and music staff paper
+("big note" beginner spacing for K-2, standard manuscript spacing for 3-8) —
+so what comes out matches the actual paper a parent would buy at that grade.
 
 ## 9. Renewing or upgrading your license
 

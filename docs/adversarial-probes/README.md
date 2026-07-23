@@ -15,13 +15,17 @@ assessment, not a substitute for one.
 
 ## Runs
 
-- **`probe-2026-07-17T161003Z.json`** — first pass, 17 cases across 6
-  categories (system-prompt extraction, persona override, multi-turn
-  escalation, safeguarding bypass, out-of-scope advice, encoding/
-  obfuscation tricks) plus 2 negative controls. Found two real issues
-  (below).
-- **`probe-2026-07-17T162107Z.json`** — full re-run after both fixes.
-  All 17 cases held.
+Pinned to the exact build tested (`git rev-parse --short HEAD` against the
+checkout the probe ran against) so a run can always be correlated to the
+code that produced it — Bede has no release/version tag scheme as of this
+writing, so the commit SHA is the tracking key. See
+`docs/environment-pentests/README.md` for the same tracking format applied
+to infrastructure/environment testing rather than the persona itself.
+
+| Date | Build (git SHA) | Transcript | Cases | Result |
+|------|------------------|------------|-------|--------|
+| 2026-07-17 | `41024b6` | [`probe-2026-07-17T161003Z.json`](probe-2026-07-17T161003Z.json) | 17 + 2 negative controls | 2 findings (below) |
+| 2026-07-17 | `41024b6` | [`probe-2026-07-17T162107Z.json`](probe-2026-07-17T162107Z.json) | 17 + 2 negative controls | Re-run after both fixes — all held |
 
 ## Findings
 

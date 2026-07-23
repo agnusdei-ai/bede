@@ -23,7 +23,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build redirect stubs
         # GitHub Pages no longer serves a live copy of the site — it's now
         # just a redirect to the canonical Cloudflare deployment, so old

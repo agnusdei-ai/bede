@@ -58,7 +58,7 @@ jobs:
   compose-config-validation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate managed-DB mode
         run: |
           cat > .env <<EOF
@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: compose-config-validation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the setup wizard image
         run: docker build -t bede-setup-wizard -f scripts/setup_wizard/Dockerfile .
@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: wizard-end-to-end
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           name: wizard-generated-env

@@ -302,9 +302,12 @@ Bede responds. `.github/workflows/keep-demo-warm.yml` pings `/health` every
 most demo traffic without it — deliberately not 24/7, since Render's free
 plan grants a shared **750 instance-hours/month across the whole
 workspace**, and keeping one service warm around the clock burns nearly all
-744 of a 31-day month's hours by itself, leaving nothing for `bede-demo-db`
-or any other free service before the workspace gets suspended for the rest
-of the month.
+744 of a 31-day month's hours by itself, leaving nothing for any other free
+service in the workspace before it gets suspended for the rest of the
+month. `bede-demo-db` is no longer part of that shared pool — it runs on a
+paid Basic-256mb plan (see `render.yaml`'s own comment on `databases[0].plan`
+for why), which also means it doesn't expire and need periodic recreation
+the way Render's free Postgres tier does.
 
 It starts working automatically once `VITE_DEMO_API_BASE` (see below) is
 set — no separate setup. If demo traffic falls outside 12:00-23:50 UTC,

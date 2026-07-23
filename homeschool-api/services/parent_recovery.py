@@ -106,19 +106,32 @@ async def has_recovery_pin(db: AsyncSession) -> bool:
     return await db.get(ParentRecoveryPin, _KEY) is not None
 
 
+# Floor comes from pin_is_strong() (core/pin_policy.py's MIN_PIN_LENGTH,
+# shared with CHILD_PIN/DEMO_PIN/SANDBOX_PIN). The ceiling is specific to
+# this recovery PIN, not a shared rule — 6 digits by default, extendable
+# up to 12 for a parent who wants more entropy in a still-memorable secret
+# without going all the way to the recovery code's random 20-character
+# alternative. Checked here (not just models/schemas.py's Field max_length)
+# so this function's own contract holds regardless of caller.
+_PIN_MAX_LENGTH = 12
+
+
 async def enroll_recovery_pin(db: AsyncSession, pin: str) -> None:
     """Raises ValueError for a PIN that doesn't clear pin_is_strong()'s bar
     — same floor as CHILD_PIN/DEMO_PIN/SANDBOX_PIN, not a separate, looser
     rule set just because this one's easier to guess-and-check against
     (routers/mfa.py's own rate limiting/lockout still applies, but the PIN
-    itself shouldn't be the weak link). Clears any enrolled recovery code
-    — mutually exclusive, same reasoning as enroll_recovery_code above."""
+    itself shouldn't be the weak link) — or for one longer than
+    _PIN_MAX_LENGTH. Clears any enrolled recovery code — mutually
+    exclusive, same reasoning as enroll_recovery_code above."""
     if not pin_is_strong(pin):
         raise ValueError(
-            "Recovery PIN must be 6+ digits and not an easily-guessable pattern — "
+            "Recovery PIN must be 6-12 digits and not an easily-guessable pattern — "
             "no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
             "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
         )
+    if len(pin) > _PIN_MAX_LENGTH:
+        raise ValueError(f"Recovery PIN must be at most {_PIN_MAX_LENGTH} digits")
     digest, salt = hash_secret(pin)
     row = await db.get(ParentRecoveryPin, _KEY)
     if row is None:

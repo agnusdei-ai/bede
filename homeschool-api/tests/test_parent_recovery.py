@@ -96,6 +96,19 @@ async def test_enroll_rejects_a_short_pin(db_session):
         await parent_recovery.enroll_recovery_pin(db_session, "1234")
 
 
+async def test_enroll_accepts_a_pin_at_the_twelve_digit_ceiling(db_session):
+    # Not sequential/repeating/palindromic, and exactly 12 digits.
+    pin = "602656193847"
+    await parent_recovery.enroll_recovery_pin(db_session, pin)
+    assert await parent_recovery.verify_recovery_pin(db_session, pin) is True
+
+
+async def test_enroll_rejects_a_pin_longer_than_twelve_digits(db_session):
+    with pytest.raises(ValueError, match="at most 12 digits"):
+        await parent_recovery.enroll_recovery_pin(db_session, "6026561938471")
+    assert await parent_recovery.has_recovery_pin(db_session) is False
+
+
 async def test_wrong_pin_is_rejected(db_session):
     await parent_recovery.enroll_recovery_pin(db_session, "602656")
     assert await parent_recovery.verify_recovery_pin(db_session, "749283") is False

@@ -164,9 +164,11 @@ list as items are closed.
     the *entire* family, not just the compromised session).
     `services/parent_recovery.py` adds a "something you know" recovery
     factor — a parent chooses ONE of two mutually exclusive shapes at
-    enrollment: a **recovery PIN** (favored/default — short, parent-
-    chosen, memorable, same strength floor as `CHILD_PIN` via
-    `pin_is_strong()`) or a **recovery code** (the alternative — longer,
+    enrollment: a **recovery PIN** (favored/default — parent-chosen, 6
+    digits by default, extendable up to 12 for more entropy while staying
+    memorable; same strength floor as `CHILD_PIN` via `pin_is_strong()`,
+    plus its own 12-digit ceiling checked in `enroll_recovery_pin`) or a
+    **recovery code** (the alternative — longer,
     machine-generated, higher entropy, for a parent who'd rather store a
     stronger secret than remember one). Enrolling either clears the other.
     Both are deliberately independent of `PARENT_PASSWORD` and

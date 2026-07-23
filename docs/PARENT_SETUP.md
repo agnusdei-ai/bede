@@ -119,13 +119,16 @@ your new one.
 
 For extra protection, the same Security panel lets you add a hardware
 security key or an authenticator app (TOTP) as a second login factor, and
-set up a recovery option — pick a **recovery PIN** (a short, memorable PIN
-you choose yourself, same idea as your child's PIN) or, if you'd rather
-have something longer and don't mind storing it, generate a **recovery
-code** instead (a one-time random code, shown once). You can only have
-one active at a time — setting up the PIN replaces a code and vice versa.
-Either way, write it down somewhere safe as a backup, even the PIN — the
-app will remind you to before letting you move on. If you ever forget
+set up a recovery option — pick a **recovery PIN** (a PIN you choose
+yourself, same idea as your child's PIN: 6 digits by default, or use up to
+12 for extra security) or, if you'd rather have something longer and
+don't mind storing it, generate a **recovery code** instead (a one-time
+random code, shown once). You can only have one active at a time —
+setting up the PIN replaces a code and vice versa. Either way, write it
+down somewhere safe as a backup, even the PIN — the app will remind you
+to before letting you move on. Where and how you store that backup is
+entirely your call; an encrypted password manager is recommended over a
+plain note or file. If you ever forget
 your password *and* lose access to your second factor, the login screen's
 "Forgot password?" link lets you back in by proving **any two** of: your
 recovery PIN/code, your authenticator app, or your security key — never

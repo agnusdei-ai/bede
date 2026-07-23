@@ -351,7 +351,9 @@ export default function ParentSecuritySettings({ token }: Props) {
               <div className="space-y-2">
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   Write this PIN down somewhere safe too — it's meant to be memorable, but a written
-                  backup means you're never locked out just because you forgot it.
+                  backup means you're never locked out just because you forgot it. Where and how you
+                  store that backup is up to you; an encrypted password manager is recommended over a
+                  plain note.
                 </p>
                 <label className="flex items-start gap-2 text-xs text-gray-600">
                   <input
@@ -404,7 +406,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                   inputMode="numeric"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                  placeholder="Choose a PIN (6+ digits)"
+                  placeholder="Choose a PIN (6-12 digits)"
                   autoFocus
                   className="w-full text-center tracking-widest text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
                 />
@@ -417,8 +419,8 @@ export default function ParentSecuritySettings({ token }: Props) {
                   className="w-full text-center tracking-widest text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
                 />
                 <p className="text-xs text-gray-400">
-                  Choose something you'll actually remember — not a sequential run (123456) or repeated
-                  pattern (111111).
+                  6 digits by default; use more (up to 12) for extra security. Choose something you'll
+                  actually remember — not a sequential run (123456) or repeated pattern (111111).
                 </p>
                 <div className="flex gap-2">
                   <button

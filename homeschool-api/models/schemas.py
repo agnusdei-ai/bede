@@ -389,7 +389,11 @@ class RecoveryVerifyRequest(BaseModel):
 
 
 class RecoveryPinEnrollRequest(BaseModel):
-    pin: str = Field(..., min_length=1, max_length=20)
+    # 6-12 digits — the real strength/pattern check is
+    # services/parent_recovery.py's enroll_recovery_pin (pin_is_strong() +
+    # its own max-length check); this Field bound just rejects an obviously
+    # malformed request before it reaches that logic.
+    pin: str = Field(..., min_length=1, max_length=12)
 
 
 class ChangePasswordRecoveryRequest(BaseModel):

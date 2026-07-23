@@ -120,3 +120,72 @@ async def test_stream_events_endpoint_yields_plain_json_sse_chunks(monkeypatch):
     assert parsed[0] == {"type": "partial", "text": "hello Bede"}
     assert parsed[1] == {"type": "final", "text": "hello Bede"}
     assert parsed[2] == {"type": "done"}
+
+
+# ── Session ownership (IDOR guard) ──────────────────────────────────────────
+# session_id is already a random 122-bit token, but nothing previously
+# stopped a second authenticated caller from acting on someone else's
+# session if they somehow learned its id — matters most for the demo, where
+# many independent concurrent visitors share the "demo_code" role on one
+# instance. routers/voice.py's _stream_owner() binds each session to
+# auth["code"] (demo) or auth["role"] (parent/child) at start time.
+
+@pytest.mark.asyncio
+async def test_stream_chunk_404s_for_a_different_demo_visitor():
+    start_result = await stream_start(
+        StreamStartRequest(language="en"), auth={"role": "demo_code", "code": "AAA111"}
+    )
+    session_id = start_result["session_id"]
+
+    with pytest.raises(HTTPException) as exc_info:
+        await stream_chunk(
+            session_id, audio=_wav_upload(), auth={"role": "demo_code", "code": "BBB222"}
+        )
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_stream_chunk_succeeds_for_the_same_demo_visitor(monkeypatch):
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "ok", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    start_result = await stream_start(
+        StreamStartRequest(language="en"), auth={"role": "demo_code", "code": "AAA111"}
+    )
+    session_id = start_result["session_id"]
+
+    result = await stream_chunk(
+        session_id, audio=_wav_upload(), auth={"role": "demo_code", "code": "AAA111"}
+    )
+    assert result == {"accepted": True}
+
+
+@pytest.mark.asyncio
+async def test_stream_finish_404s_for_a_different_owner():
+    start_result = await stream_start(StreamStartRequest(language="en"), auth={"role": "parent"})
+    session_id = start_result["session_id"]
+
+    with pytest.raises(HTTPException) as exc_info:
+        await stream_finish(session_id, auth={"role": "child"})
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_stream_events_reports_unknown_for_a_different_owner():
+    start_result = await stream_start(
+        StreamStartRequest(language="en"), auth={"role": "demo_code", "code": "AAA111"}
+    )
+    session_id = start_result["session_id"]
+
+    response = await stream_events_endpoint(
+        session_id, auth={"role": "demo_code", "code": "BBB222"}
+    )
+    chunks = [chunk async for chunk in response.body_iterator]
+    parsed = [json.loads(c) for c in chunks]
+    assert parsed == [{"type": "error", "message": "unknown or expired session"}]
+    # A real owner's own view of the same session is untouched by the
+    # attempted cross-visitor read — proves this is an access check, not an
+    # accidental session teardown.
+    assert session_id in st._sessions

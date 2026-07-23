@@ -290,6 +290,18 @@ class Settings(BaseSettings):
         "0000",
     }
 
+    # SECRET_KEY/MASTER_SECRET: matches the dev-default placeholders' own
+    # "-32-chars-min" naming — SECRET_KEY signs every JWT (core/security.py),
+    # MASTER_SECRET derives the encryption key hierarchy (core/encryption.py),
+    # and neither has any other length enforcement anywhere in the app.
+    _MIN_SECRET_LENGTH = 32
+    # PARENT_PASSWORD: the same minimum setup.sh and scripts/setup_wizard/
+    # wizard.py already enforce interactively — this is the corresponding
+    # boot-time check for a deployment whose .env was hand-edited afterward
+    # (e.g. during incident-response containment, docs/INCIDENT_RESPONSE.md)
+    # rather than created through either wizard.
+    _MIN_PASSWORD_LENGTH = 8
+
     @model_validator(mode="after")
     def reject_unsupported_locale(self) -> "Settings":
         """Fail fast on a typo'd or not-yet-onboarded LOCALE value rather
@@ -332,8 +344,18 @@ class Settings(BaseSettings):
         problems = []
         if self.secret_key in self._WEAK_SECRETS:
             problems.append("SECRET_KEY is set to the default dev value")
+        elif len(self.secret_key) < self._MIN_SECRET_LENGTH:
+            problems.append(
+                f"SECRET_KEY must be at least {self._MIN_SECRET_LENGTH} characters — "
+                "it signs every JWT (core/security.py)"
+            )
         if self.parent_password in self._WEAK_SECRETS:
             problems.append("PARENT_PASSWORD is set to the default dev value")
+        elif len(self.parent_password) < self._MIN_PASSWORD_LENGTH:
+            problems.append(
+                f"PARENT_PASSWORD must be at least {self._MIN_PASSWORD_LENGTH} characters — "
+                "the same minimum setup.sh and the setup wizard already enforce interactively"
+            )
         if self.child_pin in self._WEAK_SECRETS:
             problems.append("CHILD_PIN is set to the default dev value")
         elif not pin_is_strong(self.child_pin):
@@ -357,6 +379,11 @@ class Settings(BaseSettings):
             )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")
+        elif len(self.master_secret) < self._MIN_SECRET_LENGTH:
+            problems.append(
+                f"MASTER_SECRET must be at least {self._MIN_SECRET_LENGTH} characters — "
+                "it derives the encryption key hierarchy (core/encryption.py)"
+            )
         if problems:
             raise ValueError(
                 "Production mode is enabled but insecure defaults are in use: "
@@ -405,6 +432,33 @@ class Settings(BaseSettings):
                 "Production mode is enabled but no AI provider is configured — set one of "
                 "ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, or LOCAL_LLM_BASE_URL "
                 "(see docs/PROVIDER_ADAPTERS.md)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def reject_exposed_docs_and_wildcard_cors_in_production(self) -> "Settings":
+        """Fail-fast counterpart to `api_docs_enabled`/`cors_origins_list`.
+        setup.sh, scripts/setup_wizard/wizard.py, and render.yaml (for the
+        demo) all set DISABLE_API_DOCS=true correctly — but nothing in
+        Settings itself stopped a hand-edited production .env from booting
+        with the interactive API docs (/docs, /redoc, /openapi.json —
+        including the full internal admin/audit/license endpoint shapes)
+        publicly reachable. Same reasoning for a CORS wildcard, which would
+        defeat the "explicit whitelist, no wildcards" design cors_origins's
+        own comment already states as intentional — checked regardless of
+        production mode, since allow_credentials=True (main.py's
+        CORSMiddleware) makes a "*" origin a misconfiguration at any time,
+        not just in production."""
+        if "*" in self.cors_origins_list:
+            raise ValueError(
+                "CORS_ORIGINS must not include '*' — list explicit allowed origins "
+                "(comma-separated), never a wildcard, especially with allow_credentials=True"
+            )
+        if self.is_production and self.api_docs_enabled:
+            raise ValueError(
+                "Production mode is enabled but API docs are not disabled — set "
+                "DISABLE_API_DOCS=true (otherwise /docs, /redoc, and /openapi.json "
+                "are publicly reachable, exposing the full internal API schema)"
             )
         return self
 

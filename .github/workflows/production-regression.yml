@@ -30,6 +30,15 @@ on:
       - '.github/workflows/production-regression.yml'
   workflow_dispatch:
 
+# No job here writes to the repo, comments on a PR, or creates a release —
+# the default token only ever needs to check out code. Worth being
+# explicit here specifically: this workflow both runs on push to main
+# (where some org defaults grant read-write) and handles a real secret
+# (CI_TEST_LICENSE_KEY below) — least-privilege scoping matters more than
+# usual for this one.
+permissions:
+  contents: read
+
 env:
   # A real, signed license — validly verifiable against core/licensing.py's
   # embedded PUBLIC_KEY_PEM, which is exactly why this is NOT safe to

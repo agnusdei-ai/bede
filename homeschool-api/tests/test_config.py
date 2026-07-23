@@ -73,6 +73,7 @@ def test_weak_sandbox_pin_rejected_in_production(valid_license):
     with pytest.raises(ValueError, match="SANDBOX_PIN"):
         Settings(
             production="true",
+            disable_api_docs="true",
             secret_key="a" * 40,
             parent_password="a-strong-password",
             child_pin="602656",
@@ -88,6 +89,7 @@ def test_strong_sandbox_pin_accepted_in_production(valid_license):
     # passed explicitly, so reusing that value here would collide with it.
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -103,6 +105,7 @@ def test_unset_sandbox_pin_never_blocks_production_startup(valid_license):
     weak-default failure just because it's unset."""
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -125,6 +128,7 @@ def test_unset_sandbox_pin_never_blocks_production_startup(valid_license):
 def test_missing_license_key_boots_into_gated_mode_not_refusal():
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -140,6 +144,7 @@ def test_missing_license_key_boots_into_gated_mode_not_refusal():
 def test_invalid_license_key_boots_into_gated_mode_not_refusal():
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -156,6 +161,7 @@ def test_invalid_license_key_boots_into_gated_mode_not_refusal():
 def test_valid_license_key_accepted_in_production(valid_license):
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -190,6 +196,7 @@ def test_expired_license_key_gates_production(monkeypatch):
     # expiry so the parent knows exactly what to fix.
     Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -210,6 +217,7 @@ def test_demo_deployment_exempt_from_missing_license():
     clean — this is exactly bede-demo-api's real render.yaml shape."""
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -222,6 +230,7 @@ def test_demo_deployment_exempt_from_missing_license():
 def test_demo_deployment_exempt_from_invalid_license():
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -243,6 +252,7 @@ def test_real_family_production_without_demo_pin_still_requires_license():
     license. Enforcement is the license gate now, not a boot refusal."""
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -254,6 +264,7 @@ def test_real_family_production_without_demo_pin_still_requires_license():
     assert not state.ok and license_state.is_gated()
     demo = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -274,6 +285,7 @@ def test_no_ai_provider_configured_rejected_in_production(valid_license):
     with pytest.raises(ValueError, match="no AI provider is configured"):
         Settings(
             production="true",
+            disable_api_docs="true",
             secret_key="a" * 40,
             parent_password="a-strong-password",
             child_pin="602656",
@@ -287,6 +299,7 @@ def test_no_ai_provider_configured_rejected_in_production(valid_license):
 def test_anthropic_alone_satisfies_the_ai_provider_requirement(valid_license):
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -303,6 +316,7 @@ def test_local_llm_alone_satisfies_the_ai_provider_requirement(valid_license):
     all, including Anthropic's."""
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -318,6 +332,7 @@ def test_local_llm_alone_satisfies_the_ai_provider_requirement(valid_license):
 def test_openai_alone_satisfies_the_ai_provider_requirement(valid_license):
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",
@@ -333,6 +348,7 @@ def test_openai_alone_satisfies_the_ai_provider_requirement(valid_license):
 def test_mistral_alone_satisfies_the_ai_provider_requirement(valid_license):
     s = Settings(
         production="true",
+        disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
         child_pin="602656",

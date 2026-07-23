@@ -1,0 +1,33 @@
+version: 2
+
+# Automated dependency-update PRs — the SBOM (docs/sbom/, regenerable via
+# scripts/generate_sbom.py) is a point-in-time inventory of what's
+# installed, never a signal that any of it has a new CVE. This is the piece
+# that was missing: something that actually watches for known
+# vulnerabilities and opens a PR, on a schedule, without a human having to
+# remember to check. See docs/SECURITY.md's "Known open gaps" for the
+# pre-existing state this closes.
+updates:
+  - package-ecosystem: "pip"
+    directory: "/homeschool-api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "npm"
+    directory: "/homeschool-tutor"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "npm"
+    directory: "/demo"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10

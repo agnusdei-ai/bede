@@ -167,6 +167,14 @@ test/explore Bede's behavior (see the Pod Dashboard's **Sandbox** button —
 requires being logged in as parent plus this PIN; nothing said there is
 ever saved), `WEBAUTHN_RP_ID`/TOTP settings for parent MFA.
 
+`core/config.py` also rejects production startup outright if `SECRET_KEY`/
+`MASTER_SECRET` is under 32 characters, `PARENT_PASSWORD` is under 8, any
+PIN (`CHILD_PIN`/`DEMO_PIN`/`SANDBOX_PIN`) isn't a strong pattern, or
+`DISABLE_API_DOCS` isn't `true` — the setup wizard and `setup.sh` already
+generate/collect values that satisfy all of these, so this only bites a
+`.env` edited by hand afterward (e.g. during incident-response
+containment, `docs/INCIDENT_RESPONSE.md`) with a weak replacement value.
+
 ## Licensing
 
 Once `PRODUCTION=true`, Bede requires a valid license. A license is a

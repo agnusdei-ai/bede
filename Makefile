@@ -79,8 +79,11 @@ backup-env:      ## Copy .env to .env.backup (never commit either file)
 
 db-backup:       ## Back up the LOCAL Postgres database (only if COMPOSE_PROFILES=local-db) to backups/
 	@mkdir -p backups
-	docker compose exec -T db pg_dump -U sage bede > backups/bede-$$(date -u +%Y%m%d-%H%M%S).sql
-	@echo "Saved to backups/ — using a MANAGED database instead? Your provider (Neon/Supabase/etc.) handles backups for you."
+	@chmod 700 backups
+	@F=backups/bede-$$(date -u +%Y%m%d-%H%M%S).sql; \
+	docker compose exec -T db pg_dump -U sage bede > $$F; \
+	chmod 600 $$F; \
+	echo "Saved to $$F (permissions 600 — this is a raw SQL dump, same file-permission bar as .env: most columns are pre-encrypted at the application layer, but the encryption_config table with the KEK-wrapped DATA_KEY is in this file too). Using a MANAGED database instead? Your provider (Neon/Supabase/etc.) handles backups for you."
 
 db-restore:      ## Restore the LOCAL Postgres database from a backup: make db-restore FILE=backups/bede-....sql
 	@test -n "$(FILE)" || { echo "Usage: make db-restore FILE=backups/bede-YYYYMMDD-HHMMSS.sql"; exit 1; }

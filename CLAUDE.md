@@ -73,13 +73,17 @@ The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it
 All from `.env` (gitignored — never commit) — see `.env.example` for the
 full, current list with comments, or `docs/PRODUCTION_SETUP.md` for the
 narrative version. In production mode (`PRODUCTION=true`), the API rejects
-startup if any credential matches a known-weak default, if `CHILD_PIN`/
-`DEMO_PIN` isn't a strong pattern (enforced by `model_validator` in
-`core/config.py` — see `pin_is_strong()` for the exact rules), or if none
-of `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`MISTRAL_API_KEY`/
+startup if any credential matches a known-weak default, if `SECRET_KEY`/
+`MASTER_SECRET` is under 32 characters or `PARENT_PASSWORD` is under 8
+(`reject_weak_defaults_in_production`), if `CHILD_PIN`/`DEMO_PIN`/
+`SANDBOX_PIN` isn't a strong pattern (same validator — see `pin_is_strong()`
+for the exact rules), if `DISABLE_API_DOCS` isn't `true` or `CORS_ORIGINS`
+contains a wildcard (`reject_exposed_docs_and_wildcard_cors_in_production`
+— the wildcard check runs outside production too), or if none of
+`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`MISTRAL_API_KEY`/
 `LOCAL_LLM_BASE_URL` is set (`reject_no_ai_provider_configured_in_production`
 — at least one AI provider is required, but never a specific one; see
-`docs/PROVIDER_ADAPTERS.md`).
+`docs/PROVIDER_ADAPTERS.md`). All four validators live in `core/config.py`.
 
 ## Architecture
 
@@ -113,7 +117,7 @@ services/
   policy_engine.py   Tier-agnostic policy stage — `decide(signals) -> PolicyDecision`. Pure function, no I/O: policy_override_attempt/data_exfiltration_attempt redirect the turn (Tier 1 hit OR Tier 2 at medium+ confidence); jailbreak_intent/social_engineering never redirect alone, mirroring moderation.py's own prompt_injection treatment — see "Adversarial resilience pipeline" below and docs/SECURITY.md.
   voice_auth.py      Resemblyzer speaker embedding + MFCC similarity scoring
   transcription.py   faster-whisper transcribe_audio() — used directly for voice enrollment phrases, and as the underlying per-chunk transcription call streaming_transcription.py's worker loop makes repeatedly
-  streaming_transcription.py  In-memory, per-session, worker-loop-coalescing state behind POST/GET /voice/stream/* above: push_chunk()/finish_session() are synchronous and just update state + set an asyncio.Event, while a single long-running worker task per session re-transcribes the WHOLE growing audio buffer (faster-whisper is batch-only, no native incremental-streaming mode) each time new audio arrives, coalescing rapid chunk uploads into "transcribe the latest buffer once free" rather than queueing overlapping Whisper calls; each pass logs its own `elapsed=` duration (`session=`/`pass=partial|final`/`audio_bytes=`) — added after a reported "Transcribing…" delay with no server-side visibility into whether the final pass itself was slow or queued behind an in-flight partial, see docs/VOICE_SETUP.md's transcription-delay section; events() is an async generator the router wraps in EventSourceResponse (see core/sse_utils.py's with_stall_timeout, same pattern as /tutor/chat). Single-process, in-memory only — sessions don't survive routing to a different instance under horizontal scaling; a TTL sweep (180s idle) evicts abandoned sessions. See docs/VOICE_SETUP.md's "server-side streaming transcription" section for the full design rationale and history.
+  streaming_transcription.py  In-memory, per-session, worker-loop-coalescing state behind POST/GET /voice/stream/* above: push_chunk()/finish_session() are synchronous and just update state + set an asyncio.Event, while a single long-running worker task per session re-transcribes the WHOLE growing audio buffer (faster-whisper is batch-only, no native incremental-streaming mode) each time new audio arrives, coalescing rapid chunk uploads into "transcribe the latest buffer once free" rather than queueing overlapping Whisper calls; each pass logs its own `elapsed=` duration (`session=`/`pass=partial|final`/`audio_bytes=`) — added after a reported "Transcribing…" delay with no server-side visibility into whether the final pass itself was slow or queued behind an in-flight partial, see docs/VOICE_SETUP.md's transcription-delay section; events() is an async generator the router wraps in EventSourceResponse (see core/sse_utils.py's with_stall_timeout, same pattern as /tutor/chat). Single-process, in-memory only — sessions don't survive routing to a different instance under horizontal scaling; a TTL sweep (180s idle) evicts abandoned sessions. Each session carries an `owner` (routers/voice.py's `_stream_owner` — a demo visitor's unique `code`, or `role` for the single-shared-credential parent/child roles) set at `start_session()` and checked on every subsequent chunk/finish/events call, closing an IDOR-shaped gap where any authenticated caller could act on another session's id if they somehow learned it — a mismatch reads identically to "unknown session" rather than confirming the id exists (see docs/SECURITY.md's "Closed gaps"). See docs/VOICE_SETUP.md's "server-side streaming transcription" section for the full design rationale and history.
   student_deletion.py  delete_all_student_data() — cascading deletion across every per-student table, called from routers/pod.py's DELETE /pod/configs/{student} (see docs/DATA_RETENTION.md)
 models/
   schemas.py         Pydantic models: SessionConfig, Subject, TutorRequest, etc.

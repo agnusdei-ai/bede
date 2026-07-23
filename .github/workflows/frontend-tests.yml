@@ -24,6 +24,11 @@ on:
       - '.github/workflows/frontend-tests.yml'
   workflow_dispatch:
 
+# No job here writes to the repo, comments on a PR, or creates a release —
+# the default token only ever needs to check out code.
+permissions:
+  contents: read
+
 jobs:
   homeschool-tutor-tests:
     runs-on: ubuntu-latest
@@ -37,6 +42,11 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-tutor
         run: npm ci
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: homeschool-tutor
+        # Complements dependabot.yml's weekly PRs with an immediate,
+        # per-push/PR signal against the exact lockfile this PR ships.
+        run: npm audit --audit-level=high
       - name: Type-check
         working-directory: homeschool-tutor
         run: npx tsc --noEmit
@@ -56,6 +66,9 @@ jobs:
       - name: Install dependencies
         working-directory: demo
         run: npm ci
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: demo
+        run: npm audit --audit-level=high
       - name: Type-check
         working-directory: demo
         run: npx tsc --noEmit

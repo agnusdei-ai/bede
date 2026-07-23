@@ -67,14 +67,14 @@ async def _enroll_totp(db_session) -> pyotp.TOTP:
 
 async def test_methods_reports_nothing_enrolled_by_default(db_session):
     result = await recovery_methods(db_session)
-    assert result == {"recovery_code": False, "totp": False, "webauthn": False, "recovery_possible": False}
+    assert result == {"recovery_secret": None, "totp": False, "webauthn": False, "recovery_possible": False}
 
 
 async def test_methods_reports_recovery_possible_once_two_are_enrolled(db_session):
     await parent_recovery.enroll_recovery_code(db_session)
     await _enroll_totp(db_session)
     result = await recovery_methods(db_session)
-    assert result["recovery_code"] is True
+    assert result["recovery_secret"] == "code"
     assert result["totp"] is True
     assert result["recovery_possible"] is True
 
@@ -92,7 +92,7 @@ async def test_verify_fails_with_only_one_correct_factor(db_session):
     await _enroll_totp(db_session)
 
     with pytest.raises(HTTPException) as exc_info:
-        await verify(RecoveryVerifyRequest(recovery_code=code), _fake_request(), db_session)
+        await verify(RecoveryVerifyRequest(recovery_secret=code), _fake_request(), db_session)
     assert exc_info.value.status_code == 401
 
 
@@ -101,7 +101,7 @@ async def test_verify_succeeds_with_recovery_code_and_totp(db_session):
     totp = await _enroll_totp(db_session)
 
     result = await verify(
-        RecoveryVerifyRequest(recovery_code=code, totp_code=totp.now()),
+        RecoveryVerifyRequest(recovery_secret=code, totp_code=totp.now()),
         _fake_request(), db_session,
     )
     payload = decode_token(result["recovery_token"])
@@ -114,10 +114,31 @@ async def test_verify_fails_with_wrong_recovery_code_even_if_totp_is_correct(db_
 
     with pytest.raises(HTTPException) as exc_info:
         await verify(
-            RecoveryVerifyRequest(recovery_code="WRONG-CODE-VALU-EHERE", totp_code=totp.now()),
+            RecoveryVerifyRequest(recovery_secret="WRONG-CODE-VALU-EHERE", totp_code=totp.now()),
             _fake_request(), db_session,
         )
     assert exc_info.value.status_code == 401
+
+
+async def test_verify_succeeds_with_recovery_pin_and_totp(db_session):
+    """The /verify endpoint's recovery_secret field accepts either shape —
+    the client never needs to know which one this parent enrolled."""
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    totp = await _enroll_totp(db_session)
+
+    result = await verify(
+        RecoveryVerifyRequest(recovery_secret="602656", totp_code=totp.now()),
+        _fake_request(), db_session,
+    )
+    payload = decode_token(result["recovery_token"])
+    assert payload["role"] == "parent_recovery"
+
+
+async def test_methods_reports_pin_kind_when_that_is_enrolled(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    await _enroll_totp(db_session)
+    result = await recovery_methods(db_session)
+    assert result["recovery_secret"] == "pin"
 
 
 async def test_verify_with_no_factors_submitted_fails(db_session):
@@ -141,7 +162,7 @@ async def test_reset_password_sets_a_new_password_and_bumps_credentials_version(
     totp = await _enroll_totp(db_session)
 
     verify_result = await verify(
-        RecoveryVerifyRequest(recovery_code=code, totp_code=totp.now()),
+        RecoveryVerifyRequest(recovery_secret=code, totp_code=totp.now()),
         _fake_request(), db_session,
     )
     recovery_payload = decode_token(verify_result["recovery_token"])

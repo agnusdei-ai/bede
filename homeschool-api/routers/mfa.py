@@ -28,6 +28,7 @@ from core.parent_credential import set_parent_password_override, verify_parent_p
 from core.security import create_access_token
 from models.schemas import (
     ChangePasswordRequest,
+    RecoveryPinEnrollRequest,
     TokenResponse,
     TotpConfirmRequest,
     TotpVerifyRequest,
@@ -48,7 +49,10 @@ async def status_(db: AsyncSession = Depends(get_db), _: dict = Depends(require_
         "webauthn_available": mfa_service.webauthn_enabled(),
         "security_keys": keys,
         "totp_enabled": bool(totp and totp.confirmed),
-        "recovery_code_enabled": await parent_recovery.has_recovery_code(db),
+        # "pin" | "code" | null — which shape of the "something you know"
+        # recovery factor is enrolled, if either (mutually exclusive, see
+        # services/parent_recovery.py).
+        "recovery_secret": await parent_recovery.recovery_secret_kind(db),
     }
 
 
@@ -112,9 +116,45 @@ async def totp_disable(db: AsyncSession = Depends(get_db), _: dict = Depends(req
     return {"success": True}
 
 
-# ── Recovery code (services/parent_recovery.py) ──────────────────────────────
-# The "PIN" leg of the ≥2-of-{recovery_code, totp, webauthn} account-
-# recovery scheme (routers/recovery.py) — enrolled here, used there.
+# ── Recovery PIN and recovery code (services/parent_recovery.py) ────────────
+# The "something you know" leg of the ≥2-of-{recovery secret, totp,
+# webauthn} account-recovery scheme (routers/recovery.py) — enrolled here,
+# used there. Mutually exclusive: enrolling one clears the other (see
+# services/parent_recovery.py's own docstring).
+
+@router.post("/recovery-pin/enroll")
+async def recovery_pin_enroll(
+    req: RecoveryPinEnrollRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    """The favored option — a parent-CHOSEN, memorable PIN, same strength
+    floor as CHILD_PIN. Clears any enrolled recovery code."""
+    try:
+        await parent_recovery.enroll_recovery_pin(db, req.pin)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await log_event(
+        AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+        detail="recovery pin enrolled", **audit_from_request(request),
+    )
+    return {"success": True}
+
+
+@router.delete("/recovery-pin")
+async def recovery_pin_disable(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    await parent_recovery.revoke_recovery_pin(db)
+    await log_event(
+        AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+        detail="recovery pin revoked", **audit_from_request(request),
+    )
+    return {"success": True}
+
 
 @router.post("/recovery-code/enroll")
 async def recovery_code_enroll(
@@ -122,9 +162,11 @@ async def recovery_code_enroll(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_parent),
 ):
-    """Generates a brand new code, replacing any prior one. The plaintext
-    is returned exactly once, at this call — same "shown once" contract as
-    TOTP's own secret (see totp_enroll above)."""
+    """The alternative to a recovery PIN — a longer, machine-generated
+    code for a parent who'd rather have a stronger secret than a
+    memorable one. The plaintext is returned exactly once, at this call —
+    same "shown once" contract as TOTP's own secret (see totp_enroll
+    above). Clears any enrolled recovery PIN."""
     code = await parent_recovery.enroll_recovery_code(db)
     await log_event(
         AuditEvent.AUTH_SUCCESS, role="parent", success=True,

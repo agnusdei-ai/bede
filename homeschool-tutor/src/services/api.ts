@@ -70,11 +70,15 @@ export async function logout(token: string): Promise<void> {
 
 // ── Parent MFA: FIDO2 security keys + TOTP ───────────────────────────────────
 
+export type RecoverySecretKind = 'pin' | 'code' | null
+
 export interface MfaStatus {
   webauthn_available: boolean
   security_keys: Array<{ id: number; nickname: string; created_at: string }>
   totp_enabled: boolean
-  recovery_code_enabled: boolean
+  // Which shape of the "something you know" recovery factor is enrolled,
+  // if either — mutually exclusive (see services/parent_recovery.py).
+  recovery_secret: RecoverySecretKind
 }
 
 export async function fetchMfaStatus(token: string): Promise<MfaStatus> {
@@ -128,7 +132,18 @@ export async function changePassword(token: string, currentPassword: string, new
   await postJson('/mfa/change-password', token, { current_password: currentPassword, new_password: newPassword })
 }
 
-// Recovery-code enrollment (the "PIN" leg of account recovery below):
+// Recovery PIN/code enrollment (the "something you know" leg of account
+// recovery below) — mutually exclusive; enrolling one clears the other.
+
+export async function enrollRecoveryPin(token: string, pin: string): Promise<void> {
+  await postJson('/mfa/recovery-pin/enroll', token, { pin })
+}
+
+export async function disableRecoveryPin(token: string): Promise<void> {
+  const res = await fetch(`${BASE}/mfa/recovery-pin`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to remove the recovery PIN')
+}
+
 export const enrollRecoveryCode = (token: string): Promise<{ recovery_code: string }> =>
   postJson('/mfa/recovery-code/enroll', token)
 
@@ -140,7 +155,7 @@ export async function disableRecoveryCode(token: string): Promise<void> {
 // ── Parent account recovery (public — no session required; that's the point) ─
 
 export interface RecoveryMethods {
-  recovery_code: boolean
+  recovery_secret: RecoverySecretKind
   totp: boolean
   webauthn: boolean
   recovery_possible: boolean
@@ -162,7 +177,9 @@ export async function recoveryWebauthnOptions(): Promise<object> {
 }
 
 export interface RecoveryVerifyPayload {
-  recovery_code?: string
+  // Either a recovery PIN or a recovery code — whichever this parent
+  // enrolled (they're mutually exclusive; the backend tries both).
+  recovery_secret?: string
   totp_code?: string
   webauthn_credential?: object
 }

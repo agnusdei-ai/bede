@@ -1,5 +1,6 @@
 """
-services/parent_recovery.py — the recovery code, one of the >=2 factors
+services/parent_recovery.py — the recovery PIN and recovery code, the
+mutually-exclusive "something you know" leg of the >=2 factors
 routers/recovery.py's account-recovery flow requires.
 """
 import pytest
@@ -69,3 +70,92 @@ async def test_revoke_with_nothing_enrolled_returns_false(db_session):
 async def test_empty_submitted_code_never_verifies(db_session):
     await parent_recovery.enroll_recovery_code(db_session)
     assert await parent_recovery.verify_recovery_code(db_session, "") is False
+
+
+# ── Recovery PIN ──────────────────────────────────────────────────────────────
+
+async def test_no_pin_enrolled_by_default(db_session):
+    assert await parent_recovery.has_recovery_pin(db_session) is False
+    assert await parent_recovery.verify_recovery_pin(db_session, "602656") is False
+
+
+async def test_enroll_a_strong_pin_succeeds(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    assert await parent_recovery.has_recovery_pin(db_session) is True
+    assert await parent_recovery.verify_recovery_pin(db_session, "602656") is True
+
+
+async def test_enroll_rejects_a_weak_pin(db_session):
+    with pytest.raises(ValueError, match="Recovery PIN"):
+        await parent_recovery.enroll_recovery_pin(db_session, "111111")
+    assert await parent_recovery.has_recovery_pin(db_session) is False
+
+
+async def test_enroll_rejects_a_short_pin(db_session):
+    with pytest.raises(ValueError):
+        await parent_recovery.enroll_recovery_pin(db_session, "1234")
+
+
+async def test_wrong_pin_is_rejected(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    assert await parent_recovery.verify_recovery_pin(db_session, "749283") is False
+
+
+async def test_re_enrolling_pin_invalidates_the_previous_one(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    await parent_recovery.enroll_recovery_pin(db_session, "749283")
+    assert await parent_recovery.verify_recovery_pin(db_session, "602656") is False
+    assert await parent_recovery.verify_recovery_pin(db_session, "749283") is True
+
+
+async def test_revoke_removes_the_pin(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    assert await parent_recovery.revoke_recovery_pin(db_session) is True
+    assert await parent_recovery.has_recovery_pin(db_session) is False
+
+
+async def test_revoke_pin_with_nothing_enrolled_returns_false(db_session):
+    assert await parent_recovery.revoke_recovery_pin(db_session) is False
+
+
+# ── Mutual exclusivity ───────────────────────────────────────────────────────
+
+async def test_enrolling_a_pin_clears_an_existing_code(db_session):
+    code = await parent_recovery.enroll_recovery_code(db_session)
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    assert await parent_recovery.has_recovery_code(db_session) is False
+    assert await parent_recovery.verify_recovery_code(db_session, code) is False
+    assert await parent_recovery.has_recovery_pin(db_session) is True
+
+
+async def test_enrolling_a_code_clears_an_existing_pin(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    await parent_recovery.enroll_recovery_code(db_session)
+    assert await parent_recovery.has_recovery_pin(db_session) is False
+    assert await parent_recovery.verify_recovery_pin(db_session, "602656") is False
+    assert await parent_recovery.has_recovery_code(db_session) is True
+
+
+async def test_failed_pin_enrollment_does_not_clear_an_existing_code(db_session):
+    """A rejected (weak) PIN enrollment must not have side effects — the
+    family's existing recovery code should still work."""
+    code = await parent_recovery.enroll_recovery_code(db_session)
+    with pytest.raises(ValueError):
+        await parent_recovery.enroll_recovery_pin(db_session, "111111")
+    assert await parent_recovery.verify_recovery_code(db_session, code) is True
+
+
+# ── Unified status ───────────────────────────────────────────────────────────
+
+async def test_recovery_secret_kind_is_none_by_default(db_session):
+    assert await parent_recovery.recovery_secret_kind(db_session) is None
+
+
+async def test_recovery_secret_kind_reports_pin(db_session):
+    await parent_recovery.enroll_recovery_pin(db_session, "602656")
+    assert await parent_recovery.recovery_secret_kind(db_session) == "pin"
+
+
+async def test_recovery_secret_kind_reports_code(db_session):
+    await parent_recovery.enroll_recovery_code(db_session)
+    assert await parent_recovery.recovery_secret_kind(db_session) == "code"

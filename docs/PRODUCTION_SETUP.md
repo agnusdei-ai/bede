@@ -216,6 +216,20 @@ Family" --seats 10 --private-key /path/to/private.pem` prints the
 the full flag reference (trial expiry via `--days`, co-op seat counts,
 etc.).
 
+**The CI test license** (operator-only housekeeping): the
+`production-regression` workflow boots the real stack under
+`PRODUCTION=true`, so it needs a genuine license — stored as the
+`CI_TEST_LICENSE_KEY` repository secret (Settings → Secrets and variables →
+Actions), never committed. Convention: a **multi-year `trial`** license
+(e.g. `--tier trial --days 730 --licensee "CI regression test"`), not a
+perpetual `core` one — defense in depth if the secret ever leaks. The
+workflow asserts the license is actually ACTIVE (not just that the app
+booted, since an unlicensed instance now boots gated), so when it expires
+the run fails with a message telling you exactly this: reissue with
+`scripts/issue_license.py` and paste the new value into the secret. Set a
+calendar reminder a month before the expiry printed at issue time. If the
+signing keypair is ever rotated, reissue this key in the same change.
+
 **Threat model, honestly:** this is a trust-and-verify gate for legitimate
 self-hosters, not DRM — anyone with the source (which every self-hosted
 deployer has) could patch the check out. It exists to make honest use easy

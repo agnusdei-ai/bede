@@ -29,7 +29,7 @@ faster-whisper>=1.0.0
 resemblyzer>=0.1.1
 # Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
 webauthn>=2.0.0
-pyotp>=2.9.0
+pyotp>=2.10.0
 # Email format validation (pydantic's EmailStr) for the post-session diagnostic email
 email-validator>=2.3.0
 # Async HTTP client — used by services/email_service.py (Resend) and

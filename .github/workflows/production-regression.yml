@@ -210,6 +210,34 @@ jobs:
           docker compose logs
           exit 1
 
+      - name: Confirm the license is ACTIVE, not just that the app booted
+        # /health is deliberately on the license gate's allowlist
+        # (core/middleware.py's LicenseGateMiddleware), so ever since an
+        # unlicensed production instance started booting into gated mode
+        # instead of refusing to start, a healthy /health alone can no
+        # longer prove CI_TEST_LICENSE_KEY is still valid — an expired
+        # secret would sail through the health check while the instance
+        # sat gated. This step closes that gap: a gated instance answers
+        # every non-allowlisted path with a license_required 403 before
+        # auth even runs, so a normal auth-shaped 401 here proves the gate
+        # is NOT up (and therefore the license verified and is unexpired).
+        run: |
+          body=$(curl -sk https://localhost/api/pod/configs)
+          code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/api/pod/configs)
+          if echo "$body" | grep -q 'license_required'; then
+            echo "Instance is GATED — CI_TEST_LICENSE_KEY is missing/invalid/expired."
+            echo "Reissue it (scripts/issue_license.py --tier trial --days 730 ...) and"
+            echo "update the CI_TEST_LICENSE_KEY repository secret."
+            echo "Response: $body"
+            exit 1
+          fi
+          if [ "$code" != "401" ] && [ "$code" != "403" ]; then
+            echo "Expected an auth-shaped 401/403 from an unauthenticated /pod/configs, got $code"
+            echo "Response: $body"
+            exit 1
+          fi
+          echo "License gate is down (auth answered normally) — license is active."
+
       - name: Confirm the no-CLI tablet-trust page works end-to-end
         run: |
           ok=true

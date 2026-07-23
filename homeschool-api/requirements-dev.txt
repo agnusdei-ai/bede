@@ -3,4 +3,4 @@
 -r requirements.txt
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
-aiosqlite>=0.20.0  # async SQLite driver — real AsyncSession round-trip tests without a live Postgres
+aiosqlite>=0.22.1  # async SQLite driver — real AsyncSession round-trip tests without a live Postgres

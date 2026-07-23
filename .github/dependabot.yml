@@ -19,12 +19,44 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      # react and react-dom (plus their @types) must move together — a
+      # solo bump of one leaves npm's peer-dependency resolution broken
+      # (this is exactly what PR #267 did, mirrored by #250 in /demo,
+      # both bumping only half the pair). Grouping makes that
+      # structurally impossible: Dependabot can only propose them in the
+      # same PR from here on.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+    ignore:
+      # A major-version bump (e.g. tailwindcss 3->4, PR #254) is a
+      # breaking change that usually needs a real migration — CSS import
+      # syntax, PostCSS plugin package, etc. — not something to
+      # auto-generate as a routine PR indistinguishable from a patch
+      # bump. Majors still show up in Dependabot's UI/alerts; they just
+      # don't open a PR on their own anymore.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/demo"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

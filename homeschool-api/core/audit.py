@@ -58,6 +58,8 @@ class AuditEvent:
     LICENSE_APPLIED          = "license.applied"
     ANOMALY_ALERT            = "security.anomaly_alert"
     MODERATION_FLAGGED       = "moderation.flagged"
+    TOOL_INVOKED             = "tool.invoked"
+    TOOL_CALL_SUPPRESSED     = "tool.call_suppressed"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -82,6 +84,17 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # turn already redirects the child in the moment); a repeated pattern
     # from one address is the part worth a parent's attention.
     AuditEvent.MODERATION_FLAGGED: (3, 600),
+    # A generous ceiling on ordinary tool use — a busy, multi-subject
+    # session can legitimately rack up dozens of request_narration/
+    # celebrate_discovery/etc. calls over a couple of hours — sized to
+    # sit well above that while still catching a scripted abuse pattern
+    # or a jailbroken model stuck calling tools in a loop across turns.
+    AuditEvent.TOOL_INVOKED: (40, 600),
+    # A single trip of stream_tutor_response's own per-turn tool-call cap
+    # (see _MAX_TOOL_CALLS_PER_TURN) is already anomalous by construction —
+    # one legitimate turn has never needed this many tool calls — so it
+    # alerts immediately, same as ExfiltrationGuard's suspicious_request.
+    AuditEvent.TOOL_CALL_SUPPRESSED: (1, 1),
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
 

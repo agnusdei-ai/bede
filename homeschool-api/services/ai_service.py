@@ -20,6 +20,7 @@ from models.schemas import (
     SUBJECT_LABELS,
     SessionSummaryRequest,
 )
+from core.audit import AuditEvent, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.constitution import get_constitution
 
@@ -146,6 +147,21 @@ _FAITH_FALLBACK_QUESTIONS = {
         "¿Qué crees que eso nos muestra sobre el cuidado de Dios por nosotros?",
     ],
 }
+
+# Hard ceiling on how many tool calls a SINGLE turn's response may act on
+# — defense-in-depth against unauthorized tool use, independent of prompt-
+# level guidance. Nothing about a genuine Socratic turn needs more than a
+# couple of tool calls (e.g. offer_socratic_hint then celebrate_discovery);
+# this is sized well above any real usage while still bounding what a
+# jailbroken/malfunctioning response could do in one turn — spamming
+# record_skill_evidence to corrupt a mastery profile, opening the
+# handwriting canvas repeatedly, etc. A tool call beyond the cap is
+# silently dropped (never executed, never rendered) and audit-logged as
+# AuditEvent.TOOL_CALL_SUPPRESSED, which alerts the parent immediately
+# (core/audit.py's anomaly rules) — see stream_tutor_response's dispatch
+# loop. The turn's already-streamed text is never interrupted; a child
+# never sees this happen.
+_MAX_TOOL_CALLS_PER_TURN = 6
 
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
@@ -2036,10 +2052,20 @@ async def stream_tutor_response(
     time_of_day: Optional[str] = None,
     local_date: Optional[date] = None,
     locale: str = "en",
+    role: Optional[str] = None,
+    ip: str = "unknown",
+    user_agent: str = "",
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
     Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
+
+    role/ip/user_agent are audit context only (routers/tutor.py passes
+    role=auth.get("role") and **audit_from_request(request); every other
+    caller — tests, scripts/adversarial_probe.py — leaves them at their
+    default "no identity available" values, which log_event() already
+    treats as normal). See the tool-call audit trail in the main dispatch
+    loop below for what they're used for.
 
     demo_code is set only by the demo role (routers/tutor.py) and drives
     the demo's own single-session mastery-tracking preview (record_skill_evidence
@@ -2150,6 +2176,11 @@ async def stream_tutor_response(
         tools=tools_with_cache,
     ) as stream:
         tool_calls_buffer = {}
+        # See _MAX_TOOL_CALLS_PER_TURN's own comment. Incremented once per
+        # tool call that actually gets dispatched (parses as valid JSON),
+        # checked before that dispatch — so it's a hard ceiling on
+        # EXECUTED tool calls this turn, not just ones the model attempted.
+        tool_calls_this_turn = 0
         # Holds the questionless tool's name only when the most recent
         # visible thing in this turn was that tool's card with no text
         # after it — see _QUESTIONLESS_TOOLS above. None the moment real
@@ -2199,6 +2230,37 @@ async def stream_tutor_response(
                     if tc["input_str"]:
                         try:
                             tool_input = json.loads(tc["input_str"])
+
+                            # Defense-in-depth: prevent unauthorized tool use by
+                            # capping how many tool calls one turn may act on
+                            # (see _MAX_TOOL_CALLS_PER_TURN) and durably recording
+                            # every call that IS executed (see AuditEvent.
+                            # TOOL_INVOKED/TOOL_CALL_SUPPRESSED and the anomaly
+                            # rules watching them in core/audit.py) — the
+                            # auditability layer this app didn't have before for
+                            # real (non-demo) sessions, whose tool calls left no
+                            # trace beyond the ephemeral SSE stream itself.
+                            if tool_calls_this_turn >= _MAX_TOOL_CALLS_PER_TURN:
+                                log.warning(
+                                    "Suppressing tool call past the per-turn cap (%d): %s for %s",
+                                    _MAX_TOOL_CALLS_PER_TURN, tc["name"], config.student_name,
+                                )
+                                log_event_nowait(
+                                    AuditEvent.TOOL_CALL_SUPPRESSED,
+                                    ip=ip, user_agent=user_agent, role=role,
+                                    student_name=config.student_name,
+                                    detail=f"tool={tc['name']} subject={subject.value} cap={_MAX_TOOL_CALLS_PER_TURN}",
+                                )
+                                tool_calls_buffer.pop(block_id, None)
+                                continue
+                            tool_calls_this_turn += 1
+                            log_event_nowait(
+                                AuditEvent.TOOL_INVOKED,
+                                ip=ip, user_agent=user_agent, role=role,
+                                student_name=config.student_name,
+                                detail=f"tool={tc['name']} subject={subject.value}",
+                            )
+
                             # Demo-only structural signal: that this tool fired,
                             # never its arguments (no narration/hint/prompt text
                             # ever reaches interaction_signals). See that module's

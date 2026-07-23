@@ -134,6 +134,26 @@ list as items are closed.
   *enrollment* transcription is local Whisper, not a network call, despite
   sharing a vendor name — and the four independent Resend email triggers.
   Also states explicitly that voice biometrics never leave the machine.
+- **Tool-call defense-in-depth and auditability, extending E009, closed
+  2026-07-23.** Two gaps in one: a tool call from Claude executed
+  unconditionally the instant it parsed as valid JSON, with no ceiling on
+  how many a single turn could act on; and for a real (parent/child)
+  session, nothing durable ever recorded that a tool fired at all — the
+  demo's `services/interaction_signals.py` structural counters are a
+  separate, privacy-scoped, demo-only analytics pipeline, not a general
+  audit trail. `services/ai_service.py`'s `_MAX_TOOL_CALLS_PER_TURN` (6)
+  now caps executed tool calls per turn — well above any real Socratic
+  turn's usage, but bounding what a jailbroken or malfunctioning response
+  could do in one turn (e.g. spamming `record_skill_evidence` to corrupt
+  a mastery profile). A call past the cap is silently dropped — never
+  executed, never rendered, the child's turn is never visibly
+  interrupted — and every dispatched call (allowed or suppressed) is now
+  audit-logged (`AuditEvent.TOOL_INVOKED`/`TOOL_CALL_SUPPRESSED`,
+  `core/audit.py`), feeding two new E009 anomaly rules: a burst of 40+
+  tool invocations in 10 minutes from one IP, or even a single suppressed
+  call (anomalous by construction — one legitimate turn has never needed
+  more than the cap). Covered by `tests/test_tool_call_audit.py` and the
+  new rules in `tests/test_audit_anomaly.py`.
 - **B005 real-time input filtering — dedicated classifier, closed
   2026-07-17.** `_INJECTION_PATTERN`/`check_safeguarding` are fast, free
   regexes but only catch phrasing someone already wrote a pattern for —

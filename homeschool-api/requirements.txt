@@ -1,4 +1,4 @@
-anthropic>=0.40.0
+anthropic>=0.119.0
 # OpenAI Python SDK — backs services/adapters/openai_compatible_adapter.py, the
 # single adapter class used for every non-Anthropic provider (OpenAI, a
 # self-hosted vLLM/Qwen3-Coder server, Mistral, any OpenAI-compatible endpoint)

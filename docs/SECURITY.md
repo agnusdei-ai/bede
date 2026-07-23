@@ -162,14 +162,22 @@ list as items are closed.
     up to 8h regardless of what the legitimate parent did afterward — the
     only real revocation lever was rotating `SECRET_KEY`, which logs out
     the *entire* family, not just the compromised session).
-    `services/parent_recovery.py` adds a recovery code — a
-    high-entropy backup credential, shown once at enrollment, deliberately
-    independent of both `PARENT_PASSWORD` and `CHILD_PIN` so a leak of one
-    doesn't expose the others. `routers/recovery.py`'s public (necessarily
-    — a locked-out parent has no session to authenticate with) `/auth/
-    recovery/*` endpoints require proving **at least 2** of {recovery
-    code, TOTP, WebAuthn} — never just one — before issuing a narrowly-
-    scoped token good for exactly one thing: setting a new password.
+    `services/parent_recovery.py` adds a "something you know" recovery
+    factor — a parent chooses ONE of two mutually exclusive shapes at
+    enrollment: a **recovery PIN** (favored/default — parent-chosen, 6
+    digits by default, extendable up to 12 for more entropy while staying
+    memorable; same strength floor as `CHILD_PIN` via `pin_is_strong()`,
+    plus its own 12-digit ceiling checked in `enroll_recovery_pin`) or a
+    **recovery code** (the alternative — longer,
+    machine-generated, higher entropy, for a parent who'd rather store a
+    stronger secret than remember one). Enrolling either clears the other.
+    Both are deliberately independent of `PARENT_PASSWORD` and
+    `CHILD_PIN`, so a leak of one doesn't expose the others.
+    `routers/recovery.py`'s public (necessarily — a locked-out parent has
+    no session to authenticate with) `/auth/recovery/*` endpoints require
+    proving **at least 2** of {recovery PIN or code, TOTP, WebAuthn} —
+    never just one — before issuing a narrowly-scoped token good for
+    exactly one thing: setting a new password.
     Every credential change (in-app or via recovery) bumps a
     `credentials_version` embedded in every parent/parent_pending JWT at
     issuance and checked on every request (`core/deps.py`) — the piece
@@ -179,7 +187,7 @@ list as items are closed.
     than lingering until natural expiry alongside the new one.
 
   All secrets that only ever need verifying, never redisplaying (the
-  password override, the recovery code) are hashed with PBKDF2-HMAC-
+  password override, the recovery PIN/code) are hashed with PBKDF2-HMAC-
   SHA256 (`core/credential_hash.py`, reusing the exact KDF primitive
   `core/encryption.py`'s key derivation already depends on) rather than
   this app's usual reversible AES-256-GCM encryption — a strictly
@@ -201,7 +209,13 @@ list as items are closed.
   test_parent_credential.py`, `tests/test_parent_lockout.py`, `tests/
   test_parent_recovery.py`, `tests/test_auth_login_lockout.py`, `tests/
   test_recovery_router.py`, `tests/test_mfa_password_and_recovery_
-  endpoints.py`, and `tests/test_deps_credentials_version.py`.
+  endpoints.py`, and `tests/test_deps_credentials_version.py`. The
+  recovery-PIN option (`core/database.py`'s `ParentRecoveryPin`) and its
+  mutual exclusivity with the recovery code were added the same day as a
+  same-scope follow-up, favored for ease of use — the frontend
+  (`ParentSecuritySettings.tsx`) lists it first and prompts a written-
+  backup confirmation before letting the enrollment screen close, since
+  "memorable" isn't a guarantee it'll actually be remembered months later.
 
 - **Pre-production hardening pass, closed 2026-07-23.** A code-level survey
   ahead of the beta-to-production transition found several gaps beyond the

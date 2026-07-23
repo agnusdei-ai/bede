@@ -26,7 +26,7 @@ const REQUIRED_FACTORS = 2
 export default function AccountRecovery({ onDone }: Props) {
   const [stage, setStage] = useState<Stage>('loading')
   const [methods, setMethods] = useState<RecoveryMethods | null>(null)
-  const [recoveryCode, setRecoveryCode] = useState('')
+  const [recoverySecret, setRecoverySecret] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [webauthnCredential, setWebauthnCredential] = useState<object | null>(null)
   const [recoveryToken, setRecoveryToken] = useState('')
@@ -47,7 +47,7 @@ export default function AccountRecovery({ onDone }: Props) {
   }, [methods])
 
   const collectedCount =
-    (recoveryCode ? 1 : 0) + (totpCode ? 1 : 0) + (webauthnCredential ? 1 : 0)
+    (recoverySecret ? 1 : 0) + (totpCode ? 1 : 0) + (webauthnCredential ? 1 : 0)
 
   const handleWebauthn = async () => {
     setError('')
@@ -72,7 +72,7 @@ export default function AccountRecovery({ onDone }: Props) {
     setBusy(true)
     try {
       const payload: RecoveryVerifyPayload = {}
-      if (recoveryCode) payload.recovery_code = recoveryCode
+      if (recoverySecret) payload.recovery_secret = recoverySecret
       if (totpCode) payload.totp_code = totpCode
       if (webauthnCredential) payload.webauthn_credential = webauthnCredential
       const result = await verifyRecovery(payload)
@@ -147,12 +147,25 @@ export default function AccountRecovery({ onDone }: Props) {
               Prove {REQUIRED_FACTORS} of the methods below ({collectedCount}/{REQUIRED_FACTORS} collected)
             </p>
 
-            {methods.recovery_code && (
+            {methods.recovery_secret === 'pin' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Recovery PIN</label>
+                <input
+                  inputMode="numeric"
+                  value={recoverySecret}
+                  onChange={(e) => setRecoverySecret(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                  placeholder="Your recovery PIN"
+                  className="w-full text-center tracking-widest text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                />
+              </div>
+            )}
+
+            {methods.recovery_secret === 'code' && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Recovery code</label>
                 <input
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+                  value={recoverySecret}
+                  onChange={(e) => setRecoverySecret(e.target.value.toUpperCase())}
                   placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
                   className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 tracking-wide focus:outline-none focus:ring-2 focus:ring-navy-400"
                 />

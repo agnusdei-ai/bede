@@ -2,9 +2,10 @@
 Parent account recovery — regaining access when PARENT_PASSWORD (and
 possibly a lost/forgotten second factor) are both unavailable, without
 editing .env or restarting the server. Requires proving AT LEAST 2 of the
-enrolled recovery factors: the recovery code (services/parent_recovery.py),
-TOTP, and/or WebAuthn (services/mfa_service.py, reused unchanged — a
-recovery-flow WebAuthn ceremony is identical to a login one).
+enrolled recovery factors: a recovery PIN or recovery code (mutually
+exclusive — services/parent_recovery.py), TOTP, and/or WebAuthn
+(services/mfa_service.py, reused unchanged — a recovery-flow WebAuthn
+ceremony is identical to a login one).
 
 Deliberately >=2, not "any one" — a family enrolling only one recovery
 method can't use this flow at all (the methods/ endpoint below tells the
@@ -47,15 +48,17 @@ _RECOVERY_TOKEN_EXPIRE_MINUTES = 10
 
 @router.get("/methods")
 async def recovery_methods(db: AsyncSession = Depends(get_db)):
-    """Public — which recovery factors are enrolled (booleans only, no
+    """Public — which recovery factors are enrolled (booleans/kind only, no
     other detail), so the frontend can render an honest "you have N of the
     2 you need" state rather than a guessing game. Same public-boolean-only
     pattern as GET /auth/locales."""
     methods = await mfa_service.enrolled_methods(db)
-    has_code = await parent_recovery.has_recovery_code(db)
-    available = int(has_code) + ("totp" in methods) + ("webauthn" in methods)
+    secret_kind = await parent_recovery.recovery_secret_kind(db)
+    available = int(secret_kind is not None) + ("totp" in methods) + ("webauthn" in methods)
     return {
-        "recovery_code": has_code,
+        # "pin" | "code" | null — which shape of the "something you know"
+        # factor is enrolled, if either (they're mutually exclusive).
+        "recovery_secret": secret_kind,
         "totp": "totp" in methods,
         "webauthn": "webauthn" in methods,
         "recovery_possible": available >= _REQUIRED_FACTORS,
@@ -80,10 +83,15 @@ async def verify(req: RecoveryVerifyRequest, request: Request, db: AsyncSession 
     verified_count = 0
     factors_used = []
 
-    if req.recovery_code:
-        if await parent_recovery.verify_recovery_code(db, req.recovery_code):
+    if req.recovery_secret:
+        # Mutually exclusive by enrollment (services/parent_recovery.py),
+        # so at most one of these two calls can ever actually match —
+        # trying both means the client never needs to know which shape is
+        # enrolled to submit the right field.
+        if await parent_recovery.verify_recovery_pin(db, req.recovery_secret) or \
+           await parent_recovery.verify_recovery_code(db, req.recovery_secret):
             verified_count += 1
-            factors_used.append("recovery_code")
+            factors_used.append("recovery_secret")
 
     if req.totp_code:
         if await mfa_service.verify_totp_login(db, req.totp_code):

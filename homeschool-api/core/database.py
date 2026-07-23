@@ -437,15 +437,52 @@ class ParentRecoveryCode(Base):
     """
     Single row (key="recovery") holding a high-entropy backup code, shown to
     the parent exactly once at enrollment (same "shown once, only the hash
-    persists" contract as ParentTotpConfig's secret) — one of the ≥2 factors
-    services/parent_recovery.py requires to regain access when
-    PARENT_PASSWORD and any authenticator are both lost. Hashed like
-    ParentCredentialOverride, for the same reason — this is the "PIN" leg
-    of the 2-of-3 recovery scheme, deliberately a NEW random secret rather
-    than reusing CHILD_PIN or PARENT_PASSWORD, so a leaked recovery code
-    doesn't also expose a day-to-day login credential and vice versa.
+    persists" contract as ParentTotpConfig's secret) — the "something you
+    know" leg of the ≥2-of-3 recovery scheme services/parent_recovery.py
+    requires to regain access when PARENT_PASSWORD and any authenticator
+    are both lost. Hashed like ParentCredentialOverride, for the same
+    reason. Deliberately a NEW secret rather than reusing CHILD_PIN or
+    PARENT_PASSWORD, so a leak of one doesn't also expose the others.
+
+    Mutually exclusive with ParentRecoveryPin below — a parent chooses ONE
+    "something you know" recovery factor at enrollment time (this longer,
+    machine-generated code, or the shorter, parent-chosen, memorable PIN),
+    not both. services/parent_recovery.py's enroll functions delete the
+    other row when one is enrolled, so at most one of the two tables ever
+    has a row for "recovery" at a time.
     """
     __tablename__ = "parent_recovery_code"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class ParentRecoveryPin(Base):
+    """
+    Single row (key="recovery") holding a parent-CHOSEN, memorable recovery
+    PIN — the favored alternative to ParentRecoveryCode's longer, machine-
+    generated code, for a parent who'd rather remember something than
+    write down/store a longer secret. Same strength floor as CHILD_PIN/
+    DEMO_PIN/SANDBOX_PIN (core/pin_policy.py's pin_is_strong(), enforced at
+    enrollment in services/parent_recovery.py), not a separate, weaker rule
+    set — a memorable PIN still has to clear the same "not an obviously
+    guessable pattern" bar every other PIN in this app does.
+
+    Mutually exclusive with ParentRecoveryCode above — see that model's
+    own docstring for the "at most one row across both tables" contract.
+    A separate table rather than a `kind` column added to
+    ParentRecoveryCode specifically because this app has no migration
+    tooling (core/database.py's create_tables() is CREATE TABLE IF NOT
+    EXISTS only) — a new table is safe for an already-deployed instance
+    in a way that adding a column to an existing one isn't.
+    """
+    __tablename__ = "parent_recovery_pin"
 
     key: Mapped[str] = mapped_column(String(20), primary_key=True)
     hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

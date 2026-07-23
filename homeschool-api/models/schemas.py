@@ -372,16 +372,28 @@ class ChangePasswordRequest(BaseModel):
 
 
 # ── Parent account recovery (routers/recovery.py) ────────────────────────────
-# "≥2 of {recovery_code, totp_code, webauthn_credential}" — exactly which
+# "≥2 of {recovery_secret, totp_code, webauthn_credential}" — exactly which
 # fields are set is what determines which factors were attempted; see
 # routers/recovery.py's own verify() for the counting logic. All optional
 # here since a real request only ever supplies whichever 2 the parent
 # actually has.
 
 class RecoveryVerifyRequest(BaseModel):
-    recovery_code: Optional[str] = None
+    # Either shape of the "something you know" factor — a recovery PIN or
+    # a recovery code, whichever this parent enrolled (they're mutually
+    # exclusive, see services/parent_recovery.py). The backend tries both
+    # verify functions; only the one that's actually enrolled can match.
+    recovery_secret: Optional[str] = None
     totp_code: Optional[str] = None
     webauthn_credential: Optional[dict] = None
+
+
+class RecoveryPinEnrollRequest(BaseModel):
+    # 6-12 digits — the real strength/pattern check is
+    # services/parent_recovery.py's enroll_recovery_pin (pin_is_strong() +
+    # its own max-length check); this Field bound just rejects an obviously
+    # malformed request before it reaches that logic.
+    pin: str = Field(..., min_length=1, max_length=12)
 
 
 class ChangePasswordRecoveryRequest(BaseModel):

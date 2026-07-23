@@ -87,6 +87,24 @@ def test_check_anomaly_moderation_flagged_fires_at_three_not_one():
     assert _check_anomaly(AuditEvent.MODERATION_FLAGGED, ip) == 3
 
 
+def test_check_anomaly_tool_invoked_fires_at_forty_not_one():
+    """Ordinary tool use (offer_socratic_hint, celebrate_discovery, etc.)
+    is frequent and expected across a multi-hour session — only a
+    sustained burst well above that, from one address, is worth a
+    parent's attention."""
+    ip = "6.6.6.6"
+    for _ in range(39):
+        assert _check_anomaly(AuditEvent.TOOL_INVOKED, ip) is None
+    assert _check_anomaly(AuditEvent.TOOL_INVOKED, ip) == 40
+
+
+def test_check_anomaly_tool_call_suppressed_fires_immediately():
+    """A single trip of stream_tutor_response's per-turn tool-call cap is
+    already anomalous by construction (see _MAX_TOOL_CALLS_PER_TURN) —
+    same immediate-alert shape as SUSPICIOUS_REQUEST."""
+    assert _check_anomaly(AuditEvent.TOOL_CALL_SUPPRESSED, "7.7.7.7") == 1
+
+
 def test_check_anomaly_ignores_events_with_no_rule():
     for _ in range(50):
         assert _check_anomaly(AuditEvent.SESSION_START, "9.9.9.9") is None

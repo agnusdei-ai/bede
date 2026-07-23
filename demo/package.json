@@ -20,7 +20,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.0.4",
     "autoprefixer": "^10.4.20",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.22",

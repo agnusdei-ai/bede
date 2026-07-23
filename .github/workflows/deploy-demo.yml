@@ -6,8 +6,7 @@ on:
       - claude/clean-project-clone-s216ne
       - main
     paths:
-      - 'demo/**'
-      - 'site/**'
+      - 'scripts/build_github_pages_redirect.sh'
       - '.github/workflows/deploy-demo.yml'
   workflow_dispatch:
 
@@ -25,24 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: demo/package-lock.json
-      - name: Build combined site (marketing page + demo)
-        # Assembles site/ (the marketing home page) at the output root and
-        # a fresh demo/dist build nested under /bede/ — the same publish/
-        # layout scripts/build_pages_site.sh produces for Cloudflare, so
-        # GitHub Pages and Cloudflare serve identical content. Runs npm ci
-        # and npm run build internally; VITE_DEMO_API_BASE must point at a
-        # publicly-reachable homeschool-api deployment with DEMO_PIN set
-        # (Settings -> Secrets and variables -> Actions -> Variables) since
-        # it's baked in at build time — there is no server here to read it
-        # from at runtime.
-        env:
-          VITE_DEMO_API_BASE: ${{ vars.VITE_DEMO_API_BASE }}
-        run: bash scripts/build_pages_site.sh
+      - name: Build redirect stubs
+        # GitHub Pages no longer serves a live copy of the site — it's now
+        # just a redirect to the canonical Cloudflare deployment, so old
+        # links and bookmarks still land somewhere real instead of a stale
+        # or missing copy. See scripts/build_github_pages_redirect.sh and
+        # docs/DEMO_HOSTING.md's "GitHub Pages now redirects" section.
+        run: bash scripts/build_github_pages_redirect.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

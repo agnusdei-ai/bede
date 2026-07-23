@@ -58,10 +58,13 @@ just push to `main` and it redeploys itself.
 4. Everything else in `render.yaml` is either auto-generated
    (`SECRET_KEY`, `MASTER_SECRET`, `PARENT_PASSWORD` — random, nobody needs
    to remember them) or a fixed non-secret value, including `CORS_ORIGINS`
-   (already set to `https://agnusdei-ai.github.io` — a browser's CORS
-   `Origin` header is always just `scheme://host[:port]`, never a path, so
-   this is correct even though the demo itself lives at
-   `https://agnusdei-ai.github.io/bede/`).
+   (already lists `https://agnusdei-ai.github.io` and
+   `https://bede.agnusdei.workers.dev` — a browser's CORS `Origin` header is
+   always just `scheme://host[:port]`, never a path, so listing the origin
+   is correct even though the demo itself is actually at
+   `https://bede.agnusdei.workers.dev/bede/`; `agnusdei-ai.github.io` no
+   longer needs it — see "GitHub Pages now redirects" below — but leaving an
+   unused origin here is inert, not worth a separate cleanup).
 5. Click deploy. First build takes a few minutes (installing
    `faster-whisper`, `librosa`, etc., and pre-downloading the fallback-STT
    model weights into the image — see docs/VOICE_SETUP.md). Once it's up,
@@ -142,36 +145,60 @@ no code change required either way.
 
 ## Wiring the demo frontend to it
 
-1. On GitHub: `agnusdei-ai/bede` → **Settings → Secrets and variables →
-   Actions → Variables** → add/edit `VITE_DEMO_API_BASE` = the Render URL
-   from step 5 above (no trailing slash).
-2. Re-run the **"Deploy demo to GitHub Pages"** workflow (Actions tab →
-   select it → **Run workflow**, or just push any change under `demo/`) —
-   `VITE_DEMO_API_BASE` is baked in at build time since the demo is a static
-   site, so it won't pick up a variable change until the next build.
-3. Open the deployed demo, click **"Generate my code"**, and confirm Bede's
-   voice comes through.
+The live deployment is the Cloudflare Worker (`bede.agnusdei.workers.dev`),
+built via Git integration rather than the GitHub Actions workflow — GitHub
+Pages only redirects to it now (see "GitHub Pages now redirects" below) and
+never runs the demo's own build, so `VITE_DEMO_API_BASE` has to be set on
+the Cloudflare side:
 
-Accurate for the current GitHub Pages setup. Once the Cloudflare Pages
-migration below is complete, step 1's variable moves to the Pages project's
-own Environment variables (Settings → Environment variables) instead of a
-GitHub Actions repository variable, and step 2 becomes "trigger a redeploy
-from the Cloudflare dashboard" instead of re-running a GitHub Actions
-workflow — see that section for the full setup.
+1. **Workers & Pages → `bede` → Settings**, scroll to the **Build** section
+   → its own **Variables and secrets** (a `+` button, currently showing
+   "None") — this is a *build-time* variable, distinct from the runtime
+   "Variables and secrets" section higher up the page, which is disabled
+   entirely for this Worker ("Variables cannot be added to a Worker that
+   only has static assets") since there's no `main` script to read them at
+   request time.
+2. Add `VITE_DEMO_API_BASE` = the Render URL from step 5 above (no trailing
+   slash).
+3. Trigger a new deployment (Deployments tab → retry, or push any commit) —
+   Vite bakes this in at build time, so the existing deployment won't pick
+   it up on its own.
+4. Open `https://bede.agnusdei.workers.dev/bede/`, click **"Generate my
+   code"**, and confirm Bede's voice comes through.
 
-## Custom domain: moving to Cloudflare Pages
+Once `agnusdei.ai` is live on this same Worker (see the custom domain setup
+below), these steps and the resulting variable apply there too — it's the
+same Worker answering on both hostnames, not a separate deployment to wire
+up again.
 
-GitHub Pages (`.github/workflows/deploy-demo.yml`) and a Cloudflare Worker
-both serve the same combined build today, assembled by
-`scripts/build_pages_site.sh`: `site/` (the company's own home page — a
-small, hand-written static page, `site/index.html`, no build step, no
-framework, with a "Meet Bede →" link to `/bede/`) at the root, and the
-interactive demo nested under `/bede/` beneath it, matching that link. So
-`agnusdei-ai.github.io` shows the marketing page and
-`agnusdei-ai.github.io/bede/` shows the demo — same shape as the Cloudflare
-deployment below. The plan is to move the real apex domain (`agnusdei.ai`)
-onto **Cloudflare Pages** instead of GitHub Pages, keeping this same
-site/demo split.
+## GitHub Pages now redirects
+
+The canonical live deployment is a **Cloudflare Worker**
+(`bede.agnusdei.workers.dev`), built by `scripts/build_pages_site.sh`: `site/`
+(the company's own home page — a small, hand-written static page,
+`site/index.html`, no build step, no framework, with a "Meet Bede →" link to
+`/bede/`) at the root, and the interactive demo nested under `/bede/`
+beneath it, matching that link. So `bede.agnusdei.workers.dev` shows the
+marketing page and `bede.agnusdei.workers.dev/bede/` shows the demo.
+
+GitHub Pages (`.github/workflows/deploy-demo.yml`) no longer serves a live
+copy of that build — it publishes two tiny redirect stubs instead
+(`scripts/build_github_pages_redirect.sh`), so `agnusdei-ai.github.io`
+forwards to `bede.agnusdei.workers.dev/` and `agnusdei-ai.github.io/bede/`
+forwards to `bede.agnusdei.workers.dev/bede/`. This keeps any link already
+shared or bookmarked against the old GitHub Pages URLs landing somewhere
+real, without this repo having to keep two independently live copies from
+drifting apart. GitHub Pages has no server-side redirect support (no
+`_redirects` file, no rewrite rules), so these are client-side
+(`<meta http-equiv="refresh">` + a JS `location.replace()`, with a plain
+link as a no-JS fallback) — the standard workaround for a GitHub Pages
+redirect.
+
+Once `agnusdei.ai`'s nameservers are pointed at Cloudflare and the custom
+domain is attached to this same Worker (see the one-time setup below), that
+domain serves the identical build directly — no redirect needed between
+`bede.agnusdei.workers.dev` and `agnusdei.ai`, since Cloudflare's Custom
+Domains feature lets one Worker answer on both hostnames at once.
 
 **Why Cloudflare Pages and not a GitHub Pages custom domain** (the
 originally-planned approach): a first attempt at exactly this apex/subpath
@@ -238,13 +265,13 @@ Cloudflare invokes it, or you run it locally to preview.
    (the demo), generate a code, and confirm the chat works. A CORS mismatch
    here shows up as every `/tutor/chat` request silently failing in the
    browser console, not a visible error banner.
-8. **Only once the above is confirmed working**, retire the GitHub Pages
-   path so there's exactly one live copy, not two silently drifting apart:
-   delete or disable `.github/workflows/deploy-demo.yml`, and in
-   `agnusdei-ai/bede` → **Settings → Pages**, set the source back to
-   **None**. Do this step last, deliberately — not as part of the same push
-   that sets up Cloudflare, so there's never a window where neither is
-   serving the domain correctly.
+8. GitHub Pages doesn't need retiring the way an earlier version of this
+   plan assumed — it's already just a redirect to
+   `bede.agnusdei.workers.dev` (see "GitHub Pages now redirects" above), not
+   a second live copy. Once `agnusdei.ai` is confirmed working, update
+   `scripts/build_github_pages_redirect.sh`'s `MARKETING_URL`/`DEMO_URL` to
+   point at `agnusdei.ai` instead, so old GitHub Pages links forward to the
+   final domain rather than the workers.dev one.
 
 ## Cold starts (free plan)
 
@@ -308,10 +335,10 @@ next plan up.
 
 ## Expecting a crowd? (public events, ~100 simultaneous users)
 
-The frontend is static files on GitHub Pages — it scales to any audience
-without you doing anything, and its first load is small (roughly 100 KB of
-compressed code plus under 100 KB of images). The backend is the part to
-prepare:
+The frontend is static files on Cloudflare's edge network — it scales to
+any audience without you doing anything, and its first load is small
+(roughly 100 KB of compressed code plus under 100 KB of images). The
+backend is the part to prepare:
 
 1. **Upgrade `bede-demo-api` off the free plan for the event window**
    (Starter or above). The free instance is small and spins down when

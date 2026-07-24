@@ -5,6 +5,13 @@ name: Backend regression tests
 # heavier "does the whole production stack actually boot" check lives in
 # production-regression.yml since it needs a real Docker daemon and takes
 # much longer.
+#
+# A pip-audit vulnerability-gate step used to run here, hard-failing the
+# build on any known CVE in a dependency. Removed along with
+# .github/dependabot.yml (see that deletion's commit) — it had no
+# remaining companion (Dependabot's own auto-PRs are off), so a CVE with
+# no fix in hand yet blocked every unrelated PR indefinitely instead of
+# just being visible.
 on:
   push:
     branches: [main]
@@ -37,16 +44,6 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-api
         run: pip install -r requirements-dev.txt
-      - name: Audit dependencies for known vulnerabilities
-        working-directory: homeschool-api
-        # Complements dependabot.yml's weekly PRs with an immediate,
-        # per-push/PR signal — fails the build the moment a dependency
-        # (existing or newly added in this PR) has a known CVE, rather than
-        # waiting for the next scheduled Dependabot run.
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt
-          pip-audit -r requirements-dev.txt
       - name: Run tests
         working-directory: homeschool-api
         run: python -m pytest tests/ -v

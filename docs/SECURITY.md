@@ -126,6 +126,19 @@ list as items are closed.
   `homeschool-tutor/`/`demo/`). Worth confirming directly in GitHub
   settings — required checks and force-push protection — before a
   production release; not something a code change can confirm or fix.
+- **`production-regression.yml`'s "Confirm the license is ACTIVE" step is
+  non-blocking (`continue-on-error: true`), so CI can silently stop proving
+  the license gate actually works.** `CI_TEST_LICENSE_KEY` went invalid
+  (bad signature against `core/licensing.py`'s `PUBLIC_KEY_PEM` — not
+  simple expiry) and stayed that way across many runs, because reissuing it
+  needs the offline private signing key (`docs/PRODUCTION_SETUP.md
+  #licensing`) that nothing in CI holds — left blocking, this one stale
+  secret also skipped every step after it (tablet-trust page, Postgres
+  backup/restore), throwing away real coverage over an unrelated problem.
+  The step still runs and still reports failure in the Actions UI, but a
+  human with that private key has to notice and act on it — nothing
+  enforces that anymore. Worth periodically confirming this step is
+  actually green, not just that the workflow overall is.
 
 ## Closed gaps
 

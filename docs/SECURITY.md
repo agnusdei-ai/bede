@@ -217,6 +217,28 @@ list as items are closed.
   backup confirmation before letting the enrollment screen close, since
   "memorable" isn't a guarantee it'll actually be remembered months later.
 
+  **A real gap surfaced by live browser click-through of the whole flow
+  (not just unit tests), fixed the same day:** `core/middleware.py`'s
+  `RateLimitMiddleware` bucketed every `/auth/*` path — including
+  `/auth/recovery/*` — into one shared per-IP "auth" bucket
+  (`rate_limit_auth_per_minute`, default 10/min). The exact burst of
+  failed `/auth/login` attempts that trips `parent_lockout.py`'s own
+  lockout also exhausted that shared budget, so the locked-out parent's
+  very next call — `GET /auth/recovery/methods`, to even see the
+  "Forgot password?" screen — came back 429 too. `AccountRecovery.tsx`
+  had no way to tell that transient 429 apart from "recovery isn't
+  configured on this instance," so it showed the latter: a parent who
+  *did* have 2 recovery factors enrolled was told to seek "direct access
+  to the server itself," at the exact moment recovery exists to prevent
+  that. Fixed with a dedicated `auth_recovery` bucket
+  (`rate_limit_account_recovery_per_minute`, its own config setting,
+  independent of the login bucket) plus a frontend `rate_limited` stage
+  in `AccountRecovery.tsx` that shows "please wait about a minute" with a
+  retry button instead of the permanent-looking "not set up" message.
+  Covered by `tests/test_middleware.py`'s
+  `test_auth_recovery_has_its_own_bucket_independent_of_login` and
+  `test_auth_recovery_bucket_has_its_own_limit`.
+
 - **Pre-production hardening pass, closed 2026-07-23.** A code-level survey
   ahead of the beta-to-production transition found several gaps beyond the
   two already tracked above — some real and previously undocumented

@@ -212,6 +212,15 @@ class Settings(BaseSettings):
     # for why these must not share rate_limit_voice_per_minute with new
     # session starts. RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE env var.
     rate_limit_voice_stream_session_per_minute: int = 120
+    # Separate bucket for /auth/recovery/* specifically — a locked-out parent
+    # who just exhausted rate_limit_auth_per_minute failing their password is
+    # exactly the person who needs recovery next; sharing one "auth" bucket
+    # meant the login attempts that trip parent_lockout.py also 429'd their
+    # very next call to GET /auth/recovery/methods, and the frontend
+    # (AccountRecovery.tsx) had no way to tell that transient 429 apart from
+    # "recovery isn't configured on this instance" — see docs/SECURITY.md.
+    # RATE_LIMIT_ACCOUNT_RECOVERY_PER_MINUTE env var.
+    rate_limit_account_recovery_per_minute: int = 10
 
     # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
     # An extra PIN — same "empty = disabled" pattern and strength rules as

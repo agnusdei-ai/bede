@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bede Setup — a small MSI whose only job is: land Setup-Bede.ps1 on disk and
+  put a Start Menu shortcut to it. All Docker Desktop / repo-download /
+  wizard-launching logic lives in that script (see its own header comment
+  and docs/WINDOWS_INSTALLER.md) — deliberately NOT reimplemented in WiX,
+  the same "don't reimplement the wizard" principle setup-gui.bat/.command/.sh
+  already follow for macOS/Linux.
+
+  Scope="perUser": this MSI itself never needs admin rights (it only copies
+  a script into the CURRENT USER's LocalAppData and adds a Start Menu
+  shortcut for that user). Setup-Bede.ps1 requests elevation itself, and
+  only for the one step that actually needs it (installing Docker Desktop),
+  and only when Docker Desktop isn't already present.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="Bede Setup"
+    Manufacturer="Bede"
+    Version="1.0.0"
+    UpgradeCode="AF90E82B-CD71-49BD-9D13-6547F6EC0F71"
+    Language="1033"
+    Scope="perUser">
+
+    <SummaryInformation Description="Sets up Bede — installs Docker Desktop if needed, downloads Bede, and runs its browser setup wizard." />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Bede Setup is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="INSTALLFOLDER" Name="Bede">
+        <Component Id="LauncherScript" Guid="*">
+          <File Id="SetupBedePs1" Source="Setup-Bede.ps1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="BedeMenuFolder" Name="Bede">
+        <Component Id="StartMenuShortcut" Guid="*">
+          <Shortcut
+            Id="BedeSetupShortcut"
+            Name="Bede Setup"
+            Description="Set up or start Bede — installs Docker Desktop if needed"
+            Target="[SystemFolder]WindowsPowerShell\v1.0\powershell.exe"
+            Arguments="-NoLogo -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]Setup-Bede.ps1&quot;"
+            WorkingDirectory="INSTALLFOLDER" />
+          <RemoveFolder Id="RemoveBedeMenuFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\Bede\Setup" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Bede Setup" Level="1">
+      <ComponentRef Id="LauncherScript" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+</Wix>

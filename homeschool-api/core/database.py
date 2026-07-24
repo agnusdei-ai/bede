@@ -656,6 +656,42 @@ class DemoInteractionSignal(Base):
     )
 
 
+class AIProviderOverride(Base):
+    """
+    Single row (key="primary") that, when present, picks which already-
+    CONFIGURED AI adapter (services/adapters/) serves as primary — same "DB
+    value wins over the env default, live, no restart" precedent
+    core/license_state.py and core/parent_credential.py already established
+    for LICENSE_KEY/PARENT_PASSWORD, applied here to
+    BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER (core/config.py) for the same
+    reason: those are plain env-loaded Settings read once at process
+    startup, so switching providers (e.g. a degraded local Ollama model,
+    want Mistral instead) used to mean an .env edit and a restart. See
+    core/provider_state.py, the only module that reads/writes this table,
+    and services/adapters/router.py's FailoverClient, which consults the
+    in-process cache on every request.
+
+    Deliberately narrow: this table only ever stores the NAME of an adapter
+    that is already configured elsewhere (real credentials in
+    settings/.env) — never a credential itself. routers/admin.py rejects
+    picking a provider with no credentials configured before it ever
+    reaches this table, and services/adapters/router.py's
+    provider_state.effective_order() silently ignores a stored name that
+    is no longer configured (falls back to the env order) rather than
+    breaking service.
+    """
+    __tablename__ = "ai_provider_override"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True, default="primary")
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 async def create_tables() -> None:
     """Idempotent table creation — safe to call on every startup."""
     async with engine.begin() as conn:

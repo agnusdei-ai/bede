@@ -49,6 +49,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from core.config import settings as _global_settings
+from core import provider_state
 from .anthropic_adapter import build_anthropic_client
 from .openai_compatible_adapter import OpenAICompatibleClient
 
@@ -59,6 +60,25 @@ log = logging.getLogger(__name__)
 _MISTRAL_BASE_URL = "https://api.mistral.ai/v1"
 
 _KNOWN_ADAPTERS = ("local", "openai", "mistral", "anthropic")
+
+# Public alias — routers/admin.py's AI-provider switcher needs the known-name
+# list and a "what's actually configured right now" helper without reaching
+# into this module's underscore-prefixed internals.
+KNOWN_ADAPTERS = _KNOWN_ADAPTERS
+
+
+def configured_adapters(settings: Any = _global_settings) -> List[str]:
+    """Which adapters currently have credentials configured, in
+    KNOWN_ADAPTERS order (not preference order) — what the parent UI shows
+    as selectable in the AI-provider switcher (core/provider_state.py)."""
+    return [name for name in _KNOWN_ADAPTERS if _is_configured(name, settings)]
+
+
+def preference_order(settings: Any = _global_settings) -> List[str]:
+    """Public alias for the effective env preference order (honors a
+    BEDE_FORCE_ADAPTER pin) — what routers/admin.py shows as the baseline
+    before any DB override (core/provider_state.py) reorders it."""
+    return _order(settings)
 
 
 def _order(settings: Any) -> List[str]:
@@ -118,7 +138,7 @@ def get_default_client(settings: Any = _global_settings) -> Any:
     configured we still return a constructed adapter (the last one listed, or
     anthropic) so the app boots — construction is lazy and only an actual
     request would surface the misconfiguration, exactly as before."""
-    order = _order(settings)
+    order = provider_state.effective_order(_configured_order(settings)) or _order(settings)
     for name in order:
         if _is_configured(name, settings):
             log.info("Bede adapter resolved to %r (order=%s)", name, order)
@@ -313,10 +333,13 @@ class FailoverClient:
         return self._built[name]
 
     def _live_order(self) -> List[str]:
-        """Configured adapters, skipping any currently in circuit-breaker
-        cooldown — unless every one is cooling down, in which case fall back to
-        the full configured order rather than refusing service."""
-        configured = _configured_order(self._settings)
+        """Configured adapters, reordered by any DB-set primary override
+        (core/provider_state.py — live, no restart, e.g. a parent switching
+        away from a degraded local model), skipping any currently in
+        circuit-breaker cooldown — unless every one is cooling down, in which
+        case fall back to the full (overridden) configured order rather than
+        refusing service."""
+        configured = provider_state.effective_order(_configured_order(self._settings))
         live = [n for n in configured if not self._breaker.is_open(n)]
         return live or configured
 

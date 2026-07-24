@@ -15,8 +15,9 @@ from core.api_usage import get_usage_summary
 from core.config import settings
 from core.database import LicenseConfig, get_db
 from core.deps import require_parent
-from core import license_state, licensing
+from core import license_state, licensing, provider_state
 from models.schemas import UsageSummary
+from services.adapters import router as adapter_router
 from services.voice_auth import list_profiles
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -120,6 +121,87 @@ async def apply_license(
         **audit_from_request(request),
     )
     return {"license": _license_status_payload(), "gated": not state.ok}
+
+
+def _ai_provider_status_payload() -> dict:
+    """Current AI-provider selection state for the parent settings card —
+    which adapters are actually usable (credentials configured in .env),
+    which one is primary right now, and whether that's a parent's live DB
+    override (core/provider_state.py) or just the env
+    BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER preference."""
+    configured = adapter_router.configured_adapters(settings)
+    env_order = adapter_router.preference_order(settings)
+    effective = provider_state.effective_order(configured)
+    override = provider_state.current_primary()
+    return {
+        "known": list(adapter_router.KNOWN_ADAPTERS),
+        "configured": configured,
+        "env_order": env_order,
+        "effective_order": effective,
+        "primary": effective[0] if effective else None,
+        "override": override if override in configured else None,
+        "forced": settings.bede_force_adapter or None,
+    }
+
+
+class SetAIProviderRequest(BaseModel):
+    # None clears the override and reverts to the env order.
+    provider: str | None = Field(default=None, max_length=20)
+
+
+@router.get("/ai-provider")
+async def ai_provider_status(_: dict = Depends(require_parent)):
+    """Which AI adapters are configured and which is primary right now —
+    for the parent settings "AI Provider" card. See core/provider_state.py
+    and docs/PROVIDER_ADAPTERS.md."""
+    return _ai_provider_status_payload()
+
+
+@router.post("/ai-provider")
+async def set_ai_provider(
+    body: SetAIProviderRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    """Switch which configured adapter serves as primary — live, no
+    restart (core/provider_state.py), e.g. moving off a degraded local
+    Ollama model onto Mistral without touching .env. Passing
+    provider=null clears the override and reverts to the env
+    BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER preference. A BEDE_FORCE_ADAPTER
+    pin, if set, still wins regardless of this override — it never leaves
+    more than one adapter in the "configured" set for this to reorder
+    (see services/adapters/router.py's _order())."""
+    configured = adapter_router.configured_adapters(settings)
+
+    if body.provider is None:
+        await provider_state.clear_primary(db)
+        detail = "cleared (reverted to env order)"
+    else:
+        provider = body.provider.strip().lower()
+        if provider not in adapter_router.KNOWN_ADAPTERS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown provider {provider!r} — expected one of {adapter_router.KNOWN_ADAPTERS}.",
+            )
+        if provider not in configured:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"{provider} isn't configured yet — add its credentials to this "
+                    "deployment's .env (see docs/PROVIDER_ADAPTERS.md) before selecting it here."
+                ),
+            )
+        await provider_state.set_primary(db, provider)
+        detail = f"primary={provider}"
+
+    await log_event(
+        AuditEvent.AI_PROVIDER_CHANGED,
+        role="parent",
+        detail=detail,
+        **audit_from_request(request),
+    )
+    return _ai_provider_status_payload()
 
 
 @router.get("/status")

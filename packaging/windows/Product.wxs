@@ -30,7 +30,16 @@
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="Bede">
         <Component Id="LauncherScript" Guid="*">
-          <File Id="SetupBedePs1" Source="Setup-Bede.ps1" KeyPath="yes" />
+          <!--
+            A per-user (Scope="perUser") component installing into the user
+            profile must use an HKCU registry value as its KeyPath, not the
+            file itself (ICE38), and the directory needs a RemoveFolder
+            entry for uninstall to clean it up (ICE64) — both caught by
+            build-windows-installer.yml actually running the WiX build.
+          -->
+          <File Id="SetupBedePs1" Source="Setup-Bede.ps1" />
+          <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\Bede\Setup" Name="LauncherInstalled" Type="integer" Value="1" KeyPath="yes" />
         </Component>
       </Directory>
     </StandardDirectory>

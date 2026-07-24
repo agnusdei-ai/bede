@@ -154,13 +154,22 @@ services:
       # redirects" section) — an unused origin here is inert, so
       # listing both candidates now means flipping the live domain later
       # needs no backend redeploy. bede.agnusdei.workers.dev is the
-      # Cloudflare Worker's own default preview domain, needed until the
-      # agnusdei.ai nameservers are pointed at Cloudflare. Drop whichever
-      # candidate domain doesn't end up in use once that's settled, and drop
-      # the agnusdei-ai.github.io and workers.dev fallbacks once the custom
-      # domain is confirmed working, to keep this list minimal again.
+      # Cloudflare Worker's own default preview domain, needed until a
+      # candidate domain's nameservers are pointed at Cloudflare.
+      #
+      # agnusdei.io is live on the same Worker (Custom Domain, nameservers
+      # on Cloudflare) as of the 2026-07 beta launch — agnusdei.ai's
+      # transfer was mid-flight at the same time and its registrar had its
+      # DNS/nameserver controls locked for the duration, so .io became the
+      # interim beta domain rather than waiting on .ai. Once .ai's transfer
+      # clears and it's attached to the Worker too, decide whether both stay
+      # live (add a canonical link tag to avoid duplicate-content SEO) or
+      # .io gets a redirect rule to .ai — either way, drop whichever
+      # candidate domain doesn't end up in use, and drop the
+      # agnusdei-ai.github.io and workers.dev fallbacks once the custom
+      # domain(s) are confirmed working, to keep this list minimal again.
       - key: CORS_ORIGINS
-        value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://bede.ai,https://www.bede.ai,https://bede.agnusdei.workers.dev
+        value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://agnusdei.io,https://www.agnusdei.io,https://bede.ai,https://www.bede.ai,https://bede.agnusdei.workers.dev
       - key: DISABLE_API_DOCS
         value: "true"
       - key: PRODUCTION

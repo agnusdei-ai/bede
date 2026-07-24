@@ -166,10 +166,11 @@ the Cloudflare side:
 4. Open `https://bede.agnusdei.workers.dev/bede/`, click **"Generate my
    code"**, and confirm Bede's voice comes through.
 
-Once `agnusdei.ai` is live on this same Worker (see the custom domain setup
-below), these steps and the resulting variable apply there too — it's the
-same Worker answering on both hostnames, not a separate deployment to wire
-up again.
+`agnusdei.io` is live on this same Worker as of the 2026-07 beta launch (see
+"Interim beta domain: agnusdei.io" below), and once `agnusdei.ai` is added
+too (see the custom domain setup below), these steps and the resulting
+variable apply there as well — it's the same Worker answering on every
+hostname, not a separate deployment to wire up per domain.
 
 ## GitHub Pages now redirects
 
@@ -292,6 +293,34 @@ Cloudflare invokes it, or you run it locally to preview.
    update `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` to point at
    `agnusdei.ai/bede/` instead, so the old GitHub Pages link forwards to the
    final domain rather than the workers.dev one.
+
+## Interim beta domain: agnusdei.io
+
+At beta launch (2026-07), `agnusdei.ai`'s domain transfer was mid-flight,
+and most registrars (plus ICANN's post-transfer lock) freeze nameserver
+changes at the losing registrar for the duration — so the steps above
+couldn't be run against `.ai` yet. `agnusdei.io`, not being mid-transfer,
+went through the identical one-time Cloudflare Pages setup instead and is
+the live beta domain today:
+
+- Cloudflare zone added for `agnusdei.io`, nameservers switched at the
+  registrar (GoDaddy), DNSSEC confirmed off first (leaving it on during an
+  NS switch can break resolution outright, not just delay it).
+- `agnusdei.io` and `www.agnusdei.io` attached as Custom Domains on the
+  same `bede` Worker described above — no separate deployment.
+- `render.yaml`'s `CORS_ORIGINS` includes `https://agnusdei.io` and
+  `https://www.agnusdei.io` alongside the `.ai`/`bede.ai` candidates (see
+  that file's own comment on the full list and why unused entries are left
+  in rather than trimmed early).
+
+**When `agnusdei.ai`'s transfer clears**, run the "One-time Cloudflare
+Pages setup" steps above for it too (same Worker, so no rebuild). At that
+point decide: keep both domains live (add a `<link rel="canonical">` to
+whichever is the intended long-term brand domain — serving identical
+content on two live domains without one is a mild SEO duplicate-content
+hit), or add a Cloudflare redirect rule sending `agnusdei.io` traffic to
+`agnusdei.ai`. Either way, update `CORS_ORIGINS` and this doc to match
+whatever's actually live once that decision is made.
 
 ## Cold starts (free plan)
 

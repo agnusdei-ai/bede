@@ -1,0 +1,41 @@
+name: Build Windows installer (.msi)
+
+# Builds packaging/windows/BedeSetup.wixproj on a real Windows runner (WiX
+# v4's MSI/CAB tooling is Windows-native — it doesn't cross-build from
+# ubuntu-latest). Currently UNSIGNED — see docs/WINDOWS_INSTALLER.md for
+# why, and the follow-up needed before this ships to a family unprompted
+# (SmartScreen will warn on an unsigned .msi).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/windows/**'
+      - '.github/workflows/build-windows-installer.yml'
+  pull_request:
+    paths:
+      - 'packaging/windows/**'
+      - '.github/workflows/build-windows-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build BedeSetup.msi
+        run: dotnet build packaging/windows/BedeSetup.wixproj -c Release
+
+      - name: Upload the .msi
+        uses: actions/upload-artifact@v4
+        with:
+          name: BedeSetup-unsigned
+          path: packaging/windows/bin/Release/BedeSetup.msi
+          if-no-files-found: error

@@ -8,6 +8,7 @@ import { SUBJECTS, CORE_AREAS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import LicenseSettings from '../components/LicenseSettings'
+import AIProviderSettings from '../components/AIProviderSettings'
 import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, isFeedbackEnabled, savePodConfigs, type SystemStatus } from '../services/api'
 import BetaIntakeModal from '../components/BetaIntakeModal'
@@ -313,6 +314,7 @@ export default function ParentSetup() {
 
         <ParentSecuritySettings token={token!} />
         <LicenseSettings token={token!} />
+        <AIProviderSettings token={token!} />
 
         {/* Student cards */}
         <div className="space-y-4">

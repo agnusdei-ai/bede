@@ -56,6 +56,7 @@ class AuditEvent:
     FEEDBACK_SUBMITTED       = "feedback.submitted"
     STUDENT_DATA_DELETED     = "student.data_deleted"
     LICENSE_APPLIED          = "license.applied"
+    AI_PROVIDER_CHANGED      = "ai_provider.changed"
     ANOMALY_ALERT            = "security.anomaly_alert"
     MODERATION_FLAGGED       = "moderation.flagged"
     TOOL_INVOKED             = "tool.invoked"

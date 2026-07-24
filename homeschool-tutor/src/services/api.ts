@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, LicenseStatus } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, LicenseStatus, AIProviderStatus, AIProviderName } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 
@@ -421,6 +421,29 @@ export async function applyLicenseKey(token: string, licenseKey: string): Promis
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.detail || 'Could not apply that license key')
   return data.license
+}
+
+export async function fetchAIProviderStatus(token: string): Promise<AIProviderStatus> {
+  const res = await fetch(`${BASE}/admin/ai-provider`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load AI provider status')
+  return res.json()
+}
+
+/** Switches which configured adapter serves as primary — effective
+ *  immediately (no .env edit, no restart). Pass `null` to clear the
+ *  override and revert to this deployment's env-configured order. Throws
+ *  with the server's own message if the chosen provider isn't configured. */
+export async function setAIProvider(token: string, provider: AIProviderName | null): Promise<AIProviderStatus> {
+  const res = await fetch(`${BASE}/admin/ai-provider`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ provider }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || 'Could not switch AI provider')
+  return data
 }
 
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {

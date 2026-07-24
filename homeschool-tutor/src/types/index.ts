@@ -339,3 +339,22 @@ export interface LicenseStatus {
   days_remaining?: number | null
   is_expired?: boolean
 }
+
+export type AIProviderName = 'local' | 'openai' | 'mistral' | 'anthropic'
+
+// Mirrors homeschool-api/routers/admin.py's GET/POST /admin/ai-provider —
+// which adapters (homeschool-api/services/adapters/) actually have
+// credentials configured in this deployment's .env, and which one is
+// primary right now. `override` is set only when a parent has picked one
+// from this card (homeschool-api/core/provider_state.py — DB value wins
+// over env, live, no restart); `primary` is always the adapter that would
+// actually serve the next tutoring turn, override or not.
+export interface AIProviderStatus {
+  known: AIProviderName[]
+  configured: AIProviderName[]
+  env_order: AIProviderName[]
+  effective_order: AIProviderName[]
+  primary: AIProviderName | null
+  override: AIProviderName | null
+  forced: AIProviderName | null
+}

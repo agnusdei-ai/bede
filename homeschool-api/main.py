@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution, license_state, parent_credential
+from core import constitution, license_state, parent_credential, provider_state
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -118,6 +118,10 @@ async def lifespan(app: FastAPI):
          cache from the DB — same DB-wins-over-env precedent as licensing,
          applied to PARENT_PASSWORD (core/deps.py checks this cache on
          every parent/parent_pending request, not the DB directly).
+      5b. Sync core/provider_state.py's in-process AI-provider-primary
+          cache from the DB — same precedent again, applied to WHICH
+          configured adapter serves as primary (services/adapters/router.py
+          consults this cache on every tutoring turn).
       6. Kick off the voice-model warm-up in the background (non-blocking).
       7. Start the periodic data-retention purge loop (non-blocking) — see
          docs/DATA_RETENTION.md.
@@ -141,6 +145,8 @@ async def lifespan(app: FastAPI):
         )
         async with AsyncSessionLocal() as db:
             await parent_credential.refresh_from_db(db)
+        async with AsyncSessionLocal() as db:
+            await provider_state.refresh_from_db(db)
     except RuntimeError as exc:
         log.critical("FATAL: %s", exc)
         sys.exit(1)

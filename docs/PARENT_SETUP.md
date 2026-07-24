@@ -363,7 +363,31 @@ If a license ever lapses before you renew, Bede pauses tutoring and says
 why — but your login and the License card keep working, so pasting the new
 key is all it takes to pick back up. Nothing is lost while paused.
 
-## 10. Checking in afterward
+## 10. Switching AI providers
+
+If you've set up more than one AI provider for Bede (for example, a
+self-hosted model on a home computer as your everyday choice, plus a cloud
+provider like Mistral or OpenAI as a backup), you can switch which one Bede
+actually uses right from your browser — no server access needed.
+
+Log in with the parent password, open **Setup**, and find the **AI
+Provider** card (only shown if two or more providers are set up). It lists
+each one, with the one currently in use marked. Tap another to make it
+primary — it takes effect on Bede's very next reply, not the next time you
+restart anything. If you'd rather go back to the automatic default, use
+"Revert to this deployment's default order."
+
+This is separate from what happens automatically if a provider *errors out*
+mid-conversation (Bede already retries the next one on its own, without
+missing a beat) — this card is for when you've decided a different provider
+should be the everyday choice, for example because your home computer's
+local model is running slowly or giving weaker answers than usual.
+
+Setting up a second provider in the first place is a one-time, technical
+step (see `docs/PROVIDER_ADAPTERS.md`) — this card only lets you choose
+among providers that are already set up, it doesn't add a new one.
+
+## 11. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
   Bede's sense of how that child learns best — available from the very first session

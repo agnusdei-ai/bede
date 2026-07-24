@@ -129,6 +129,51 @@ single-resolved-client contract the existing tests rely on stays intact. When a
 non-primary adapter is used, it best-effort emails the operator
 (`PARENT_EMAIL`/Resend, via the existing `services/email_service.py`) as an FYI.
 
+## Live, in-app provider switching (no .env edit, no restart)
+
+`BEDE_ADAPTER_ORDER`/`BEDE_FORCE_ADAPTER` above are read once at process
+startup — changing them normally means an `.env` edit and a restart. For the
+common case of "my local model is degraded, I want to move to a cloud
+provider right now" that's an unnecessary amount of friction, so there's a
+second, live way to change primary: the parent-facing **AI Provider** card
+(`homeschool-tutor/src/components/AIProviderSettings.tsx`, in the same
+settings panel as license renewal), backed by `GET`/`POST /admin/ai-provider`
+(`routers/admin.py`) and `core/provider_state.py`.
+
+- It only ever picks among adapters that are **already configured** —
+  credentials still come exclusively from `.env`. Choosing a provider with no
+  credentials set is rejected (422) before anything is stored.
+- The choice is stored in the database (`AIProviderOverride`, one row) and
+  cached in-process, the same "DB value wins over env, live, no restart"
+  pattern `core/license_state.py`/`core/parent_credential.py` use for the
+  license key and password. `services/adapters/router.py`'s `FailoverClient`
+  — what `ai_service._client` actually is — checks this cache on every
+  tutoring turn, so a switch takes effect on the very next message, not the
+  next deploy.
+- `BEDE_FORCE_ADAPTER`, if set, still wins unconditionally — a DB override
+  can only reorder among configured adapters, and a force-pin leaves exactly
+  one adapter in that set.
+- Clearing the override (`provider: null`) reverts to the env-configured
+  `BEDE_ADAPTER_ORDER` preference.
+
+This is a manual switch a parent makes, distinct from Phase 6's *automatic*
+failover above — use the failover order (`BEDE_ADAPTER_ORDER=local,mistral`,
+say) for "keep working if my primary errors out," and the AI Provider card
+for "I've decided the other one should be primary now."
+
+**Practical example for a home-server local model (e.g. Ollama):** keep both
+credentials populated in `.env` at all times —
+
+```bash
+LOCAL_LLM_BASE_URL=http://localhost:11434/v1
+LOCAL_LLM_MODEL=qwen3:8b
+MISTRAL_API_KEY=your-key
+BEDE_ADAPTER_ORDER=local,mistral
+```
+
+— and when the local model's hardware can't keep up, open the AI Provider
+card and select Mistral. No SSH access to the server needed for that switch.
+
 ## Infrastructure note — the local model needs a GPU, and Render has none
 
 The backend is deployed on **Render**, which has **no GPU instance types**. The

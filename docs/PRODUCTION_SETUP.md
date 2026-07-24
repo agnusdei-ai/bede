@@ -13,7 +13,7 @@ real instance — the two have different security models on purpose.
 
 ## First-time setup
 
-Two ways to do this — same result, different experience:
+Three ways to do this — same result, different experience:
 
 **Terminal wizard** (`setup.sh`) — for anyone comfortable typing in a
 terminal:
@@ -38,6 +38,13 @@ A browser tab opens with a form — fill it in, click the button, close the
 tab when it says Bede is starting. It asks the exact same questions as the
 terminal wizard, just as text fields and clickable choices instead of typed
 answers, and produces the identical `.env`/Docker setup underneath.
+
+**Windows installer** (`Bede Setup.msi`) — no Docker Desktop pre-install
+step either: double-click the `.msi`, run "Bede Setup" from the Start Menu
+it adds, and it installs Docker Desktop for you if needed before handing off
+to the same browser wizard above. Currently unsigned (expect a Windows
+SmartScreen warning) — see `docs/WINDOWS_INSTALLER.md` for the full design
+and how to build it.
 
 The browser wizard greets you (and confirms when it's done) in Bede's own
 voice — if `scripts/setup_wizard/audio/` has been populated by running

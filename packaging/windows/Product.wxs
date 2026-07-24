@@ -29,13 +29,17 @@
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="Bede">
-        <Component Id="LauncherScript" Guid="*">
+        <Component Id="LauncherScript" Guid="398472AF-E5A2-4086-930E-A4FF0C7E9E9C">
           <!--
             A per-user (Scope="perUser") component installing into the user
             profile must use an HKCU registry value as its KeyPath, not the
             file itself (ICE38), and the directory needs a RemoveFolder
             entry for uninstall to clean it up (ICE64) — both caught by
-            build-windows-installer.yml actually running the WiX build.
+            build-windows-installer.yml actually running the WiX build. A
+            component with BOTH a file and a registry keypath also can't use
+            an auto-generated Guid="*" (WIX0230 — auto-guid only works for a
+            single file OR a single registry keypath, not both together),
+            hence the explicit, stable Guid here instead.
           -->
           <File Id="SetupBedePs1" Source="Setup-Bede.ps1" />
           <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
@@ -46,7 +50,7 @@
 
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="BedeMenuFolder" Name="Bede">
-        <Component Id="StartMenuShortcut" Guid="*">
+        <Component Id="StartMenuShortcut" Guid="08CA0446-0ECE-44A8-B26A-269F93E61F4E">
           <Shortcut
             Id="BedeSetupShortcut"
             Name="Bede Setup"

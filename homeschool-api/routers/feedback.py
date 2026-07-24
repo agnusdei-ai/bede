@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.deps import require_auth
-from models.schemas import FeedbackRequest
+from models.schemas import FeedbackRequest, LeadRequest
 from services.email_service import feedback_configured, send_feedback
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
@@ -59,3 +59,47 @@ async def feedback_enabled():
     button entirely on a deployment where it isn't configured, rather than
     showing it and only failing on submit."""
     return {"enabled": feedback_configured()}
+
+
+@router.post("/lead")
+async def submit_lead(req: LeadRequest, request: Request):
+    """
+    Public, unauthenticated "notify me about plans" capture from the
+    marketing site (site/index.html) — no session exists there to gate
+    behind require_auth like every other route in this router. See
+    LeadRequest's own docstring for why this needs a separate endpoint
+    from POST /feedback's existing "plans" category, and
+    core/middleware.py's dedicated "lead" rate-limit bucket for how the
+    lack of auth here is compensated for.
+    """
+    if req.honeypot:
+        # A bot filled in a field real visitors never see — report success
+        # without actually sending anything, so it gets no signal the
+        # submission was rejected. See LeadRequest's docstring.
+        return {"sent": True}
+
+    if not settings.feedback_email:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not enabled on this deployment")
+
+    sent = await send_feedback(
+        category="plans",
+        message=req.message or '(no message — used the "notify me" form on the marketing site)',
+        role="marketing site visitor",
+        contact_email=req.email,
+    )
+
+    # Never log message or contact_email — same rule as /feedback above.
+    await log_event(
+        AuditEvent.FEEDBACK_SUBMITTED,
+        role="marketing site visitor",
+        success=sent,
+        detail="category=plans source=site-lead",
+        **audit_from_request(request),
+    )
+
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not send right now — please try again later",
+        )
+    return {"sent": True}

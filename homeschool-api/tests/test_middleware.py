@@ -93,6 +93,10 @@ def _rate_limited_app() -> FastAPI:
     def recovery_methods():
         return {"ok": True}
 
+    @app.post("/feedback/lead")
+    def feedback_lead():
+        return {"ok": True}
+
     return app
 
 
@@ -198,6 +202,25 @@ def test_auth_recovery_bucket_has_its_own_limit(monkeypatch):
     assert resp.status_code == 429
     # Still independent from the plain "auth" (login) bucket.
     assert client.get("/auth/login").status_code == 200
+
+
+# The one fully unauthenticated endpoint in the whole API (the marketing
+# site's "notify me" form, site/index.html has no session at all) —
+# deliberately the tightest bucket in the app rather than sharing the
+# generous default "api" budget, since each accepted request triggers a
+# real outbound Resend email.
+def test_feedback_lead_has_its_own_tight_bucket(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_lead_per_minute", 2)
+    client = TestClient(_rate_limited_app())
+    assert client.post("/feedback/lead").status_code == 200
+    assert client.post("/feedback/lead").status_code == 200
+    resp = client.post("/feedback/lead")
+    assert resp.status_code == 429
+    # Independent from the generous default "api" bucket a different route
+    # uses — exhausting "lead" must not touch it.
+    assert client.get("/tutor/chat").status_code == 200
 
 
 # ── ExfiltrationGuard ────────────────────────────────────────────────────────

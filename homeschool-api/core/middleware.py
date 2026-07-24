@@ -199,6 +199,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             bucket, limit = "auth_recovery", settings.rate_limit_account_recovery_per_minute
         elif "/auth/" in path:
             bucket, limit = "auth", settings.rate_limit_auth_per_minute
+        elif path == "/feedback/lead":
+            # The one fully public, unauthenticated endpoint in this API —
+            # a marketing-site visitor (site/index.html) has no JWT at all,
+            # unlike every other route here. Own bucket, deliberately the
+            # tightest in the app, since the generous default "api" budget
+            # would let a spam script trigger real outbound Resend sends to
+            # FEEDBACK_EMAIL — see core/config.py's rate_limit_lead_per_minute.
+            bucket, limit = "lead", settings.rate_limit_lead_per_minute
         elif _VOICE_STREAM_SESSION_PATH.search(path):
             # Mechanics of a session /voice/stream/start already approved —
             # NOT a new attempt. A single hold can only ever produce a

@@ -221,6 +221,15 @@ class Settings(BaseSettings):
     # "recovery isn't configured on this instance" — see docs/SECURITY.md.
     # RATE_LIMIT_ACCOUNT_RECOVERY_PER_MINUTE env var.
     rate_limit_account_recovery_per_minute: int = 10
+    # POST /feedback/lead (routers/feedback.py) is the one fully
+    # unauthenticated endpoint in this API — a marketing-site visitor with
+    # no session at all, unlike every other route here. Deliberately the
+    # tightest budget in the app rather than sharing the generous default
+    # "api" bucket: each accepted request triggers a real outbound Resend
+    # email to FEEDBACK_EMAIL, so a spam script hitting the default 120/min
+    # could flood that inbox and burn Resend quota fast.
+    # RATE_LIMIT_LEAD_PER_MINUTE env var.
+    rate_limit_lead_per_minute: int = 3
 
     # ── Sandbox mode (optional, parent-only) ──────────────────────────────────
     # An extra PIN — same "empty = disabled" pattern and strength rules as

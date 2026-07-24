@@ -172,6 +172,50 @@ too (see the custom domain setup below), these steps and the resulting
 variable apply there as well — it's the same Worker answering on every
 hostname, not a separate deployment to wire up per domain.
 
+## Marketing site: "notify me" lead capture and the beta countdown
+
+`site/index.html` (the actual company home page, not the demo) has two
+small pieces of live JS, both self-contained in that one file per its own
+"no build step" design — see its own script block:
+
+- **A live countdown** in the beta banner, ticking down to the
+  `BETA_DEADLINE` constant (currently 2026-08-26T00:00:00Z, i.e. end of
+  August 25). Purely cosmetic, no backend involved — edit that one constant
+  and push if the beta window changes. Once the deadline passes it just
+  clears itself rather than asserting anything about what happens next
+  (pricing, a new deadline, etc.) — that's a product decision this file
+  doesn't make.
+- **A "notify me about plans" email-capture form** (`#lead-section`),
+  POSTing straight to `homeschool-api`'s `POST /feedback/lead` — a public,
+  unauthenticated endpoint (see `routers/feedback.py`, `core/config.py`'s
+  `rate_limit_lead_per_minute`) that routes into the exact same `plans`-
+  category Resend pipeline the demo's own authenticated "interested in
+  plans" contact form already uses. Same one-time setup as the video ID
+  above: paste the backend's base URL (the same value as this project's
+  `VITE_DEMO_API_BASE`, no trailing slash) into `LEAD_API_BASE` near the
+  bottom of `site/index.html`'s script block, then push — no build step.
+  Left blank, the section just stays hidden; once set, it also checks
+  `GET /feedback/enabled` on load and stays hidden if `FEEDBACK_EMAIL`/
+  Resend aren't configured on that deployment, matching the demo's own
+  `feedbackEnabled()` gating.
+- A hidden honeypot field (`#lead-company`, off-screen via CSS rather than
+  `display:none` — some bots specifically skip `display:none` fields) is
+  the only spam mitigation beyond the rate limit — no CAPTCHA, no
+  third-party dependency. A bot that fills every field it finds trips it;
+  the backend reports a fake success rather than revealing the rejection.
+
+**To verify:** with `LEAD_API_BASE` set, open the deployed site, confirm
+the "Want updates on plans & new features?" section appears below the
+curriculum grid, submit a test email, and confirm the operator inbox
+(`FEEDBACK_EMAIL`) receives a "🎯 Interested in plans" email tagged "Bede
+demo lead" with `From: marketing site visitor`.
+
+`site/robots.txt` and `site/sitemap.xml` were also added for basic search
+discoverability — both are static files with no build-time templating, so
+their `agnusdei.io` URLs need a manual edit (and this doc's own reference
+to them) once `agnusdei.ai` becomes the canonical domain — see "Interim
+beta domain: agnusdei.io" below for that same still-pending decision.
+
 ## GitHub Pages now redirects
 
 The canonical live deployment is a **Cloudflare Worker**

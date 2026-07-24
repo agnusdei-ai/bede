@@ -8,8 +8,8 @@ from fastapi import HTTPException
 from starlette.requests import Request
 
 from core.config import settings
-from models.schemas import FeedbackRequest
-from routers.feedback import feedback_enabled, submit_feedback
+from models.schemas import FeedbackRequest, LeadRequest
+from routers.feedback import feedback_enabled, submit_feedback, submit_lead
 
 
 def _fake_request() -> Request:
@@ -155,6 +155,78 @@ async def test_onboarding_category_reuses_the_exact_same_pipeline(monkeypatch):
     )
     assert result == {"sent": True}
     assert sent_calls[0]["category"] == "onboarding"
+
+
+@pytest.mark.asyncio
+async def test_submit_lead_sends_via_the_same_pipeline(monkeypatch):
+    """The marketing site's "notify me" form has no session at all, unlike
+    every other feedback path — but it still lands in the exact same
+    plans-category pipeline/inbox as the demo's authenticated one."""
+    monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
+
+    sent_calls = []
+
+    async def fake_send_feedback(**kwargs):
+        sent_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr("routers.feedback.send_feedback", fake_send_feedback)
+
+    result = await submit_lead(
+        LeadRequest(email="visitor@example.com", message="Tell me about pricing"),
+        _fake_request(),
+    )
+    assert result == {"sent": True}
+    assert sent_calls[0]["category"] == "plans"
+    assert sent_calls[0]["contact_email"] == "visitor@example.com"
+    assert sent_calls[0]["role"] == "marketing site visitor"
+
+
+@pytest.mark.asyncio
+async def test_submit_lead_works_without_a_message():
+    """message is optional — a visitor can just leave their email."""
+    req = LeadRequest(email="visitor@example.com")
+    assert req.message is None
+
+
+@pytest.mark.asyncio
+async def test_submit_lead_honeypot_silently_no_ops(monkeypatch):
+    """A bot that fills in the hidden honeypot field gets a fake success —
+    no email sent, no signal the submission was rejected."""
+    monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
+
+    async def fake_send_feedback(**kwargs):
+        raise AssertionError("send_feedback should never be called for a honeypot hit")
+
+    monkeypatch.setattr("routers.feedback.send_feedback", fake_send_feedback)
+
+    result = await submit_lead(
+        LeadRequest(email="bot@example.com", honeypot="I am a bot"),
+        _fake_request(),
+    )
+    assert result == {"sent": True}
+
+
+@pytest.mark.asyncio
+async def test_submit_lead_404s_when_not_configured(monkeypatch):
+    monkeypatch.setattr(settings, "feedback_email", "")
+    with pytest.raises(HTTPException) as exc_info:
+        await submit_lead(LeadRequest(email="visitor@example.com"), _fake_request())
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_submit_lead_502s_when_send_fails(monkeypatch):
+    monkeypatch.setattr(settings, "feedback_email", "operator@example.com")
+
+    async def fake_send_feedback(**kwargs):
+        return False
+
+    monkeypatch.setattr("routers.feedback.send_feedback", fake_send_feedback)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await submit_lead(LeadRequest(email="visitor@example.com"), _fake_request())
+    assert exc_info.value.status_code == 502
 
 
 @pytest.mark.asyncio

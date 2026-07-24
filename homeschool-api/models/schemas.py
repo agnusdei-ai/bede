@@ -454,6 +454,28 @@ class FeedbackRequest(BaseModel):
     contact_email: Optional[EmailStr] = None
 
 
+class LeadRequest(BaseModel):
+    """
+    Public, unauthenticated "notify me about plans" capture from the
+    marketing site itself (site/index.html) — see routers/feedback.py's
+    POST /feedback/lead. Distinct from FeedbackRequest's own "plans"
+    category: that one requires an authenticated demo/parent/child session
+    (require_auth), which a marketing-site visitor simply doesn't have.
+    Routes through the identical send_feedback() pipeline/inbox with
+    category="plans" under the hood — same operator inbox, same
+    never-persisted-beyond-one-email contract as every other feedback
+    category, just reachable without logging in first.
+
+    honeypot is a hidden form field real visitors never see or fill in
+    (site/index.html's own comment on it) — a bot that fills every field
+    it finds trips it, and the endpoint silently no-ops rather than
+    sending anything, without revealing to the bot that it was caught.
+    """
+    email: EmailStr
+    message: Optional[str] = Field(None, max_length=2000)
+    honeypot: Optional[str] = Field(None, max_length=200)
+
+
 class NarrationRecord(BaseModel):
     subject: Subject
     narration_text: str

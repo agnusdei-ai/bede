@@ -110,7 +110,7 @@
       margin: 0 auto 1rem;
     }
 
-    a.cta {
+    a.cta, button.cta {
       display: inline-block;
       background: var(--olive-500);
       color: var(--parchment-50);
@@ -124,9 +124,14 @@
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    a.cta:hover {
+    a.cta:hover, button.cta:hover:not(:disabled) {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+    }
+
+    button.cta:disabled {
+      opacity: 0.6;
+      cursor: default;
     }
 
     .video-wrap {
@@ -441,11 +446,80 @@
     .beta-banner strong {
       color: var(--gold-300);
     }
+
+    .lead {
+      background: var(--parchment-200);
+      padding: 3rem 1.5rem;
+      text-align: center;
+    }
+
+    .lead-inner {
+      max-width: 32rem;
+      margin: 0 auto;
+    }
+
+    .lead h2 {
+      font-family: 'Palatino Linotype', Palatino, serif;
+      font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+      color: var(--navy-800);
+      margin: 0 0 0.5rem;
+    }
+
+    .lead .subhead {
+      font-size: 0.95rem;
+      color: #4a4a4a;
+      line-height: 1.6;
+      margin: 0 0 1.5rem;
+    }
+
+    .lead-form {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .lead-form input[type="email"] {
+      flex: 1 1 16rem;
+      max-width: 20rem;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      padding: 0.7rem 1rem;
+      border: 1px solid var(--parchment-200);
+      border-radius: 999px;
+      background: var(--parchment-50);
+      color: var(--navy-800);
+    }
+
+    /* Real visitors never see or tab into this — a bot that fills every
+       field it finds trips it. Positioned off-screen rather than
+       display:none, since some bots specifically skip display:none
+       fields. */
+    .lead-honeypot {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    .lead-form button {
+      border: none;
+      cursor: pointer;
+      font-family: Georgia, serif;
+    }
+
+    .lead-status {
+      min-height: 1.2em;
+      margin: 0.85rem 0 0;
+      font-size: 0.88rem;
+      color: var(--olive-600);
+    }
   </style>
 </head>
 <body>
   <div class="beta-banner">
-    <strong>Public beta now open.</strong> Free to use through August 25.
+    <strong>Public beta now open.</strong> Free to use through August 25<span id="beta-countdown"></span>.
   </div>
   <main class="hero">
     <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
@@ -619,6 +693,19 @@
     </div>
   </section>
 
+  <section class="lead" id="lead-section" style="display: none;">
+    <div class="lead-inner">
+      <h2>Want updates on plans &amp; new features?</h2>
+      <p class="subhead">Leave your email and we'll reach out when there's something worth sharing. No spam, just Bede news.</p>
+      <form id="lead-form" class="lead-form">
+        <input type="email" id="lead-email" name="email" placeholder="you@example.com" required autocomplete="email" />
+        <input type="text" id="lead-company" name="company" class="lead-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <button type="submit" class="cta">Notify Me</button>
+      </form>
+      <p id="lead-status" class="lead-status" role="status"></p>
+    </div>
+  </section>
+
   <footer>
     &copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.
   </footer>
@@ -645,6 +732,74 @@
            <span>&#9654;</span>
            <p>Video coming soon</p>
          </div>`;
+
+    // Live countdown to the beta banner's own "through August 25" claim —
+    // update the date below if that window ever changes, no other edit
+    // needed. Ticks every second for as long as the tab stays open; once
+    // the deadline passes, the suffix just clears itself and the banner
+    // reverts to its plain, still-true "Free to use through August 25."
+    // text — deliberately not replaced with any claim about what happens
+    // next, since that's a product decision this file doesn't make.
+    const BETA_DEADLINE = new Date('2026-08-26T00:00:00Z');
+    const countdownEl = document.getElementById('beta-countdown');
+    function updateCountdown() {
+      const msLeft = BETA_DEADLINE - new Date();
+      if (msLeft <= 0) {
+        countdownEl.textContent = '';
+        clearInterval(countdownTimer);
+        return;
+      }
+      const days = Math.floor(msLeft / 86400000);
+      const hours = Math.floor((msLeft % 86400000) / 3600000);
+      const minutes = Math.floor((msLeft % 3600000) / 60000);
+      const seconds = Math.floor((msLeft % 60000) / 1000);
+      countdownEl.textContent = ` (${days}d ${hours}h ${minutes}m ${seconds}s left)`;
+    }
+    updateCountdown();
+    const countdownTimer = setInterval(updateCountdown, 1000);
+
+    // "Notify me about plans" lead capture — posts straight to the same
+    // homeschool-api backend the demo talks to (POST /feedback/lead, a
+    // public, unauthenticated, tightly-rate-limited endpoint — see
+    // homeschool-api/routers/feedback.py and docs/DEMO_HOSTING.md). Paste
+    // the backend's URL below (same value as this project's
+    // VITE_DEMO_API_BASE, no trailing slash), then push — no build step,
+    // same pattern as YOUTUBE_VIDEO_ID above. Leave blank to keep this
+    // section hidden.
+    const LEAD_API_BASE = '';
+
+    const leadSection = document.getElementById('lead-section');
+    const leadForm = document.getElementById('lead-form');
+    const leadStatus = document.getElementById('lead-status');
+
+    if (LEAD_API_BASE) {
+      fetch(`${LEAD_API_BASE}/feedback/enabled`)
+        .then((r) => (r.ok ? r.json() : { enabled: false }))
+        .then((data) => { if (data.enabled) leadSection.style.display = ''; })
+        .catch(() => {});
+
+      leadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('lead-email').value.trim();
+        const honeypot = document.getElementById('lead-company').value;
+        const submitBtn = leadForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        leadStatus.textContent = 'Sending…';
+        try {
+          const res = await fetch(`${LEAD_API_BASE}/feedback/lead`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, honeypot: honeypot || undefined }),
+          });
+          if (!res.ok) throw new Error('request failed');
+          leadStatus.textContent = "Thanks! We'll be in touch.";
+          leadForm.style.display = 'none';
+        } catch {
+          leadStatus.textContent = 'Something went wrong — please try again.';
+          submitBtn.disabled = false;
+        }
+      });
+    }
   </script>
 </body>
 </html>

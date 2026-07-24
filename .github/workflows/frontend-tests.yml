@@ -10,6 +10,13 @@ name: Frontend regression tests
 # push(main)/pull_request/workflow_dispatch trigger shape and per-job
 # path-filtered structure, just for the two Vite/React apps instead of
 # the Python backend.
+#
+# An `npm audit --audit-level=high` step used to run in each job here,
+# hard-failing the build on any known CVE. Removed along with
+# .github/dependabot.yml (see that deletion's commit) for the same
+# reason as test.yml's equivalent removal — no remaining auto-fix
+# companion, so a transitive CVE with no fix available yet blocked every
+# unrelated PR indefinitely.
 on:
   push:
     branches: [main]
@@ -42,11 +49,6 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-tutor
         run: npm ci
-      - name: Audit dependencies for known vulnerabilities
-        working-directory: homeschool-tutor
-        # Complements dependabot.yml's weekly PRs with an immediate,
-        # per-push/PR signal against the exact lockfile this PR ships.
-        run: npm audit --audit-level=high
       - name: Type-check
         working-directory: homeschool-tutor
         run: npx tsc --noEmit
@@ -66,9 +68,6 @@ jobs:
       - name: Install dependencies
         working-directory: demo
         run: npm ci
-      - name: Audit dependencies for known vulnerabilities
-        working-directory: demo
-        run: npm audit --audit-level=high
       - name: Type-check
         working-directory: demo
         run: npx tsc --noEmit

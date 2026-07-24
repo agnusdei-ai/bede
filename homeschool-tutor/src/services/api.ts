@@ -658,13 +658,15 @@ export async function fetchLearnerBehaviorCheck(
 
 export async function fetchMasteryProfileSummary(
   token: string,
-  studentName: string
+  studentName: string,
+  subjectArea: 'mathematics' | 'composition' = 'mathematics'
 ): Promise<MasteryProfileSummary | null> {
-  const res = await fetch(`${BASE}/diagnostic/${encodeURIComponent(studentName)}/summary`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/summary?subject_area=${subjectArea}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
   if (res.status === 404) return null
-  if (!res.ok) throw new Error(`Failed to load the math mastery summary for ${studentName}`)
+  if (!res.ok) throw new Error(`Failed to load the ${subjectArea} mastery summary for ${studentName}`)
   return res.json()
 }
 

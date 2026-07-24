@@ -11,6 +11,7 @@ from core.deps import require_auth, require_parent
 from core.diagnostic_preview_quota import has_quota, record_use
 from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
 from services.diagnostic import get_mastery_summary
+from services.diagnostic.composition import get_composition_summary
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
@@ -98,31 +99,48 @@ async def get_diagnostic_summary(
     return MasteryProfileSummary(**summary)
 
 
+_SUMMARY_BUILDERS = {
+    "mathematics": get_mastery_summary,
+    "composition": get_composition_summary,
+}
+
+
 @router.get("/{student_name}/summary", response_model=MasteryProfileSummary)
 async def get_student_mastery_summary(
     student_name: str,
     request: Request,
+    subject_area: str = "mathematics",
     auth: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> MasteryProfileSummary:
     """
     Render-only mastery summary for a real student's REAL, persisted
-    profile (services.diagnostic.get_mastery_summary → mastery_profiles),
-    never the demo's ephemeral single-session vector above. Parent-only
-    (require_parent) — never reachable by the child role, matching the
-    design doc's P1 (mastery profile is parent-confidential). No quota:
-    unlike the public demo, this is the family's own data behind a real
-    login, not a free-tier abuse surface.
+    profile, never the demo's ephemeral single-session vector above.
+    Parent-only (require_parent) — never reachable by the child role,
+    matching the design doc's P1 (mastery profile is parent-confidential).
+    No quota: unlike the public demo, this is the family's own data behind
+    a real login, not a free-tier abuse surface.
 
-    404 until this student has produced some real math evidence — same
-    no-data contract as the demo endpoint above, so the frontend can
-    reuse one "nothing here yet" empty state for both.
+    subject_area picks which engine's summary to build — "mathematics"
+    (services.diagnostic.get_mastery_summary, the CDM/IRT/KST engine) or
+    "composition" (services.diagnostic.composition.get_composition_summary,
+    a rollup over assess_narration's own rubric — see that module's
+    docstring). Both read the same mastery_profiles table keyed by
+    (student_name, subject_area), so this one endpoint covers both without
+    a composition-specific route; an unrecognized subject_area 404s the
+    same as "no data yet" rather than a separate error shape, since from
+    the frontend's perspective both mean nothing to show.
+
+    404 until this student has produced some real evidence in that subject
+    — same no-data contract as the demo endpoint above, so the frontend
+    can reuse one "nothing here yet" empty state for both.
     """
-    summary = await get_mastery_summary(db, student_name)
+    builder = _SUMMARY_BUILDERS.get(subject_area)
+    summary = await builder(db, student_name) if builder else None
     if summary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No mastery data yet. This builds up as math tutoring happens in real sessions.",
+            detail="No mastery data yet. This builds up as tutoring happens in real sessions.",
         )
     await log_event(
         AuditEvent.DIAGNOSTIC_VIEW,

@@ -128,17 +128,31 @@ function MasteryBar({ probability, level }: { probability: number; level: Master
  * SSE stream) — this is the first and only place any of it becomes
  * visible, and only to a parent (this page is require_parent-gated).
  */
-function MathMasterySnapshot({ studentName, summary, loading }: { studentName: string; summary: MasteryProfileSummary | null; loading: boolean }) {
+// Subject-agnostic mastery-snapshot card — math and composition (see
+// homeschool-api/services/diagnostic/composition.py) both render through
+// this one component, since MasteryProfileSummary's shape is deliberately
+// the same for either (domains/gaps/next_steps/calibration). Only the
+// title/empty-state/calibration copy differs, passed in as already-
+// translated strings so this component carries no i18n-key knowledge of
+// its own.
+function MasterySnapshot({
+  studentName, summary, loading, title, noDataText, calibrationText,
+}: {
+  studentName: string
+  summary: MasteryProfileSummary | null
+  loading: boolean
+  title: string
+  noDataText: string
+  calibrationText: string
+}) {
   const { t } = useTranslation()
   if (loading) return null
 
   if (!summary) {
     return (
       <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{t('progress.mathMasterySnapshotTitle')}</h2>
-        <p className="text-xs text-gray-500">
-          {t('progress.noMathMasteryData', { name: studentName })}
-        </p>
+        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{title}</h2>
+        <p className="text-xs text-gray-500">{noDataText}</p>
       </div>
     )
   }
@@ -146,14 +160,14 @@ function MathMasterySnapshot({ studentName, summary, loading }: { studentName: s
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-700">{t('progress.mathMasterySnapshotTitle')}</h2>
+        <h2 className="text-sm font-semibold text-gray-700">{title}</h2>
         <span className="text-xs text-gray-400">
           {t('progress.observation', { count: summary.evidence_count })}
         </span>
       </div>
       {summary.calibration && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-          {t('progress.mathMasteryCalibration', { name: studentName, count: summary.evidence_count })}
+          {calibrationText}
         </p>
       )}
       <div className="space-y-3 mb-4">
@@ -631,6 +645,7 @@ export default function Progress() {
   const [profile, setProfile] = useState<LearnerProfileData | null>(null)
   const [behaviorCheck, setBehaviorCheck] = useState<LearnerBehaviorCheck | null>(null)
   const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
+  const [compositionSummary, setCompositionSummary] = useState<MasteryProfileSummary | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -643,20 +658,23 @@ export default function Progress() {
     setProfile(null)
     setBehaviorCheck(null)
     setMasterySummary(null)
+    setCompositionSummary(null)
     setUsage(null)
 
     Promise.all([
       fetchNarrationAssessments(token, activeStudent),
       fetchLearnerProfile(token, activeStudent),
       fetchLearnerBehaviorCheck(token, activeStudent),
-      fetchMasteryProfileSummary(token, activeStudent),
+      fetchMasteryProfileSummary(token, activeStudent, 'mathematics'),
+      fetchMasteryProfileSummary(token, activeStudent, 'composition'),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, u]) => {
+      .then(([a, p, bc, m, c, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
         setMasterySummary(m)
+        setCompositionSummary(c)
         setUsage(u)
       })
       .catch((e) => {
@@ -741,7 +759,22 @@ export default function Progress() {
               config={podStudents.find((s) => s.student_name === activeStudent)}
               assessments={assessments}
             />
-            <MathMasterySnapshot studentName={activeStudent} summary={masterySummary} loading={loading} />
+            <MasterySnapshot
+              studentName={activeStudent}
+              summary={masterySummary}
+              loading={loading}
+              title={t('progress.mathMasterySnapshotTitle')}
+              noDataText={t('progress.noMathMasteryData', { name: activeStudent })}
+              calibrationText={t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 })}
+            />
+            <MasterySnapshot
+              studentName={activeStudent}
+              summary={compositionSummary}
+              loading={loading}
+              title={t('progress.compositionMasterySnapshotTitle')}
+              noDataText={t('progress.noCompositionMasteryData', { name: activeStudent })}
+              calibrationText={t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 })}
+            />
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />

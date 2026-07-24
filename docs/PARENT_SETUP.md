@@ -399,7 +399,13 @@ among providers that are already set up, it doesn't add a new one.
   adaptation itself, not a claim that the label makes your child learn better. An
   auditory profile changes how Bede teaches (favoring oral narration and discussion)
   but has no equivalent counter — there's no single tool call that cleanly signals
-  it the way the other three have.
+  it the way the other three have. Alongside the math mastery snapshot, a
+  **Composition Mastery Snapshot** tracks how your child's narrations — oral or
+  written, across every subject — are coming along on five dimensions (covering the
+  main ideas, logical order, richness of detail, their own words and voice, and
+  connecting to prior learning). It builds from Bede's own silent scoring after
+  every narration, so it can show a first, tentative read after as few as 2
+  narrations rather than waiting on a larger sample the way math's snapshot does.
 - **End-of-session summary** (shown after a session ends, and optionally emailed to
   you): highlights, narrations, areas to revisit, tomorrow's suggestion, and a
   virtue observed. If your child worked on Mathematics that session, and the

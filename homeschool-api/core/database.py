@@ -149,7 +149,16 @@ class NarrationAssessment(Base):
     """One rubric-scored assessment per narration Bede evaluates during a session."""
     __tablename__ = "narration_assessments"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # BigInteger().with_variant(Integer(), "sqlite"): on Postgres this is a
+    # real BIGINT/BIGSERIAL identity column, unchanged from before. Plain
+    # BigInteger doesn't get SQLite's "INTEGER PRIMARY KEY" rowid-alias
+    # autoincrement (SQLite only special-cases the exact type name
+    # "INTEGER") — see DiagnosticEvidenceLog's own comment on this exact
+    # issue below; this table just hadn't been exercised by a real insert
+    # under a SQLite test engine until tests/test_assess_narration.py did.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
     student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     subject: Mapped[str] = mapped_column(String(50), nullable=False)
     session_date: Mapped[datetime] = mapped_column(

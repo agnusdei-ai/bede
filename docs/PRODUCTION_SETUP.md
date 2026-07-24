@@ -233,10 +233,20 @@ Actions), never committed. Convention: a **multi-year `trial`** license
 perpetual `core` one — defense in depth if the secret ever leaks. The
 workflow asserts the license is actually ACTIVE (not just that the app
 booted, since an unlicensed instance now boots gated), so when it expires
-the run fails with a message telling you exactly this: reissue with
-`scripts/issue_license.py` and paste the new value into the secret. Set a
-calendar reminder a month before the expiry printed at issue time. If the
-signing keypair is ever rotated, reissue this key in the same change.
+or otherwise goes invalid the "Confirm the license is ACTIVE" step reports
+exactly that, with a reminder to reissue with `scripts/issue_license.py`
+and paste the new value into the secret. Set a calendar reminder a month
+before the expiry printed at issue time. If the signing keypair is ever
+rotated, reissue this key in the same change.
+
+That step runs with `continue-on-error: true` — a stale/invalid secret is
+only actionable by whoever holds the offline private key, never by
+anything in CI itself, so it reports failure (a visible signal in the
+Actions UI) without failing the whole job or skipping the steps after it
+(tablet-trust page, Postgres backup/restore all still run and still count
+either way). The tradeoff: while this secret is stale, that one step isn't
+actually proving the license gate works — reissuing it promptly is what
+restores that coverage, not a hard requirement to keep the workflow green.
 
 **Threat model, honestly:** this is a trust-and-verify gate for legitimate
 self-hosters, not DRM — anyone with the source (which every self-hosted

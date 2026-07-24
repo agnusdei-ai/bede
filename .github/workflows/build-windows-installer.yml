@@ -2,9 +2,17 @@ name: Build Windows installer (.msi)
 
 # Builds packaging/windows/BedeSetup.wixproj on a real Windows runner (WiX
 # v4's MSI/CAB tooling is Windows-native — it doesn't cross-build from
-# ubuntu-latest). Currently UNSIGNED — see docs/WINDOWS_INSTALLER.md for
-# why, and the follow-up needed before this ships to a family unprompted
-# (SmartScreen will warn on an unsigned .msi).
+# ubuntu-latest). Signs the result with Azure Artifact Signing (Basic tier)
+# IF the repo has the required secrets/vars configured — see
+# docs/WINDOWS_INSTALLER.md's "Code signing" section for the one-time Azure
+# Portal + GitHub setup this depends on. Without them, this still builds and
+# uploads an UNSIGNED .msi (SmartScreen will warn on it) — signing is
+# additive, not a hard requirement to keep this workflow green.
+#
+# Signing only runs on pushes to main (never on pull_request or a
+# workflow_dispatch off a feature branch) — the federated credential this
+# depends on is deliberately scoped to just the main branch, so a PR's code
+# (however trusted the author) can never authenticate to sign anything.
 on:
   push:
     branches: [main]
@@ -19,10 +27,16 @@ on:
 
 permissions:
   contents: read
+  id-token: write   # needed for azure/login's OIDC federated-credential exchange; unused (and harmless) when signing is skipped
 
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      # Read once per job so later `if:` conditions can check env.* — a
+      # secret can't be referenced directly in a step's `if:`, but a
+      # job-level env var populated from one can.
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +47,29 @@ jobs:
       - name: Build BedeSetup.msi
         run: dotnet build packaging/windows/BedeSetup.wixproj -c Release
 
+      - name: Azure login (OIDC)
+        if: env.AZURE_CLIENT_ID != '' && github.ref == 'refs/heads/main'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign BedeSetup.msi (Azure Artifact Signing)
+        if: env.AZURE_CLIENT_ID != '' && github.ref == 'refs/heads/main'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
+          files: packaging/windows/bin/Release/BedeSetup.msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
       - name: Upload the .msi
         uses: actions/upload-artifact@v4
         with:
-          name: BedeSetup-unsigned
+          name: ${{ (env.AZURE_CLIENT_ID != '' && github.ref == 'refs/heads/main') && 'BedeSetup-signed' || 'BedeSetup-unsigned' }}
           path: packaging/windows/bin/Release/BedeSetup.msi
           if-no-files-found: error

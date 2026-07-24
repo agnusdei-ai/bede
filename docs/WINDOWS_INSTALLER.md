@@ -114,20 +114,67 @@ dotnet build packaging\windows\BedeSetup.wixproj -c Release
 # → packaging\windows\bin\Release\BedeSetup.msi
 ```
 
-## Current status: UNSIGNED
+## Code signing — Azure Artifact Signing (Basic tier)
 
-This installer is **not code-signed**. Windows SmartScreen will show an
-"Unknown Publisher" warning the first time a parent runs it — expected, not
-a bug, until a certificate is added. Deferred deliberately rather than
-blocking the installer itself on sourcing one. When ready to sign:
+Chosen over a traditional CA certificate because Microsoft holds the
+signing key in their own HSM — there's no PFX file or USB token that could
+leak from a compromised build machine or a mishandled CI secret, which is
+the actual highest-risk failure mode for code signing in practice. Note:
+this service was renamed from "Azure Trusted Signing" to **"Azure Artifact
+Signing"** in 2026 — same service, same pricing, new name; you may still
+see the old name in some Microsoft docs and search results.
 
-- **Recommended:** [Azure Trusted Signing](https://learn.microsoft.com/en-us/azure/trusted-signing/) —
-  Microsoft's newer cloud-signing service, roughly $10/month vs. $300–500/year
-  for a traditional EV certificate, no USB HSM to manage.
-- Add the signing step to `build-windows-installer.yml` after the `dotnet build`
-  step (`signtool sign` or the Trusted Signing GitHub Action, depending on
-  which path is chosen), gated on a repo secret so an unsigned build stays
-  possible for local testing.
+`build-windows-installer.yml` already has the signing step wired in
+(`azure/login` + `azure/artifact-signing-action@v2`, both gated on the
+config below being present) — it's a no-op, graceful fallback to an
+unsigned `.msi` until the Azure-side setup is done. Signing only runs on
+pushes to `main`, never on a pull request or a workflow_dispatch off a
+feature branch — the federated credential below is deliberately scoped to
+just `main`, so no PR's code can ever authenticate to sign anything.
+
+**One-time setup (only a human with real identity/billing can do this —
+not something that can be automated in a PR):**
+
+1. **Confirm eligibility first, before anything else.** Start the identity
+   validation step in the [Azure Portal](https://portal.azure.com) (search
+   "Artifact Signing" → create an account) — Public Trust certs currently
+   require organizations in the USA/Canada/EU/UK, or individual developers
+   in the USA/Canada specifically. This step is free to attempt even if it
+   ends up rejected, so verify it before relying on the rest of this plan.
+2. **Azure subscription**: needs to be pay-as-you-go or an enterprise
+   agreement — free/trial/sponsored-credit subscriptions are explicitly
+   rejected by this service.
+3. **Create the Artifact Signing Account** — **Basic** SKU ($9.99/month, up
+   to 5,000 signatures — far more than this project's release cadence
+   needs). This is what triggers identity validation from step 1 for real.
+4. **Create a Certificate Profile** under that account, type **Public
+   Trust** (not Private Trust — Private Trust doesn't get public SmartScreen
+   trust, which defeats the purpose here).
+5. **Create a Microsoft Entra app registration** (or a user-assigned
+   managed identity) for GitHub Actions to authenticate as, with:
+   - A **federated credential** trusting GitHub's OIDC issuer, scoped to
+     `repo:agnusdei-ai/bede:ref:refs/heads/main` specifically — not the
+     whole repo, not other branches. This is what makes the workflow's
+     `github.ref == 'refs/heads/main'` gate actually enforceable at the
+     Azure side too, not just in the YAML.
+   - The **"Artifact Signing Certificate Profile Signer"** RBAC role,
+     scoped to the certificate profile from step 4.
+6. **Add to this repo's GitHub settings** (Settings → Secrets and
+   variables → Actions):
+   - Secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+     (the app registration's IDs — not passwords; OIDC means no client
+     secret ever needs to exist).
+   - Variables: `TRUSTED_SIGNING_ENDPOINT` (the region-specific endpoint
+     shown on the Artifact Signing Account, e.g.
+     `https://eus.codesigning.azure.net/`), `TRUSTED_SIGNING_ACCOUNT`
+     (the account name from step 3), `TRUSTED_SIGNING_CERT_PROFILE` (the
+     profile name from step 4). These aren't secret, hence `vars` not
+     `secrets` — easier to read back in logs when debugging.
+
+Once all six secrets/vars exist, the very next push to `main` that touches
+`packaging/windows/**` signs automatically — nothing else to change in this
+repo. Until then, `build-windows-installer.yml` keeps producing (and this
+doc keeps describing) an unsigned `.msi`, exactly as it does today.
 
 ## Scope cuts in this first version (follow-ups, not blockers)
 

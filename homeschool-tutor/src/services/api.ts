@@ -163,7 +163,15 @@ export interface RecoveryMethods {
 
 export async function fetchRecoveryMethods(): Promise<RecoveryMethods> {
   const res = await fetch(`${BASE}/auth/recovery/methods`)
-  if (!res.ok) throw new Error('Could not check account recovery availability')
+  if (!res.ok) {
+    // A parent who just tripped the login lockout is exactly who needs this
+    // call to succeed next — AccountRecovery.tsx tells a transient 429 apart
+    // from a genuine "recovery isn't configured" failure via this flag,
+    // rather than showing the same permanent-looking message for both.
+    const err = new Error('Could not check account recovery availability') as Error & { status?: number }
+    err.status = res.status
+    throw err
+  }
   return res.json()
 }
 

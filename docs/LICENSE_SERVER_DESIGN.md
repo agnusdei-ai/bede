@@ -39,8 +39,9 @@ This document scopes a **License Server**: a new, small, separately-deployed ser
 
 ```mermaid
 graph TD
-  A[Customer] -->|"Buys annual plan"| B["Stripe Checkout"]
-  B -->|"webhook: checkout.session.completed"| C["License Server<br/>(new service)"]
+  A[Customer] -->|"Buys annual plan"| B["Checkout<br/>(Stripe / Square / Helcim)"]
+  B -->|"provider-native webhook"| P["Payment Adapter Layer<br/>translates to a common event shape"]
+  P -->|"normalized PaymentEvent"| C["License Server<br/>(new service)"]
   C -->|"issue_license() — same Ed25519 scheme"| D[("License Server DB<br/>customers, licenses, activations")]
   C -->|"email LICENSE_KEY"| E["Resend<br/>(existing provider)"]
   E --> A
@@ -48,10 +49,10 @@ graph TD
   F -->|"POST /v1/activate<br/>(key + install fingerprint)"| C
   F -.->|"POST /v1/validate<br/>periodic heartbeat, e.g. daily"| C
   C -.->|"active / revoked / renewed"| F
-  G["Stripe subscription renews<br/>or is cancelled"] -->|"webhook: invoice.paid /<br/>subscription.deleted"| C
+  G["Subscription renews<br/>or is cancelled<br/>(at whichever processor)"] -->|"provider-native webhook"| B
 ```
 
-The License Server is a **new, separate service** — it does not run inside `homeschool-api` and is never deployed to a family's LAN. It talks to the internet (Stripe, Resend); a family's Bede instance talks to *it*, not the other way around, and only ever outbound.
+The License Server is a **new, separate service** — it does not run inside `homeschool-api` and is never deployed to a family's LAN. It talks to the internet (the configured payment processor(s), Resend); a family's Bede instance talks to *it*, not the other way around, and only ever outbound.
 
 ## 5. Hosting recommendation
 
@@ -61,23 +62,30 @@ Email delivery reuses `services/email_service.py`'s existing pattern exactly: pl
 
 ## 6. Component design
 
-### 6.1 Payment integration — Stripe
+### 6.1 Payment integration — a vendor-neutral adapter layer over Stripe, Square, and Helcim
 
-Stripe is the only reasonable choice here: subscriptions, webhooks, invoicing, dunning (automatic retry on a failed card), tax handling, and a hosted Checkout page are all built in, and virtually every downstream automation piece (issuance, renewal, revocation) is *already* modeled as a Stripe webhook event — this isn't a build-vs-buy question at "hundreds of families" scale.
+This repo already has a strong, proven precedent for exactly this shape of problem: `services/adapters/` decouples Bede's tutor from any single LLM vendor. Its own docstring states the pattern plainly — "An adapter is any object that presents that SAME surface... Everything else... becomes an adapter that TRANSLATES to and from that shape... so the ~2000 lines of prompt/tool/streaming logic... never have to change." The License Server should be built the same way for payments, not hardcoded to one processor.
 
-- **Products:** one Stripe Product per tier (`core`, `coop`), each with an annual recurring Price. `trial` stays entirely outside Stripe — trials are still operator-issued or self-serve-without-payment (open question, §12).
-- **Checkout:** Stripe Checkout Session, `mode: subscription`. Customer enters email + card; Stripe handles PCI scope entirely — the License Server never touches card data.
-- **Webhooks consumed** (signature-verified via Stripe's webhook secret, standard practice):
-  - `checkout.session.completed` → new license, issue + email (§6.2).
-  - `invoice.paid` (on renewal, not the first invoice — that's covered by `checkout.session.completed`) → extend the license's server-side validity (§6.3).
-  - `customer.subscription.deleted` / `invoice.payment_failed` (past Stripe's own retry schedule) → revoke (§6.5).
+**All three requested processors were verified to support the required primitives** (recurring/subscription billing + webhooks — not just one-time checkout):
+- **Stripe** — Subscriptions + Checkout + webhooks (`checkout.session.completed`, `invoice.paid`, `customer.subscription.deleted`), signature-verified via a webhook signing secret. The most mature/standard of the three; **[to verify against this repo's actual future integration, not just public docs]**.
+- **Square** — a dedicated Subscriptions API (`SubscriptionPlanVariation` for billing cadence/pricing) plus its own Webhook Subscriptions API; renewal payment status is tracked via the `invoices.payment_made` event or `Subscription.created`/updated events. Source: [Square Subscriptions API Overview](https://developer.squareup.com/docs/subscriptions-api/overview), [Subscription Billing and Invoices](https://developer.squareup.com/docs/subscriptions-api/subscription-billing), [Webhooks — Subscriptions API](https://developer.squareup.com/reference/square/subscriptions-api/webhooks).
+- **Helcim** — a Recurring API (payment plan + subscription + add-on objects covering billing frequency, expiry, tax) with its own webhook system, signed HMAC-SHA256 via a per-account `verifierToken`. Source: [Helcim Recurring API](https://devdocs.helcim.com/docs/recurring-api), [Helcim Webhooks](https://devdocs.helcim.com/docs/webhooks).
+
+**Design, mirroring `services/adapters/base.py` exactly:**
+- A canonical, **Stripe-shaped internal vocabulary** for payment events (Stripe's object/event model is the most standard of the three, same reasoning `services/adapters/base.py` uses Anthropic's shape as the canonical one since the Anthropic adapter needs zero translation). A `PaymentEvent` type: `{type: "subscription_created" | "subscription_renewed" | "subscription_cancelled" | "payment_failed", customer_email, external_customer_id, external_subscription_id, tier, provider: "stripe" | "square" | "helcim"}`.
+- A `PaymentAdapter` Protocol (mirroring `base.py`'s `runtime_checkable` Protocol pattern) with one implementation per processor. The Stripe adapter is near-passthrough (its webhook payloads already are this shape). The Square and Helcim adapters are translators — same role as `openai_compatible_adapter.py` plays for non-Anthropic LLM providers — converting each processor's own webhook payload and signature scheme into one `PaymentEvent`.
+- **The License Server's issuance/renewal/revocation logic (§6.2–§6.5) is written once against `PaymentEvent`, and never needs to know which processor fired.** This is the entire point of the pattern, restated from `base.py`'s own docstring: business logic doesn't change when a processor is added or swapped.
+- **Which processor(s) are actually live is a runtime configuration choice, not a code choice** — same "vendor-neutral by design" precedent as `BEDE_ADAPTER_ORDER`/`core/provider_state.py` for AI providers (env-default with a live DB override, no restart needed). A family or the operator isn't locked into one processor at build time; multiple can be configured simultaneously if a customer should be able to choose at checkout (open question, §12).
+- **Checkout:** whichever processor(s) are configured render their own hosted checkout page (Stripe Checkout Session, Square Checkout, or Helcim's `HelcimPay.js` hosted fields) — the License Server never touches raw card data with any of the three, all handle PCI scope themselves.
+- **Webhook signature verification is processor-specific and must live inside each adapter, not centrally** — Stripe uses a signing secret + its own SDK helper, Square has its own webhook-signature scheme, Helcim signs with HMAC-SHA256 against a `verifierToken`. Getting this wrong per-adapter is the single highest-severity implementation risk in this whole component (§8).
+- `trial` stays entirely outside any payment processor — trials are still operator-issued or self-serve-without-payment (open question, §12).
 
 ### 6.2 Issuance automation
 
-On `checkout.session.completed`:
-1. Look up the Price → map to `tier` + default `seats` (a small static config table, not user input).
+On a normalized `subscription_created` `PaymentEvent` (translated from whichever processor's native webhook actually fired):
+1. Look up `(provider, external_price/plan_id)` → map to `tier` + default `seats` (a small static config table per processor, not user input).
 2. Call the **same** `issue_license.py` signing logic (refactored into an importable function the License Server calls in-process — the Ed25519 keypair lives with the License Server now, not on an operator's laptop; see §8 for the key-custody implication).
-3. Insert a row into the License Server's own `licenses` table (§7) — this is the new, *authoritative*, mutable record. The signed key string itself becomes closer to a bearer credential than the single source of truth (a real shift from today's model, spelled out in §6.3).
+3. Insert a row into the License Server's own `licenses` table (§7) — this is the new, *authoritative*, mutable record, tagged with which processor and which external IDs it came from. The signed key string itself becomes closer to a bearer credential than the single source of truth (a real shift from today's model, spelled out in §6.3).
 4. Email the `LICENSE_KEY=` value via Resend, using a new template alongside the existing ones in `email_service.py`'s pattern (`build_summary_email_html`, `build_feedback_email_html`, etc.).
 5. No operator involved at any step.
 
@@ -85,7 +93,7 @@ On `checkout.session.completed`:
 
 Today, a license's `expires` date is **baked into the signed payload** — the only way to "renew" is to issue and paste an entirely new key string (see `docs/PRODUCTION_SETUP.md`: "renewals and upgrades are pasted straight into the app"). That's a bad automated-renewal experience: nobody wants to re-paste a string every year, and it means the family's own action (pasting) becomes a required step in a process that's supposed to be automatic.
 
-**Proposed change:** issue licenses **without a baked-in `expires`** (or with a long nominal one, e.g. +5 years, as a dead-man's-switch floor) and make the **License Server's own `licenses.status` + `licenses.valid_until` columns the authoritative, live-updated truth**, communicated to the instance via the activation/heartbeat protocol (§6.4) — not by minting a new key string. A Stripe renewal (`invoice.paid`) simply updates that row's `valid_until`; the family's instance picks it up on its next heartbeat, with zero action from them. This is the same trust shift `core/license_state.py` already made once before, moving from "verify once at import time" to "an in-app, no-restart-needed live update" — this extends that same trajectory one step further, from *manual* live update to *automatic* live update.
+**Proposed change:** issue licenses **without a baked-in `expires`** (or with a long nominal one, e.g. +5 years, as a dead-man's-switch floor) and make the **License Server's own `licenses.status` + `licenses.valid_until` columns the authoritative, live-updated truth**, communicated to the instance via the activation/heartbeat protocol (§6.4) — not by minting a new key string. A renewal — a normalized `subscription_renewed` `PaymentEvent`, from whichever processor actually fired it — simply updates that row's `valid_until`; the family's instance picks it up on its next heartbeat, with zero action from them. This is the same trust shift `core/license_state.py` already made once before, moving from "verify once at import time" to "an in-app, no-restart-needed live update" — this extends that same trajectory one step further, from *manual* live update to *automatic* live update.
 
 This means `core/license_state.py::EffectiveLicense` needs a new field for "server-reported validity," which can now **override** the signed payload's own (now largely nominal) expiry in both directions — extend past it, or revoke before it. The signature verification in `core/licensing.py` is unchanged and still runs first; the server-reported status is an additional, later check.
 
@@ -99,32 +107,36 @@ This is the actual mechanism behind G4 (casual-copy resistance) and the piece th
   - First activation for a fresh `install_id` under the cap: insert an `activations` row, return `{status: "active", valid_until: ...}`.
   - A **different** `install_id` attempting to activate a license already at its cap: rejected — this is the actual "copy-paste to a second machine" case G4 targets.
   - The *same* `install_id` re-activating (e.g., container recreated, `install_id` persisted through a volume) is idempotent, not a new activation.
-- **`POST /v1/validate`** (heartbeat): body `{license_key, install_id}`, called periodically by the running instance (proposed: daily, jittered, background task — not blocking any request). Returns current `{status, valid_until}`. This is how a Stripe renewal or a revocation actually reaches an already-running instance without the family doing anything.
+- **`POST /v1/validate`** (heartbeat): body `{license_key, install_id}`, called periodically by the running instance (proposed: daily, jittered, background task — not blocking any request). Returns current `{status, valid_until}`. This is how a renewal or a revocation — at whichever processor is actually in use — reaches an already-running instance without the family doing anything.
 - **Offline grace period:** the instance caches the last successful heartbeat's result **locally**, tamper-evident the same way `core/constitution.py` digest-pins the constitution file (verified checksum, not just trusted plaintext) so an offline deployer can't simply edit a cache file to grant themselves permanent access. If the License Server is unreachable, the instance keeps operating on the cached status for a bounded window — proposed **30 days** — then gates with a clear "reconnect to revalidate" message, mirroring the existing gated-mode UX (`LicenseGateMiddleware` + the parent-visible License card), not a hard failure. This satisfies NG2: a family's home internet outage, or a genuinely air-gapped install that only connects occasionally, keeps working.
 
 ### 6.5 Revocation
 
-`customer.subscription.deleted` or a payment permanently failing (past Stripe's dunning retries) → License Server sets `licenses.status = revoked`. The next `/v1/validate` heartbeat from that install reports `revoked`; `core/license_state.py` treats that exactly like an expired license does today (gated, parent sees a clear message) — no new UI concept needed, this reuses the existing gated-mode path end to end.
+A normalized `subscription_cancelled` or `payment_failed` (past whichever processor's own dunning/retry schedule) `PaymentEvent` → License Server sets `licenses.status = revoked`. The next `/v1/validate` heartbeat from that install reports `revoked`; `core/license_state.py` treats that exactly like an expired license does today (gated, parent sees a clear message) — no new UI concept needed, this reuses the existing gated-mode path end to end.
 
 ## 7. Data model (License Server's own DB — separate from a family's `homeschool-api` DB)
 
 ```
-customers        id, email, stripe_customer_id, created_at
+customers        id, email, created_at
 licenses          id, customer_id, tier, seats, max_activations,
                   status (active | revoked | trial),
-                  valid_until, stripe_subscription_id,
+                  valid_until,
+                  payment_provider (stripe | square | helcim | none),
+                  external_customer_id, external_subscription_id,
                   license_key (the signed string, stored for re-delivery),
                   created_at
 activations       id, license_id, install_id, first_seen_at, last_heartbeat_at
-webhook_events    id, stripe_event_id (unique — idempotency), type, received_at
+webhook_events    id, payment_provider, external_event_id,
+                  unique(payment_provider, external_event_id) — idempotency,
+                  type, received_at
 ```
 
-`webhook_events.stripe_event_id` as a unique constraint is the standard, necessary defense against Stripe's documented at-least-once webhook delivery — every handler must be idempotent, or a retried `checkout.session.completed` double-issues a license.
+Every processor's IDs (`external_customer_id`, `external_subscription_id`, `webhook_events.external_event_id`) are scoped by `payment_provider` rather than assumed to be Stripe's — a `customer_id` from Square and one from Helcim are different ID spaces that must never collide. `webhook_events`'s composite unique constraint is the standard, necessary defense against at-least-once webhook delivery — a property all three processors document, not just Stripe — every adapter's handler must be idempotent, or a retried `subscription_created` event double-issues a license.
 
 ## 8. Security considerations
 
 - **Private key custody changes.** Today the signing private key lives entirely offline, on an operator's machine, touched only per manual issuance — about as safe as a private key can be. Moving issuance in-process on the License Server means that key now lives on a running, internet-facing service. This is a real, deliberate trade for automation and needs its own hardening: environment-secret storage (Render's secret env vars, matching existing `RESEND_API_KEY`/`ANTHROPIC_API_KEY` handling), never logged, and the server process should be the *only* thing with read access to it — no admin UI ever displays it.
-- **Webhook authenticity.** Stripe webhook signature verification is non-negotiable — without it, `POST` to the webhook URL is an unauthenticated "issue me a free license" endpoint.
+- **Webhook authenticity, per processor, not once.** Each of the three has its own scheme — Stripe's signing-secret + SDK helper, Square's own webhook-signature key, Helcim's HMAC-SHA256 against a per-account `verifierToken` — and each `PaymentAdapter` (§6.1) must implement its own correctly. Getting even one wrong means `POST` to that adapter's webhook URL is an unauthenticated "issue me a free license" endpoint. This is a per-adapter code-review item, not something a shared/central check can fully cover, precisely because the three schemes aren't unifiable.
 - **Rate limiting on `/v1/activate` and `/v1/validate`**, mirroring `core/middleware.py`'s existing `RateLimitMiddleware` bucket pattern (per-IP sliding window) — these are the two endpoints most likely to be probed by someone testing whether a shared key still works elsewhere.
 - **What this still cannot do:** stop a technically sophisticated deployer from patching `core/license_state.py` to hardcode `ok=True`, or from replaying a captured `/v1/validate` "active" response forever. Restated from §2 — this is not being oversold as a solved problem.
 
@@ -141,14 +153,17 @@ webhook_events    id, stripe_event_id (unique — idempotency), type, received_a
 
 ## 11. Phased rollout
 
-- **Phase 1 — Foundation.** License Server skeleton (FastAPI + Postgres on Render), the four tables, Stripe Checkout + the three webhooks, automated issuance + email. Activation protocol built but `max_activations` generously high (e.g. 5) — proves the pipeline without yet being strict. Manual paste into `PUT /admin/license` still works exactly as today (no client changes required yet) — the License Server can exist and issue real licenses before `homeschool-api` knows it exists at all.
+- **Phase 1 — Foundation, one processor.** License Server skeleton (FastAPI + Postgres on Render), the four tables (already provider-scoped, §7), the `PaymentAdapter` Protocol with **one** real implementation — Stripe, since it's the most standard and fastest to stand the pipeline up against — plus automated issuance + email. Activation protocol built but `max_activations` generously high (e.g. 5) — proves the pipeline without yet being strict. Manual paste into `PUT /admin/license` still works exactly as today (no client changes required yet) — the License Server can exist and issue real licenses before `homeschool-api` knows it exists at all.
 - **Phase 2 — Client integration.** `install_id`, `/v1/activate` + `/v1/validate` wired into `homeschool-api`, offline grace period, server-reported status overriding signed expiry. `max_activations` tightened to real values (1 for `core`).
-- **Phase 3 — Operator tooling.** Admin-facing dashboard on the License Server (list customers/licenses, manual revoke/comp a license, resend delivery email) — replaces the last remaining manual step (§6.2 already automates issuance itself; this phase is about *support*, not issuance).
+- **Phase 3 — Square and Helcim adapters.** Because Phase 1 already wrote the issuance/renewal/revocation logic against the processor-neutral `PaymentEvent` shape (§6.1), adding each remaining processor is scoped to *one new adapter* (webhook translation + signature verification) — no changes to §6.2–§6.5's logic. Order between Square and Helcim is a business call, not a technical dependency.
+- **Phase 4 — Operator tooling.** Admin-facing dashboard on the License Server (list customers/licenses, manual revoke/comp a license, resend delivery email) — replaces the last remaining manual step (§6.2 already automates issuance itself; this phase is about *support*, not issuance).
 
 ## 12. Open questions (need your decision, not mine)
 
-1. **Trials:** stay fully outside Stripe (operator-issued, as today), or add a self-serve no-card trial flow through the License Server too?
+1. **Trials:** stay fully outside every processor (operator-issued, as today), or add a self-serve no-card trial flow through the License Server too?
 2. **`max_activations` default for `core`:** exactly 1, or a small allowance (e.g. 2) for a family with a primary server plus a spare/rebuild-in-progress machine?
 3. **Grace period length:** is 30 days right, or should it differ by tier (e.g. longer for `coop`, which may have less consistent IT attention)?
 4. **Existing hand-issued licenses (including the CI test key):** migrated into the License Server's DB retroactively (so they're revocable too), or left as pure legacy offline-only keys forever?
-5. **Pricing/tiers:** this document assumed the existing `core`/`coop` split maps directly to Stripe Products — confirm, or is pricing changing alongside this?
+5. **Pricing/tiers:** this document assumed the existing `core`/`coop` split maps directly onto each processor's own product/plan object — confirm, or is pricing changing alongside this?
+6. **Processor rollout order and simultaneity:** does a customer pick their processor at checkout (all three live at once, from day one or after Phase 3), or does the operator run one processor at a time and only add the others later per Phase 3's ordering? This also affects whether Phase 1 should target Stripe specifically or whichever processor the business actually wants live first — Stripe was chosen above only for its maturity/speed-to-build, not a business preference.
+7. **Why these three specifically:** worth confirming the reasoning, since it shapes adapter priority — e.g., is Helcim's appeal its pricing model (interchange-plus) for a cost-sensitive homeschool-co-op customer base, and is Square relevant because of an existing in-person/POS relationship for some co-ops? That context would help sequence Phase 3.

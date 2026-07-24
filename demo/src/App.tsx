@@ -303,7 +303,7 @@ export function CodeScreen({ onLoggedIn }: {
                 type="button"
                 onClick={() => chooseLocale('en')}
                 className={`px-2.5 py-1 text-xs font-medium transition-colors ${
-                  selectedLocale === 'en' ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                  selectedLocale === 'en' ? 'bg-sage-700 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
                 }`}
               >
                 English
@@ -314,7 +314,7 @@ export function CodeScreen({ onLoggedIn }: {
                   type="button"
                   onClick={() => chooseLocale(l.code)}
                   className={`px-2.5 py-1 text-xs font-medium transition-colors border-l border-navy-200 ${
-                    selectedLocale === l.code ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                    selectedLocale === l.code ? 'bg-sage-700 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
                   }`}
                 >
                   {/* The backend's display name is "Spanish (Español)" — show
@@ -417,7 +417,7 @@ export function CodeScreen({ onLoggedIn }: {
         <button
           onClick={handleClick}
           disabled={loading}
-          className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 size={18} className="animate-spin" /> : t('codeScreen.generateCode')}
         </button>
@@ -1146,7 +1146,7 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
                 </button>
                 <button
                   onClick={confirmVoiceTranscript}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-navy-500 hover:bg-navy-600 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-sage-700 hover:bg-sage-800 transition-colors"
                 >
                   {t('chatScreen.voiceReviewSend')}
                 </button>
@@ -1451,7 +1451,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
               <button
                 type="submit"
                 disabled={status === 'sending'}
-                className="px-4 py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 shrink-0"
+                className="px-4 py-2.5 bg-sage-700 text-white rounded-xl font-semibold text-sm hover:bg-sage-800 transition-colors disabled:opacity-50 shrink-0"
               >
                 {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : t('summary.send')}
               </button>
@@ -1542,7 +1542,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
               <button
                 type="submit"
                 disabled={improvementStatus === 'sending' || !overallRating}
-                className="w-full py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 bg-sage-700 text-white rounded-xl font-semibold text-sm hover:bg-sage-800 transition-colors disabled:opacity-50"
               >
                 {improvementStatus === 'sending' ? <Loader2 size={16} className="animate-spin mx-auto" /> : t('summary.sendFeedback')}
               </button>
@@ -1719,7 +1719,7 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
           <button
             onClick={handleSend}
             disabled={streaming || !input.trim()}
-            className="p-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-600 transition-colors disabled:opacity-40"
+            className="p-2.5 bg-sage-700 text-white rounded-xl hover:bg-sage-800 transition-colors disabled:opacity-40"
           >
             {streaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
@@ -1876,7 +1876,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
               {quotaExceeded && (
                 <button
                   onClick={() => setShowContactModal(true)}
-                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-navy-500 text-white rounded-xl text-sm font-semibold hover:bg-navy-600 transition-colors"
+                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-sage-700 text-white rounded-xl text-sm font-semibold hover:bg-sage-800 transition-colors"
                 >
                   <Mail size={14} /> Get in touch
                 </button>
@@ -1950,7 +1950,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
                 {quotaExceeded && (
                   <button
                     onClick={() => setShowContactModal(true)}
-                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-navy-500 text-white rounded-xl text-sm font-semibold hover:bg-navy-600 transition-colors"
+                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-sage-700 text-white rounded-xl text-sm font-semibold hover:bg-sage-800 transition-colors"
                   >
                     <Mail size={14} /> Get in touch
                   </button>
@@ -1975,7 +1975,7 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
           <button
             onClick={handleSend}
             disabled={streaming || !input.trim()}
-            className="p-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-600 transition-colors disabled:opacity-40"
+            className="p-2.5 bg-sage-700 text-white rounded-xl hover:bg-sage-800 transition-colors disabled:opacity-40"
           >
             {streaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
@@ -2135,7 +2135,7 @@ function FeedbackModal({ token, onClose, initialCategory = 'cx' }: {
             <button
               type="submit"
               disabled={status === 'sending' || !message.trim() || (isPlans && !contactEmail.trim())}
-              className="w-full py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-sage-700 text-white rounded-xl font-semibold text-sm hover:bg-sage-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : (isPlans ? 'Get in touch' : 'Send feedback')}
             </button>
@@ -2279,7 +2279,7 @@ function SessionEndedScreen({ onRetry }: { onRetry: () => void }) {
         <p className="text-sm text-gray-500 mb-6">
           {t('sessionEnded.body')}
         </p>
-        <button onClick={onRetry} className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors">
+        <button onClick={onRetry} className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 transition-colors">
           {t('sessionEnded.generateNewCode')}
         </button>
       </div>

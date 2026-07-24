@@ -57,7 +57,7 @@ export default function PodDashboard() {
         <p className="text-sm text-gray-500">{t('podDashboard.noStudentsBody')}</p>
         <button
           onClick={() => navigate('/setup')}
-          className="px-5 py-2.5 bg-navy-500 text-white rounded-xl text-sm font-medium hover:bg-navy-600 transition-colors"
+          className="px-5 py-2.5 bg-sage-700 text-white rounded-xl text-sm font-medium hover:bg-sage-800 transition-colors"
         >
           {t('podDashboard.goToSetup')}
         </button>
@@ -337,7 +337,7 @@ function StudentPodCard({
           href={sessionUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-navy-500 text-white rounded-xl text-sm font-medium hover:bg-navy-600 transition-colors"
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-sage-700 text-white rounded-xl text-sm font-medium hover:bg-sage-800 transition-colors"
         >
           <ExternalLink size={14} /> {t('podDashboard.openOnThisDevice')}
         </a>

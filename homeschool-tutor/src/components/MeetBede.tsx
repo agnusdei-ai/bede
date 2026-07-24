@@ -64,7 +64,7 @@ export default function MeetBede({
 
         <button
           onClick={onDone}
-          className="w-full py-3.5 bg-navy-500 text-white rounded-xl font-semibold text-base hover:bg-navy-600 transition-colors"
+          className="w-full py-3.5 bg-sage-700 text-white rounded-xl font-semibold text-base hover:bg-sage-800 transition-colors"
         >
           {t('meetBede.begin')}
         </button>

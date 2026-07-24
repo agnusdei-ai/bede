@@ -77,7 +77,7 @@ export default function BetaIntakeModal({ token, onDone }: { token: string; onDo
               <button
                 type="submit"
                 disabled={status === 'sending' || !message.trim()}
-                className="flex-1 py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-sage-700 text-white rounded-xl font-semibold text-sm hover:bg-sage-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : t('betaIntake.submit')}
               </button>

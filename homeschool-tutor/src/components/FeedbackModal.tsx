@@ -116,7 +116,7 @@ export default function FeedbackModal({ token, onClose }: { token: string; onClo
             <button
               type="submit"
               disabled={status === 'sending' || !message.trim()}
-              className="w-full py-2.5 bg-navy-500 text-white rounded-xl font-semibold text-sm hover:bg-navy-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-sage-700 text-white rounded-xl font-semibold text-sm hover:bg-sage-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {status === 'sending' ? <Loader2 size={16} className="animate-spin" /> : 'Send feedback'}
             </button>

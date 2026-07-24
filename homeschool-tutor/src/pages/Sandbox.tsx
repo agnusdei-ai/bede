@@ -181,7 +181,7 @@ export default function Sandbox() {
           <button
             onClick={handleSend}
             disabled={streaming || !input.trim()}
-            className="p-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-600 transition-colors disabled:opacity-40"
+            className="p-2.5 bg-sage-700 text-white rounded-xl hover:bg-sage-800 transition-colors disabled:opacity-40"
           >
             {streaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>

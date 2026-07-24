@@ -682,7 +682,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
                 </button>
                 <button
                   onClick={confirmVoiceTranscript}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-navy-500 hover:bg-navy-600 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-sage-700 hover:bg-sage-800 transition-colors"
                 >
                   {t('chat.voiceReviewSend')}
                 </button>
@@ -776,7 +776,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
               title={t('chat.voiceModeToggleTooltip')}
               aria-label={isContinuous ? t('chat.voiceModeContinuous') : t('chat.voiceModeHold')}
               className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 ${
-                isContinuous ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
+                isContinuous ? 'bg-sage-700 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
               }`}
             >
               <Radio size={18} />

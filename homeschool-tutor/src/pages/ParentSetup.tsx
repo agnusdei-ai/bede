@@ -367,7 +367,7 @@ export default function ParentSetup() {
         <button
           onClick={handleSavePod}
           disabled={!canSave || saving}
-          className="mt-6 w-full py-4 bg-navy-500 text-white rounded-xl font-semibold text-base hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          className="mt-6 w-full py-4 bg-sage-700 text-white rounded-xl font-semibold text-base hover:bg-sage-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
         >
           {saving ? (
             <><Loader2 size={18} className="animate-spin" /> {t('parentSetup.saving')}</>
@@ -581,7 +581,7 @@ function StudentCard({
           <button
             onClick={() => onUpdate({ voice_required: !student.voice_required })}
             className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-              student.voice_required ? 'bg-navy-500' : 'bg-gray-300'
+              student.voice_required ? 'bg-sage-700' : 'bg-gray-300'
             }`}
           >
             <span
@@ -608,7 +608,7 @@ function StudentCard({
           <button
             onClick={() => onUpdate({ appearance_locked: !student.appearance_locked })}
             className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-              student.appearance_locked ? 'bg-navy-500' : 'bg-gray-300'
+              student.appearance_locked ? 'bg-sage-700' : 'bg-gray-300'
             }`}
           >
             <span
@@ -662,7 +662,7 @@ function StudentCard({
             <button
               onClick={() => onUpdate({ screen_time_limit_enabled: !student.screen_time_limit_enabled })}
               className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-                student.screen_time_limit_enabled ? 'bg-navy-500' : 'bg-gray-300'
+                student.screen_time_limit_enabled ? 'bg-sage-700' : 'bg-gray-300'
               }`}
             >
               <span

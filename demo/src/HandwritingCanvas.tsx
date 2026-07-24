@@ -593,7 +593,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           <button
             onClick={handleDone}
             title="Send drawing"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-navy-500 text-white hover:bg-navy-600 transition-colors font-medium text-sm min-h-[44px]"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-sage-700 text-white hover:bg-sage-800 transition-colors font-medium text-sm min-h-[44px]"
           >
             <Check size={16} />
             <span>Done</span>

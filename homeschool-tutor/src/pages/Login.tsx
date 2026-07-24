@@ -196,7 +196,7 @@ export default function Login() {
                 type="button"
                 onClick={() => chooseLocale('en')}
                 className={`px-3 py-1 text-xs font-medium transition-colors ${
-                  selectedLocale === 'en' ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                  selectedLocale === 'en' ? 'bg-sage-700 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
                 }`}
               >
                 English
@@ -207,7 +207,7 @@ export default function Login() {
                   type="button"
                   onClick={() => chooseLocale(l.code)}
                   className={`px-3 py-1 text-xs font-medium transition-colors border-l border-navy-200 ${
-                    selectedLocale === l.code ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                    selectedLocale === l.code ? 'bg-sage-700 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
                   }`}
                 >
                   {/* The backend's display name is "Spanish (Español)" — an
@@ -229,7 +229,7 @@ export default function Login() {
               key={r}
               onClick={() => { setRole(r); setCredential('') }}
               className={`flex-1 py-2.5 text-sm font-medium transition-colors capitalize ${
-                role === r ? 'bg-navy-500 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
+                role === r ? 'bg-sage-700 text-white' : 'bg-white text-gray-600 hover:bg-navy-50'
               }`}
             >
               {r === 'parent'
@@ -288,7 +288,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading || !credential}
-            className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : t('login.submitChild')}
           </button>

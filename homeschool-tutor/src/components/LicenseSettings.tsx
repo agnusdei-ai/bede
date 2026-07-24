@@ -105,7 +105,7 @@ export default function LicenseSettings({ token }: { token: string }) {
               <button
                 onClick={handleApply}
                 disabled={busy || !keyInput.trim()}
-                className="px-4 py-2 rounded-lg bg-navy-500 text-white text-sm font-medium hover:bg-navy-600 disabled:opacity-40 flex items-center gap-2"
+                className="px-4 py-2 rounded-lg bg-sage-700 text-white text-sm font-medium hover:bg-sage-800 disabled:opacity-40 flex items-center gap-2"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />} Apply
               </button>

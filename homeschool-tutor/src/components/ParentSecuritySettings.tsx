@@ -272,7 +272,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                       <button
                         onClick={handleAddKey}
                         disabled={busy || !webauthnSupported()}
-                        className="flex-1 py-2 bg-navy-500 text-white rounded-lg text-sm font-medium hover:bg-navy-600 disabled:opacity-40 flex items-center justify-center gap-2"
+                        className="flex-1 py-2 bg-sage-700 text-white rounded-lg text-sm font-medium hover:bg-sage-800 disabled:opacity-40 flex items-center justify-center gap-2"
                       >
                         {busy ? <Loader2 size={14} className="animate-spin" /> : null} Tap key now
                       </button>
@@ -317,7 +317,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                   <button
                     type="submit"
                     disabled={busy || !totpCode}
-                    className="flex-1 py-2 bg-navy-500 text-white rounded-lg text-sm font-medium hover:bg-navy-600 disabled:opacity-40"
+                    className="flex-1 py-2 bg-sage-700 text-white rounded-lg text-sm font-medium hover:bg-sage-800 disabled:opacity-40"
                   >
                     Confirm
                   </button>
@@ -426,7 +426,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                   <button
                     type="submit"
                     disabled={busy || pinInput.length < 6 || !pinConfirmInput}
-                    className="flex-1 py-2 bg-navy-500 text-white rounded-lg text-sm font-medium hover:bg-navy-600 disabled:opacity-40 flex items-center justify-center gap-2"
+                    className="flex-1 py-2 bg-sage-700 text-white rounded-lg text-sm font-medium hover:bg-sage-800 disabled:opacity-40 flex items-center justify-center gap-2"
                   >
                     {busy ? <Loader2 size={14} className="animate-spin" /> : null} Set PIN
                   </button>
@@ -504,7 +504,7 @@ export default function ParentSecuritySettings({ token }: Props) {
                   <button
                     type="submit"
                     disabled={busy || !currentPassword || !newPassword || !confirmPassword}
-                    className="flex-1 py-2 bg-navy-500 text-white rounded-lg text-sm font-medium hover:bg-navy-600 disabled:opacity-40 flex items-center justify-center gap-2"
+                    className="flex-1 py-2 bg-sage-700 text-white rounded-lg text-sm font-medium hover:bg-sage-800 disabled:opacity-40 flex items-center justify-center gap-2"
                   >
                     {busy ? <Loader2 size={14} className="animate-spin" /> : null} Change password
                   </button>

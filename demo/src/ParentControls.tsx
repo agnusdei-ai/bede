@@ -132,7 +132,7 @@ export default function ParentControlsMenu({ controls, onChange }: {
               aria-checked={controls.appearanceLocked}
               aria-label={t('parentControls.lockAppearance')}
               className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-                controls.appearanceLocked ? 'bg-navy-500' : 'bg-gray-300'
+                controls.appearanceLocked ? 'bg-sage-700' : 'bg-gray-300'
               }`}
             >
               <span

@@ -98,7 +98,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
               <button
                 type="submit"
                 disabled={!parentPw || parentAuthLoading}
-                className="w-full py-2.5 bg-navy-600 text-white rounded-xl font-medium hover:bg-navy-700 disabled:opacity-40 transition-colors"
+                className="w-full py-2.5 bg-sage-800 text-white rounded-xl font-medium hover:bg-sage-900 disabled:opacity-40 transition-colors"
               >
                 {parentAuthLoading ? 'Checking…' : 'Approve Session'}
               </button>
@@ -134,7 +134,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
           <div className="text-center space-y-4">
             <button
               onClick={() => { setStep('recording'); setTimeout(startRecording, 300) }}
-              className="w-24 h-24 rounded-full bg-navy-500 hover:bg-navy-600 text-white flex items-center justify-center mx-auto shadow-xl transition-all active:scale-95"
+              className="w-24 h-24 rounded-full bg-sage-700 hover:bg-sage-800 text-white flex items-center justify-center mx-auto shadow-xl transition-all active:scale-95"
             >
               <Mic size={40} />
             </button>
@@ -184,7 +184,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
             {result.verified ? (
               <button
                 onClick={() => onVerified(result)}
-                className="w-full py-3 bg-navy-500 text-white rounded-xl font-medium hover:bg-navy-600 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 bg-sage-700 text-white rounded-xl font-medium hover:bg-sage-800 transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle size={18} /> Start Learning!
               </button>

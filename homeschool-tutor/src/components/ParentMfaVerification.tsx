@@ -62,7 +62,7 @@ export default function ParentMfaVerification({ pendingToken, methods, onVerifie
           <button
             onClick={handleSecurityKey}
             disabled={busy || !webauthnSupported()}
-            className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2 mb-4"
+            className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 disabled:opacity-40 transition-colors flex items-center justify-center gap-2 mb-4"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
             Use security key

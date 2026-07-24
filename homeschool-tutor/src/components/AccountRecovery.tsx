@@ -161,7 +161,7 @@ export default function AccountRecovery({ onDone }: Props) {
             </p>
             <button
               onClick={loadMethods}
-              className="w-full py-2.5 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors"
+              className="w-full py-2.5 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 transition-colors"
             >
               Try again
             </button>
@@ -237,7 +237,7 @@ export default function AccountRecovery({ onDone }: Props) {
             <button
               type="submit"
               disabled={busy || collectedCount < REQUIRED_FACTORS}
-              className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : null} Continue
             </button>
@@ -271,7 +271,7 @@ export default function AccountRecovery({ onDone }: Props) {
             <button
               type="submit"
               disabled={busy || !newPassword || !confirmPassword}
-              className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : null} Set new password
             </button>
@@ -286,7 +286,7 @@ export default function AccountRecovery({ onDone }: Props) {
             </p>
             <button
               onClick={onDone}
-              className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors"
+              className="w-full py-3 bg-sage-700 text-white rounded-lg font-medium hover:bg-sage-800 transition-colors"
             >
               Back to login
             </button>

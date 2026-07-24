@@ -557,7 +557,7 @@ function SessionSummaryView({
         )}
         <button
           onClick={onDone}
-          className="mt-6 w-full py-3 bg-navy-500 text-white rounded-xl font-semibold hover:bg-navy-600 transition-colors"
+          className="mt-6 w-full py-3 bg-sage-700 text-white rounded-xl font-semibold hover:bg-sage-800 transition-colors"
         >
           {t('tutorSession.doneReturnHome')}
         </button>

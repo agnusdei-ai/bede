@@ -126,6 +126,19 @@ list as items are closed.
   `homeschool-tutor/`/`demo/`). Worth confirming directly in GitHub
   settings — required checks and force-push protection — before a
   production release; not something a code change can confirm or fix.
+- **`production-regression.yml`'s "Confirm the license is ACTIVE" step is
+  non-blocking (`continue-on-error: true`), so CI can silently stop proving
+  the license gate actually works.** `CI_TEST_LICENSE_KEY` went invalid
+  (bad signature against `core/licensing.py`'s `PUBLIC_KEY_PEM` — not
+  simple expiry) and stayed that way across many runs, because reissuing it
+  needs the offline private signing key (`docs/PRODUCTION_SETUP.md
+  #licensing`) that nothing in CI holds — left blocking, this one stale
+  secret also skipped every step after it (tablet-trust page, Postgres
+  backup/restore), throwing away real coverage over an unrelated problem.
+  The step still runs and still reports failure in the Actions UI, but a
+  human with that private key has to notice and act on it — nothing
+  enforces that anymore. Worth periodically confirming this step is
+  actually green, not just that the workflow overall is.
 
 ## Closed gaps
 
@@ -216,6 +229,28 @@ list as items are closed.
   (`ParentSecuritySettings.tsx`) lists it first and prompts a written-
   backup confirmation before letting the enrollment screen close, since
   "memorable" isn't a guarantee it'll actually be remembered months later.
+
+  **A real gap surfaced by live browser click-through of the whole flow
+  (not just unit tests), fixed the same day:** `core/middleware.py`'s
+  `RateLimitMiddleware` bucketed every `/auth/*` path — including
+  `/auth/recovery/*` — into one shared per-IP "auth" bucket
+  (`rate_limit_auth_per_minute`, default 10/min). The exact burst of
+  failed `/auth/login` attempts that trips `parent_lockout.py`'s own
+  lockout also exhausted that shared budget, so the locked-out parent's
+  very next call — `GET /auth/recovery/methods`, to even see the
+  "Forgot password?" screen — came back 429 too. `AccountRecovery.tsx`
+  had no way to tell that transient 429 apart from "recovery isn't
+  configured on this instance," so it showed the latter: a parent who
+  *did* have 2 recovery factors enrolled was told to seek "direct access
+  to the server itself," at the exact moment recovery exists to prevent
+  that. Fixed with a dedicated `auth_recovery` bucket
+  (`rate_limit_account_recovery_per_minute`, its own config setting,
+  independent of the login bucket) plus a frontend `rate_limited` stage
+  in `AccountRecovery.tsx` that shows "please wait about a minute" with a
+  retry button instead of the permanent-looking "not set up" message.
+  Covered by `tests/test_middleware.py`'s
+  `test_auth_recovery_has_its_own_bucket_independent_of_login` and
+  `test_auth_recovery_bucket_has_its_own_limit`.
 
 - **Pre-production hardening pass, closed 2026-07-23.** A code-level survey
   ahead of the beta-to-production transition found several gaps beyond the

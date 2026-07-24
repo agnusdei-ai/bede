@@ -189,7 +189,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         ip = request.client.host if request.client else "0.0.0.0"
         path = request.url.path
 
-        if "/auth/" in path:
+        if "/auth/recovery/" in path:
+            # Own bucket, separate from plain "auth" — see config.py's
+            # rate_limit_account_recovery_per_minute comment for why a
+            # shared bucket with /auth/login was a real bug: the exact
+            # failed-login burst that trips parent_lockout.py also
+            # exhausted the budget the parent's very next recovery attempt
+            # needed.
+            bucket, limit = "auth_recovery", settings.rate_limit_account_recovery_per_minute
+        elif "/auth/" in path:
             bucket, limit = "auth", settings.rate_limit_auth_per_minute
         elif _VOICE_STREAM_SESSION_PATH.search(path):
             # Mechanics of a session /voice/stream/start already approved —

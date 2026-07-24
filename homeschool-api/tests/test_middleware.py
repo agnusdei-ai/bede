@@ -89,6 +89,10 @@ def _rate_limited_app() -> FastAPI:
     def other():
         return {"ok": True}
 
+    @app.get("/auth/recovery/methods")
+    def recovery_methods():
+        return {"ok": True}
+
     return app
 
 
@@ -162,6 +166,38 @@ def test_voice_stream_session_bucket_has_its_own_limit(monkeypatch):
     assert client.post("/voice/stream/sess-1/chunk").status_code == 429
     # Still independent from the "voice" (new-session) bucket.
     assert client.post("/voice/stream/start").status_code == 200
+
+
+# Regression coverage for a real failure found during live browser
+# verification of the account-lockout/recovery feature: the 10 failed
+# /auth/login attempts that trip parent_lockout.py's own lockout also
+# exhausted the shared "auth" bucket, so the parent's very next call to
+# GET /auth/recovery/methods 429'd too — and AccountRecovery.tsx had no way
+# to tell that transient 429 apart from "recovery isn't configured",
+# showing a misleading permanent-looking error at exactly the moment
+# recovery exists to help. /auth/recovery/* now gets its own bucket.
+def test_auth_recovery_has_its_own_bucket_independent_of_login(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_auth_per_minute", 1)
+    client = TestClient(_rate_limited_app())
+    assert client.get("/auth/login").status_code == 200
+    assert client.get("/auth/login").status_code == 429
+    # Exhausting the login bucket must not touch the recovery bucket.
+    assert client.get("/auth/recovery/methods").status_code == 200
+
+
+def test_auth_recovery_bucket_has_its_own_limit(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_account_recovery_per_minute", 2)
+    client = TestClient(_rate_limited_app())
+    assert client.get("/auth/recovery/methods").status_code == 200
+    assert client.get("/auth/recovery/methods").status_code == 200
+    resp = client.get("/auth/recovery/methods")
+    assert resp.status_code == 429
+    # Still independent from the plain "auth" (login) bucket.
+    assert client.get("/auth/login").status_code == 200
 
 
 # ── ExfiltrationGuard ────────────────────────────────────────────────────────

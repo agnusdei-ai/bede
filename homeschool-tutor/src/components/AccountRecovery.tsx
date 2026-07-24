@@ -16,7 +16,7 @@ interface Props {
   onDone: () => void
 }
 
-type Stage = 'loading' | 'unavailable' | 'collect' | 'reset' | 'success'
+type Stage = 'loading' | 'unavailable' | 'rate_limited' | 'collect' | 'reset' | 'success'
 
 // >=2 of these must verify — mirrors routers/recovery.py's own
 // _REQUIRED_FACTORS. Not user-configurable; kept here only so the UI can
@@ -35,12 +35,25 @@ export default function AccountRecovery({ onDone }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
+  const loadMethods = () => {
+    setStage('loading')
     fetchRecoveryMethods()
-      .then((m) => setMethods(m))
-      .then(() => setStage((s) => (s === 'loading' ? 'collect' : s)))
-      .catch(() => setStage('unavailable'))
-  }, [])
+      .then((m) => {
+        setMethods(m)
+        setStage('collect')
+      })
+      .catch((err: unknown) => {
+        const status = err instanceof Error ? (err as Error & { status?: number }).status : undefined
+        // 429 here means the login attempts that just tripped lockout also
+        // burned through this IP's /auth/recovery rate-limit budget — a
+        // parent should never be told recovery "isn't set up" for a purely
+        // transient reason like that. See core/middleware.py's
+        // auth_recovery bucket, added specifically to make this rare.
+        setStage(status === 429 ? 'rate_limited' : 'unavailable')
+      })
+  }
+
+  useEffect(loadMethods, [])
 
   useEffect(() => {
     if (methods && !methods.recovery_possible) setStage('unavailable')
@@ -114,7 +127,7 @@ export default function AccountRecovery({ onDone }: Props) {
           <div className="w-14 h-14 rounded-full bg-navy-50 border-2 border-navy-200 flex items-center justify-center mx-auto mb-3">
             {stage === 'success'
               ? <ShieldCheck size={26} className="text-green-600" />
-              : stage === 'unavailable'
+              : stage === 'unavailable' || stage === 'rate_limited'
                 ? <ShieldAlert size={26} className="text-amber-600" />
                 : <KeyRound size={26} className="text-navy-500" />}
           </div>
@@ -136,6 +149,23 @@ export default function AccountRecovery({ onDone }: Props) {
               onClick={onDone}
               className="w-full py-2.5 border border-navy-300 text-navy-700 rounded-lg font-medium hover:bg-navy-50 transition-colors"
             >
+              Back to login
+            </button>
+          </div>
+        )}
+
+        {stage === 'rate_limited' && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Too many attempts in a short time — please wait about a minute, then try again.
+            </p>
+            <button
+              onClick={loadMethods}
+              className="w-full py-2.5 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 transition-colors"
+            >
+              Try again
+            </button>
+            <button onClick={onDone} className="w-full text-center text-xs text-gray-500 hover:text-gray-700">
               Back to login
             </button>
           </div>

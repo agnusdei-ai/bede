@@ -1,10 +1,11 @@
-# Bede Setup (Windows .msi)
+# Bede Setup (Windows installer)
 
-Source for the Windows installer. See **[docs/WINDOWS_INSTALLER.md](../../docs/WINDOWS_INSTALLER.md)**
-for the design, how to build it locally, and its current unsigned/SmartScreen caveat.
+Source for the Windows installer, built with [Inno Setup](https://jrsoftware.org/isinfo.php).
+See **[docs/WINDOWS_INSTALLER.md](../../docs/WINDOWS_INSTALLER.md)**
+for the design, how to build it locally, and its code-signing setup.
 
 Built by `.github/workflows/build-windows-installer.yml` on `windows-latest` via:
 
 ```
-dotnet build packaging/windows/BedeSetup.wixproj -c Release
+ISCC.exe packaging/windows/BedeSetup.iss
 ```

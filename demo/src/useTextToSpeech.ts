@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { speakViaBackend } from './api'
+import { logDebug } from './debugBus'
 
 // Tries the backend's OpenAI TTS voice first (same one production uses) —
 // both demo tiers always supply a real token, since both are
@@ -233,7 +234,11 @@ export function useTextToSpeech(speakToken: string | null = null) {
       audio.src = url
       audio.play()
         .then(() => { played = true })
-        .catch(() => resolve()) // autoplay-blocked or decode error — playback never started
+        .catch((err) => {
+          // autoplay-blocked or decode error — playback never started
+          logDebug(`backend TTS audio.play() rejected: ${err instanceof Error ? err.message : String(err)}`)
+          resolve()
+        })
     })
     URL.revokeObjectURL(url)
     if (generationRef.current === myGeneration) audioRef.current = null
@@ -258,7 +263,23 @@ export function useTextToSpeech(speakToken: string | null = null) {
 
   const stop = useCallback(() => {
     generationRef.current += 1
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+    if (audioRef.current) {
+      const el = audioRef.current
+      el.pause()
+      // pause() alone never fires 'ended'/'error' — a playBackendVoice()
+      // call still awaiting one of those to resolve its playback promise
+      // (see that function) would otherwise hang forever the moment stop()
+      // interrupts mid-playback, which is exactly what a mic barge-in does
+      // every time it cuts off Bede's backend-voice audio. Firing onended
+      // manually resolves it the same way a natural end-of-playback would,
+      // then detaches both handlers so the next reuse of this shared
+      // element starts clean rather than possibly firing into a stale
+      // closure from the call being abandoned here.
+      el.onended?.(new Event('ended'))
+      el.onended = null
+      el.onerror = null
+      audioRef.current = null
+    }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     setIsSpeaking(false)
   }, [])
@@ -282,7 +303,10 @@ export function useTextToSpeech(speakToken: string | null = null) {
     //    audio.play() outside a fresh gesture) — that has nothing to do
     //    with backend configuration, so browser speech is strictly better
     //    than the total silence this used to produce.
-    if (!spoke && (fetchedAudio || !configured) && generationRef.current === myGeneration) await speakViaBrowser(clean, myGeneration)
+    if (!spoke && (fetchedAudio || !configured) && generationRef.current === myGeneration) {
+      logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
+      await speakViaBrowser(clean, myGeneration)
+    }
     if (generationRef.current === myGeneration) setIsSpeaking(false)
   }, [playBackendVoice, speakViaBrowser])
 
@@ -294,7 +318,14 @@ export function useTextToSpeech(speakToken: string | null = null) {
   useEffect(() => {
     return () => {
       generationRef.current += 1
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+      if (audioRef.current) {
+        const el = audioRef.current
+        el.pause()
+        el.onended?.(new Event('ended'))
+        el.onended = null
+        el.onerror = null
+        audioRef.current = null
+      }
       if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     }
   }, [])

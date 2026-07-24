@@ -390,6 +390,52 @@ the ~90s three 30s-timeout attempts could reach) — see the next section for
 why that ceiling matters even though it isn't awaited on the critical path
 anymore.
 
+## Troubleshooting: Bede's spoken voice briefly switches to the browser's default voice mid-conversation
+
+Reported during beta testing: Bede's narration is audibly the backend's
+OpenAI TTS voice for most of a session, then for one turn sounds like the
+browser's own built-in speech synthesis instead (on Chrome, often its
+"Google US English" default) before reverting back. Distinct from the
+"goes silent" failure above — that one is a backend TTS call failing
+outright, which `useTextToSpeech.ts` (both copies) deliberately treats as
+silence rather than a voice switch (see that section). A voice switch
+specifically means the backend call *succeeded* — real audio bytes came
+back — but this browser's `audio.play()` refused to actually play them for
+that one call, which the code intentionally treats as "browser speech is
+better than total silence" and falls back accordingly. That fallback
+decision is by design, not itself a bug, but two related things needed
+fixing:
+
+1. **No visibility into which of the two failure classes actually
+   happened.** `speakViaBackend`/`playBackendVoice` distinguish "backend
+   request itself failed" from "backend succeeded but this browser blocked
+   playback," but neither branch logged anything — unlike every other
+   voice-pipeline file in this app, TTS playback had zero `debugBus`
+   output. Both copies of `useTextToSpeech.ts` now log the exact
+   `spoke`/`configured`/`fetchedAudio` state whenever a turn falls back to
+   the browser voice, and the specific rejection reason when
+   `audio.play()` itself throws — so the next occurrence is diagnosable
+   from `DebugOverlay.tsx` instead of guessed at.
+2. **A real leak on every mic barge-in during backend-voice playback.**
+   Both copies reuse one shared `<audio>` element across turns (see the
+   `getSharedAudioElement` comment on why). `stop()` — called on every
+   barge-in via `stopSpeech()` in `SocraticChat.tsx`/`App.tsx` — paused
+   that element to cut Bede off, but `pause()` never fires `'ended'` or
+   `'error'`, which is what the in-flight `speakViaBackend`/
+   `playBackendVoice` call was `await`-ing to resolve its own promise.
+   Interrupting Bede mid-playback left that call's promise pending
+   forever. `stop()` (and the hook's unmount cleanup) now fires `onended`
+   manually right after `pause()`, then detaches both handlers, so an
+   interrupted call resolves cleanly instead of leaking.
+
+**Fixed in both copies** of `useTextToSpeech.ts`, same
+independent-codebases caveat as every other voice-pipeline fix in this
+file. The leak fix is unconditionally correct regardless of cause; whether
+it was actually the trigger behind the reported voice switch (versus a
+one-off browser autoplay quirk) wasn't conclusively confirmed — no debug
+trace existed from the moment it happened, which is exactly what item 1
+above now provides for next time.
+
 ## Troubleshooting: the whole chat UI freezes/spins after Bede replies
 
 A second, distinct problem the retry fix above briefly introduced on its

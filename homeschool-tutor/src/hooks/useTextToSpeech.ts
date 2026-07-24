@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { logDebug } from './debugBus'
 
 /**
  * Bede's spoken voice.
@@ -270,7 +271,11 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
         audio.src = url
         audio.play()
           .then(() => { played = true })
-          .catch(() => resolve()) // autoplay-blocked or decode error — playback never started
+          .catch((err) => {
+            // autoplay-blocked or decode error — playback never started
+            logDebug(`backend TTS audio.play() rejected: ${err instanceof Error ? err.message : String(err)}`)
+            resolve()
+          })
       })
       URL.revokeObjectURL(url)
       if (generationRef.current === myGeneration) audioRef.current = null
@@ -312,22 +317,46 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
 
     if (cleanText.trim() && !stoppedRef.current) {
       const { spoke, configured, fetchedAudio } = await speakViaBackend(cleanText, myGeneration)
-      // Two distinct failure classes get different treatment:
-      //  - the /tutor/speak request itself failed (network hiccup, backend
-      //    error, nothing configured) — stay silent for this one line
-      //    rather than jarringly switching to a different, lower-quality
-      //    voice mid-conversation (the original rule this fallback follows).
-      //  - real audio bytes came back but this browser refused to play
-      //    them (confirmed on a Samsung Android tablet: Chrome can
-      //    silently block audio.play() outside a fresh gesture) — that has
-      //    nothing to do with backend configuration, so browser speech is
-      //    strictly better than the total silence this used to produce.
-      if (!spoke && (fetchedAudio || !configured) && !stoppedRef.current) await speakViaBrowser(cleanText, myGeneration)
+      // A stop() while this call was in flight (fetching, or actually
+      // mid-playback — see stop()'s own onended-firing comment) bumps
+      // generationRef and resets stoppedRef.current to false again for
+      // whatever NEW call comes next, so stoppedRef.current alone can no
+      // longer tell a resumed-but-superseded call apart from a live one —
+      // same reasoning generationRef.current already exists to fix
+      // elsewhere in this file. Without this check, a call unblocked by
+      // stop()'s onended fix could resume after a newer call has already
+      // started, and its own unconditional speakingRef/isSpeaking reset
+      // below would stomp that newer call's in-progress state — the exact
+      // "two Bedes talking at once" class of bug generationRef exists to
+      // prevent.
+      if (generationRef.current === myGeneration) {
+        // Two distinct failure classes get different treatment:
+        //  - the /tutor/speak request itself failed (network hiccup, backend
+        //    error, nothing configured) — stay silent for this one line
+        //    rather than jarringly switching to a different, lower-quality
+        //    voice mid-conversation (the original rule this fallback follows).
+        //  - real audio bytes came back but this browser refused to play
+        //    them (confirmed on a Samsung Android tablet: Chrome can
+        //    silently block audio.play() outside a fresh gesture) — that has
+        //    nothing to do with backend configuration, so browser speech is
+        //    strictly better than the total silence this used to produce.
+        if (!spoke && (fetchedAudio || !configured) && !stoppedRef.current) {
+          logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
+          await speakViaBrowser(cleanText, myGeneration)
+        }
+      }
     }
 
-    speakingRef.current = false
-    setIsSpeaking(false)
-    processQueue()
+    // Same generation guard as above: stop() already reset speakingRef/
+    // isSpeaking itself when it interrupted this call, and any newer call
+    // manages its own state independently — a superseded call resuming
+    // here has nothing left to clean up and must not re-trigger the queue
+    // (stop() already cleared it) or touch state a newer call now owns.
+    if (generationRef.current === myGeneration) {
+      speakingRef.current = false
+      setIsSpeaking(false)
+      processQueue()
+    }
   }, [speakViaBackend, speakViaBrowser])
 
   const speak = useCallback((text: string) => {
@@ -344,7 +373,20 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     speakingRef.current = false
     setIsSpeaking(false)
     if (audioRef.current) {
-      audioRef.current.pause()
+      const el = audioRef.current
+      el.pause()
+      // pause() alone never fires 'ended'/'error' — a speakViaBackend() call
+      // still awaiting one of those to resolve its playback promise (see
+      // that function) would otherwise hang forever the moment stop()
+      // interrupts mid-playback, which is exactly what a mic barge-in does
+      // every time it cuts off Bede's backend-voice audio. Firing onended
+      // manually resolves it the same way a natural end-of-playback would,
+      // then detaches both handlers so the next reuse of this shared
+      // element starts clean rather than possibly firing into a stale
+      // closure from the call being abandoned here.
+      el.onended?.(new Event('ended'))
+      el.onended = null
+      el.onerror = null
       audioRef.current = null
     }
     if (isSupported) window.speechSynthesis.cancel()
@@ -365,7 +407,11 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     return () => {
       generationRef.current += 1
       if (audioRef.current) {
-        audioRef.current.pause()
+        const el = audioRef.current
+        el.pause()
+        el.onended?.(new Event('ended'))
+        el.onended = null
+        el.onerror = null
         audioRef.current = null
       }
       if (isSupported) window.speechSynthesis.cancel()

@@ -49,7 +49,13 @@ with a second copy here. Quick orientation: the stack is **Caddy (TLS/443)
 entry points into that same deployment; `packaging/windows/` (a small MSI +
 `Setup-Bede.ps1` launcher, built by `.github/workflows/build-windows-installer.yml`)
 is a further, Windows-native entry point on top of the same
-`setup-gui.bat` flow — see `docs/WINDOWS_INSTALLER.md`.
+`setup-gui.bat` flow, additionally offering to install Ollama and pull a
+hardware-appropriate model for a family that wants Bede's AI running
+entirely on that computer — `Setup-Bede.ps1` writes a `local-ai.json`
+marker file `scripts/setup_wizard/wizard.py` reads (and deletes once
+consumed) to pre-configure that choice in the browser wizard's provider
+picker, invisible on every other launch path — see
+`docs/WINDOWS_INSTALLER.md`.
 
 ## Local Development (without Docker)
 

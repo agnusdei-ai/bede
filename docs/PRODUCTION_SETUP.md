@@ -42,9 +42,12 @@ answers, and produces the identical `.env`/Docker setup underneath.
 **Windows installer** (`Bede Setup.msi`) — no Docker Desktop pre-install
 step either: double-click the `.msi`, run "Bede Setup" from the Start Menu
 it adds, and it installs Docker Desktop for you if needed before handing off
-to the same browser wizard above. Currently unsigned (expect a Windows
-SmartScreen warning) — see `docs/WINDOWS_INSTALLER.md` for the full design
-and how to build it.
+to the same browser wizard above. It also asks one question of its own —
+run Bede's AI on this computer (it installs Ollama and picks a model sized
+to your hardware automatically) or use a cloud account you already have —
+and cleans up its own temporary installer files when it's done. Currently
+unsigned (expect a Windows SmartScreen warning) — see
+`docs/WINDOWS_INSTALLER.md` for the full design and how to build it.
 
 The browser wizard greets you (and confirms when it's done) in Bede's own
 voice — if `scripts/setup_wizard/audio/` has been populated by running

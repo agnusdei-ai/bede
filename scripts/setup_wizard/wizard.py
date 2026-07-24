@@ -13,6 +13,7 @@ stays tiny and there's nothing to explain about extra dependencies for what
 is, functionally, one short-lived form.
 """
 import html
+import json
 import os
 import secrets
 import sys
@@ -41,6 +42,31 @@ REPO_DIR = "/repo"
 ENV_PATH = os.path.join(REPO_DIR, ".env")
 PORT = int(os.environ.get("WIZARD_PORT", "8765"))
 LAN_IP = os.environ.get("HOST_LAN_IP", "").strip()
+
+# Written by packaging/windows/Setup-Bede.ps1 BEFORE this container starts,
+# when the family chose "run AI on this computer" at its own prompt and the
+# launcher already installed Ollama + pulled a model on the host — see
+# docs/WINDOWS_INSTALLER.md. Absent for every other launch path
+# (setup.sh/setup-gui.command/.sh, or the .bat/.ps1 flow when the family
+# chose a cloud provider instead), so this is purely additive: nothing here
+# changes for anyone who never touches the Windows installer's local-AI path.
+LOCAL_AI_MARKER_NAME = "local-ai.json"
+
+
+def _read_local_ai_marker() -> dict | None:
+    """{'base_url': ..., 'model': ...} if Setup-Bede.ps1 already set up a
+    local Ollama model on the host, else None. Re-read from disk on every
+    call (GET render + POST submit) rather than cached at import time, since
+    REPO_DIR itself is only known once the container actually starts."""
+    path = os.path.join(REPO_DIR, LOCAL_AI_MARKER_NAME)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if isinstance(data, dict) and data.get("base_url") and data.get("model"):
+        return data
+    return None
 
 # Optional spoken narration, in Bede's own configured voice (OpenAI TTS,
 # fable) — generated once by scripts/setup_wizard/generate_narration.py and
@@ -223,7 +249,8 @@ def _narration_block(clip: str, enable_mic: bool) -> str:
 def render_form(error: str = "", banner: str = "", values: dict | None = None) -> str:
     v = values or {}
     db_choice = v.get("db_choice", "local")
-    provider = v.get("provider", "anthropic")
+    local_ai = _read_local_ai_marker()
+    provider = v.get("provider", "local_auto" if local_ai else "anthropic")
     body = []
     body.append("<h1>Let's set up Bede</h1>")
     body.append(_narration_block("welcome", enable_mic=True))
@@ -236,6 +263,14 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
     body.append('<label>Which AI provider should Bede use for tutoring?</label>')
     body.append('<div class="hint">Pick one — you can add a backup provider later by editing .env yourself, see docs/PROVIDER_ADAPTERS.md.</div>')
+    if local_ai:
+        body.append(f"""
+        <label class="choice {'selected' if provider == 'local_auto' else ''}">
+          <input type="radio" name="provider" value="local_auto" onclick="showProvider('local_auto')" {'checked' if provider == 'local_auto' else ''}>
+          <span class="choice-title">Run AI on this computer (recommended)</span>
+          <div class="choice-desc">Already set up for you — free, private, no account needed. Using {html.escape(local_ai['model'])}.</div>
+        </label>
+        """)
     body.append(f"""
     <label class="choice {'selected' if provider == 'anthropic' else ''}">
       <input type="radio" name="provider" value="anthropic" onclick="showProvider('anthropic')" {'checked' if provider == 'anthropic' else ''}>
@@ -286,8 +321,11 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append("""
     <script>
     function showProvider(p) {
+      // local_auto has no field div of its own (nothing to fill in) — the
+      // guard skips it rather than requiring a stray empty div to exist.
       ['anthropic', 'openai', 'mistral', 'local'].forEach(function(name) {
-        document.getElementById('provider_' + name).style.display = (name === p) ? 'block' : 'none';
+        var el = document.getElementById('provider_' + name);
+        if (el) el.style.display = (name === p) ? 'block' : 'none';
       });
       document.querySelectorAll('input[name=provider]').forEach(function(el) {
         el.closest('.choice').classList.toggle('selected', el.checked);
@@ -386,7 +424,18 @@ def build_env_file(fields: dict) -> str:
         cors = "https://localhost,http://ui:80"
 
     provider = fields.get("provider", "anthropic")
-    provider_lines = f"BEDE_ADAPTER_ORDER={provider}\n" + _PROVIDER_ENV_LINES[provider](fields)
+    if provider == "local_auto":
+        # BEDE_ADAPTER_ORDER wants the real adapter name (router.py's
+        # _KNOWN_ADAPTERS has no "local_auto" — that's a wizard-UI-only
+        # label for "local, already configured by Setup-Bede.ps1").
+        local_ai = _read_local_ai_marker()
+        provider_lines = (
+            "BEDE_ADAPTER_ORDER=local\n"
+            f"LOCAL_LLM_BASE_URL={local_ai['base_url']}\n"
+            f"LOCAL_LLM_MODEL={local_ai['model']}\n"
+        )
+    else:
+        provider_lines = f"BEDE_ADAPTER_ORDER={provider}\n" + _PROVIDER_ENV_LINES[provider](fields)
 
     return (
         "# Generated by Bede's setup wizard\n"
@@ -416,11 +465,18 @@ _PROVIDER_LABELS = {
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
     provider = fields.get("provider", "anthropic")
-    if provider not in _PROVIDER_FIELD_NAMES:
+    if provider == "local_auto":
+        if _read_local_ai_marker() is None:
+            return (
+                "Local AI setup wasn't completed — choose a different provider, "
+                "or close this and run \"Bede Setup\" again."
+            )
+    elif provider not in _PROVIDER_FIELD_NAMES:
         return "Please choose an AI provider."
-    field_name = _PROVIDER_FIELD_NAMES[provider]
-    if not fields.get(field_name, "").strip():
-        return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
+    else:
+        field_name = _PROVIDER_FIELD_NAMES[provider]
+        if not fields.get(field_name, "").strip():
+            return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
     if fields.get("db_choice") == "managed" and not fields.get("database_url", "").strip():
         return "Please enter your database connection string, or choose \"On this computer\" instead."
     if len(fields.get("parent_password", "")) < 8:
@@ -501,6 +557,14 @@ class Handler(BaseHTTPRequestHandler):
         with open(ENV_PATH, "w") as f:
             f.write(build_env_file(fields))
         os.chmod(ENV_PATH, 0o600)
+
+        # Transient install-time state, not something a family should ever
+        # see lying around afterward — consumed above (build_env_file reads
+        # it for local_auto) regardless of which provider was actually
+        # chosen, so it's cleaned up here either way.
+        local_ai_marker = os.path.join(REPO_DIR, LOCAL_AI_MARKER_NAME)
+        if os.path.exists(local_ai_marker):
+            os.remove(local_ai_marker)
 
         self._send_html(render_success())
         # Give the response time to actually flush to the socket before the

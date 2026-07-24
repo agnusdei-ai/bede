@@ -4,13 +4,14 @@
     <OutputType>Package</OutputType>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Include="Product.wxs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Setup-Bede.ps1">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+  <!--
+    Product.wxs is picked up automatically — the WiX SDK globs *.wxs in the
+    project directory by default, same as the .NET SDK globbing *.cs. An
+    explicit <Compile Include="Product.wxs" /> here double-compiles it
+    (caused the WIX0089/WIX0091 "duplicate symbol" build failure seen in
+    build-windows-installer.yml's first real CI run — every Property/
+    Directory/Component defined twice). No <Content> item is needed for
+    Setup-Bede.ps1 either: Product.wxs's <File Source="Setup-Bede.ps1">
+    already resolves it directly from this same directory.
+  -->
 </Project>

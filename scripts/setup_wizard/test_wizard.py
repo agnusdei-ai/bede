@@ -9,6 +9,7 @@ Docker daemon and is covered instead by
 .github/workflows/production-regression.yml, which runs in CI where a
 daemon is actually available.
 """
+import json
 import os
 import stat
 import threading
@@ -216,6 +217,91 @@ def test_missing_local_server_url_rejected(running_wizard):
     assert exc_info.value.code == 400
     assert "model server" in exc_info.value.read().decode()
     assert not os.path.exists(wizard.ENV_PATH)
+
+
+def _write_local_ai_marker(tmp_path, model="qwen3:8b", base_url="http://host.docker.internal:11434/v1"):
+    (tmp_path / wizard.LOCAL_AI_MARKER_NAME).write_text(
+        json.dumps({"base_url": base_url, "model": model})
+    )
+
+
+def test_local_auto_choice_hidden_without_marker(running_wizard):
+    """The Windows-installer-only path is invisible everywhere else — no
+    marker file means no "run on this computer" option at all, and the
+    long-standing anthropic default is unchanged."""
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'value="local_auto"' not in body
+    assert 'checked' in body  # something is still checked by default...
+    assert 'value="anthropic" onclick="showProvider(\'anthropic\')" checked' in body
+
+
+def test_local_auto_choice_shown_and_preselected_with_marker(running_wizard, tmp_path):
+    """Setup-Bede.ps1 already installed Ollama and pulled a model before
+    this container even started — the wizard should offer it as the
+    recommended, pre-selected choice rather than making the family retype
+    anything Setup-Bede.ps1 already figured out."""
+    _write_local_ai_marker(tmp_path, model="qwen3:8b")
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'name="provider" value="local_auto"' in body
+    assert 'value="local_auto" onclick="showProvider(\'local_auto\')" checked' in body
+    assert "Using qwen3:8b" in body
+    # No credential field, no URL to type — it's already configured.
+    assert 'name="local_auto_' not in body
+
+
+def test_valid_local_auto_submission_writes_correct_env_and_cleans_up_marker(running_wizard, tmp_path):
+    _write_local_ai_marker(tmp_path, model="qwen3:8b", base_url="http://host.docker.internal:11434/v1")
+    resp = _post(running_wizard, {
+        "provider": "local_auto",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    assert resp.status == 200
+    env = open(wizard.ENV_PATH).read()
+    assert "BEDE_ADAPTER_ORDER=local" in env
+    assert "LOCAL_LLM_BASE_URL=http://host.docker.internal:11434/v1" in env
+    assert "LOCAL_LLM_MODEL=qwen3:8b" in env
+    assert "ANTHROPIC_API_KEY" not in env
+
+    # Transient install-time state — not something a family should find
+    # lying around afterward.
+    assert not (tmp_path / wizard.LOCAL_AI_MARKER_NAME).exists()
+
+
+def test_local_auto_without_marker_rejected(running_wizard):
+    """Defense-in-depth: even if provider=local_auto is submitted directly
+    (stale form, direct POST) with no marker file backing it, this must be
+    rejected rather than writing a broken LOCAL_LLM_BASE_URL=None."""
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "provider": "local_auto",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": "602656",
+            "license_key": "eyJ.test-license-key",
+        })
+    assert exc_info.value.code == 400
+    assert "Local AI setup" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_choosing_a_cloud_provider_still_cleans_up_a_leftover_marker(running_wizard, tmp_path):
+    """A family can still change their mind to a cloud provider even after
+    Setup-Bede.ps1 set up local AI — the unused marker shouldn't linger."""
+    _write_local_ai_marker(tmp_path)
+    _post(running_wizard, {
+        "provider": "anthropic",
+        "anthropic_key": "sk-ant-test",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    env = open(wizard.ENV_PATH).read()
+    assert "BEDE_ADAPTER_ORDER=anthropic" in env
+    assert not (tmp_path / wizard.LOCAL_AI_MARKER_NAME).exists()
 
 
 def test_omitted_provider_field_defaults_to_anthropic(running_wizard):

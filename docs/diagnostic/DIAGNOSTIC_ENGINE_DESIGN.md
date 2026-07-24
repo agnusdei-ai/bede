@@ -801,6 +801,65 @@ The engine is subject-generic below the skill map. Adding a domain later:
 
 This mirrors bede's documented "Adding a New Subject" flow (CLAUDE.md) — data-driven, not logic-driven.
 
+### 13.1 Composition — a lighter-weight extension (implemented)
+
+Composition mastery (`services/diagnostic/composition.py`) is the first
+subject actually built on top of `MasteryProfile`'s composite PK since this
+document was written — but it deliberately does **not** follow the §13
+recipe above. That recipe assumes a skill-DAG subject (discrete,
+prerequisite-ordered skills probed indirectly, needing CDM/IRT/KST to
+interpret) — reading comprehension or science concepts might genuinely fit
+that shape. Composition doesn't: its five dimensions (completeness,
+sequence, detail, language_quality, synthesis — `assess_narration`'s
+existing rubric, `services/ai_service.py`'s `TUTOR_TOOLS`) aren't
+prerequisite-ordered ("sequence" isn't a prerequisite of "synthesis"), and
+every `assess_narration` call already reports a **direct** 1-5 rating per
+dimension — a far more direct signal than math's binary/partial-credit
+probe outcomes, which is exactly what CDM's latent-trait modeling exists to
+interpret in the first place.
+
+So composition reuses only the pieces of this design that are genuinely
+subject-agnostic:
+
+- **Persistence** — `MasteryProfile`/`DiagnosticEvidenceLog`,
+  `subject_area="composition"`, exactly per §13's point 2 (no schema
+  change).
+- **Calibration decay** — `mastery.calibration_weight_for()`, imported
+  directly, with its own threshold (`composition.CALIBRATION_THRESHOLD =
+  2`, versus math's 5) — defensible on its own terms since one
+  `assess_narration` call already carries five dimensions of evidence at
+  once, not one probe per skill.
+- **Parent-facing shape** — the same `MasteryProfileSummary` Pydantic model
+  and the same `domains`/`gaps`/`next_steps` rollup shape math's
+  `build_summary_view` produces, so `routers/diagnostic.py` and the
+  frontend need no composition-specific response shape, just a
+  `subject_area` query param dispatching to whichever builder function
+  applies.
+
+It does **not** use `skill_map.py`, `qmatrix.py`, `cdm.py`, or `kst.py` at
+all — no skill DAG, no Q-matrix indirection (every assessment is direct
+evidence for all five domains at once), no CDM slip/guess modeling, no KST
+prerequisite propagation. The update rule is a simple calibrated blend
+toward each dimension's normalized 1-5 score, clamped to [0,1] — the same
+blend *formula* `mastery.bayesian_update` uses, just without the
+math-specific machinery around it.
+
+Fed from every `assess_narration` call, not gated to `invite_handwriting`
+submissions specifically — oral and written narration are one continuous
+skill in this app's own pedagogy (`_STAGE_GUIDANCE`: "the child who has
+learned to render a thing aloud now begins the transition to written
+narration"), and gating on written-only would both misrepresent that
+pedagogy and starve the evidence stream of the frequency needed to reach a
+usable read quickly. Deliberately does not score handwriting/drawing
+mechanics (letter formation, penmanship) — per the nature-study subject
+context's own rule ("never correct the drawing"), only the thinking behind
+a narration is ever assessed here, spoken or written alike.
+
+A future reading/ELA/science extension should re-evaluate, subject by
+subject, whether it's shaped more like math (→ follow §13's recipe) or more
+like composition (→ a lighter direct-rating blend) rather than assuming one
+pattern fits every subject.
+
 ---
 
 ## 14. Open-Standards Appendix

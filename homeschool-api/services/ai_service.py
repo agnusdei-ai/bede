@@ -1897,6 +1897,18 @@ async def _save_assessment(
             assessment_enc=encrypt_json(data),
         ))
         await db.commit()
+
+        # Composition mastery — best-effort, alongside the raw assessment
+        # save above, never instead of it: a failure here must never lose
+        # the assessment itself. See services/diagnostic/composition.py's
+        # own docstring for why this reuses assess_narration's rubric
+        # directly rather than needing a separate evidence-collection path.
+        try:
+            from services.diagnostic.composition import process_assessment as _process_composition
+            await _process_composition(db, student_name, tool_input)
+        except Exception as exc:
+            log.warning("Composition mastery update failed for %s: %s", student_name, exc)
+
         return {"subject": subject.value, "total_score": total, "adaptive_signal": data["adaptive_signal"]}
     except Exception as exc:
         log.warning("Assessment save failed for %s: %s", student_name, exc)

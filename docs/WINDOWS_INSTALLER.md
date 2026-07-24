@@ -1,18 +1,30 @@
-# Windows installer (Bede Setup.msi)
+# Windows installer (Bede Setup.exe)
 
-A native Windows installer for families who'd rather double-click a `.msi`
+A native Windows installer for families who'd rather double-click an `.exe`
 than clone a repo and run `setup-gui.bat` by hand. Source lives in
 `packaging/windows/`; built by `.github/workflows/build-windows-installer.yml`
-on a `windows-latest` GitHub Actions runner (WiX's MSI/CAB tooling doesn't
-cross-build from Linux).
+on a `windows-latest` GitHub Actions runner (Inno Setup's compiler,
+`ISCC.exe`, is Windows-native).
+
+Built with **Inno Setup**, not an MSI — chosen specifically for its default
+wizard UI (License → Destination → Start Menu Folder → Additional Tasks →
+Install progress, the familiar shape most commercial Windows installers
+use) and because Bede's actual audience (a family, not an IT department)
+has no use for MSI's enterprise-oriented features (GPO deployment,
+SCCM/Intune management) that would have been the main reason to pick MSI
+over a plain installer `.exe` in the first place.
 
 ## What it actually does
 
-The `.msi` itself is intentionally small. It installs exactly two things,
-for the CURRENT USER only (no admin rights needed for the MSI itself):
+The installer itself is intentionally small. It installs exactly two
+things, for the CURRENT USER only (no admin rights needed for the
+installer itself — `PrivilegesRequired=lowest` in `BedeSetup.iss`):
 
-1. `Setup-Bede.ps1` → `%LOCALAPPDATA%\Bede\Setup-Bede.ps1`
-2. A **Bede Setup** shortcut in the Start Menu that runs it
+1. `Setup-Bede.ps1` → `%LOCALAPPDATA%\Bede\Setup-Bede.ps1` (default install
+   location — changeable on the wizard's Destination page like any Inno
+   Setup install, though there's rarely a reason to)
+2. A **Bede Setup** shortcut in the Start Menu (and, if the optional
+   "Create a desktop shortcut" task is checked, one on the Desktop too)
 
 Everything else — installing Docker Desktop if it's missing, downloading
 Bede, optionally setting up a local AI model, and running the setup wizard —
@@ -62,9 +74,11 @@ a 6GB GTX 1060 lands on `qwen3:8b` here too) — just automated so a
 non-technical family never sees VRAM numbers or model names at all.
 
 **How the choice reaches the wizard without asking twice:** `Set-LocalAI`
-installs Ollama if needed (Inno Setup silent install, no admin prompt —
-unlike Docker Desktop, Ollama's Windows installer is per-user), pulls the
-chosen model, then writes `%LOCALAPPDATA%\Bede\app\local-ai.json`:
+installs Ollama if needed (Ollama's own Windows installer happens to also
+be Inno Setup-based — unrelated coincidence, `/VERYSILENT /SUPPRESSMSGBOXES`
+are Inno's own silent-install switches, no admin prompt since Ollama
+installs per-user too), pulls the chosen model, then writes
+`%LOCALAPPDATA%\Bede\app\local-ai.json`:
 
 ```json
 {"base_url": "http://host.docker.internal:11434/v1", "model": "qwen3:8b"}
@@ -91,27 +105,26 @@ plus the marker file again afterward as a belt-and-suspenders pass (in case
 the browser tab was closed before the wizard could clean up after itself) —
 a family should never find installer leftovers to clean up themselves.
 
-## Why Docker Desktop is chain-installed in PowerShell, not as a WiX Burn `<ExePackage>`
+## Why Docker Desktop is chain-installed in PowerShell, not scripted into the wizard directly
 
-The "proper" WiX way to chain-install a prerequisite is a **Burn bundle**
-(`<ExePackage DownloadUrl="..." />` inside a `<Chain>`), but Burn's
-`RemotePayload` model requires pinning the exact file size and hash of
-whatever it downloads. Docker ships new installer builds continuously —
-every Docker release would silently break the bundle until someone noticed
-and re-pinned the hash. A plain `Invoke-WebRequest` + silent install inside
-a maintained script always fetches Docker's current installer from their
-own stable download URL, at the cost of losing Burn's native resume/rollback
-for that one step. For a single fast-moving external dependency, that's a
-reasonable trade — see `Setup-Bede.ps1`'s own header comment.
+Inno Setup supports running arbitrary code at install time (`[Code]`
+sections, Pascal Script), so it would be possible to drive the Docker
+Desktop download/install from inside the wizard itself rather than handing
+off to `Setup-Bede.ps1` afterward. Deliberately not done that way: Docker
+ships new installer builds continuously, and anything that has to download
+and run a fast-moving external installer benefits from being a plain,
+easily-editable PowerShell script rather than Pascal Script embedded in the
+`.iss` — easier to read, test, and fix without recompiling the installer.
+See `Setup-Bede.ps1`'s own header comment.
 
 ## Building it locally
 
-Needs a Windows machine (or VM) with the .NET SDK (8.0+) — WiX v4 is an
-MSBuild SDK, resolved automatically via NuGet:
+Needs a Windows machine (or VM) with [Inno Setup](https://jrsoftware.org/isinfo.php)
+installed:
 
 ```powershell
-dotnet build packaging\windows\BedeSetup.wixproj -c Release
-# → packaging\windows\bin\Release\BedeSetup.msi
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\BedeSetup.iss
+# → packaging\windows\Output\BedeSetup.exe
 ```
 
 ## Code signing — Azure Artifact Signing (Basic tier)
@@ -127,7 +140,7 @@ see the old name in some Microsoft docs and search results.
 `build-windows-installer.yml` already has the signing step wired in
 (`azure/login` + `azure/artifact-signing-action@v2`, both gated on the
 config below being present) — it's a no-op, graceful fallback to an
-unsigned `.msi` until the Azure-side setup is done. Signing only runs on
+unsigned `.exe` until the Azure-side setup is done. Signing only runs on
 pushes to `main`, never on a pull request or a workflow_dispatch off a
 feature branch — the federated credential below is deliberately scoped to
 just `main`, so no PR's code can ever authenticate to sign anything.
@@ -174,17 +187,30 @@ not something that can be automated in a PR):**
 Once all six secrets/vars exist, the very next push to `main` that touches
 `packaging/windows/**` signs automatically — nothing else to change in this
 repo. Until then, `build-windows-installer.yml` keeps producing (and this
-doc keeps describing) an unsigned `.msi`, exactly as it does today.
+doc keeps describing) an unsigned `.exe`, exactly as it does today.
+
+## Branding assets
+
+`packaging/windows/assets/bede.ico` (the installer's own icon, shown in
+Explorer/the taskbar/Add-or-Remove-Programs) and `bede-wizard-small.bmp`
+(the small image shown top-right on every wizard page, `WizardStyle=modern`)
+are both generated from `site/assets/favicon.png` — a placeholder, not
+purpose-made installer artwork (the favicon is only 64×64, so the `.ico`'s
+larger sizes are upscaled and will look soft). Regenerate from a proper
+source image whenever one exists:
+
+```python
+from PIL import Image
+src = Image.open("site/assets/favicon.png").convert("RGBA")
+src.save("packaging/windows/assets/bede.ico", sizes=[(s, s) for s in (16, 32, 48, 64, 128, 256)])
+small = src.resize((96, 96), Image.LANCZOS)
+bg = Image.new("RGB", small.size, (255, 255, 255))
+bg.paste(small, mask=small.split()[3])
+bg.save("packaging/windows/assets/bede-wizard-small.bmp")
+```
 
 ## Scope cuts in this first version (follow-ups, not blockers)
 
-- **No custom installer UI/EULA dialog.** Uses the plain default Windows
-  Installer UI (progress bar + finish) rather than WiX's `WixUI` extension —
-  fewer moving parts to get right without a Windows machine to interactively
-  test dialog flow on. A branded UI + an in-installer EULA step (surfacing
-  Docker Desktop's own license terms before silently installing it — see
-  below) is a reasonable follow-up once the base installer is confirmed
-  working.
 - **Docker Desktop's EULA.** `Setup-Bede.ps1` installs Docker Desktop with
   `--accept-license` on the parent's behalf. Docker Desktop is free for
   personal use and small businesses under its current terms, but a
@@ -196,12 +222,12 @@ doc keeps describing) an unsigned `.msi`, exactly as it does today.
   plain HTTPS. If that repository is or becomes private, `git clone` will
   prompt for credentials (or fail non-interactively) — not currently handled
   with, say, an embedded token prompt.
-- **Uninstalling the `.msi`** removes only the launcher script and Start Menu
-  shortcut — deliberately NOT the downloaded `%LOCALAPPDATA%\Bede\app`
-  folder, Docker Desktop, Ollama, or any pulled model, so a family doesn't
-  lose their running deployment or its data by uninstalling the installer.
+- **Uninstalling** removes only the launcher script and shortcuts —
+  deliberately NOT the downloaded `%LOCALAPPDATA%\Bede\app` folder, Docker
+  Desktop, Ollama, or any pulled model, so a family doesn't lose their
+  running deployment or its data by uninstalling the installer.
 - **`Setup-Bede.ps1` itself is not executed by CI.** `build-windows-installer.yml`
-  builds and verifies the `.msi` (the WiX package), but nothing in this
+  builds and verifies the installer `.exe` itself, but nothing in this
   repo's CI actually runs the PowerShell script end to end on a real Windows
   machine — Docker Desktop/Ollama installs, hardware detection, and the
   wizard handoff are reviewed carefully but not exercised by an automated
@@ -212,11 +238,12 @@ doc keeps describing) an unsigned `.msi`, exactly as it does today.
   `ollama pull` will just fail with their own error message (surfaced
   as-is by `Set-LocalAI`'s exit-code check) rather than silently doing
   nothing; update `Get-RecommendedOllamaModel` if that happens.
+- **Branding assets are placeholders** — see "Branding assets" above.
 
 ## Relationship to the existing installers
 
 This doesn't replace `setup-gui.bat`/`.command`/`.sh` — those still work
-exactly as before for anyone who prefers cloning the repo directly. The
-`.msi` is an additional, more familiar entry point specifically for Windows
-users who'd rather not use a terminal at all before Docker Desktop is even
-installed.
+exactly as before for anyone who prefers cloning the repo directly. This
+installer is an additional, more familiar entry point specifically for
+Windows users who'd rather not use a terminal at all before Docker Desktop
+is even installed.

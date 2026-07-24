@@ -39,8 +39,8 @@ tab when it says Bede is starting. It asks the exact same questions as the
 terminal wizard, just as text fields and clickable choices instead of typed
 answers, and produces the identical `.env`/Docker setup underneath.
 
-**Windows installer** (`Bede Setup.msi`) — no Docker Desktop pre-install
-step either: double-click the `.msi`, run "Bede Setup" from the Start Menu
+**Windows installer** (`Bede Setup.exe`) — no Docker Desktop pre-install
+step either: double-click the installer, run "Bede Setup" from the Start Menu
 it adds, and it installs Docker Desktop for you if needed before handing off
 to the same browser wizard above. It also asks one question of its own —
 run Bede's AI on this computer (it installs Ollama and picks a model sized

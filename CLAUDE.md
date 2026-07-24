@@ -46,8 +46,8 @@ truth for `make setup`/`make update`/etc. so it doesn't drift out of sync
 with a second copy here. Quick orientation: the stack is **Caddy (TLS/443)
 → nginx (UI/80) → FastAPI (API/8000)**, optionally plus a local Postgres.
 `setup.sh`/`setup-gui.{bat,command,sh}` are the terminal/browser-wizard
-entry points into that same deployment; `packaging/windows/` (a small MSI +
-`Setup-Bede.ps1` launcher, built by `.github/workflows/build-windows-installer.yml`)
+entry points into that same deployment; `packaging/windows/` (a small Inno
+Setup installer + `Setup-Bede.ps1` launcher, built by `.github/workflows/build-windows-installer.yml`)
 is a further, Windows-native entry point on top of the same
 `setup-gui.bat` flow, additionally offering to install Ollama and pull a
 hardware-appropriate model for a family that wants Bede's AI running

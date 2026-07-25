@@ -20,6 +20,7 @@ from core.database import Base
 from routers.diagnostic import get_student_mastery_summary
 from services.diagnostic import process_evidence
 from services.diagnostic.composition import process_assessment
+from services.diagnostic.phonics import process_evidence as process_phonics_evidence
 
 
 @pytest_asyncio.fixture
@@ -145,3 +146,50 @@ async def test_unrecognized_subject_area_404s_rather_than_erroring(db_session):
             "Emma", _fake_request(), subject_area="astrology", auth={"role": "parent"}, db=db_session,
         )
     assert exc_info.value.status_code == 404
+
+
+# ── subject_area dispatch (phonics — services.diagnostic.phonics) ───────────
+
+
+@pytest.mark.asyncio
+async def test_subject_area_phonics_returns_the_phonics_engines_summary(db_session):
+    await process_phonics_evidence(db_session, "Wren", "letter_sound", "correct")
+
+    summary = await get_student_mastery_summary(
+        "Wren", _fake_request(), subject_area="phonics", auth={"role": "parent"}, db=db_session,
+    )
+    assert summary.subject_area == "phonics"
+    assert summary.evidence_count == 1
+    assert len(summary.domains) == 6
+
+
+@pytest.mark.asyncio
+async def test_phonics_404s_before_any_evidence_recorded(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await get_student_mastery_summary(
+            "Nobody", _fake_request(), subject_area="phonics", auth={"role": "parent"}, db=db_session,
+        )
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_math_composition_and_phonics_summaries_are_independent_for_the_same_student(db_session):
+    await process_evidence(db_session, "Ethan", "probe.cc.rote_count_20", "correct", 1.0, "K-2")
+    await process_assessment(db_session, "Ethan", _SCORES)
+    await process_phonics_evidence(db_session, "Ethan", "letter_sound", "correct")
+
+    math_summary = await get_student_mastery_summary(
+        "Ethan", _fake_request(), subject_area="mathematics", auth={"role": "parent"}, db=db_session,
+    )
+    composition_summary = await get_student_mastery_summary(
+        "Ethan", _fake_request(), subject_area="composition", auth={"role": "parent"}, db=db_session,
+    )
+    phonics_summary = await get_student_mastery_summary(
+        "Ethan", _fake_request(), subject_area="phonics", auth={"role": "parent"}, db=db_session,
+    )
+    assert math_summary.subject_area == "mathematics"
+    assert composition_summary.subject_area == "composition"
+    assert phonics_summary.subject_area == "phonics"
+    assert math_summary.evidence_count == 1
+    assert composition_summary.evidence_count == 1
+    assert phonics_summary.evidence_count == 1

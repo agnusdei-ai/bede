@@ -659,7 +659,7 @@ export async function fetchLearnerBehaviorCheck(
 export async function fetchMasteryProfileSummary(
   token: string,
   studentName: string,
-  subjectArea: 'mathematics' | 'composition' = 'mathematics'
+  subjectArea: 'mathematics' | 'composition' | 'phonics' = 'mathematics'
 ): Promise<MasteryProfileSummary | null> {
   const res = await fetch(
     `${BASE}/diagnostic/${encodeURIComponent(studentName)}/summary?subject_area=${subjectArea}`,

@@ -646,9 +646,17 @@ export default function Progress() {
   const [behaviorCheck, setBehaviorCheck] = useState<LearnerBehaviorCheck | null>(null)
   const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
   const [compositionSummary, setCompositionSummary] = useState<MasteryProfileSummary | null>(null)
+  const [phonicsSummary, setPhonicsSummary] = useState<MasteryProfileSummary | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+
+  // Phonics evidence only ever exists for a K-2 (foundations-stage) child —
+  // see services/diagnostic/phonics.py and _phonics_checkin_note
+  // (ai_service.py), both gated the same way. Skip fetching it entirely for
+  // an older student rather than showing a card that can never have data.
+  const activeStudentIsFoundations =
+    podStudents.find((s) => s.student_name === activeStudent)?.grade_stage === 'K-2'
 
   useEffect(() => {
     if (!token || !activeStudent) return
@@ -659,6 +667,7 @@ export default function Progress() {
     setBehaviorCheck(null)
     setMasterySummary(null)
     setCompositionSummary(null)
+    setPhonicsSummary(null)
     setUsage(null)
 
     Promise.all([
@@ -667,21 +676,25 @@ export default function Progress() {
       fetchLearnerBehaviorCheck(token, activeStudent),
       fetchMasteryProfileSummary(token, activeStudent, 'mathematics'),
       fetchMasteryProfileSummary(token, activeStudent, 'composition'),
+      activeStudentIsFoundations
+        ? fetchMasteryProfileSummary(token, activeStudent, 'phonics')
+        : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, u]) => {
+      .then(([a, p, bc, m, c, ph, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
         setMasterySummary(m)
         setCompositionSummary(c)
+        setPhonicsSummary(ph)
         setUsage(u)
       })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : t('progress.failedToLoadProgress'))
       })
       .finally(() => setLoading(false))
-  }, [token, activeStudent])
+  }, [token, activeStudent, activeStudentIsFoundations])
 
   return (
     <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
@@ -775,6 +788,16 @@ export default function Progress() {
               noDataText={t('progress.noCompositionMasteryData', { name: activeStudent })}
               calibrationText={t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 })}
             />
+            {activeStudentIsFoundations && (
+              <MasterySnapshot
+                studentName={activeStudent}
+                summary={phonicsSummary}
+                loading={loading}
+                title={t('progress.phonicsMasterySnapshotTitle')}
+                noDataText={t('progress.noPhonicsMasteryData', { name: activeStudent })}
+                calibrationText={t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 })}
+              />
+            )}
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />

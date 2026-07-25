@@ -263,6 +263,21 @@ is in the middle of, and if the child declines, he accepts that and moves
 on. If you'd like the composition pointed somewhere particular, mention it
 in the student's lesson note and Bede will fold it in.
 
+**For K-2 students, Bede occasionally weaves in a quick phonics check
+during Language Arts.** This is new, and worth knowing about: Bede does
+not teach phonics or decoding directly — your family's own phonics
+program (or however you're teaching reading) stays the primary
+instruction, exactly as before. What's new is that, at most once a
+session, Bede may playfully check in on something like a letter sound, a
+simple word to sound out, or a sight word — never announced as a "test,"
+never a drill, and never anything Bede corrects harshly if the child
+misses it. It's woven naturally into whatever's already happening (a word
+from a living book, or the day's copywork), and if your child struggles,
+Bede simply moves on warmly. This exists purely so the Progress page can
+show you a real, evidence-based read on reading foundations, the same way
+it already does for math and composition — see the Phonics Mastery
+Snapshot below.
+
 **The very first time you save a student here, you'll see one extra, fully
 optional prompt** — "What are you most hoping Bede helps with?" — before
 you're taken on to the session or pod dashboard. This is a one-time beta
@@ -406,6 +421,14 @@ among providers that are already set up, it doesn't add a new one.
   connecting to prior learning). It builds from Bede's own silent scoring after
   every narration, so it can show a first, tentative read after as few as 2
   narrations rather than waiting on a larger sample the way math's snapshot does.
+  For students in grades K-2, a third **Phonics Mastery Snapshot** appears too,
+  built from the light check-ins described in §5 above — six reading-foundations
+  areas in their real developmental order (rhyming and sound play, letter sounds,
+  blending simple words, blends and digraphs, long vowel patterns, and sight
+  words), so you can see which comes next for your child rather than a jumbled
+  list. Since these check-ins are occasional by design, this snapshot may take a
+  little longer to show a settled read than the composition one does — an early,
+  tentative label appears until enough check-ins have accumulated.
 - **End-of-session summary** (shown after a session ends, and optionally emailed to
   you): highlights, narrations, areas to revisit, tomorrow's suggestion, and a
   virtue observed. If your child worked on Mathematics that session, and the

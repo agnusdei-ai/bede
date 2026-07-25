@@ -860,6 +860,75 @@ subject, whether it's shaped more like math (→ follow §13's recipe) or more
 like composition (→ a lighter direct-rating blend) rather than assuming one
 pattern fits every subject.
 
+### 13.2 Phonics / reading foundations — a third shape (implemented)
+
+Phonics (`services/diagnostic/phonics.py`, K-2/`GradeStage.foundations`
+only) is the second lighter-weight extension on `MasteryProfile`, and it
+fits neither §13's full-DAG recipe nor §13.1's composition model cleanly —
+it needed a genuinely third shape:
+
+- **Like math, not composition**: each `record_phonics_evidence` call is
+  evidence for exactly **one** domain, not all of them at once (a single
+  check-in — "what sound does /sh/ make?" — says nothing about sight-word
+  recall). `apply_evidence(vector, domain, outcome, ...)` updates one key
+  in the vector per call, the same per-probe shape math's
+  `bayesian_update` has, not composition's `apply_assessment`
+  simultaneous five-dimension blend.
+- **Unlike both math and composition**: `DOMAINS` (`phonological_awareness`
+  → `letter_sound` → `cvc_blending` → `blends_digraphs` →
+  `long_vowel_patterns` → `sight_words`) is a real, fixed developmental
+  sequence — a standard systematic-phonics scope and sequence, not
+  independent rubric dimensions (composition) and not a prerequisite DAG
+  discovered via Q-matrix/CDM (math). `build_summary_view`'s `next_steps`
+  exploits this directly: it walks `DOMAINS` in that fixed order and
+  returns the first ones that aren't yet `"secure"`, rather than sorting by
+  probability the way composition's (and math's) `next_steps` do — a child
+  who hasn't secured letter-sound correspondence should see that before
+  blends and digraphs, even if a lucky guess left blends_digraphs reading
+  higher. No skill-DAG/Q-matrix/CDM/KST machinery is used to encode that
+  order; it's just the fixed tuple `DOMAINS` is defined in.
+- **A real pedagogical change, not just a passive rollup**: composition's
+  evidence is a byproduct of something Bede already does on every subject
+  (`assess_narration`). Phonics evidence isn't a byproduct of anything —
+  Bede's own bundled curriculum content deliberately excludes direct
+  phonics instruction (`data/catalog/year1.json`'s language_arts guidance:
+  "Phonemic awareness and reading practice happen alongside, not through
+  this tutoring session"), so before this module the only Bede-generated
+  phonics signal was whatever a parent's own free-text
+  `CORE_AREAS`/`term_mastery_topics` entry happened to mention in passing.
+  This module is paired with `_phonics_checkin_note`
+  (`services/ai_service.py`) — a light, occasional, never-announced
+  reinforcement check woven into K-2 Language Arts specifically, never a
+  drill and never the family's primary phonics instruction. That check-in
+  is what actually produces the evidence this engine rolls up; without it,
+  the engine would have nothing to calibrate on.
+- **Gated twice, not once**: `_phonics_checkin_note` gates the prompt-level
+  nudge to K-2 Language Arts; `_record_phonics_evidence` independently
+  re-checks the same `subject != Subject.language_arts or grade_stage !=
+  foundations` condition before ever calling `phonics.process_evidence` — a
+  defensive backstop, since `record_phonics_evidence` is a fully silent
+  tool with no visible card to cap frequency against the way
+  `_composition_note` scans `invite_handwriting`'s rendered title for a
+  once-per-session limit. The "at most once per session" limit itself is
+  prompt-instruction-only for the same reason.
+- **Calibration threshold** — `CALIBRATION_THRESHOLD = 3`, its own
+  placeholder in the same unvalidated spirit as math's 5 and composition's
+  2: fewer check-ins are needed to settle than math's per-skill probes, but
+  each is scarcer than composition's (gated to one subject/stage, not every
+  `assess_narration` call anywhere).
+- **No demo-mode backend** — like composition, scoped to real (parent/child)
+  sessions only; the demo has no persistent per-student history across
+  sessions for a calibrated read to build on.
+
+As with composition, this reuses only `MasteryProfile`/
+`calibration_weight_for`/`classify_level`/the `MasteryProfileSummary` shape
+— no skill-DAG, Q-matrix, CDM, or KST. Three purpose-built shapes now exist
+on top of the same composite-PK table (math's full DAG, composition's flat
+simultaneous-domain blend, phonics' single-domain-per-call blend with an
+ordered rather than probability-sorted `next_steps`) — a future extension
+should keep asking which of the three actual shapes fits, rather than
+assuming a fourth is needed by default.
+
 ---
 
 ## 14. Open-Standards Appendix

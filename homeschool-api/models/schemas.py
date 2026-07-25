@@ -566,3 +566,14 @@ class RecordSkillEvidenceInput(BaseModel):
     probe_id:   str = Field(..., max_length=80)
     outcome:    Literal["correct", "partial", "incorrect", "hint_dependent"]
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+class RecordPhonicsEvidenceInput(BaseModel):
+    """Server-side validation of the silent record_phonics_evidence tool's
+    input — see services/diagnostic/phonics.py. Never leaves the server;
+    not part of any response body. domain isn't validated against
+    phonics.DOMAINS here (Literal would require importing the diagnostic
+    package into the schema module); services.diagnostic.phonics.
+    apply_evidence already degrades an unrecognized domain to a true no-op,
+    so a hallucinated value is harmless, just unpersisted."""
+    domain:  str = Field(..., max_length=40)
+    outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]

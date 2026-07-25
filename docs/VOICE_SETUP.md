@@ -358,6 +358,50 @@ If you maintain a custom Dockerfile or build pipeline for this service,
 make sure it keeps that pre-download `RUN` step, or the fallback STT path
 will silently stop working the same way once deployed read-only.
 
+### Running on low-power hosts (Raspberry Pi, ARM, small NAS)
+
+`docs/PARENT_SETUP.md` lists a Raspberry Pi as a legitimate server machine,
+and it is — but transcription is the one part of a lesson that is genuinely
+CPU-bound *on your own server*, so it's worth knowing what that means before
+choosing hardware.
+
+Everything else in a tutoring turn is either a network call to whichever AI
+provider you configured or a fast database write. Speech-to-text is the
+exception: `faster-whisper` inference runs locally on the host CPU, always.
+There is deliberately **no cloud speech-to-text option** in Bede — the child's
+audio never leaves the house — so this work cannot be offloaded the way the
+tutoring model can. (`OPENAI_API_KEY` buys cloud **TTS**, Bede's spoken output;
+it does nothing for microphone input.)
+
+Practical consequences on a Pi-class host:
+
+- **Expect meaningfully longer per-turn transcription** than on a modern
+  x86 desktop. The `base` model at `int8` is already the fast end of the
+  accuracy/speed trade-off (see above); dropping to `tiny` was tried and
+  produced noticeably worse transcripts on real sentences, so that isn't a
+  recommended lever.
+- **Leave `VOICE_TRANSCRIPTION_MAX_CONCURRENCY` at its default of 1.** That
+  setting exists precisely because overlapping Whisper passes contend for the
+  same cores rather than parallelizing (see the transcription-delay section
+  above) — the failure it prevents is *worse*, not milder, on fewer/slower
+  cores. Raising it is only appropriate on a host with real CPU headroom.
+- **Typing remains a first-class input path.** A child who doesn't want to wait
+  can always type; nothing about the lesson depends on the mic.
+
+This has not been benchmarked against a physical Pi in this repo — the guidance
+above follows from the architecture (batch-only local inference, one pass at a
+time per session) rather than from a measured figure. If you run Bede on a Pi,
+the per-pass `elapsed=` log described in the transcription-delay section above
+is the number that tells you what your hardware actually does.
+
+Encryption, by contrast, is **not** a concern on this hardware. Per-request
+`encrypt`/`decrypt` is plain AES-256-GCM over small payloads. The one
+deliberately expensive step is `core/encryption.py`'s PBKDF2-HMAC-SHA256 KEK
+derivation (600k iterations, ~0.3–1.5s depending on hardware), and it runs
+**once at startup**, off the event loop, never per request — see that module's
+`_derive_kek` docstring, which already treats the Pi as the low-power target
+it optimized the PRF loop for.
+
 ## Troubleshooting (historical): the mic shows "listening" but nothing reaches Bede
 
 Reported on Safari/iOS: the mic indicator stays lit, the child speaks, and

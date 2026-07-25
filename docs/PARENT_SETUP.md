@@ -71,6 +71,14 @@ wherever you'd like on the server machine (no terminal needed for this part).
 *(If you're comfortable with `git`, `git clone <this repository>` works too
 — same result.)*
 
+**Prefer one command instead?** A native installer exists for each platform
+that also installs Docker for you if it's missing, and can optionally set
+up a local AI model with no account needed — see
+[docs/WINDOWS_INSTALLER.md](WINDOWS_INSTALLER.md) or
+[docs/UNIX_INSTALLER.md](UNIX_INSTALLER.md) (Linux — Ubuntu, Debian, Arch,
+x86_64 or arm64/Raspberry Pi — and macOS). If you use one of these, skip
+ahead to step 4 below; the installer already did steps 2 and 3 for you.
+
 ## 3. First-time setup
 
 Open the unzipped folder and:

@@ -4,7 +4,10 @@ A native Windows installer for families who'd rather double-click an `.exe`
 than clone a repo and run `setup-gui.bat` by hand. Source lives in
 `packaging/windows/`; built by `.github/workflows/build-windows-installer.yml`
 on a `windows-latest` GitHub Actions runner (Inno Setup's compiler,
-`ISCC.exe`, is Windows-native).
+`ISCC.exe`, is Windows-native). See [docs/UNIX_INSTALLER.md](UNIX_INSTALLER.md)
+for the Linux/macOS counterpart, `install.sh` — same job, same overall
+shape (chain-install Docker, optionally set up local AI, hand off to the
+existing browser wizard), adapted to each platform's own tools.
 
 Built with **Inno Setup**, not an MSI — chosen specifically for its default
 wizard UI (License → Destination → Start Menu Folder → Additional Tasks →

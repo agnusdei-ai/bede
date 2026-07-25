@@ -23,6 +23,23 @@ including the /tutor/chat SSE stream — from one event loop; a synchronous
 Whisper call used to freeze the entire app (every tablet's chat stream, every
 login) for the full duration of a model load + transcription.
 
+transcribe_audio() also serializes actual inference through a semaphore sized
+by settings.voice_transcription_max_concurrency (default 1) — see that
+setting's own comment in core/config.py. Moving work off the event loop
+stopped a slow transcription from freezing the *rest* of the app, but did
+nothing to stop multiple transcription passes from running concurrently and
+fighting each other for CPU: faster-whisper's CTranslate2 backend is itself
+internally multi-threaded, so N concurrent calls don't finish in parallel,
+they all slow down together. That's what was actually behind reports of a
+hold-to-talk turn's "Transcribing…" spinner taking 10s, then 30s, then never
+resolving at all within the same short session — every fresh mic press opens
+its own streaming-transcription worker (services/streaming_transcription.py),
+and a quick press/release/press sequence left more than one of those workers
+mid-inference at once with nothing making them wait their turn. The semaphore
+turns that pile-up into a queue: a queued pass still adds latency, but it no
+longer compounds into runaway multi-tens-of-seconds stalls. See
+docs/VOICE_SETUP.md's transcription-delay section for the investigation.
+
 MODEL_DIR is where the model weights live. In the production Docker image
 they're pre-downloaded here at build time (see Dockerfile) — the api
 container runs read_only:true with no writable volume outside a 64MB /tmp
@@ -36,6 +53,8 @@ import logging
 import os
 import threading
 
+from core.config import settings
+
 logger = logging.getLogger(__name__)
 
 _WHISPER_MODEL_SIZE = "base"
@@ -46,6 +65,20 @@ _model_load_attempted = False
 # A real lock (not lru_cache) so two concurrent first requests can't both
 # load the model — the second waits for the first instead of doubling memory.
 _model_lock = threading.Lock()
+
+# Bounds how many transcribe_audio() calls actually run inference at once,
+# app-wide — see settings.voice_transcription_max_concurrency's own comment
+# in core/config.py and this module's docstring for why. Created lazily
+# (not at import time) so it always binds to the event loop that ends up
+# running it, rather than whichever loop happened to exist at import.
+_inference_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_inference_semaphore() -> asyncio.Semaphore:
+    global _inference_semaphore
+    if _inference_semaphore is None:
+        _inference_semaphore = asyncio.Semaphore(max(1, settings.voice_transcription_max_concurrency))
+    return _inference_semaphore
 
 
 def _get_model():
@@ -140,4 +173,5 @@ async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> dict:
     Returns {text, language, segments}.
     """
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _transcribe_sync, audio_bytes, language)
+    async with _get_inference_semaphore():
+        return await loop.run_in_executor(None, _transcribe_sync, audio_bytes, language)

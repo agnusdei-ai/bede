@@ -255,7 +255,10 @@ an NVIDIA GPU on Linux (bare metal or WSL2):
 
 If your household hardware is a laptop/tablet/Raspberry Pi without a suitable
 GPU, skip this adapter and rely on `openai`/`mistral` (or `anthropic` if/when
-restored) instead — that's exactly what the adapter design is for.
+restored) instead — that's exactly what the adapter design is for. The
+parent-facing version of this same decision (plus what modest hardware does and
+doesn't affect elsewhere — voice transcription, encryption) is
+`docs/PARENT_SETUP.md`'s "Choosing your server machine".
 
 **Install/run** (on the separate GPU machine, not on Render):
 

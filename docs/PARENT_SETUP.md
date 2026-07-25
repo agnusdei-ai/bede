@@ -9,6 +9,8 @@ a form in your browser. The whole setup takes under 20 minutes either way.
 
 - A computer, mini-PC, NAS, or Raspberry Pi to act as the "server" — it runs all the
   time your family uses Bede, and everyone's tablets connect to it over your home Wi-Fi.
+  Any of these is genuinely fine; see "Choosing your server machine" below if you're
+  buying something for this or wondering whether what you already own is enough.
 - [Docker](https://docs.docker.com/get-docker/) installed on that machine.
 - An AI provider for Bede's actual tutoring conversation — pick whichever
   fits your family, `make setup` asks and there's no default forced on you:
@@ -25,6 +27,41 @@ a form in your browser. The whole setup takes under 20 minutes either way.
 - *(Optional)* Bede's spoken voice — see `docs/VOICE_SETUP.md`. A free,
   self-hosted option needs no account at all; a paid OpenAI option sounds
   meaningfully more natural if you'd rather pay a small per-use cost for it.
+
+### Choosing your server machine
+
+Bede's server does less heavy lifting than you might expect. For most of a
+lesson it's relaying the conversation to whichever AI provider you picked and
+storing your child's work encrypted — not doing the thinking itself. That's why
+a modest always-on machine, including a Raspberry Pi, is a perfectly reasonable
+choice, and why you don't need a powerful or expensive computer to run this well.
+
+Two things genuinely depend on how strong that machine is, and one that doesn't:
+
+- **The AI provider you can choose.** The self-hosted open-weight model option
+  (the one with no account and no per-message cost) needs a dedicated NVIDIA
+  GPU on Linux. A Raspberry Pi, a NAS, a Mac, or an ordinary laptop **cannot**
+  run it. That's not a limitation of Bede — it's what that class of model
+  requires. On those machines, pick one of the cloud providers (Anthropic,
+  OpenAI, or Mistral) instead; everything else about Bede works identically.
+  Full hardware tiers are in `docs/PROVIDER_ADAPTERS.md`.
+- **How fast the microphone feels.** When your child speaks, your server's own
+  processor turns that recording into text. This is always done on your own
+  machine — there is no cloud option for it, by design, so your child's voice
+  never leaves your house. On a low-power machine like a Pi, expect each spoken
+  answer to take noticeably longer to come back than it would on a modern
+  desktop. It works; it's just slower per turn, and typing an answer instead is
+  always available if a child would rather not wait. (The paid OpenAI voice
+  option affects *Bede's* spoken voice, not this — it won't speed the
+  microphone up. See `docs/VOICE_SETUP.md`.)
+- **Encryption is not something you need to worry about here.** Protecting your
+  child's data costs almost nothing per lesson: the actual encrypting and
+  decrypting of saved work is far too fast to notice on any machine on this
+  list. There is one deliberately slow step — deriving the key that protects
+  everything else — but it runs *once, when Bede starts up*, not during
+  lessons, and it's intentionally slow because that's what makes your master
+  secret hard to crack. On a Pi that means a few extra seconds at boot and
+  nothing more. You never trade security for speed by choosing modest hardware.
 
 ## 2. Get the files onto your server machine
 

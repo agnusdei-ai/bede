@@ -21,6 +21,7 @@ from routers.diagnostic import get_student_mastery_summary
 from services.diagnostic import process_evidence
 from services.diagnostic.composition import process_assessment
 from services.diagnostic.phonics import process_evidence as process_phonics_evidence
+from services.diagnostic.language_exposure import process_evidence as process_language_evidence
 
 
 @pytest_asyncio.fixture
@@ -193,3 +194,56 @@ async def test_math_composition_and_phonics_summaries_are_independent_for_the_sa
     assert math_summary.evidence_count == 1
     assert composition_summary.evidence_count == 1
     assert phonics_summary.evidence_count == 1
+
+
+# ── subject_area dispatch (language exposure — services.diagnostic.language_exposure) ──
+
+
+@pytest.mark.asyncio
+async def test_subject_area_language_exposure_returns_the_language_engines_summary(db_session):
+    await process_language_evidence(db_session, "Wren", "latin", "correct")
+
+    summary = await get_student_mastery_summary(
+        "Wren", _fake_request(), subject_area="language_exposure", auth={"role": "parent"}, db=db_session,
+    )
+    assert summary.subject_area == "language_exposure"
+    assert summary.evidence_count == 1
+    assert len(summary.domains) == 6
+
+
+@pytest.mark.asyncio
+async def test_language_exposure_404s_before_any_evidence_recorded(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await get_student_mastery_summary(
+            "Nobody", _fake_request(), subject_area="language_exposure", auth={"role": "parent"}, db=db_session,
+        )
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_all_four_subject_areas_are_independent_for_the_same_student(db_session):
+    await process_evidence(db_session, "Ivy", "probe.cc.rote_count_20", "correct", 1.0, "K-2")
+    await process_assessment(db_session, "Ivy", _SCORES)
+    await process_phonics_evidence(db_session, "Ivy", "letter_sound", "correct")
+    await process_language_evidence(db_session, "Ivy", "latin", "correct")
+
+    math_summary = await get_student_mastery_summary(
+        "Ivy", _fake_request(), subject_area="mathematics", auth={"role": "parent"}, db=db_session,
+    )
+    composition_summary = await get_student_mastery_summary(
+        "Ivy", _fake_request(), subject_area="composition", auth={"role": "parent"}, db=db_session,
+    )
+    phonics_summary = await get_student_mastery_summary(
+        "Ivy", _fake_request(), subject_area="phonics", auth={"role": "parent"}, db=db_session,
+    )
+    language_summary = await get_student_mastery_summary(
+        "Ivy", _fake_request(), subject_area="language_exposure", auth={"role": "parent"}, db=db_session,
+    )
+    assert {
+        math_summary.subject_area, composition_summary.subject_area,
+        phonics_summary.subject_area, language_summary.subject_area,
+    } == {"mathematics", "composition", "phonics", "language_exposure"}
+    assert all(
+        s.evidence_count == 1
+        for s in (math_summary, composition_summary, phonics_summary, language_summary)
+    )

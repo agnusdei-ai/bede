@@ -16,6 +16,11 @@ from services.diagnostic.phonics import (
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
     DOMAIN_LABELS as _PHONICS_DOMAIN_LABELS,
 )
+from services.diagnostic.language_exposure import (
+    LANGUAGES as _EXPOSURE_LANGUAGES,
+    LANGUAGE_CHECKIN_HINTS as _EXPOSURE_LANGUAGE_HINTS,
+    LANGUAGE_LABELS as _EXPOSURE_LANGUAGE_LABELS,
+)
 from models.schemas import (
     SessionConfig,
     Subject,
@@ -517,6 +522,37 @@ TUTOR_TOOLS = [
                 },
             },
             "required": ["domain", "outcome"],
+        },
+    },
+    {
+        "name": "record_language_evidence",
+        "description": (
+            "SILENTLY record evidence from a brief foreign-language teach-then-recall moment woven "
+            "into History, Saints, or Art & Music — a Latin phrase for Rome, a French word for the "
+            "Revolution, an Italian musical term, a saint's homeland phrase. Only call this after "
+            "you've actually taught the word/phrase earlier in this conversation and later checked "
+            "whether the child remembered it. Never a drill, never announced, at most one per "
+            "session, and only when today's content genuinely offered this opening — never forced. "
+            "The child never sees this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "language": {
+                    "type": "string",
+                    "enum": list(_EXPOSURE_LANGUAGES),
+                    "description": "Which language this check-in was evidence for",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How the child recalled it: correct=remembered unaided, partial=some grasp, "
+                        "incorrect=missed it, hint_dependent=only after you helped"
+                    ),
+                },
+            },
+            "required": ["language", "outcome"],
         },
     },
 ]
@@ -1564,6 +1600,48 @@ move on warmly; do not correct or drill. Never mention this tracking to the chil
 </phonics_checkin>"""
 
 
+_LANGUAGE_CHECKIN_SUBJECTS = (Subject.history, Subject.saints, Subject.art_music)
+
+
+def _language_checkin_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    History, Saints, and Art & Music only, every grade stage: a light nudge
+    to teach ONE brief foreign word or phrase when today's content
+    genuinely offers one, then check back later whether the child
+    remembered it. This is NOT a language-learning subject — Bede never
+    drills vocabulary or runs a formal lesson; see services/diagnostic/
+    language_exposure.py's own docstring for the full "setting the stage,
+    not Duolingo" framing. Unlike _phonics_checkin_note, this is genuinely
+    opportunistic rather than a guaranteed pick-one-of-N-domains prompt:
+    a Rome-focused History session offers a natural Latin moment, but not
+    every session in these subjects will, and Bede should never invent one
+    that isn't really there.
+
+    Same "at most once per session, prompt-instruction-only" pacing
+    rationale as _phonics_checkin_note — record_language_evidence is
+    fully silent, with nothing distinct in the transcript to scan for.
+    """
+    if subject not in _LANGUAGE_CHECKIN_SUBJECTS:
+        return ""
+    language_lines = "\n".join(
+        f"  - {language} ({_EXPOSURE_LANGUAGE_LABELS[language]}): {_EXPOSURE_LANGUAGE_HINTS[language]}"
+        for language in _EXPOSURE_LANGUAGES
+    )
+    return f"""
+
+<language_checkin>
+IF — and only if — today's content genuinely offers a natural foreign-language moment (never force
+or invent one), teach the child ONE brief word or phrase tied to what you're already discussing, drawn
+from whichever of these fits (this is illustrative, not exhaustive — use judgment for other content too):
+{language_lines}
+Say the word or phrase, explain what it means, and move on with the lesson. Later in the SAME
+conversation — not immediately — casually check whether the child remembers it. If they genuinely
+show you whether they recalled it or not, call `record_language_evidence` with that language id and
+an honest outcome. This is exposure, not instruction: never a drill, never a vocabulary list, never
+more than one such moment per session. Never mention this tracking to the child.
+</language_checkin>"""
+
+
 def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     """
     Tells Bede whether this is the day's first or last configured subject —
@@ -1768,10 +1846,11 @@ async def _build_subject_prompt(
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
     phonics_note = _phonics_checkin_note(config, subject)
+    language_note = _language_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{diagnostic_note}{guadalupe_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2160,6 +2239,37 @@ async def _record_phonics_evidence(
         log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
 
 
+async def _record_language_evidence(
+    db: Optional["AsyncSession"],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently record language-exposure evidence from a light teach-then-
+    recall moment — see services/diagnostic/language_exposure.py's own
+    docstring for the pedagogical framing. Real (parent/child) sessions
+    only, mirroring _record_phonics_evidence's no-demo-backend wiring — the
+    demo has no persistent per-student history to build a calibrated read
+    from across sessions. Gated to exactly where the check-in guidance
+    itself is gated (History, Saints, Art & Music, every grade stage) as a
+    second, code-level backstop — a defensive belt-and-braces match to the
+    prompt-level gate, not a substitute for it. Defensive like
+    _record_phonics_evidence, which this mirrors: a diagnostic hiccup must
+    never break the child's tutoring turn.
+    """
+    if subject not in _LANGUAGE_CHECKIN_SUBJECTS or db is None:
+        return
+    try:
+        from models.schemas import RecordLanguageEvidenceInput
+        from services.diagnostic.language_exposure import process_evidence as _process_language
+
+        ev = RecordLanguageEvidenceInput(**tool_input)  # validate/clamp
+        await _process_language(db, config.student_name, ev.language, ev.outcome)
+    except Exception as exc:
+        log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
+
+
 async def stream_tutor_response(
     config: SessionConfig,
     subject: Subject,
@@ -2418,6 +2528,10 @@ async def stream_tutor_response(
                                 # Fully silent, same as record_skill_evidence above —
                                 # see _record_phonics_evidence's own docstring.
                                 await _record_phonics_evidence(db, config, subject, tool_input)
+                            elif tc["name"] == "record_language_evidence":
+                                # Fully silent, same as record_skill_evidence above —
+                                # see _record_language_evidence's own docstring.
+                                await _record_language_evidence(db, config, subject, tool_input)
                             else:
                                 if tc["name"] == "invite_handwriting":
                                     # See LearnerBehaviorCheck's docstring — a minimal,

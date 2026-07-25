@@ -263,6 +263,25 @@ class Settings(BaseSettings):
     voice_threshold_high: float = 0.82    # auto-pass
     voice_threshold_medium: float = 0.68  # parent override available
 
+    # ── Speech-to-text concurrency (services/transcription.py) ───────────────
+    # faster-whisper's CPU inference is itself internally multi-threaded
+    # (CTranslate2 uses all available cores by default for one call) — running
+    # more than one transcription pass at a time doesn't parallelize cleanly,
+    # it makes every concurrent pass fight the others for the same cores.
+    # Each hold-to-talk press opens its own streaming-transcription session
+    # (services/streaming_transcription.py), and a rapid press/release/press
+    # sequence — or several tablets' turns landing close together — can leave
+    # more than one session's worker mid-inference at once with nothing
+    # limiting it, so passes pile up and get progressively slower rather than
+    # queueing cleanly. VOICE_TRANSCRIPTION_MAX_CONCURRENCY caps how many
+    # transcribe_audio() calls run at once app-wide (a semaphore, not a
+    # thread-pool size) — extra callers wait their turn instead of competing.
+    # 1 is the safe default for the single-vCPU-ish tiers this app typically
+    # runs on; a deployment with real CPU headroom (more cores, a bigger
+    # instance) can raise it to let genuinely-concurrent turns from different
+    # tablets overlap. See docs/VOICE_SETUP.md's transcription-delay section.
+    voice_transcription_max_concurrency: int = 1
+
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
     # On by default — this is what powers the end-of-session "Math Skill
     # Growth" before/after report (services.diagnostic.get_session_growth,

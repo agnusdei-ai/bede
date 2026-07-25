@@ -258,7 +258,9 @@ for the same limited CPU. This sandbox has no access to the deployed
 instance's real CPU tier or live request concurrency, so this could not be
 measured directly — only reasoned about from the architecture.
 
-**What shipped**: two changes, one diagnostic and one mitigation.
+**What shipped initially**: two changes, one diagnostic and one mitigation
+— see below for the follow-up fix once the diagnostic actually caught the
+root cause live.
 
 1. **A per-pass timing log** (`streaming_transcription.py`'s worker loop) —
    `streaming_transcription: session=<id> pass=partial|final
@@ -272,14 +274,39 @@ measured directly — only reasoned about from the architecture.
    re-transcribed overall, and less chance a partial pass is still running
    when release() arrives), at the minor cost of live partial text
    updating somewhat less often during a long hold. This directly helps
-   failure mode (2) above and reduces the *frequency* component of (1);
-   it does **not** reduce the inherent cost of the final pass itself if a
-   slow/shared CPU tier turns out to be the dominant factor — that would
-   need a smaller Whisper model, a beefier instance, or skipping partial
-   transcription entirely (a bigger, not-yet-made change). Treat this as a
-   reasoned mitigation shipped alongside real diagnostics, not a confirmed
-   complete fix — the next live trace with the new timing log will say
-   which further step (if any) is actually needed.
+   failure mode (2) above and reduces the *frequency* component of (1).
+
+**Confirmed via a live client trace** (repeated hold-to-talk presses spaced
+1-2s apart, iOS/mobile Chrome — note: Chrome on iOS runs on the same
+WebKit engine Safari does, Apple requires it of every iOS browser, so this
+isn't a Chrome-vs-Safari difference): candidate cause (3) above, contention
+between concurrent transcription passes, not (1) or (2) alone. Each fresh
+mic press opens its own `streaming_transcription.py` session with its own
+worker task; a quick press/release/press sequence left more than one
+session's worker mid-`transcribe_audio()` call at the same time, with
+nothing serializing them. `faster-whisper`'s CTranslate2 backend is itself
+internally multi-threaded per call, so concurrent passes don't parallelize —
+they fight each other for the same CPU cores and all slow down together.
+The trace showed exactly this signature: successive turns in the *same*
+session taking 6.9s, then 33.3s, then producing a garbled transcript after
+~28s, then never resolving at all — a runaway pile-up, not a fixed
+per-utterance cost, and one bad enough that the garbled pass actually
+mis-transcribed the audio (not just slowly).
+
+**What shipped**: `services/transcription.py`'s `transcribe_audio()` now
+serializes actual inference through an `asyncio.Semaphore` sized by
+`settings.voice_transcription_max_concurrency` (default 1 — `VOICE_TRANSCRIPTION_MAX_CONCURRENCY`
+env var). Overlapping callers now queue for their turn instead of running
+concurrently and thrashing CPU — this caps candidate cause (3) directly,
+whether the overlap comes from one family's rapid re-presses or several
+tablets' turns landing close together on a shared host. A deployment with
+real CPU headroom can raise the setting to let genuinely-concurrent turns
+overlap instead of always serializing to one. This does **not** reduce the
+inherent per-pass cost on a slow/shared CPU tier — a queued pass still
+takes as long as it always would — it only stops that cost from compounding
+across overlapping passes. See `tests/test_transcription.py` for the
+regression coverage (proves passes are actually serialized, and that the
+concurrency cap is configurable, not hardcoded).
 
 ## Troubleshooting (historical): the microphone stopped working after a browser update
 

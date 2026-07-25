@@ -226,20 +226,24 @@
 
     /* Curriculum tab colors — one per subject, like a school binder's own
        colored divider tabs, so the ten subjects read as distinct at a
-       glance instead of one undifferentiated green list. Scoped to the
-       curriculum section specifically: the OTHER .subject-grid further
-       down the page (the 3-card "Core Capabilities" list) isn't a subject
-       list, so it keeps the plain olive border. */
-    .curriculum .subject-card:nth-child(1)  { border-left-color: #a8433a; } /* Morning Time */
-    .curriculum .subject-card:nth-child(2)  { border-left-color: #2f5f96; } /* Living Books */
-    .curriculum .subject-card:nth-child(3)  { border-left-color: #6b4c9a; } /* Mathematics */
-    .curriculum .subject-card:nth-child(4)  { border-left-color: #4f7d3a; } /* Nature Study */
-    .curriculum .subject-card:nth-child(5)  { border-left-color: #c1652f; } /* History & Geography */
-    .curriculum .subject-card:nth-child(6)  { border-left-color: #1f7a72; } /* Language Arts */
-    .curriculum .subject-card:nth-child(7)  { border-left-color: #2f7fa0; } /* Science */
-    .curriculum .subject-card:nth-child(8)  { border-left-color: #c9971e; } /* Art & Music */
-    .curriculum .subject-card:nth-child(9)  { border-left-color: #8a2f4a; } /* Saints & Catechism */
-    .curriculum .subject-card:nth-child(10) { border-left-color: #8a5a34; } /* Free Study */
+       glance instead of one undifferentiated green list. Ten hues evenly
+       spaced around the full color wheel (36° apart, same saturation/
+       lightness throughout) so no two repeat and the list reads as one
+       continuous spectrum top to bottom — every subject its own color,
+       the way every learner is their own person. Scoped to the curriculum
+       section specifically: the OTHER .subject-grid further down the page
+       (the 3-card "Core Capabilities" list) isn't a subject list, so it
+       keeps the plain olive border. */
+    .curriculum .subject-card:nth-child(1)  { border-left-color: #9e2e2e; } /* Morning Time — red, 0° */
+    .curriculum .subject-card:nth-child(2)  { border-left-color: #9e712e; } /* Living Books — orange, 36° */
+    .curriculum .subject-card:nth-child(3)  { border-left-color: #889e2e; } /* Mathematics — chartreuse, 72° */
+    .curriculum .subject-card:nth-child(4)  { border-left-color: #449e2e; } /* Nature Study — green, 108° */
+    .curriculum .subject-card:nth-child(5)  { border-left-color: #2e9e5b; } /* History & Geography — emerald, 144° */
+    .curriculum .subject-card:nth-child(6)  { border-left-color: #2e9e9e; } /* Language Arts — teal, 180° */
+    .curriculum .subject-card:nth-child(7)  { border-left-color: #2e5b9e; } /* Science — blue, 216° */
+    .curriculum .subject-card:nth-child(8)  { border-left-color: #442e9e; } /* Art & Music — indigo, 252° */
+    .curriculum .subject-card:nth-child(9)  { border-left-color: #882e9e; } /* Saints & Catechism — purple, 288° */
+    .curriculum .subject-card:nth-child(10) { border-left-color: #9e2e71; } /* Free Study — rose, 324° */
 
     .subject-card h3 {
       font-family: Georgia, serif;

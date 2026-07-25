@@ -224,6 +224,23 @@
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     }
 
+    /* Curriculum tab colors — one per subject, like a school binder's own
+       colored divider tabs, so the ten subjects read as distinct at a
+       glance instead of one undifferentiated green list. Scoped to the
+       curriculum section specifically: the OTHER .subject-grid further
+       down the page (the 3-card "Core Capabilities" list) isn't a subject
+       list, so it keeps the plain olive border. */
+    .curriculum .subject-card:nth-child(1)  { border-left-color: #a8433a; } /* Morning Time */
+    .curriculum .subject-card:nth-child(2)  { border-left-color: #2f5f96; } /* Living Books */
+    .curriculum .subject-card:nth-child(3)  { border-left-color: #6b4c9a; } /* Mathematics */
+    .curriculum .subject-card:nth-child(4)  { border-left-color: #4f7d3a; } /* Nature Study */
+    .curriculum .subject-card:nth-child(5)  { border-left-color: #c1652f; } /* History & Geography */
+    .curriculum .subject-card:nth-child(6)  { border-left-color: #1f7a72; } /* Language Arts */
+    .curriculum .subject-card:nth-child(7)  { border-left-color: #2f7fa0; } /* Science */
+    .curriculum .subject-card:nth-child(8)  { border-left-color: #c9971e; } /* Art & Music */
+    .curriculum .subject-card:nth-child(9)  { border-left-color: #8a2f4a; } /* Saints & Catechism */
+    .curriculum .subject-card:nth-child(10) { border-left-color: #8a5a34; } /* Free Study */
+
     .subject-card h3 {
       font-family: Georgia, serif;
       font-size: 1.02rem;

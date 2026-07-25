@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { X, Undo2, Redo2, Trash2, Check, Pencil, Eraser, Printer } from 'lucide-react'
+import { X, Undo2, Redo2, Trash2, Check, PenTool, Pencil, Eraser, Printer } from 'lucide-react'
 import type { Subject } from '../types'
 
 interface Point {
@@ -11,11 +11,14 @@ interface Point {
 interface Stroke {
   points: Point[]
   width: number
+  // Always the raw ink color the child picked, never pre-tinted/pre-faded —
+  // tool determines rendering (color substitution for eraser, gray tint +
+  // reduced opacity for pencil) at draw time in toolRenderColor/toolOpacity,
+  // so redrawAll and the live pointer handlers can never disagree about how
+  // a given stroke should look, and eraser strokes stay correct even if the
+  // child recolors the paper mid-drawing (see toolRenderColor).
   color: string
-  // Eraser strokes are resolved to the CURRENT paper color at draw time —
-  // storing the background hex directly would leave stale-colored patches
-  // behind whenever the child recolors the paper mid-drawing.
-  isEraser?: boolean
+  tool: Tool
 }
 
 interface HandwritingCanvasProps {
@@ -325,7 +328,49 @@ const SIZE_PRESETS: Record<SizePreset, { min: number; max: number; base: number;
   thick: { min: 4, max: 12, base: 6, dot: 14 },
 }
 
-type Tool = 'pen' | 'eraser'
+type Tool = 'pen' | 'pencil' | 'eraser'
+
+// Pencil renders lighter and cooler-toned than pen ink — never full-strength
+// solid color, the way a real pencil never lays down as boldly as a pen
+// even pressed hard. Opacity does the heavy lifting (it reads as "softer"
+// at a glance); the gray tint on top keeps even a bright chosen color from
+// looking like diluted ink instead of graphite/colored pencil.
+const PENCIL_OPACITY = 0.6
+const PENCIL_GRAY = 0x6b6b6b
+
+function pencilTint(hex: string): string {
+  const n = parseInt(hex.slice(1), 16)
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+  const gr = (PENCIL_GRAY >> 16) & 255, gg = (PENCIL_GRAY >> 8) & 255, gb = PENCIL_GRAY & 255
+  const mix = (c: number, gc: number) => Math.round(c * 0.65 + gc * 0.35)
+  return `rgb(${mix(r, gr)}, ${mix(g, gg)}, ${mix(b, gb)})`
+}
+
+// What color a stroke actually renders in, independent of what color the
+// child picked — eraser always resolves to the CURRENT paper color (not a
+// stored background hex) so replaying strokes never leaves a stale-colored
+// patch behind if the child recolors the paper mid-drawing; pencil tints
+// toward graphite; pen renders the chosen color exactly.
+function toolRenderColor(tool: Tool, color: string, paperColor: string): string {
+  if (tool === 'eraser') return paperColor
+  if (tool === 'pencil') return pencilTint(color)
+  return color
+}
+
+function toolOpacity(tool: Tool): number {
+  return tool === 'pencil' ? PENCIL_OPACITY : 1
+}
+
+// Draws a finger's contact point noticeably below where the ink actually
+// appears — a fingertip covers the exact spot a stylus's precise tip would
+// mark, so without this the child can't see what they're drawing right as
+// they draw it, and the line feels uncalibrated even though the underlying
+// math is exact. A stylus or mouse needs none of this: its contact point
+// already IS the precise mark. Value is in fixed CANVAS_WIDTH/HEIGHT units
+// (see PRINT_DPI above), not on-screen CSS px, so it stays the same real
+// on-paper distance regardless of how small the letterboxed on-screen
+// paper is scaled down to fit the device.
+const TOUCH_FINGER_CLEARANCE = 0.35 * PRINT_DPI
 
 export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeStage }: HandwritingCanvasProps) {
   const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
@@ -362,6 +407,11 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   const [tool, setTool] = useState<Tool>('pen')
   const [sizePreset, setSizePreset] = useState<SizePreset>('medium')
   const [color, setColor] = useState<string>(PALETTE[0].value)
+
+  // Picking a color while on Eraser should switch back to drawing — but
+  // picking a color while on Pencil should stay on Pencil (a child using
+  // colored pencil shouldn't get bumped to Pen just for choosing a color).
+  const switchToInkTool = () => setTool((t) => (t === 'eraser' ? 'pen' : t))
 
   // Fits the largest 8.5:11 box into the available backdrop — the same
   // letterbox math a photo viewer uses — so the on-screen drawing area is
@@ -413,11 +463,13 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     ctx.scale(dpr, dpr)
     drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling, gridSpacing, staff)
 
-    // Replay all strokes — an "eraser" stroke is just one whose color is the
-    // background color, so replaying strokes in order naturally covers
-    // whatever ink was under it with no separate erase code path.
+    // Replay all strokes — an "eraser" stroke is just one whose render
+    // color resolves to the background color (toolRenderColor), so
+    // replaying strokes in order naturally covers whatever ink was under
+    // it with no separate erase code path.
     for (const stroke of strokesRef.current) {
-      const strokeColor = stroke.isEraser ? paperColor : stroke.color
+      const strokeColor = toolRenderColor(stroke.tool, stroke.color, paperColor)
+      ctx.globalAlpha = toolOpacity(stroke.tool)
       if (stroke.points.length < 2) {
         // Single dot
         const pt = stroke.points[0]
@@ -439,6 +491,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       }
       ctx.stroke()
     }
+    ctx.globalAlpha = 1
   }, [paperStyle, paperColor, ruling, gridSpacing, staff])
 
   useEffect(() => {
@@ -456,13 +509,16 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // box (rect) can be smaller than the fixed CANVAS_WIDTH/HEIGHT drawing
   // space (it's letterboxed to fit the screen — see paperBox above), so
   // pointer position is rescaled into that drawing space rather than used
-  // as raw display pixels.
+  // as raw display pixels. e.pointerType ('touch' vs 'pen'/'mouse') lets
+  // this apply TOUCH_FINGER_CLEARANCE only for an actual finger — a stylus
+  // reports 'pen' here even on the same touchscreen, and needs no offset.
   const getPos = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
+    const yOffset = e.pointerType === 'touch' ? -TOUCH_FINGER_CLEARANCE : 0
     return {
       x: (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width),
-      y: (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height),
+      y: (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height) + yOffset,
       pressure: e.pressure,
     }
   }
@@ -478,8 +534,10 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // as scribbling over a real ruled sheet with white-out. Redrawing the
   // ruling underneath the erased patch would need a separate ink layer
   // composited over the paper background; not worth the added complexity
-  // for a homeschool sketch/practice tool.
-  const activeColor = () => (tool === 'eraser' ? paperColor : color)
+  // for a homeschool sketch/practice tool. Pencil tints toward graphite and
+  // draws at reduced opacity (toolOpacity) — see that function's own
+  // comment and PENCIL_OPACITY above.
+  const activeColor = () => toolRenderColor(tool, color, paperColor)
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault()
@@ -493,10 +551,12 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const w = getStrokeWidth(pt.pressure)
+    ctx.globalAlpha = toolOpacity(tool)
     ctx.beginPath()
     ctx.arc(pt.x, pt.y, w / 2, 0, Math.PI * 2)
     ctx.fillStyle = activeColor()
     ctx.fill()
+    ctx.globalAlpha = 1
   }
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -511,6 +571,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     const ctx = canvas.getContext('2d')!
     const w = getStrokeWidth(pt.pressure)
 
+    ctx.globalAlpha = toolOpacity(tool)
     ctx.beginPath()
     ctx.strokeStyle = activeColor()
     ctx.lineWidth = w
@@ -519,6 +580,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     ctx.moveTo(prev.x, prev.y)
     ctx.lineTo(pt.x, pt.y)
     ctx.stroke()
+    ctx.globalAlpha = 1
   }
 
   const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -532,8 +594,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       strokesRef.current.push({
         points,
         width: getStrokeWidth(avgPressure),
-        color: activeColor(),
-        isEraser: tool === 'eraser',
+        color,
+        tool,
       })
       setStrokeCount(strokesRef.current.length)
       redoStackRef.current = []
@@ -708,13 +770,21 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           Cancel/Undo/Clear/Done actions above uncluttered on a narrow
           tablet screen (Surface Pro / iPad portrait width included). */}
       <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
-        {/* Pen / eraser */}
+        {/* Pen / pencil / eraser */}
         <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
           <button
             onClick={() => setTool('pen')}
-            title="Pen"
+            title="Pen — solid ink"
             aria-pressed={tool === 'pen'}
             className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <PenTool size={16} />
+          </button>
+          <button
+            onClick={() => setTool('pencil')}
+            title="Pencil — lighter, graphite-toned"
+            aria-pressed={tool === 'pencil'}
+            className={`p-2 rounded-md transition-colors ${tool === 'pencil' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Pencil size={16} />
           </button>
@@ -751,11 +821,11 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           {PALETTE.map((swatch) => (
             <button
               key={swatch.value}
-              onClick={() => { setColor(swatch.value); setTool('pen') }}
+              onClick={() => { setColor(swatch.value); switchToInkTool() }}
               title={swatch.name}
-              aria-pressed={tool === 'pen' && color === swatch.value}
+              aria-pressed={tool !== 'eraser' && color === swatch.value}
               className={`w-7 h-7 rounded-full border-2 transition-transform flex-shrink-0 ${
-                tool === 'pen' && color === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
+                tool !== 'eraser' && color === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
               }`}
               style={{ backgroundColor: swatch.value }}
             />
@@ -772,7 +842,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             <input
               type="color"
               value={color}
-              onChange={(e) => { setColor(e.target.value); setTool('pen') }}
+              onChange={(e) => { setColor(e.target.value); switchToInkTool() }}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </label>

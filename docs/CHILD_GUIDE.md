@@ -48,6 +48,14 @@ You can answer me in whichever way feels easiest:
   color. If you'd rather write with a real pencil, tap the little printer button
   to print that page — it comes out the true size of a real sheet of paper, with
   the lines spaced just like your handwriting practice at your grade.
+  - The drawing screen has three tools: **Pen** for bold solid ink, **Pencil**
+    for a lighter, softer graphite look, and the **Eraser** to rub out a
+    mistake — pick whichever fits what you're making. Undo and Redo are up
+    top too, if you change your mind.
+  - Drawing with your finger instead of a stylus? The line appears a little
+    above where your finger actually is, on purpose — that way your finger
+    isn't covering up the line while you draw it, just like how a marker
+    doesn't hide what you're writing.
 
 There's also a little **palette** 🎨 at the top of the chat. Tap it to choose the
 look of our room: the background behind us, and the color of your own speech

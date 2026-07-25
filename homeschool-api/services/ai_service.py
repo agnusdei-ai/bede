@@ -11,6 +11,11 @@ if TYPE_CHECKING:
 
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
+from services.diagnostic.phonics import (
+    DOMAINS as _PHONICS_DOMAINS,
+    DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
+    DOMAIN_LABELS as _PHONICS_DOMAIN_LABELS,
+)
 from models.schemas import (
     SessionConfig,
     Subject,
@@ -483,6 +488,35 @@ TUTOR_TOOLS = [
                 },
             },
             "required": ["probe_id", "outcome"],
+        },
+    },
+    {
+        "name": "record_phonics_evidence",
+        "description": (
+            "SILENTLY record evidence from a quick, playful phonics/reading-foundations check woven "
+            "into a K-2 Language Arts session — never a drill, never announced, and never more than "
+            "one per session. Only call this right after you've actually asked something like the "
+            "check-in hint given for one of the domains in this subject's context, and the child's "
+            "answer genuinely showed you something. The child never sees this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "enum": list(_PHONICS_DOMAINS),
+                    "description": "Which phonics domain this check-in was evidence for",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How the child performed: correct=solid unaided, partial=some grasp, "
+                        "incorrect=missed it, hint_dependent=only after you helped"
+                    ),
+                },
+            },
+            "required": ["domain", "outcome"],
         },
     },
 ]
@@ -1489,6 +1523,47 @@ def _composition_note(history: Optional[List[ChatMessage]]) -> str:
     )
 
 
+def _phonics_checkin_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    K-2 Language Arts only: a light nudge to occasionally weave in ONE
+    quick, playful phonics/reading-foundations check into the lesson.
+    Bede does not teach phonics directly — see data/catalog/year1.json's
+    language_arts guidance ("phonemic awareness and reading practice
+    happen alongside, not through this tutoring session"), which stays
+    true here: this is a reinforcement check, not instruction, and the
+    family's own separate phonics program stays primary. It exists purely
+    to generate real evidence for the parent's Progress page
+    (services/diagnostic/phonics.py), the same role record_skill_evidence
+    plays for math.
+
+    Unlike _composition_note, there's no history-scan to cap this at
+    exactly once per session: invite_handwriting renders a visible card
+    with a stable title to key off; record_phonics_evidence is fully
+    silent, woven into ordinary dialogue with nothing distinct in the
+    transcript to detect. So "at most once" here is a prompt instruction,
+    not code-enforced — the same kind of soft pacing guidance
+    tools_guidance already relies on elsewhere in this prompt (e.g. "once
+    per subject is normal").
+    """
+    if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations:
+        return ""
+    domain_lines = "\n".join(
+        f"  - {domain} ({_PHONICS_DOMAIN_LABELS[domain]}): {_PHONICS_DOMAIN_HINTS[domain]}"
+        for domain in _PHONICS_DOMAINS
+    )
+    return f"""
+
+<phonics_checkin>
+If a natural moment arises in this session — never forced, never announced, at most once — weave in
+ONE quick, playful check from one of these reading-foundations domains (pick whichever fits what's
+already happening, e.g. a word from today's copywork or living book):
+{domain_lines}
+If the child's answer genuinely shows you something, call `record_phonics_evidence` with that exact
+domain id and an honest outcome. This is a light check, not a lesson — if the child struggles, simply
+move on warmly; do not correct or drill. Never mention this tracking to the child.
+</phonics_checkin>"""
+
+
 def _session_position_note(config: SessionConfig, subject: Subject) -> str:
     """
     Tells Bede whether this is the day's first or last configured subject —
@@ -1692,10 +1767,11 @@ async def _build_subject_prompt(
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
+    phonics_note = _phonics_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{diagnostic_note}{guadalupe_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{diagnostic_note}{guadalupe_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2053,6 +2129,37 @@ async def _record_skill_evidence(
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
 
 
+async def _record_phonics_evidence(
+    db: Optional["AsyncSession"],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently record phonics/reading-foundations evidence from a light
+    check-in — see services/diagnostic/phonics.py's own docstring for the
+    pedagogical framing. Real (parent/child) sessions only, mirroring
+    _save_assessment's composition-mastery wiring — no demo-mode backend,
+    since the demo has no persistent per-student history to build a
+    calibrated read from across sessions the way this needs. Gated to
+    exactly where the check-in guidance itself is gated (K-2 Language
+    Arts) as a second, code-level backstop — a defensive belt-and-braces
+    match to the prompt-level gate, not a substitute for it. Defensive
+    like _record_skill_evidence, which this mirrors: a diagnostic hiccup
+    must never break the child's tutoring turn.
+    """
+    if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations or db is None:
+        return
+    try:
+        from models.schemas import RecordPhonicsEvidenceInput
+        from services.diagnostic.phonics import process_evidence as _process_phonics
+
+        ev = RecordPhonicsEvidenceInput(**tool_input)  # validate/clamp
+        await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
+    except Exception as exc:
+        log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
+
+
 async def stream_tutor_response(
     config: SessionConfig,
     subject: Subject,
@@ -2307,6 +2414,10 @@ async def stream_tutor_response(
                                 # _record_skill_evidence's own docstring for which
                                 # backend (demo_code vs db) actually persists it.
                                 await _record_skill_evidence(db, demo_code, config, subject, tool_input)
+                            elif tc["name"] == "record_phonics_evidence":
+                                # Fully silent, same as record_skill_evidence above —
+                                # see _record_phonics_evidence's own docstring.
+                                await _record_phonics_evidence(db, config, subject, tool_input)
                             else:
                                 if tc["name"] == "invite_handwriting":
                                     # See LearnerBehaviorCheck's docstring — a minimal,

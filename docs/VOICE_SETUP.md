@@ -337,11 +337,25 @@ back to.
 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (a CTranslate2
 reimplementation of Whisper), not the original `openai-whisper` package —
 several times faster on CPU with `int8` quantization, and it drops the
-PyTorch runtime `openai-whisper` needed, for a meaningfully smaller/faster
-Docker build. Same `base` model weights, same accuracy trade-off already
-described above; only the inference engine changed. No `.env` setting or
-deployment action is needed for this — nothing to configure, no account,
-still 100% local (see docs/VENDOR_DATA_FLOW.md).
+PyTorch runtime `openai-whisper` needed, for the transcription path itself.
+Same `base` model weights, same accuracy trade-off already described above;
+only the inference engine changed. No `.env` setting or deployment action
+is needed for this — nothing to configure, no account, still 100% local
+(see docs/VENDOR_DATA_FLOW.md).
+
+That "drops PyTorch" framing only holds for transcription specifically —
+`services/voice_auth.py`'s speaker-verification library (`resemblyzer`) has
+its own, separate hard dependency on `torch`, so the `api` image ends up
+with PyTorch installed regardless of faster-whisper's own choice not to
+need it. What faster-whisper's swap DOES still make possible: the
+Dockerfile installs torch from PyTorch's CPU-only wheel index specifically
+*because* nothing in this image ever uses a GPU — without that one line,
+pip would resolve resemblyzer's `torch` requirement from the default index
+instead, which serves the full CUDA-bundled build (measured directly:
+526.6MB, versus the CPU-only build's well-documented roughly one-third of
+that) into a container that will never touch a GPU. See the Dockerfile's
+own comment for the mechanism (installing torch first so the later
+`requirements.txt` install sees it as already satisfied).
 
 One thing that *did* need a deployment-level fix alongside the swap: the
 `api` container runs `read_only: true` in production

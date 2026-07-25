@@ -56,14 +56,18 @@ Same hardware-tiering logic as `Setup-Bede.ps1`, deliberately kept in sync
 `recommended_ollama_model`): checks GPU VRAM via `nvidia-smi` first,
 falling back to system RAM when there's no usable NVIDIA GPU.
 
-| VRAM (or RAM, no GPU) | Model |
-|---|---|
-| ≥20GB VRAM | `qwen3:32b` |
-| ≥10GB VRAM | `qwen3:14b` |
-| ≥5GB VRAM | `qwen3:8b` |
-| GPU present but <5GB VRAM | `qwen3:4b` |
-| No usable GPU, ≥16GB RAM | `qwen3:4b` |
-| No usable GPU, <16GB RAM | `qwen3:1.7b` |
+| VRAM (or RAM, no GPU) | Model | Approximate download |
+|---|---|---|
+| ≥20GB VRAM | `qwen3:32b` | ~20GB |
+| ≥10GB VRAM | `qwen3:14b` | ~9GB |
+| ≥5GB VRAM | `qwen3:8b` | ~5GB |
+| GPU present but <5GB VRAM | `qwen3:4b` | ~2.5GB |
+| No usable GPU, ≥16GB RAM | `qwen3:4b` | ~2.5GB |
+| No usable GPU, <16GB RAM | `qwen3:1.7b` | ~1.4GB |
+
+Download sizes are current as of this writing, not pinned — Ollama's
+library can update a tag's actual weights over time, and this script
+always pulls whatever `ollama pull qwen3:<tag>` currently resolves to.
 
 On Apple Silicon there's no discrete VRAM concept at all — memory is
 unified, so the RAM-based fallback tier is the *correct* path there, not a

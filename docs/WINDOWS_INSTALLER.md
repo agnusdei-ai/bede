@@ -62,14 +62,18 @@ The one thing this installer decides FOR the family, once they've said
 to system RAM as a rough proxy when there's no usable NVIDIA GPU) and picks
 accordingly:
 
-| VRAM (or RAM, no GPU) | Model |
-|---|---|
-| ≥20GB VRAM | `qwen3:32b` |
-| ≥10GB VRAM | `qwen3:14b` |
-| ≥5GB VRAM | `qwen3:8b` |
-| GPU present but <5GB VRAM | `qwen3:4b` |
-| No usable GPU, ≥16GB RAM | `qwen3:4b` |
-| No usable GPU, <16GB RAM | `qwen3:1.7b` |
+| VRAM (or RAM, no GPU) | Model | Approximate download |
+|---|---|---|
+| ≥20GB VRAM | `qwen3:32b` | ~20GB |
+| ≥10GB VRAM | `qwen3:14b` | ~9GB |
+| ≥5GB VRAM | `qwen3:8b` | ~5GB |
+| GPU present but <5GB VRAM | `qwen3:4b` | ~2.5GB |
+| No usable GPU, ≥16GB RAM | `qwen3:4b` | ~2.5GB |
+| No usable GPU, <16GB RAM | `qwen3:1.7b` | ~1.4GB |
+
+Download sizes are current as of this writing, not pinned — Ollama's
+library can update a tag's actual weights over time, and this installer
+always pulls whatever `ollama pull qwen3:<tag>` currently resolves to.
 
 This is the exact same reasoning a developer would do by hand (see the
 "Ollama vs OpenAI/Claude" conversation this installer feature grew out of —

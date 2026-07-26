@@ -26,6 +26,12 @@ soundfile>=0.12.0
 # entirely, since it doesn't share openai-whisper's PyTorch runtime. See
 # services/transcription.py and docs/VOICE_SETUP.md.
 faster-whisper>=1.0.0
+# Speaker-embedding voice verification (services/voice_auth.py). Not listed
+# here, but resemblyzer has a hard `torch` dependency — see Dockerfile's
+# own comment for why that's installed from PyTorch's CPU-only wheel index
+# BEFORE this file, rather than letting it resolve from the default index
+# (which serves the much larger CUDA-bundled build this CPU-only,
+# GPU-less container would otherwise silently end up with).
 resemblyzer>=0.1.1
 # Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
 webauthn>=2.0.0

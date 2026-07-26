@@ -1,0 +1,46 @@
+name: Verify Unix installer checksum
+
+# packaging/unix/install.sh.sha256 is what docs/UNIX_INSTALLER.md tells a
+# family to check their download against BEFORE running an unsigned,
+# curl-piped script — see that doc's "Verifying this script" section. A
+# stale checksum would be worse than no checksum at all: it would make a
+# real, tampered script pass verification, or make an untampered one FAIL
+# and teach families to ignore the check. This workflow makes that
+# specific failure mode impossible to merge — unlike docs/sbom/'s
+# regeneration script (unenforced, informational), this one is a hard gate
+# because the whole point of a checksum is the guarantee, not a nice-to-have.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/unix/install.sh'
+      - 'packaging/unix/install.sh.sha256'
+      - '.github/workflows/verify-unix-installer-checksum.yml'
+  pull_request:
+    paths:
+      - 'packaging/unix/install.sh'
+      - 'packaging/unix/install.sh.sha256'
+      - '.github/workflows/verify-unix-installer-checksum.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm install.sh.sha256 matches install.sh
+        run: |
+          cd packaging/unix
+          sha256sum -c install.sh.sha256 || {
+            echo "::error::packaging/unix/install.sh.sha256 is stale. Regenerate it with:"
+            echo "::error::  (cd packaging/unix && sha256sum install.sh | awk '{print \$1\"  install.sh\"}' > install.sh.sha256)"
+            exit 1
+          }
+
+      - name: Lint install.sh with ShellCheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck packaging/unix/install.sh

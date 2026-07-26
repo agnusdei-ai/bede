@@ -197,6 +197,24 @@ jobs:
       - name: Start the full stack (as the wizard configured it)
         run: docker compose up -d --build
 
+      # Real, measured image sizes from a real build — not a hand-typed
+      # estimate in a doc that goes stale the moment a dependency changes.
+      # docs/PARENT_SETUP.md and docs/UNIX_INSTALLER.md point families here
+      # (this job's own log) for current numbers rather than committing to
+      # exact figures that would silently drift out of date. See the
+      # torch-CPU-only fix in homeschool-api/Dockerfile's own comment for
+      # why the api image's size in particular is worth watching — a
+      # regression there (e.g. a new dependency accidentally reintroducing
+      # a full CUDA wheel) would show up here first.
+      - name: Report built image sizes (for docs/PARENT_SETUP.md's disk-space guidance)
+        run: |
+          echo "## Built image sizes" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' \
+            | grep -E '^bede-' | sort >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep -E '^bede-' | sort
+
       - name: Wait for the API to become healthy
         run: |
           for i in $(seq 1 60); do

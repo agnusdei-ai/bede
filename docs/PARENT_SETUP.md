@@ -63,6 +63,87 @@ Two things genuinely depend on how strong that machine is, and one that doesn't:
   secret hard to crack. On a Pi that means a few extra seconds at boot and
   nothing more. You never trade security for speed by choosing modest hardware.
 
+### How much disk space and memory this actually needs
+
+**Disk.** Docker downloads/builds a handful of images (the app itself, plus
+Postgres if you picked local storage), and each grows a little over time as
+your family's lessons accumulate. Budget **at least 5GB free** as a
+comfortable floor for the app images plus room to grow; add the AI model's
+own size on top if you're running AI locally (table below) — that's the one
+genuinely large download here. For the exact current size of each image
+this build actually produces, see the "Report built image sizes" step's
+summary on any recent run of `production-regression.yml` in this repo's
+GitHub Actions tab — deliberately not hand-typed here as a fixed number,
+since dependency updates shift it over time and a stale number in a doc is
+worse than no number.
+
+**Memory.** A comfortable floor is **4GB RAM** for the app stack itself
+(FastAPI, nginx, Caddy, and Postgres if running locally) — this is not a
+hard technical minimum measured on real hardware, it's a reasonable
+planning floor for a multi-container stack doing real work (encryption,
+audio processing) alongside a database. If you're running AI locally, add
+that model's own RAM/VRAM requirement on top (see the Local AI table
+below) — that's almost always the larger number by far, and effectively
+sets your machine's real floor once local AI is in the picture.
+
+**If you're running AI locally**, the model itself is the number that
+actually matters, both for download size and for RAM/VRAM while it runs —
+see `docs/UNIX_INSTALLER.md`'s and `docs/WINDOWS_INSTALLER.md`'s "Local AI
+(Ollama)" tables for which model tier your hardware lands in. Roughly, as
+of this writing (Ollama's library can update these — the installers pull
+whatever `ollama pull qwen3:<tag>` currently resolves to, not a pinned
+snapshot):
+
+| Model tier | Approximate download |
+|---|---|
+| `qwen3:1.7b` (weakest tier — e.g. a Pi with under 16GB RAM) | ~1.4GB |
+| `qwen3:4b` | ~2.5GB |
+| `qwen3:8b` | ~5GB |
+| `qwen3:14b` | ~9GB |
+| `qwen3:32b` (strongest tier — a real GPU) | ~20GB |
+
+A cloud AI provider (Anthropic, OpenAI, Mistral) skips this download and
+this RAM/VRAM cost entirely — the model runs on their servers, not yours.
+That's the real tradeoff behind the installer's one question: no account
+and no per-message cost, in exchange for a real download and a real chunk
+of your machine's memory while Bede is running; or an account and a small
+per-message cost, in exchange for needing none of that.
+
+### One server, or a server plus a separate display?
+
+Two different things can both reasonably be called "the machine Bede runs
+on," and it's worth being clear about which one you're choosing hardware
+for:
+
+1. **The always-on server** — runs Docker, holds the encrypted database,
+   answers every tablet's requests. This is the machine this whole page is
+   about, and it never needs a monitor or keyboard attached at all once
+   it's set up; a Raspberry Pi tucked behind a router is a completely normal
+   way to run this role.
+2. **The device your child actually sits at** — a tablet, laptop, or
+   desktop browser that connects to the server over your home Wi-Fi (see
+   `docs/CHILD_GUIDE.md` and the "child session URL flow" families use to
+   hand a tablet to a child). This is a *separate* device from the server in
+   Bede's normal design — that's the whole point of "self-hosted, LAN-deployed":
+   one server, many tablets, none of which need to be powerful themselves.
+
+**Where families sometimes get this wrong**: wanting the SAME low-power box
+(a Raspberry Pi, or a mini PC built around a Celeron-class chip) to be
+*both* the Docker server *and* something with a monitor plugged directly
+into it for a child to use, especially while also running AI locally on
+that same box. Each of those three things (serving Docker containers,
+running a full browser well enough for a child's actual lesson, and running
+a local LLM) is individually fine on modest hardware; stacking all three
+onto one Raspberry-Pi-or-Celeron-class board at once is the combination
+that will actually feel slow. If you want one physical box to do everything
+— server, local AI, *and* a screen attached to it — that's the point where
+"modest hardware is fine" stops applying, and something closer to a Mac
+Mini or a mid-range mini PC (more RAM, a real CPU, ideally a discrete or
+capable integrated GPU if local AI is part of the plan) is the honest
+recommendation. Splitting the roles — a Raspberry Pi as the headless
+server, a separate tablet or laptop as the screen a child actually uses —
+is both the cheaper path and the one this app was actually designed around.
+
 ## 2. Get the files onto your server machine
 
 On GitHub, click the green **Code** button → **Download ZIP**, then unzip it
@@ -70,6 +151,14 @@ wherever you'd like on the server machine (no terminal needed for this part).
 
 *(If you're comfortable with `git`, `git clone <this repository>` works too
 — same result.)*
+
+**Prefer one command instead?** A native installer exists for each platform
+that also installs Docker for you if it's missing, and can optionally set
+up a local AI model with no account needed — see
+[docs/WINDOWS_INSTALLER.md](WINDOWS_INSTALLER.md) or
+[docs/UNIX_INSTALLER.md](UNIX_INSTALLER.md) (Linux — Ubuntu, Debian, Arch,
+x86_64 or arm64/Raspberry Pi — and macOS). If you use one of these, skip
+ahead to step 4 below; the installer already did steps 2 and 3 for you.
 
 ## 3. First-time setup
 

@@ -97,6 +97,16 @@ services:
     read_only: true                    # stateless container — all state in Postgres
     tmpfs:
       - /tmp:size=64m,mode=1777       # audio processing temp files only
+    # Docker Desktop (Windows/Mac) resolves host.docker.internal to the host
+    # machine automatically — needed when LOCAL_LLM_BASE_URL points at a
+    # locally-installed Ollama (the packaging/windows and packaging/unix
+    # installers' "run AI on this computer" option writes exactly that URL).
+    # Docker ENGINE (native Linux, no Docker Desktop) does NOT provide this
+    # mapping by default; host-gateway is the documented way to add it
+    # yourself since Docker 20.10. Harmless no-op where Docker Desktop
+    # already provides the mapping — this just makes it explicit everywhere.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - internal
     restart: unless-stopped

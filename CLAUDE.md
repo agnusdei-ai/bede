@@ -48,14 +48,21 @@ with a second copy here. Quick orientation: the stack is **Caddy (TLS/443)
 `setup.sh`/`setup-gui.{bat,command,sh}` are the terminal/browser-wizard
 entry points into that same deployment; `packaging/windows/` (a small Inno
 Setup installer + `Setup-Bede.ps1` launcher, built by `.github/workflows/build-windows-installer.yml`)
-is a further, Windows-native entry point on top of the same
-`setup-gui.bat` flow, additionally offering to install Ollama and pull a
+and `packaging/unix/install.sh` (Linux — Ubuntu/Debian/Arch, x86_64/arm64
+including Raspberry Pi — and macOS, Apple Silicon/Intel; unsigned, verified
+instead via a checksum `.github/workflows/verify-unix-installer-checksum.yml`
+keeps honest) are further, native entry points on top of the same
+`setup-gui.{bat,sh}` flow, additionally offering to install Ollama and pull a
 hardware-appropriate model for a family that wants Bede's AI running
-entirely on that computer — `Setup-Bede.ps1` writes a `local-ai.json`
-marker file `scripts/setup_wizard/wizard.py` reads (and deletes once
-consumed) to pre-configure that choice in the browser wizard's provider
-picker, invisible on every other launch path — see
-`docs/WINDOWS_INSTALLER.md`.
+entirely on that computer — both write a `local-ai.json` marker file
+`scripts/setup_wizard/wizard.py` reads (and deletes once consumed) to
+pre-configure that choice in the browser wizard's provider picker, invisible
+on every other launch path. When that marker points at a locally-installed
+Ollama, `docker-compose.yml`'s `api` service resolves it via
+`host.docker.internal` — automatic under Docker Desktop (Windows/Mac), and
+explicitly mapped via `extra_hosts: host-gateway` for native Linux Docker
+Engine, which doesn't provide that DNS name on its own. See
+`docs/WINDOWS_INSTALLER.md` and `docs/UNIX_INSTALLER.md`.
 
 ## Local Development (without Docker)
 

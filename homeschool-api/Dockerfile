@@ -18,6 +18,23 @@ RUN useradd --no-create-home --shell /bin/false sage
 
 WORKDIR /app
 COPY requirements.txt .
+# Install PyTorch's CPU-only build FIRST, before requirements.txt.
+# resemblyzer (voice_auth.py's speaker-embedding library — see
+# requirements.txt's own comment) has a hard `torch` dependency that isn't
+# declared here directly, so without this step pip resolves it from the
+# DEFAULT PyPI index, which serves the full CUDA-bundled wheel — measured
+# directly via `pip download torch`: 526.6MB, versus PyTorch's own
+# well-documented CPU-only build at roughly a third of that — even though
+# this container has no GPU (cap_drop: ALL, no device passthrough) and runs
+# entirely on CPU. Once torch is already installed here, the requirements.txt
+# install below sees resemblyzer's `torch>=1.0.1` as already satisfied and
+# does not reinstall it — the standard, documented workaround for this exact
+# class of problem. This is what actually makes faster-whisper's own
+# "drops the PyTorch runtime, for a meaningfully smaller/faster Docker
+# build" framing (see that dependency's comment below) true at the WHOLE
+# image level, not just for the transcription path alone — without this,
+# resemblyzer would have silently undone that saving by several times over.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download the faster-whisper fallback-STT model weights into the image

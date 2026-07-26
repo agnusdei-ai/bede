@@ -929,6 +929,83 @@ ordered rather than probability-sorted `next_steps`) — a future extension
 should keep asking which of the three actual shapes fits, rather than
 assuming a fourth is needed by default.
 
+### 13.3 Language exposure — a fourth shape, deliberately NOT a language app (implemented)
+
+Language exposure (`services/diagnostic/language_exposure.py`) is the third
+lighter-weight extension on `MasteryProfile`. It is explicitly **not** a
+foreign-language-instruction subject or a Duolingo-style vocabulary trainer
+— see that module's own docstring for the "setting the stage, not
+Duolingo" framing. It exists to build a coarse, honest, per-language-family
+signal from brief foreign-language moments Bede already has natural
+openings for in History, Saints, and Art & Music content, so a parent has
+real evidence — not a guess — about how readily their child picks up and
+recalls a foreign word or phrase, useful later if they're weighing whether
+and when to start formal instruction in a particular language.
+
+Structurally, this borrows phonics' single-domain-per-call update shape
+(`apply_evidence(vector, language, outcome, ...)` touches exactly one of
+six languages per call, mirroring one teach-then-recall moment being
+evidence for one language, not all of them) but composition's `next_steps`
+ordering (sorted by probability, least-confident first) rather than
+phonics' fixed developmental walk — **languages have no real prerequisite
+order** the way phonics' phonemic-awareness-before-blending sequence does,
+so sorting by confidence is the honest choice here, not an oversight.
+
+- **`LANGUAGES`** — `latin`, `greek`, `french`, `italian`, `german`,
+  `spanish`. Not arbitrary: grounded in what the bundled Mater Amabilis
+  curriculum (`data/catalog/year1-8.json`) actually surfaces — Latin/Greek
+  from Roman/Greek history and myth, French from the Year 7 French
+  Revolution unit and French artists/composers (Delacroix, Monet), Italian
+  from Renaissance art and Italian composers (Vivaldi), German from the
+  Austro-German composer sequence running through nearly every year
+  (Mozart, Haydn, Bach, Schubert, Beethoven), and Spanish from the app's
+  own existing Guadalupe/Juan Diego saints content (`_guadalupe_note`,
+  `services/ai_service.py`) and the many Spanish-speaking saints in the CM
+  saints rotation.
+- **Three subjects, every grade stage** — `_language_checkin_note` gates on
+  `subject in (Subject.history, Subject.saints, Subject.art_music)` with
+  **no** grade-stage restriction, the opposite gating shape from phonics'
+  single-subject/K-2-only gate. This was a deliberate scope decision (not
+  Morning Time, where the existing prayer/poetry catalogs already own
+  verbatim-text fidelity for a different reason) made explicitly with the
+  product owner before implementation, alongside the "tied to whatever the
+  lesson is studying" language strategy and the "all grade stages, K-8"
+  decision — CM tradition often starts language work younger than the
+  Logic stage, and light exposure carries none of formal instruction's
+  cognitive-load concerns.
+- **Genuinely opportunistic, unlike phonics' guaranteed check-in** —
+  phonics' prompt picks one of six always-available domains every
+  session; a language moment depends entirely on whether today's actual
+  content offers one (a Rome-focused History session does, a Reformation
+  one studied without a composer/artist tie-in might not). The prompt
+  (`_language_checkin_note`) is explicit that Bede must never invent an
+  opening that isn't genuinely there — a stricter honesty requirement
+  than any other check-in note in this codebase.
+- **Gated twice, not once** — the same defensive belt-and-braces pattern as
+  phonics: `_record_language_evidence` independently re-checks `subject in
+  (history, saints, art_music)` before ever calling
+  `language_exposure.process_evidence`, a code-level backstop to the
+  prompt-level gate, not a substitute for it.
+- **Calibration threshold** — `CALIBRATION_THRESHOLD = 3`, phonics' value
+  reused rather than composition's lower one: evidence here is
+  opportunistic across three subjects (potentially faster than phonics'
+  single-subject gate in practice) but each individual moment is still as
+  content-dependent as phonics', never guaranteed.
+- **No demo-mode backend** — same reasoning as composition/phonics: the
+  demo has no persistent per-student history across sessions to build a
+  calibrated read from.
+
+Four purpose-built shapes now exist on top of the same composite-PK table:
+math's full DAG, composition's flat simultaneous-domain blend sorted by
+probability, phonics' single-domain-per-call blend with a fixed
+developmental `next_steps` order, and language exposure's single-domain-
+per-call blend sorted by probability (composition's ordering rule, applied
+to phonics' update shape) — genuinely a hybrid of the two prior lighter
+engines, not a wholly new fourth pattern. A future extension should keep
+asking which of these shapes — or which combination of their two
+independent axes (update-call shape × next_steps ordering rule) — actually
+fits, rather than assuming something new is needed by default.
+
 ---
 
 ## 14. Open-Standards Appendix

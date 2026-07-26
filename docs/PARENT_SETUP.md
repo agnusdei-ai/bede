@@ -315,6 +315,23 @@ show you a real, evidence-based read on reading foundations, the same way
 it already does for math and composition — see the Phonics Mastery
 Snapshot below.
 
+**Bede also occasionally teaches a brief foreign word or phrase during
+History, Saints, or Art & Music — for every age, not just K-2.** This is
+not a language class, and Bede is not teaching your child to speak
+another language — think of it as setting the stage, not Duolingo. When
+today's lesson genuinely offers a natural opening (studying Rome might
+bring up a Latin phrase, the French Revolution a French word, a
+composer's biography an Italian musical term, a saint's story their
+homeland's language), Bede may teach one brief word or phrase, then
+casually check back later in the same conversation whether your child
+remembered it — at most once a session, never announced, never a
+vocabulary drill. If today's content doesn't offer a real opening, Bede
+simply won't force one. Over time this builds a light, honest picture of
+which languages your child responds to most readily — useful evidence if
+you're ever deciding whether and when to start formal instruction in a
+particular language — visible on the Progress page's Language Exposure
+Snapshot.
+
 **The very first time you save a student here, you'll see one extra, fully
 optional prompt** — "What are you most hoping Bede helps with?" — before
 you're taken on to the session or pod dashboard. This is a one-time beta
@@ -465,7 +482,14 @@ among providers that are already set up, it doesn't add a new one.
   words), so you can see which comes next for your child rather than a jumbled
   list. Since these check-ins are occasional by design, this snapshot may take a
   little longer to show a settled read than the composition one does — an early,
-  tentative label appears until enough check-ins have accumulated.
+  tentative label appears until enough check-ins have accumulated. Every student,
+  at every grade, also gets a **Language Exposure Snapshot** — a light read on
+  how they respond to the brief foreign-language moments described in §5 above,
+  across six languages (Latin, Greek, French, Italian, German, Spanish). Unlike
+  phonics' snapshot, there's no "next" language to work toward in a fixed order —
+  this simply shows which languages your child has responded to most confidently
+  so far, since it's meant as a signal for you, not a curriculum Bede is walking
+  through.
 - **End-of-session summary** (shown after a session ends, and optionally emailed to
   you): highlights, narrations, areas to revisit, tomorrow's suggestion, and a
   virtue observed. If your child worked on Mathematics that session, and the

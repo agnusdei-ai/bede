@@ -13,6 +13,7 @@ from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
 from services.diagnostic import get_mastery_summary
 from services.diagnostic.composition import get_composition_summary
 from services.diagnostic.phonics import get_phonics_summary
+from services.diagnostic.language_exposure import get_language_summary
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
@@ -104,6 +105,7 @@ _SUMMARY_BUILDERS = {
     "mathematics": get_mastery_summary,
     "composition": get_composition_summary,
     "phonics": get_phonics_summary,
+    "language_exposure": get_language_summary,
 }
 
 
@@ -126,14 +128,16 @@ async def get_student_mastery_summary(
     subject_area picks which engine's summary to build — "mathematics"
     (services.diagnostic.get_mastery_summary, the CDM/IRT/KST engine),
     "composition" (services.diagnostic.composition.get_composition_summary,
-    a rollup over assess_narration's own rubric), or "phonics"
+    a rollup over assess_narration's own rubric), "phonics"
     (services.diagnostic.phonics.get_phonics_summary, K-2 reading
-    foundations — see that module's docstring). All three read the same
-    mastery_profiles table keyed by (student_name, subject_area), so this
-    one endpoint covers all of them without a per-subject route; an
-    unrecognized subject_area 404s the same as "no data yet" rather than a
-    separate error shape, since from the frontend's perspective both mean
-    nothing to show.
+    foundations), or "language_exposure"
+    (services.diagnostic.language_exposure.get_language_summary, foreign-
+    language check-ins woven into History/Saints/Art & Music — see that
+    module's docstring). All four read the same mastery_profiles table
+    keyed by (student_name, subject_area), so this one endpoint covers all
+    of them without a per-subject route; an unrecognized subject_area 404s
+    the same as "no data yet" rather than a separate error shape, since
+    from the frontend's perspective both mean nothing to show.
 
     404 until this student has produced some real evidence in that subject
     — same no-data contract as the demo endpoint above, so the frontend

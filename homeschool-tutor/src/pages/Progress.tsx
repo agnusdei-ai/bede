@@ -647,6 +647,7 @@ export default function Progress() {
   const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
   const [compositionSummary, setCompositionSummary] = useState<MasteryProfileSummary | null>(null)
   const [phonicsSummary, setPhonicsSummary] = useState<MasteryProfileSummary | null>(null)
+  const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -668,6 +669,7 @@ export default function Progress() {
     setMasterySummary(null)
     setCompositionSummary(null)
     setPhonicsSummary(null)
+    setLanguageSummary(null)
     setUsage(null)
 
     Promise.all([
@@ -679,15 +681,17 @@ export default function Progress() {
       activeStudentIsFoundations
         ? fetchMasteryProfileSummary(token, activeStudent, 'phonics')
         : Promise.resolve(null),
+      fetchMasteryProfileSummary(token, activeStudent, 'language_exposure'),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
         setMasterySummary(m)
         setCompositionSummary(c)
         setPhonicsSummary(ph)
+        setLanguageSummary(lang)
         setUsage(u)
       })
       .catch((e) => {
@@ -798,6 +802,14 @@ export default function Progress() {
                 calibrationText={t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 })}
               />
             )}
+            <MasterySnapshot
+              studentName={activeStudent}
+              summary={languageSummary}
+              loading={loading}
+              title={t('progress.languageMasterySnapshotTitle')}
+              noDataText={t('progress.noLanguageMasteryData', { name: activeStudent })}
+              calibrationText={t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 })}
+            />
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />

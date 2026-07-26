@@ -577,3 +577,13 @@ class RecordPhonicsEvidenceInput(BaseModel):
     so a hallucinated value is harmless, just unpersisted."""
     domain:  str = Field(..., max_length=40)
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+class RecordLanguageEvidenceInput(BaseModel):
+    """Server-side validation of the silent record_language_evidence tool's
+    input — see services/diagnostic/language_exposure.py. Never leaves the
+    server; not part of any response body. language isn't validated against
+    language_exposure.LANGUAGES here, same reasoning as
+    RecordPhonicsEvidenceInput's domain field above: apply_evidence already
+    degrades an unrecognized language to a true no-op."""
+    language: str = Field(..., max_length=40)
+    outcome:  Literal["correct", "partial", "incorrect", "hint_dependent"]

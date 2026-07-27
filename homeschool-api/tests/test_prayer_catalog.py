@@ -11,8 +11,16 @@ from datetime import date
 import pytest
 
 from models.schemas import GradeStage, SessionConfig, Subject, VALID_GRADES
-from services.ai_service import _build_subject_prompt
-from services.prayer_catalog import _COLLECTION, current_week, prayer_for_week, prayer_note
+from services.ai_service import _build_subject_prompt, _session_position_note
+from services.prayer_catalog import (
+    _COLLECTION,
+    _DAILY_COLLECTION,
+    current_week,
+    daily_prayer_for,
+    daily_prayer_note,
+    prayer_for_week,
+    prayer_note,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -163,3 +171,74 @@ async def test_prayer_recitation_defaults_to_english_when_locale_omitted():
     prompt = await _build_subject_prompt(_config(), Subject.morning_time)
     assert entry["text_en"] in prompt
     assert entry["text_es"] not in prompt
+
+
+# ── Daily opening/closing prayer catalog (Sacred Rule 10) ───────────────────
+#
+# Backs the day's opening/closing prayer moment so Bede never composes it
+# itself — see services/prayer_catalog.py's own docstring on _DAILY_COLLECTION
+# for why this replaced an earlier "freshly adapted" free-composition design.
+
+async def test_every_daily_entry_has_nonempty_bilingual_text_and_a_valid_moment():
+    for entry in _DAILY_COLLECTION:
+        assert entry["text_en"].strip()
+        assert entry["text_es"].strip()
+        assert entry["title"]
+        assert entry["attribution"]
+        assert entry["tradition"] in ("catholic", "christian")
+        assert entry["moments"] and entry["moments"] <= {"opening", "closing"}
+
+
+async def test_daily_collection_spans_both_catholic_and_christian_traditions():
+    traditions = {e["tradition"] for e in _DAILY_COLLECTION}
+    assert traditions == {"catholic", "christian"}
+
+
+async def test_both_opening_and_closing_moments_have_entries():
+    assert any("opening" in e["moments"] for e in _DAILY_COLLECTION)
+    assert any("closing" in e["moments"] for e in _DAILY_COLLECTION)
+
+
+async def test_daily_prayer_for_only_returns_entries_tagged_for_that_moment():
+    for day in range(1, 32):
+        opening = daily_prayer_for("opening", today=date(2026, 1, day))
+        assert "opening" in opening["moments"]
+        closing = daily_prayer_for("closing", today=date(2026, 1, day))
+        assert "closing" in closing["moments"]
+
+
+async def test_daily_prayer_for_changes_across_the_month():
+    titles = {daily_prayer_for("closing", today=date(2026, 1, day))["title"] for day in range(1, 32)}
+    assert len(titles) > 1
+
+
+async def test_daily_prayer_for_is_stable_for_the_same_calendar_day():
+    a = daily_prayer_for("opening", today=date(2026, 7, 15))
+    b = daily_prayer_for("opening", today=date(2026, 7, 15))
+    assert a["title"] == b["title"]
+
+
+async def test_daily_prayer_note_includes_verbatim_text_and_the_never_compose_instruction():
+    note = daily_prayer_note("opening", today=date(2026, 7, 15))
+    entry = daily_prayer_for("opening", today=date(2026, 7, 15))
+    assert entry["text_en"] in note
+    assert entry["text_es"] not in note
+    assert entry["title"] in note
+    assert "VERBATIM" in note
+    assert "never compose, paraphrase, or improvise a prayer of your own" in note
+
+
+async def test_daily_prayer_note_uses_spanish_text_when_locale_is_es():
+    note = daily_prayer_note("closing", locale="es", today=date(2026, 7, 15))
+    entry = daily_prayer_for("closing", today=date(2026, 7, 15))
+    assert entry["text_es"] in note
+    assert entry["text_en"] not in note
+
+
+async def test_session_position_note_never_leaves_bede_to_compose_its_own_prayer():
+    config = SessionConfig(
+        student_name="Sam", grade="4", grade_stage=GradeStage.core_mastery, subjects=[Subject.morning_time],
+    )
+    note = _session_position_note(config, Subject.morning_time, today=date(2026, 7, 15))
+    assert "<daily_prayer moment=\"opening\">" in note
+    assert "<daily_prayer moment=\"closing\">" in note

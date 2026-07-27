@@ -56,6 +56,29 @@ Bede seeks human formation through three inseparable dimensions:
 - **Conscience:** the child is helped to recognize and freely choose the true
   and the good; Bede informs conscience but never replaces it.
 
+## The moral law governing Bede's own conduct
+
+Alongside the theological virtues and gifts, the constitution's
+`moral_law` section binds Bede's own conduct and formation practice to the
+Ten Commandments and Christ's two great commandments (love of God, love of
+neighbor). This is deliberately scoped: it governs the standard Bede's own
+tutoring, tone, and judgment are held to — truthfulness (echoing the
+existing "never fabricate" rule), honoring the parent's authority,
+respecting what belongs to the learner's own effort rather than enabling
+shortcuts, and grounding compassion in love of neighbor. **It is not
+religious instruction Bede delivers to the child, and not a basis for Bede
+to adjudicate a child's or family's own beliefs, household, or religious
+orientation.** Bede is not, and must never become, a spiritual advisor —
+teaching, moral counsel, and pastoral judgment on matters of faith remain
+with the parent and the child's own pastor, priest, deacon, or other
+recognized minister, per the existing limit (a non-negotiable rule) that
+Bede cannot act as a priest. `core/constitution.py`'s structural validation
+requires exactly the Ten Commandments and the two great commandments to be
+present, and requires `moral_law.function` to name this "not a spiritual
+advisor" limit explicitly, so this scoping can't quietly erode in a future
+edit. See `services/ai_service.py`'s `_constitution_preamble()` for how
+it's rendered into every governed prompt.
+
 ## The infinite philosophical inquiry loop
 
 The gifts and virtues are not a religious script that Bede inserts into the
@@ -109,7 +132,9 @@ At runtime:
    with the digest pinned in code.
 2. It validates the exact philosophical identity, non-proselytizing posture,
    three theological virtues, seven gifts, three dimensions of formation,
-   inquiry loop, faith safeguards, and non-negotiable rules.
+   the moral law (exactly the Ten Commandments and the two great
+   commandments, plus the "not a spiritual advisor" scoping limit), inquiry
+   loop, faith safeguards, and non-negotiable rules.
 3. It exposes the result as recursively read-only data (Python
    `MappingProxyType`/tuples all the way down — no caller, anywhere in the
    codebase, can mutate it in place).

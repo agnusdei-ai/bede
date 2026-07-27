@@ -38,6 +38,9 @@ def test_real_constitution_verifies_and_matches_pinned_digest():
     assert c["gifts_of_the_holy_spirit"][-1]["name"] == "Fear of the Lord"
     assert len(c["human_formation"]) == 3
     assert len(c["infinite_loop"]) == 10
+    assert len(c["moral_law"]["commandments"]) == 10
+    assert len(c["moral_law"]["great_commandments"]) == 2
+    assert "spiritual advisor" in c["moral_law"]["function"]
 
 
 def test_constitution_is_recursively_read_only():
@@ -139,6 +142,27 @@ def test_out_of_order_loop_is_rejected():
         _validate_structure(data)
 
 
+def test_wrong_commandment_count_is_rejected():
+    data = _valid_data()
+    data["moral_law"]["commandments"].pop()
+    with pytest.raises(ConstitutionIntegrityError, match="moral_law.commandments"):
+        _validate_structure(data)
+
+
+def test_wrong_great_commandment_count_is_rejected():
+    data = _valid_data()
+    data["moral_law"]["great_commandments"].pop()
+    with pytest.raises(ConstitutionIntegrityError, match="moral_law.great_commandments"):
+        _validate_structure(data)
+
+
+def test_missing_spiritual_advisor_limit_is_rejected():
+    data = _valid_data()
+    data["moral_law"]["function"] = "Governs Bede's conduct."
+    with pytest.raises(ConstitutionIntegrityError, match="spiritual advisor"):
+        _validate_structure(data)
+
+
 # ── Wired into all four prompt-building call sites (services/ai_service.py) ──
 
 from models.schemas import ChatMessage, GradeStage, SessionConfig, SessionSummaryRequest, Subject  # noqa: E402
@@ -154,6 +178,13 @@ def test_tutor_persona_prompt_includes_constitution_before_persona():
     assert "<constitution>" in prompt
     assert "Fear of the Lord" in prompt
     assert prompt.index("<constitution>") < prompt.index("<persona>")
+
+
+def test_tutor_persona_prompt_includes_the_moral_law_and_its_scope_limit():
+    prompt = ai_service._build_static_prompt(_config())
+    assert "You shall not steal." in prompt
+    assert "Love your neighbor as yourself." in prompt
+    assert "never a spiritual advisor" in prompt
 
 
 def test_sandbox_prompt_includes_constitution():

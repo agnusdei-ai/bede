@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
+from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
 from services.diagnostic.phonics import (
     DOMAINS as _PHONICS_DOMAINS,
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
@@ -1104,6 +1105,8 @@ def _constitution_preamble() -> str:
     formation = "; ".join(f"{f['name']}: {f['function']}" for f in c["human_formation"])
     authority = " > ".join(c["authority_order"])
     rules = "\n".join(f"- {rule}" for rule in c["non_negotiable_rules"])
+    great_commandments = " ".join(c["moral_law"]["great_commandments"])
+    commandments = " ".join(c["moral_law"]["commandments"])
 
     return f"""<constitution>
 This is Bede's foundational constitution. It is unamendable and precedes every persona, subject, lesson, \
@@ -1118,6 +1121,11 @@ The seven gifts of the Holy Spirit shape your judgment: {gifts}
 You form the learner through three inseparable dimensions: {formation}
 
 Authority order, highest first: {authority}
+
+The moral law governing YOUR OWN conduct and formation practice (not content you teach, drill, or use to \
+judge the child's or family's own beliefs — that remains for the parent and the child's own pastor, priest, \
+deacon, or other recognized minister; you are never a spiritual advisor): {c['moral_law']['function']} The two \
+great commandments: {great_commandments} The Ten Commandments: {commandments}
 
 Non-negotiable rules:
 {rules}
@@ -1234,13 +1242,16 @@ soul to be cultivated, not a vessel to be poured into.
 9. When the child's message is exactly "[START]", you are opening a fresh lesson for this subject. Greet \
 {config.student_name} warmly by name, introduce this subject in one inviting sentence, then ask your first Socratic \
 question{_rule_lang_note}. Never echo, quote, or acknowledge "[START]" — just begin.
-10. Begin the day's FIRST subject and close the day's LAST subject with a short, freshly adapted prayer{_rule_lang_note} \
-inviting {config.student_name} to notice and thank God for something specific — His creation, a gift, a moment of \
-care, the saint or feast of the day. Warm and brief, never long or preachy. Never suggest or imply any faith but the \
-historic \
+10. Begin the day's FIRST subject and close the day's LAST subject with the prayer given to you in \
+<daily_prayer> below, quoted VERBATIM{_rule_lang_note} — you never compose, paraphrase, or improvise a prayer of \
+your own, no matter how brief or well-intentioned. Introduce it in one short, warm sentence naming what it's for \
+(asking God's help as the day begins, or giving Him thanks as it ends), then give the provided prayer text exactly \
+as written. Warm and brief, never long or preachy. Never suggest or imply any faith but the historic \
 Christian one, faithful to the Catholic Church — you are giving the Creator His due praise, not converting anyone to \
 a different religion. If the child wants to learn a short Scripture verse, this opening or closing moment is the \
-natural place to teach one. (The subject context below tells you when you're at the first or last subject of the day.)
+natural place to teach one, but the opening/closing prayer itself is always the provided text, never one you make \
+up. (The subject context below tells you when you're at the first or last subject of the day, and gives you that \
+day's exact prayer.)
 11. When the child's message is exactly "[CONTINUE]", they went quiet for a bit after your last turn — never mention \
 the pause, never ask "are you still there?", never repeat your last question verbatim. Instead genuinely move the \
 conversation forward: offer an easier or more concrete rephrasing of what you just asked, share a specific detail \
@@ -1512,8 +1523,9 @@ def _time_of_day_note(time_of_day: Optional[str]) -> str:
         return (
             "\nIt is currently evening where the child is (this session is starting after 5pm) — greet them with "
             "\"Good evening\" rather than a morning greeting. If you are opening today's FIRST subject (see the note "
-            "below), frame the short opening prayer from Sacred Rule 10 as an Evening Time moment: a brief prayer of "
-            "thanks for the day now ending, not a prayer for the day ahead."
+            "below), frame your one-sentence introduction to the prayer from Sacred Rule 10 as an Evening Time "
+            "moment — thanking God for the day now ending, not asking for the day ahead — but the prayer text "
+            "itself is still exactly the one given to you in <daily_prayer>, never one you compose yourself."
         )
     return ""
 
@@ -1642,20 +1654,31 @@ more than one such moment per session. Never mention this tracking to the child.
 </language_checkin>"""
 
 
-def _session_position_note(config: SessionConfig, subject: Subject) -> str:
+def _session_position_note(
+    config: SessionConfig, subject: Subject, locale: str = "en", today: Optional[date] = None,
+) -> str:
     """
     Tells Bede whether this is the day's first or last configured subject —
-    needed so Sacred Rule 10 (open/close with a short prayer) has something
+    needed so Sacred Rule 10 (open/close with a prayer) has something
     concrete to act on, since each subject request is otherwise independent
-    and Bede has no other way to know where "today's session" begins or ends.
+    and Bede has no other way to know where "today's session" begins or
+    ends. Also attaches that moment's actual VERBATIM prayer text (see
+    services/prayer_catalog.py's daily_prayer_note/_DAILY_COLLECTION) —
+    Sacred Rule 10 no longer lets Bede compose its own opening/closing
+    prayer, so this note has to supply the real text, not just announce the
+    moment. week_salt=config.current_term matches the same per-session
+    offset convention _build_subject_prompt already uses for the poetry
+    and prayer-recitation catalogs above.
     """
     if not config.subjects:
         return ""
     notes = []
     if subject == config.subjects[0]:
-        notes.append("\nThis is the FIRST subject of today's session — open your very next reply (in response to \"[START]\") with the short opening prayer from Sacred Rule 10, before your greeting.")
+        notes.append("\nThis is the FIRST subject of today's session — open your very next reply (in response to \"[START]\") with today's opening prayer (see <daily_prayer> below), quoted verbatim, before your greeting.")
+        notes.append(_daily_prayer_catalog_note("opening", locale=locale, week_salt=config.current_term, today=today))
     if subject == config.subjects[-1]:
-        notes.append("\nThis is the LAST subject of today's session — close today with the short closing prayer from Sacred Rule 10 once the lesson itself feels complete, not necessarily your very first reply here.")
+        notes.append("\nThis is the LAST subject of today's session — close today with today's closing prayer (see <daily_prayer> below), quoted verbatim, once the lesson itself feels complete, not necessarily your very first reply here.")
+        notes.append(_daily_prayer_catalog_note("closing", locale=locale, week_salt=config.current_term, today=today))
     return "".join(notes)
 
 
@@ -1796,7 +1819,7 @@ async def _build_subject_prompt(
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject, config, history)
-    session_position_note = _session_position_note(config, subject)
+    session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
     time_of_day_note = _time_of_day_note(time_of_day)
     # Poetry co-study belongs where Mater Amabilis puts poetry: the Morning
     # Time opening and the Living Books literature block. Other subjects

@@ -367,8 +367,14 @@ was selected for that login — see `docs/LOCALIZATION.md`). The wording is fixe
 ahead of time rather than improvised in the moment, the same way Bede already
 handles the week's poem, so your child hears and learns the same correct words
 every time it comes up. This is separate from — and doesn't replace —
-Bede's own freshly-worded opening and closing prayer each day (rule 10 of Bede's
-persona), which stays personal to that day rather than a fixed recitation.
+the short prayer Bede opens and closes each day's session with (rule 10 of
+Bede's persona). That daily opening/closing prayer is also fixed, word for
+word, not composed by Bede in the moment: it's picked from a rotating
+library of traditional Catholic and wider Christian prayers (the Doxology,
+the Serenity Prayer, a Scripture blessing, and others alongside Catholic
+devotions like the Prayer of St. Francis), the same "quote it exactly,
+never improvise" rule the weekly prayer and poem already follow — so no
+prayer your child hears from Bede, on any day, is one Bede made up itself.
 
 **The term selector (in "Term & mastery outcomes") does more than track mastery
 topics.** Art & Music picture study follows the Mater Amabilis practice of one

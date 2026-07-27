@@ -4,7 +4,7 @@ import random
 import re
 import time
 from datetime import date, datetime, timezone
-from typing import AsyncIterator, List, Optional, TYPE_CHECKING
+from typing import Any, AsyncIterator, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -173,6 +173,38 @@ _FAITH_FALLBACK_QUESTIONS = {
 # loop. The turn's already-streamed text is never interrupted; a child
 # never sees this happen.
 _MAX_TOOL_CALLS_PER_TURN = 6
+
+# Bounds how many model round-trips ("rounds") a single turn's tool_result
+# loop may take — independent of, and always subordinate to,
+# _MAX_TOOL_CALLS_PER_TURN above (the total-calls-executed ceiling, which
+# still spans every round combined, not reset per round). Most turns need
+# exactly one round: no tool call, or a tool call with nothing dynamic to
+# react to (offer_socratic_hint, celebrate_discovery, connect_to_faith,
+# request_narration, invite_handwriting, suggest_next_subject all resolve
+# to a fixed acknowledgment — see _TRIVIAL_TOOL_RESULT below) never
+# extends the loop, so this cap is only ever reached by the two tools that
+# DO carry a real outcome (show_visual_aid, assess_narration) firing
+# repeatedly in one turn.
+#
+# This governs round-trips to the model only. It never adds a turn the
+# child has to wait through, never creates a new child-visible message
+# boundary, and has no bearing on session duration, break enforcement, or
+# screen-time limits — those are wall-clock and turn-count based
+# (gradeTimer.ts, session_cap_minutes) and live entirely on the frontend/
+# session layer, untouched by how many internal model calls one turn's
+# response takes. It also cannot be raised, lowered, or bypassed by
+# anything in a prompt: it's a Python constant read once per process, not
+# a value any prompt (parent-supplied SessionConfig field, child chat
+# text, or a tool_result payload — all of which are either sanitized
+# input or fixed, server-computed structured data, never instructions)
+# could ever influence.
+_MAX_TOOL_LOOP_ROUNDS = 3
+
+# The fixed placeholder every tool without a dynamic outcome resolves to
+# (see _MAX_TOOL_LOOP_ROUNDS above) — deliberately a constant, never
+# free text, so it can never carry anything resembling an instruction
+# back into the model's own context.
+_TRIVIAL_TOOL_RESULT = {"acknowledged": True}
 
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
@@ -1962,6 +1994,39 @@ def _process_tool_use(tool_name: str, tool_input: dict) -> str:
     return ""
 
 
+def _content_block_to_dict(block: Any) -> Optional[dict]:
+    """
+    Serialize one assistant content block for replay in the next round's
+    `messages` list (see stream_tutor_response's tool_result loop). Real
+    anthropic SDK content blocks are pydantic models with `.model_dump()`;
+    the OpenAI-compatible adapter's own TextBlock/ToolUseBlock
+    (services/adapters/base.py — used for the demo's OpenAI/Mistral
+    failover and any self-hosted local vLLM deployment) are plain slotted
+    objects with the same field names but no `.model_dump()`. This has to
+    handle both, since the tool_result loop is provider-agnostic like the
+    rest of ai_service.py — a crash here would only ever surface on a
+    non-Anthropic adapter's SECOND round, the one case none of the
+    existing single-round tests would ever exercise.
+    """
+    dump = getattr(block, "model_dump", None)
+    if callable(dump):
+        return dump()
+    block_type = getattr(block, "type", None)
+    if block_type == "text":
+        return {"type": "text", "text": getattr(block, "text", "")}
+    if block_type == "tool_use":
+        return {
+            "type": "tool_use",
+            "id": getattr(block, "id", ""),
+            "name": getattr(block, "name", ""),
+            "input": getattr(block, "input", {}),
+        }
+    # An unrecognized block type (e.g. a native "thinking" block from some
+    # future provider) is dropped rather than guessed at — an incomplete
+    # replay is safer than a malformed one.
+    return None
+
+
 def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
     """
     Server-side authoritative lookup for show_visual_aid's tool input.
@@ -2414,213 +2479,332 @@ async def stream_tutor_response(
         {**TUTOR_TOOLS[-1], "cache_control": {"type": "ephemeral"}},
     ]
 
-    async with _client.messages.stream(
-        model=settings.tutor_model,
-        # Keep responses tight (Mater Amabilis lesson brevity) but leave real
-        # headroom for a tool call's own content plus trailing text — 400 cut
-        # it too close for a verbose celebrate_discovery/connect_to_faith call
-        # to ever have room left for the question after it. The
-        # ends_on_questionless_tool fallback above is the real fix (guaranteed
-        # regardless of budget); this is a secondary margin, not a substitute.
-        max_tokens=500,
-        system=system,
-        messages=messages,
-        tools=tools_with_cache,
-    ) as stream:
-        tool_calls_buffer = {}
-        # See _MAX_TOOL_CALLS_PER_TURN's own comment. Incremented once per
-        # tool call that actually gets dispatched (parses as valid JSON),
-        # checked before that dispatch — so it's a hard ceiling on
-        # EXECUTED tool calls this turn, not just ones the model attempted.
-        tool_calls_this_turn = 0
-        # Holds the questionless tool's name only when the most recent
-        # visible thing in this turn was that tool's card with no text
-        # after it — see _QUESTIONLESS_TOOLS above. None the moment real
-        # text streams, so this only reflects what actually happened LAST.
-        # Carrying the name (not just a bool) is what lets the fallback
-        # below pick the question list that actually fits which moment
-        # just happened.
-        ends_on_questionless_tool: Optional[str] = None
+    # See _MAX_TOOL_CALLS_PER_TURN's own comment. Incremented once per
+    # tool call that actually gets dispatched (parses as valid JSON),
+    # checked before that dispatch — so it's a hard ceiling on
+    # EXECUTED tool calls this turn, not just ones the model attempted.
+    # Spans every round of the loop below, not reset per round.
+    tool_calls_this_turn = 0
+    # Holds the questionless tool's name only when the most recent
+    # visible thing in this turn was that tool's card with no text
+    # after it — see _QUESTIONLESS_TOOLS above. None the moment real
+    # text streams, so this only reflects what actually happened LAST.
+    # Carrying the name (not just a bool) is what lets the fallback
+    # below pick the question list that actually fits which moment
+    # just happened. Deliberately NOT reset per round either — the
+    # fallback question is only ever injected once, after the whole
+    # loop ends (see below), so a tool call that gets a real follow-up
+    # round never gets a redundant fallback question tacked on too.
+    ends_on_questionless_tool: Optional[str] = None
+    final_message = None
 
-        async for event in stream:
-            # Dispatch on the wire-protocol `.type` string, not the SDK's
-            # Python class name — the class names are an implementation
-            # detail that has changed across anthropic SDK versions (e.g.
-            # "ContentBlockStart" -> "RawContentBlockStartEvent"), silently
-            # breaking every branch below with zero exceptions raised, since
-            # every check just fell through. `.type` mirrors the documented
-            # API event/delta type strings and is stable across SDK versions.
-            event_type = event.type
+    # Bounded tool_result loop (see _MAX_TOOL_LOOP_ROUNDS's own comment for
+    # what this is and, just as importantly, what it deliberately isn't:
+    # it never adds a child-visible turn, never touches session/break
+    # timers, and is governed start to finish by the same cached `system`
+    # block — constitution included — reused verbatim every round below.
+    # A round only continues the loop when it produced at least one
+    # genuinely reactive tool_result (see _TRIVIAL_TOOL_RESULT); an
+    # ordinary turn (no tools, or only fixed-acknowledgment tools) always
+    # exits after round 1, byte-for-byte the same as before this loop
+    # existed.
+    for round_num in range(_MAX_TOOL_LOOP_ROUNDS):
+        round_tool_results: dict[str, dict] = {}
+        round_has_reactable_result = False
+        hit_call_cap = False
+        # Terminal UI transition — see the check after this round's `async
+        # with` block below for why it force-ends the loop outright.
+        suggest_next_subject_fired = False
 
-            if event_type == "content_block_start":
-                block = event.content_block
-                if hasattr(block, "type"):
-                    if block.type == "tool_use":
-                        tool_calls_buffer[block.id] = {
-                            "name": block.name,
-                            "input_str": "",
-                        }
+        async with _client.messages.stream(
+            model=settings.tutor_model,
+            # Keep responses tight (Mater Amabilis lesson brevity) but leave real
+            # headroom for a tool call's own content plus trailing text — 400 cut
+            # it too close for a verbose celebrate_discovery/connect_to_faith call
+            # to ever have room left for the question after it. The
+            # ends_on_questionless_tool fallback above is the real fix (guaranteed
+            # regardless of budget); this is a secondary margin, not a substitute.
+            max_tokens=500,
+            system=system,
+            messages=messages,
+            tools=tools_with_cache,
+        ) as stream:
+            tool_calls_buffer = {}
 
-            elif event_type == "content_block_delta":
-                delta = event.delta
-                delta_type = delta.type
+            async for event in stream:
+                # Dispatch on the wire-protocol `.type` string, not the SDK's
+                # Python class name — the class names are an implementation
+                # detail that has changed across anthropic SDK versions (e.g.
+                # "ContentBlockStart" -> "RawContentBlockStartEvent"), silently
+                # breaking every branch below with zero exceptions raised, since
+                # every check just fell through. `.type` mirrors the documented
+                # API event/delta type strings and is stable across SDK versions.
+                event_type = event.type
 
-                if delta_type == "text_delta":
-                    yield json.dumps({'type': 'text', 'content': delta.text})
-                    ends_on_questionless_tool = None
+                if event_type == "content_block_start":
+                    block = event.content_block
+                    if hasattr(block, "type"):
+                        if block.type == "tool_use":
+                            tool_calls_buffer[block.id] = {
+                                "name": block.name,
+                                "input_str": "",
+                            }
 
-                elif delta_type == "input_json_delta":
-                    # Accumulate tool input JSON
-                    block_id = None
-                    for bid, tc in tool_calls_buffer.items():
-                        block_id = bid
-                    if block_id:
-                        tool_calls_buffer[block_id]["input_str"] += delta.partial_json
+                elif event_type == "content_block_delta":
+                    delta = event.delta
+                    delta_type = delta.type
 
-            elif event_type == "content_block_stop":
-                for block_id, tc in list(tool_calls_buffer.items()):
-                    if tc["input_str"]:
-                        try:
-                            tool_input = json.loads(tc["input_str"])
+                    if delta_type == "text_delta":
+                        yield json.dumps({'type': 'text', 'content': delta.text})
+                        ends_on_questionless_tool = None
 
-                            # Defense-in-depth: prevent unauthorized tool use by
-                            # capping how many tool calls one turn may act on
-                            # (see _MAX_TOOL_CALLS_PER_TURN) and durably recording
-                            # every call that IS executed (see AuditEvent.
-                            # TOOL_INVOKED/TOOL_CALL_SUPPRESSED and the anomaly
-                            # rules watching them in core/audit.py) — the
-                            # auditability layer this app didn't have before for
-                            # real (non-demo) sessions, whose tool calls left no
-                            # trace beyond the ephemeral SSE stream itself.
-                            if tool_calls_this_turn >= _MAX_TOOL_CALLS_PER_TURN:
-                                log.warning(
-                                    "Suppressing tool call past the per-turn cap (%d): %s for %s",
-                                    _MAX_TOOL_CALLS_PER_TURN, tc["name"], config.student_name,
-                                )
+                    elif delta_type == "input_json_delta":
+                        # Accumulate tool input JSON
+                        block_id = None
+                        for bid, tc in tool_calls_buffer.items():
+                            block_id = bid
+                        if block_id:
+                            tool_calls_buffer[block_id]["input_str"] += delta.partial_json
+
+                elif event_type == "content_block_stop":
+                    for block_id, tc in list(tool_calls_buffer.items()):
+                        if tc["input_str"]:
+                            try:
+                                tool_input = json.loads(tc["input_str"])
+
+                                # Defense-in-depth: prevent unauthorized tool use by
+                                # capping how many tool calls one turn may act on
+                                # (see _MAX_TOOL_CALLS_PER_TURN) and durably recording
+                                # every call that IS executed (see AuditEvent.
+                                # TOOL_INVOKED/TOOL_CALL_SUPPRESSED and the anomaly
+                                # rules watching them in core/audit.py) — the
+                                # auditability layer this app didn't have before for
+                                # real (non-demo) sessions, whose tool calls left no
+                                # trace beyond the ephemeral SSE stream itself.
+                                if tool_calls_this_turn >= _MAX_TOOL_CALLS_PER_TURN:
+                                    log.warning(
+                                        "Suppressing tool call past the per-turn cap (%d): %s for %s",
+                                        _MAX_TOOL_CALLS_PER_TURN, tc["name"], config.student_name,
+                                    )
+                                    log_event_nowait(
+                                        AuditEvent.TOOL_CALL_SUPPRESSED,
+                                        ip=ip, user_agent=user_agent, role=role,
+                                        student_name=config.student_name,
+                                        detail=f"tool={tc['name']} subject={subject.value} cap={_MAX_TOOL_CALLS_PER_TURN}",
+                                    )
+                                    tool_calls_buffer.pop(block_id, None)
+                                    # Hitting the cap ends the whole loop, not just
+                                    # this call — see hit_call_cap below. A suppressed
+                                    # tool_use block never gets a tool_result, so the
+                                    # loop must not try to continue past it (the
+                                    # Anthropic API requires every tool_use in a turn
+                                    # to be answered before the next request, and once
+                                    # the cap is hit that's a promise this code can no
+                                    # longer keep).
+                                    hit_call_cap = True
+                                    continue
+                                tool_calls_this_turn += 1
                                 log_event_nowait(
-                                    AuditEvent.TOOL_CALL_SUPPRESSED,
+                                    AuditEvent.TOOL_INVOKED,
                                     ip=ip, user_agent=user_agent, role=role,
                                     student_name=config.student_name,
-                                    detail=f"tool={tc['name']} subject={subject.value} cap={_MAX_TOOL_CALLS_PER_TURN}",
+                                    detail=f"tool={tc['name']} subject={subject.value}",
                                 )
-                                tool_calls_buffer.pop(block_id, None)
-                                continue
-                            tool_calls_this_turn += 1
-                            log_event_nowait(
-                                AuditEvent.TOOL_INVOKED,
-                                ip=ip, user_agent=user_agent, role=role,
-                                student_name=config.student_name,
-                                detail=f"tool={tc['name']} subject={subject.value}",
-                            )
 
-                            # Demo-only structural signal: that this tool fired,
-                            # never its arguments (no narration/hint/prompt text
-                            # ever reaches interaction_signals). See that module's
-                            # docstring for the full privacy design.
-                            await record_signal(demo_code, tc["name"], subject.value)
-                            if tc["name"] == "suggest_next_subject":
-                                await record_signal(demo_code, "subject_complete", subject.value)
-                            if tc["name"] == "assess_narration":
-                                # Silent server-side save; emit minimal event for frontend
-                                summary = await _save_assessment(db, config.student_name, subject, tool_input)
-                                if summary:
-                                    yield json.dumps({'type': 'assessment', 'data': summary})
-                            elif tc["name"] == "show_visual_aid":
-                                aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
-                                if aid:
-                                    yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
-                                    if processing_style == "visual":
-                                        # See LearnerBehaviorCheck's docstring — only counts
-                                        # a successfully-resolved aid, not a hallucinated id.
-                                        await _increment_behavior_check(db, config.student_name)
+                                # Demo-only structural signal: that this tool fired,
+                                # never its arguments (no narration/hint/prompt text
+                                # ever reaches interaction_signals). See that module's
+                                # docstring for the full privacy design.
+                                await record_signal(demo_code, tc["name"], subject.value)
+                                if tc["name"] == "suggest_next_subject":
+                                    await record_signal(demo_code, "subject_complete", subject.value)
+
+                                # Every tool_use this turn needs a tool_result — that's
+                                # the Anthropic API's contract, not optional — so every
+                                # branch below sets one. Only show_visual_aid and
+                                # assess_narration carry a genuinely dynamic outcome
+                                # (data this code already computes for the SSE
+                                # event/DB write, just not previously handed back to
+                                # the model); every other tool gets the same fixed
+                                # _TRIVIAL_TOOL_RESULT placeholder, which is why an
+                                # ordinary turn never grows a second round. Deliberately
+                                # NOT extended to record_skill_evidence/
+                                # record_phonics_evidence/record_language_evidence:
+                                # those three have an explicit, tested contract
+                                # (services/ai_service.py callers + their own test
+                                # suites) of returning nothing and emitting nothing, by
+                                # design — silent, best-effort diagnostic writes that
+                                # must never gain a new visible-to-the-model surface.
+                                result_payload = dict(_TRIVIAL_TOOL_RESULT)
+
+                                if tc["name"] == "assess_narration":
+                                    # Silent server-side save; emit minimal event for frontend
+                                    summary = await _save_assessment(db, config.student_name, subject, tool_input)
+                                    if summary:
+                                        yield json.dumps({'type': 'assessment', 'data': summary})
+                                        result_payload = summary
+                                    else:
+                                        result_payload = {"recorded": False}
+                                    round_has_reactable_result = True
+                                elif tc["name"] == "show_visual_aid":
+                                    aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
+                                    if aid:
+                                        yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
+                                        if processing_style == "visual":
+                                            # See LearnerBehaviorCheck's docstring — only counts
+                                            # a successfully-resolved aid, not a hallucinated id.
+                                            await _increment_behavior_check(db, config.student_name)
+                                        result_payload = {"found": True, "visual_aid_id": aid.get("id")}
+                                    else:
+                                        log.warning(
+                                            "Bede requested an unknown visual_aid_id: %r",
+                                            tool_input.get("visual_aid_id"),
+                                        )
+                                        # The one case this loop exists for: today this
+                                        # was a silent no-op the model never learned
+                                        # about. Now it can recover in the same turn
+                                        # instead of leaving a dangling reference.
+                                        result_payload = {"found": False, "visual_aid_id": tool_input.get("visual_aid_id")}
+                                    round_has_reactable_result = True
+                                elif tc["name"] == "suggest_next_subject":
+                                    yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
+                                    ends_on_questionless_tool = None
+                                    suggest_next_subject_fired = True
+                                elif tc["name"] == "record_skill_evidence":
+                                    # Fully silent — no SSE chunk at all, stricter than
+                                    # assess_narration's minimal event. See
+                                    # _record_skill_evidence's own docstring for which
+                                    # backend (demo_code vs db) actually persists it.
+                                    await _record_skill_evidence(db, demo_code, config, subject, tool_input)
+                                elif tc["name"] == "record_phonics_evidence":
+                                    # Fully silent, same as record_skill_evidence above —
+                                    # see _record_phonics_evidence's own docstring.
+                                    await _record_phonics_evidence(db, config, subject, tool_input)
+                                elif tc["name"] == "record_language_evidence":
+                                    # Fully silent, same as record_skill_evidence above —
+                                    # see _record_language_evidence's own docstring.
+                                    await _record_language_evidence(db, config, subject, tool_input)
                                 else:
-                                    log.warning(
-                                        "Bede requested an unknown visual_aid_id: %r",
-                                        tool_input.get("visual_aid_id"),
-                                    )
-                            elif tc["name"] == "suggest_next_subject":
-                                yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
-                                ends_on_questionless_tool = None
-                            elif tc["name"] == "record_skill_evidence":
-                                # Fully silent — no SSE chunk at all, stricter than
-                                # assess_narration's minimal event. See
-                                # _record_skill_evidence's own docstring for which
-                                # backend (demo_code vs db) actually persists it.
-                                await _record_skill_evidence(db, demo_code, config, subject, tool_input)
-                            elif tc["name"] == "record_phonics_evidence":
-                                # Fully silent, same as record_skill_evidence above —
-                                # see _record_phonics_evidence's own docstring.
-                                await _record_phonics_evidence(db, config, subject, tool_input)
-                            elif tc["name"] == "record_language_evidence":
-                                # Fully silent, same as record_skill_evidence above —
-                                # see _record_language_evidence's own docstring.
-                                await _record_language_evidence(db, config, subject, tool_input)
-                            else:
-                                if tc["name"] == "invite_handwriting":
-                                    # See LearnerBehaviorCheck's docstring — a minimal,
-                                    # parent-only check on whether each profile's own
-                                    # prompt nudge actually changes Bede's behavior.
-                                    # elements-set is kinesthetic's structured-DITK
-                                    # signal; elements-absent is reading_writing's
-                                    # plain-written-narration signal — the same tool
-                                    # serves both, disambiguated this way.
-                                    has_elements = bool(tool_input.get("elements"))
-                                    if (processing_style == "kinesthetic" and has_elements) or (
-                                        processing_style == "reading_writing" and not has_elements
-                                    ):
-                                        await _increment_behavior_check(db, config.student_name)
-                                tool_response = _process_tool_use(tc["name"], tool_input)
-                                if tool_response:
-                                    yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
-                                    ends_on_questionless_tool = (
-                                        tc["name"]
-                                        if tc["name"] in _QUESTIONLESS_TOOLS and not tool_input.get("reflection_question")
-                                        else None
-                                    )
-                        except json.JSONDecodeError:
-                            pass
-                        tool_calls_buffer.pop(block_id, None)
+                                    if tc["name"] == "invite_handwriting":
+                                        # See LearnerBehaviorCheck's docstring — a minimal,
+                                        # parent-only check on whether each profile's own
+                                        # prompt nudge actually changes Bede's behavior.
+                                        # elements-set is kinesthetic's structured-DITK
+                                        # signal; elements-absent is reading_writing's
+                                        # plain-written-narration signal — the same tool
+                                        # serves both, disambiguated this way.
+                                        has_elements = bool(tool_input.get("elements"))
+                                        if (processing_style == "kinesthetic" and has_elements) or (
+                                            processing_style == "reading_writing" and not has_elements
+                                        ):
+                                            await _increment_behavior_check(db, config.student_name)
+                                    tool_response = _process_tool_use(tc["name"], tool_input)
+                                    if tool_response:
+                                        yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
+                                        ends_on_questionless_tool = (
+                                            tc["name"]
+                                            if tc["name"] in _QUESTIONLESS_TOOLS and not tool_input.get("reflection_question")
+                                            else None
+                                        )
 
-        if ends_on_questionless_tool == "celebrate_discovery":
-            questions = _CELEBRATION_FALLBACK_QUESTIONS.get(locale, _CELEBRATION_FALLBACK_QUESTIONS["en"])
-            yield json.dumps({'type': 'text', 'content': f" {random.choice(questions)}"})
-        elif ends_on_questionless_tool == "connect_to_faith":
-            questions = _FAITH_FALLBACK_QUESTIONS.get(locale, _FAITH_FALLBACK_QUESTIONS["en"])
-            yield json.dumps({'type': 'text', 'content': f" {random.choice(questions)}"})
+                                round_tool_results[block_id] = result_payload
+                            except json.JSONDecodeError:
+                                pass
+                            tool_calls_buffer.pop(block_id, None)
 
-        final_message = None
-        try:
-            final_message = await stream.get_final_message()
-            usage = final_message.usage
-            from core.api_usage import record_usage
-            await record_usage(
+            final_message = None
+            try:
+                final_message = await stream.get_final_message()
+                usage = final_message.usage
+                from core.api_usage import record_usage
+                await record_usage(
+                    student_name=config.student_name,
+                    model=settings.tutor_model,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+                    cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+                )
+            except Exception:
+                log.warning("Failed to capture usage for a tutor turn", exc_info=True)
+
+        stop_reason = getattr(final_message, "stop_reason", None)
+
+        # suggest_next_subject is a terminal UI transition (the frontend
+        # navigates away from this subject) — never give the model a
+        # further round to keep reasoning about a subject it's already
+        # leaving, no matter what else fired alongside it this round.
+        if suggest_next_subject_fired or hit_call_cap or stop_reason != "tool_use" or not round_has_reactable_result:
+            if hit_call_cap:
+                log.info(
+                    "Tool loop ending early for %s: per-turn call cap hit",
+                    config.student_name,
+                )
+            break
+        if round_num == _MAX_TOOL_LOOP_ROUNDS - 1:
+            # The model still wants to keep going (stop_reason == "tool_use")
+            # but the round cap says no further round-trips this turn.
+            # Informational, not necessarily anomalous — a legitimate turn
+            # with several reactable tool calls can reach this — so it's
+            # logged for observability but not added to core/audit.py's
+            # _ANOMALY_RULES the way TOOL_CALL_SUPPRESSED is.
+            log_event_nowait(
+                AuditEvent.AGENTIC_LOOP_CAPPED,
+                ip=ip, user_agent=user_agent, role=role,
                 student_name=config.student_name,
-                model=settings.tutor_model,
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
-                cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
-                cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+                detail=f"subject={subject.value} rounds={_MAX_TOOL_LOOP_ROUNDS}",
             )
-        except Exception:
-            log.warning("Failed to capture usage for a tutor turn", exc_info=True)
+            break
 
-        # Found via a live adversarial probe (docs/adversarial-probes/): a
-        # base64-encoded injection attempt triggered Claude's own native
-        # stop_reason="refusal" — zero content blocks, not even a text
-        # refusal. Without this, the child sees a completely blank reply
-        # with no error and no way to know anything happened.
-        # ends_on_questionless_tool's fallback above only covers "ended on
-        # a tool card with no question after it"; final_message.content
-        # being empty catches the more extreme "nothing was ever emitted
-        # at all" case regardless of which specific reason caused it.
-        _final_content = getattr(final_message, "content", None)  # None (missing attr) means "unknown, skip"
-        if final_message is not None and _final_content is not None and len(_final_content) == 0:
-            yield json.dumps({
-                'type': 'text',
-                'content': "I'm not able to help with that one — let's try something else. What would you like to explore?",
-            })
+        # Continue the loop: hand the model back its own turn plus the
+        # results it's waiting on for the tool(s) it just called. `system`
+        # and `tools_with_cache` are reused verbatim on the next iteration
+        # (see the loop's own comment above) — the constitution and every
+        # other rule embedded in the cached system block governs this next
+        # round exactly as it governed the first. tool_result content here
+        # is always the fixed, server-computed structured data built above
+        # (never raw free text, never anything from outside this process),
+        # so this can never become a place for an external instruction —
+        # parent-supplied, child-supplied, or otherwise — to reach the model.
+        messages.append({
+            "role": "assistant",
+            "content": [
+                d for d in (_content_block_to_dict(block) for block in final_message.content)
+                if d is not None
+            ],
+        })
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "tool_result", "tool_use_id": tool_use_id, "content": json.dumps(payload)}
+                for tool_use_id, payload in round_tool_results.items()
+            ],
+        })
 
-        yield json.dumps({'type': 'done'})
+    if ends_on_questionless_tool == "celebrate_discovery":
+        questions = _CELEBRATION_FALLBACK_QUESTIONS.get(locale, _CELEBRATION_FALLBACK_QUESTIONS["en"])
+        yield json.dumps({'type': 'text', 'content': f" {random.choice(questions)}"})
+    elif ends_on_questionless_tool == "connect_to_faith":
+        questions = _FAITH_FALLBACK_QUESTIONS.get(locale, _FAITH_FALLBACK_QUESTIONS["en"])
+        yield json.dumps({'type': 'text', 'content': f" {random.choice(questions)}"})
+
+    # Found via a live adversarial probe (docs/adversarial-probes/): a
+    # base64-encoded injection attempt triggered Claude's own native
+    # stop_reason="refusal" — zero content blocks, not even a text
+    # refusal. Without this, the child sees a completely blank reply
+    # with no error and no way to know anything happened.
+    # ends_on_questionless_tool's fallback above only covers "ended on
+    # a tool card with no question after it"; final_message.content
+    # being empty catches the more extreme "nothing was ever emitted
+    # at all" case regardless of which specific reason caused it.
+    _final_content = getattr(final_message, "content", None)  # None (missing attr) means "unknown, skip"
+    if final_message is not None and _final_content is not None and len(_final_content) == 0:
+        yield json.dumps({
+            'type': 'text',
+            'content': "I'm not able to help with that one — let's try something else. What would you like to explore?",
+        })
+
+    yield json.dumps({'type': 'done'})
 
 
 async def generate_session_summary(

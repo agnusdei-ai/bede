@@ -62,6 +62,7 @@ class AuditEvent:
     TOOL_INVOKED             = "tool.invoked"
     TOOL_CALL_SUPPRESSED     = "tool.call_suppressed"
     ADVERSARIAL_DETECTED     = "adversarial.detected"
+    AGENTIC_LOOP_CAPPED      = "agentic.loop_capped"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

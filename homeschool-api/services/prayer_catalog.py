@@ -38,6 +38,28 @@ recitation) would be confusing rather than reinforcing. Also excludes
 longer, more edition-variable texts (the Apostles' Creed, the Angelus, the
 Act of Contrition) for this first pass, pending the same source-review
 this module's own docstring asks for.
+
+_DAILY_COLLECTION (below) is a second, separate catalog backing the day's
+opening/closing prayer moment (services/ai_service.py's Sacred Rule 10) —
+added specifically so Bede never composes that prayer itself. Before this,
+Bede was instructed to "freshly adapt" an opening/closing prayer each
+session; a growing homeschool family raised, correctly, that a model
+improvising devotional wording every day — with no human ever reviewing
+what it actually said — is not something a family building toward
+diocesan/parish endorsement can stand behind, however well-intentioned the
+result usually is. This catalog closes that gap the same way _COLLECTION
+already closed it for memory-work recitation: a fixed, reviewed set of
+real, traditionally-attested prayers Bede selects and quotes VERBATIM,
+never invents. Per the parent's own direction, it deliberately spans both
+Catholic devotional prayers and prayers in wider ecumenical Christian use
+(the Doxology, the Serenity Prayer, the Numbers 6:24-26 blessing, "Now I
+Lay Me Down to Sleep") — all doctrinally uncontroversial, Trinitarian
+where applicable, and none requiring Bede to adjudicate a denominational
+question to use. Same transcription caveat as _COLLECTION above: treat
+every entry (English and especially the Spanish renderings, several of
+which are this session's own translation rather than a cross-checked
+published source) as a first pass worth a parish/native-speaker review
+before a family relies on it.
 """
 from datetime import date
 
@@ -151,6 +173,175 @@ _COLLECTION = [
         ),
     ),
 ]
+
+
+def _daily_entry(
+    title: str, attribution: str, tradition: str, moments: set, text_en: str, text_es: str,
+) -> dict:
+    return {
+        "title": title,
+        "attribution": attribution,
+        "tradition": tradition,  # "catholic" | "christian" (wider ecumenical Christian use)
+        "moments": moments,  # subset of {"opening", "closing"}
+        "text_en": text_en,
+        "text_es": text_es,
+    }
+
+
+# Backs the day's opening/closing prayer moment only (Sacred Rule 10 in
+# services/ai_service.py) — see this module's own docstring for why this is
+# a separate catalog from _COLLECTION above, not just an entry in it: these
+# are short enough for daily reuse across every grade, and several are
+# non-Catholic Christian prayers in wider ecumenical use, which _COLLECTION's
+# own scope (universally standardized CATHOLIC prayers) deliberately excludes.
+_DAILY_COLLECTION = [
+    _daily_entry(
+        "Come, Holy Spirit", "Traditional", "catholic", {"opening"},
+        (
+            "Come, Holy Spirit, fill the hearts of your faithful and kindle in them the fire of "
+            "your love. Send forth your Spirit and they shall be created. And You shall renew the "
+            "face of the earth. Amen."
+        ),
+        (
+            "Ven, Espíritu Santo, llena los corazones de tus fieles y enciende en ellos el fuego de "
+            "tu amor. Envía tu Espíritu y todo será creado. Y renovarás la faz de la tierra. Amén."
+        ),
+    ),
+    _daily_entry(
+        "Prayer Before Study", "Traditional (attrib. St. Thomas Aquinas)", "catholic", {"opening"},
+        (
+            "Creator of all things, true source of light and wisdom, origin of all being, "
+            "graciously let a ray of your light penetrate the darkness of my understanding. Give me "
+            "a sharp sense of understanding, a retentive memory, and the ability to grasp things "
+            "correctly and fundamentally. Point out the beginning, direct the progress, and help in "
+            "the completion. I ask this through Christ our Lord. Amen."
+        ),
+        (
+            "Creador de todas las cosas, verdadera fuente de luz y sabiduría, origen de todo ser: "
+            "te suplico que hagas penetrar un rayo de tu luz en la oscuridad de mi entendimiento. "
+            "Dame agudeza para entender, capacidad para retener, y método y facilidad para "
+            "aprender. Señala el comienzo, dirige el progreso y ayuda a la conclusión. Te lo pido "
+            "por Cristo, nuestro Señor. Amén."
+        ),
+    ),
+    _daily_entry(
+        "Prayer of St. Francis", "Traditional (long attributed to St. Francis of Assisi)", "catholic", {"closing"},
+        (
+            "Lord, make me an instrument of your peace. Where there is hatred, let me sow love; "
+            "where there is injury, pardon; where there is doubt, faith; where there is despair, "
+            "hope; where there is darkness, light; where there is sadness, joy. Amen."
+        ),
+        (
+            "Señor, hazme un instrumento de tu paz. Donde haya odio, que yo ponga amor; donde haya "
+            "ofensa, perdón; donde haya duda, fe; donde haya desesperación, esperanza; donde haya "
+            "oscuridad, luz; donde haya tristeza, alegría. Amén."
+        ),
+    ),
+    _daily_entry(
+        "Glory Be (Doxology)", "Traditional", "catholic", {"closing"},
+        (
+            "Glory be to the Father, and to the Son, and to the Holy Spirit, as it was in the "
+            "beginning, is now, and ever shall be, world without end. Amen."
+        ),
+        (
+            "Gloria al Padre, y al Hijo, y al Espíritu Santo. Como era en el principio, ahora y "
+            "siempre, por los siglos de los siglos. Amén."
+        ),
+    ),
+    _daily_entry(
+        "The Doxology", "Thomas Ken, 1674 (traditional Protestant hymn verse)", "christian", {"closing"},
+        (
+            "Praise God, from whom all blessings flow; praise Him, all creatures here below; "
+            "praise Him above, ye heavenly host; praise Father, Son, and Holy Ghost. Amen."
+        ),
+        (
+            "Alaben a Dios, de quien fluyen todas las bendiciones; alábenlo, todas las criaturas de "
+            "la tierra; alábenlo en las alturas, huestes celestiales; alaben al Padre, al Hijo y al "
+            "Espíritu Santo. Amén."
+        ),
+    ),
+    _daily_entry(
+        "The Serenity Prayer", "Reinhold Niebuhr, c. 1930s (traditional, wide ecumenical Christian use)",
+        "christian", {"opening"},
+        (
+            "God, grant me the serenity to accept the things I cannot change, courage to change the "
+            "things I can, and wisdom to know the difference."
+        ),
+        (
+            "Señor, concédeme serenidad para aceptar las cosas que no puedo cambiar, valor para "
+            "cambiar las cosas que puedo, y sabiduría para reconocer la diferencia."
+        ),
+    ),
+    _daily_entry(
+        "The Blessing (Numbers 6:24-26)", "Scripture, traditional English liturgical rendering",
+        "christian", {"closing"},
+        (
+            "The Lord bless you and keep you; the Lord make his face shine upon you and be "
+            "gracious to you; the Lord turn his face toward you and give you peace. Amen."
+        ),
+        (
+            "El Señor te bendiga y te guarde; el Señor haga resplandecer su rostro sobre ti y "
+            "tenga de ti misericordia; el Señor alce sobre ti su rostro y te dé paz. Amén."
+        ),
+    ),
+    _daily_entry(
+        "Now I Lay Me Down to Sleep", "Traditional (The New England Primer, 18th c.; wide ecumenical Christian use)",
+        "christian", {"closing"},
+        (
+            "Now I lay me down to sleep, I pray the Lord my soul to keep. If I die before I wake, "
+            "I pray the Lord my soul to take. Amen."
+        ),
+        (
+            "Ahora que me acuesto a dormir, pido al Señor que cuide mi alma. Si muero antes de "
+            "despertar, pido al Señor que lleve mi alma. Amén."
+        ),
+    ),
+]
+
+
+def daily_prayer_for(moment: str, week_salt: int = 0, today: "date | None" = None) -> "dict | None":
+    """
+    The entry for today's opening or closing prayer moment. Rotates by
+    calendar DAY, not week — unlike _COLLECTION's memory-work rotation,
+    this catalog backs a moment that recurs every single session day, so a
+    week-long rotation would repeat the identical prayer seven days
+    running. week_salt offsets the index — same per-session-offset
+    convention as prayer_for_week/poem_for_week, so different families/
+    demo visitors don't all land on the same pick the same day.
+    """
+    entries = [e for e in _DAILY_COLLECTION if moment in e["moments"]]
+    if not entries:
+        return None
+    idx = ((today or date.today()).toordinal() + week_salt) % len(entries)
+    return entries[idx]
+
+
+def daily_prayer_note(
+    moment: str, locale: str = "en", week_salt: int = 0, today: "date | None" = None,
+) -> str:
+    """
+    Prompt block for Sacred Rule 10's opening/closing prayer: today's pick,
+    given VERBATIM in the deployment's locale, with an explicit instruction
+    that Bede is selecting and quoting it, never composing it. Only "en"
+    and "es" have translated text today; any other locale falls back to
+    English, same incremental-localization convention as prayer_note above.
+    """
+    entry = daily_prayer_for(moment, week_salt, today)
+    if not entry:
+        return ""
+    text = entry["text_es"] if locale == "es" else entry["text_en"]
+    moment_label = "opening" if moment == "opening" else "closing"
+    return f"""
+
+<daily_prayer moment="{moment_label}">
+Today's {moment_label} prayer is the "{entry['title']}" ({entry['attribution']}) — drawn from a rotating \
+database of traditional Catholic and Christian prayers, not composed by you. The text below is given \
+VERBATIM. Introduce it in one short, warm sentence naming what it's for, then give EXACTLY the text below \
+as the prayer itself — never compose, paraphrase, or improvise a prayer of your own, and never blend it \
+with invented lines of your own.
+
+{text}
+</daily_prayer>"""
 
 
 def _entries_for_grade(grade: str) -> list[dict]:

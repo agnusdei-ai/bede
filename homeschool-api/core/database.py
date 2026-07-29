@@ -616,6 +616,46 @@ class DemoCodeSession(Base):
     email_sent: Mapped[bool] = mapped_column(nullable=False, default=False)
 
 
+class DemoCodeUnitNote(Base):
+    """
+    Optional, parent-provided one-line note on what the family is already
+    covering outside Bede's own built-in curriculum (a book, a unit) — set
+    once at POST /auth/demo-code alongside student_name/grade, and threaded
+    into the demo's SessionConfig.current_unit exactly like a real parent's
+    current_unit field (see docs/PARENT_SETUP.md's companion_mode section).
+    This lets the demo show the same "Bede anchors on what the family
+    brought in, not just its own curriculum" behavior the real app offers,
+    rather than only ever demonstrating Bede's bundled subject content. See
+    CLAUDE.md's "Continuing Mastery (demo)" section.
+
+    A standalone table rather than a new column on DemoCodeSession: this
+    codebase's startup only ever runs CREATE TABLE IF NOT EXISTS (core/
+    database.py's create_tables(), no ALTER TABLE migration path), so a new
+    table is the only way to add this to an already-running deployment
+    without a manual schema change.
+
+    Same TTL/eviction convention as DemoCodeSession: no expiry column,
+    core/demo_code_session.py filters on created_at at read/write time and
+    opportunistically deletes rows past the same cutoff. Plaintext, not
+    encrypted — same convention as DemoCodeSession's own student_name/grade
+    (a demo topic, not a real family's identity); sanitized (HTML/prompt-
+    injection/credential stripping) both at write time (routers/auth.py)
+    and again by _build_subject_prompt's existing current_unit handling
+    (services/ai_service.py), for defense in depth on public, anonymous
+    input.
+    """
+    __tablename__ = "demo_code_unit_notes"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    note: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
 class DiagnosticPreviewUse(Base):
     """
     Postgres-backed replacement for core/diagnostic_preview_quota.py's old

@@ -124,3 +124,41 @@ async def test_get_personalization_defaults_to_none_when_not_provided():
 
 async def test_get_personalization_unknown_code_returns_none_none():
     assert await demo_code_session.get_personalization("000000") == (None, None)
+
+
+# ── current_unit (DemoCodeUnitNote) — Continuing Mastery's "outside" note ────
+
+async def test_get_current_unit_round_trips():
+    code = await demo_code_session.generate_code(current_unit="Reading Farmer Boy together")
+    assert await demo_code_session.get_current_unit(code) == "Reading Farmer Boy together"
+
+
+async def test_get_current_unit_none_when_not_provided():
+    code = await demo_code_session.generate_code()
+    assert await demo_code_session.get_current_unit(code) is None
+
+
+async def test_get_current_unit_unknown_code_returns_none():
+    assert await demo_code_session.get_current_unit("000000") is None
+
+
+async def test_end_session_deletes_the_unit_note_too():
+    code = await demo_code_session.generate_code(current_unit="Our own Ancient Egypt unit")
+    await demo_code_session.end_session(code)
+    assert await demo_code_session.get_current_unit(code) is None
+
+
+async def test_generate_code_cleans_up_stale_unit_notes():
+    from datetime import datetime, timedelta, timezone
+    from core.database import AsyncSessionLocal, DemoCodeUnitNote
+
+    async with AsyncSessionLocal() as db:
+        db.add(DemoCodeUnitNote(
+            code="111111", note="stale",
+            created_at=datetime.now(timezone.utc) - timedelta(seconds=demo_code_session._CODE_TTL_SECONDS + 60),
+        ))
+        await db.commit()
+
+    await demo_code_session.generate_code()
+
+    assert await demo_code_session.get_current_unit("111111") is None

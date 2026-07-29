@@ -35,22 +35,31 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     automatically. Each code is independent, so unlike the shared-PIN trial
     this once had, concurrent visitors never collide with each other.
 
-    `req` is optional and both its fields are optional — an older client (or
+    `req` is optional and all its fields are optional — an older client (or
     one that doesn't want to personalize) can still POST with no body at all,
-    same as before. student_name is sanitized here (HTML/prompt-injection
-    stripping, same as a parent's lesson_focus/faith_emphasis notes) since
-    it's the one new piece of free text an anonymous visitor puts in front of
-    the model; grade is checked against VALID_GRADES rather than sanitized,
-    since anything outside that small allowlist is silently ignored (falls
-    back to the operator's configured DEMO_GRADE) rather than trusted as text.
+    same as before. student_name and current_unit are sanitized here (HTML/
+    prompt-injection stripping, same as a parent's lesson_focus/
+    faith_emphasis notes) since they're free text an anonymous visitor puts
+    in front of the model; grade is checked against VALID_GRADES rather than
+    sanitized, since anything outside that small allowlist is silently
+    ignored (falls back to the operator's configured DEMO_GRADE) rather than
+    trusted as text.
+
+    current_unit is the "what are we already covering at home" note behind
+    the demo's Continuing Mastery card (see core/database.py's
+    DemoCodeUnitNote and CLAUDE.md's "Continuing Mastery (demo)" section) —
+    threaded into the demo's SessionConfig.current_unit exactly like a real
+    parent's own field, so Bede can anchor on material the family brought in
+    from outside the built-in curriculum.
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
 
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
+    current_unit = _sanitize_parent_field(req.current_unit if req else None, max_len=200)
 
-    code = await generate_code(student_name=student_name, grade=grade)
+    code = await generate_code(student_name=student_name, grade=grade, current_unit=current_unit)
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

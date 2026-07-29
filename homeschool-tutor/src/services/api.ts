@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, LicenseStatus, AIProviderStatus, AIProviderName } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 
@@ -459,6 +459,14 @@ export async function fetchStudentUsage(token: string, studentName: string): Pro
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(`Failed to load usage for ${studentName}`)
+  return res.json()
+}
+
+export async function fetchAgenticLoopStats(token: string, days: number): Promise<AgenticLoopStats> {
+  const res = await fetch(`${BASE}/admin/agentic-loop-stats?days=${encodeURIComponent(days)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Failed to load tool-loop stats')
   return res.json()
 }
 

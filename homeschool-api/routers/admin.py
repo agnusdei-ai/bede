@@ -11,12 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from core.audit import AuditEvent, audit_from_request, log_event, read_audit_log
-from core.api_usage import get_usage_summary
+from core.api_usage import get_loop_stats, get_usage_summary
 from core.config import settings
 from core.database import LicenseConfig, get_db
 from core.deps import require_parent
 from core import license_state, licensing, provider_state
-from models.schemas import UsageSummary
+from models.schemas import AgenticLoopStats, UsageSummary
 from services.adapters import router as adapter_router
 from services.voice_auth import list_profiles
 
@@ -241,3 +241,21 @@ async def student_usage(
     """
     usage = await get_usage_summary(db, student_name)
     return UsageSummary(**usage)
+
+
+@router.get("/agentic-loop-stats", response_model=AgenticLoopStats)
+async def agentic_loop_stats(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+) -> AgenticLoopStats:
+    """
+    Household-wide analytics for stream_tutor_response's bounded
+    tool_result loop — see core/api_usage.py's get_loop_stats for what
+    this approximates and why. `days` is capped at 90 (same "read-only,
+    size-capped" convention as GET /admin/audit's `limit`), so a very old
+    deployment can't turn this into an unbounded full-table scan.
+    """
+    safe_days = min(max(days, 1), 90)
+    stats = await get_loop_stats(db, safe_days)
+    return AgenticLoopStats(**stats)

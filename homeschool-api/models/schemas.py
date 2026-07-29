@@ -1,5 +1,5 @@
 from pydantic import model_validator, BaseModel, EmailStr, Field
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 from enum import Enum
 from datetime import date
 
@@ -559,6 +559,29 @@ class UsageSummary(BaseModel):
     total_calls:          int
     estimated_cost_usd:   float
     by_model:             List[ModelUsage]
+
+class AgenticLoopStats(BaseModel):
+    """
+    Best-effort analytics for stream_tutor_response's bounded tool_result
+    loop (services/ai_service.py's _MAX_TOOL_LOOP_ROUNDS) — how often a
+    turn actually takes more than one model round-trip, and the added
+    latency/cost that implies. See core/api_usage.py's get_loop_stats for
+    how "which rows belong to one turn" is approximated (a timestamp-gap
+    heuristic, not an exact stored value) — every field here inherits
+    that same approximation, which is why this is a trend view, not a
+    bill or an audit record.
+    """
+    window_days:                    int
+    turns_analyzed:                 int
+    multi_round_turns:              int
+    multi_round_pct:                float
+    avg_rounds_per_turn:            float
+    max_rounds_seen:                int
+    round_distribution:             Dict[int, int]
+    avg_added_latency_seconds:      float
+    max_added_latency_seconds:      float
+    extra_round_estimated_cost_usd: float
+
 
 class RecordSkillEvidenceInput(BaseModel):
     """Server-side validation of the silent record_skill_evidence tool's

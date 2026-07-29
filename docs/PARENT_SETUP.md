@@ -551,7 +551,30 @@ Setting up a second provider in the first place is a one-time, technical
 step (see `docs/PROVIDER_ADAPTERS.md`) — this card only lets you choose
 among providers that are already set up, it doesn't add a new one.
 
-## 11. Checking in afterward
+## 11. Agentic loop insights (a technical card, safe to skip)
+
+Bede occasionally needs a second, internal reply from the AI model within
+the same turn — for example, if it tries to show a picture-study image
+that isn't available, it gets told that and can recover with a real answer
+instead of leaving the child looking at nothing. This never adds an extra
+message for your child to wait through, doesn't affect session length or
+break timing at all, and doesn't change anything about what Bede is or
+isn't allowed to do — it's purely about how many behind-the-scenes replies
+one turn takes.
+
+If you're curious how often this actually happens, log in as parent, open
+**Setup**, and find the **Agentic Loop Insights** card (below AI Provider).
+Pick a time window (7, 30, or 90 days) to see how many tutoring turns
+needed a second reply, how much longer those took, and a rough estimate of
+the extra cost. These numbers are approximate, not an exact bill or log —
+the card says so itself, since there's no simple date it can read this off
+of exactly.
+
+This card is meant for anyone curious about how Bede works under the hood,
+not something you need to check regularly — everything about your child's
+actual learning still lives on the Progress page in the next section.
+
+## 12. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
   Bede's sense of how that child learns best — available from the very first session

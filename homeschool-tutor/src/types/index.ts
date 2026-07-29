@@ -317,6 +317,26 @@ export interface UsageSummary {
   by_model: ModelUsage[]
 }
 
+// Best-effort analytics for stream_tutor_response's bounded tool_result
+// loop (see homeschool-api/core/api_usage.py's get_loop_stats and
+// CLAUDE.md's "Bounded tool_result loop" section) — GET
+// /admin/agentic-loop-stats. Every field here inherits a timestamp-gap
+// APPROXIMATION of which API calls belong to the same turn, not an exact
+// stored value — AgenticLoopInsights.tsx surfaces that caveat rather than
+// presenting these as precise counts.
+export interface AgenticLoopStats {
+  window_days: number
+  turns_analyzed: number
+  multi_round_turns: number
+  multi_round_pct: number
+  avg_rounds_per_turn: number
+  max_rounds_seen: number
+  round_distribution: Record<number, number>
+  avg_added_latency_seconds: number
+  max_added_latency_seconds: number
+  extra_round_estimated_cost_usd: number
+}
+
 // Mirrors homeschool-api/core/licensing.py's LicenseInfo, as surfaced by
 // GET /admin/status. Null on the wire (see routers/admin.py) when
 // LICENSE_KEY is unset — dev/self-managed mode, or the operator's public

@@ -32,6 +32,7 @@ years and nothing here assumes otherwise.
 | `narration_assessments` | Rubric scores from narration/discussion |
 | `learner_profiles` | Bede's synthesized learner-type read (trivium stage, processing style, etc.) |
 | `learner_behavior_checks` | The minimal kinesthetic/reading-writing/visual adaptation counter (see `CLAUDE.md`'s "processing_style adaptation" note for what this is and isn't) |
+| `lesson_bookmarks` | One short, internal, Bede-authored resume-point note per subject — where that subject left off, for continuity into the next session (see `CLAUDE.md`'s "Lesson continuity (bookmarks)" note). Never shown in the app; not a tracked metric |
 | `mastery_profiles` | The math skill-mastery vector (IRT/CDM/KST — see `docs/diagnostic/`) |
 | `diagnostic_evidence_log` | Derived probe deltas (skill_id, prior→posterior, probe_id, model_used, timestamp — never a transcript or probe text) feeding both the vector above and the end-of-session Math Skill Growth report; on by default (`DIAGNOSTIC_EVIDENCE_LOG_ENABLED`) |
 | `session_transcripts` | The full encrypted session transcript, for parent review |

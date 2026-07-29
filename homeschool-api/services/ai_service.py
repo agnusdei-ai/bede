@@ -1271,9 +1271,13 @@ never preachy, never forced.
 7. Use the child's name ({config.student_name}) naturally in conversation.
 8. Speak to them as a person of full dignity, made in the image of God, whose mind is to be formed not filled — a \
 soul to be cultivated, not a vessel to be poured into.
-9. When the child's message is exactly "[START]", you are opening a fresh lesson for this subject. Greet \
-{config.student_name} warmly by name, introduce this subject in one inviting sentence, then ask your first Socratic \
-question{_rule_lang_note}. Never echo, quote, or acknowledge "[START]" — just begin.
+9. When the child's message is exactly "[START]", you are opening this subject for today. If the subject context \
+below includes "Where this subject left off," greet {config.student_name} warmly by name, briefly reorient them to \
+that resume point in a sentence or two, then ask a Socratic question that continues from there — UNLESS the \
+parent's own note for today or current unit of study points somewhere else, in which case follow the parent's \
+note instead (a parent redirecting today's focus is deliberate, not an oversight). If there's no resume point, \
+greet {config.student_name} warmly by name, introduce this subject in one inviting sentence, then ask your first \
+Socratic question{_rule_lang_note}. Never echo, quote, or acknowledge "[START]" — just begin.
 10. Begin the day's FIRST subject and close the day's LAST subject with the prayer given to you in \
 <daily_prayer> below, quoted VERBATIM{_rule_lang_note} — you never compose, paraphrase, or improvise a prayer of \
 your own, no matter how brief or well-intentioned. Introduce it in one short, warm sentence naming what it's for \
@@ -1841,6 +1845,7 @@ async def _build_subject_prompt(
     local_date: Optional[date] = None,
     processing_style: Optional[str] = None,
     locale: str = "en",
+    bookmark: Optional[dict] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -1849,6 +1854,7 @@ async def _build_subject_prompt(
     faith_note = f"\nToday's faith focus: {faith_raw}" if faith_raw else ""
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
+    bookmark_note = _bookmark_note(bookmark, today=local_date)
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject, config, history)
     session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
@@ -1905,7 +1911,7 @@ async def _build_subject_prompt(
     guadalupe_note = _guadalupe_note(subject, locale)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2171,6 +2177,7 @@ async def _save_assessment(
 _READONLY_PROMPT_CACHE_TTL_SECONDS = 300
 _mastery_vector_cache: dict[str, tuple[tuple[Optional[dict], int], float]] = {}
 _processing_style_cache: dict[str, tuple[Optional[str], float]] = {}
+_lesson_bookmark_cache: dict[tuple[str, str], tuple[Optional[dict], float]] = {}
 
 
 async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
@@ -2254,6 +2261,79 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
 
     _processing_style_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
     return value
+
+
+async def _load_lesson_bookmark_readonly(
+    db: "AsyncSession", student_name: str, subject: Subject,
+) -> Optional[dict]:
+    """
+    Read-only load of where this student left off in THIS subject, per
+    core/database.py's LessonBookmark (see that model's own docstring for
+    the "internal-only, not a tracked signal" reasoning). Returns None
+    when no bookmark row exists yet (first time this subject has ever
+    been covered, or a lapsed table before this feature existed) or on
+    any decrypt/DB failure — same defensive convention as
+    _load_processing_style_readonly, which this mirrors: a bookmark-load
+    hiccup must never break the child's turn, it just means this turn
+    opens the subject cold, same as always. Cached per (student, subject)
+    for _READONLY_PROMPT_CACHE_TTL_SECONDS, same rationale as the other
+    two readonly loaders above.
+    """
+    cache_key = (student_name, subject.value)
+    now = time.monotonic()
+    cached = _lesson_bookmark_cache.get(cache_key)
+    if cached is not None and cached[1] > now:
+        return cached[0]
+
+    try:
+        from sqlalchemy import select
+
+        from core.database import LessonBookmark
+        from core.encryption import decrypt_json
+
+        result = await db.execute(
+            select(LessonBookmark).where(
+                LessonBookmark.student_name == student_name,
+                LessonBookmark.subject == subject.value,
+            )
+        )
+        row = result.scalar_one_or_none()
+        value = None if row is None else {
+            "note": decrypt_json(row.bookmark_enc)["note"],
+            "updated_at": row.updated_at,
+        }
+    except Exception as exc:
+        log.warning("Lesson-bookmark prompt-load failed for %s/%s: %s", student_name, subject.value, exc)
+        value = None
+
+    _lesson_bookmark_cache[cache_key] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    return value
+
+
+def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> str:
+    """
+    Renders a loaded LessonBookmark (see _load_lesson_bookmark_readonly)
+    into subject-prompt text, with "fade" phrasing for an old bookmark
+    instead of ever discarding it — a family that hasn't covered this
+    subject in weeks should still get picked back up, just phrased
+    honestly ("a while back") rather than implying yesterday. This note
+    is deliberately a resume point, not an instruction to override
+    anything: _build_subject_prompt's own unit_note/lesson_note (the
+    parent's own current_unit/lesson_focus for TODAY) are told, in
+    _build_static_prompt's opener rule, to win if the two conflict — a
+    parent retyping lesson_focus is a deliberate redirect, not an
+    oversight.
+    """
+    if not bookmark or not bookmark.get("note"):
+        return ""
+    when = "last time"
+    updated_at = bookmark.get("updated_at")
+    if updated_at is not None:
+        reference_day = today or datetime.now(timezone.utc).date()
+        updated_day = updated_at.date() if hasattr(updated_at, "date") else updated_at
+        if (reference_day - updated_day).days > 13:
+            when = "a while back"
+    return f"\nWhere this subject left off ({when}): {bookmark['note']}"
 
 
 async def _record_skill_evidence(
@@ -2454,12 +2534,19 @@ async def stream_tutor_response(
     if db is not None:
         processing_style = await _load_processing_style_readonly(db, config.student_name)
 
+    # Real sessions only, every subject (not just mathematics) — see
+    # _load_lesson_bookmark_readonly's docstring and core/database.py's
+    # LessonBookmark for why this is subject-agnostic.
+    bookmark = None
+    if db is not None:
+        bookmark = await _load_lesson_bookmark_readonly(db, config.student_name, subject)
+
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
         history=history, time_of_day=time_of_day, local_date=local_date, processing_style=processing_style,
-        locale=locale,
+        locale=locale, bookmark=bookmark,
     )
     system = [
         {
@@ -2807,6 +2894,69 @@ async def stream_tutor_response(
     yield json.dumps({'type': 'done'})
 
 
+_BOOKMARKS_BLOCK_PATTERN = re.compile(
+    r"<<<BOOKMARKS>>>\s*(\{.*?\})\s*<<<END_BOOKMARKS>>>", re.DOTALL,
+)
+
+
+def _split_bookmarks_block(raw_text: str) -> tuple[str, dict[str, str]]:
+    """
+    Splits generate_session_summary's raw model output into the
+    parent-visible summary text and the trailing internal-only resume-
+    point block (see that function's prompt for the exact format asked
+    for). Missing or malformed block degrades to (raw_text unchanged, {})
+    rather than raising — a parsing hiccup here must never corrupt or
+    block the parent-facing summary itself.
+    """
+    match = _BOOKMARKS_BLOCK_PATTERN.search(raw_text)
+    if not match:
+        return raw_text.strip(), {}
+
+    summary_text = raw_text[:match.start()].strip()
+    try:
+        parsed = json.loads(match.group(1))
+        bookmarks = {
+            str(k): str(v) for k, v in parsed.items() if isinstance(v, str) and v.strip()
+        }
+    except Exception as exc:
+        log.warning("Bookmark block parse failed: %s", exc)
+        bookmarks = {}
+    return summary_text, bookmarks
+
+
+async def _persist_lesson_bookmarks(db: "AsyncSession", student_name: str, bookmarks: dict[str, str]) -> None:
+    """
+    Upserts one core/database.py LessonBookmark row per subject in
+    `bookmarks` (subject key -> resume-point sentence, from
+    _split_bookmarks_block). Only ever called for real (parent) sessions
+    with db provided — see generate_session_summary's call site. Silently
+    skips a key that isn't a real Subject value (defensive against the
+    model inventing one) rather than failing the whole batch.
+    """
+    from sqlalchemy import select
+
+    from core.database import LessonBookmark
+    from core.encryption import encrypt_json
+
+    valid_subjects = {s.value for s in Subject}
+    for subject_key, note in bookmarks.items():
+        if subject_key not in valid_subjects:
+            continue
+        result = await db.execute(
+            select(LessonBookmark).where(
+                LessonBookmark.student_name == student_name,
+                LessonBookmark.subject == subject_key,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            row = LessonBookmark(student_name=student_name, subject=subject_key)
+            db.add(row)
+        row.bookmark_enc = encrypt_json({"note": note})
+    await db.commit()
+    _lesson_bookmark_cache.clear()
+
+
 async def generate_session_summary(
     req: SessionSummaryRequest, locale: str = "en", db: Optional["AsyncSession"] = None,
 ) -> str:
@@ -2838,6 +2988,18 @@ async def generate_session_summary(
     already-translated report carries none of the verbatim/attribution risk
     that made poetry/prayer quoting a special case — see
     docs/LOCALIZATION.md's poetry co-study section for that distinction).
+
+    db is also the write side of lesson continuity: the model is asked to
+    append an internal-only resume-point block (never shown to the
+    parent — see _split_bookmarks_block), one factual sentence per
+    subject covered today naming where that lesson left off. When db is
+    given, that block is parsed out and persisted via
+    _persist_lesson_bookmarks into core/database.py's LessonBookmark, one
+    row per (student, subject) — the same table _load_lesson_bookmark_readonly
+    reads back at the START of a student's NEXT session in that subject
+    (services/ai_service.py's stream_tutor_response / _build_subject_prompt).
+    Same demo_code exclusion as the growth lookup above, for the same
+    reason.
     """
     client = _client
     language_note = (
@@ -2905,7 +3067,16 @@ Write a parent summary with these sections:
 4. **Tomorrow's Springboard** (one concrete suggestion to build on today's momentum)
 5. **Virtue Observed** (one character quality the child showed today)
 
-Keep it warm, specific, and under 300 words. Address the parent directly.{growth_note}{language_note}"""
+Keep it warm, specific, and under 300 words. Address the parent directly.{growth_note}{language_note}
+
+After the five sections, on their own lines, append a resume-point block for Bede's own internal use — this part is \
+never shown to the parent, so write it factually, not warmly: for each of these subjects that was actually covered \
+today ({subjects_done}), one short factual sentence (not a suggestion, not a judgment) naming exactly where the \
+lesson left off, specific enough that picking it back up tomorrow needs no other context. Use each subject's exact \
+key as given here. Format exactly as:
+<<<BOOKMARKS>>>
+{{"subject_key": "one factual sentence on where this subject left off", ...}}
+<<<END_BOOKMARKS>>>"""
 
     response = await client.messages.create(
         model=settings.session_model,
@@ -2925,7 +3096,21 @@ Keep it warm, specific, and under 300 words. Address the parent directly.{growth
     except Exception:
         log.warning("Failed to capture usage for a session summary", exc_info=True)
 
-    return response.content[0].text
+    raw_text = response.content[0].text
+    summary_text, bookmarks = _split_bookmarks_block(raw_text)
+
+    # Real (parent) sessions only — see this function's own docstring on
+    # why db is never passed for demo_code. Best-effort: a persistence
+    # failure here must never break the parent's summary response, it
+    # just means tomorrow's session opens without a resume point, same as
+    # if this feature didn't exist.
+    if db is not None and bookmarks:
+        try:
+            await _persist_lesson_bookmarks(db, req.session_config.student_name, bookmarks)
+        except Exception:
+            log.warning("Lesson-bookmark persistence failed for %s", req.session_config.student_name, exc_info=True)
+
+    return summary_text
 
 
 async def synthesize_learner_profile(

@@ -122,8 +122,8 @@ export function decodeExpiry(token: string): number | null {
  *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
 export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
 
-export async function generateDemoCode(studentName?: string, grade?: string): Promise<string> {
-  const hasBody = (studentName && studentName.trim()) || grade
+export async function generateDemoCode(studentName?: string, grade?: string, currentUnit?: string): Promise<string> {
+  const hasBody = (studentName && studentName.trim()) || grade || (currentUnit && currentUnit.trim())
   const res = await fetch(`${apiBase()}/auth/demo-code`, {
     method: 'POST',
     ...(hasBody && {
@@ -131,6 +131,7 @@ export async function generateDemoCode(studentName?: string, grade?: string): Pr
       body: JSON.stringify({
         student_name: studentName?.trim() || undefined,
         grade: grade || undefined,
+        current_unit: currentUnit?.trim() || undefined,
       }),
     }),
   })

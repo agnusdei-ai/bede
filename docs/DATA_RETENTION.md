@@ -70,6 +70,7 @@ as possible, and what little it holds expires automatically:
 | Table | Retention | Mechanism |
 |---|---|---|
 | `demo_code_sessions` | ~6 hours | Opportunistic cleanup on every new code generation (`core/demo_code_session.py`) |
+| `demo_code_unit_notes` | ~6 hours (same window as `demo_code_sessions`) | Opportunistic cleanup on every new code generation; also deleted immediately on explicit logout, same as its `demo_code_sessions` row. Holds only the optional "what are we already covering at home" note behind the demo's Continuing Mastery card (see `CLAUDE.md`'s "Continuing Mastery (demo)" section) — never the conversation itself. |
 | `diagnostic_preview_uses` | Rolling window, per (hashed) IP | Opportunistic cleanup on each quota check (`core/diagnostic_preview_quota.py`) |
 | `demo_interaction_signals` | 30 days | **Automatic** background purge, every 6 hours, for the life of the process (`main.py`'s `_periodic_data_purge`, calling `services/interaction_signals.purge_old_signals()`) |
 

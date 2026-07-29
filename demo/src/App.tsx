@@ -190,6 +190,11 @@ function clearChatState(code: string): void {
 // tab closes, same lifetime as every other piece of demo session state.
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
+// The optional "what are we already covering at home" note behind the
+// Continuing Mastery card (see ChatScreen's continuingMastery section below
+// and CLAUDE.md's "Continuing Mastery (demo)") — same session-only
+// persistence lifetime as name/grade above.
+const UNIT_STORAGE_KEY = 'bede-demo-current-unit'
 // Chosen at CodeScreen's own language toggle, per visit — mirrors
 // homeschool-tutor's per-login model (docs/LOCALIZATION.md) but the demo has
 // no persisted auth store to restore from, so sessionStorage fills that role
@@ -214,6 +219,7 @@ export function CodeScreen({ onLoggedIn }: {
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
+  const [currentUnit, setCurrentUnit] = useState(() => sessionStorage.getItem(UNIT_STORAGE_KEY) ?? '')
   // Shown when code generation runs long — almost always the demo backend
   // waking from its idle sleep, not a failure. Naming what's happening
   // keeps a visitor from abandoning a spinner that WILL finish.
@@ -265,10 +271,11 @@ export function CodeScreen({ onLoggedIn }: {
     setError('')
     const slowTimer = setTimeout(() => setSlowHint(true), 2500)
     try {
-      const code = await generateDemoCode(studentName, grade)
+      const code = await generateDemoCode(studentName, grade, currentUnit)
       const { token } = await loginWithCode(code, selectedLocale)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
+      if (currentUnit.trim()) sessionStorage.setItem(UNIT_STORAGE_KEY, currentUnit.trim())
       onLoggedIn(token, code)
     } catch (err) {
       setError(friendlyErrorMessage(err, t('codeScreen.couldNotStartSession'), t))
@@ -373,6 +380,27 @@ export function CodeScreen({ onLoggedIn }: {
                 <option key={g} value={g}>{g === 'K' ? t('codeScreen.kindergarten') : t('codeScreen.gradeN', { n: g })}</option>
               ))}
             </select>
+          </div>
+          {/* Optional — the "outside the built-in curriculum" note behind
+              the Continuing Mastery card (ChatScreen below): a book or unit
+              the family is already covering at home, so Bede can anchor its
+              questions on that instead of only ever demonstrating its own
+              bundled curriculum. Threaded straight through to
+              SessionConfig.current_unit (see routers/tutor.py's
+              _demo_session_config), exactly like a real parent's own field. */}
+          <div>
+            <label htmlFor="student-unit" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              {t('codeScreen.currentUnit')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
+            </label>
+            <input
+              id="student-unit"
+              type="text"
+              value={currentUnit}
+              onChange={(e) => setCurrentUnit(e.target.value)}
+              maxLength={200}
+              placeholder={t('codeScreen.currentUnitPlaceholder')}
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
           </div>
         </div>
 
@@ -493,6 +521,12 @@ const BREAK_INACTIVITY_LOGOUT_MS = 5 * 60 * 1000
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
+  // The optional "what are we already covering at home" note set at
+  // CodeScreen (see UNIT_STORAGE_KEY above) — server-resolved onto
+  // SessionConfig.current_unit (routers/tutor.py's _demo_session_config)
+  // and surfaced here for the Continuing Mastery card's own framing line,
+  // so a visitor sees Bede is actually aware of the material they typed in.
+  currentUnit?: string | null
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
   // Only used for POST /tutor/extract-narration (see handleNarrationFile
   // below) — runChat already has its own token baked in via closure.
@@ -520,7 +554,67 @@ interface ChatScreenProps {
   sessionStartedAt: number
 }
 
-function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+// Surfaces lesson continuity in the demo — see CLAUDE.md's "Continuing
+// Mastery (demo)" section. Two things it can show, either independently:
+// (1) the parent-provided currentUnit note (an "outside the built-in
+// curriculum" book/unit the family is already covering — see CodeScreen's
+// currentUnit field above), so a visitor sees Bede is actually anchoring on
+// what they typed, not just its own bundled subjects; (2) a "resume" row
+// per subject already touched this sitting, sourced from the REAL last
+// exchange in that subject (subjectLastExchange, built in runStream above)
+// rather than a synthesized summary — there's no per-subject LLM bookmark
+// call available client-side for the demo the way the real app's
+// LessonBookmark has server-side. Renders nothing when there's neither.
+function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLastExchange, onResume }: {
+  currentUnit?: string | null
+  subjects: readonly Subject[]
+  activeSubject: Subject
+  subjectLastExchange: Partial<Record<Subject, { childText?: string; bedeText: string; updatedAt: number }>>
+  onResume: (s: Subject) => void
+}) {
+  const { t } = useTranslation()
+  const touched = subjects.filter((s) => s !== activeSubject && subjectLastExchange[s])
+  if (!currentUnit && touched.length === 0) return null
+
+  return (
+    <div className="mt-2 border-l-[3px] border-gold-400 bg-gold-50/70 rounded-r-xl px-3 py-2.5 animate-fade-in">
+      <div className="flex items-center gap-1.5 text-xs font-display font-bold text-gray-800 mb-1.5">
+        <GraduationCap size={13} className="text-gold-600 flex-shrink-0" /> {t('continuingMastery.heading')}
+      </div>
+      {currentUnit && (
+        <p className="text-xs text-gray-600 mb-2 leading-snug">
+          {t('continuingMastery.followingOwnLesson', { unit: currentUnit })}
+        </p>
+      )}
+      {touched.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {touched.map((s) => {
+            const entry = subjectLastExchange[s]!
+            const excerpt = entry.bedeText.length > 100 ? entry.bedeText.slice(0, 100).trimEnd() + '…' : entry.bedeText
+            return (
+              <li key={s} className="flex items-start gap-2 text-xs leading-snug">
+                <span className="w-1.5 h-1.5 rounded-full bg-sage-500 mt-1 flex-shrink-0" aria-hidden="true" />
+                <span className="flex-1 text-gray-700">
+                  <span className="font-semibold">{t(`subjects.${s}`, SUBJECT_LABELS[s])}</span>
+                  {' — '}<span className="text-gray-500">{excerpt}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onResume(s)}
+                  className="text-gold-700 font-semibold hover:text-gold-800 underline flex-shrink-0"
+                >
+                  {t('continuingMastery.resume')}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
@@ -578,6 +672,20 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   )
   const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>(() => restored?.subjectsCompleted ?? [])
   const [messages, setMessages] = useState<DisplayMessage[]>(() => restored?.messages ?? [])
+  // Continuing Mastery card's data source (see the JSX below, right after
+  // the subject picker): the real last exchange in each subject the visitor
+  // has already touched THIS sitting, not a synthesized summary — there's
+  // no per-subject LLM bookmark call available client-side the way the real
+  // app's LessonBookmark has server-side (services/ai_service.py's
+  // generate_session_summary), so "the actual last thing Bede asked" is the
+  // honest, real-content substitute. In-memory only (not persisted to
+  // sessionStorage, unlike `messages` above) — a reload losing this is an
+  // acceptable gap, matching openerFired's own not-fully-restored posture
+  // just above; messages here also aren't tagged with which subject they
+  // belong to, so there'd be nothing reliable to rebuild it from anyway.
+  const [subjectLastExchange, setSubjectLastExchange] = useState<
+    Partial<Record<Subject, { childText?: string; bedeText: string; updatedAt: number }>>
+  >({})
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
@@ -812,6 +920,22 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         }
       }
       flushPendingSpeech()
+      // Continuing Mastery card's data source — see subjectLastExchange's
+      // own declaration above. Recorded for every completed turn in this
+      // subject, including the silent [START]/[CONTINUE] sentinels (in
+      // which case childText stays unset and the card just shows Bede's
+      // side) — a real turn always has SOME reply text once we reach here.
+      const bedeReply = (fullText || turnText).trim()
+      if (bedeReply) {
+        setSubjectLastExchange((prev) => ({
+          ...prev,
+          [subject]: {
+            childText: childMessage === '[START]' || childMessage === IDLE_CONTINUE_SENTINEL ? undefined : childMessage,
+            bedeText: bedeReply,
+            updatedAt: Date.now(),
+          },
+        }))
+      }
       // Fire-and-forget, deliberately not awaited: isSpeaking (a separate,
       // independently-tracked state from useTextToSpeech) already gates the
       // mic/turn-coordination effects below on its own, so nothing else
@@ -1060,6 +1184,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {subjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
           </select>
         </div>
+        <ContinuingMasteryCard
+          currentUnit={currentUnit}
+          subjects={subjects}
+          activeSubject={subject}
+          subjectLastExchange={subjectLastExchange}
+          onResume={setSubject}
+        />
       </header>
 
       {/* Chat body + input share one relative wrapper so the mandatory
@@ -2226,6 +2357,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
       <ChatScreen
         displayName={config.student_name}
         subjects={config.subjects}
+        currentUnit={config.current_unit}
         runChat={runChat}
         token={token}
         code={code}

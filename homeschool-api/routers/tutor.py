@@ -13,6 +13,7 @@ from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
+    get_current_unit as get_demo_current_unit,
     get_personalization as get_demo_personalization,
     record_message as demo_code_record_message,
 )
@@ -88,10 +89,22 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     term_schedule is pinned to quarterly (4 terms) rather than the default
     trimester (3) specifically so _demo_current_term's 1-4 range lines up
     with the full picture-study artist rotation, not just its first three.
+
+    current_unit is the other optional per-code personalization (see
+    DemoCodeRequest.current_unit and CLAUDE.md's "Continuing Mastery
+    (demo)" section) — a visitor's own "what we're already covering at
+    home" note, threaded straight into SessionConfig.current_unit exactly
+    like a real parent's field. It already gets the same
+    _sanitize_parent_field pass every current_unit does in
+    _build_subject_prompt (services/ai_service.py), on top of the
+    sanitization applied once at /auth/demo-code — belt and suspenders on
+    public, anonymous input.
     """
     student_name, grade = (None, None)
+    current_unit = None
     if code:
         student_name, grade = await get_demo_personalization(code)
+        current_unit = await get_demo_current_unit(code)
     return SessionConfig(
         student_name=student_name or settings.demo_student_name,
         grade=grade or settings.demo_grade,
@@ -100,6 +113,7 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         voice_required=False,
         term_schedule=TermSchedule.quarterly,
         current_term=_demo_current_term(code),
+        current_unit=current_unit,
     )
 
 

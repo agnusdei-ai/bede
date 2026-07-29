@@ -309,13 +309,17 @@ class LoginRequest(BaseModel):
 
 class DemoCodeRequest(BaseModel):
     """Optional personalization for a demo session — see POST /auth/demo-code.
-    Both fields are optional; omitting either keeps the operator's configured
-    DEMO_STUDENT_NAME/DEMO_GRADE default for that field. student_name is
-    sanitized server-side (see routers/tutor.py's _demo_session_config) since
-    it's the one new piece of free text an anonymous visitor can put in front
-    of the model."""
+    All fields are optional; omitting any keeps the operator's configured
+    DEMO_STUDENT_NAME/DEMO_GRADE default for that field (current_unit simply
+    stays unset). student_name and current_unit are sanitized server-side
+    (see routers/auth.py's create_demo_code) since they're free text an
+    anonymous visitor can put in front of the model. current_unit is a short
+    "what are we already covering at home" note (e.g. "reading Farmer Boy
+    together", "our own Ancient Egypt unit") — see core/database.py's
+    DemoCodeUnitNote and CLAUDE.md's "Continuing Mastery (demo)" section."""
     student_name: Optional[str] = Field(None, min_length=1, max_length=50)
     grade: Optional[str] = Field(None, max_length=2)
+    current_unit: Optional[str] = Field(None, max_length=200)
 
 
 class DemoCodeResponse(BaseModel):

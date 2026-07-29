@@ -23,6 +23,7 @@ from core.database import (
     DiagnosticEvidenceLog,
     LearnerBehaviorCheck,
     LearnerProfile,
+    LessonBookmark,
     MasteryProfile,
     NarrationAssessment,
     SessionTranscript,
@@ -74,6 +75,7 @@ async def _seed_all_tables(db, student_name: str):
     ))
     db.add(LearnerProfile(student_name=student_name, session_count=3, profile_enc=encrypt_json({"a": 1})))
     db.add(LearnerBehaviorCheck(student_name=student_name, count_enc=encrypt_json({"count": 2})))
+    db.add(LessonBookmark(student_name=student_name, subject="history", bookmark_enc=encrypt_json({"note": "left off at Rome"})))
     db.add(MasteryProfile(
         student_name=student_name, subject_area="mathematics",
         evidence_count=1, profile_enc=encrypt_json({"a": 1}),
@@ -98,6 +100,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("narration_assessments", NarrationAssessment),
         ("learner_profile", LearnerProfile),
         ("learner_behavior_check", LearnerBehaviorCheck),
+        ("lesson_bookmarks", LessonBookmark),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),
@@ -111,7 +114,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
 # ── services.student_deletion.delete_all_student_data ────────────────────────
 
 @pytest.mark.asyncio
-async def test_deletes_every_row_across_all_nine_tables(db_session):
+async def test_deletes_every_row_across_all_ten_tables(db_session):
     await _seed_all_tables(db_session, "Emma")
     before = await _row_counts_for(db_session, "Emma")
     assert all(n > 0 for n in before.values()), f"seeding didn't actually populate every table: {before}"

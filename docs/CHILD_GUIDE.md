@@ -91,6 +91,9 @@ There's no rush and no wrong way to think out loud.
   you're ready to continue.
 - When your learning time for the day is finished, I'll tell you and wrap things
   up myself. Great work deserves a real ending!
+- If we covered a subject before, I'll remember roughly where we left off and
+  remind you when we come back to it, so you don't have to remember it all
+  yourself or start over from the beginning.
 
 ## If something feels wrong
 

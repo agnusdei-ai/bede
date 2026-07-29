@@ -427,6 +427,24 @@ you're ever deciding whether and when to start formal instruction in a
 particular language — visible on the Progress page's Language Exposure
 Snapshot.
 
+**Bede remembers where each subject left off, on its own, without you having
+to retype anything.** After a session ends, Bede quietly notes, for each
+subject that was covered, roughly where the lesson stood — not a score, not
+a tracked metric, just a short factual reminder for itself. The next time
+that subject comes up, Bede briefly reorients your child to that point
+before asking its next question, instead of starting the subject cold — so
+a new day can pick a history lesson back up mid-thread rather than
+re-introducing the topic from scratch. This is entirely internal to Bede's
+own prompting: there's nothing to view, edit, or manage, and nothing about
+it is shown on the Progress page — the same reasoning that keeps the
+phonics and language check-ins above from becoming a scored signal about
+your child applies here too, there's simply nothing being measured. Your
+own **lesson note** or **current unit** for the day (in the student's
+settings) always wins if it points somewhere different — typing a fresh
+note is a deliberate redirect, and Bede treats it as one. If a subject
+hasn't come up in a couple of weeks, Bede will say so honestly ("a while
+back...") rather than pretending it was yesterday.
+
 **The very first time you save a student here, you'll see one extra, fully
 optional prompt** — "What are you most hoping Bede helps with?" — before
 you're taken on to the session or pod dashboard. This is a one-time beta

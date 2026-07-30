@@ -223,6 +223,50 @@ IP running an unusually large number of simultaneous or extremely long
 holds) rather than `voice` — the fix separates the two failure modes, it
 doesn't make rate limiting disappear entirely.
 
+## Troubleshooting: the mic keeps saying "something's wrong with the microphone" every single press, with a `startVoiceStream failed: Load failed` line in the debug panel
+
+Different failure from the rate-limit one just above — same surfaced error
+message, different root cause and different fix. Reported live via a
+debug-panel trace: `startVoiceStream failed: Load failed` on nearly every
+single hold attempt in a row, each one failing within roughly 100ms of the
+press — far too fast to be a real round trip to the server that actually
+got a response. `"Load failed"` (Safari/WebKit's own wording for a failed
+`fetch()`; Chrome's equivalent is `"Failed to fetch"`) means the request
+never got a response at all — a dropped connection, a brief Wi-Fi/cellular
+blip, a momentary DNS hiccup — not the server rejecting it (that would
+instead read `startVoiceStream failed: Could not start voice streaming`,
+the message the code throws for a real non-2xx response, as in the section
+above).
+
+Before this fix, `_start()`'s `startVoiceStream()` call had **no retry at
+all** — a single transient network failure gave up on the entire turn
+immediately (`clearHoldSafety()`, `setMode('idle')`,
+`setMicError('unavailable')`), with no native-SpeechRecognition fallback
+left to fall back to (see this doc's own history on why that path was
+removed entirely). On a real tablet over real household Wi-Fi, a brief
+connection blip is common enough that this made voice input feel
+unreliable well beyond what the underlying connection quality actually
+warranted — especially noticeable as "every attempt fails" during a run of
+bad connectivity, since nothing about the failure was self-healing.
+
+Fix: `useHybridVoiceInput.ts`'s `_start()` (both `homeschool-tutor` and the
+demo — the two files are kept as intentional mirrors of each other) now
+retries `startVoiceStream()` once, after a short `START_STREAM_RETRY_DELAY_MS`
+(500ms) delay, before surfacing `unavailable` — the same "one quick retry
+before giving up" reasoning `services/voice_synthesis.py`'s OpenAI TTS call
+already applies on the backend side for the identical class of transient
+failure. `pushVoiceStreamChunk`/`finishVoiceStream` deliberately keep their
+existing no-retry, throw-and-let-the-caller-decide contract unchanged — a
+single dropped chunk mid-turn is already tolerated (the next chunk a few
+seconds later carries the whole growing buffer anyway); only the turn's
+*first* request, whose failure is otherwise unrecoverable, gets a retry.
+
+If a family reports this again after updating, and the debug panel still
+shows two failed `startVoiceStream` attempts in a row for the same hold
+(not just one), that's a real, sustained connectivity problem on that
+device/network, not something a client-side retry can paper over — check
+whether the server itself is reachable at all from that device.
+
 ## Troubleshooting: "Transcribing…" sits for a while after releasing the mic
 
 Reported on the public demo, same debug-panel-trace session as the

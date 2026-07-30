@@ -195,17 +195,56 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
     expect(startVoiceStream).not.toHaveBeenCalled()
   })
 
-  it('surfaces unavailable when startVoiceStream itself rejects', async () => {
-    startVoiceStream.mockRejectedValueOnce(new Error('network error'))
+  it('retries once after a transient startVoiceStream failure and still succeeds', async () => {
+    // Real-world report: a "Load failed" network-layer error (not a server
+    // rejection — the request never got a response) kept happening
+    // mid-session, and with no retry at all every single hold gave up
+    // immediately. One quick retry covers the common transient case.
+    vi.useFakeTimers()
+    startVoiceStream.mockRejectedValueOnce(new Error('Load failed'))
+    startVoiceStream.mockResolvedValueOnce('sess-retry')
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
 
-    await act(async () => {
-      result.current.startHold()
-      await flush()
-    })
+    try {
+      await act(async () => {
+        result.current.startHold()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      // First attempt has failed but the retry hasn't fired yet — no error
+      // surfaced to the user for what should resolve itself shortly.
+      expect(result.current.micError).toBe(null)
+      expect(startVoiceStream).toHaveBeenCalledTimes(1)
 
-    expect(result.current.micError).toBe('unavailable')
-    expect(result.current.isListening).toBe(false)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+
+      expect(startVoiceStream).toHaveBeenCalledTimes(2)
+      expect(result.current.micError).toBe(null)
+      expect(result.current.isListening).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('surfaces unavailable only after every retry attempt is exhausted', async () => {
+    vi.useFakeTimers()
+    startVoiceStream.mockRejectedValue(new Error('Load failed'))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    try {
+      await act(async () => {
+        result.current.startHold()
+        await vi.advanceTimersByTimeAsync(0)
+        await vi.advanceTimersByTimeAsync(500)
+      })
+
+      expect(startVoiceStream).toHaveBeenCalledTimes(2)
+      expect(result.current.micError).toBe('unavailable')
+      expect(result.current.isListening).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

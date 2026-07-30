@@ -60,6 +60,17 @@ const MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK = 1200
 // single turn's audio graph stays open.
 const HOLD_SAFETY_TIMEOUT_MS = 120000
 const MAX_RECORDING_MS = 120000
+// A "Load failed"/"Failed to fetch" error from startVoiceStream is a raw
+// network-layer failure (the request never got a response at all — a
+// dropped connection, a momentary Wi-Fi blip), not a server-side rejection.
+// Real-world reports showed this happening repeatedly, mid-session, with no
+// retry at all: every single hold immediately gave up and surfaced
+// "unavailable," making voice input feel unusable on anything less than a
+// rock-solid connection. One quick retry before giving up is the same
+// reasoning services/voice_synthesis.py's OpenAI TTS call already applies
+// on the backend side for the identical class of failure.
+const START_STREAM_MAX_ATTEMPTS = 2
+const START_STREAM_RETRY_DELAY_MS = 500
 
 interface Options {
   token: string | null
@@ -238,22 +249,32 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       return
     }
 
-    startVoiceStream(token, language.slice(0, 2))
-      .then((sessionId) => {
-        if (attemptRef.current !== attempt) return // turn already ended
-        sessionIdRef.current = sessionId
-        consumeEvents(sessionId, attempt)
-        chunkTimerRef.current = setInterval(() => uploadSnapshot(attempt), CHUNK_UPLOAD_INTERVAL_MS)
-      })
-      .catch((err) => {
-        logDebug(`startVoiceStream failed: ${err instanceof Error ? err.message : String(err)}`)
-        if (attemptRef.current !== attempt) return
-        // No streaming session, and no native fallback anymore — this turn
-        // genuinely can't be transcribed at all.
-        clearHoldSafety()
-        setMode('idle')
-        setMicError('unavailable')
-      })
+    const beginStream = (attemptsLeft: number) => {
+      startVoiceStream(token, language.slice(0, 2))
+        .then((sessionId) => {
+          if (attemptRef.current !== attempt) return // turn already ended
+          sessionIdRef.current = sessionId
+          consumeEvents(sessionId, attempt)
+          chunkTimerRef.current = setInterval(() => uploadSnapshot(attempt), CHUNK_UPLOAD_INTERVAL_MS)
+        })
+        .catch((err) => {
+          logDebug(`startVoiceStream failed: ${err instanceof Error ? err.message : String(err)} (attemptsLeft=${attemptsLeft - 1})`)
+          if (attemptRef.current !== attempt) return
+          if (attemptsLeft > 1) {
+            setTimeout(() => {
+              if (attemptRef.current !== attempt) return
+              beginStream(attemptsLeft - 1)
+            }, START_STREAM_RETRY_DELAY_MS)
+            return
+          }
+          // No streaming session, and no native fallback anymore — this turn
+          // genuinely can't be transcribed at all.
+          clearHoldSafety()
+          setMode('idle')
+          setMicError('unavailable')
+        })
+    }
+    beginStream(START_STREAM_MAX_ATTEMPTS)
   }, [token, language, recorder, consumeEvents, uploadSnapshot, clearHoldSafety, setMode])
 
   const start = useCallback(() => _start(), [_start])

@@ -541,21 +541,34 @@ outright, which `useTextToSpeech.ts` (both copies) deliberately treats as
 silence rather than a voice switch (see that section). A voice switch
 specifically means the backend call *succeeded* — real audio bytes came
 back — but this browser's `audio.play()` refused to actually play them for
-that one call, which the code intentionally treats as "browser speech is
-better than total silence" and falls back accordingly. That fallback
-decision is by design, not itself a bug, but two related things needed
-fixing:
+that one call.
 
-1. **No visibility into which of the two failure classes actually
-   happened.** `speakViaBackend`/`playBackendVoice` distinguish "backend
-   request itself failed" from "backend succeeded but this browser blocked
-   playback," but neither branch logged anything — unlike every other
-   voice-pipeline file in this app, TTS playback had zero `debugBus`
-   output. Both copies of `useTextToSpeech.ts` now log the exact
-   `spoke`/`configured`/`fetchedAudio` state whenever a turn falls back to
-   the browser voice, and the specific rejection reason when
-   `audio.play()` itself throws — so the next occurrence is diagnosable
-   from `DebugOverlay.tsx` instead of guessed at.
+**This used to fall back to the browser voice on purpose** ("browser
+speech is better than total silence"). A later real report showed why
+that reasoning didn't hold up in practice: a family on a browser that kept
+blocking `audio.play()` (see the autoplay-block section below) got the
+jarring, robotic browser default voice on *every single turn* for the
+whole session, not just an occasional one — worse, by far, than staying
+silent for the handful of lines actually affected. **Bede's voice now has
+no fallback to the browser's default voice for this case at all** — real
+audio that was fetched but blocked from playing just stays silent for
+that one line; see the autoplay-block section below for the actual fix
+(a self-healing retry), which is what makes staying silent an acceptable
+trade rather than a real loss. The *only* remaining fallback case is the
+genuinely different one: TTS was never configured on this deployment at
+all (no `OPENAI_API_KEY`), where the browser's own voice is a reasonable
+zero-config default rather than a mid-session bait-and-switch.
+
+Two related things were also fixed in the process, both still true today:
+
+1. **No visibility into which failure class actually happened.**
+   `speakViaBackend`/`playBackendVoice` distinguish "backend request
+   itself failed" from "backend succeeded but this browser blocked
+   playback," and both copies of `useTextToSpeech.ts` log the exact
+   `spoke`/`configured`/`fetchedAudio` state whenever either happens, plus
+   the specific rejection reason when `audio.play()` itself throws — so an
+   occurrence is diagnosable from `DebugOverlay.tsx` rather than guessed
+   at.
 2. **A real leak on every mic barge-in during backend-voice playback.**
    Both copies reuse one shared `<audio>` element across turns (see the
    `getSharedAudioElement` comment on why). `stop()` — called on every
@@ -570,11 +583,46 @@ fixing:
 
 **Fixed in both copies** of `useTextToSpeech.ts`, same
 independent-codebases caveat as every other voice-pipeline fix in this
-file. The leak fix is unconditionally correct regardless of cause; whether
-it was actually the trigger behind the reported voice switch (versus a
-one-off browser autoplay quirk) wasn't conclusively confirmed — no debug
-trace existed from the moment it happened, which is exactly what item 1
-above now provides for next time.
+file.
+
+## Troubleshooting: Bede's voice keeps getting blocked by the browser's autoplay policy, turn after turn
+
+Reported live via a debug-panel trace: `backend TTS audio.play() rejected:
+The request is not allowed by the user agent or the platform in the
+current context` on repeated turns within the same session — not a one-off.
+Real audio came back from the backend every time (`fetchedAudio: true`),
+it just never played.
+
+Some background: `unlockSpeechForSession()` "spends" a real, synchronous
+user gesture (the login/code-entry button click) on a silent `play()` of
+the shared `<audio>` element (`getSharedAudioElement()`) specifically so
+every later *programmatic* `play()` call on that SAME element — the
+opener, every subsequent turn — is allowed by the browser's autoplay
+policy without needing its own fresh gesture. By spec, once an element has
+actually played due to a user gesture, it stays "blessed" for the rest of
+the page's lifetime. A session where the block recurs on *every* turn
+means that initial unlock either didn't actually succeed on that
+browser/device, or didn't durably stick — and before this fix, there was
+no recovery from that state short of a full page reload: every future
+`play()` call kept failing identically for the rest of the session.
+
+Fix: both copies of `useTextToSpeech.ts` now arm a one-shot,
+self-removing `pointerdown` listener on `document` (`armAutoReUnlock()`)
+the moment a real `audio.play()` rejection happens. The very next genuine
+tap anywhere on the page — a subject switch, the mic button, anything —
+re-primes the same shared element with another silent, synchronous
+`play()`/`pause()`, inside that real gesture, the same trick
+`unlockSpeechForSession()` already uses. If that re-prime succeeds, every
+`play()` call after it succeeds too, without the family needing to reload
+anything. This is deliberately paired with the "no fallback" decision
+above, not a replacement for it — staying silent for the blocked line(s)
+while this self-heals is the whole reason no fallback is needed here.
+
+If a family reports audio never recovering even after several taps, that
+points to something more persistent than an autoplay-policy quirk (a
+device/browser genuinely refusing to ever unlock audio playback) — check
+whether `armAutoReUnlock`'s own re-prime attempt is itself rejecting in
+the debug panel, not just the original turn's.
 
 ## Troubleshooting: the whole chat UI freezes/spins after Bede replies
 

@@ -59,6 +59,7 @@ async def _fetch_live(db, code: str):
 
 async def generate_code(
     student_name: str | None = None, grade: str | None = None, current_unit: str | None = None,
+    faith_tradition: str | None = None,
 ) -> str | None:
     """Mints a fresh 6-digit code, optionally carrying the visitor's chosen
     personalization (see routers/auth.py's /auth/demo-code and models.schemas
@@ -68,8 +69,9 @@ async def generate_code(
 
     current_unit (already sanitized by the caller) is stored in the separate
     DemoCodeUnitNote table, not on this row — see that model's own
-    docstring for why."""
-    from core.database import AsyncSessionLocal, DemoCodeSession, DemoCodeUnitNote
+    docstring for why. faith_tradition (also pre-sanitized) is stored the
+    same way, in DemoCodeFaithNote — see that model's own docstring."""
+    from core.database import AsyncSessionLocal, DemoCodeFaithNote, DemoCodeSession, DemoCodeUnitNote
 
     async with AsyncSessionLocal() as db:
         # Opportunistic cleanup of long-abandoned codes — same lazy
@@ -77,6 +79,7 @@ async def generate_code(
         # against a query instead of a dict comprehension.
         await db.execute(delete(DemoCodeSession).where(DemoCodeSession.created_at < _cutoff()))
         await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.created_at < _cutoff()))
+        await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.created_at < _cutoff()))
 
         count = (await db.execute(select(func.count()).select_from(DemoCodeSession))).scalar_one()
         if count >= _MAX_ACTIVE_CODES:
@@ -94,6 +97,8 @@ async def generate_code(
         db.add(DemoCodeSession(code=code, student_name=student_name, grade=grade))
         if current_unit:
             db.add(DemoCodeUnitNote(code=code, note=current_unit))
+        if faith_tradition:
+            db.add(DemoCodeFaithNote(code=code, tradition=faith_tradition))
         await db.commit()
         return code
 
@@ -125,6 +130,24 @@ async def get_current_unit(code: str) -> str | None:
             select(DemoCodeUnitNote.note).where(
                 DemoCodeUnitNote.code == code,
                 DemoCodeUnitNote.created_at >= _cutoff(),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def get_faith_tradition(code: str) -> str | None:
+    """The visitor-provided church-tradition label set at /auth/demo-code
+    (see DemoCodeRequest.faith_tradition), or None for an unknown/evicted
+    code or one minted with no label. Separate lookup from
+    get_current_unit, same one-table-per-optional-field convention (see
+    DemoCodeFaithNote's docstring)."""
+    from core.database import AsyncSessionLocal, DemoCodeFaithNote
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(DemoCodeFaithNote.tradition).where(
+                DemoCodeFaithNote.code == code,
+                DemoCodeFaithNote.created_at >= _cutoff(),
             )
         )
         return result.scalar_one_or_none()
@@ -243,13 +266,15 @@ async def end_session(code: str) -> None:
     """Explicit logout — deletes the code immediately so a copied/leaked
     token stops working right away instead of riding out its remaining
     expiry, and frees its _MAX_ACTIVE_CODES slot. Safe to call with an
-    unknown code (no-op). Also deletes this code's DemoCodeUnitNote row, if
-    any, so a note never outlives the session it was set for."""
-    from core.database import AsyncSessionLocal, DemoCodeSession, DemoCodeUnitNote
+    unknown code (no-op). Also deletes this code's DemoCodeUnitNote and
+    DemoCodeFaithNote rows, if any, so a note never outlives the session it
+    was set for."""
+    from core.database import AsyncSessionLocal, DemoCodeFaithNote, DemoCodeSession, DemoCodeUnitNote
 
     async with AsyncSessionLocal() as db:
         await db.execute(delete(DemoCodeSession).where(DemoCodeSession.code == code))
         await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.code == code))
+        await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.code == code))
         await db.commit()
 
 

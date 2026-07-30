@@ -81,7 +81,8 @@ class Subject(str, Enum):
     language_arts = "language_arts"     # Narration, copywork, grammar
     science = "science"                 # Botany, zoology, earth science
     art_music = "art_music"             # Composer & artist study
-    saints = "saints"                   # Saints, catechism, virtue formation
+    saints = "saints"                   # Saints, catechism, virtue formation (Catholic-tradition module)
+    scripture = "scripture"             # Bible heroes, memory verses, doctrine — denominationally-configurable
     free_study = "free_study"           # Child-directed exploration
 
 
@@ -95,6 +96,7 @@ SUBJECT_DURATIONS = {
     Subject.science: 20,
     Subject.art_music: 15,
     Subject.saints: 15,
+    Subject.scripture: 15,
     Subject.free_study: 20,
 }
 
@@ -108,6 +110,7 @@ SUBJECT_LABELS = {
     Subject.science: "Science",
     Subject.art_music: "Art & Music",
     Subject.saints: "Saints & Catechism",
+    Subject.scripture: "Scripture & Bible Study",
     Subject.free_study: "Free Study",
 }
 
@@ -126,7 +129,7 @@ class LessonResume(BaseModel):
 
     `subject` is a Subject enum member, which is the whole enforcement of
     "if it isn't a subject Bede teaches, it can't be introduced": a note can
-    only ever attach to one of the ten subjects in the curriculum, never to
+    only ever attach to one of the subjects in the curriculum, never to
     an arbitrary parent-invented topic. SessionConfig's validator narrows
     that further to subjects actually scheduled for this student today.
 
@@ -192,6 +195,17 @@ class SessionConfig(BaseModel):
     lesson_focus: Optional[str] = None       # Parent's note for today
     faith_emphasis: Optional[str] = None     # Scripture or virtue focus
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
+    # Optional, short label for the family's own church tradition (e.g.
+    # "Baptist", "Non-denominational", "Catholic", "Eastern Orthodox") — sets
+    # framing guidance for Scripture & Bible Study / Saints & Catechism
+    # content (see services/ai_service.py's _faith_tradition_note), never a
+    # basis to rule on the family's beliefs (docs/CONSTITUTION.md). A real
+    # family's own subject selection (enabling Scripture vs. Saints, or
+    # both) already signals this for parent/child sessions; today this
+    # field is populated only by the public demo's optional intake note
+    # (see DemoCodeRequest.faith_tradition) — see CLAUDE.md's "Continuing
+    # Mastery (demo)" section for why the demo needs its own mechanism.
+    faith_tradition: Optional[str] = Field(default=None, max_length=60)
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
     # The session's hard stop, in minutes — on by default and there by
@@ -371,16 +385,25 @@ class LoginRequest(BaseModel):
 class DemoCodeRequest(BaseModel):
     """Optional personalization for a demo session — see POST /auth/demo-code.
     All fields are optional; omitting any keeps the operator's configured
-    DEMO_STUDENT_NAME/DEMO_GRADE default for that field (current_unit simply
-    stays unset). student_name and current_unit are sanitized server-side
-    (see routers/auth.py's create_demo_code) since they're free text an
-    anonymous visitor can put in front of the model. current_unit is a short
-    "what are we already covering at home" note (e.g. "reading Farmer Boy
-    together", "our own Ancient Egypt unit") — see core/database.py's
-    DemoCodeUnitNote and CLAUDE.md's "Continuing Mastery (demo)" section."""
+    DEMO_STUDENT_NAME/DEMO_GRADE default for that field (current_unit and
+    faith_tradition simply stay unset). student_name, current_unit, and
+    faith_tradition are sanitized server-side (see routers/auth.py's
+    create_demo_code) since they're free text an anonymous visitor can put
+    in front of the model. current_unit is a short "what are we already
+    covering at home" note (e.g. "reading Farmer Boy together", "our own
+    Ancient Egypt unit") — see core/database.py's DemoCodeUnitNote and
+    CLAUDE.md's "Continuing Mastery (demo)" section. faith_tradition is a
+    short, optional label for the visiting family's own church tradition
+    (e.g. "Baptist", "Catholic", "Non-denominational") — since the demo
+    shows every subject, including both Scripture & Bible Study and Saints
+    & Catechism, regardless of the visitor's own background (unlike a real
+    family, who simply enables the module that fits their own church), this
+    lets Bede frame that content consistently with the family's tradition
+    rather than assuming one. See core/database.py's DemoCodeFaithNote."""
     student_name: Optional[str] = Field(None, min_length=1, max_length=50)
     grade: Optional[str] = Field(None, max_length=2)
     current_unit: Optional[str] = Field(None, max_length=200)
+    faith_tradition: Optional[str] = Field(None, max_length=60)
 
 
 class DemoCodeResponse(BaseModel):

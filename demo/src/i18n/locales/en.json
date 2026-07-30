@@ -12,6 +12,8 @@
     "gradeN": "Grade {{n}}",
     "currentUnit": "Continuing a lesson from home?",
     "currentUnitPlaceholder": "e.g. reading Farmer Boy together, our own Ancient Egypt unit",
+    "faithTradition": "Your family's church tradition?",
+    "faithTraditionPlaceholder": "e.g. Baptist, Catholic, non-denominational",
     "privacyNotice": "Your conversation is never stored. <privacyLink>Privacy Notice</privacyLink>",
     "generateCode": "Generate my code",
     "wakingUp": "Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.",
@@ -132,6 +134,7 @@
     "science": "Science",
     "art_music": "Art & Music",
     "saints": "Saints & Catechism",
+    "scripture": "Scripture & Bible Study",
     "free_study": "Free Study"
   },
   "breakActivities": [

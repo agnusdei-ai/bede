@@ -13,14 +13,15 @@ export type GradeStage = 'K-2' | '3-5' | '6-8'
 
 export const SUBJECTS = [
   'morning_time', 'living_books', 'mathematics', 'nature_study', 'history',
-  'language_arts', 'science', 'art_music', 'saints', 'free_study',
+  'language_arts', 'science', 'art_music', 'saints', 'scripture', 'free_study',
 ] as const
 export type Subject = typeof SUBJECTS[number]
 
 export const SUBJECT_LABELS: Record<Subject, string> = {
   morning_time: 'Morning Time', living_books: 'Living Books', mathematics: 'Mathematics',
   nature_study: 'Nature Study', history: 'History & Geography', language_arts: 'Language Arts',
-  science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism', free_study: 'Free Study',
+  science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism',
+  scripture: 'Scripture & Bible Study', free_study: 'Free Study',
 }
 
 export interface ChatMessage {
@@ -82,6 +83,7 @@ export interface SessionConfig {
   lesson_focus?: string | null
   faith_emphasis?: string | null
   current_unit?: string | null
+  faith_tradition?: string | null
   voice_required?: boolean
   screen_time_limit_minutes?: number | null
   eye_rest_break_minutes?: number
@@ -122,8 +124,11 @@ export function decodeExpiry(token: string): number | null {
  *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
 export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
 
-export async function generateDemoCode(studentName?: string, grade?: string, currentUnit?: string): Promise<string> {
+export async function generateDemoCode(
+  studentName?: string, grade?: string, currentUnit?: string, faithTradition?: string,
+): Promise<string> {
   const hasBody = (studentName && studentName.trim()) || grade || (currentUnit && currentUnit.trim())
+    || (faithTradition && faithTradition.trim())
   const res = await fetch(`${apiBase()}/auth/demo-code`, {
     method: 'POST',
     ...(hasBody && {
@@ -132,6 +137,7 @@ export async function generateDemoCode(studentName?: string, grade?: string, cur
         student_name: studentName?.trim() || undefined,
         grade: grade || undefined,
         current_unit: currentUnit?.trim() || undefined,
+        faith_tradition: faithTradition?.trim() || undefined,
       }),
     }),
   })

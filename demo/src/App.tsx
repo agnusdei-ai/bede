@@ -195,6 +195,14 @@ const GRADE_STORAGE_KEY = 'bede-demo-grade'
 // and CLAUDE.md's "Continuing Mastery (demo)") — same session-only
 // persistence lifetime as name/grade above.
 const UNIT_STORAGE_KEY = 'bede-demo-current-unit'
+// Optional label for the visiting family's own church tradition (e.g.
+// "Baptist", "Catholic", "Non-denominational") — threaded to
+// SessionConfig.faith_tradition (routers/tutor.py's _demo_session_config)
+// so Bede can frame Scripture & Bible Study / Saints & Catechism content
+// consistently with it, since the demo shows both modules to every
+// visitor regardless of background. Same session-only persistence
+// lifetime as the fields above.
+const FAITH_STORAGE_KEY = 'bede-demo-faith-tradition'
 // Chosen at CodeScreen's own language toggle, per visit — mirrors
 // homeschool-tutor's per-login model (docs/LOCALIZATION.md) but the demo has
 // no persisted auth store to restore from, so sessionStorage fills that role
@@ -220,6 +228,7 @@ export function CodeScreen({ onLoggedIn }: {
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
   const [currentUnit, setCurrentUnit] = useState(() => sessionStorage.getItem(UNIT_STORAGE_KEY) ?? '')
+  const [faithTradition, setFaithTradition] = useState(() => sessionStorage.getItem(FAITH_STORAGE_KEY) ?? '')
   // Shown when code generation runs long — almost always the demo backend
   // waking from its idle sleep, not a failure. Naming what's happening
   // keeps a visitor from abandoning a spinner that WILL finish.
@@ -271,11 +280,12 @@ export function CodeScreen({ onLoggedIn }: {
     setError('')
     const slowTimer = setTimeout(() => setSlowHint(true), 2500)
     try {
-      const code = await generateDemoCode(studentName, grade, currentUnit)
+      const code = await generateDemoCode(studentName, grade, currentUnit, faithTradition)
       const { token } = await loginWithCode(code, selectedLocale)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
       if (currentUnit.trim()) sessionStorage.setItem(UNIT_STORAGE_KEY, currentUnit.trim())
+      if (faithTradition.trim()) sessionStorage.setItem(FAITH_STORAGE_KEY, faithTradition.trim())
       onLoggedIn(token, code)
     } catch (err) {
       setError(friendlyErrorMessage(err, t('codeScreen.couldNotStartSession'), t))
@@ -399,6 +409,26 @@ export function CodeScreen({ onLoggedIn }: {
               onChange={(e) => setCurrentUnit(e.target.value)}
               maxLength={200}
               placeholder={t('codeScreen.currentUnitPlaceholder')}
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+          </div>
+          {/* Optional — the visiting family's own church tradition, so Bede
+              can frame Scripture & Bible Study / Saints & Catechism content
+              consistently with it rather than assuming one. The demo shows
+              both modules to every visitor regardless of background (unlike
+              a real family, who simply enables whichever module fits their
+              own church) — see DemoCodeRequest.faith_tradition. */}
+          <div>
+            <label htmlFor="student-faith-tradition" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              {t('codeScreen.faithTradition')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
+            </label>
+            <input
+              id="student-faith-tradition"
+              type="text"
+              value={faithTradition}
+              onChange={(e) => setFaithTradition(e.target.value)}
+              maxLength={60}
+              placeholder={t('codeScreen.faithTraditionPlaceholder')}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
             />
           </div>

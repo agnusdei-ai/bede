@@ -301,6 +301,18 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    replacement for it — see **[docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md)**
    for what "Socratic" actually means in practice and how to ask the same
    kind of question yourself, alongside Bede.
+
+   **Faith content is two separate, optional subjects — pick whichever fits
+   your own church.** Morning Time always includes Bible reading, hymns, and
+   prayer for every family. Beyond that, the subject list offers **Scripture
+   & Bible Study** (Bible heroes, memory verses, and doctrine in Bede's own
+   denomination-neutral voice — Bede teaches Scripture itself and the moral
+   law it plainly teaches, without asserting one church's specific doctrine
+   as settled fact) and **Saints & Catechism** (hagiography and the Catholic
+   Church's teaching, drawing on the Ignatius Press *Faith and Life* series).
+   Enable either one, both, or neither — whichever matches how your own
+   family and church already teach the faith. Bede never treats either
+   module as a substitute for your own pastor, priest, or church's teaching.
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`
@@ -346,7 +358,7 @@ for each subject that needs one:
 
 - **Subject** — chosen from the subjects you've selected for that student, and
   nothing else. There's deliberately no free-text topic box: a resume note can
-  only ever point at one of the ten subjects Bede teaches, so it can't be used to
+  only ever point at one of the subjects Bede teaches, so it can't be used to
   introduce material that isn't already part of the curriculum. (If you pick a
   subject and later remove it from the student's list, the panel warns you and the
   note is simply not used.)

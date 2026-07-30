@@ -51,6 +51,13 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     threaded into the demo's SessionConfig.current_unit exactly like a real
     parent's own field, so Bede can anchor on material the family brought in
     from outside the built-in curriculum.
+
+    faith_tradition is the visiting family's own optional church-tradition
+    label (e.g. "Baptist", "Catholic") — threaded into
+    SessionConfig.faith_tradition the same way, so Bede can frame Scripture
+    & Bible Study / Saints & Catechism content consistently with that
+    tradition even though the demo shows both modules to every visitor
+    (see core/database.py's DemoCodeFaithNote).
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
@@ -58,8 +65,11 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
     current_unit = _sanitize_parent_field(req.current_unit if req else None, max_len=200)
+    faith_tradition = _sanitize_parent_field(req.faith_tradition if req else None, max_len=60)
 
-    code = await generate_code(student_name=student_name, grade=grade, current_unit=current_unit)
+    code = await generate_code(
+        student_name=student_name, grade=grade, current_unit=current_unit, faith_tradition=faith_tradition,
+    )
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

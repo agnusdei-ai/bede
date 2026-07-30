@@ -69,7 +69,7 @@ def _read_local_ai_marker() -> dict | None:
     return None
 
 # Optional spoken narration, in Bede's own configured voice (OpenAI TTS,
-# fable) — generated once by scripts/setup_wizard/generate_narration.py and
+# onyx) — generated once by scripts/setup_wizard/generate_narration.py and
 # committed as static assets, never called live. If a family never ran that
 # script, AUDIO_DIR is empty and _serve_audio() below 404s; the page's JS
 # treats that as "no narration available" and just hides the controls —

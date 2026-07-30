@@ -120,19 +120,29 @@ class Settings(BaseSettings):
     # model that accepts `instructions` below — that's what actually lets us
     # steer character/delivery rather than just picking a fixed preset voice.
     openai_tts_model: str = "gpt-4o-mini-tts"
-    # OpenAI's preset voices are fixed timbres, not custom-designed — "fable"
-    # is the one OpenAI itself describes as having a British storyteller
-    # quality, the closest preset starting point for Bede. Not independently
-    # verified against real audio; try "onyx" (deeper, American) too.
-    openai_tts_voice: str = "fable"
+    # OpenAI's preset voices are fixed timbres, not custom-designed. "fable"
+    # (OpenAI's own "British storyteller" description) was the original
+    # choice, but real listening feedback found it reading as thin/nasal
+    # rather than warm — "onyx" is OpenAI's deeper, more resonant preset;
+    # its own description leans American, but gpt-4o-mini-tts's
+    # `instructions` field (below) has real, audible control over accent on
+    # top of a preset's base timbre, which is what lets a deeper voice stay
+    # English rather than picking up an American one along with the depth.
+    # Not independently verified against real audio beyond that feedback —
+    # test in a real session (docs/VOICE_SETUP.md) if you change this.
+    openai_tts_voice: str = "onyx"
     # gpt-4o-mini-tts-only: steers delivery style/character in plain English.
     # This is the main lever for actually sounding like "a specific monk,"
-    # not just a voice — no equivalent exists for tts-1/tts-1-hd.
+    # not just a voice — no equivalent exists for tts-1/tts-1-hd. Explicit
+    # about accent, depth, and boldness (not just gentleness) since "onyx"
+    # above is a deeper base timbre than the original "fable" but has no
+    # accent of its own baked in — left unsteered, it defaults toward
+    # American.
     openai_tts_instructions: str = (
-        "Speak as Bede, an elderly Benedictine monk from Southern England. "
-        "Warm, unhurried, and deliberately thoughtful — the quiet, measured "
-        "cadence of someone used to contemplation and reading aloud, never "
-        "brisk or robotic. Gentle authority, softly spoken."
+        "Speak as Bede, an elderly Benedictine monk from Southern England, in a clear English accent — never "
+        "American. Voice deep, resonant, and bold, with a confident, grounded presence, not a light or nasal "
+        "tone. Warm and unhurried, the measured cadence of someone used to contemplation and reading aloud, "
+        "never brisk or robotic — but speak with quiet authority and conviction, not meekly or timidly."
     )
 
     # ── Post-session diagnostic email (optional) ─────────────────────────────

@@ -20,19 +20,22 @@ from sqlalchemy.pool import StaticPool
 
 @pytest.fixture(autouse=True)
 def _clear_readonly_prompt_caches():
-    """services/ai_service.py caches _load_mastery_vector_readonly and
-    _load_processing_style_readonly per student_name for several minutes
-    (a real perf fix — see _READONLY_PROMPT_CACHE_TTL_SECONDS' comment).
-    That cache is module-global, so without resetting it here, one test's
-    result for a given student_name could silently leak into a later test
-    reusing the same name (several test files use "Sam"). Autouse so no
-    test file needs to remember to ask for this."""
+    """services/ai_service.py caches _load_mastery_vector_readonly,
+    _load_processing_style_readonly, and _load_lesson_bookmark_readonly per
+    student_name for several minutes (a real perf fix — see
+    _READONLY_PROMPT_CACHE_TTL_SECONDS' comment). Each cache is
+    module-global, so without resetting them here, one test's result for a
+    given student_name could silently leak into a later test reusing the
+    same name (several test files use "Sam"). Autouse so no test file needs
+    to remember to ask for this."""
     import services.ai_service as ai_service_module
     ai_service_module._mastery_vector_cache.clear()
     ai_service_module._processing_style_cache.clear()
+    ai_service_module._lesson_bookmark_cache.clear()
     yield
     ai_service_module._mastery_vector_cache.clear()
     ai_service_module._processing_style_cache.clear()
+    ai_service_module._lesson_bookmark_cache.clear()
 
 
 @pytest_asyncio.fixture

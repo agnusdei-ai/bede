@@ -6,7 +6,7 @@
  * choice on the login POST itself, not just cosmetically.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { fetchAvailableLocales, login } = vi.hoisted(() => ({

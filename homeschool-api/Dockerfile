@@ -34,7 +34,22 @@ COPY requirements.txt .
 # build" framing (see that dependency's comment below) true at the WHOLE
 # image level, not just for the transcription path alone — without this,
 # resemblyzer would have silently undone that saving by several times over.
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+#
+# Pinned, not floating. This line installs from a SECOND package index
+# (download.pytorch.org) outside the one the rest of requirements.txt
+# resolves against, so it is its own supply-chain surface and the only
+# dependency here with no version constraint at all — an unpinned `torch`
+# means two builds of the same commit can ship different runtime code,
+# which also makes the pip-audit gate in .github/workflows/test.yml a
+# statement about whatever happened to be latest at build time rather
+# than about what this image actually contains. Bump deliberately.
+#
+# 2.13.0 is the current stable release, which is what the unpinned form
+# already resolved to — this freezes today's behavior rather than moving
+# it. production-regression.yml's `docker compose up -d --build` is what
+# actually proves the pin exists on the CPU index; it could not be checked
+# from the authoring sandbox, whose egress proxy blocks download.pytorch.org.
+RUN pip install --no-cache-dir torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download the faster-whisper fallback-STT model weights into the image

@@ -92,19 +92,33 @@ install_docker_linux() {
 }
 
 install_docker_macos() {
-  local dmg_arch dmg_url mount_point
+  local dmg_arch dmg_url mount_point work_dir dmg_path
   dmg_arch="$([ "$ARCH" = "arm64" ] && echo arm64 || echo amd64)"
   dmg_url="https://desktop.docker.com/mac/main/${dmg_arch}/Docker.dmg"
-  local dmg_path="/tmp/Docker.dmg"
+
+  # Download into a fresh private directory (mktemp -d, 0700, unguessable
+  # name) rather than a fixed /tmp/Docker.dmg.
+  #
+  # /tmp is world-writable. A fixed filename there lets any other local
+  # account pre-create that path — as a real file it may be writable
+  # through, as a symlink it redirects our write somewhere else entirely —
+  # and whatever ends up at that path is then mounted and copied into
+  # /Applications as a trusted app. mktemp -d removes the predictability
+  # the attack depends on; the trap makes sure the directory does not
+  # outlive this function even on a failed download or a mount error.
+  work_dir="$(mktemp -d)" || die "Could not create a temporary download directory."
+  # shellcheck disable=SC2064  # expand work_dir now, not at trap time
+  trap "rm -rf '$work_dir'" RETURN
+  dmg_path="$work_dir/Docker.dmg"
 
   step "Downloading Docker Desktop for Mac (this can take a few minutes)"
   curl -fsSL -o "$dmg_path" "$dmg_url"
 
   step "Installing Docker Desktop (you may see a macOS permission prompt — approve it)"
   mount_point="$(hdiutil attach "$dmg_path" -nobrowse | tail -1 | awk -F'\t' '{print $NF}')"
+  [ -d "$mount_point/Docker.app" ] || die "The downloaded Docker disk image did not contain Docker.app — not installing it."
   cp -R "$mount_point/Docker.app" /Applications/
   hdiutil detach "$mount_point" >/dev/null
-  rm -f "$dmg_path"
 
   step "Starting Docker Desktop for the first time — finish any prompts it shows you"
   open -a Docker
@@ -149,12 +163,28 @@ install_ollama_linux() {
 }
 
 install_ollama_macos() {
-  local zip_path="/tmp/Ollama-darwin.zip"
+  # Same predictable-/tmp-path reasoning as install_docker_macos above —
+  # and it matters more here, because the payload is extracted straight
+  # into /Applications with -o (overwrite). An attacker-supplied archive
+  # at a guessable path would be unpacked over whatever it names.
+  local work_dir zip_path
+  work_dir="$(mktemp -d)" || die "Could not create a temporary download directory."
+  # shellcheck disable=SC2064  # expand work_dir now, not at trap time
+  trap "rm -rf '$work_dir'" RETURN
+  zip_path="$work_dir/Ollama-darwin.zip"
+
   step "Downloading Ollama for Mac"
   curl -fsSL -o "$zip_path" "https://ollama.com/download/Ollama-darwin.zip"
+
+  # Unpack into the private directory first and check what we actually got
+  # before anything reaches /Applications, rather than extracting an
+  # unverified archive directly over it.
   step "Installing Ollama"
-  unzip -oq "$zip_path" -d /Applications
-  rm -f "$zip_path"
+  unzip -oq "$zip_path" -d "$work_dir/extracted"
+  [ -d "$work_dir/extracted/Ollama.app" ] || die "The downloaded Ollama archive did not contain Ollama.app — not installing it."
+  rm -rf /Applications/Ollama.app
+  cp -R "$work_dir/extracted/Ollama.app" /Applications/
+
   open -a Ollama
 }
 

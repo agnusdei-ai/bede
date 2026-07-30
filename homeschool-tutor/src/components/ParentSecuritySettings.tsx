@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { ChevronDown, ChevronUp, KeyRound, Loader2, Lock, ShieldCheck, Smartphone, Trash2 } from 'lucide-react'
 import {
   fetchMfaStatus, webauthnRegisterOptions, webauthnRegisterVerify, deleteSecurityKey,

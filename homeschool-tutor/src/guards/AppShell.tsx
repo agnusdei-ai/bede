@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router'
 import i18n from '../i18n'
 import { useSessionStore } from '../store/sessionStore'
 import TextSizeControl from '../components/TextSizeControl'

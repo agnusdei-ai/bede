@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { LogOut, FileText, ChevronDown, Loader2, AlertCircle, PenLine, Mail, Check, MessageSquare, HelpCircle, Bug } from 'lucide-react'
 import { getApiMessages, useSessionStore } from '../store/sessionStore'

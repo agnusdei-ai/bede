@@ -12,6 +12,8 @@
     "gradeN": "Grado {{n}}",
     "currentUnit": "¿Continuando una lección de casa?",
     "currentUnitPlaceholder": "p. ej. leyendo Farmer Boy juntos, nuestra propia unidad sobre el Antiguo Egipto",
+    "faithTradition": "¿La tradición religiosa de su familia?",
+    "faithTraditionPlaceholder": "p. ej. bautista, católica, no denominacional",
     "privacyNotice": "Tu conversación nunca se guarda. <privacyLink>Aviso de Privacidad</privacyLink>",
     "generateCode": "Generar mi código",
     "wakingUp": "Despertando a Bede… la primera visita después de un tiempo puede tardar hasta un minuto. Gracias por tu paciencia.",
@@ -132,6 +134,7 @@
     "science": "Ciencias",
     "art_music": "Arte y Música",
     "saints": "Santos y Catecismo",
+    "scripture": "Escritura y Estudio Bíblico",
     "free_study": "Estudio Libre"
   },
   "breakActivities": [

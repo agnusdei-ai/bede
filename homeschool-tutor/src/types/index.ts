@@ -1,4 +1,4 @@
-import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, Sparkles } from 'lucide-react'
+import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
@@ -13,6 +13,7 @@ export type Subject =
   | 'science'
   | 'art_music'
   | 'saints'
+  | 'scripture'
   | 'free_study'
 
 export interface SessionConfig {
@@ -29,6 +30,13 @@ export interface SessionConfig {
   lesson_focus?: string
   faith_emphasis?: string
   current_unit?: string
+  // Optional, short label for the family's own church tradition (e.g.
+  // "Baptist", "Catholic", "Non-denominational") — mirrors the backend's
+  // SessionConfig.faith_tradition. Not exposed in Parent Setup today; a
+  // real family's own choice of Scripture & Bible Study vs. Saints &
+  // Catechism (or both) already signals this. Populated by the demo's
+  // optional intake field instead (demo/src/App.tsx's CodeScreen).
+  faith_tradition?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
@@ -219,6 +227,14 @@ export const SUBJECTS: SubjectInfo[] = [
     durationMin: 15,
     color: 'bg-gold-50 border-gold-200 text-gold-700',
     description: 'Saints, catechism & virtue formation',
+  },
+  {
+    id: 'scripture',
+    label: 'Scripture & Bible Study',
+    Icon: BookMarked,
+    durationMin: 15,
+    color: 'bg-sky-50 border-sky-200 text-sky-800',
+    description: 'Bible heroes, memory verses & doctrine',
   },
   {
     id: 'free_study',

@@ -701,6 +701,22 @@ _SUBJECT_CONTEXT = {
         "and `invite_handwriting` suits copying out a favorite line from their life or a short prayer "
         "by hand."
     ),
+    Subject.scripture: (
+        "Scripture & Bible Study session — the Bible itself: its heroes, its story, and the doctrine "
+        "the family's own church teaches from it. Present Bible narratives as real history and real "
+        "people wrestling with real choices, not moralized fables. Ask: 'What did this person do?' and "
+        "'What do you think God was teaching through that?' Memory verses fit naturally here — invite "
+        "the child to say one back, or `invite_handwriting` to copy it out by hand. This subject is "
+        "deliberately denomination-neutral in Bede's own voice: teach Scripture itself, the sweep of "
+        "salvation history, and the moral law plainly taught in the text, but never assume or assert "
+        "denomination-specific doctrine (sacramental theology, a specific catechism's structure, church "
+        "governance) as though every Christian tradition holds it — that belongs to the family's own "
+        "pastor or priest, not to Bede (docs/CONSTITUTION.md's non-negotiable rules on this). Where the "
+        "family has set a faith_tradition below, let it shape tone and emphasis, never doctrinal claims "
+        "Bede states as settled fact. Invite narration of the Bible story, and treat this subject as a "
+        "sibling to Saints & Catechism, not a replacement for it — a family may have either, both, or "
+        "neither enabled."
+    ),
     Subject.free_study: (
         "Free Study time. The child leads. Ask what they are curious about and follow their interest. "
         "Socratic questions still apply — help them think deeper about whatever they choose. Narration "
@@ -1112,6 +1128,41 @@ def _guadalupe_note(subject: Subject, locale: str) -> str:
         "St. John Paul II on July 31, 2002, the first Indigenous saint of the Americas. Reach for this "
         "devotion naturally whenever a Marian moment, a saint's story, or the December 9-12 dates fit the "
         "day — alongside, not instead of, the rest of the Church's saints and feasts."
+    )
+
+
+def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    Framing guidance for Scripture & Bible Study / Saints & Catechism /
+    Morning Time content when the family has set config.faith_tradition — a
+    short, optional label for their own church tradition (e.g. "Baptist",
+    "Catholic", "Non-denominational"). Today this is populated only by the
+    public demo's optional intake note (see DemoCodeRequest.faith_tradition
+    and CLAUDE.md's "Continuing Mastery (demo)" section): a real parent
+    session already signals this by which of Scripture & Bible Study /
+    Saints & Catechism they enable, but the demo shows both modules to
+    every visitor regardless of background, so this is what keeps that
+    content from assuming a tradition the visiting family doesn't hold.
+
+    Deliberately never a basis to rule on the family's beliefs or replace
+    their own pastor/priest — docs/CONSTITUTION.md's non-negotiable rule
+    that Bede is never a spiritual advisor governs this exactly as it
+    governs everything else here. This note only asks Bede to avoid
+    assuming denomination-specific practice or doctrine that doesn't fit
+    the stated tradition; it never supplies denomination-specific facts the
+    way _guadalupe_note does for one specific, verified devotion.
+    """
+    tradition = _sanitize_parent_field(config.faith_tradition, max_len=60)
+    if not tradition or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
+        return ""
+    return (
+        f"\nThis family's own church tradition: {tradition}. Frame Scripture, saint, and faith content "
+        "in a way that feels at home there — avoid assuming devotional practices or doctrinal specifics "
+        "(e.g. a particular catechism's structure, Marian devotion, a specific view of the sacraments) "
+        "that don't belong to that tradition, unless the child's own words show otherwise. Center on "
+        "Christ, Scripture, and the moral law common across Christian traditions. Defer any "
+        "denomination-specific doctrinal question to the family's own pastor or priest rather than "
+        "answering it as settled fact yourself."
     )
 
 
@@ -1737,7 +1788,7 @@ def _lesson_resume_note(config: SessionConfig, subject: Subject) -> str:
     prompt is byte-for-byte what it was before this existed.
 
     What a resume note can and cannot do is deliberately asymmetric. It can
-    say where a lesson stopped inside one of the ten subjects Bede teaches
+    say where a lesson stopped inside one of the subjects Bede teaches
     — the Subject enum is the entire vocabulary available to it, so there
     is no way to introduce a topic that isn't already part of the
     curriculum. It cannot alter how Bede teaches: every field runs through
@@ -2000,9 +2051,10 @@ async def _build_subject_prompt(
     phonics_note = _phonics_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
+    faith_tradition_note = _faith_tradition_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

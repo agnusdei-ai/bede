@@ -656,6 +656,48 @@ class DemoCodeUnitNote(Base):
     )
 
 
+class DemoCodeFaithNote(Base):
+    """
+    Optional, parent-provided label for the visiting family's own church
+    tradition (e.g. "Baptist", "Catholic", "Non-denominational") — set once
+    at POST /auth/demo-code alongside student_name/current_unit, and
+    threaded into the demo's SessionConfig.faith_tradition exactly like
+    DemoCodeUnitNote does for current_unit.
+
+    Exists because the demo deliberately shows every subject
+    (routers/tutor.py's _demo_session_config: `subjects=list(Subject)`),
+    including both Scripture & Bible Study and Saints & Catechism side by
+    side, regardless of the visitor's own background — unlike a real
+    family, who simply enables whichever of those two modules fits their
+    own church (see CLAUDE.md's Subject enum comments). This lets Bede
+    frame that content consistently with the family's own tradition
+    (services/ai_service.py's _faith_tradition_note) instead of assuming
+    one, without hiding either module from the demo's curriculum showcase.
+
+    Standalone table for the same reason as DemoCodeUnitNote: this
+    codebase's startup only ever runs CREATE TABLE IF NOT EXISTS (no ALTER
+    TABLE path), so a new table is the only way to add this to an
+    already-running deployment. Same TTL/eviction convention as
+    DemoCodeUnitNote: no expiry column, core/demo_code_session.py filters
+    on created_at at read/write time and opportunistically deletes rows
+    past the same cutoff. Plaintext, not encrypted — a self-described
+    tradition, not a real family's identity, same convention as
+    DemoCodeSession's own student_name/grade; sanitized both at write time
+    (routers/auth.py) and again by _build_subject_prompt's handling
+    (services/ai_service.py).
+    """
+    __tablename__ = "demo_code_faith_notes"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    tradition: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
 class DiagnosticPreviewUse(Base):
     """
     Postgres-backed replacement for core/diagnostic_preview_quota.py's old

@@ -14,6 +14,7 @@ from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
     get_current_unit as get_demo_current_unit,
+    get_faith_tradition as get_demo_faith_tradition,
     get_personalization as get_demo_personalization,
     record_message as demo_code_record_message,
 )
@@ -99,12 +100,22 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     _build_subject_prompt (services/ai_service.py), on top of the
     sanitization applied once at /auth/demo-code — belt and suspenders on
     public, anonymous input.
+
+    faith_tradition is a third optional per-code personalization (see
+    DemoCodeRequest.faith_tradition and core/database.py's
+    DemoCodeFaithNote) — the visiting family's own church tradition,
+    threaded into SessionConfig.faith_tradition so Bede can frame Scripture
+    & Bible Study / Saints & Catechism content consistently with it, since
+    `subjects=list(Subject)` below means every demo visitor sees both
+    modules regardless of their own background.
     """
     student_name, grade = (None, None)
     current_unit = None
+    faith_tradition = None
     if code:
         student_name, grade = await get_demo_personalization(code)
         current_unit = await get_demo_current_unit(code)
+        faith_tradition = await get_demo_faith_tradition(code)
     return SessionConfig(
         student_name=student_name or settings.demo_student_name,
         grade=grade or settings.demo_grade,
@@ -114,6 +125,7 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         term_schedule=TermSchedule.quarterly,
         current_term=_demo_current_term(code),
         current_unit=current_unit,
+        faith_tradition=faith_tradition,
     )
 
 

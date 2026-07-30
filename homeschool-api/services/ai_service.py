@@ -1136,13 +1136,16 @@ def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     Framing guidance for Scripture & Bible Study / Saints & Catechism /
     Morning Time content when the family has set config.faith_tradition — a
     short, optional label for their own church tradition (e.g. "Baptist",
-    "Catholic", "Non-denominational"). Today this is populated only by the
-    public demo's optional intake note (see DemoCodeRequest.faith_tradition
-    and CLAUDE.md's "Continuing Mastery (demo)" section): a real parent
-    session already signals this by which of Scripture & Bible Study /
-    Saints & Catechism they enable, but the demo shows both modules to
-    every visitor regardless of background, so this is what keeps that
-    content from assuming a tradition the visiting family doesn't hold.
+    "Catholic", "Non-denominational"). A real parent sets this directly in
+    ParentSetup.tsx's optional "session context" panel, shown only once
+    Scripture or Saints is enabled for that student — their own choice of
+    which module(s) to enable already narrows this down, so the label just
+    refines the framing within it. The public demo populates the same
+    field via its own optional intake note instead (see
+    DemoCodeRequest.faith_tradition and CLAUDE.md's "Continuing Mastery
+    (demo)" section), since the demo shows both modules to every visitor
+    regardless of background — this is what keeps that content from
+    assuming a tradition the visiting family doesn't hold.
 
     Deliberately never a basis to rule on the family's beliefs or replace
     their own pastor/priest — docs/CONSTITUTION.md's non-negotiable rule

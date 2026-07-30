@@ -313,6 +313,17 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    Enable either one, both, or neither — whichever matches how your own
    family and church already teach the faith. Bede never treats either
    module as a substitute for your own pastor, priest, or church's teaching.
+
+   Once you enable Scripture & Bible Study or Saints & Catechism, a
+   **Church Tradition** field appears under that student's "session context"
+   panel (the same collapsible section as Current Unit and Faith/Virtue
+   Focus) — an optional short label like "Baptist," "Catholic," or
+   "Non-denominational." It doesn't change which subjects are taught; it
+   just helps Bede avoid assuming devotional practices or doctrine outside
+   your own tradition (e.g. not assuming Marian devotion or a specific
+   catechism's structure for a family that hasn't enabled Saints &
+   Catechism). Leave it blank and Bede simply won't assume any particular
+   tradition beyond what your subject choices already signal.
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`

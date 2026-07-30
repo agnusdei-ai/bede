@@ -101,6 +101,7 @@ interface StudentForm {
   lesson_focus: string
   faith_emphasis: string
   current_unit: string
+  faith_tradition: string
   voice_required: boolean
   appearance_locked: boolean
   session_cap_minutes: number
@@ -131,6 +132,7 @@ const blankStudent = (): StudentForm => ({
   lesson_focus: '',
   faith_emphasis: '',
   current_unit: '',
+  faith_tradition: '',
   voice_required: true,
   appearance_locked: false,
   session_cap_minutes: 120,
@@ -164,6 +166,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     lesson_focus: c.lesson_focus ?? '',
     faith_emphasis: c.faith_emphasis ?? '',
     current_unit: c.current_unit ?? '',
+    faith_tradition: c.faith_tradition ?? '',
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
     session_cap_minutes: c.session_cap_minutes ?? 120,
@@ -187,7 +190,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     })),
     voice_narration_enabled: c.voice_narration_enabled ?? true,
     // Already-filled context shouldn't hide behind a collapsed toggle.
-    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit),
+    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition),
   }
 }
 
@@ -279,6 +282,7 @@ export default function ParentSetup() {
       lesson_focus: s.lesson_focus.trim() || undefined,
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
+      faith_tradition: s.faith_tradition.trim() || undefined,
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
       companion_mode: s.companion_mode,
@@ -1042,6 +1046,20 @@ function StudentCard({
                   className="input"
                 />
               </div>
+              {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')) && (
+                <div>
+                  <label className="label">{t('parentSetup.faithTradition')}</label>
+                  <input
+                    type="text"
+                    value={student.faith_tradition}
+                    onChange={(e) => onUpdate({ faith_tradition: e.target.value })}
+                    placeholder={t('parentSetup.faithTraditionPlaceholder')}
+                    maxLength={60}
+                    className="input"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">{t('parentSetup.faithTraditionHint')}</p>
+                </div>
+              )}
               <div>
                 <label className="label">{t('parentSetup.noteForBede')}</label>
                 <textarea

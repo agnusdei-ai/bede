@@ -32,10 +32,12 @@ export interface SessionConfig {
   current_unit?: string
   // Optional, short label for the family's own church tradition (e.g.
   // "Baptist", "Catholic", "Non-denominational") — mirrors the backend's
-  // SessionConfig.faith_tradition. Not exposed in Parent Setup today; a
-  // real family's own choice of Scripture & Bible Study vs. Saints &
-  // Catechism (or both) already signals this. Populated by the demo's
-  // optional intake field instead (demo/src/App.tsx's CodeScreen).
+  // SessionConfig.faith_tradition. Set in ParentSetup.tsx's optional
+  // "session context" panel, shown only once Scripture & Bible Study or
+  // Saints & Catechism is enabled for that student. Also populated by the
+  // demo's own optional intake field (demo/src/App.tsx's CodeScreen), since
+  // the demo shows both faith subjects to every visitor regardless of
+  // background.
   faith_tradition?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design

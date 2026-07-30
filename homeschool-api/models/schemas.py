@@ -200,11 +200,14 @@ class SessionConfig(BaseModel):
     # framing guidance for Scripture & Bible Study / Saints & Catechism
     # content (see services/ai_service.py's _faith_tradition_note), never a
     # basis to rule on the family's beliefs (docs/CONSTITUTION.md). A real
-    # family's own subject selection (enabling Scripture vs. Saints, or
-    # both) already signals this for parent/child sessions; today this
-    # field is populated only by the public demo's optional intake note
-    # (see DemoCodeRequest.faith_tradition) — see CLAUDE.md's "Continuing
-    # Mastery (demo)" section for why the demo needs its own mechanism.
+    # parent sets this directly in ParentSetup.tsx's optional "session
+    # context" panel, shown only once Scripture or Saints is enabled for
+    # that student — their own subject selection already signals which
+    # module applies, this just refines the framing within it. The public
+    # demo populates it via its own optional intake note instead (see
+    # DemoCodeRequest.faith_tradition and CLAUDE.md's "Continuing Mastery
+    # (demo)" section), since the demo shows both faith subjects to every
+    # visitor regardless of background.
     faith_tradition: Optional[str] = Field(default=None, max_length=60)
     voice_required: bool = True              # False for mute students (PIN-only auth)
 

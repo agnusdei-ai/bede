@@ -2,7 +2,7 @@
 """
 One-time, maintainer-run script that generates the setup wizard's spoken
 narration clips using Bede's actual configured voice (OpenAI TTS,
-gpt-4o-mini-tts, voice=onyx — see docs/VOICE_SETUP.md) and writes them into
+gpt-4o-mini-tts, voice=fable — see docs/VOICE_SETUP.md) and writes them into
 scripts/setup_wizard/audio/ as committed static assets.
 
 This is NOT run by end users and NOT run inside the wizard's Docker image —
@@ -28,11 +28,9 @@ AUDIO_DIR = Path(__file__).resolve().parent / "audio"
 # install experience sounds like the same Bede the family will actually
 # talk to, not a generic narrator.
 _TTS_MODEL = "gpt-4o-mini-tts"
-_TTS_VOICE = "onyx"
-_TTS_INSTRUCTIONS = (
-    "Speak as an elderly Benedictine monk from Southern England, in a clear English accent — deep, "
-    "resonant, and bold, not light or nasal."
-)
+_TTS_VOICE = "fable"
+_TTS_INSTRUCTIONS = "Speak as an elderly, warm, unhurried Southern English monk with clear, distinct diction."
+_TTS_SPEED = 0.9
 _TTS_URL = "https://api.openai.com/v1/audio/speech"
 
 # Keep this list short and purposeful — one line to greet, one to close.
@@ -57,6 +55,7 @@ def synthesize(text: str, api_key: str) -> bytes:
         "input": text,
         "instructions": _TTS_INSTRUCTIONS,
         "response_format": "wav",
+        "speed": _TTS_SPEED,
     }
     import json
 

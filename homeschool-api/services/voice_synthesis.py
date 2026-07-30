@@ -113,6 +113,7 @@ async def _synthesize_openai(text: str) -> Optional[bytes]:
         "voice": settings.openai_tts_voice,
         "input": text,
         "response_format": "wav",
+        "speed": settings.openai_tts_speed,
     }
     # Only gpt-4o-mini-tts understands `instructions` — the older tts-1/
     # tts-1-hd models reject unrecognized fields, so omit it for those.

@@ -76,7 +76,8 @@ services:
       # way; leave unset to skip cloud voice entirely — the browser's own
       # built-in speech takes over automatically. See docs/VOICE_SETUP.md.
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
-      - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-onyx}
+      - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-fable}
+      - OPENAI_TTS_SPEED=${OPENAI_TTS_SPEED:-0.9}
       # Optional — leave RESEND_API_KEY unset to disable the post-session
       # diagnostic email feature entirely. See docs/VOICE_SETUP.md's sibling,
       # services/email_service.py, for what this powers.

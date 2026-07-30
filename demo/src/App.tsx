@@ -429,8 +429,17 @@ export function CodeScreen({ onLoggedIn }: {
               onChange={(e) => setFaithTradition(e.target.value)}
               maxLength={60}
               placeholder={t('codeScreen.faithTraditionPlaceholder')}
+              aria-describedby="student-faith-tradition-help"
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
             />
+            {/* Stated at the field itself, not only on the consent screen
+                before it. This is the one intake field touching religious
+                belief, and the moment a visitor is deciding whether to type
+                into it is the moment the purpose and the "skipping costs
+                you nothing" both need to be visible. */}
+            <p id="student-faith-tradition-help" className="mt-1 text-xs text-gray-400">
+              {t('codeScreen.faithTraditionHelp')}
+            </p>
           </div>
         </div>
 

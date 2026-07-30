@@ -24,7 +24,8 @@
     "whyBedeSocraticTitle": "Un motor de diálogo socrático",
     "whyBedeSocraticDesc": "Bede hace preguntas pacientes y bien medidas en lugar de dar las respuestas.",
     "whyBedeFamilyTitle": "Hecho para familias reales",
-    "whyBedeFamilyDesc": "Desde la mesa de la cocina hasta una pequeña cooperativa educativa — cifrado, y pensado para niños a propósito."
+    "whyBedeFamilyDesc": "Desde la mesa de la cocina hasta una pequeña cooperativa educativa — cifrado, y pensado para niños a propósito.",
+    "faithTraditionHelp": "Solo se usa para presentar las lecciones de Sagrada Escritura y de los santos en esta única sesión. Si lo omites, nada cambia."
   },
   "chatScreen": {
     "withName": "con {{name}}",
@@ -163,7 +164,8 @@
     "betaNotice": "Esta es una beta pública — por favor lee esto primero.",
     "bullet1": "<strong>Tu conversación nunca se guarda.</strong> Nada de lo que tú o tu estudiante digan se guarda, jamás.",
     "bullet2": "<strong>Se pueden revisar patrones anonimizados</strong> — qué técnicas de enseñanza se usaron, nunca lo que se dijo — para ayudarnos a mejorar a Bede.",
-    "bullet3": "<strong>El nombre y el grado personalizan esta sesión</strong> — se conservan hasta 6 horas (antes si cierras sesión), y luego se eliminan automáticamente. Nunca forman parte de un registro permanente.",
+    "bullet3": "<strong>Lo que nos digas en la siguiente pantalla personaliza esta sesión</strong> — el nombre, el grado, lo que ya estén aprendiendo en casa y (si decides compartirla) la tradición religiosa de tu familia. Todos los campos son opcionales. Todo se conserva hasta 6 horas (antes si cierras sesión), y luego se elimina automáticamente. Nunca forma parte de un registro permanente.",
+    "bullet3Faith": "<strong>La tradición religiosa es opcional y se trata con especial cuidado.</strong> Se usa únicamente para que Bede presente las lecciones de Sagrada Escritura y de los santos de forma coherente con tu propia tradición, en lugar de suponer una — nunca para clasificar ni crear un perfil de tu familia. Si lo dejas en blanco, la demo funciona exactamente igual.",
     "bullet4": "<strong>Los comentarios son opcionales.</strong> Los padres o tutores pueden dejar un correo electrónico para dar seguimiento — nunca le pedimos a un niño el suyo.",
     "readPrivacyNotice": "Lee el Aviso de Privacidad completo, incluyendo nuestro aviso parental de COPPA",
     "agree": "Entiendo y acepto — comencemos"

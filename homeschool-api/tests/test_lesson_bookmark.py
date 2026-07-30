@@ -23,7 +23,7 @@ from sqlalchemy.pool import StaticPool
 
 from core.config import settings
 from core.database import Base, LessonBookmark
-from models.schemas import GradeStage, SessionConfig, Subject
+from models.schemas import GradeStage, LessonResume, SessionConfig, Subject
 from services import ai_service
 from services.ai_service import (
     _bookmark_note,
@@ -83,6 +83,41 @@ async def test_build_subject_prompt_includes_bookmark_note():
 async def test_build_subject_prompt_omits_note_when_no_bookmark():
     prompt = await _build_subject_prompt(_config(), Subject.history)
     assert "left off" not in prompt.lower()
+
+
+@pytest.mark.asyncio
+async def test_bookmark_note_suppressed_when_a_lesson_resume_note_exists():
+    """A parent's explicit lesson_resume note (see test_lesson_resume.py) is
+    strictly more authoritative than Bede's own auto-generated bookmark for
+    the same subject — showing Bede both risks two independently-worded,
+    possibly conflicting "where we left off" accounts. _build_subject_prompt
+    drops the bookmark note entirely whenever a resume note fires for that
+    subject, rather than relying on prompt wording alone to arbitrate."""
+    config = _config()
+    config.subjects = [Subject.history]
+    config.lesson_resume = [
+        LessonResume(subject=Subject.history, stopped_at="We reached the fall of Rome."),
+    ]
+    prompt = await _build_subject_prompt(
+        config, Subject.history,
+        bookmark={"note": "We were on the rise of Julius Caesar.", "updated_at": datetime.now(timezone.utc)},
+    )
+    assert "Julius Caesar" not in prompt
+    assert "fall of Rome" in prompt
+
+
+@pytest.mark.asyncio
+async def test_bookmark_note_kept_for_a_different_subject_than_the_resume_note():
+    config = _config()
+    config.subjects = [Subject.history, Subject.mathematics]
+    config.lesson_resume = [
+        LessonResume(subject=Subject.mathematics, stopped_at="We reached long division."),
+    ]
+    prompt = await _build_subject_prompt(
+        config, Subject.history,
+        bookmark={"note": "We were on the rise of Julius Caesar.", "updated_at": datetime.now(timezone.utc)},
+    )
+    assert "Julius Caesar" in prompt
 
 
 @pytest.mark.asyncio

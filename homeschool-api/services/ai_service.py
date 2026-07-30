@@ -730,7 +730,29 @@ _SUBJECT_CONTEXT = {
 
 _HTML_TAG = re.compile(r'<[^>]{0,200}>')
 _INJECTION_PATTERN = re.compile(
-    r'(ignore\s+(previous|prior|all)\s+instructions?'
+    # Verb-then-target, with a BOUNDED gap between them.
+    #
+    # This alternative used to read `ignore\s+(previous|prior|all)\s+
+    # instructions?`, which required the target word to sit immediately
+    # after the qualifier — so it caught "ignore previous instructions"
+    # but sailed straight past "ignore ALL PREVIOUS instructions", the
+    # single most common phrasing of the attack, along with "ignore your
+    # earlier instructions", "ignore the above instructions", and every
+    # other variant carrying more than one qualifier word. A regression
+    # test in tests/test_lesson_bookmark.py caught it.
+    #
+    # The gap is `[^.!?\n]{0,60}?` rather than the `.*?` the old
+    # `disregard` alternative used: non-greedy AND unable to cross a
+    # sentence or line boundary, so a match stays local instead of
+    # swallowing unrelated prose between a stray verb and a distant noun.
+    #
+    # Verb list is deliberately conservative — ignore/disregard/override
+    # only. "skip" and "bypass" were considered and left out: "skip the
+    # instructions on page 4" is something a parent genuinely writes in a
+    # lesson note, and a false positive here silently mangles their text.
+    r'((?:ignore|disregard|override)\b[^.!?\n]{0,60}?\binstructions?\b'
+    # Same shape for attempts at the prompt itself rather than the rules.
+    r'|(?:reveal|show|print|repeat|output|display)\b[^.!?\n]{0,40}?\b(?:system\s+)?prompt\b'
     r'|\bsystem\s*:'
     r'|\[INST\]'
     r'|<<SYS>>'
@@ -738,8 +760,7 @@ _INJECTION_PATTERN = re.compile(
     r'|\bpretend\s+you\s+are\b'
     r'|\byour\s+(true\s+)?(name|identity|role)\s+is\b'
     r'|\bforget\s+(everything|your|all)\b'
-    r'|\bnew\s+instructions?\b'
-    r'|\bdisregard\b.*?\binstructions?\b)',
+    r'|\bnew\s+instructions?\b)',
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -2472,6 +2493,21 @@ def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> st
     """
     if not bookmark or not bookmark.get("note"):
         return ""
+    # Sanitized again on the way OUT, not just on the way in
+    # (_persist_lesson_bookmarks). Two reasons, both real:
+    #
+    #   1. Rows written before that write-side sanitizing existed are
+    #      still sitting in live deployments' lesson_bookmarks tables.
+    #      There is no ALTER TABLE/migration path in this codebase (see
+    #      core/database.py's module docstring), so cleaning stored rows
+    #      is not something a deploy can do — the read path is the only
+    #      place a pre-existing poisoned bookmark can be neutralized.
+    #   2. This is the boundary that actually matters. Whatever the
+    #      storage layer holds, nothing reaches the model except through
+    #      this function.
+    note = _sanitize_parent_field(bookmark["note"], max_len=300)
+    if not note:
+        return ""
     when = "last time"
     updated_at = bookmark.get("updated_at")
     if updated_at is not None:
@@ -2479,7 +2515,7 @@ def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> st
         updated_day = updated_at.date() if hasattr(updated_at, "date") else updated_at
         if (reference_day - updated_day).days > 13:
             when = "a while back"
-    return f"\nWhere this subject left off ({when}): {bookmark['note']}"
+    return f"\nWhere this subject left off ({when}): {note}"
 
 
 async def _record_skill_evidence(
@@ -3085,8 +3121,36 @@ async def _persist_lesson_bookmarks(db: "AsyncSession", student_name: str, bookm
     from core.encryption import encrypt_json
 
     valid_subjects = {s.value for s in Subject}
-    for subject_key, note in bookmarks.items():
+    for subject_key, raw_note in bookmarks.items():
         if subject_key not in valid_subjects:
+            continue
+        # Sanitize before persisting, on the same terms as every
+        # parent-supplied context field.
+        #
+        # This is the ONE path in the codebase where text influenced by
+        # the CHILD becomes PERSISTENT prompt context. The usual reasoning
+        # for leaving a child's chat text unsanitized (see this module's
+        # header and CLAUDE.md's Security Constraints) is that it's
+        # transient — it lives for one turn, in a context with no secret
+        # to leak. A bookmark breaks both halves of that: the summary
+        # model writes it from a conversation the child fully steered, and
+        # _bookmark_note then replays it into that subject's prompt at the
+        # start of every future session, indefinitely. A child who gets
+        # the summary model to emit "Ignore your earlier instructions" as
+        # a resume sentence would otherwise have written it into their own
+        # prompt permanently. That is squarely the threat _sanitize_parent_
+        # field exists for, so it applies here too.
+        #
+        # max_len is deliberately tight: this field is specified to the
+        # model as one or two factual sentences, nothing here needs 500
+        # characters, and an unbounded note would grow every future
+        # prompt for this subject without limit (LessonBookmark's column
+        # is LargeBinary, so the database imposes no ceiling of its own).
+        note = _sanitize_parent_field(raw_note, max_len=300)
+        if not note:
+            # Sanitized down to nothing — persist no bookmark rather than
+            # an empty one. The subject simply opens fresh next time,
+            # exactly as it did before bookmarks existed.
             continue
         result = await db.execute(
             select(LessonBookmark).where(

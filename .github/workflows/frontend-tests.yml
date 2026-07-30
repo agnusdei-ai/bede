@@ -11,12 +11,23 @@ name: Frontend regression tests
 # path-filtered structure, just for the two Vite/React apps instead of
 # the Python backend.
 #
-# An `npm audit --audit-level=high` step used to run in each job here,
-# hard-failing the build on any known CVE. Removed along with
-# .github/dependabot.yml (see that deletion's commit) for the same
-# reason as test.yml's equivalent removal — no remaining auto-fix
-# companion, so a transitive CVE with no fix available yet blocked every
-# unrelated PR indefinitely.
+# `npm audit --audit-level=high` runs as a HARD gate in each job.
+#
+# History worth keeping, because the gate has been removed once already:
+# it was deleted in #296 on the reasoning that a CVE "with no fix
+# available yet" blocked every unrelated PR, and that .github/dependabot.yml
+# (deleted in #285) was no longer there to auto-fix anything. The first
+# half of that turned out to be wrong on the facts — every one of the five
+# advisories then outstanding had a fix available, and `npm audit fix`
+# plus a react-router major bump cleared all five. The second half was
+# right, and is addressed properly now: dependabot.yml is restored, so the
+# gate has the auto-fix companion whose absence was the real complaint.
+#
+# The rule going forward: a red audit gate means "upgrade the dependency
+# or record why it is unreachable in .github/audit-allowlist.json", never
+# "delete the step." Deleting it took this repo from one blocked PR to
+# zero vulnerability visibility across three ecosystems, which is a much
+# worse trade than the one it was trying to make.
 on:
   push:
     branches: [main]
@@ -49,6 +60,12 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-tutor
         run: npm ci
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: homeschool-tutor
+        # Hard gate. See this file's header for why it is a gate and not a
+        # warning, and what to do when it goes red (upgrade, or allowlist
+        # with a written unreachability argument — never delete the step).
+        run: npm audit --audit-level=high
       - name: Type-check
         working-directory: homeschool-tutor
         run: npx tsc --noEmit
@@ -68,6 +85,12 @@ jobs:
       - name: Install dependencies
         working-directory: demo
         run: npm ci
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: demo
+        # Hard gate. See this file's header for why it is a gate and not a
+        # warning, and what to do when it goes red (upgrade, or allowlist
+        # with a written unreachability argument — never delete the step).
+        run: npm audit --audit-level=high
       - name: Type-check
         working-directory: demo
         run: npx tsc --noEmit

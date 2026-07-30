@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { ArrowLeft, FlaskConical, Send, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { streamSandboxChat } from '../services/api'

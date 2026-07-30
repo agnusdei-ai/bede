@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
 import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical, Trash2, AlertTriangle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'

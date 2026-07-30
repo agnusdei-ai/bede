@@ -6,12 +6,13 @@ name: Backend regression tests
 # production-regression.yml since it needs a real Docker daemon and takes
 # much longer.
 #
-# A pip-audit vulnerability-gate step used to run here, hard-failing the
-# build on any known CVE in a dependency. Removed along with
-# .github/dependabot.yml (see that deletion's commit) — it had no
-# remaining companion (Dependabot's own auto-PRs are off), so a CVE with
-# no fix in hand yet blocked every unrelated PR indefinitely instead of
-# just being visible.
+# pip-audit runs as a HARD gate here, mirroring frontend-tests.yml's
+# `npm audit --audit-level=high`. See that file's header for the full
+# history: this gate was deleted in #296 alongside its npm counterpart,
+# on a premise that did not hold up, and is restored together with
+# .github/dependabot.yml so it has the auto-fix companion it was missing.
+# A red gate means upgrade the pin, or record an unreachability argument
+# in .github/audit-allowlist.json — never delete the step.
 on:
   push:
     branches: [main]
@@ -44,6 +45,14 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-api
         run: pip install -r requirements-dev.txt
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: homeschool-api
+        # Hard gate — see this file's header. Both files are audited: a
+        # dev-only CVE still runs on this runner against this repo's code.
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+          pip-audit -r requirements-dev.txt
       - name: Run tests
         working-directory: homeschool-api
         run: python -m pytest tests/ -v

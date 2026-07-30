@@ -111,13 +111,21 @@ list as items are closed.
   doesn't make installs reproducible. A real fix (pip-tools/`pip-compile`,
   or switching to Poetry/uv with a lockfile) touches every dependency in
   the tree and needs its own compatibility pass — out of scope for a
-  same-day hardening pass.
+  same-day hardening pass. One specific instance of this was closed
+  separately: `homeschool-api/Dockerfile`'s `torch` install had no version
+  constraint *at all* and pulled from a second package index
+  (`download.pytorch.org`), so it is now pinned exactly. The general
+  floor-pinning gap across `requirements.txt` remains open.
 - **GitHub Actions are pinned to mutable version tags (`@v4`), not commit
   SHAs.** Common practice, but a compromised upstream Action could push a
   same-tag update that CI trusts automatically. Low severity, deferred in
-  favor of the higher-value fixes below; `dependabot.yml`'s new
-  `github-actions` ecosystem entry (below) at least surfaces version bumps
-  for review rather than them happening silently.
+  favor of the higher-value fixes below. Note that `dependabot.yml`'s
+  `github-actions` entry does *not* mitigate this the way an earlier
+  revision of this document claimed: it now runs with
+  `open-pull-requests-limit: 0`, which deliberately suppresses routine
+  version-bump PRs and leaves only security-advisory PRs. That is the
+  right trade for the other ecosystems, but it does mean mutable action
+  tags move silently unless SHA-pinning is adopted.
 - **Branch-protection / required-status-checks configuration on `main` is
   not verifiable from the repository itself** — it's a GitHub repo-settings
   concern, not a file in this codebase. `frontend-tests.yml`'s own header
@@ -141,6 +149,112 @@ list as items are closed.
   actually green, not just that the workflow overall is.
 
 ## Closed gaps
+
+- **Post-authentication open redirect on the login screen, closed
+  2026-07-30.** `Login.tsx` read `?returnTo=` straight off the URL and
+  handed it to react-router's `navigate()` at four call sites, every one
+  of them *after* `setAuth()`. The parameter is fully attacker-controlled,
+  and the product actively teaches parents to send `/session?student=…`
+  links to a tablet — so a Bede URL carrying a query string is a shape
+  families already expect to receive and open. A crafted
+  `?returnTo=%5C%5Cattacker.example` therefore landed a just-authenticated
+  parent or child on an off-site page at the exact moment they had
+  demonstrated they will type a password into whatever Bede presents.
+  Two independent fixes, because either alone is one dependency
+  advisory away from failing:
+  - `homeschool-tutor/src/utils/safeRedirect.ts` (`safeReturnTo`) is an
+    allowlist — a value must be a single in-app absolute path, or the
+    caller's own default route is used instead. It validates the DECODED
+    string (validating the encoded form and navigating to the decoded one
+    is its own bypass: `%2F%2Fattacker.example`), rejects protocol-relative
+    and backslash forms, rejects control characters and whitespace, and
+    finishes with a `new URL()` origin check rather than trusting its own
+    string reasoning. `safeRedirect.test.ts` runs a 20-entry hostile
+    corpus through both the raw and percent-encoded forms.
+  - The dependency itself was upgraded past the advisory that made the
+    bypass work — see the next entry.
+- **Dependency vulnerability monitoring restored, closed 2026-07-30.**
+  Between PR #285 (deleting `.github/dependabot.yml`) and PR #296
+  (deleting the `npm audit` and `pip-audit` CI steps), this repo was left
+  with **no** software-composition analysis at all across three
+  ecosystems — no Dependabot, no audit gates, no CodeQL. That is a
+  straight AIUC-1 vulnerability-management gap and a SOC 2 CC7.1 gap, and
+  it persisted with five known-vulnerable npm packages installed.
+  PR #296's stated reason — a CVE "with no fix available yet" blocking
+  unrelated PRs — did not hold: every one of the five advisories then
+  outstanding had a fix available. What was true was its other half, that
+  the gate had lost its auto-fix companion. Both are now addressed:
+  - All five advisories cleared (`postcss` path traversal, `tar`
+    recursion DoS, and the two `react-router` issues), taking
+    `homeschool-tutor` to zero. Clearing react-router required migrating
+    off the `react-router-dom` shim — it stops at 7.18.2, which is inside
+    the range of a later RSC-mode CSRF advisory, while `react-router`
+    itself continues to 8.3.0, which is clear of every current advisory.
+    Imports moved from `react-router-dom` to `react-router` across 10
+    files; type-check, the full 129-test frontend suite, and a production
+    build all pass unchanged.
+  - The `npm audit --audit-level=high` and `pip-audit` steps are restored
+    as **hard gates**, and now pass on a clean tree.
+  - `.github/dependabot.yml` is restored with `open-pull-requests-limit: 0`
+    on every ecosystem. This is the distinction both prior deletions
+    missed: that setting disables routine *version-update* PRs — the
+    half-bumped peer pairs and surprise majors that motivated #285 —
+    while leaving *security-advisory* PRs enabled. The gate gets its
+    auto-fix companion back without the upgrade churn.
+
+  The standing rule going forward, recorded in both workflow files: a red
+  audit gate means upgrade the dependency, or record why it is
+  unreachable — never delete the step.
+- **Stored prompt injection via lesson bookmarks, closed 2026-07-30.**
+  `LessonBookmark` (added PR #308) is the one place in this codebase where
+  text shaped by the **child** becomes **persistent** prompt context.
+  `generate_session_summary` asks the model for a per-subject resume
+  sentence, written from a conversation the child fully steered;
+  `_bookmark_note` then replays it into that subject's prompt at the start
+  of every future session, indefinitely. The write path stored it as bare
+  `str(v)` and the read path interpolated it raw — no sanitizing, no
+  length bound, and `bookmark_enc` is `LargeBinary`, so nothing imposed a
+  ceiling. The standing reasoning for leaving a child's chat text
+  unsanitized (it is transient, and there is no secret in context to leak)
+  does not extend to this path, because neither half of it is true here.
+  `_sanitize_parent_field(..., max_len=300)` now runs on **both** paths —
+  the read side deliberately as well as the write side, because rows
+  written before this fix are still live in deployed databases and this
+  codebase has no `ALTER TABLE`/migration path to clean them, so the read
+  boundary is the only place a pre-existing poisoned bookmark can be
+  neutralized.
+- **`_INJECTION_PATTERN` bypass, closed 2026-07-30.** Found by the
+  regression test written for the bookmark fix above. The flagship
+  alternative read `ignore\s+(previous|prior|all)\s+instructions?`,
+  requiring the target noun *immediately* after a single qualifier — so it
+  matched "ignore previous instructions" but did **not** match "ignore all
+  previous instructions", the most common phrasing of the attack, nor
+  "ignore your earlier instructions", "ignore the above instructions", or
+  any other multi-qualifier variant. This is the shared sanitizer for
+  every free-text field reaching the prompt from outside the model,
+  including anonymous public demo input, so the gap was not
+  bookmark-specific. Replaced with a bounded verb→target form
+  (`[^.!?\n]{0,60}?`, which cannot cross a sentence or line boundary,
+  unlike the old `disregard` alternative's unbounded `.*?`), plus a new
+  alternative for prompt-extraction phrasing ("reveal/show/print your
+  system prompt"), which had no coverage at all. The verb list is
+  deliberately narrow — `skip` and `bypass` were considered and rejected,
+  since "skip the instructions on page 4" is ordinary parent lesson-note
+  text and a false positive here silently mangles it.
+  `tests/test_injection_pattern.py` covers 20 hostile phrasings and 9
+  benign parent notes that must survive untouched.
+- **Predictable `/tmp` paths in the Unix installer, closed 2026-07-30.**
+  `packaging/unix/install.sh` downloaded Docker Desktop to a fixed
+  `/tmp/Docker.dmg` and Ollama to `/tmp/Ollama-darwin.zip`, then mounted
+  and `cp -R`'d the first into `/Applications` and `unzip -o`'d the second
+  directly over it. `/tmp` is world-writable, so a fixed filename lets any
+  other local account pre-place a file or symlink at that path and have
+  the result installed as a trusted application. Both now download into a
+  fresh `mktemp -d` (0700, unguessable) with a `trap … RETURN` cleanup,
+  and both verify the expected `.app` bundle is present before anything
+  reaches `/Applications`; Ollama additionally extracts to a private
+  staging directory first rather than unpacking an unverified archive over
+  a system location.
 
 - **Parent account lockout + recovery, ending a stolen-credential
   takeover, closed 2026-07-23.** Follows directly from the pre-production

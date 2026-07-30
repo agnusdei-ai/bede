@@ -6,8 +6,14 @@ import { logDebug } from './debugBus'
  *
  * Tries the backend's OpenAI TTS first (services/voice_synthesis.py on the
  * server — a warm, dedicated male monk voice). Falls back to the browser's
- * built-in speechSynthesis when the backend isn't configured or the request
- * fails, so voice output never breaks the session.
+ * built-in speechSynthesis ONLY when TTS is genuinely unconfigured on this
+ * deployment (no OPENAI_API_KEY) — a reasonable zero-config default in that
+ * case. Real Bede audio that was fetched but blocked from playing by the
+ * browser's own autoplay policy is deliberately NOT covered by that
+ * fallback: a real report showed a browser that kept blocking audio.play()
+ * swapping to the jarring, robotic browser default voice on every single
+ * turn for the whole session — worse than staying silent for that one line
+ * while armAutoReUnlock (below) self-heals the block on the next real tap.
  *
  * Bede's persona is historically male (the Venerable Bede) — voice selection
  * in both paths prefers a male voice, never a gender-ambiguous or female one.
@@ -168,6 +174,42 @@ function getSharedAudioElement(): HTMLAudioElement {
   return sharedAudioEl
 }
 
+const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+
+// Real report: the login-time unlockSpeechForSession() call below is
+// supposed to permanently bless sharedAudioEl for the rest of the tab
+// (once ANY play() succeeds on an element, later programmatic play()
+// calls on that SAME element are allowed indefinitely, gesture or not —
+// the whole reason a shared singleton element exists at all). In
+// practice a family reported audio.play() being rejected as
+// autoplay-blocked on EVERY subsequent turn, not just an occasional one —
+// meaning the initial unlock itself wasn't taking, or wasn't durable,
+// on their device/browser. Rather than staying permanently blocked for
+// the rest of the session once that happens, arm a one-shot retry that
+// re-primes the same element on the very next genuine user gesture
+// anywhere on the page (a subject switch, a mic tap, anything) — cheap
+// and self-healing, instead of requiring a full reload to recover.
+let reUnlockArmed = false
+function armAutoReUnlock() {
+  if (reUnlockArmed) return
+  reUnlockArmed = true
+  const retry = () => {
+    document.removeEventListener('pointerdown', retry, true)
+    reUnlockArmed = false
+    try {
+      const audio = getSharedAudioElement()
+      const wasPlaying = !audio.paused
+      if (wasPlaying) return // don't stomp audio that's actually mid-playback right now
+      audio.src = SILENT_WAV_DATA_URI
+      audio.volume = 0
+      audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
+    } catch {
+      // best-effort — this is a background recovery attempt, never worth surfacing
+    }
+  }
+  document.addEventListener('pointerdown', retry, true)
+}
+
 /**
  * Call synchronously inside a real click/submit handler — e.g. the login
  * form's submit — BEFORE any await. Bede's very first line (the subject
@@ -191,7 +233,7 @@ export function unlockSpeechForSession() {
   }
   try {
     const audio = getSharedAudioElement()
-    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.src = SILENT_WAV_DATA_URI
     audio.volume = 0
     audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
   } catch {
@@ -272,8 +314,12 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
         audio.play()
           .then(() => { played = true })
           .catch((err) => {
-            // autoplay-blocked or decode error — playback never started
+            // autoplay-blocked or decode error — playback never started.
+            // Arm a self-healing retry for the next real tap rather than
+            // staying silently blocked for the rest of the session — see
+            // armAutoReUnlock's own comment.
             logDebug(`backend TTS audio.play() rejected: ${err instanceof Error ? err.message : String(err)}`)
+            armAutoReUnlock()
             resolve()
           })
       })
@@ -330,19 +376,26 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       // "two Bedes talking at once" class of bug generationRef exists to
       // prevent.
       if (generationRef.current === myGeneration) {
-        // Two distinct failure classes get different treatment:
-        //  - the /tutor/speak request itself failed (network hiccup, backend
-        //    error, nothing configured) — stay silent for this one line
-        //    rather than jarringly switching to a different, lower-quality
-        //    voice mid-conversation (the original rule this fallback follows).
-        //  - real audio bytes came back but this browser refused to play
-        //    them (confirmed on a Samsung Android tablet: Chrome can
-        //    silently block audio.play() outside a fresh gesture) — that has
-        //    nothing to do with backend configuration, so browser speech is
-        //    strictly better than the total silence this used to produce.
-        if (!spoke && (fetchedAudio || !configured) && !stoppedRef.current) {
+        // Bede's voice has no fallback to the browser's own default voice
+        // when real audio bytes actually came back — real report: on a
+        // browser that keeps blocking audio.play() (autoplay policy), that
+        // fallback meant every single turn audibly swapped to a jarring,
+        // robotic-sounding default voice, over and over, for the whole
+        // session — worse than the rare total silence it was meant to
+        // avoid. fetchedAudio true means Bede's real voice line exists and
+        // was simply blocked from playing this once; armAutoReUnlock
+        // (called from speakViaBackend's own play() rejection handler
+        // above) is the actual fix for THAT — self-healing on the next
+        // real tap, not swapping voices. The one case that still falls
+        // back is the genuinely different one: TTS was never configured
+        // at all (no OPENAI_API_KEY on this deployment), where the
+        // browser's own voice is a reasonable zero-config default rather
+        // than a mid-session bait-and-switch.
+        if (!spoke && !configured && !stoppedRef.current) {
           logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
           await speakViaBrowser(cleanText, myGeneration)
+        } else if (!spoke && fetchedAudio) {
+          logDebug(`TTS blocked but configured — staying silent for this line rather than falling back: fetchedAudio=${fetchedAudio}`)
         }
       }
     }

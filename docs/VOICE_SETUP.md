@@ -15,18 +15,24 @@ set in `.env`:
 ```bash
 OPENAI_API_KEY=sk-...
 OPENAI_TTS_MODEL=gpt-4o-mini-tts   # the only OpenAI TTS model with `instructions` support
-OPENAI_TTS_VOICE=fable             # OpenAI's own description: closest preset to a British storyteller tone
-OPENAI_TTS_INSTRUCTIONS=Speak as an elderly, warm, unhurried Southern English monk.
+OPENAI_TTS_VOICE=onyx              # OpenAI's deeper, more resonant preset — see below for why not "fable"
+OPENAI_TTS_INSTRUCTIONS=Speak as an elderly Benedictine monk from Southern England, in a clear English accent — deep, resonant, and bold, not light or nasal.
 ```
 
 `gpt-4o-mini-tts`'s `instructions` field is what actually lets you steer
 character and delivery in plain English — that's the real lever for sounding
 like a specific persona rather than a generic preset voice, and it's the main
 reason to prefer `gpt-4o-mini-tts` over the older `tts-1`/`tts-1-hd` models
-(which accept a fixed voice only, no instructions). Then apply it to your
-running deployment — see "Applying this to a running deployment" below —
-and test in a real session; there's no local script for this path since it's
-a live API call, not a local model to benchmark offline.
+(which accept a fixed voice only, no instructions). The starting preset was
+originally `fable` (OpenAI's own "British storyteller" description), but real
+listening feedback found it thin/nasal rather than warm; `onyx` is OpenAI's
+deeper preset, and `instructions` is what keeps it sounding English rather
+than picking up `onyx`'s own un-steered American lean along with the depth —
+a preset voice sets the base timbre, `instructions` steers accent and
+delivery on top of it. Then apply your own choice to your running deployment
+— see "Applying this to a running deployment" below — and test in a real
+session; there's no local script for this path since it's a live API call,
+not a local model to benchmark offline.
 
 Leave `OPENAI_API_KEY` unset to skip cloud voice entirely — the browser's own
 speech takes over automatically, with no other changes needed.

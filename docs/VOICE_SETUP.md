@@ -15,22 +15,27 @@ set in `.env`:
 ```bash
 OPENAI_API_KEY=sk-...
 OPENAI_TTS_MODEL=gpt-4o-mini-tts   # the only OpenAI TTS model with `instructions` support
-OPENAI_TTS_VOICE=onyx              # OpenAI's deeper, more resonant preset — see below for why not "fable"
-OPENAI_TTS_INSTRUCTIONS=Speak as an elderly Benedictine monk from Southern England, in a clear English accent — deep, resonant, and bold, not light or nasal.
+OPENAI_TTS_VOICE=fable             # OpenAI's own description: closest preset to a British storyteller tone
+OPENAI_TTS_INSTRUCTIONS=Speak as an elderly, warm, unhurried Southern English monk with clear, distinct diction.
+OPENAI_TTS_SPEED=0.9               # 0.25-4.0, API default 1.0 — a real, hard lever on pacing (see below)
 ```
 
 `gpt-4o-mini-tts`'s `instructions` field is what actually lets you steer
 character and delivery in plain English — that's the real lever for sounding
 like a specific persona rather than a generic preset voice, and it's the main
 reason to prefer `gpt-4o-mini-tts` over the older `tts-1`/`tts-1-hd` models
-(which accept a fixed voice only, no instructions). The starting preset was
-originally `fable` (OpenAI's own "British storyteller" description), but real
-listening feedback found it thin/nasal rather than warm; `onyx` is OpenAI's
-deeper preset, and `instructions` is what keeps it sounding English rather
-than picking up `onyx`'s own un-steered American lean along with the depth —
-a preset voice sets the base timbre, `instructions` steers accent and
-delivery on top of it. Then apply your own choice to your running deployment
-— see "Applying this to a running deployment" below — and test in a real
+(which accept a fixed voice only, no instructions). `OPENAI_TTS_SPEED` is a
+separate, harder lever specifically for pace: `instructions` alone is only
+ever a soft steer the model can drift from turn to turn, so when real
+listening feedback asked for a more distinct, unhurried pace, the actual fix
+was setting `speed` on the API call itself (slightly under `1.0`), not just
+stronger wording in `instructions`. (`onyx`, a deeper preset, was tried
+briefly in place of `fable`; real listening found it read as higher-pitched
+and less like Bede than `fable`, not deeper as its own description implied
+— a preset's on-paper description doesn't reliably predict how it actually
+sounds, so if you retune this, test a real session rather than trusting the
+description alone.) Then apply your own choice to your running deployment —
+see "Applying this to a running deployment" below — and test in a real
 session; there's no local script for this path since it's a live API call,
 not a local model to benchmark offline.
 

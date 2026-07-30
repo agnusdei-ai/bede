@@ -1,6 +1,6 @@
 /**
  * Regression coverage for speak()'s priority order: Bede's configured
- * backend voice (OpenAI TTS, "onyx" — core/config.py's openai_tts_voice)
+ * backend voice (OpenAI TTS, "fable" — core/config.py's openai_tts_voice)
  * must always win over the browser's speechSynthesis fallback whenever the
  * backend is configured and the call succeeds. The browser voice is only
  * ever a last resort — see useTextToSpeech.ts's own comments on why a

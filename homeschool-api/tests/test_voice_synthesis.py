@@ -52,6 +52,7 @@ def _reset_settings():
         settings.openai_tts_model,
         settings.openai_tts_voice,
         settings.openai_tts_instructions,
+        settings.openai_tts_speed,
     )
     yield
     (
@@ -59,6 +60,7 @@ def _reset_settings():
         settings.openai_tts_model,
         settings.openai_tts_voice,
         settings.openai_tts_instructions,
+        settings.openai_tts_speed,
     ) = saved
 
 
@@ -112,6 +114,20 @@ def test_mini_tts_model_includes_instructions(monkeypatch):
     assert "instructions" in _FakeAsyncClient.captured["json"]
     assert _FakeAsyncClient.captured["json"]["voice"] == "fable"
     assert _FakeAsyncClient.captured["headers"]["Authorization"] == "Bearer sk-test"
+
+
+def test_payload_includes_the_configured_speed(monkeypatch):
+    """openai_tts_speed is the hard API-level pacing lever (instructions is
+    only ever a soft steer) — must actually reach the request payload."""
+    settings.openai_api_key = "sk-test"
+    settings.openai_tts_model = "gpt-4o-mini-tts"
+    settings.openai_tts_voice = "fable"
+    settings.openai_tts_speed = 0.9
+    _FakeAsyncClient.response = _FakeResponse()
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    asyncio.run(vs._synthesize_openai("hello"))
+    assert _FakeAsyncClient.captured["json"]["speed"] == 0.9
 
 
 def test_legacy_tts_model_omits_instructions(monkeypatch):

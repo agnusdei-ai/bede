@@ -176,11 +176,10 @@ services:
         value: "true"
       - key: OPENAI_TTS_MODEL
         value: gpt-4o-mini-tts
-      # See core/config.py's openai_tts_voice default docstring — "fable"
-      # read as thin/nasal in real listening feedback; "onyx" is deeper and
-      # more resonant. OPENAI_TTS_INSTRUCTIONS is deliberately NOT pinned
-      # here, so this demo inherits that same file's openai_tts_instructions
-      # default (which is what actually keeps "onyx" sounding English
-      # rather than its own un-steered American lean).
+      # OPENAI_TTS_INSTRUCTIONS/OPENAI_TTS_SPEED are deliberately NOT pinned
+      # here, so this demo inherits core/config.py's own defaults for both —
+      # see that file's openai_tts_voice/openai_tts_instructions/
+      # openai_tts_speed docstrings for the "fable" + slower-pace tuning
+      # history.
       - key: OPENAI_TTS_VOICE
-        value: onyx
+        value: fable

@@ -150,6 +150,51 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Node 20 was end-of-life, and nothing in the toolchain said so, closed
+  2026-07-30.** Follow-up to the sweep below, from asking the obvious next
+  question: are node/npm actually clean *everywhere*, or just in the two
+  places the audit gates look? The packages were clean. The runtime under
+  them was not. Node 20 reached end-of-life on **2026-04-30** and had been
+  unsupported for three months, while pinned in three places:
+  `frontend-tests.yml`'s two jobs (`node-version: 20`) and
+  `homeschool-tutor/Dockerfile` (`node:20-alpine`, the build stage that
+  produces the served bundle).
+
+  The reason this survived a dependency-security pass is worth recording,
+  because it generalizes: **`npm audit` and Dependabot audit packages, not
+  the runtime beneath them.** A repo can sit at a clean zero — as this one
+  did, immediately after the sweep below — while building on a runtime
+  that will never receive another security patch, for OpenSSL, HTTP
+  parsing, or anything else. No tool in the pipeline reports it. Checking
+  interpreter and base-image EOL dates is a separate, manual habit from
+  reading advisory counts, and the two do not substitute for each other.
+
+  Moved to Node 24 (active LTS, security support through 2028-04-30) in
+  CI and in the Dockerfile, and both `package.json` files gained
+  `engines: {node: ">=22"}` — a floor at the oldest still-supported LTS,
+  so a contributor on an EOL runtime gets a warning rather than silently
+  resolving a lockfile against it. The rest of the stack was checked at
+  the same time and is fine: every other container is Python 3.12
+  (supported through 2028-10), and there are exactly two Node projects in
+  the repo, both covered.
+- **Audit gate threshold raised from `high` to `moderate`, closed
+  2026-07-30.** The gates restored below were set to
+  `--audit-level=high`, matching what they used before their deletion.
+  That threshold was wrong, and provably so: the post-authentication open
+  redirect closed in #319 — the highest-impact finding of that entire
+  review — was published as a **moderate** advisory
+  (GHSA-wrjc-x8rr-h8h6). A gate set to `high` would have let it through,
+  which is exactly what happened for as long as it sat in the tree.
+
+  npm's severity rating describes an advisory in the abstract, not what
+  the affected dependency is load-bearing for in *this* application. A
+  moderate advisory in the router that owns post-login navigation matters
+  more here than a high one in a build-time-only tool. Nothing automated
+  is positioned to make that call, so the gate now errs toward surfacing
+  and letting a human decide. Both projects are at zero, so the tightened
+  threshold costs nothing today. It must not be quietly raised back to
+  `high` to clear a red build.
+
 - **Post-authentication open redirect on the login screen, closed
   2026-07-30.** `Login.tsx` read `?returnTo=` straight off the URL and
   handed it to react-router's `navigate()` at four call sites, every one

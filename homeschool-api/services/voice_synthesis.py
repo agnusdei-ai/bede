@@ -30,6 +30,27 @@ log = logging.getLogger(__name__)
 
 _OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 
+# This used to request "wav", which is uncompressed PCM — at OpenAI's 24kHz
+# 16-bit mono that is 48KB for every single second of speech, so a 30-second
+# line of Bede's is ~1.4MB on the wire. The whole utterance is synthesized,
+# buffered, and only then sent (routers/tutor.py's /speak returns one body),
+# so those bytes land squarely between the child asking and hearing anything.
+# On a slow home connection that is seconds of silence per turn, and it hurts
+# a Spanish session hardest: Spanish runs roughly 15-25% longer than English
+# for the same content, so the same lesson produces proportionally more audio
+# seconds and therefore proportionally more bytes.
+#
+# MP3 is ~6x smaller for speech at no perceptible quality cost here, and
+# changes nothing about pacing — that is settings.openai_tts_speed, a
+# separate lever. Opus would be smaller still (~16x), but Safari/iOS support
+# for it in <audio> is patchy and this is a tablet-first product, so the
+# universally-playable format wins. The frontends read the response with
+# res.blob() and hand it to createObjectURL, so the blob inherits whatever
+# Content-Type /speak sets and no client change is needed — but the two must
+# agree, which is why the media type is derived here rather than restated.
+AUDIO_FORMAT = "mp3"
+AUDIO_MEDIA_TYPE = "audio/mpeg"
+
 # Retried: a rate limit or transient server error is worth a second try.
 # NOT retried: 400 (bad request — e.g. text too long) and 401/403 (bad key)
 # will never succeed on retry, so retrying them only adds latency before
@@ -104,7 +125,7 @@ def synthesis_configured() -> bool:
 
 
 async def _synthesize_openai(text: str) -> Optional[bytes]:
-    """OpenAI TTS — returns WAV bytes, or None if every attempt fails
+    """OpenAI TTS — returns MP3 bytes, or None if every attempt fails
     (network error, auth failure, or a non-retryable/exhausted-retry
     status). See module docstring for why retrying transient failures
     matters here specifically."""
@@ -112,7 +133,7 @@ async def _synthesize_openai(text: str) -> Optional[bytes]:
         "model": settings.openai_tts_model,
         "voice": settings.openai_tts_voice,
         "input": text,
-        "response_format": "wav",
+        "response_format": AUDIO_FORMAT,
         "speed": settings.openai_tts_speed,
     }
     # Only gpt-4o-mini-tts understands `instructions` — the older tts-1/
@@ -147,8 +168,8 @@ async def _synthesize_openai(text: str) -> Optional[bytes]:
 
 
 async def synthesize_speech(text: str) -> Optional[bytes]:
-    """Convert text to spoken audio (WAV bytes) using Bede's configured
-    voice. None when OpenAI TTS isn't configured or every retry attempt
+    """Convert text to spoken audio (MP3 bytes — see AUDIO_FORMAT) using
+    Bede's configured voice. None when OpenAI TTS isn't configured or every retry attempt
     fails — the caller stays silent for that line rather than degrading to
     a different, lower-quality voice mid-conversation."""
     if not settings.openai_api_key:

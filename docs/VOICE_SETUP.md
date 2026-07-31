@@ -496,6 +496,71 @@ silently returns `''` on a failed or blank transcription, and nothing is
 sent — no error surfaces to the child either) rather than the watchdog
 failing to trigger at all.
 
+## Troubleshooting: Bede is slow to start speaking, especially in Spanish or on a slow connection
+
+**Symptom.** A noticeable gap between the child finishing their turn and Bede
+starting to speak. Worse on a slow home connection, and worse again in a
+Spanish session than an English one.
+
+**Cause (fixed).** `/tutor/speak` used to return **uncompressed WAV**. At
+OpenAI TTS's 24kHz 16-bit mono that is **48KB for every second of speech**, so
+a 30-second line ran to roughly 1.4MB. The whole utterance is synthesized
+server-side, buffered, and only then sent as one response body, so all of
+those bytes sit squarely between the child asking and hearing anything:
+
+| Format | 30s of speech | Time to arrive on a 1.5 Mbps link |
+|---|---|---|
+| WAV (old) | ~1.4 MB | ~7.7s |
+| **MP3 (now)** | ~240 KB | ~1.3s |
+
+Spanish suffered most, and predictably so: Spanish runs roughly 15-25% longer
+than English for the same content, so the same lesson produces proportionally
+more audio seconds and therefore proportionally more bytes.
+
+`services/voice_synthesis.py` now requests `AUDIO_FORMAT = "mp3"` and
+`routers/tutor.py` serves it as `AUDIO_MEDIA_TYPE = "audio/mpeg"`. Both
+frontends read the response with `res.blob()` and hand it to
+`createObjectURL`, so the blob inherits whatever Content-Type `/speak` sets
+and no client change was needed — but the two constants must agree, which is
+why the media type is derived from the same module rather than restated.
+
+MP3 rather than Opus (which would be smaller still, ~16x): Safari/iOS support
+for Opus in `<audio>` is patchy and this is a tablet-first product, so the
+universally-playable format wins.
+
+**This does not change Bede's speaking pace.** Pacing is
+`settings.openai_tts_speed` (0.9) plus `openai_tts_instructions`, both
+untouched. Compression changes the bytes on the wire, never the delivery —
+pinned by `tests/test_voice_synthesis.py`'s
+`test_pacing_is_untouched_by_the_format_change`.
+
+**Still outstanding.** Synthesis itself is not streamed: `/speak` waits for
+the complete audio before sending the first byte. Streaming OpenAI's chunked
+response through FastAPI would remove the other half of the delay, and is a
+separate change.
+
+## Troubleshooting: in a Spanish session, Bede's fallback voice reads Spanish with an English accent
+
+**Symptom.** With backend TTS unconfigured (or on a deployment relying on the
+browser's own `speechSynthesis`), a Spanish session reads Spanish text in an
+audibly English voice.
+
+**Cause (fixed).** `pickBestVoice()` in both frontends filtered exclusively on
+`v.lang.startsWith('en')` at every priority level, so a Spanish session could
+only ever be handed an English voice. It now takes a language prefix, derived
+from the session's own locale (`i18n.language`) rather than the device's —
+the same rule the speech-recognition language already follows.
+
+- Spanish sessions prefer a known Spanish male voice (`Jorge`, `Diego`,
+  `Microsoft Pablo`, …), then any Spanish voice that is not explicitly female,
+  then any Spanish voice.
+- If **no** Spanish voice exists on the device, `pickBestVoice` returns `null`
+  rather than falling through to an English one — a wrong-language voice is
+  worse than none. `utterance.lang` is always set (`es-MX`), so the engine
+  picks something appropriate itself.
+- English behaviour is deliberately unchanged, including its long-standing
+  last-resort "any voice at all" fallback.
+
 ## Troubleshooting: Bede's spoken narration goes silent for some turns
 
 Reported after moving to a higher-traffic Render plan / more concurrent

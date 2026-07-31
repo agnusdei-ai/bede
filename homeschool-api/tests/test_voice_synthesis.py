@@ -272,3 +272,44 @@ def test_sleeps_between_retries_using_the_configured_backoff(monkeypatch, _no_re
     # 3 attempts means 2 gaps between them, not a sleep after the final
     # (already-given-up) attempt.
     assert _no_real_sleep == list(vs._RETRY_BACKOFF_SECONDS)
+
+
+def test_requests_a_compressed_audio_format(monkeypatch):
+    """The wire format used to be uncompressed WAV — 48KB for every second of
+    speech at OpenAI's 24kHz 16-bit mono, so a 30-second line of Bede's ran
+    to ~1.4MB. The whole utterance is synthesized, buffered and only then
+    sent, so those bytes sit directly between a child asking and hearing
+    anything, and a Spanish session pays most (Spanish runs longer than
+    English for the same content). Pin the compressed format so this cannot
+    silently regress."""
+    settings.openai_api_key = "sk-test"
+    settings.openai_tts_model = "gpt-4o-mini-tts"
+    settings.openai_tts_voice = "fable"
+    _FakeAsyncClient.response = _FakeResponse()
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    asyncio.run(vs._synthesize_openai("hello"))
+    assert _FakeAsyncClient.captured["json"]["response_format"] == "mp3"
+    assert _FakeAsyncClient.captured["json"]["response_format"] != "wav"
+
+
+def test_media_type_matches_the_requested_audio_format():
+    """routers/tutor.py's /speak serves these bytes with AUDIO_MEDIA_TYPE, and
+    both frontends hand the response body straight to createObjectURL — so a
+    mismatch between the format asked for and the type declared would produce
+    a blob no browser could play. Keep the two in lockstep."""
+    assert (vs.AUDIO_FORMAT, vs.AUDIO_MEDIA_TYPE) == ("mp3", "audio/mpeg")
+
+
+def test_pacing_is_untouched_by_the_format_change(monkeypatch):
+    """Compression changes bytes on the wire, never delivery. speed stays the
+    only pacing lever, at its configured value."""
+    settings.openai_api_key = "sk-test"
+    settings.openai_tts_model = "gpt-4o-mini-tts"
+    settings.openai_tts_voice = "fable"
+    settings.openai_tts_speed = 0.9
+    _FakeAsyncClient.response = _FakeResponse()
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    asyncio.run(vs._synthesize_openai("hola"))
+    assert _FakeAsyncClient.captured["json"]["speed"] == 0.9

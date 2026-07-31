@@ -4,7 +4,7 @@ import { useTranslation, Trans } from 'react-i18next'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle, BookMarked, X } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
-import { SUBJECTS, SUBJECT_MAP, CORE_AREAS } from '../types'
+import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import LicenseSettings from '../components/LicenseSettings'
@@ -102,6 +102,7 @@ interface StudentForm {
   faith_emphasis: string
   current_unit: string
   faith_tradition: string
+  bible_translation: string
   voice_required: boolean
   appearance_locked: boolean
   session_cap_minutes: number
@@ -133,6 +134,7 @@ const blankStudent = (): StudentForm => ({
   faith_emphasis: '',
   current_unit: '',
   faith_tradition: '',
+  bible_translation: '',
   voice_required: true,
   appearance_locked: false,
   session_cap_minutes: 120,
@@ -167,6 +169,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     faith_emphasis: c.faith_emphasis ?? '',
     current_unit: c.current_unit ?? '',
     faith_tradition: c.faith_tradition ?? '',
+    bible_translation: c.bible_translation ?? '',
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
     session_cap_minutes: c.session_cap_minutes ?? 120,
@@ -190,7 +193,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     })),
     voice_narration_enabled: c.voice_narration_enabled ?? true,
     // Already-filled context shouldn't hide behind a collapsed toggle.
-    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition),
+    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition || c.bible_translation),
   }
 }
 
@@ -283,6 +286,7 @@ export default function ParentSetup() {
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
       faith_tradition: s.faith_tradition.trim() || undefined,
+      bible_translation: s.bible_translation.trim() || undefined,
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
       companion_mode: s.companion_mode,
@@ -1058,6 +1062,23 @@ function StudentCard({
                     className="input"
                   />
                   <p className="text-xs text-gray-400 mt-1">{t('parentSetup.faithTraditionHint')}</p>
+                </div>
+              )}
+              {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')
+                || student.selected_subjects.includes('morning_time')) && (
+                <div>
+                  <label className="label">{t('parentSetup.bibleTranslation')}</label>
+                  <select
+                    value={student.bible_translation}
+                    onChange={(e) => onUpdate({ bible_translation: e.target.value })}
+                    className="input bg-white cursor-pointer"
+                  >
+                    <option value="">{t('parentSetup.bibleTranslationDefault')}</option>
+                    {BIBLE_TRANSLATIONS.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">{t('parentSetup.bibleTranslationHint')}</p>
                 </div>
               )}
               <div>

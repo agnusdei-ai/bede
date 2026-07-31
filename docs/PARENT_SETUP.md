@@ -324,6 +324,16 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    catechism's structure for a family that hasn't enabled Saints &
    Catechism). Leave it blank and Bede simply won't assume any particular
    tradition beyond what your subject choices already signal.
+
+   The same panel also offers a **Primary Bible Translation** dropdown
+   (KJV, NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE, or
+   Douay-Rheims) whenever Morning Time, Scripture & Bible Study, or Saints
+   & Catechism is enabled. This is narrower than Church Tradition — it
+   doesn't say what your family believes, just which translation's wording
+   Bede should favor when it quotes or paraphrases a Bible passage, so it
+   sounds like the same Bible your child already reads at home. Leave it
+   on "No preference" and Bede quotes Scripture from its own knowledge
+   without favoring any particular translation's phrasing.
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`

@@ -39,6 +39,12 @@ export interface SessionConfig {
   // the demo shows both faith subjects to every visitor regardless of
   // background.
   faith_tradition?: string
+  // Parent's preferred Bible translation (see BIBLE_TRANSLATIONS below) —
+  // mirrors the backend's SessionConfig.bible_translation. Set in the same
+  // ParentSetup.tsx panel as faith_tradition, so Bede's own quoting/
+  // paraphrasing of Scripture matches the wording the family already reads
+  // at home.
+  bible_translation?: string
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
@@ -106,6 +112,15 @@ export type TermSchedule = 'trimester' | 'quarterly'
 // GradeStage's shape: a small, stable string union kept in sync by hand
 // with the backend enum, same convention already used throughout this file.
 export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
+
+// Bible translations a parent can pick for SessionConfig.bible_translation —
+// mirrors homeschool-api/models/schemas.py's BIBLE_TRANSLATIONS, same
+// duplication convention as DEMO_GRADES/VALID_GRADES. Deliberately spans
+// both Protestant and Catholic editions — see that constant's own comment.
+export const BIBLE_TRANSLATIONS = [
+  'KJV', 'NKJV', 'ESV', 'NIV', 'NASB', 'NLT', 'CSB',
+  'RSV-CE', 'NABRE', 'NRSV-CE', 'Douay-Rheims',
+] as const
 
 // Foundational core areas tracked term-by-term — mirrors
 // homeschool-api/models/schemas.py CORE_AREAS.

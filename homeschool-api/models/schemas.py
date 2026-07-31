@@ -14,6 +14,19 @@ class GradeStage(str, Enum):
 # services/ai_service.py's _GRADE_DESCRIPTORS keys.
 VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 
+# Bible translations a parent can pick for SessionConfig.bible_translation,
+# in display order — deliberately spans both Protestant and Catholic
+# editions (see docs/CONSTITUTION.md's non-negotiable rule that Bede never
+# rules on a family's beliefs), same reasoning behind Subject.scripture
+# existing as a sibling to Subject.saints rather than one Bible-content
+# module assuming a single tradition's preferred text. Mirrored in
+# homeschool-tutor/src/pages/ParentSetup.tsx's own copy of this list, same
+# duplication convention as VALID_GRADES/DEMO_GRADES above.
+BIBLE_TRANSLATIONS = [
+    "KJV", "NKJV", "ESV", "NIV", "NASB", "NLT", "CSB",
+    "RSV-CE", "NABRE", "NRSV-CE", "Douay-Rheims",
+]
+
 
 def grade_to_stage(grade: str) -> GradeStage:
     """Maps a grade string to its Mater Amabilis-aligned stage (see
@@ -209,6 +222,18 @@ class SessionConfig(BaseModel):
     # (demo)" section), since the demo shows both faith subjects to every
     # visitor regardless of background.
     faith_tradition: Optional[str] = Field(default=None, max_length=60)
+    # Parent's preferred Bible translation (see BIBLE_TRANSLATIONS above),
+    # so Bede's own quoting/paraphrasing of Scripture in Scripture & Bible
+    # Study, Saints & Catechism, and Morning Time aligns with the wording
+    # the family already reads at home, rather than defaulting to whichever
+    # translation Bede's own training happens to favor. Set alongside
+    # faith_tradition in ParentSetup.tsx's optional "session context" panel
+    # (see services/ai_service.py's _bible_translation_note). Not a closed
+    # enum here — an unrecognized value is simply not one of the picker's
+    # options, and the field is free enough to still be forward-compatible
+    # with a translation added to BIBLE_TRANSLATIONS later without a schema
+    # change.
+    bible_translation: Optional[str] = Field(default=None, max_length=40)
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
     # The session's hard stop, in minutes — on by default and there by

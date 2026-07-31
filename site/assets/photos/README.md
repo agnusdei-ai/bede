@@ -19,20 +19,22 @@ down, that Bede never fabricates.
 
 Set these in the `:root` block near the top of `site/index.html`.
 
-| Variable | Where it sits | What it wants |
+| Variable | Where it sits | Status |
 |---|---|---|
-| `--photo-hero` | Behind the logo, motto, and founder quote | Quiet and wide: a meadow, a hedgerow, morning light through a window onto a table. Nothing with a recognisable face. It sits under a 93% vellum wash, so only tone and texture survive — pick for mood, not detail. |
-| `--photo-curriculum` | Behind the subject grid, and again behind "What stays yours" | Books and study: a shelf of cloth-bound spines, an open book, a pressed fern on a page, a nature notebook with handwriting. Also heavily washed. |
-| `--photo-closing` | The dark band with the three steps and final call to action | The most visible of the three — it shows through a 90% ink wash as texture. Something with strong shape: a single tree, a field at dusk, a stack of books edge-on. |
+| `--photo-hero` | Behind the logo, motto, and founder quote | **`live-oak.jpg`** — sits under an 88% vellum wash, so it reads as a warm branch watermark rather than a photograph. |
+| `--photo-curriculum` | Behind the subject grid, and again behind "What stays yours" | **`meadow-grasses.jpg`** — under a 90% wash, a quiet green ground behind the cards. |
+| `--photo-closing` | The dark band with the three steps and final call to action | **Empty, deliberately.** Solid ink keeps the final call to action and the notes row crisp. If you do fill it, it wants strong shape — a single tree, a field at dusk, a stack of books edge-on — since it shows through an 82% ink wash and is the most visible of the three. |
 
-To activate one, replace `none`:
+To fill a slot, point the variable at the file:
 
 ```css
---photo-hero: url('/assets/photos/hero.jpg');
+--photo-closing: url('/assets/photos/whatever.jpg');
 ```
 
 Nothing else changes. The wash, the crop, and the text contrast are already
-handled by the band each slot belongs to.
+handled by the band each slot belongs to. Files are named for **what they
+are**, not which slot they occupy, so reassigning a photo is a one-line
+change and never a rename.
 
 ## Sourcing
 
@@ -61,9 +63,24 @@ still holds items that are not.
 Add a row here for each photo you commit, so the provenance lives beside
 the file rather than in someone's memory:
 
-| File | Source & item URL | Licence | Photographer |
+| File | Source | Licence | Photographer |
 |---|---|---|---|
-| _(none yet)_ | | | |
+| `live-oak.jpg` | Supplied by the founder (original camera file, IMG_4847) | Owned by Agnus Dei Technologies | Kristian Gonzalez |
+| `meadow-grasses.jpg` | Supplied by the founder (original camera file, IMG_4841) | Owned by Agnus Dei Technologies | Kristian Gonzalez |
+
+Both were shot at a public venue. Each was rotated to its true orientation
+from EXIF, then cropped **specifically** to remove things that should not
+appear on a marketing page:
+
+- `live-oak.jpg` keeps only the upper-left canopy. The original frame
+  contained several identifiable people and a restaurant deck; all of it
+  sits below the crop line.
+- `meadow-grasses.jpg` keeps the lower band of ivy and ornamental grasses.
+  The original frame included a third-party business sign, which sits well
+  above the crop line.
+
+If either is ever re-cropped from the original, **re-check both of those**
+before committing the result.
 
 ## Preparing the file
 

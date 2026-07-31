@@ -9,8 +9,21 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 3,
-      "terms": [1, 2, 3],
-      "concept_tags": ["character", "virtue", "family", "sacrifice", "growth", "sisterhood", "faith", "poverty"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "character",
+        "virtue",
+        "family",
+        "sacrifice",
+        "growth",
+        "sisterhood",
+        "faith",
+        "poverty"
+      ],
       "anti_twaddle": true,
       "notes": "A rich character study ideal for discussing virtue and the four temperaments. Each sister embodies different strengths and weaknesses. 'Which sister are you most like and why?'"
     },
@@ -21,8 +34,19 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 3,
-      "terms": [1, 2],
-      "concept_tags": ["justice", "courage", "loyalty", "merry-england", "adventure", "honor", "friendship"],
+      "terms": [
+        1,
+        2
+      ],
+      "concept_tags": [
+        "justice",
+        "courage",
+        "loyalty",
+        "merry-england",
+        "adventure",
+        "honor",
+        "friendship"
+      ],
       "anti_twaddle": true,
       "notes": "Pyle's prose is deliberately archaic — read aloud slowly. Excellent for discussing justice vs. law. 'Was Robin Hood right to steal from the rich? Why or why not?'"
     },
@@ -33,8 +57,19 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 3,
-      "terms": [2, 3],
-      "concept_tags": ["survival", "family", "resourcefulness", "nature", "Providence", "ingenuity", "creation"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "survival",
+        "family",
+        "resourcefulness",
+        "nature",
+        "Providence",
+        "ingenuity",
+        "creation"
+      ],
       "anti_twaddle": true,
       "notes": "The family's gratitude to God for provision runs throughout. Excellent natural history woven in — many animals the children encounter can be researched in nature study."
     },
@@ -45,8 +80,20 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 4,
-      "terms": [1, 2, 3],
-      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "character", "leadership", "courage"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "biography",
+        "virtue",
+        "ancient-greece",
+        "ancient-rome",
+        "character",
+        "leadership",
+        "courage"
+      ],
       "anti_twaddle": true,
       "notes": "Mater Amabilis considers Plutarch's Lives essential. Use age-appropriate selected passages. Read slowly, discuss each moral dilemma. 'What made Publicola a good leader?' Written narration begins here."
     },
@@ -57,8 +104,21 @@
       "subject": "nature_study",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["nature", "faith", "insects", "metamorphosis", "wonder", "allegory", "creation", "seasons"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "nature",
+        "faith",
+        "insects",
+        "metamorphosis",
+        "wonder",
+        "allegory",
+        "creation",
+        "seasons"
+      ],
       "anti_twaddle": true,
       "notes": "Nature stories with rich theological and moral depth — in the Mater Amabilis tradition of nature-faith integration. Ask: 'What does the caterpillar's transformation teach us?'"
     },
@@ -69,8 +129,20 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 3,
-      "terms": [1, 2, 3],
-      "concept_tags": ["british-history", "kings", "queens", "parliament", "heroism", "islands", "empire"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "british-history",
+        "kings",
+        "queens",
+        "parliament",
+        "heroism",
+        "islands",
+        "empire"
+      ],
       "anti_twaddle": true,
       "notes": "Narrative English history from the Romans to Queen Victoria. Marshall writes history as living story. One chapter per session — each is self-contained with a clear hero or crisis."
     },
@@ -81,8 +153,20 @@
       "subject": "saints",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["saints", "faith", "church-history", "courage", "martyrdom", "virtue", "reformation"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "saints",
+        "faith",
+        "church-history",
+        "courage",
+        "martyrdom",
+        "virtue",
+        "reformation"
+      ],
       "anti_twaddle": true,
       "notes": "Continue or complete this resource. By Year 3 the child may begin written narration of a saint's story. 'Write three sentences telling why this person was brave.'"
     },
@@ -93,8 +177,18 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [1],
-      "concept_tags": ["friendship", "home", "nature", "adventure", "community", "seasons", "loyalty"],
+      "terms": [
+        1
+      ],
+      "concept_tags": [
+        "friendship",
+        "home",
+        "nature",
+        "adventure",
+        "community",
+        "seasons",
+        "loyalty"
+      ],
       "anti_twaddle": true,
       "notes": "If not read in Year 2, excellent supplemental here. Grahame's prose lends itself to written narration of the descriptions — 'Describe the River Bank in your own words.'"
     },
@@ -105,8 +199,17 @@
       "subject": "nature_study",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [2],
-      "concept_tags": ["wildlife", "woodland", "observation", "animals", "naturalist", "wonder"],
+      "terms": [
+        2
+      ],
+      "concept_tags": [
+        "wildlife",
+        "woodland",
+        "observation",
+        "animals",
+        "naturalist",
+        "wonder"
+      ],
       "anti_twaddle": true,
       "notes": "If not completed in Year 1. Pair with nature notebook entries after each chapter — the child draws and describes the animal observed in the story."
     },
@@ -117,8 +220,19 @@
       "subject": "history",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["world-history", "civilizations", "medieval", "renaissance", "exploration", "timeline"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "world-history",
+        "civilizations",
+        "medieval",
+        "renaissance",
+        "exploration",
+        "timeline"
+      ],
       "anti_twaddle": true,
       "notes": "Complete if not finished in earlier years. By Year 3, add timeline entries as each chapter is read — a visual history spine grows with the child."
     },
@@ -129,8 +243,19 @@
       "subject": "nature_study",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2],
-      "concept_tags": ["birds", "observation", "habitats", "behavior", "seasons", "identification", "wonder"],
+      "terms": [
+        1,
+        2
+      ],
+      "concept_tags": [
+        "birds",
+        "observation",
+        "habitats",
+        "behavior",
+        "seasons",
+        "identification",
+        "wonder"
+      ],
       "anti_twaddle": true,
       "notes": "Burgess presents bird facts through story — Peter Rabbit learns about birds from Old Mother Nature. Children absorb real ornithology within a narrative frame."
     },
@@ -141,8 +266,18 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [2, 3],
-      "concept_tags": ["fairy-tale", "courage", "faith", "unseen-guidance", "goblins", "wonder"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "fairy-tale",
+        "courage",
+        "faith",
+        "unseen-guidance",
+        "goblins",
+        "wonder"
+      ],
       "anti_twaddle": true,
       "notes": "MacDonald's tales shaped both Lewis and Tolkien after him — the great-great-grandmother who is trusted before she is understood is classic MacDonald. 'Why does Irene believe her grandmother even when Curdie can't see her?'"
     },
@@ -153,16 +288,26 @@
       "subject": "science",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [3],
-      "concept_tags": ["astronomy", "constellations", "wonder", "creation", "night-sky", "observation"],
+      "terms": [
+        3
+      ],
+      "concept_tags": [
+        "astronomy",
+        "constellations",
+        "wonder",
+        "creation",
+        "night-sky",
+        "observation"
+      ],
       "anti_twaddle": true,
       "notes": "Rey's stargazing guide makes constellations memorable through redrawn shapes. Best in Term 3 for evening observation. Connect to the wonder of creation: 'God calls each star by name.'"
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 3 scope (Common Core domains 3.OA, 3.NBT, 3.NF, 3.MD, 3.G): multiplication and division fact fluency and the relationship between them; understanding unit fractions and simple fraction comparison; area and perimeter of rectangles; measuring time, liquid volume, and mass; classifying quadrilaterals by their properties. Mater Amabilis approach: keep reasoning aloud — 'why does that work?' — ahead of speed drills.",
     "art_music": "Composer: Antonio Vivaldi — vivid, programmatic music that paints a picture (The Four Seasons is an ideal entry point at this age). Artist: Pieter Bruegel the Elder — busy, story-filled scenes of everyday village life, excellent for 'what do you notice first, and what do you notice after looking longer?' Poet: Robert Frost — accessible, image-rich poems that reward a second reading.",
     "language_arts": "Grade 3: written narration begins in earnest this year (a paragraph, in the child's own hand, following the oral habit built in Years 1-2). Dictation of short studied passages continues. Grammar now names what the child has been noticing — parts of speech, simple sentence structure — through real sentences from that term's living books.",
-    "morning_time": "Scripture with brief discussion of its meaning, a hymn or folk song, and a Frost poem. A good place to connect the week's history reading (Our Island Story, Plutarch) to the growing timeline."
+    "mathematics": "Grade 3 scope (Common Core domains 3.OA, 3.NBT, 3.NF, 3.MD, 3.G): multiplication and division fact fluency and the relationship between them; understanding unit fractions and simple fraction comparison; area and perimeter of rectangles; measuring time, liquid volume, and mass; classifying quadrilaterals by their properties. Mater Amabilis approach: keep reasoning aloud — 'why does that work?' — ahead of speed drills.",
+    "morning_time": "Scripture with brief discussion of its meaning, a hymn or folk song, and a Frost poem. A good place to connect the week's history reading (Our Island Story, Plutarch) to the growing timeline.",
+    "scripture": "Year 3 scope — people who trusted and people who turned away: Joseph in Egypt from pit to palace; the plagues and the Exodus; the wilderness years; Joshua at Jericho; Gideon; Samson; David the shepherd, singer, and king; Solomon's wisdom; Elijah on Carmel; Daniel and the lions; Jonah. In the Gospels: the parables of the sower, the lost sheep, the prodigal son. Charlotte Mason approach: let the child notice the pattern themselves — ask what this person did when it was hard, rather than naming the virtue for them. Canon and translation are the family's own: follow whatever Bible they are reading and never assert that one tradition's canon, chapter ordering, or translation is the correct one. Teach the narrative and the moral law the text plainly states; leave denomination-specific doctrine — sacramental theology, church governance, a particular catechism's structure — to the family's own pastor, priest, or minister."
   }
 }

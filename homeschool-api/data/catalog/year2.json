@@ -9,8 +9,19 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2],
-      "concept_tags": ["friendship", "loyalty", "home", "adventure", "nature", "community", "character"],
+      "terms": [
+        1,
+        2
+      ],
+      "concept_tags": [
+        "friendship",
+        "loyalty",
+        "home",
+        "adventure",
+        "nature",
+        "community",
+        "character"
+      ],
       "anti_twaddle": true,
       "notes": "Rich in description of nature and friendship. Excellent for narration of character motivation — 'Why do you think Mole left his home that spring morning?'"
     },
@@ -21,8 +32,18 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 2,
-      "terms": [2, 3],
-      "concept_tags": ["survival", "self-reliance", "Providence", "resourcefulness", "faith", "isolation"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "survival",
+        "self-reliance",
+        "Providence",
+        "resourcefulness",
+        "faith",
+        "isolation"
+      ],
       "anti_twaddle": true,
       "notes": "Use a good children's abridgment. Natural narration prompt: 'How did Crusoe solve the problem of food?' Themes of Providence and trust in God run throughout."
     },
@@ -33,8 +54,20 @@
       "subject": "saints",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["faith", "pilgrimage", "allegory", "perseverance", "virtue", "salvation", "temptation"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "faith",
+        "pilgrimage",
+        "allegory",
+        "perseverance",
+        "virtue",
+        "salvation",
+        "temptation"
+      ],
       "anti_twaddle": true,
       "notes": "The greatest allegory in the English language. Ask: 'What do you think this place represents in our own lives?' Connects beautifully to catechism and virtue formation."
     },
@@ -45,8 +78,19 @@
       "subject": "nature_study",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["birds", "ornithology", "observation", "habitats", "migration", "identification"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "birds",
+        "ornithology",
+        "observation",
+        "habitats",
+        "migration",
+        "identification"
+      ],
       "anti_twaddle": true,
       "notes": "Pair with actual bird watching. Before reading about a bird, ask the child to describe any birds they have seen. After reading, go look for the bird together."
     },
@@ -57,8 +101,19 @@
       "subject": "nature_study",
       "type": "spine",
       "difficulty": 2,
-      "terms": [2, 3],
-      "concept_tags": ["wildlife", "naturalist", "animals", "survival", "wilderness", "observation", "sympathy"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "wildlife",
+        "naturalist",
+        "animals",
+        "survival",
+        "wilderness",
+        "observation",
+        "sympathy"
+      ],
       "anti_twaddle": true,
       "notes": "Seton pioneered nature writing from the animal's perspective. Builds deep sympathy for creation. Ask: 'What did you notice about how Lobo led his pack?'"
     },
@@ -69,8 +124,19 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["american-history", "exploration", "founding", "heroes", "courage", "democracy"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "american-history",
+        "exploration",
+        "founding",
+        "heroes",
+        "courage",
+        "democracy"
+      ],
       "anti_twaddle": true,
       "notes": "Narrative American history from discovery through the Civil War. One chapter per sitting. Excellent narration material — each chapter has a clear protagonist and conflict."
     },
@@ -81,8 +147,18 @@
       "subject": "history",
       "type": "supplemental",
       "difficulty": 1,
-      "terms": [1, 2],
-      "concept_tags": ["courage", "virtue", "history", "heroes", "honor", "sacrifice"],
+      "terms": [
+        1,
+        2
+      ],
+      "concept_tags": [
+        "courage",
+        "virtue",
+        "history",
+        "heroes",
+        "honor",
+        "sacrifice"
+      ],
       "anti_twaddle": true,
       "notes": "Continue from Year 1 if not completed, or revisit favorites. Excellent for copywork selection — Baldwin's prose is clear and memorable."
     },
@@ -93,8 +169,17 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [1],
-      "concept_tags": ["self-reliance", "growth", "courage", "rural-life", "education", "independence"],
+      "terms": [
+        1
+      ],
+      "concept_tags": [
+        "self-reliance",
+        "growth",
+        "courage",
+        "rural-life",
+        "education",
+        "independence"
+      ],
       "anti_twaddle": true,
       "notes": "If not read in Year 1, excellent here. Elizabeth Ann's transformation mirrors the Mater Amabilis philosophy of education — discovery over instruction."
     },
@@ -105,8 +190,19 @@
       "subject": "saints",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["saints", "faith", "church-history", "courage", "martyrdom", "virtue"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "saints",
+        "faith",
+        "church-history",
+        "courage",
+        "martyrdom",
+        "virtue"
+      ],
       "anti_twaddle": true,
       "notes": "Continue working through this rich resource. Pair stories with the liturgical calendar when possible — read about a saint near their feast day."
     },
@@ -117,8 +213,17 @@
       "subject": "nature_study",
       "type": "supplemental",
       "difficulty": 2,
-      "terms": [2],
-      "concept_tags": ["birds", "woodpeckers", "observation", "habitat", "behavior", "ornithology"],
+      "terms": [
+        2
+      ],
+      "concept_tags": [
+        "birds",
+        "woodpeckers",
+        "observation",
+        "habitat",
+        "behavior",
+        "ornithology"
+      ],
       "anti_twaddle": true,
       "notes": "A detailed, loving study of woodpeckers by a careful naturalist. Use alongside actual observation. Ask: 'What do woodpeckers eat and how do they find it?'"
     },
@@ -129,8 +234,20 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["allegory", "courage", "sacrifice", "faith", "adventure", "redemption", "wonder"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "allegory",
+        "courage",
+        "sacrifice",
+        "faith",
+        "adventure",
+        "redemption",
+        "wonder"
+      ],
       "anti_twaddle": true,
       "notes": "The first door into Narnia — read a chapter at a time, letting the wonder of a whole world behind a wardrobe unfold slowly. 'Why do you think Aslan let himself be bound, if he had the power not to be?'"
     },
@@ -141,16 +258,29 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 1,
-      "terms": [1, 2, 3],
-      "concept_tags": ["world-history", "civilizations", "timeline", "culture", "ancient", "medieval"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "world-history",
+        "civilizations",
+        "timeline",
+        "culture",
+        "ancient",
+        "medieval"
+      ],
       "anti_twaddle": true,
       "notes": "Continue from Year 1 or begin if not started. Narrative history that treats children as capable of engaging with real events and real people."
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 2 scope (Common Core domains 2.OA, 2.NBT, 2.MD, 2.G): addition and subtraction within 100, and mentally within 20; understanding place value to 1,000; measuring length with standard units; telling time to the nearest 5 minutes; working with money; partitioning shapes into equal shares (halves, thirds, fourths). Mater Amabilis approach: real objects and real problems (measuring the garden, making change) before any written algorithm.",
     "art_music": "Composer: Joseph Haydn — playful, good-humored, an easy step up from Year 1's Mozart (try the 'Surprise' Symphony). Artist: Claude Monet — Impressionist light and color on approachable, cheerful subjects (water lilies, haystacks, a garden). Look first in silence, narrate what is seen, then offer the title. Poet: Robert Louis Stevenson — A Child's Garden of Verses, written from a child's own point of view, ideal for this age.",
     "language_arts": "Grade 2: oral narration remains the main habit, but written narration is gently invited a few times a term — a sentence or two the child writes themselves, never required at length. Copywork lengthens to a full sentence from that day's living book. Grammar stays entirely observational: noticing capital letters and end punctuation in real sentences, not naming parts of speech yet.",
-    "morning_time": "A short Scripture passage with a moment spent on a single word or image in it, a hymn or folk song, and a Stevenson poem. Keep it brief and warm — a few minutes per element."
+    "mathematics": "Grade 2 scope (Common Core domains 2.OA, 2.NBT, 2.MD, 2.G): addition and subtraction within 100, and mentally within 20; understanding place value to 1,000; measuring length with standard units; telling time to the nearest 5 minutes; working with money; partitioning shapes into equal shares (halves, thirds, fourths). Mater Amabilis approach: real objects and real problems (measuring the garden, making change) before any written algorithm.",
+    "morning_time": "A short Scripture passage with a moment spent on a single word or image in it, a hymn or folk song, and a Stevenson poem. Keep it brief and warm — a few minutes per element.",
+    "science": "Year 2 scope — habitats and simple systems: where animals live and how they are suited to it; life cycles (butterfly, frog, bean); the seasons and what changes; materials and their properties; push, pull, and rolling; the sun as a source of light and warmth. Charlotte Mason approach: one careful observation, drawn and described, is worth more than a chapter summarised. Let the child's own question set the next step.",
+    "scripture": "Year 2 scope — the shape of the story: Adam and Eve; the Ark; the call of Abraham and the promise; Jacob and Esau; Moses and the burning bush; the Passover and the Red Sea; the Ten Commandments given; Ruth's loyalty; Samuel listening in the night; the boy Jesus in the Temple; the calming of the storm. Charlotte Mason approach: begin to ask 'what happened first, and then?' so the child holds a sequence, not just a scene. Wonder aloud with them rather than explaining. Canon and translation are the family's own: follow whatever Bible they are reading and never assert that one tradition's canon, chapter ordering, or translation is the correct one. Teach the narrative and the moral law the text plainly states; leave denomination-specific doctrine — sacramental theology, church governance, a particular catechism's structure — to the family's own pastor, priest, or minister."
   }
 }

@@ -1553,7 +1553,25 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
             plan = get_subject_plan(year, subject.value)
             return f"\n{plan}" if plan else ""
         note = get_catalog_note(year, subject.value)
-        context = f"\nCatalog books for this subject: {note}" if note else ""
+        if note:
+            context = f"\nCatalog books for this subject: {note}"
+        else:
+            # No book entries for this subject in this year. Before this
+            # fallback that meant the subject got NOTHING year-specific —
+            # only the grade-agnostic _SUBJECT_CONTEXT blurb — which was
+            # the single largest content gap in the catalog: `scripture`
+            # had no books in any year at all, and science/nature_study/
+            # saints each had years with none. A subject_plan is the same
+            # shape the four plan-only subjects above already use, so this
+            # reuses that path rather than inventing a third kind of note.
+            #
+            # Deliberately NOT attributed to Mater Amabilis, unlike
+            # get_catalog_note's book listings: these plans are written for
+            # this project. Only the book entries come from that published
+            # curriculum, and a plan must never be presented to a parent as
+            # though it did.
+            plan = get_subject_plan(year, subject.value)
+            context = f"\n{plan}" if plan else ""
         if subject == Subject.saints:
             catechism_note = get_catechism_note(config.grade)
             if catechism_note:

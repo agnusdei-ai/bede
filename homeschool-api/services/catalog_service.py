@@ -179,8 +179,17 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
     books = get_books(year, subject)
     spine_books = [b for b in books if b.get("type") == "spine"]
     supplemental_books = [b for b in books if b.get("type") == "supplemental"]
+    # "reference" is a real third type in the catalog (5 entries — the
+    # Handbook of Nature Study across several years), and it used to be
+    # dropped on the floor here: only spine/supplemental were collected, so
+    # a year whose ONLY entry for a subject was a reference book returned
+    # None and the subject silently fell back to grade-agnostic guidance.
+    # That was exactly the case for nature_study in Years 4-7 — a book was
+    # sitting in the catalog for each of them and never reached the prompt.
+    # Found by tests/test_catalog_coverage.py.
+    reference_books = [b for b in books if b.get("type") == "reference"]
 
-    if not spine_books and not supplemental_books:
+    if not spine_books and not supplemental_books and not reference_books:
         return None
 
     lines = [f"Mater Amabilis Year {year} — {subject.replace('_', ' ').title()} books:"]
@@ -196,6 +205,13 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
             f"{b['title']}" for b in supplemental_books[:3]
         )
         lines.append(f"Supplemental: {titles}")
+
+    if reference_books:
+        # Named distinctly from core/supplemental: a reference is something
+        # the parent consults and draws from, not something the child reads
+        # straight through, and Bede should treat it that way.
+        titles = ", ".join(f"{b['title']}" for b in reference_books[:3])
+        lines.append(f"Reference (for the parent to draw on, not read aloud whole): {titles}")
 
     return " ".join(lines)
 

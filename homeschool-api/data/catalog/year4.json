@@ -207,8 +207,18 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 3,
-      "terms": [2, 3],
-      "concept_tags": ["fairy-tale", "death", "faith", "comfort", "wonder", "providence"],
+      "terms": [
+        2,
+        3
+      ],
+      "concept_tags": [
+        "fairy-tale",
+        "death",
+        "faith",
+        "comfort",
+        "wonder",
+        "providence"
+      ],
       "anti_twaddle": true,
       "notes": "A strange, tender story that takes a child's questions about suffering and death seriously rather than brushing past them. 'What did Diamond come to understand about North Wind that frightened him at first?'"
     },
@@ -236,9 +246,10 @@
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 4 scope (Common Core domains 4.OA, 4.NBT, 4.NF, 4.MD, 4.G): multi-digit multiplication and division with understanding of the standard algorithm's reasoning, not just its steps; fraction equivalence and comparison; adding and subtracting fractions with like denominators; measurement problems involving area and perimeter; classifying two-dimensional shapes by angles and line properties. Mater Amabilis approach: pose real problems the child must reason through aloud before showing any procedure — 'why does this work?' matters more than speed.",
     "art_music": "Composer: Johann Sebastian Bach — structured, mathematical, foundational Baroque music that rewards close listening (a Brandenburg Concerto, a fugue, a chorale). Discuss the patterns the child can hear repeating. Artist: Rembrandt van Rijn — dramatic light and shadow, deeply observed portraits and biblical scenes. Ask what the light draws the eye toward first. Poet: Henry Wadsworth Longfellow — narrative poems with strong rhythm and historical imagination (Paul Revere's Ride fits naturally alongside this year's American history), good for a child ready for longer, story-driven verse.",
     "language_arts": "Grade 4: studied dictation begins this year — the child studies a passage first, then writes it from memory, building spelling and punctuation instinct rather than rote copying. Formal grammar starts (parts of speech, sentence structure) taught through real sentences from that term's living books, not isolated drill. Narration shifts from purely oral toward including some written narration.",
-    "morning_time": "A longer Scripture passage with brief discussion of its meaning, a hymn and folk song from that term's rotation, and Longfellow for poetry. This is also a good place to touch on the term's history timeline (George Washington's World) in a few connecting sentences."
+    "mathematics": "Grade 4 scope (Common Core domains 4.OA, 4.NBT, 4.NF, 4.MD, 4.G): multi-digit multiplication and division with understanding of the standard algorithm's reasoning, not just its steps; fraction equivalence and comparison; adding and subtracting fractions with like denominators; measurement problems involving area and perimeter; classifying two-dimensional shapes by angles and line properties. Mater Amabilis approach: pose real problems the child must reason through aloud before showing any procedure — 'why does this work?' matters more than speed.",
+    "morning_time": "A longer Scripture passage with brief discussion of its meaning, a hymn and folk song from that term's rotation, and Longfellow for poetry. This is also a good place to touch on the term's history timeline (George Washington's World) in a few connecting sentences.",
+    "scripture": "Year 4 scope — covenant and kingdom: the patriarchs revisited with more detail; the giving of the Law and what it asked; the judges as a cycle; the united kingdom under Saul, David, Solomon; the kingdom divided; the great prophets (Isaiah, Jeremiah) and what they warned; exile and return under Ezra and Nehemiah. Gospels: the Sermon on the Mount, beginning with the Beatitudes. Charlotte Mason approach: narration lengthens this year — expect a paragraph, not a sentence. Begin asking what a passage asks of the reader, not only what it reports. Canon and translation are the family's own: follow whatever Bible they are reading and never assert that one tradition's canon, chapter ordering, or translation is the correct one. Teach the narrative and the moral law the text plainly states; leave denomination-specific doctrine — sacramental theology, church governance, a particular catechism's structure — to the family's own pastor, priest, or minister."
   }
 }

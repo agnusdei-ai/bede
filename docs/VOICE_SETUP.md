@@ -1000,6 +1000,37 @@ hard to reason about from first principles alone, and "native also probably
 needs this" is a hypothesis, not a finding, until an actual trace confirms
 which specific call it was racing against.
 
+## Diagnosing a reported speech "echo"
+
+Open, as of this writing: a doubled/echoing voice has been reported on a
+current build. Root cause not yet found — the earlier fixes in #292 and
+#314 addressed one specific doubling (the browser `speechSynthesis`
+fallback playing *alongside* real backend audio) and are still in place,
+so whatever is happening now is something else.
+
+**The debug overlay only used to log failure paths** — an autoplay
+rejection, a fallback decision. During a normal-looking turn that happens
+to echo, it emitted nothing at all, so a capture came back empty and told
+you nothing. The TTS path is now instrumented on the success paths too, in
+both apps, specifically so one screenshot can distinguish the three
+plausible causes:
+
+| What the log shows | What it means |
+|---|---|
+| `TTS speak()` twice with the same `text="…"` for one turn | Duplication is **upstream**, in the turn-stream consumer batching speech segments — not in playback at all. |
+| Two `TTS backend playback STARTED` with no `ENDED` between | Two clips **overlapping on the shared `<audio>` element** — the doubled/"reverby" case. |
+| `TTS browser fallback STARTED` while a backend clip is playing | **Two different voices at once** — the #292/#314 class, not fully closed. |
+
+Also logged: `TTS processQueue start` (tutor only — the demo has no queue),
+playback `ENDED`/`ERROR`, and `TTS stop()` with the generation counter, so
+barge-in and subject-switch boundaries are visible and a superseded call
+resuming can be spotted by its stale `gen=`.
+
+To capture: open the session, toggle the debug overlay from the session
+header (the muted control set apart from the real session controls),
+reproduce the echo, screenshot the panel. The buffer holds 100 entries
+(`hooks/debugBus.ts`), so screenshot reasonably promptly after it happens.
+
 ## Troubleshooting: press-and-hold cuts off mid-sentence, or "the voice button is unreliable"
 
 Reported as press-and-hold feeling unreliable compared with other

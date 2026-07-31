@@ -161,6 +161,14 @@ export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
 // element that was blessed by a real play() at login is the standard
 // mitigation for that class of platform quirk (desktop Chrome and iOS
 // Safari don't need it, but reusing one element costs nothing there either).
+// Short preview of a line for the debug overlay's ring buffer — enough to
+// tell two utterances apart, or to spot the SAME one spoken twice, without
+// flooding the buffer. Bede's own generated speech, never the child's input.
+function ttsPreview(text: string): string {
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > 42 ? `${flat.slice(0, 42)}…` : flat
+}
+
 let sharedAudioEl: HTMLAudioElement | null = null
 function getSharedAudioElement(): HTMLAudioElement {
   if (!sharedAudioEl) sharedAudioEl = new Audio()
@@ -272,11 +280,19 @@ export function useTextToSpeech(speakToken: string | null = null) {
     audioRef.current = audio
     let played = false
     await new Promise<void>((resolve) => {
-      audio.onended = () => resolve()
-      audio.onerror = () => resolve()
+      audio.onended = () => {
+        logDebug(`TTS backend playback ENDED gen=${myGeneration}`)
+        resolve()
+      }
+      audio.onerror = () => {
+        logDebug(`TTS backend playback ERROR gen=${myGeneration}`)
+        resolve()
+      }
       audio.src = url
       audio.play()
-        .then(() => { played = true })
+        // Two STARTs with no ENDED between them means two clips overlapping
+        // on the shared element — a doubled/"reverby" Bede.
+        .then(() => { played = true; logDebug(`TTS backend playback STARTED gen=${myGeneration}`) })
         .catch((err) => {
           // autoplay-blocked or decode error — playback never started.
           // Arm a self-healing retry for the next real tap rather than
@@ -297,6 +313,9 @@ export function useTextToSpeech(speakToken: string | null = null) {
       if (!('speechSynthesis' in window)) { resolve(); return }
       resolveVoice().then((voice) => {
         if (generationRef.current !== myGeneration) { resolve(); return }
+        // A STARTED here while a backend clip is still playing is the
+        // two-different-voices-at-once case, directly.
+        logDebug(`TTS browser fallback STARTED gen=${myGeneration} voice=${voice?.name ?? 'default'}`)
         const utterance = new SpeechSynthesisUtterance(text)
         if (voice) utterance.voice = voice
         utterance.rate = 0.88
@@ -328,6 +347,7 @@ export function useTextToSpeech(speakToken: string | null = null) {
       audioRef.current = null
     }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    logDebug(`TTS stop() gen=${generationRef.current}`)
     setIsSpeaking(false)
   }, [])
 
@@ -339,6 +359,10 @@ export function useTextToSpeech(speakToken: string | null = null) {
     if (!clean) return
     generationRef.current += 1
     const myGeneration = generationRef.current
+    // First thing to check for any "Bede said it twice" report: this line
+    // appearing twice for one turn means the duplication is upstream in the
+    // turn-stream consumer, not in playback below.
+    logDebug(`TTS speak() gen=${myGeneration} text="${ttsPreview(clean)}"`)
     setIsSpeaking(true)
     const { spoke, configured, fetchedAudio } = await playBackendVoice(clean, myGeneration)
     // Bede's voice has no fallback to the browser's own default voice when

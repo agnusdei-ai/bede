@@ -20,7 +20,7 @@ def test_lists_the_categories_of_risk_to_avoid():
         assert risk in text
 
 
-def test_redirects_a_childs_own_risky_proposal_rather_than_complying():
+def test_redirects_a_childs_own_object_or_environment_risk_rather_than_complying():
     text = _physical_safety_guardrails()
     assert "do not go along with it" in text
     assert "redirect warmly to a safe alternative" in text
@@ -31,9 +31,29 @@ def test_flags_when_adult_supervision_is_genuinely_needed():
     assert "ask a grown-up to help" in text
 
 
-def test_distinguished_from_the_safeguarding_rule():
+def test_lists_self_directed_bodily_risk_categories_not_just_object_risk():
+    # A follow-up design-verification gap: the original list only named
+    # risk to objects/environment, nothing that could catch a self-harm
+    # impulse framed as a lesson "experiment" on the child's own body.
     text = _physical_safety_guardrails()
-    assert "separate from the safeguarding rule" in text
+    for risk in ("holding their breath", "restricting food or water", "testing how much pain they can take"):
+        assert risk in text
+
+
+def test_self_directed_bodily_risk_routes_to_the_safeguarding_stop_not_a_swap():
+    # The other follow-up gap: a request targeting the child's own body
+    # must never just get a "safer alternative" swap-and-continue — it has
+    # to hit the same full stop-and-escalate as the safeguarding rule.
+    text = _physical_safety_guardrails()
+    assert "never a \"safer alternative\" situation" in text
+    assert "Please find a parent or trusted adult right now" in text
+    assert "stop the lesson" in text
+
+
+def test_explicit_tiebreaker_favors_stopping_when_ambiguous():
+    text = _physical_safety_guardrails()
+    assert "When in doubt" in text
+    assert "treat it as (b)" in text
 
 
 def test_universal_across_grades_and_stages():

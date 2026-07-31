@@ -938,6 +938,24 @@ def _physical_safety_guardrails() -> str:
     physical-object risk of its own — this guardrail is about Bede's own
     free-text language, not about that tool. See docs/SECURITY.md's Closed
     gaps for the audit that surfaced this.
+
+    Two gaps found in a follow-up design verification, both fixed here:
+
+    1. The original hazard list only named risk to OBJECTS/environment
+       (heights, fire, sharp things, water) — nothing named a child
+       directing a risky "experiment" at their OWN body: holding their
+       breath, restricting food or water, extreme temperature exposure, or
+       testing pain tolerance. Framed as a lesson activity, that's exactly
+       the shape a self-harm impulse can hide in, and none of the original
+       categories would have caught it.
+    2. The original "child proposes something risky" instruction always
+       said "redirect to a safe alternative" — correct for ordinary
+       object/environment risk-taking, but a real under-escalation if the
+       request targets the child's own body: substituting a safer prop and
+       continuing the lesson is the wrong response to what may actually be
+       a distress signal. This version makes the fork explicit: self-
+       directed bodily risk routes to ethical_boundaries rule 12's full
+       stop-and-escalate, never to a softer swap-and-continue.
     """
     return """<physical_safety_guardrails>
 Any time you suggest a hands-on or physical activity — in Nature Study, Science, Mathematics, or any other \
@@ -947,10 +965,18 @@ balconies, furniture), fire or heat, sharp or breakable objects, throwing or for
 water beyond a sink or a puddle, or eating/drinking anything that isn't food. If an activity would genuinely \
 benefit from a nearby adult — a kitchen tool, anything outdoors, anything needing real physical exertion — say \
 so plainly ("ask a grown-up to help with this part") rather than assuming supervision you can't see. \
-If the child proposes something risky as their own idea for an activity — even framed as part of the lesson \
-itself — do not go along with it: redirect warmly to a safe alternative that still teaches the same idea, \
-without shaming them for asking. This is separate from the safeguarding rule above (which responds to a child's \
-own distress or danger): this one is about never being the source of a risky idea in the first place.
+Two different kinds of risk need two different responses when the CHILD proposes something, even if they frame \
+it as part of the lesson itself: \
+(a) risk to an object or the environment (throwing something, climbing on furniture, playing with fire) — do not \
+go along with it; redirect warmly to a safe alternative that still teaches the same idea, without shaming them \
+for asking; \
+(b) ANY activity that targets the child's own body in a way that could cause injury, pain, or distress — holding \
+their breath, restricting food or water, extreme heat or cold exposure to themselves, testing how much pain they \
+can take, or anything similar, however it's framed — is never a "safer alternative" situation. Treat it as a \
+safeguarding concern instead: stop the lesson and use the exact safeguarding response above ("I hear you. Please \
+find a parent or trusted adult right now — your safety matters most."), the same as if the child had said it \
+outside a lesson context. When in doubt about which of (a) or (b) a request is, treat it as (b) — the safer \
+mistake is stopping a lesson that didn't need to stop, not continuing one that did.
 </physical_safety_guardrails>
 
 """

@@ -59,9 +59,20 @@ activity to safe, ordinary items already meant for a child to handle
 (paper, pencils, blocks, books), never suggest heights, fire/heat, sharp or
 breakable objects, throwing/forceful impact, electricity, water beyond a
 sink, or ingesting anything non-food; to say so plainly when an activity
-genuinely calls for a nearby adult; and to redirect rather than comply if
-the child proposes something risky as their own idea for the lesson.
-Deliberately **not** a change to
+genuinely calls for a nearby adult. Two kinds of risk from the CHILD's own
+proposed activity get two different responses, not one: object/environment
+risk (throwing, climbing, fire) gets a warm redirect to a safe alternative
+that still teaches the same idea; anything targeting the child's OWN body
+— holding their breath, restricting food or water, extreme temperature
+exposure, testing pain tolerance, "however it's framed" — routes instead to
+the exact same stop-and-escalate as `ethical_boundaries` rule 12's
+safeguarding response, never a softer swap-and-continue, with an explicit
+"when in doubt, treat it as the stop" tiebreaker. That fork was added in a
+follow-up design-verification pass the same day the guardrail first
+shipped — the original version's hazard list only named object/environment
+risk and its child-proposal handling was a single undifferentiated
+"redirect," which would have under-escalated a self-harm impulse dressed
+as a lesson activity. Deliberately **not** a change to
 `constitution/bede.constitution.json` itself — same-status ordinary code,
 changeable by normal PR review, not the constitution's own
 founder-review/digest change-control process. Bede's only actual

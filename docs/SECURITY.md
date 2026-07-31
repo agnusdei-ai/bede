@@ -184,6 +184,35 @@ list as items are closed.
   normal PR review, not the constitution's own founder-review/digest
   change-control process. Covered by
   `tests/test_physical_safety_guardrails.py`.
+
+  **Follow-up design verification, same day.** Tracing a concrete scenario
+  through both this guardrail and the pre-existing safeguarding layer
+  (`moderation.py`'s `self_harm` category, `check_safeguarding`'s
+  deterministic patterns, `ethical_boundaries` rule 12's full stop)
+  surfaced two real composition gaps rather than confirming a clean
+  handoff between them:
+  1. The original hazard list only named risk to objects/environment
+     (heights, fire, sharp things, water) — nothing named a child
+     directing a risky "experiment" at their OWN body: holding their
+     breath, restricting food or water, extreme temperature exposure, or
+     testing pain tolerance. Framed as a lesson activity, that's exactly
+     the shape a self-harm impulse can hide in, and none of the original
+     categories would have caught it.
+  2. The original "child proposes something risky" instruction always
+     said "redirect to a safe alternative" — correct for ordinary object/
+     environment risk-taking, but a real under-escalation if the request
+     targets the child's own body: substituting a safer prop and
+     continuing the lesson is the wrong response to what may actually be
+     a distress signal wearing a lesson's framing.
+
+  Both closed in the same function: the hazard list now names self-
+  directed bodily risk explicitly, and the response is forked — object/
+  environment risk still gets the warm redirect-and-continue, but any
+  activity targeting the child's own body routes to the exact same
+  stop-and-escalate response as the safeguarding rule, with an explicit
+  "when in doubt, treat it as the stop" tiebreaker rather than leaving the
+  model to guess which path a borderline request belongs on. Verified via
+  4 new tests in the same file (9 total).
 - **Node 20 was end-of-life, and nothing in the toolchain said so, closed
   2026-07-30.** Follow-up to the sweep below, from asking the obvious next
   question: are node/npm actually clean *everywhere*, or just in the two

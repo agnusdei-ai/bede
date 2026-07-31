@@ -122,6 +122,28 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     }
   }, [mode])
 
+  // A release() that arrived BEFORE the server session finished opening.
+  //
+  // _start() begins recording synchronously but opens the streaming session
+  // over the network, so sessionIdRef is only set in that promise's .then().
+  // A short hold on a slow connection therefore reaches release() with no
+  // session yet — and release() used to just drop the turn on the floor:
+  // audio discarded, nothing uploaded, no error shown. Confirmed from a real
+  // debug capture: a 1041ms hold on cellular, ending in "voice stream
+  // produced nothing" and an "I didn't quite catch that" bubble.
+  //
+  // It compounded, too. release() doesn't bump attemptRef (only stop()
+  // does), so the late-resolving .then() still passed its staleness check
+  // and installed an SSE consumer plus a 4s chunk-upload interval for a turn
+  // that had already ended with a stopped recorder — and since nothing ever
+  // called finishVoiceStream, that consumer sat waiting until the stream
+  // died on its own.
+  //
+  // Holding the release here instead lets _start()'s .then() complete it the
+  // moment the session exists: the audio was already captured, so nothing is
+  // lost by finishing a beat late.
+  const pendingReleaseRef = useRef<{ attempt: number; blob: Blob | null } | null>(null)
+
   const clearHoldSafety = useCallback(() => {
     if (holdSafetyRef.current) clearTimeout(holdSafetyRef.current)
     holdSafetyRef.current = null
@@ -252,8 +274,27 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       startVoiceStream(token, language.slice(0, 2))
         .then((sessionId) => {
           if (attemptRef.current !== attempt) return // turn already ended
+          logDebug(`startVoiceStream opened session after ${Date.now() - holdStartedAtRef.current}ms`)
           sessionIdRef.current = sessionId
           consumeEvents(sessionId, attempt)
+
+          const pending = pendingReleaseRef.current
+          if (pending && pending.attempt === attempt) {
+            // The child already let go while this was in flight. Finish the
+            // turn now rather than starting a chunk timer for a recorder
+            // that has already stopped.
+            pendingReleaseRef.current = null
+            ;(async () => {
+              await uploadSnapshot(attempt, pending.blob)
+              try {
+                await finishVoiceStream(token, sessionId)
+              } catch (err) {
+                logDebug(`finishVoiceStream (deferred) failed: ${err instanceof Error ? err.message : String(err)}`)
+              }
+            })()
+            return
+          }
+
           chunkTimerRef.current = setInterval(() => uploadSnapshot(attempt), CHUNK_UPLOAD_INTERVAL_MS)
         })
         .catch((err) => {
@@ -269,6 +310,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
           // No streaming session, and no native fallback anymore — this turn
           // genuinely can't be transcribed at all.
           clearHoldSafety()
+          pendingReleaseRef.current = null
           setMode('idle')
           setMicError('unavailable')
         })
@@ -282,6 +324,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const stop = useCallback(() => {
     logDebug(`stop() (cancel) from mode=${modeRef.current}`)
     attemptRef.current += 1 // invalidates any in-flight chunk upload / SSE consumer
+    pendingReleaseRef.current = null // a cancel discards a deferred release too
     clearHoldSafety()
     clearChunkTimer()
     if (modeRef.current === 'recording') recorder.stopRecording()
@@ -318,11 +361,20 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     recorder.stopRecording()
     setMode('transcribing')
 
-    if (!token || !sessionId) {
-      // Never got a session at all — no SSE consumer running to bring this
-      // back to idle on its own.
+    if (!token) {
       clearHoldSafety()
       setMode('idle')
+      return
+    }
+    if (!sessionId) {
+      // The session hasn't opened yet. Park the already-captured audio and
+      // let _start()'s .then() finish this turn — see pendingReleaseRef.
+      // Deliberately stays in 'transcribing' (the UI already shows
+      // "Transcribing…", which is now honest rather than a lie) and keeps
+      // the hold-safety timer armed as the backstop for a session that
+      // never opens at all.
+      logDebug('release() before the session opened — deferring the final upload')
+      pendingReleaseRef.current = { attempt, blob: finalWavBlob }
       return
     }
     ;(async () => {

@@ -1000,6 +1000,81 @@ hard to reason about from first principles alone, and "native also probably
 needs this" is a hypothesis, not a finding, until an actual trace confirms
 which specific call it was racing against.
 
+## Troubleshooting: "I didn't quite catch that" on short holds, especially on cellular
+
+Caught from a real debug-panel capture on a phone, and the most damaging
+voice bug found so far — it silently threw away a child's whole answer.
+
+The trace:
+
+```
+[270187ms] holdStart type=pointerdown isSpeaking=false
+[270188ms] _start() attempt=6
+[270188ms] useVoiceRecorder.startRecording()
+[271228ms] holdEnd type=pointerup            <- 1041ms hold
+[271228ms] release() from mode=recording
+[271229ms] useVoiceRecorder.stopRecording()
+[272098ms] voice stream produced nothing after a 1910ms turn — surfacing to the user
+```
+
+**The race.** `_start()` starts the recorder synchronously, but opens the
+server-side streaming session over the network — `sessionIdRef` is only set
+inside `startVoiceStream(...).then()`. A short hold on a slow connection
+therefore reaches `release()` while that request is still in flight, with
+`sessionIdRef.current` still `null`. `release()` used to treat that as
+unrecoverable:
+
+```js
+if (!token || !sessionId) {
+  clearHoldSafety()
+  setMode('idle')
+  return          // audio discarded — no upload, no finish, no error
+}
+```
+
+The captured audio was simply dropped. Nothing was uploaded, nothing was
+transcribed, and no error was surfaced — from the child's side, they spoke
+and Bede ignored them.
+
+**It compounded.** `release()` does not bump `attemptRef` (only `stop()`
+does), so when the session finally opened a moment later, the `.then()`
+still passed its staleness check and went on to install an SSE consumer
+*and* a `CHUNK_UPLOAD_INTERVAL_MS` timer for a turn that had already ended
+with a stopped recorder. Since nothing ever called `finishVoiceStream`,
+that consumer waited until the stream died on its own, then reported "voice
+stream produced nothing" and raised `no-speech-heard` — which is the
+`[272098ms]` line above and the "I didn't quite catch that" bubble the
+family actually sees. The stray chunk timer kept firing every 4 seconds
+against a recorder that had nothing left to give.
+
+**The fix** is to defer the release rather than discard it. A
+`pendingReleaseRef` parks the already-captured audio plus its attempt id;
+`_start()`'s `.then()` checks for it the instant the session opens and
+completes the turn immediately — uploading the final chunk and calling
+`finishVoiceStream` — instead of arming a chunk timer. The mode stays
+`transcribing` while parked, which is what the UI was already claiming, and
+the hold-safety timer stays armed as the backstop. `stop()` clears the
+parked release, since a cancel should discard it. If the session never
+opens at all, the existing retry-exhausted path clears it and surfaces
+`unavailable` rather than sitting in `transcribing` forever.
+
+Why it looked intermittent: it is purely a race between hold length and
+session-open latency. On a fast connection with a normal multi-second hold,
+the session is open long before release and nothing is wrong. Short holds,
+cellular, or a cold backend are what expose it — which is also why it hit a
+phone capture and not desktop testing.
+
+`startVoiceStream` success is now logged with the elapsed time
+(`startVoiceStream opened session after Nms`), which the trace above was
+missing entirely — there was no way to tell from a capture whether the
+session had opened before the release or not.
+
+Regression coverage lives in each app's `useHybridVoiceInput.test.ts`
+("release() arriving before the streaming session opens"), including a test
+that the ordinary fast-hold path still arms the chunk timer, so this cannot
+be "fixed" by never arming it. Two of those tests were confirmed to fail
+against the unfixed hook.
+
 ## Diagnosing a reported speech "echo"
 
 Open, as of this writing: a doubled/echoing voice has been reported on a

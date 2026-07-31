@@ -534,3 +534,141 @@ describe('useHybridVoiceInput audio session', () => {
     expect(restorePlaybackAudioSession).toHaveBeenCalled()
   })
 })
+
+// ── Release before the session opens ────────────────────────────────────────
+//
+// Regression tests for the race a real debug capture caught on cellular: a
+// short hold (~1s) reaches release() before startVoiceStream's promise has
+// resolved, so sessionIdRef is still null. release() used to discard the
+// whole turn silently — no upload, no finish, no error — and the
+// late-resolving .then() then armed an SSE consumer and a chunk timer for a
+// turn that had already ended, which sat until the stream died and reported
+// "voice stream produced nothing".
+describe('release() arriving before the streaming session opens', () => {
+  /** startVoiceStream that the test resolves by hand, to model a slow network. */
+  function deferredSession() {
+    let resolveIt: (id: string) => void = () => {}
+    const promise = new Promise<string>((r) => { resolveIt = r })
+    startVoiceStream.mockReturnValue(promise)
+    return { open: (id = 'sess-late') => resolveIt(id) }
+  }
+
+  it('uploads the captured audio once the session finally opens', async () => {
+    const session = deferredSession()
+    const events = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => events.stream())
+    const blob = new Blob(['the-childs-answer'])
+    snapshotWav.mockReturnValue(blob)
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 't' }))
+
+    await act(async () => { result.current.startHold() })
+    // Child lets go while the session request is still in flight.
+    await act(async () => { result.current.release() })
+
+    // Nothing lost, nothing sent yet.
+    expect(finishVoiceStream).not.toHaveBeenCalled()
+
+    await act(async () => { session.open('sess-late'); await flush() })
+
+    // The turn completes against the session that just opened.
+    expect(pushVoiceStreamChunk).toHaveBeenCalled()
+    expect(finishVoiceStream).toHaveBeenCalledWith('t', 'sess-late')
+  })
+
+  it('delivers the transcript for a turn released before the session opened', async () => {
+    const session = deferredSession()
+    const events = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => events.stream())
+    const onFinal = vi.fn()
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 't', onFinal }))
+
+    await act(async () => { result.current.startHold() })
+    await act(async () => { result.current.release() })
+    await act(async () => { session.open(); await flush() })
+
+    await act(async () => {
+      events.push({ type: 'final', text: 'Joseph forgave his brothers' })
+      events.push({ type: 'done' })
+      await flush()
+    })
+
+    expect(onFinal).toHaveBeenCalledWith('Joseph forgave his brothers')
+  })
+
+  it('does NOT start the periodic chunk timer for an already-released turn', async () => {
+    // The compounding half of the bug: a 4s interval uploading from a
+    // recorder that has already stopped.
+    vi.useFakeTimers()
+    try {
+      const session = deferredSession()
+      streamVoiceEvents.mockImplementation(() => pendingForever())
+
+      const { result } = renderHook(() => useHybridVoiceInput({ token: 't' }))
+      await act(async () => { result.current.startHold() })
+      await act(async () => { result.current.release() })
+      await act(async () => { session.open(); await vi.advanceTimersByTimeAsync(0) })
+
+      const callsAfterRelease = pushVoiceStreamChunk.mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+
+      expect(pushVoiceStreamChunk.mock.calls.length).toBe(callsAfterRelease)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stop() cancels a deferred release instead of sending it later', async () => {
+    const session = deferredSession()
+    streamVoiceEvents.mockImplementation(() => pendingForever())
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 't' }))
+    await act(async () => { result.current.startHold() })
+    await act(async () => { result.current.release() })
+    await act(async () => { result.current.stop() })
+    await act(async () => { session.open(); await flush() })
+
+    expect(finishVoiceStream).not.toHaveBeenCalledWith('t', 'sess-late')
+  })
+
+  it('surfaces an error when the session never opens at all', async () => {
+    vi.useFakeTimers()
+    try {
+      startVoiceStream.mockRejectedValue(new Error('offline'))
+      streamVoiceEvents.mockImplementation(() => pendingForever())
+
+      const { result } = renderHook(() => useHybridVoiceInput({ token: 't' }))
+      await act(async () => { result.current.startHold() })
+      await act(async () => { result.current.release() })
+      // Long enough to exhaust startVoiceStream's own retry schedule.
+      await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+
+      // Must not sit in 'transcribing' forever waiting on a session that
+      // will never exist.
+      expect(result.current.isTranscribing).toBe(false)
+      expect(result.current.micError).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('normal-speed holds are unaffected — the chunk timer still arms', async () => {
+    // Guards against "fixing" the race by simply never arming the timer.
+    vi.useFakeTimers()
+    try {
+      startVoiceStream.mockResolvedValue('sess-fast')
+      streamVoiceEvents.mockImplementation(() => pendingForever())
+
+      const { result } = renderHook(() => useHybridVoiceInput({ token: 't' }))
+      await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(0) })
+
+      const before = pushVoiceStreamChunk.mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(9_000) })
+
+      expect(pushVoiceStreamChunk.mock.calls.length).toBeGreaterThan(before)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

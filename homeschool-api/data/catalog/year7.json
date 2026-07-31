@@ -9,8 +9,19 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 5,
-      "terms": [1, 2, 3],
-      "concept_tags": ["french-revolution", "sacrifice", "justice", "resurrection", "social-upheaval", "redemption"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "french-revolution",
+        "sacrifice",
+        "justice",
+        "resurrection",
+        "social-upheaval",
+        "redemption"
+      ],
       "anti_twaddle": true,
       "notes": "Dickens at his most sweeping and morally serious. Pairs directly with this term's French history. 'Was Sydney Carton's sacrifice a waste, or the most meaningful thing he ever did?'"
     },
@@ -21,8 +32,16 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 4,
-      "terms": [1],
-      "concept_tags": ["mystery", "reasoning", "evidence", "fear", "deduction"],
+      "terms": [
+        1
+      ],
+      "concept_tags": [
+        "mystery",
+        "reasoning",
+        "evidence",
+        "fear",
+        "deduction"
+      ],
       "anti_twaddle": true,
       "notes": "Holmes's method is entirely about evidence over assumption — good pairing for a year emphasizing evidence-based writing. 'What clue did Holmes notice that everyone else dismissed?'"
     },
@@ -33,8 +52,19 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 5,
-      "terms": [1, 2, 3],
-      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "leadership", "rhetoric"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "biography",
+        "virtue",
+        "ancient-greece",
+        "ancient-rome",
+        "leadership",
+        "rhetoric"
+      ],
       "anti_twaddle": true,
       "notes": "Continuing the long rotation. The student should now argue for or against a leader's choices with real textual evidence, not just describe them."
     },
@@ -45,8 +75,18 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 5,
-      "terms": [1, 2, 3],
-      "concept_tags": ["french-revolution", "napoleon", "european-history", "revolution", "monarchy"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "french-revolution",
+        "napoleon",
+        "european-history",
+        "revolution",
+        "monarchy"
+      ],
       "anti_twaddle": true,
       "notes": "Ties directly to A Tale of Two Cities this term. 'What made the Revolution's ideals curdle into the Terror?'"
     },
@@ -57,8 +97,18 @@
       "subject": "saints",
       "type": "spine",
       "difficulty": 4,
-      "terms": [1, 2, 3],
-      "concept_tags": ["saints", "faith", "church-history", "courage", "conviction"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "saints",
+        "faith",
+        "church-history",
+        "courage",
+        "conviction"
+      ],
       "anti_twaddle": true,
       "notes": "Continuing the rotation. 'How did this person's faith hold up under real pressure to recant?'"
     },
@@ -69,8 +119,18 @@
       "subject": "science",
       "type": "spine",
       "difficulty": 4,
-      "terms": [1, 2, 3],
-      "concept_tags": ["microbiology", "scientific-method", "perseverance", "biography", "medicine"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "microbiology",
+        "scientific-method",
+        "perseverance",
+        "biography",
+        "medicine"
+      ],
       "anti_twaddle": true,
       "notes": "Pasteur's patient, repeated experiments against skepticism from the scientific establishment of his day. 'What kept Pasteur going when others dismissed his evidence?'"
     },
@@ -81,16 +141,26 @@
       "subject": "nature_study",
       "type": "reference",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["nature-journal", "observation", "reference", "outdoor-study"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "nature-journal",
+        "observation",
+        "reference",
+        "outdoor-study"
+      ],
       "anti_twaddle": true,
       "notes": "Continuing as a reference for whatever the student encounters outdoors."
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 7 scope (Common Core domains 7.RP, 7.NS, 7.EE, 7.G, 7.SP): proportional relationships and unit rates; operations with all rational numbers, including negative fractions and decimals; multi-step algebraic expressions and equations; scale drawings, angle relationships, circles, and surface area/volume; an introduction to probability and sampling. Mater Amabilis approach: 'is there another way to see this?' stays ahead of speed.",
     "art_music": "Composer: Pyotr Ilyich Tchaikovsky — dramatic, narrative orchestral and ballet music (the 1812 Overture ties directly to this year's Napoleonic-era history). Artist: Eugène Delacroix — Romantic, dramatic historical painting (Liberty Leading the People connects straight to the French Revolution unit). Poet: John Keats — rich, sensory Romantic-era verse, a natural pairing with Tchaikovsky and Delacroix's shared era and emotional register.",
     "language_arts": "Grade 7: sustained multi-paragraph essays are expected, and the student takes first steps into persuasive/argumentative writing that must cite evidence from the text, not just assert an opinion. Literary vocabulary expands (foreshadowing, symbolism, tone). Grammar instruction shifts toward sentence variety and style rather than rules in isolation.",
-    "morning_time": "Scripture with real theological discussion, a hymn or folk song, and Keats for poetry. Connect to the French Revolution unit when it fits, and invite a brief spoken or written response rather than passive listening."
+    "mathematics": "Grade 7 scope (Common Core domains 7.RP, 7.NS, 7.EE, 7.G, 7.SP): proportional relationships and unit rates; operations with all rational numbers, including negative fractions and decimals; multi-step algebraic expressions and equations; scale drawings, angle relationships, circles, and surface area/volume; an introduction to probability and sampling. Mater Amabilis approach: 'is there another way to see this?' stays ahead of speed.",
+    "morning_time": "Scripture with real theological discussion, a hymn or folk song, and Keats for poetry. Connect to the French Revolution unit when it fits, and invite a brief spoken or written response rather than passive listening.",
+    "scripture": "Year 7 scope — the early Church and the letters: Pentecost; the first community in Acts; Stephen; the conversion of Saul; the missionary journeys; the Jerusalem council; Paul's imprisonment and voyage to Rome. Romans and 1 Corinthians read for their argument, not verse by verse; James on faith and works; Hebrews on Christ as high priest. Charlotte Mason approach: ask what problem a letter is answering before asking what it teaches — the occasion explains the argument. Canon and translation are the family's own: follow whatever Bible they are reading and never assert that one tradition's canon, chapter ordering, or translation is the correct one. Teach the narrative and the moral law the text plainly states; leave denomination-specific doctrine — sacramental theology, church governance, a particular catechism's structure — to the family's own pastor, priest, or minister."
   }
 }

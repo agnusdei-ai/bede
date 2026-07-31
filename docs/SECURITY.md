@@ -150,6 +150,39 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Scripture quoting had no public-domain/copyright distinction, closed
+  2026-07-31.** Found on an explicit instruction not to let Bede present
+  non-factual claims — including invented or unverifiable wording of a
+  copyrighted Bible translation — as though they were exact. Before this,
+  `_bible_translation_note` (`services/ai_service.py`) told Bede to
+  "favor" whichever of the 11 `BIBLE_TRANSLATIONS` a family picked,
+  uniformly, with no distinction between KJV/Douay-Rheims (genuinely
+  public domain) and the other nine (NKJV, ESV, NIV, NASB, NLT, CSB,
+  RSV-CE, NABRE, NRSV-CE — modern, actively copyrighted translations,
+  each owned by its own publisher). Bede has no verified, licensed copy of
+  any of those nine translations' exact text — only whatever it happened
+  to learn during training, which is neither guaranteed accurate to that
+  specific translation's wording nor something this app has a license to
+  reproduce at length. Encouraging Bede to "favor" that wording risked two
+  compounding problems at once: presenting hallucinated phrasing as if it
+  were a real quotation (a factual-accuracy failure — the constitution's
+  first non-negotiable rule), and reproducing a publisher's actual
+  copyrighted text at length without a license (a legal exposure this app
+  had never assessed).
+
+  `PUBLIC_DOMAIN_BIBLE_TRANSLATIONS` (`models/schemas.py`) now splits the
+  11 translations into the two genuinely public-domain ones and the nine
+  that aren't. For a public-domain pick, behavior is unchanged — Bede
+  still favors that wording freely. For a copyrighted pick,
+  `_bible_translation_note` now tells Bede to paraphrase Scripture in its
+  own words by default, keep any direct quotation to a single short,
+  widely-known verse, always cite book/chapter/verse so the family can
+  check the exact text themselves, and never present a longer or
+  uncertain passage as though it were that translation's precise wording.
+  `ParentSetup.tsx`'s hint text states the distinction plainly to the
+  parent rather than leaving it implicit. Covered by the new
+  `tests/test_bible_translation_note.py` (this feature, from PR #323, had
+  shipped without its own dedicated test file — added here too).
 - **Bede's own hands-on suggestions had no dedicated physical-safety
   guardrail, closed 2026-07-31.** Found by auditing what the constitution's
   non-negotiable "protect the full dignity, privacy, safety, and

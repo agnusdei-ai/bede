@@ -30,6 +30,7 @@ from models.schemas import (
     CompanionMode,
     SUBJECT_LABELS,
     SessionSummaryRequest,
+    PUBLIC_DOMAIN_BIBLE_TRANSLATIONS,
 )
 from core.audit import AuditEvent, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
@@ -1281,14 +1282,46 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     services/prayer_catalog.py's daily prayer rotation is — Bede still
     quotes/paraphrases from its own knowledge, just oriented toward the
     stated translation's wording rather than an unstated default.
+
+    Public-domain/copyrighted split, added on an explicit instruction not
+    to let Bede present unverified wording as fact: KJV and Douay-Rheims
+    are public domain (models/schemas.py's PUBLIC_DOMAIN_BIBLE_TRANSLATIONS)
+    — Bede may favor their wording as freely as its own knowledge allows,
+    same as before this split existed. Every other option (NKJV, ESV, NIV,
+    NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE) is a modern, actively
+    copyrighted translation Bede was never given a verified, licensed copy
+    of — only its own general training, which is neither guaranteed
+    accurate to that specific translation's wording nor something this app
+    has a license to reproduce at length. For those, the note asks Bede to
+    paraphrase by default, keep any direct quotation to a single short,
+    widely-known verse, always cite book/chapter/verse so the family can
+    check the exact text themselves, and never present a longer or
+    uncertain passage as though it were that translation's precise
+    wording. This is the constitution's "never fabricate certainty" rule
+    applied specifically to a licensed text Bede cannot verify — the same
+    failure mode as inventing a fact or a source, not a separate concern.
     """
     translation = _sanitize_parent_field(config.bible_translation, max_len=40)
     if not translation or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
         return ""
+    if translation in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS:
+        return (
+            f"\nThis family reads the Bible in the {translation} translation, which is in the public "
+            f"domain. When quoting or paraphrasing Scripture, favor {translation}'s wording and phrasing "
+            "so it sounds familiar to what the child hears at home, rather than defaulting to a "
+            "different translation's language."
+        )
     return (
-        f"\nThis family reads the Bible in the {translation} translation. When quoting or paraphrasing "
-        f"Scripture, favor {translation}'s wording and phrasing so it sounds familiar to what the child "
-        "hears at home, rather than defaulting to a different translation's language."
+        f"\nThis family reads the Bible in the {translation} translation. {translation} is a modern, "
+        "copyrighted translation, and you were never given a verified, licensed copy of its exact "
+        "wording — only your own general training, which may not match it precisely. So: paraphrase "
+        f"Scripture in your own words by default rather than presenting a passage as an exact {translation} "
+        "quotation; a single short, widely-known verse is fine to quote directly, but never present a "
+        f"longer or less certain passage as though it were {translation}'s precise wording when you "
+        "cannot actually verify that it is. Always cite the book, chapter, and verse so the family can "
+        "look up the exact text themselves. Presenting invented or uncertain wording as an exact "
+        "quotation would be its own kind of false certainty — the same thing you'd never do with a fact "
+        "or a source."
     )
 
 

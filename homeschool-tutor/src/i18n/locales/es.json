@@ -223,7 +223,7 @@
     "faithTraditionHint": "Ayuda a Bede a enmarcar Escritura y Estudio Bíblico / Santos y Catecismo de forma coherente con su propia iglesia, sin asumir la doctrina de una tradición específica.",
     "bibleTranslation": "Traducción Bíblica Preferida",
     "bibleTranslationDefault": "Sin preferencia",
-    "bibleTranslationHint": "Cuando Bede cite o parafrasee las Escrituras, favorecerá el lenguaje de esta traducción para que suene familiar a lo que su hijo escucha en casa.",
+    "bibleTranslationHint": "Para KJV o Douay-Rheims (dominio público), Bede favorecerá ese lenguaje directamente. Para cualquier otra traducción, que tiene derechos de autor, Bede parafrasea por defecto y mantiene las citas directas breves, ya que no puede garantizar el texto exacto que nunca tuvo licencia para reproducir.",
     "curriculumResources": "Recursos curriculares que ya usa",
     "curriculumResourcesPlaceholder": "p. ej. RightStart Mathematics, Logic of English",
     "curriculumResourcesHint": "Bede se inclinará por términos y enfoques familiares cuando coincidan naturalmente — nunca afirma conocer ni reproducir el contenido real de las lecciones de una editorial.",

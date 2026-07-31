@@ -9,6 +9,7 @@ Functions:
   search_books(query)                       -> full-text search across title/author/tags
   get_catalog_note(year, subject)           -> brief context note for the AI subject prompt
   get_catechism_note(grade)                 -> Faith and Life grade-level orientation for `saints`
+  get_bible_translation_permission(code)    -> sourced copyright-permission data for a translation
 """
 
 import json
@@ -22,6 +23,7 @@ log = logging.getLogger(__name__)
 _DATA_DIR = Path(__file__).parent.parent / "data" / "catalog"
 _VISUAL_AIDS_FILE = Path(__file__).parent.parent / "data" / "visual_aids.json"
 _CATECHISM_FILE = Path(__file__).parent.parent / "data" / "catechism" / "faith_and_life.json"
+_BIBLE_PERMISSIONS_FILE = Path(__file__).parent.parent / "data" / "bible_translations" / "copyright_permissions.json"
 
 # _CATALOG: year (int) -> {"year": int, "description": str, "books": list[dict]}
 _CATALOG: dict[int, dict] = {}
@@ -34,6 +36,10 @@ _VISUAL_AIDS: dict[str, dict] = {}
 
 # _CATECHISM: grade (str, e.g. "1".."8") -> {"book_title": str, "theme": str, "topics": list[str]}
 _CATECHISM: dict[str, dict] = {}
+
+# _BIBLE_PERMISSIONS: translation code (str, e.g. "ESV") -> {"publisher": str,
+# "free_quote_verses" or "free_quote_words": int, "conditions": str, "source": str, ...}
+_BIBLE_PERMISSIONS: dict[str, dict] = {}
 
 
 def _load_catalog() -> None:
@@ -95,9 +101,31 @@ def _load_catechism() -> None:
         log.warning("Failed to load catechism file %s: %s", _CATECHISM_FILE, exc)
 
 
+def _load_bible_permissions() -> None:
+    """Load the researched, sourced Bible-translation copyright-permission
+    data. See data/bible_translations/copyright_permissions.json's own
+    _comment for the sourcing standard and what this is/isn't (a licensing
+    policy's stated numbers, never the translations' own copyrighted
+    text)."""
+    if not _BIBLE_PERMISSIONS_FILE.exists():
+        log.info(
+            "Bible translation permissions file not found: %s — _bible_translation_note "
+            "won't have real per-publisher figures", _BIBLE_PERMISSIONS_FILE,
+        )
+        return
+    try:
+        with _BIBLE_PERMISSIONS_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        _BIBLE_PERMISSIONS.update(data.get("translations", {}))
+        log.info("Bible translation permissions loaded: %d translations", len(_BIBLE_PERMISSIONS))
+    except (json.JSONDecodeError, KeyError) as exc:
+        log.warning("Failed to load Bible translation permissions file: %s", exc)
+
+
 _load_catalog()
 _load_visual_aids()
 _load_catechism()
+_load_bible_permissions()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -271,3 +299,18 @@ def get_catechism_note(grade: str | None) -> str | None:
         f"Faith and Life Grade {grade} — \"{entry['book_title']}\" ({entry['theme']}). "
         f"This grade's topics include: {topics}."
     )
+
+
+def get_bible_translation_permission(translation: str) -> dict | None:
+    """
+    Return the researched, sourced copyright-permission entry for a
+    copyrighted Bible translation code (e.g. "ESV", "NABRE") — see
+    data/bible_translations/copyright_permissions.json. Returns None for a
+    public-domain translation (KJV, Douay-Rheims — not in this file at
+    all) or an unrecognized code, same "caller skips gracefully" contract
+    as get_catechism_note(). Raw dict, not prose — services/ai_service.py's
+    _bible_translation_note is what turns this into prompt text.
+    """
+    if not translation:
+        return None
+    return _BIBLE_PERMISSIONS.get(translation.strip())

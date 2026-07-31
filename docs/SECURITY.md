@@ -183,6 +183,30 @@ list as items are closed.
   parent rather than leaving it implicit. Covered by the new
   `tests/test_bible_translation_note.py` (this feature, from PR #323, had
   shipped without its own dedicated test file — added here too).
+
+  **Follow-up research pass, 2026-08-01.** Actually looked up each of the
+  nine copyrighted publishers' own stated permission-to-quote policy
+  (`data/bible_translations/copyright_permissions.json`, sourced via
+  WebSearch directly against each publisher's own permissions page,
+  cross-checked against an independent secondary source per entry — see
+  `docs/CONTENT_CONTRIBUTING.md`) rather than leaving the July 31 fix's
+  blanket "no license" framing unverified. The real numbers are generous
+  — 500 to 1,000 verses (5,000 words for NABRE, the unit the USCCB itself
+  states) without formal permission — far beyond anything a single
+  tutoring turn would ever approach, so licensing was never really the
+  operative constraint. `_bible_translation_note` now cites the family's
+  translation's real, sourced limit for transparency, while keeping the
+  actual behavioral constraint on accuracy (Bede still cannot verify its
+  own memorized wording against a licensed copy, independent of how
+  generous the license is) — a more honest, better-sourced version of the
+  same underlying rule, not a loosening of it. Also added an explicit
+  closing line so the accuracy caution can't be misread as license to
+  thin out Socratic narrative discussion of Scripture, which stays fully
+  governed by `Subject.scripture`'s own teaching context, untouched by
+  this fix. `tests/test_catalog_data_integrity.py` gained integrity
+  checks for the new data file (every copyrighted translation has an
+  entry, no stray entries for the two public-domain ones, every entry has
+  a real source URL).
 - **Bede's own hands-on suggestions had no dedicated physical-safety
   guardrail, closed 2026-07-31.** Found by auditing what the constitution's
   non-negotiable "protect the full dignity, privacy, safety, and

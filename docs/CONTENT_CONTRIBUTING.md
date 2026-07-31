@@ -119,7 +119,36 @@ Picture study (`art_music`) and history maps/artifacts. No image hosting —
 }
 ```
 
-### 4. Poetry — `services/poetry_catalog.py`
+### 4. Bible translation copyright permissions — `data/bible_translations/copyright_permissions.json`
+
+Publisher-stated permission-to-quote limits for the nine modern,
+copyrighted translations in `models.schemas.BIBLE_TRANSLATIONS` (KJV and
+Douay-Rheims are public domain and not listed here). A licensing-metadata
+file, same "metadata only, never the text itself" category as the
+catechism catalog above — it stores each publisher's own stated numbers
+(verses or words, plus conditions), never any Bible text. Feeds
+`services/catalog_service.py`'s `get_bible_translation_permission()`,
+consumed by `services/ai_service.py`'s `_bible_translation_note`.
+
+```json
+"ESV": {
+  "publisher": "Crossway",
+  "free_quote_verses": 500,
+  "conditions": "not more than half of any one Bible book, nor 25% or more of the quoting work; not permitted in a commentary or other biblical reference work",
+  "source": "https://www.crossway.org/permissions/"
+}
+```
+
+Sourced via WebSearch directly against each publisher's own
+permissions/copyright page (cross-checked against an independent
+secondary source where the primary page wasn't directly fetchable); see
+the file's own `_comment` for the full sourcing note and dated
+`researched_on` field. NABRE's entry uses `free_quote_words` instead of
+`free_quote_verses` since the USCCB states its own threshold in words, not
+verses — don't convert one to the other; keep the field name that matches
+what the publisher actually states.
+
+### 5. Poetry — `services/poetry_catalog.py`
 
 Verbatim public-domain Catholic poems/hymn-texts — see the sourcing
 standard above before adding here. Rotates weekly off the calendar (ISO
@@ -130,7 +159,7 @@ derived automatically from that grade set (never hand-maintained
 separately) and used only as a fallback when a session has a stage but no
 specific grade.
 
-### 5. Subject/stage guidance — `services/ai_service.py`
+### 6. Subject/stage guidance — `services/ai_service.py`
 
 Not a data file — plain Python dicts that are part of the system prompt:
 

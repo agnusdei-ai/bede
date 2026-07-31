@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { logDebug } from './debugBus'
+import i18n from '../i18n'
 
 /**
  * Bede's spoken voice.
@@ -79,29 +80,59 @@ const KNOWN_MALE_VOICE_NAMES = new Set([
   'Google US English Male',
 ])
 
-export function pickBestVoice(): SpeechSynthesisVoice | null {
+// Spanish TTS engines almost never put "male"/"female" in a voice name, so
+// the substring heuristics above find nothing to work with. These are exact
+// names shipped by common engines for Spanish male voices — the same
+// approach KNOWN_MALE_VOICE_NAMES takes for English, kept deliberately
+// short and conservative rather than guessing at every OEM's catalogue.
+const KNOWN_SPANISH_MALE_VOICE_NAMES = new Set([
+  'Jorge', 'Diego', 'Juan', 'Carlos', 'Javier',
+  'Microsoft Pablo - Spanish (Spain)',
+  'Microsoft Raul - Spanish (Mexico)',
+  'Microsoft Jorge - Spanish (Spain)',
+  'Google español',
+  'Google español de Estados Unidos',
+])
+
+/**
+ * Pick Bede's browser-fallback voice for a given language.
+ *
+ * `langPrefix` was previously hardcoded to English throughout, which meant a
+ * Spanish session fell back to an English voice reading Spanish text —
+ * audibly wrong, and the reason this takes a parameter now. Pass the
+ * session's own locale (i18n.language), not the device's.
+ */
+export function pickBestVoice(langPrefix = 'en'): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
 
+  const inLang = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().startsWith(langPrefix)
+
   const priorities = [
-    (v: SpeechSynthesisVoice) => KNOWN_MALE_VOICE_NAMES.has(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'en' && KNOWN_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'es' && KNOWN_SPANISH_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'en' && v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => inLang(v) && isMaleVoiceName(v.name),
     // Many Android/OEM TTS engines (Samsung's included) expose English
     // voices with no gender word in the name at all — nothing above can
     // match those. Rather than falling straight through to "just take the
     // first English voice" (which might be the one explicitly labeled
     // female), prefer any voice that ISN'T explicitly female first — an
     // unlabeled voice is a better bet than a confirmed-wrong one.
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && !isFemaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en'),
+    (v: SpeechSynthesisVoice) => inLang(v) && !isFemaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => inLang(v),
   ]
 
   for (const check of priorities) {
     const match = voices.find(check)
     if (match) return match
   }
-  return voices[0] ?? null
+  // English keeps its old last-resort "any voice at all" — that behaviour is
+  // long-standing and safe for English text. For any other language a
+  // wrong-language voice is worse than none: returning null leaves
+  // utterance.voice unset, so the engine picks from utterance.lang itself
+  // rather than reading Spanish aloud in an English voice.
+  return langPrefix === 'en' ? (voices[0] ?? null) : null
 }
 
 // Chrome — especially on Android — returns an EMPTY array from getVoices()
@@ -154,8 +185,8 @@ function waitForVoicesReady(): Promise<void> {
   return voicesReadyPromise
 }
 
-export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
-  return waitForVoicesReady().then(() => pickBestVoice())
+export function resolveVoice(langPrefix = 'en'): Promise<SpeechSynthesisVoice | null> {
+  return waitForVoicesReady().then(() => pickBestVoice(langPrefix))
 }
 
 // One <audio> element, reused for every turn's backend TTS playback rather
@@ -352,9 +383,16 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
   const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
     return new Promise((resolve) => {
       if (!isSupported) { resolve(); return }
-      resolveVoice().then((voice) => {
+      // The session's locale, not the device's — same rule the speech
+      // recognition language already follows (see SocraticChat/App).
+      const langPrefix = i18n.language === 'es' ? 'es' : 'en'
+      resolveVoice(langPrefix).then((voice) => {
         if (generationRef.current !== myGeneration) { resolve(); return }
         const utterance = new SpeechSynthesisUtterance(text)
+        // Always set, even when no voice matched: it is what lets the
+        // engine choose a Spanish voice of its own rather than reading
+        // Spanish text with whatever default it would otherwise use.
+        utterance.lang = langPrefix === 'es' ? 'es-MX' : 'en-GB'
         if (voice) utterance.voice = voice
         utterance.rate = 0.88     // slightly slower for children
         utterance.pitch = 0.92    // slightly lower — a warm, older male voice

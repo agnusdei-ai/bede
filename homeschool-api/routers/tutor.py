@@ -46,7 +46,7 @@ from services.document_extraction import extract_narration_text, UnsupportedNarr
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
-from services.voice_synthesis import synthesis_configured, synthesize_speech
+from services.voice_synthesis import AUDIO_MEDIA_TYPE, synthesis_configured, synthesize_speech
 
 log = logging.getLogger(__name__)
 
@@ -365,7 +365,7 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     headers = {"X-TTS-Configured": str(synthesis_configured())}
     if audio is None:
         return Response(status_code=204, headers=headers)
-    return Response(content=audio, media_type="audio/wav", headers=headers)
+    return Response(content=audio, media_type=AUDIO_MEDIA_TYPE, headers=headers)
 
 
 @router.post("/summary")

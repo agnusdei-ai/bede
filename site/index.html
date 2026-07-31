@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Agnus Dei Technologies</title>
-  <meta name="description" content="Agnus Dei Technologies. Meet Bede, an AI Socratic tutor for the classical homeschool inspired by Charlotte Mason. Explore the full curriculum." />
+  <meta name="description" content="Agnus Dei Technologies. Meet Bede, a Socratic AI tutor for the Christian classical homeschool — built for families of every Christian tradition, taught alongside the real books on your own shelf, with your child's data staying in your own house." />
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
     :root {
@@ -225,25 +225,27 @@
     }
 
     /* Curriculum tab colors — one per subject, like a school binder's own
-       colored divider tabs, so the ten subjects read as distinct at a
-       glance instead of one undifferentiated green list. Ten hues evenly
-       spaced around the full color wheel (36° apart, same saturation/
+       colored divider tabs, so the eleven subjects read as distinct at a
+       glance instead of one undifferentiated green list. Eleven hues evenly
+       spaced around the full color wheel (32.7° apart, same saturation/
        lightness throughout) so no two repeat and the list reads as one
        continuous spectrum top to bottom — every subject its own color,
        the way every learner is their own person. Scoped to the curriculum
-       section specifically: the OTHER .subject-grid further down the page
-       (the 3-card "Core Capabilities" list) isn't a subject list, so it
-       keeps the plain olive border. */
+       section specifically: the OTHER .subject-grid instances further down
+       the page (the faith modules, "Core Capabilities", and the record/
+       diagnostics cards) aren't subject lists, so they keep the plain
+       olive border. */
     .curriculum .subject-card:nth-child(1)  { border-left-color: #9e2e2e; } /* Morning Time — red, 0° */
-    .curriculum .subject-card:nth-child(2)  { border-left-color: #9e712e; } /* Living Books — orange, 36° */
-    .curriculum .subject-card:nth-child(3)  { border-left-color: #889e2e; } /* Mathematics — chartreuse, 72° */
-    .curriculum .subject-card:nth-child(4)  { border-left-color: #449e2e; } /* Nature Study — green, 108° */
-    .curriculum .subject-card:nth-child(5)  { border-left-color: #2e9e5b; } /* History & Geography — emerald, 144° */
-    .curriculum .subject-card:nth-child(6)  { border-left-color: #2e9e9e; } /* Language Arts — teal, 180° */
-    .curriculum .subject-card:nth-child(7)  { border-left-color: #2e5b9e; } /* Science — blue, 216° */
-    .curriculum .subject-card:nth-child(8)  { border-left-color: #442e9e; } /* Art & Music — indigo, 252° */
-    .curriculum .subject-card:nth-child(9)  { border-left-color: #882e9e; } /* Saints & Catechism — purple, 288° */
-    .curriculum .subject-card:nth-child(10) { border-left-color: #9e2e71; } /* Free Study — rose, 324° */
+    .curriculum .subject-card:nth-child(2)  { border-left-color: #9e6b2e; } /* Living Books — orange, 32.7° */
+    .curriculum .subject-card:nth-child(3)  { border-left-color: #949e2e; } /* Mathematics — chartreuse, 65.5° */
+    .curriculum .subject-card:nth-child(4)  { border-left-color: #579e2e; } /* Nature Study — green, 98.2° */
+    .curriculum .subject-card:nth-child(5)  { border-left-color: #2e9e42; } /* History & Geography — emerald, 130.9° */
+    .curriculum .subject-card:nth-child(6)  { border-left-color: #2e9e80; } /* Language Arts — teal, 163.6° */
+    .curriculum .subject-card:nth-child(7)  { border-left-color: #2e7f9e; } /* Science — cyan-blue, 196.4° */
+    .curriculum .subject-card:nth-child(8)  { border-left-color: #2e429e; } /* Art & Music — blue, 229.1° */
+    .curriculum .subject-card:nth-child(9)  { border-left-color: #572e9e; } /* Saints & Catechism — indigo, 261.8° */
+    .curriculum .subject-card:nth-child(10) { border-left-color: #942e9e; } /* Scripture & Bible Study — purple, 294.5° */
+    .curriculum .subject-card:nth-child(11) { border-left-color: #9e2e6b; } /* Free Study — rose, 327.3° */
 
     .subject-card h3 {
       font-family: Georgia, serif;
@@ -425,6 +427,51 @@
       color: #6a6a63;
     }
 
+    /* A row of small labels used to show breadth without a wall of prose —
+       currently the Bible translations Bede will match its wording to. */
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 0 0 1.5rem;
+    }
+
+    .pill {
+      font-family: Georgia, serif;
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+      color: var(--olive-600);
+      background: var(--parchment-50);
+      border: 1px solid var(--parchment-200);
+      border-radius: 999px;
+      padding: 0.3rem 0.85rem;
+    }
+
+    /* The quiet, load-bearing limits — where Bede deliberately stops. Set
+       apart from the surrounding cards so they read as a promise rather
+       than another feature. */
+    .callout {
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 1.25rem 1.5rem;
+      border-left: 4px solid var(--gold-500);
+      background: rgba(250, 237, 198, 0.35);
+      border-radius: 0.5rem;
+      text-align: left;
+    }
+
+    .callout p {
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.65;
+      color: #4a4a4a;
+    }
+
+    .callout p + p {
+      margin-top: 0.75rem;
+    }
+
     @media (max-width: 640px) {
       .workflow-strip {
         flex-direction: column;
@@ -466,16 +513,18 @@
 </head>
 <body>
   <div class="beta-banner">
-    <strong>Public beta now open.</strong> Free to use through August 25.
+    <strong>Public beta now open.</strong> Free to use through August 25 &mdash; every Christian family welcome.
   </div>
   <main class="hero">
     <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
     <h1>Agnus Dei Technologies</h1>
     <p class="motto">Form the whole child.</p>
     <p class="mission">
-      Bede guides your child through wonder, questions, and evidence.
-      Explore a classical homeschool education inspired by Charlotte
-      Mason, live today.
+      Bede guides your child through wonder, questions, and evidence &mdash;
+      alongside the real books already on your shelf. A classical education
+      inspired by Charlotte Mason, built for Christian families of every
+      tradition, running on hardware you control. You stay the teacher.
+      Bede sits beside you.
     </p>
     <div class="pillars">
       <div class="pillar">
@@ -512,12 +561,82 @@
     </div>
   </section>
 
+  <section class="feature" style="padding-top: 0;">
+    <div class="feature-inner">
+      <p class="feature-eyebrow">One Table, Many Traditions</p>
+      <h2>Built for Christian families, whatever your church</h2>
+      <p class="subhead">
+        Agnus Dei's roots are Catholic &mdash; the founder's, and the
+        Venerable Bede's. That is a history, not a gate. Bede is built so a
+        Baptist family, a Catholic family, a non-denominational family, and
+        an Anglican family can each sit down to the same tutor and get faith
+        formation that sounds like their own home, not somebody else's. Not
+        a watered-down middle. Your own.
+      </p>
+
+      <div class="subject-grid" style="margin-bottom: 2rem;">
+        <div class="subject-card">
+          <h3>Scripture &amp; Bible Study</h3>
+          <p>Bible narrative, memory verses, and the moral law the text plainly teaches. Deliberately denomination-neutral: Bede will not assert one tradition's doctrine, canon, or ordering as though every Christian holds it.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Saints &amp; Catechism</h3>
+          <p>The Catholic module, and openly so &mdash; saints, catechism, and virtue formation drawn from a real published catechism series. Unchanged, undiluted, and entirely optional.</p>
+        </div>
+        <div class="subject-card">
+          <h3>You Choose Which, or Neither</h3>
+          <p>These are two independent subjects, not one relabeled. Enable either, both, or neither per student. Nothing about the rest of the curriculum depends on your answer.</p>
+        </div>
+      </div>
+
+      <p class="feature-eyebrow">Your Words, Not Ours</p>
+      <p class="subhead" style="margin-bottom: 1.5rem;">
+        Tell Bede your family's church tradition in one short field and it
+        frames Scripture, Saints, and Morning Time to fit &mdash; without
+        assuming devotional practice you don't keep. Pick the Bible your
+        family already reads at the kitchen table, and Bede matches its
+        wording when it quotes.
+      </p>
+      <div class="pill-row">
+        <span class="pill">KJV</span>
+        <span class="pill">NKJV</span>
+        <span class="pill">ESV</span>
+        <span class="pill">NIV</span>
+        <span class="pill">NASB</span>
+        <span class="pill">NLT</span>
+        <span class="pill">CSB</span>
+        <span class="pill">RSV-CE</span>
+        <span class="pill">NABRE</span>
+        <span class="pill">NRSV-CE</span>
+        <span class="pill">Douay-Rheims</span>
+      </div>
+
+      <div class="callout">
+        <p>
+          <strong>Where Bede stops, on purpose.</strong> Bede is not a
+          spiritual advisor and must never become one. Doctrine, moral
+          counsel, and pastoral judgment stay with you and with your own
+          pastor, priest, deacon, or minister. When a child asks something
+          that belongs to them, Bede says so and sends it home.
+        </p>
+        <p>
+          Bede also never scores, measures, or quantifies your child's
+          faith. There is no engagement metric on prayer, no progress bar on
+          belief, and there never will be &mdash; that is written into
+          Bede's constitution as a rule, not left to a setting. A child's
+          spiritual life comes from the child, not from a number.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <section class="curriculum">
     <div class="curriculum-inner">
       <h2>The Curriculum</h2>
       <p class="subhead">
-        Explore ten subjects in a classical week inspired by Charlotte
-        Mason. Your child learns with Bede, session by session.
+        Eleven subjects in a classical week inspired by Charlotte Mason.
+        Pick the ones that belong in your family's day &mdash; your child
+        learns with Bede, session by session, book in hand.
       </p>
       <div class="subject-grid">
         <div class="subject-card">
@@ -526,7 +645,7 @@
         </div>
         <div class="subject-card">
           <h3>Living Books</h3>
-          <p>Classical literature &amp; narration</p>
+          <p>The classics and Great Books, read and narrated</p>
         </div>
         <div class="subject-card">
           <h3>Mathematics</h3>
@@ -557,6 +676,10 @@
           <p>Saints, catechism &amp; virtue formation</p>
         </div>
         <div class="subject-card">
+          <h3>Scripture &amp; Bible Study</h3>
+          <p>Bible narrative, memory verses &amp; the moral law</p>
+        </div>
+        <div class="subject-card">
           <h3>Free Study</h3>
           <p>Exploration the student directs</p>
         </div>
@@ -572,7 +695,8 @@
       <p class="subhead">
         Most digital tools treat learning like a factory line: rigid and
         fragmented. Bede works differently. Guide your child through the
-        Trivium in one place, with your judgment always in charge.
+        Trivium in one place, with real books in hand and your judgment
+        always in charge.
       </p>
 
       <div class="compare">
@@ -582,6 +706,8 @@
             <li><strong>Rigid and closed.</strong> Mass market apps lock families into one fixed path, leaving little room to guide your own child.</li>
             <li><strong>App fatigue.</strong> Separate tools for reading, narration, and progress tracking force parents to juggle logins instead of teaching.</li>
             <li><strong>Algorithmic chaos.</strong> General chatbots hallucinate. They ignore children's needs and carry no formation of their own.</li>
+            <li><strong>Screens instead of books.</strong> The device becomes the curriculum, and the shelf of real books quietly stops getting opened.</li>
+            <li><strong>Your child as the product.</strong> Learning data leaves the house, and you never quite learn where it went or who reads it.</li>
           </ul>
         </div>
         <div class="compare-col after">
@@ -590,6 +716,8 @@
             <li><strong>Your books, your pace.</strong> Choose the subjects, texts, and topics each day. Bede's character and safety rules stay fixed. No one changes them quietly, not even us.</li>
             <li><strong>One guided session.</strong> Bede blends Socratic dialogue, narration, and a parent summary into a single sitting, subject by subject.</li>
             <li><strong>Built for children, on purpose.</strong> Bede runs in an environment you host and encrypt yourself. It moderates content in real time, protecting family learning.</li>
+            <li><strong>The book stays central.</strong> Tell Bede what you are reading together and it anchors the conversation there &mdash; Aesop and Kipling in the early years, Shakespeare, Austen, Dickens, Plutarch, and Chesterton by the end of eighth grade.</li>
+            <li><strong>A record you actually own.</strong> Narration scores, mastery, and session summaries live in your own encrypted database, and one button deletes a student's data completely.</li>
           </ul>
         </div>
       </div>
@@ -609,6 +737,93 @@
           <h3>Fits Real Families</h3>
           <p>Set up to ten students in one pod, each with a grade level, subjects, and daily plan. Teach at the kitchen table or run a small cooperative, either way.</p>
         </div>
+        <div class="subject-card">
+          <h3>Start Small if You Want To</h3>
+          <p>New to homeschooling, or cautious about AI? Begin as a Book Companion &mdash; Bede simply discusses the book you are already reading, with a light touch and few interruptions. Add more structure when, and only when, you want it.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Pick Up Where You Left Off</h3>
+          <p>Note where an interrupted lesson actually stopped and Bede opens mid-thread the next day, instead of interviewing your child about what they remember. Your note always outranks Bede's own.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Adapts to How Your Child Learns</h3>
+          <p>Bede notices whether a learner does better writing, drawing, seeing, or talking it through, and shifts how it teaches. The Progress page shows you whether that is actually changing anything.</p>
+        </div>
+      </div>
+
+      <p class="feature-eyebrow">Adaptive Study, Real Evidence</p>
+      <h2>Diagnostics That Earn Their Keep</h2>
+      <p class="subhead">
+        Bede does not guess at what your child knows, and it does not quiz
+        them to find out. It watches the ordinary work of the lesson &mdash;
+        a narration given, a math problem reasoned through, a word sounded
+        out &mdash; and quietly builds a calibrated picture of where mastery
+        actually sits, so the next question lands in the right place.
+      </p>
+      <div class="subject-grid" style="margin-bottom: 2.5rem;">
+        <div class="subject-card">
+          <h3>Mathematics</h3>
+          <p>Skill-by-skill mastery estimates from how your child reasons during the lesson. When math is part of the day, the session summary reports the real movement, before and after &mdash; measured, not guessed.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Composition</h3>
+          <p>Narrations are scored against a rubric and rolled up over time, so growth in how a child tells back what they have read becomes visible instead of anecdotal.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Reading Foundations (K&ndash;2)</h3>
+          <p>One brief, playful phonics check woven into an early Language Arts session &mdash; never a drill, never announced &mdash; following a real scope and sequence from sounds through blending to sight words.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Language Exposure</h3>
+          <p>A Latin phrase for Rome, an Italian term for a sonata, a saint's own words in their own tongue. One at a time, in the lesson where it belongs, and Bede checks later whether it stuck.</p>
+        </div>
+      </div>
+
+      <p class="feature-eyebrow">Responsible AI at Home</p>
+      <h2>The Privacy Barriers, Stated Plainly</h2>
+      <div class="subject-grid" style="margin-bottom: 2.5rem;">
+        <div class="subject-card">
+          <h3>It Runs on Your Network</h3>
+          <p>Install Bede on a computer in your own house &mdash; Windows, Mac, Linux, even a Raspberry Pi. Children connect from their own tablets over your LAN. Nothing about the deployment requires our servers.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Encrypted Where It Sits</h3>
+          <p>Voice profiles, student plans, transcripts, and assessments are AES-256-GCM encrypted in your database. The database provider never sees plaintext.</p>
+        </div>
+        <div class="subject-card">
+          <h3>You Can Run It Fully Offline</h3>
+          <p>Point Bede at a language model running on your own machine and no lesson text leaves the house at all. Prefer a cloud model instead? Switch providers from the parent screen, mid-day, without touching a config file.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Guarded in Real Time</h3>
+          <p>Every message a child sends is checked before it reaches the tutor. Distress routes to a safeguarding response, not a lesson. Attempts to talk Bede out of its own rules are caught, logged, and redirected.</p>
+        </div>
+        <div class="subject-card">
+          <h3>A Digital System of Record</h3>
+          <p>Narration history, mastery snapshots, session summaries, and an encrypted audit log of every security event &mdash; a real record for a real school year, kept where you can see it.</p>
+        </div>
+        <div class="subject-card">
+          <h3>Deletion That Means Deletion</h3>
+          <p>One type-to-confirm button removes everything belonging to a student &mdash; transcripts, narrations, mastery, voice profile, the lot. Not archived. Gone.</p>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-bottom: 2.5rem;">
+        <p>
+          <strong>Responsible adoption is the point, not a feature.</strong>
+          Bede's persona, ethics, and hard limits live in a written
+          constitution that is checked for tampering every single time the
+          software starts &mdash; if it has been altered, Bede refuses to
+          run at all. No parent setting, no clever prompt from a child, and
+          no update from us can quietly override it.
+        </p>
+        <p>
+          Sessions stop on their own. Breaks are mandatory every hour. Bede
+          is a tutor and nothing more &mdash; never a priest, a therapist,
+          or a parent &mdash; and it will not pretend to remember a
+          conversation it never had. Teaching children to adopt this well
+          means showing them a tool with edges, so Bede has edges.
+        </p>
       </div>
 
       <p class="feature-eyebrow">See It in Action</p>
@@ -616,17 +831,17 @@
       <div class="workflow-strip">
         <div class="workflow-step">
           <strong>Set the Day</strong>
-          <span>Pick the subjects, grade level, and any current book or lesson focus, once, in Parent Setup.</span>
+          <span>Pick the subjects, grade level, the book you are reading together, and your family's own church tradition &mdash; once, in Parent Setup.</span>
         </div>
         <div class="workflow-arrow">&#10132;</div>
         <div class="workflow-step">
           <strong>Engage in Dialogue</strong>
-          <span>Bede leads a Socratic conversation across ten subjects, listening and adjusting to how your child answers.</span>
+          <span>Bede leads a Socratic conversation across eleven subjects, listening and adjusting to how your child answers.</span>
         </div>
         <div class="workflow-arrow">&#10132;</div>
         <div class="workflow-step">
           <strong>Review the Growth</strong>
-          <span>Review a real, measured summary after each session. Bede never scores or guesses at your child's inner or spiritual life.</span>
+          <span>Read a real, measured summary after each session, backed by the mastery record. Bede never scores or guesses at your child's inner or spiritual life.</span>
         </div>
       </div>
 
@@ -636,6 +851,8 @@
         <span>🔒 AES-256-GCM encrypted at rest</span>
         <span>🏠 Host it on your own network</span>
         <span>📖 Rooted in the classical tradition, inspired by Charlotte Mason</span>
+        <span>✝️ Welcoming every Christian tradition</span>
+        <span>📚 Built around the books you already own</span>
       </div>
     </div>
   </section>

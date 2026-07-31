@@ -4,7 +4,7 @@ import { useTranslation, Trans } from 'react-i18next'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle, BookMarked, X } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
-import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS } from '../types'
+import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS } from '../types'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import LicenseSettings from '../components/LicenseSettings'
@@ -103,6 +103,10 @@ interface StudentForm {
   current_unit: string
   faith_tradition: string
   bible_translation: string
+  // Comma-separated in the form, same convention as term_topics; parsed to
+  // string[] on save (up to 6 — see models/schemas.py's
+  // _validate_curriculum_resources).
+  curriculum_resources: string
   voice_required: boolean
   appearance_locked: boolean
   session_cap_minutes: number
@@ -135,6 +139,7 @@ const blankStudent = (): StudentForm => ({
   current_unit: '',
   faith_tradition: '',
   bible_translation: '',
+  curriculum_resources: '',
   voice_required: true,
   appearance_locked: false,
   session_cap_minutes: 120,
@@ -170,6 +175,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     current_unit: c.current_unit ?? '',
     faith_tradition: c.faith_tradition ?? '',
     bible_translation: c.bible_translation ?? '',
+    curriculum_resources: (c.curriculum_resources ?? []).join(', '),
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
     session_cap_minutes: c.session_cap_minutes ?? 120,
@@ -193,7 +199,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     })),
     voice_narration_enabled: c.voice_narration_enabled ?? true,
     // Already-filled context shouldn't hide behind a collapsed toggle.
-    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition || c.bible_translation),
+    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition || c.bible_translation || c.curriculum_resources?.length),
   }
 }
 
@@ -287,6 +293,7 @@ export default function ParentSetup() {
       current_unit: s.current_unit.trim() || undefined,
       faith_tradition: s.faith_tradition.trim() || undefined,
       bible_translation: s.bible_translation.trim() || undefined,
+      curriculum_resources: s.curriculum_resources.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 6),
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
       companion_mode: s.companion_mode,
@@ -1081,6 +1088,40 @@ function StudentCard({
                   <p className="text-xs text-gray-400 mt-1">{t('parentSetup.bibleTranslationHint')}</p>
                 </div>
               )}
+              <div>
+                <label className="label">{t('parentSetup.curriculumResources')}</label>
+                <input
+                  type="text"
+                  value={student.curriculum_resources}
+                  onChange={(e) => onUpdate({ curriculum_resources: e.target.value })}
+                  placeholder={t('parentSetup.curriculumResourcesPlaceholder')}
+                  className="input"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {CURRICULUM_RESOURCE_SUGGESTIONS.map((name) => {
+                    const already = student.curriculum_resources
+                      .split(',').map((r) => r.trim().toLowerCase()).includes(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={already}
+                        onClick={() => onUpdate({
+                          curriculum_resources: [student.curriculum_resources, name].filter(Boolean).join(', '),
+                        })}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          already
+                            ? 'bg-navy-50 border-navy-200 text-navy-400 cursor-default'
+                            : 'bg-white border-navy-200 text-navy-600 hover:bg-navy-50 cursor-pointer'
+                        }`}
+                      >
+                        {already ? `✓ ${name}` : `+ ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.curriculumResourcesHint')}</p>
+              </div>
               <div>
                 <label className="label">{t('parentSetup.noteForBede')}</label>
                 <textarea

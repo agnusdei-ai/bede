@@ -18,6 +18,7 @@ import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import DebugOverlay from './DebugOverlay'
 import { logDebug } from './debugBus'
+import { createHoldHandlers } from './holdGesture'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
 // visits never open, and keeping it out of the entry bundle makes first
 // paint lighter for everyone. It loads the moment the pencil is tapped
@@ -856,6 +857,27 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
     release()
   }
 
+  // Pointer wiring with capture — see holdGesture.ts. Without it, a finger
+  // drifting off this small button fired pointerleave -> holdEnd and ended
+  // the recording mid-sentence. State and callbacks live in refs so one
+  // gesture survives the re-renders startHold() itself triggers.
+  const holdGestureStateRef = useRef({ active: false, captured: false })
+  const holdStartRef = useRef(holdStart)
+  const holdEndRef = useRef(holdEnd)
+  holdStartRef.current = holdStart
+  holdEndRef.current = holdEnd
+  const holdHandlersRef = useRef<ReturnType<typeof createHoldHandlers> | null>(null)
+  if (holdHandlersRef.current === null) {
+    holdHandlersRef.current = createHoldHandlers(
+      {
+        onStart: (e) => holdStartRef.current(e),
+        onEnd: (e) => holdEndRef.current(e),
+      },
+      holdGestureStateRef.current,
+    )
+  }
+  const holdHandlers = holdHandlersRef.current
+
   const awaitingChildTurn =
     !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
 
@@ -1360,13 +1382,10 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
           </button>
           {sttSupported && (
             <button
-              onPointerDown={holdStart}
-              onPointerUp={holdEnd}
-              onPointerLeave={holdEnd}
-              onPointerCancel={holdEnd}
+              {...holdHandlers}
               disabled={isStreaming || sessionPaused || isTranscribing}
               title={isTranscribing ? t('chatScreen.transcribing') : (isListening ? t('chatScreen.micHoldListening') : t('chatScreen.micHoldToTalk'))}
-              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
+              className={`p-3 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
             >
               {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
             </button>

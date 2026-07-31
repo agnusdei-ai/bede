@@ -170,7 +170,7 @@ img.bede-portrait {
   margin: 0 auto 1rem;
 }
 
-a.cta {
+.cta {
   display: inline-block;
   background: var(--fern);
   color: var(--vellum);
@@ -184,12 +184,12 @@ a.cta {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-a.cta:hover {
+.cta:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
 }
 
-a.cta.gilt {
+.cta.gilt {
   background: var(--gilt-light);
   color: var(--ink);
 }
@@ -734,3 +734,111 @@ footer a {
 footer a:hover { color: var(--ink); }
 
 footer br { line-height: 2.4; }
+
+/* ── feedback/index.html ─────────────────────────────────────────────────
+   The marketing site is static — no backend, and the product's own
+   POST /feedback is behind require_auth, so an anonymous visitor has
+   nothing to post to. This form therefore assembles a readable email and
+   hands it to the visitor's mail client. No third-party form service,
+   which would put a tracker on the one page arguing that nothing leaves
+   your house. */
+.form-block {
+  max-width: 40rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.field {
+  margin: 0 0 1.75rem;
+  padding: 0 0 1.5rem;
+  border-bottom: 1px solid rgba(28, 36, 56, 0.1);
+}
+
+.field:last-of-type { border-bottom: 0; }
+
+.field > legend,
+.field > label.q {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0 0 0.35rem;
+  padding: 0;
+}
+
+.field .hint {
+  display: block;
+  font-size: 0.83rem;
+  line-height: 1.55;
+  color: #635f54;
+  margin: 0 0 0.85rem;
+}
+
+fieldset.field {
+  border: 0;
+  border-bottom: 1px solid rgba(28, 36, 56, 0.1);
+  margin-inline: 0;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.choices label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--prose);
+  cursor: pointer;
+}
+
+.choices input { margin-top: 0.28rem; accent-color: var(--fern); }
+
+.form-block input[type="text"],
+.form-block input[type="email"],
+.form-block textarea {
+  width: 100%;
+  font-family: Georgia, Cambria, serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(28, 36, 56, 0.18);
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.form-block textarea { min-height: 5.5rem; resize: vertical; }
+
+.form-block input:focus-visible,
+.form-block textarea:focus-visible {
+  outline: 2px solid var(--gilt);
+  outline-offset: 1px;
+}
+
+/* The feedback form's submit control is a <button>, so the call-to-action
+   rules above are element-agnostic (.cta, not a.cta) and this only resets
+   what a button brings of its own. */
+button.cta {
+  border: 0;
+  cursor: pointer;
+}
+
+.form-note {
+  max-width: 40rem;
+  margin: 1.25rem auto 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #635f54;
+  text-align: left;
+}
+
+.form-note code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}

@@ -27,6 +27,24 @@ BIBLE_TRANSLATIONS = [
     "RSV-CE", "NABRE", "NRSV-CE", "Douay-Rheims",
 ]
 
+# Of BIBLE_TRANSLATIONS above, these two are the ones actually in the public
+# domain: KJV (in the US and virtually every jurisdiction that matters here)
+# and the Challoner-revision Douay-Rheims (predates any modern copyright).
+# Every other option — NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE
+# — is a modern, actively copyrighted translation owned by its own publisher
+# (Crossway, Biblica, the Lockman Foundation, Tyndale, Holman, the USCCB for
+# NABRE, and so on). Bede was never given a verified, licensed copy of any of
+# those texts to quote from — only whatever it happened to learn during
+# training, which is neither guaranteed accurate nor something this app has
+# a license to reproduce at length. services/ai_service.py's
+# _bible_translation_note treats the two groups differently for exactly that
+# reason: freely favor wording for a public-domain translation, but default
+# to paraphrase (never presenting invented or uncertain wording as an exact
+# quotation) for a copyrighted one — the same "never fabricate certainty"
+# rule the constitution already states, applied here to text Bede cannot
+# verify it has permission or accurate memory to reproduce.
+PUBLIC_DOMAIN_BIBLE_TRANSLATIONS = {"KJV", "Douay-Rheims"}
+
 # Curriculum publishers commonly used alongside Bede by classical/Christian
 # homeschool families, offered as quick-pick suggestions for
 # SessionConfig.curriculum_resources — NOT a closed enum (a family's own

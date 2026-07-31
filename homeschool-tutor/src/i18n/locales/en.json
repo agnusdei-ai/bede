@@ -223,7 +223,7 @@
     "faithTraditionHint": "Helps Bede frame Scripture & Bible Study / Saints & Catechism consistently with your own church, without assuming a specific tradition's doctrine.",
     "bibleTranslation": "Primary Bible Translation",
     "bibleTranslationDefault": "No preference",
-    "bibleTranslationHint": "When Bede quotes or paraphrases Scripture, it will favor this translation's wording so it sounds familiar to what your child hears at home.",
+    "bibleTranslationHint": "For KJV or Douay-Rheims (public domain), Bede will favor that wording directly. For any other translation, which is copyrighted, Bede paraphrases by default and keeps direct quotes short, since it can't guarantee exact wording it was never licensed to reproduce.",
     "curriculumResources": "Curriculum Resources You Already Use",
     "curriculumResourcesPlaceholder": "e.g. RightStart Mathematics, Logic of English",
     "curriculumResourcesHint": "Bede will lean into familiar terms and approach where they naturally overlap — it never claims to know or reproduce a publisher's actual lesson content.",

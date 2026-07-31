@@ -198,6 +198,12 @@
       color: var(--ink);
     }
 
+    .cta-sub {
+      margin: 0.75rem 0 2.25rem;
+      font-size: 0.85rem;
+      color: #635f54;
+    }
+
     .video-wrap {
       width: 100%;
       max-width: 36rem;
@@ -222,6 +228,14 @@
       border: 0;
     }
 
+    /* Click-to-play facade. Nothing is requested from YouTube until the
+       visitor actually asks for it — which matters on a page whose whole
+       argument is that your data stays where you put it. It also keeps a
+       third-party frame off the critical path for everyone who never
+       presses play. The real iframe replaces this on click.
+
+       Deliberately no thumbnail image: fetching one would mean a request
+       to YouTube on load, which is the exact thing this avoids. */
     .video-placeholder {
       position: absolute;
       inset: 0;
@@ -229,27 +243,55 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      background: var(--vellum-deep);
-      color: var(--fern-deep);
+      gap: 0.6rem;
+      width: 100%;
+      /* Dark rather than parchment: at 9:16 this is a tall panel, and on a
+         parchment page a tall parchment rectangle reads as something that
+         failed to load. Dark reads as a video. */
+      background: var(--ink);
+      color: rgba(250, 246, 236, 0.9);
+      border: 0;
+      font: inherit;
+      cursor: pointer;
+      text-align: center;
+      padding: 1rem;
     }
 
+    .video-placeholder[disabled] { cursor: default; }
+
     .video-placeholder span {
-      width: 3rem;
-      height: 3rem;
+      width: 3.25rem;
+      height: 3.25rem;
       border-radius: 50%;
-      background: var(--fern);
-      color: var(--vellum);
+      background: var(--gilt-light);
+      color: var(--ink);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
+      padding-left: 0.2rem; /* optically centre the triangle in the circle */
+      transition: transform 0.15s ease;
+    }
+
+    .video-placeholder:hover:not([disabled]) span { transform: scale(1.06); }
+
+    .video-placeholder:focus-visible {
+      outline: 3px solid var(--gilt);
+      outline-offset: -3px;
     }
 
     .video-placeholder p {
       margin: 0;
       font-size: 0.9rem;
       font-style: italic;
+    }
+
+    .video-placeholder small {
+      font-size: 0.75rem;
+      font-style: normal;
+      color: rgba(250, 246, 236, 0.7);
+      max-width: 16rem;
+      line-height: 1.5;
     }
 
     section {
@@ -559,6 +601,46 @@
       padding: 0 0.5rem;
     }
 
+    /* The guarantee. Given its own frame on the dark band because it is the
+       page's one binding commercial promise, and a promise that is easy to
+       skim past is worth nothing. */
+    .guarantee {
+      max-width: 40rem;
+      margin: 0 auto 2rem;
+      padding: 1.5rem 1.75rem;
+      text-align: left;
+      border: 1px solid rgba(224, 184, 74, 0.45);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .guarantee h3 {
+      margin: 0 0 0.6rem;
+      font-family: 'Palatino Linotype', Palatino, serif;
+      font-size: 1.15rem;
+      color: var(--gilt-light);
+    }
+
+    .guarantee p {
+      margin: 0 0 0.75rem;
+      font-size: 0.94rem;
+      line-height: 1.7;
+      color: rgba(250, 246, 236, 0.88);
+    }
+
+    .guarantee p:last-child { margin-bottom: 0; }
+
+    .cta-sub.light {
+      color: rgba(250, 246, 236, 0.72);
+      margin: 0.9rem 0 0;
+    }
+
+    .cta-sub.light a {
+      color: var(--gilt-light);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
     .notes {
       display: flex;
       flex-wrap: wrap;
@@ -623,6 +705,12 @@
         whys and hows, not only the whats. A classical education for
         Christian families of every tradition, on hardware you control.
       </p>
+      <img class="bede-portrait" src="/assets/bede-portrait.png" alt="Bede, your child's AI tutor" />
+      <a class="cta" href="/bede/">Meet Bede &rarr;</a>
+      <p class="cta-sub">Free to try. No account, no card.</p>
+      <!-- Pillars sit below the call to action on purpose: they are the
+           supporting philosophy, and putting them above pushed the button
+           off the first screen on both desktop and phone. -->
       <div class="pillars">
         <div class="pillar">
           <h3>Comprehension</h3>
@@ -638,8 +726,6 @@
         </div>
       </div>
       <div class="video-wrap" id="video-wrap"></div>
-      <img class="bede-portrait" src="/assets/bede-portrait.png" alt="Bede, your child's AI tutor" />
-      <a class="cta" href="/bede/">Meet Bede &rarr;</a>
     </main>
 
     <section class="founder">
@@ -760,33 +846,34 @@
 
   <section>
     <div class="inner">
-      <p class="eyebrow">Unify the Fragments</p>
-      <h2>The Bede Difference</h2>
+      <p class="eyebrow">Plainly Stated</p>
+      <h2>What Bede does, and what it will not do</h2>
       <p class="lede">
         The studio is the outdoors and the book &mdash; never the screen.
         Bede introduces a concept and helps reinforce it, then sends your
         child back to the real work: telling it back aloud, writing and
-        drawing it by hand, and remembering it later. Classical methods,
-        with the digital part kept to where it earns its place.
+        drawing it by hand, and remembering it later.
       </p>
 
       <div class="compare">
-        <div class="compare-col before">
-          <h3>The Current Chaos</h3>
+        <div class="compare-col after">
+          <h3>What it does</h3>
           <ul>
-            <li><strong>Rigid and closed.</strong> Mass market apps lock families into one fixed path.</li>
-            <li><strong>App fatigue.</strong> Separate tools for reading, narration, and tracking mean juggling logins instead of teaching.</li>
-            <li><strong>Screens instead of books.</strong> The device becomes the curriculum, and the shelf quietly stops getting opened.</li>
-            <li><strong>Your child as the product.</strong> Learning data leaves the house, and you never quite learn where it went.</li>
+            <li><strong>Teaches from your books.</strong> You choose the subjects and texts; Bede anchors the lesson on what you are already reading.</li>
+            <li><strong>Asks, rather than tells.</strong> Socratic questions paced for the Grammar and Logic stages, backing off to a hint after a round or two rather than pressing.</li>
+            <li><strong>Works in hand and voice.</strong> Narration aloud, writing and drawing by hand, and a check later on what actually stuck.</li>
+            <li><strong>Keeps a real record.</strong> Narration history, mastery in mathematics, composition, K&ndash;2 reading, and language exposure, and a summary after every sitting.</li>
+            <li><strong>Runs on your hardware.</strong> Encrypted at rest, on a machine in your house &mdash; optionally with the model itself local, so no lesson text leaves at all.</li>
           </ul>
         </div>
-        <div class="compare-col after">
-          <h3>The Bede Freedom</h3>
+        <div class="compare-col before">
+          <h3>What it will not do</h3>
           <ul>
-            <li><strong>Your books, your pace.</strong> You choose the subjects and texts. Bede's character and safety rules stay fixed &mdash; no one changes them quietly, not even us.</li>
-            <li><strong>One guided session.</strong> Socratic dialogue, narration, and a parent summary in a single sitting.</li>
-            <li><strong>The book stays central.</strong> Aesop and Kipling early; Shakespeare, Austen, and Plutarch by eighth grade.</li>
-            <li><strong>A record you own.</strong> Narrations, mastery, and summaries in your own encrypted database.</li>
+            <li><strong>Act as a spiritual advisor.</strong> Doctrine and pastoral counsel stay with you and your own pastor, priest, or minister.</li>
+            <li><strong>Score your child's faith.</strong> No metric on prayer, no progress bar on belief &mdash; a written rule, not a setting.</li>
+            <li><strong>Replace you.</strong> The parent is the curriculum director. Bede implements your plan; it does not overrule your judgment.</li>
+            <li><strong>Claim what it has not earned.</strong> No invented certainty, no invented evidence, and no pretending to remember a conversation it never had.</li>
+            <li><strong>Hold on to your data.</strong> One button deletes a student completely &mdash; transcripts, narrations, mastery, voice profile. Not archived.</li>
           </ul>
         </div>
       </div>
@@ -850,7 +937,13 @@
         </details>
         <details>
           <summary>What does it cost?</summary>
-          <p>Nothing during the public beta, which runs free through August 25.</p>
+          <p>The public beta is free through August 25, and the demo stays free to try with no account and no card.</p>
+          <p>Beyond the beta, Bede is an annual program that includes coaching. We do not publish a price, because we would rather understand your family before quoting one &mdash; how many children, which subjects, what you already own, and what your week actually looks like. Write to <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> and we will schedule an onboarding call, walk through the year your children would have, and then talk about cost.</p>
+        </details>
+        <details>
+          <summary>What is the learner's guarantee?</summary>
+          <p>If the program does not work for your learner, we refund the annual cost in full &mdash; coaching included. The coaching is the part families tell us they value most, and it is not carved out of the guarantee.</p>
+          <p>We would rather refund a family than keep a year that did not serve their children. The exact terms are written down and given to you in plain language before you pay anything, not buried in a footer afterwards.</p>
         </details>
       </div>
       <p class="fineprint">
@@ -889,7 +982,27 @@
         Breaks are mandatory every hour.
       </p>
 
-      <a class="cta gilt" href="/bede/">Try the Demo &rarr;</a>
+      <div class="guarantee">
+        <h3>The learner's guarantee</h3>
+        <p>
+          The program is annual and includes coaching &mdash; a real person
+          you can bring a hard week to, not a help desk. If it does not work
+          for your learner, we refund the annual cost in full, coaching
+          included.
+        </p>
+        <p>
+          We do not quote a price before we understand your family. Start
+          with an onboarding call: we will walk through the year your
+          children would actually have, and what it costs, in that order.
+        </p>
+      </div>
+
+      <a class="cta gilt" href="mailto:info@agnusdei.ai?subject=Onboarding%20call">Book an onboarding call &rarr;</a>
+      <p class="cta-sub light">
+        <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>
+        &nbsp;&middot;&nbsp; or
+        <a href="/bede/">try the demo first</a> &mdash; free, no account, no card.
+      </p>
 
       <div class="notes" style="margin-top: 2.5rem;">
         <span>🔒 Encrypted at rest</span>
@@ -917,15 +1030,33 @@
 
     const videoWrap = document.getElementById('video-wrap');
     if (YOUTUBE_VIDEO_VERTICAL) videoWrap.classList.add('vertical');
-    videoWrap.innerHTML = YOUTUBE_VIDEO_ID
-      ? `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}"
+
+    function playerIframe(autoplay) {
+      const params = autoplay ? '?autoplay=1' : '';
+      return `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}${params}"
            title="Agnus Dei Technologies: Meet Bede"
            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-           loading="lazy" allowfullscreen></iframe>`
-      : `<div class="video-placeholder">
+           allowfullscreen></iframe>`;
+    }
+
+    if (!YOUTUBE_VIDEO_ID) {
+      // No video configured yet — a plain, non-interactive placeholder.
+      videoWrap.innerHTML =
+        `<div class="video-placeholder"><span>&#9654;</span><p>Video coming soon</p></div>`;
+    } else {
+      // Click-to-play: YouTube is not contacted until the visitor presses
+      // play, so no third-party request happens on page load. A <button>
+      // rather than a styled <div>, so it is keyboard-operable for free.
+      videoWrap.innerHTML =
+        `<button type="button" class="video-placeholder">
            <span>&#9654;</span>
-           <p>Video coming soon</p>
-         </div>`;
+           <p>Watch: Meet Bede</p>
+           <small>Plays from YouTube. Nothing is requested from them until you press play.</small>
+         </button>`;
+      videoWrap.querySelector('button').addEventListener('click', () => {
+        videoWrap.innerHTML = playerIframe(true);
+      });
+    }
   </script>
 </body>
 </html>

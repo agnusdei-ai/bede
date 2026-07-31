@@ -456,6 +456,71 @@
       color: rgba(250, 246, 236, 0.85);
     }
 
+    /* FAQ — plain <details>/<summary>, no JavaScript. Everything the page
+       used to say in full is still here, one question at a time, so the
+       page above can stay short without the detail being lost. */
+    .faq {
+      max-width: 44rem;
+      margin: 0 auto;
+      text-align: left;
+    }
+
+    .faq details {
+      border-bottom: 1px solid rgba(28, 36, 56, 0.12);
+    }
+
+    .faq details:first-child {
+      border-top: 1px solid rgba(28, 36, 56, 0.12);
+    }
+
+    .faq summary {
+      cursor: pointer;
+      padding: 0.95rem 2.25rem 0.95rem 0;
+      position: relative;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--ink);
+      list-style: none;
+    }
+
+    /* Suppress the default disclosure triangle in both engines, so the
+       custom +/- on the right is the only marker. */
+    .faq summary::-webkit-details-marker { display: none; }
+
+    .faq summary::after {
+      content: '+';
+      position: absolute;
+      right: 0.35rem;
+      top: 0.8rem;
+      font-size: 1.35rem;
+      line-height: 1;
+      color: var(--fern);
+    }
+
+    .faq details[open] summary::after { content: '\2212'; }
+
+    .faq summary:hover { color: var(--fern-deep); }
+
+    .faq details p {
+      margin: 0 0 1rem;
+      padding-right: 2.25rem;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      color: var(--prose);
+    }
+
+    .fineprint {
+      max-width: 44rem;
+      margin: 1.75rem auto 0;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      /* Small text, so it needs to clear 4.5:1 against the band it sits on
+         (#f1e7d2) rather than fading to a decorative grey. This is 5.2:1. */
+      color: #635f54;
+      text-align: left;
+    }
+
     .workflow-strip {
       display: flex;
       flex-wrap: wrap;
@@ -553,8 +618,9 @@
       <h1>Agnus Dei Technologies</h1>
       <p class="motto">Form the whole child.</p>
       <p class="mission">
-        Bede guides your child through wonder, questions, and evidence
-        &mdash; alongside the real books already on your shelf. Built for
+        The outdoors is the learning field. Books are the text. Bede is the
+        instrument that helps your child ask better questions &mdash; the
+        whys and hows, not only the whats. A classical education for
         Christian families of every tradition, on hardware you control.
       </p>
       <div class="pillars">
@@ -633,12 +699,6 @@
         <span class="pill">Douay-Rheims</span>
       </div>
 
-      <p class="limit">
-        Bede is never a spiritual advisor &mdash; doctrine and pastoral
-        counsel stay with you and your own pastor, priest, or minister. And
-        Bede never scores a child's faith: no metric on prayer, no progress
-        bar on belief, written in as a rule rather than left to a setting.
-      </p>
     </div>
   </section>
 
@@ -735,26 +795,69 @@
 
   <section class="band-curriculum">
     <div class="inner">
-      <p class="eyebrow">Responsible AI at Home</p>
-      <h2>What stays yours</h2>
-      <div class="card-grid two">
-        <div class="card">
-          <h3>Hands, voice, and memory</h3>
-          <p>Narration aloud, writing and drawing by hand, and coming back later to see what actually stuck. Start as a Book Companion and Bede simply discusses what you are already reading together.</p>
-        </div>
-        <div class="card">
-          <h3>Diagnostics that adapt</h3>
-          <p>Mastery in mathematics, composition, K&ndash;2 reading foundations, and language exposure &mdash; gathered from the ordinary work of the lesson, never a quiz.</p>
-        </div>
-        <div class="card">
-          <h3>A system of record</h3>
-          <p>Narration history, mastery snapshots, session summaries, and an encrypted audit log. A real record for a real school year.</p>
-        </div>
-        <div class="card">
-          <h3>Privacy by construction</h3>
-          <p>Runs on your own network, encrypted at rest, optionally with the model on your own machine so no lesson text leaves the house. One button deletes a student completely.</p>
-        </div>
+      <p class="eyebrow">Questions Families Ask</p>
+      <h2>Before you begin</h2>
+      <div class="faq">
+        <details>
+          <summary>Do we have to be Catholic to use Bede?</summary>
+          <p>No. Scripture &amp; Bible Study and Saints &amp; Catechism are two separate subjects, and you enable either, both, or neither. Scripture is deliberately denomination-neutral &mdash; Bible narrative, memory verses, and the moral law the text plainly teaches, without asserting one tradition's doctrine or canon as though every Christian holds it. Saints &amp; Catechism is the Catholic module and openly so. Tell Bede your family's church tradition and the Bible translation you already read, and it frames lessons to match.</p>
+        </details>
+        <details>
+          <summary>Will Bede teach our children doctrine we disagree with?</summary>
+          <p>Bede is not a spiritual advisor and must never become one. Doctrine, moral counsel, and pastoral judgment stay with you and with your own pastor, priest, deacon, or minister. When a child asks something that belongs to them, Bede says so and sends it home.</p>
+          <p>Bede also never scores, measures, or quantifies your child's faith. There is no engagement metric on prayer and no progress bar on belief. That is written into Bede's constitution as a rule, not left to a setting.</p>
+        </details>
+        <details>
+          <summary>Which curriculum comes with Bede?</summary>
+          <p>A living-books catalog covering Years 1 through 8 in the Charlotte Mason tradition, inspired by Mater Amabilis &mdash; Aesop, Kipling, and Milne in the early years, through Plutarch, Shakespeare, Austen, Dickens, and Chesterton by eighth grade. The Catholic catechism module draws on Ignatius Press's <em>Faith and Life</em> series.</p>
+        </details>
+        <details>
+          <summary>Can we keep using the curriculum we already own?</summary>
+          <p>Yes, and that is the intended way to use Bede. Tell it what you are reading or working through and it teaches into that lesson rather than around it &mdash; families working from Memoria Press, Classical Academic Press, Well-Trained Mind Press, the Institute for Excellence in Writing, RightStart Mathematics, or Logic of English can point Bede at today's page and keep their own spine.</p>
+          <p>Set the whole thing to Book Companion and Bede does nothing but discuss the book in your hands, with a light touch and few interruptions. Add structure later, only if you want it.</p>
+        </details>
+        <details>
+          <summary>Does Bede replace me as the teacher?</summary>
+          <p>No. You set the subjects, the texts, the daily plan, and the boundaries, and you can preview any response in a private sandbox before your child ever sees it. Bede treats the parent as the curriculum director and does not override that judgment.</p>
+        </details>
+        <details>
+          <summary>What does Bede actually measure?</summary>
+          <p>Mastery in mathematics, composition, K&ndash;2 reading foundations, and language exposure &mdash; all of it gathered from the ordinary work of the lesson rather than from quizzes. A narration given, a problem reasoned through, a word sounded out. The session summary reports real movement, and the Progress page shows the record behind it.</p>
+        </details>
+        <details>
+          <summary>Where does our data live?</summary>
+          <p>In your own database, on a machine in your own house. Voice profiles, student plans, transcripts, and assessments are AES-256-GCM encrypted at rest, so the database itself never holds plaintext. You also get narration history, mastery snapshots, session summaries, and an encrypted audit log &mdash; a real record for a real school year.</p>
+        </details>
+        <details>
+          <summary>Does anything leave the house?</summary>
+          <p>That is your choice, and it is a real one. Point Bede at a language model running on your own machine and no lesson text leaves at all. Choose a cloud provider instead and the lesson text goes to that provider &mdash; you can see which one is active and switch it from the parent screen, mid-day, without touching a config file or restarting anything.</p>
+        </details>
+        <details>
+          <summary>What happens if my child says something worrying?</summary>
+          <p>Every message is checked before it reaches the tutor. If a child expresses distress, fear, or danger, Bede stops the lesson rather than teaching through it, and tells them to find a parent or trusted adult right now. Clear attempts to talk Bede out of its own rules are redirected on the spot; subtler probing is logged, and a sustained pattern emails you.</p>
+        </details>
+        <details>
+          <summary>How much screen time is this?</summary>
+          <p>Less than you might expect, and bounded by design. Sessions stop on their own &mdash; two hours by default, four at the absolute maximum &mdash; and a ten-minute break runs after every hour regardless. You can set a tighter screen-time cap with a longer eye-rest break on top of that. The screen introduces and reinforces; the narrating, writing, drawing, and observing happen away from it.</p>
+        </details>
+        <details>
+          <summary>What do I need to run it?</summary>
+          <p>A computer in your house &mdash; Windows, Mac, or Linux, including a Raspberry Pi. There are installers for each. Children connect from their own tablets over your home network, and running a lesson never requires a call back to us.</p>
+        </details>
+        <details>
+          <summary>Can I delete everything?</summary>
+          <p>Yes. One type-to-confirm button removes everything belonging to a student &mdash; transcripts, narrations, mastery, voice profile, the lot. Not archived. Gone.</p>
+        </details>
+        <details>
+          <summary>What does it cost?</summary>
+          <p>Nothing during the public beta, which runs free through August 25.</p>
+        </details>
       </div>
+      <p class="fineprint">
+        Publisher and curriculum names above are the trademarks of their
+        respective owners, listed to describe what Bede works alongside.
+        They imply no affiliation with, or endorsement by, those publishers.
+      </p>
     </div>
   </section>
 

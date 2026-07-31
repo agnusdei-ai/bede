@@ -1,0 +1,63 @@
+{
+  "_comment": "Publisher-stated permission-to-quote limits for the nine modern, actively copyrighted translations in models.schemas.BIBLE_TRANSLATIONS (KJV and Douay-Rheims are public domain and deliberately not listed here -- see PUBLIC_DOMAIN_BIBLE_TRANSLATIONS). Sourced directly from each publisher's own permissions/copyright page via WebSearch, cross-checked against at least one independent secondary source per entry (studylight.org's Copyright Statements collection, which mirrors publisher-supplied notices verbatim) where the primary page could not be fetched directly. This is metadata about a LICENSING POLICY, never the translations' own copyrighted text -- same 'never store copyrighted text' rule docs/CONTENT_CONTRIBUTING.md states for every other curated content file in this repo. These limits are far beyond anything Bede's own ordinary tutoring (a verse or two per turn, never a stored or reprinted passage) would ever approach; they're recorded here for completeness and parent transparency, not because Bede's actual usage is expected to test them. The operative constraint on Bede's own Scripture quoting stays ACCURACY, not these limits -- see services/ai_service.py's _bible_translation_note: Bede has no verified, licensed copy of any of these texts to check itself against, so its own memorized wording for a specific translation may not be exact, independent of how generous that publisher's own license actually is.",
+  "researched_on": "2026-08-01",
+  "translations": {
+    "ESV": {
+      "publisher": "Crossway",
+      "free_quote_verses": 500,
+      "conditions": "not more than half of any one Bible book, nor 25% or more of the quoting work; not permitted in a commentary or other biblical reference work",
+      "source": "https://www.crossway.org/permissions/"
+    },
+    "NIV": {
+      "publisher": "Biblica",
+      "free_quote_verses": 500,
+      "conditions": "not a complete Bible book, nor 25% or more of the quoting work; not permitted in a commentary or other biblical reference work",
+      "source": "https://www.biblica.com/permissions/"
+    },
+    "NASB": {
+      "publisher": "The Lockman Foundation",
+      "free_quote_verses": 1000,
+      "conditions": "not a complete Bible book, nor 50% or more of the quoting work",
+      "source": "https://www.lockman.org/permission-to-quote-copyright-trademark-information/"
+    },
+    "NLT": {
+      "publisher": "Tyndale House Publishers",
+      "free_quote_verses": 500,
+      "conditions": "not a complete Bible book, nor 25% or more of the quoting work",
+      "source": "https://www.tyndale.com/permissions"
+    },
+    "CSB": {
+      "publisher": "Holman Bible Publishers (Lifeway)",
+      "free_quote_verses": 1000,
+      "conditions": "not a complete Bible book, nor 50% or more of the quoting work",
+      "source": "https://csbible.com/permissions/"
+    },
+    "NKJV": {
+      "publisher": "Thomas Nelson",
+      "free_quote_verses": 500,
+      "conditions": "not a complete Bible book, nor 25% or more of the quoting work",
+      "notes": "Secondary sources disagree here -- some report a 1,000-verse/50% threshold instead. The two could not be reconciled against a single primary source, so the more conservative, more consistently cited figure is used.",
+      "source": "https://www.studylight.org/site-resources/copyright-statements/eng/nkj.html"
+    },
+    "RSV-CE": {
+      "publisher": "National Council of Churches",
+      "free_quote_verses": 500,
+      "conditions": "not a complete Bible book, nor 50% or more of the quoting work",
+      "source": "https://www.studylight.org/site-resources/copyright-statements/eng/rsv.html"
+    },
+    "NRSV-CE": {
+      "publisher": "National Council of Churches",
+      "free_quote_verses": 500,
+      "conditions": "not a complete Bible book, nor 50% or more of the quoting work",
+      "notes": "NRSV-CE follows the same NRSV permissions policy -- the Catholic Edition is the same base translation with the deuterocanonical books included/reordered, not a separately licensed text.",
+      "source": "https://bible.oremus.org/nrsvae/permiss.html"
+    },
+    "NABRE": {
+      "publisher": "USCCB (Confraternity of Christian Doctrine)",
+      "free_quote_words": 5000,
+      "conditions": "not more than 40% of a single Bible book, nor 40% or more of the quoting work",
+      "notes": "This publisher states its threshold in WORDS, not verses, unlike every other entry here -- kept as its own field (free_quote_words) rather than estimated into a verse count.",
+      "source": "https://www.usccb.org/offices/new-american-bible/permissions"
+    }
+  }
+}

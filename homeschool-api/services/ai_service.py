@@ -1289,17 +1289,29 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     — Bede may favor their wording as freely as its own knowledge allows,
     same as before this split existed. Every other option (NKJV, ESV, NIV,
     NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE) is a modern, actively
-    copyrighted translation Bede was never given a verified, licensed copy
-    of — only its own general training, which is neither guaranteed
-    accurate to that specific translation's wording nor something this app
-    has a license to reproduce at length. For those, the note asks Bede to
-    paraphrase by default, keep any direct quotation to a single short,
-    widely-known verse, always cite book/chapter/verse so the family can
-    check the exact text themselves, and never present a longer or
-    uncertain passage as though it were that translation's precise
-    wording. This is the constitution's "never fabricate certainty" rule
-    applied specifically to a licensed text Bede cannot verify — the same
-    failure mode as inventing a fact or a source, not a separate concern.
+    copyrighted translation.
+
+    A follow-up research pass (data/bible_translations/copyright_permissions.json,
+    services/catalog_service.py's get_bible_translation_permission) looked
+    up each publisher's own actual stated permission-to-quote policy rather
+    than assuming a blanket restriction. The real numbers turned out to be
+    generous — 500 to 1,000 verses (or, for NABRE, 5,000 words) without
+    formal permission, far beyond anything a single tutoring turn would
+    ever approach. So licensing was never really the binding constraint
+    here: this note cites the family's translation's real, sourced limit
+    for transparency, but the constraint that actually governs Bede's
+    behavior is ACCURACY — Bede has no verified, licensed copy of any of
+    these nine translations to check its own memory against, so it cannot
+    guarantee its "recollection" of a specific translation's exact wording
+    is correct, independent of how much that publisher's license would
+    otherwise permit. The note asks Bede to paraphrase by default, keep
+    any direct quotation to a verse or two it's actually confident about,
+    always cite book/chapter/verse so the family can check the real text
+    themselves, and never present uncertain wording as though it were that
+    translation's precise text. This is the constitution's "never
+    fabricate certainty" rule applied specifically to a text Bede cannot
+    verify — the same failure mode as inventing a fact or a source, not a
+    separate concern.
     """
     translation = _sanitize_parent_field(config.bible_translation, max_len=40)
     if not translation or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
@@ -1311,17 +1323,29 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
             "so it sounds familiar to what the child hears at home, rather than defaulting to a "
             "different translation's language."
         )
+    from services.catalog_service import get_bible_translation_permission
+    permission = get_bible_translation_permission(translation)
+    if permission and "free_quote_words" in permission:
+        license_note = f"its publisher permits quoting up to {permission['free_quote_words']} words without formal permission"
+    elif permission and "free_quote_verses" in permission:
+        license_note = f"its publisher permits quoting up to {permission['free_quote_verses']} verses without formal permission"
+    else:
+        license_note = "its publisher's exact quoting limits aren't loaded in this deployment"
     return (
         f"\nThis family reads the Bible in the {translation} translation. {translation} is a modern, "
-        "copyrighted translation, and you were never given a verified, licensed copy of its exact "
-        "wording — only your own general training, which may not match it precisely. So: paraphrase "
-        f"Scripture in your own words by default rather than presenting a passage as an exact {translation} "
-        "quotation; a single short, widely-known verse is fine to quote directly, but never present a "
-        f"longer or less certain passage as though it were {translation}'s precise wording when you "
-        "cannot actually verify that it is. Always cite the book, chapter, and verse so the family can "
-        "look up the exact text themselves. Presenting invented or uncertain wording as an exact "
-        "quotation would be its own kind of false certainty — the same thing you'd never do with a fact "
-        "or a source."
+        f"copyrighted translation — {license_note}, far more than a single lesson would ever need, so "
+        "that's not really what limits you here. What does: you were never given a verified, licensed "
+        f"copy of {translation}'s exact wording, only your own general training, which may not match it "
+        "precisely. So paraphrase Scripture in your own words by default rather than presenting a "
+        f"passage as an exact {translation} quotation; a verse or two you're genuinely confident about "
+        "is fine to quote directly, but never present a longer or less certain passage as though it "
+        f"were {translation}'s precise wording when you cannot actually verify that it is. Always cite "
+        "the book, chapter, and verse so the family can look up the exact text themselves. Presenting "
+        "invented or uncertain wording as an exact quotation would be its own kind of false certainty — "
+        "the same thing you'd never do with a fact or a source. None of this thins out the lesson "
+        "itself: keep narrating the Bible's real people and real events fully, and keep asking real "
+        "Socratic questions about it — this is only about care with exact wording, never a reason to "
+        "discuss Scripture more thinly or drily than you otherwise would."
     )
 
 

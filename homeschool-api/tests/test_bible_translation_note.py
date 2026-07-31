@@ -43,6 +43,30 @@ def test_copyrighted_translation_defaults_to_paraphrase():
         assert "never given a verified, licensed copy" in note
 
 
+def test_copyrighted_translation_cites_its_real_researched_quote_limit():
+    # ESV: 500 verses (Crossway). NABRE: 5,000 words (USCCB) — a different
+    # unit, since that's what the publisher itself actually states.
+    esv_note = _bible_translation_note(_config("ESV"), Subject.scripture)
+    assert "500 verses" in esv_note
+    nabre_note = _bible_translation_note(_config("NABRE"), Subject.scripture)
+    assert "5000 words" in nabre_note
+
+
+def test_copyrighted_translation_explains_licensing_isnt_the_real_constraint():
+    note = _bible_translation_note(_config("NIV"), Subject.scripture)
+    assert "not really what limits you here" in note
+
+
+def test_copyrighted_translation_note_does_not_ask_bede_to_discuss_scripture_less():
+    # The accuracy caution is about literal wording only -- it must not
+    # read as license to thin out Socratic narrative discussion of
+    # Scripture, which stays governed entirely by Subject.scripture's own
+    # _SUBJECT_CONTEXT entry.
+    note = _bible_translation_note(_config("ESV"), Subject.scripture)
+    assert "keep narrating the Bible's real people and real events fully" in note
+    assert "keep asking real Socratic questions" in note
+
+
 def test_copyrighted_translation_forbids_presenting_uncertain_wording_as_exact():
     note = _bible_translation_note(_config("NABRE"), Subject.saints)
     assert "never present" in note

@@ -4,643 +4,329 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Agnus Dei Technologies</title>
-  <meta name="description" content="Agnus Dei Technologies. Meet Bede, an AI Socratic tutor for the classical homeschool inspired by Charlotte Mason. Explore the full curriculum." />
+  <meta name="description" content="Agnus Dei Technologies. Meet Bede, a Socratic AI tutor for the Christian classical homeschool — built for families of every Christian tradition, taught alongside the real books on your own shelf." />
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
-  <style>
-    :root {
-      --olive-600: #3d4d1f;
-      --olive-500: #556b2f;
-      --navy-800: #0b1636;
-      --navy-600: #17306e;
-      --gold-500: #d4a106;
-      --gold-300: #f9d54a;
-      --parchment-50: #fefcf7;
-      --parchment-200: #faedc6;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background: var(--parchment-50);
-      color: var(--navy-800);
-      font-family: Georgia, Cambria, 'Times New Roman', serif;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .hero {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 3.5rem 1.5rem 3rem;
-      max-width: 42rem;
-      margin: 0 auto;
-    }
-
-    img.emblem {
-      width: 112px;
-      height: auto;
-      margin-bottom: 1.25rem;
-    }
-
-    h1 {
-      font-family: 'Palatino Linotype', Palatino, serif;
-      font-size: clamp(2rem, 5vw, 2.75rem);
-      margin: 0 0 0.75rem;
-      color: var(--navy-800);
-    }
-
-    p.motto {
-      font-family: 'Palatino Linotype', Palatino, serif;
-      font-size: clamp(1.35rem, 3.5vw, 1.75rem);
-      font-weight: bold;
-      color: var(--olive-600);
-      margin: 0 0 1rem;
-    }
-
-    p.mission {
-      font-size: 1.05rem;
-      line-height: 1.7;
-      color: #3f3f3f;
-      margin: 0 0 2rem;
-    }
-
-    .pillars {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1.5rem;
-      margin: 0 0 2.5rem;
-      padding: 1.5rem;
-      background: rgba(250, 237, 198, 0.4);
-      border-radius: 0.75rem;
-      border: 1px solid var(--parchment-200);
-    }
-
-    .pillar {
-      flex: 1 1 12rem;
-      max-width: 14rem;
-    }
-
-    .pillar h3 {
-      font-family: Georgia, serif;
-      font-size: 0.95rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--olive-600);
-      margin: 0 0 0.35rem;
-    }
-
-    .pillar p {
-      font-size: 0.9rem;
-      line-height: 1.55;
-      color: #4a4a4a;
-      margin: 0;
-    }
-
-    img.bede-portrait {
-      display: block;
-      width: 112px;
-      height: 112px;
-      object-fit: cover;
-      border-radius: 50%;
-      border: 3px solid var(--gold-500);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-      margin: 0 auto 1rem;
-    }
-
-    a.cta {
-      display: inline-block;
-      background: var(--olive-500);
-      color: var(--parchment-50);
-      text-decoration: none;
-      font-family: Georgia, serif;
-      font-size: 1.1rem;
-      font-weight: bold;
-      padding: 0.85rem 2.25rem;
-      border-radius: 999px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    a.cta:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
-    }
-
-    .video-wrap {
-      width: 100%;
-      max-width: 36rem;
-      margin: 0 0 2.5rem;
-      position: relative;
-      aspect-ratio: 16 / 9; /* used for the placeholder and any future landscape video */
-      border-radius: 0.75rem;
-      overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .video-wrap.vertical {
-      max-width: 20rem;
-      aspect-ratio: 9 / 16; /* for a YouTube Shorts style vertical video */
-    }
-
-    .video-wrap iframe {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-    }
-
-    .video-placeholder {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      background: var(--parchment-200);
-      color: var(--olive-600);
-    }
-
-    .video-placeholder span {
-      width: 3rem;
-      height: 3rem;
-      border-radius: 50%;
-      background: var(--olive-500);
-      color: var(--parchment-50);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-    }
-
-    .video-placeholder p {
-      margin: 0;
-      font-size: 0.9rem;
-      font-style: italic;
-    }
-
-    .curriculum {
-      background: var(--parchment-200);
-      padding: 3rem 1.5rem;
-    }
-
-    .curriculum-inner {
-      max-width: 56rem;
-      margin: 0 auto;
-      text-align: center;
-    }
-
-    .curriculum h2 {
-      font-family: 'Palatino Linotype', Palatino, serif;
-      font-size: clamp(1.5rem, 4vw, 2rem);
-      color: var(--navy-800);
-      margin: 0 0 0.5rem;
-    }
-
-    .curriculum .subhead {
-      font-size: 1rem;
-      color: #4a4a4a;
-      max-width: 34rem;
-      margin: 0 auto 2rem;
-      line-height: 1.6;
-    }
-
-    .subject-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-      gap: 1rem;
-      text-align: left;
-    }
-
-    .subject-card {
-      background: var(--parchment-50);
-      border-left: 4px solid var(--olive-500);
-      border-radius: 0.5rem;
-      padding: 1rem 1.25rem;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-    }
-
-    /* Curriculum tab colors — one per subject, like a school binder's own
-       colored divider tabs, so the ten subjects read as distinct at a
-       glance instead of one undifferentiated green list. Ten hues evenly
-       spaced around the full color wheel (36° apart, same saturation/
-       lightness throughout) so no two repeat and the list reads as one
-       continuous spectrum top to bottom — every subject its own color,
-       the way every learner is their own person. Scoped to the curriculum
-       section specifically: the OTHER .subject-grid further down the page
-       (the 3-card "Core Capabilities" list) isn't a subject list, so it
-       keeps the plain olive border. */
-    .curriculum .subject-card:nth-child(1)  { border-left-color: #9e2e2e; } /* Morning Time — red, 0° */
-    .curriculum .subject-card:nth-child(2)  { border-left-color: #9e712e; } /* Living Books — orange, 36° */
-    .curriculum .subject-card:nth-child(3)  { border-left-color: #889e2e; } /* Mathematics — chartreuse, 72° */
-    .curriculum .subject-card:nth-child(4)  { border-left-color: #449e2e; } /* Nature Study — green, 108° */
-    .curriculum .subject-card:nth-child(5)  { border-left-color: #2e9e5b; } /* History & Geography — emerald, 144° */
-    .curriculum .subject-card:nth-child(6)  { border-left-color: #2e9e9e; } /* Language Arts — teal, 180° */
-    .curriculum .subject-card:nth-child(7)  { border-left-color: #2e5b9e; } /* Science — blue, 216° */
-    .curriculum .subject-card:nth-child(8)  { border-left-color: #442e9e; } /* Art & Music — indigo, 252° */
-    .curriculum .subject-card:nth-child(9)  { border-left-color: #882e9e; } /* Saints & Catechism — purple, 288° */
-    .curriculum .subject-card:nth-child(10) { border-left-color: #9e2e71; } /* Free Study — rose, 324° */
-
-    .subject-card h3 {
-      font-family: Georgia, serif;
-      font-size: 1.02rem;
-      color: var(--navy-800);
-      margin: 0 0 0.25rem;
-    }
-
-    .subject-card p {
-      font-size: 0.88rem;
-      line-height: 1.5;
-      color: #55554f;
-      margin: 0;
-    }
-
-    p.soon {
-      text-align: center;
-      margin: 2.5rem 0 0;
-      font-size: 0.95rem;
-      color: #8a8a8a;
-    }
-
-    .founder {
-      padding: 0 1.5rem 3rem;
-      text-align: center;
-    }
-
-    .founder-inner {
-      max-width: 40rem;
-      margin: 0 auto;
-    }
-
-    .founder blockquote {
-      margin: 0 0 0.75rem;
-      font-family: 'Palatino Linotype', Palatino, serif;
-      font-style: italic;
-      font-size: 1.1rem;
-      line-height: 1.7;
-      color: var(--navy-800);
-    }
-
-    .founder cite {
-      font-style: normal;
-      font-size: 0.85rem;
-      color: var(--olive-600);
-    }
-
-    .feature {
-      padding: 3.5rem 1.5rem 3rem;
-    }
-
-    .feature-inner {
-      max-width: 60rem;
-      margin: 0 auto;
-      text-align: center;
-    }
-
-    .feature-eyebrow {
-      font-family: Georgia, serif;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--olive-600);
-      margin: 0 0 0.5rem;
-    }
-
-    .feature h2 {
-      font-family: 'Palatino Linotype', Palatino, serif;
-      font-size: clamp(1.5rem, 4vw, 2rem);
-      color: var(--navy-800);
-      margin: 0 0 0.5rem;
-    }
-
-    .feature .subhead {
-      font-size: 1rem;
-      color: #4a4a4a;
-      max-width: 40rem;
-      margin: 0 auto 2.5rem;
-      line-height: 1.6;
-    }
-
-    .compare {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-      margin: 0 0 3rem;
-      border-radius: 0.75rem;
-      overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-      text-align: left;
-    }
-
-    .compare-col {
-      padding: 1.75rem;
-      background: var(--parchment-50);
-    }
-
-    .compare-col.after {
-      background: rgba(250, 237, 198, 0.4);
-      border-left: 1px solid var(--parchment-200);
-    }
-
-    .compare-col h3 {
-      font-family: Georgia, serif;
-      font-size: 0.95rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin: 0 0 1.1rem;
-    }
-
-    .compare-col.before h3 { color: #8a7a4a; }
-    .compare-col.after h3 { color: var(--olive-600); }
-
-    .compare-col ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 1.1rem;
-    }
-
-    .compare-col li {
-      font-size: 0.92rem;
-      line-height: 1.55;
-      color: #4a4a4a;
-    }
-
-    .compare-col li strong {
-      display: block;
-      font-family: Georgia, serif;
-      color: var(--navy-800);
-      margin-bottom: 0.15rem;
-    }
-
-    .workflow-strip {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      background: var(--parchment-50);
-      border: 1px solid var(--parchment-200);
-      border-radius: 0.75rem;
-      padding: 2rem;
-      margin: 0 0 2.5rem;
-    }
-
-    .workflow-step {
-      flex: 1 1 12rem;
-      max-width: 15rem;
-      padding: 0 1rem;
-    }
-
-    .workflow-step strong {
-      display: block;
-      font-family: Georgia, serif;
-      color: var(--navy-800);
-      margin-bottom: 0.3rem;
-    }
-
-    .workflow-step span {
-      font-size: 0.88rem;
-      line-height: 1.5;
-      color: #55554f;
-    }
-
-    .workflow-arrow {
-      color: var(--olive-500);
-      font-weight: bold;
-      font-size: 1.4rem;
-      padding: 0 0.5rem;
-    }
-
-    .feature-notes {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1.5rem 2.5rem;
-      font-size: 0.88rem;
-      color: #6a6a63;
-    }
-
-    @media (max-width: 640px) {
-      .workflow-strip {
-        flex-direction: column;
-        gap: 0.75rem;
-      }
-
-      .workflow-step {
-        flex: 0 1 auto;
-        width: 100%;
-        max-width: 100%;
-      }
-
-      .workflow-arrow {
-        transform: rotate(90deg);
-      }
-    }
-
-    footer {
-      padding: 1.5rem;
-      font-size: 0.8rem;
-      color: #a0a0a0;
-      border-top: 1px solid var(--parchment-200);
-      width: 100%;
-      text-align: center;
-    }
-
-    .beta-banner {
-      background: var(--navy-800);
-      color: var(--parchment-50);
-      text-align: center;
-      padding: 0.65rem 1.5rem;
-      font-size: 0.9rem;
-    }
-
-    .beta-banner strong {
-      color: var(--gold-300);
-    }
-  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
 </head>
 <body>
   <div class="beta-banner">
-    <strong>Public beta now open.</strong> Free to use through August 25.
+    <strong>Public beta now open.</strong> Free to use through August 31 &mdash; every Christian family welcome.
   </div>
-  <main class="hero">
-    <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
-    <h1>Agnus Dei Technologies</h1>
-    <p class="motto">Form the whole child.</p>
-    <p class="mission">
-      Bede guides your child through wonder, questions, and evidence.
-      Explore a classical homeschool education inspired by Charlotte
-      Mason, live today.
-    </p>
-    <div class="pillars">
-      <div class="pillar">
-        <h3>Comprehension</h3>
-        <p>Render truth in the learner's own words, reasoning, and work.</p>
-      </div>
-      <div class="pillar">
-        <h3>Compassion</h3>
-        <p>Instruct in the spirit of patience, mercy, and attentiveness.</p>
-      </div>
-      <div class="pillar">
-        <h3>Conscience</h3>
-        <p>Help guide the learner to freely choose their answers, to encourage good choices adaptively over time.</p>
-      </div>
-    </div>
-    <div class="video-wrap" id="video-wrap"></div>
-    <img class="bede-portrait" src="/assets/bede-portrait.png" alt="Bede, your child's AI tutor" />
-    <a class="cta" href="/bede/">Meet Bede →</a>
-  </main>
 
-  <section class="founder">
-    <div class="founder-inner">
-      <p class="feature-eyebrow">From the Founder</p>
-      <blockquote>
-        &ldquo;I named Bede after the Venerable Bede, a Benedictine monk who
-        chronicled the History of the early institutions that formed the
-        Church we know today. The persona also honors a monk who taught
-        me at Portsmouth Abbey, weaving Christian Doctrine, Humanities,
-        and History together in his courses. He was a patient mentor
-        and counselor who taught in the style of Socrates, and he
-        shaped how I teach today.&rdquo;
-      </blockquote>
-      <cite>Kristian Gonzalez, Founder. A lifelong learner, AI enthusiast, architect, and developer.</cite>
+  <div class="band">
+    <main class="hero">
+      <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
+      <h1>Agnus Dei Technologies</h1>
+      <p class="motto">Form the whole child.</p>
+      <p class="mission">
+        The outdoors is the learning field. Books are the text. Bede is the
+        instrument that helps your child ask better questions &mdash; the
+        whys and hows, not only the whats. A classical education for
+        Christian families of every tradition, on hardware you control.
+      </p>
+      <img class="bede-portrait" src="/assets/bede-portrait.png" alt="Bede, your child's AI tutor" />
+      <a class="cta" href="/bede/">Meet Bede &rarr;</a>
+      <p class="cta-sub">Free to try. No account, no card.</p>
+      <!-- Pillars sit below the call to action on purpose: they are the
+           supporting philosophy, and putting them above pushed the button
+           off the first screen on both desktop and phone. -->
+      <div class="pillars">
+        <div class="pillar">
+          <h3>Comprehension</h3>
+          <p>Render truth in the learner's own words, reasoning, and work.</p>
+        </div>
+        <div class="pillar">
+          <h3>Compassion</h3>
+          <p>Instruct in the spirit of patience, mercy, and attentiveness.</p>
+        </div>
+        <div class="pillar">
+          <h3>Conscience</h3>
+          <p>Help guide the learner to freely choose their answers, to encourage good choices adaptively over time.</p>
+        </div>
+      </div>
+      <div class="video-wrap" id="video-wrap"></div>
+    </main>
+
+    <section class="founder">
+      <div class="inner" style="max-width: 40rem;">
+        <p class="eyebrow">From the Founder</p>
+        <blockquote>
+          &ldquo;I named Bede after the Venerable Bede, a Benedictine monk who
+          chronicled the History of the early institutions that formed the
+          Church we know today. The persona also honors a monk who taught
+          me at Portsmouth Abbey, weaving Christian Doctrine, Humanities,
+          and History together in his courses. He was a patient mentor
+          and counselor who taught in the style of Socrates, and he
+          shaped how I teach today.&rdquo;
+        </blockquote>
+        <cite>Kristian Gonzalez, Founder. A lifelong learner, AI enthusiast, architect, and developer.</cite>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">One Table, Many Traditions</p>
+      <h2>Built for Christian families, whatever your church</h2>
+      <p class="lede">
+        Our roots are Catholic &mdash; the founder's, and the Venerable
+        Bede's. That is a history, not a gate. Scripture &amp; Bible Study
+        and Saints &amp; Catechism are two separate subjects. Enable
+        either, both, or neither.
+      </p>
+
+      <div class="card-grid" style="margin-bottom: 2rem;">
+        <div class="card">
+          <h3>Scripture &amp; Bible Study</h3>
+          <p>Bible narrative, memory verses, and the moral law the text plainly teaches &mdash; without asserting one tradition's doctrine or canon as though every Christian holds it.</p>
+        </div>
+        <div class="card">
+          <h3>Saints &amp; Catechism</h3>
+          <p>The Catholic module, openly so: saints, catechism, and virtue formation from a real published series. Unchanged, undiluted, entirely optional.</p>
+        </div>
+      </div>
+
+      <p class="lede" style="margin-bottom: 1.25rem;">
+        Name your church tradition and the Bible you already read at home,
+        and Bede matches them.
+      </p>
+      <div class="pill-row">
+        <span class="pill">KJV</span>
+        <span class="pill">NKJV</span>
+        <span class="pill">ESV</span>
+        <span class="pill">NIV</span>
+        <span class="pill">NASB</span>
+        <span class="pill">NLT</span>
+        <span class="pill">CSB</span>
+        <span class="pill">RSV-CE</span>
+        <span class="pill">NABRE</span>
+        <span class="pill">NRSV-CE</span>
+        <span class="pill">Douay-Rheims</span>
+      </div>
+
     </div>
   </section>
 
-  <section class="curriculum">
-    <div class="curriculum-inner">
+  <section class="curriculum band-curriculum">
+    <div class="inner">
       <h2>The Curriculum</h2>
-      <p class="subhead">
-        Explore ten subjects in a classical week inspired by Charlotte
-        Mason. Your child learns with Bede, session by session.
+      <p class="lede">
+        Eleven subjects in a classical week inspired by Charlotte Mason.
+        Pick the ones that belong in your family's day.
       </p>
-      <div class="subject-grid">
-        <div class="subject-card">
+      <div class="card-grid">
+        <div class="card">
           <h3>Morning Time</h3>
           <p>Bible, hymn, poetry &amp; prayer</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Living Books</h3>
-          <p>Classical literature &amp; narration</p>
+          <p>The classics and Great Books, read and narrated</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Mathematics</h3>
           <p>Mathematical thinking through discovery</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Nature Study</h3>
           <p>Observation, wonder &amp; creation</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>History &amp; Geography</h3>
           <p>History told through story, and real places</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Language Arts</h3>
           <p>Narration, copywork &amp; grammar</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Science</h3>
           <p>Botany, zoology &amp; earth science</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Art &amp; Music</h3>
           <p>Composer &amp; artist study</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
           <h3>Saints &amp; Catechism</h3>
           <p>Saints, catechism &amp; virtue formation</p>
         </div>
-        <div class="subject-card">
+        <div class="card">
+          <h3>Scripture &amp; Bible Study</h3>
+          <p>Bible narrative, memory verses &amp; the moral law</p>
+        </div>
+        <div class="card">
           <h3>Free Study</h3>
           <p>Exploration the student directs</p>
         </div>
       </div>
-      <p class="soon">More from Agnus Dei Technologies is on the way.</p>
     </div>
   </section>
 
-  <section class="feature">
-    <div class="feature-inner">
-      <p class="feature-eyebrow">Unify the Fragments</p>
-      <h2>The Bede Difference</h2>
-      <p class="subhead">
-        Most digital tools treat learning like a factory line: rigid and
-        fragmented. Bede works differently. Guide your child through the
-        Trivium in one place, with your judgment always in charge.
+  <section>
+    <div class="inner">
+      <p class="eyebrow">Plainly Stated</p>
+      <h2>What Bede does, and what it will not do</h2>
+      <p class="lede">
+        The studio is the outdoors and the book &mdash; never the screen.
+        Bede introduces a concept and helps reinforce it, then sends your
+        child back to the real work: telling it back aloud, writing and
+        drawing it by hand, and remembering it later.
       </p>
 
       <div class="compare">
-        <div class="compare-col before">
-          <h3>The Current Chaos</h3>
-          <ul>
-            <li><strong>Rigid and closed.</strong> Mass market apps lock families into one fixed path, leaving little room to guide your own child.</li>
-            <li><strong>App fatigue.</strong> Separate tools for reading, narration, and progress tracking force parents to juggle logins instead of teaching.</li>
-            <li><strong>Algorithmic chaos.</strong> General chatbots hallucinate. They ignore children's needs and carry no formation of their own.</li>
-          </ul>
-        </div>
         <div class="compare-col after">
-          <h3>The Bede Freedom</h3>
+          <h3>What it does</h3>
           <ul>
-            <li><strong>Your books, your pace.</strong> Choose the subjects, texts, and topics each day. Bede's character and safety rules stay fixed. No one changes them quietly, not even us.</li>
-            <li><strong>One guided session.</strong> Bede blends Socratic dialogue, narration, and a parent summary into a single sitting, subject by subject.</li>
-            <li><strong>Built for children, on purpose.</strong> Bede runs in an environment you host and encrypt yourself. It moderates content in real time, protecting family learning.</li>
+            <li><strong>Teaches from your books.</strong> You choose the subjects and texts; Bede anchors the lesson on what you are already reading.</li>
+            <li><strong>Asks, rather than tells.</strong> Socratic questions paced for the Grammar and Logic stages, backing off to a hint after a round or two rather than pressing.</li>
+            <li><strong>Works in hand and voice.</strong> Narration aloud, writing and drawing by hand, and a check later on what actually stuck.</li>
+            <li><strong>Keeps a real record.</strong> Narration history, mastery in mathematics, composition, K&ndash;2 reading, and language exposure, and a summary after every sitting.</li>
+            <li><strong>Runs on your hardware.</strong> Encrypted at rest, on a machine in your house &mdash; optionally with the model itself local, so no lesson text leaves at all.</li>
+          </ul>
+        </div>
+        <div class="compare-col before">
+          <h3>What it will not do</h3>
+          <ul>
+            <li><strong>Act as a spiritual advisor.</strong> Doctrine and pastoral counsel stay with you and your own pastor, priest, or minister.</li>
+            <li><strong>Score your child's faith.</strong> No metric on prayer, no progress bar on belief &mdash; a written rule, not a setting.</li>
+            <li><strong>Replace you.</strong> The parent is the curriculum director. Bede implements your plan; it does not overrule your judgment.</li>
+            <li><strong>Claim what it has not earned.</strong> No invented certainty, no invented evidence, and no pretending to remember a conversation it never had.</li>
+            <li><strong>Hold on to your data.</strong> One button deletes a student completely &mdash; transcripts, narrations, mastery, voice profile. Not archived.</li>
           </ul>
         </div>
       </div>
+    </div>
+  </section>
 
-      <p class="feature-eyebrow">Core Capabilities</p>
-      <h2>How Bede Empowers the Educator</h2>
-      <div class="subject-grid" style="margin-bottom: 2.5rem;">
-        <div class="subject-card">
-          <h3>Bede Works With You</h3>
-          <p>Set the subjects, texts, and boundaries yourself in Parent Setup. Preview every response in a private "Ask Bede" sandbox, before your child ever sees it.</p>
+  <section>
+    <div class="inner">
+      <p class="eyebrow">What We Are Aiming For</p>
+      <h2>Expected outcomes, and where they come from</h2>
+      <p class="lede">
+        These are the outcomes Bede is built to produce, tested in one
+        family &mdash; the founder's own. Not a study, not a cohort, not yet
+        a claim about your children. That is what the beta is for, and we
+        would rather say so than dress up a sample of one.
+      </p>
+
+      <div class="card-grid" style="margin-bottom: 1.5rem;">
+        <div class="card">
+          <h3>Knowledge that stays</h3>
+          <p>Retention is the point, so it is worked at directly: narration in the child's own words, writing and drawing by hand, and check-backs on what was taught earlier rather than moving on and never asking again. What held is recorded, not assumed.</p>
         </div>
-        <div class="subject-card">
-          <h3>Bede Teaches Through Questions</h3>
-          <p>Bede asks patient questions at a steady pace, built for the Grammar and Logic stages of childhood. After a round or two, it offers a hint or moves on.</p>
+        <div class="card">
+          <h3>Digital instruction, kept in its place</h3>
+          <p>The screen introduces a concept and helps reinforce it; the reading, narrating, and observing happen away from it. The guardrails are not a policy page &mdash; Bede's limits live in a written constitution that is verified every time the software starts.</p>
         </div>
-        <div class="subject-card">
-          <h3>Fits Real Families</h3>
-          <p>Set up to ten students in one pod, each with a grade level, subjects, and daily plan. Teach at the kitchen table or run a small cooperative, either way.</p>
+        <div class="card">
+          <h3>A program you co-lead</h3>
+          <p>You name up to three mastery outcomes per core area each term. Bede steers sessions toward them and records the evidence, and the Progress page groups the concepts your child actually demonstrated subject by subject.</p>
         </div>
       </div>
 
-      <p class="feature-eyebrow">See It in Action</p>
-      <h2>Experience Bede in 3 Simple Steps</h2>
+      <p class="fineprint" style="text-align: center;">
+        Mastery is tracked for each child who engages with the work. Bede
+        can invite a reluctant learner, and it is patient about it, but it
+        cannot compel one &mdash; and a tutor that claimed otherwise would
+        be lying to you.
+      </p>
+    </div>
+  </section>
+
+    <section class="band-closing">
+    <div class="inner">
+      <p class="eyebrow">See It in Action</p>
+      <h2>Three simple steps</h2>
       <div class="workflow-strip">
         <div class="workflow-step">
           <strong>Set the Day</strong>
-          <span>Pick the subjects, grade level, and any current book or lesson focus, once, in Parent Setup.</span>
+          <span>Pick the subjects, the grade, and the book you are reading together &mdash; once, in Parent Setup.</span>
         </div>
         <div class="workflow-arrow">&#10132;</div>
         <div class="workflow-step">
           <strong>Engage in Dialogue</strong>
-          <span>Bede leads a Socratic conversation across ten subjects, listening and adjusting to how your child answers.</span>
+          <span>Bede leads a Socratic conversation, listening and adjusting to how your child answers.</span>
         </div>
         <div class="workflow-arrow">&#10132;</div>
         <div class="workflow-step">
           <strong>Review the Growth</strong>
-          <span>Review a real, measured summary after each session. Bede never scores or guesses at your child's inner or spiritual life.</span>
+          <span>Read a measured summary after each session, backed by the mastery record.</span>
         </div>
       </div>
 
-      <a class="cta" href="/bede/">Try the Demo →</a>
+      <p class="limit" style="margin-bottom: 2.25rem;">
+        Bede's persona and hard limits live in a written constitution,
+        checked for tampering every time the software starts &mdash; alter
+        it and Bede refuses to run at all. Sessions stop on their own.
+        Breaks are mandatory every hour.
+      </p>
 
-      <div class="feature-notes" style="margin-top: 2.5rem;">
-        <span>🔒 AES-256-GCM encrypted at rest</span>
-        <span>🏠 Host it on your own network</span>
-        <span>📖 Rooted in the classical tradition, inspired by Charlotte Mason</span>
+      <div class="guarantee">
+        <h3>The learner's guarantee</h3>
+        <p>
+          <strong>Pick one topic. Thirty days.</strong> You name the topic
+          as the curriculum giver; Bede works it as the hands-on tutor,
+          through focused study and daily practice. If your learner has not
+          reached mastery of that topic in thirty days, we refund the annual
+          cost in full &mdash; coaching included.
+        </p>
+        <p>
+          What it takes, said here rather than at claim time: about two
+          focused hours a day given to that one topic, and a household
+          pledge &mdash; no television and no video games on school days,
+          five days a week at the very least. Attention is the whole
+          method, and it does not survive being split.
+        </p>
+        <p>
+          With that in place we expect mastery in about two weeks. Thirty
+          days is deliberate headroom, not the target. This is narrower than
+          Bede's ordinary rhythm, which carries every topic you have named
+          for a term to mastery across that whole term &mdash; whether one
+          topic in depth can be done in a fortnight is what this beta is
+          testing.
+        </p>
+        <p>
+          You do not have to take our word for whether it happened. That
+          topic sits in your own Progress page under Term Mastery Outcomes,
+          moving from <em>Not started</em> through <em>Introduced</em> and
+          <em>Developing</em> to <em>Mastered</em> on the evidence Bede
+          records during ordinary lessons. We are staking the guarantee on a
+          reading you can see and we cannot quietly change.
+        </p>
+        <p>
+          The program is annual and the coaching is a real person you can
+          bring a hard week to, not a help desk. We do not quote a price
+          before we understand your family &mdash; start with an onboarding
+          call and we will walk through the year your children would
+          actually have, then what it costs, in that order.
+        </p>
+      </div>
+
+      <a class="cta gilt" href="mailto:sales@agnusdei.ai?subject=Onboarding%20call">Book an onboarding call &rarr;</a>
+      <p class="cta-sub light">
+        <a href="mailto:sales@agnusdei.ai?subject=Pricing%20request">Ask what a year costs</a>
+        &nbsp;&middot;&nbsp;
+        <a href="/bede/">try the demo first</a> &mdash; free, no account, no card
+        &nbsp;&middot;&nbsp;
+        <a href="/feedback/">send feedback</a>
+      </p>
+
+      <div class="notes" style="margin-top: 2.5rem;">
+        <span>🔒 Encrypted at rest</span>
+        <span>🏠 Runs on your own network</span>
+        <span>✝️ Every Christian tradition welcome</span>
+        <span>📚 Built around the books you own</span>
       </div>
     </div>
   </section>
 
   <footer>
+    <a href="/faq/">Questions families ask</a> &nbsp;&middot;&nbsp;
+    <a href="/feedback/">Feedback</a> &nbsp;&middot;&nbsp;
+    <a href="/bede/">Demo</a> &nbsp;&middot;&nbsp;
+    <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>
+    <br />
     &copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.
   </footer>
   <script>
@@ -657,15 +343,33 @@
 
     const videoWrap = document.getElementById('video-wrap');
     if (YOUTUBE_VIDEO_VERTICAL) videoWrap.classList.add('vertical');
-    videoWrap.innerHTML = YOUTUBE_VIDEO_ID
-      ? `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}"
+
+    function playerIframe(autoplay) {
+      const params = autoplay ? '?autoplay=1' : '';
+      return `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}${params}"
            title="Agnus Dei Technologies: Meet Bede"
            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-           loading="lazy" allowfullscreen></iframe>`
-      : `<div class="video-placeholder">
+           allowfullscreen></iframe>`;
+    }
+
+    if (!YOUTUBE_VIDEO_ID) {
+      // No video configured yet — a plain, non-interactive placeholder.
+      videoWrap.innerHTML =
+        `<div class="video-placeholder"><span>&#9654;</span><p>Video coming soon</p></div>`;
+    } else {
+      // Click-to-play: YouTube is not contacted until the visitor presses
+      // play, so no third-party request happens on page load. A <button>
+      // rather than a styled <div>, so it is keyboard-operable for free.
+      videoWrap.innerHTML =
+        `<button type="button" class="video-placeholder">
            <span>&#9654;</span>
-           <p>Video coming soon</p>
-         </div>`;
+           <p>Watch: Meet Bede</p>
+           <small>Plays from YouTube. Nothing is requested from them until you press play.</small>
+         </button>`;
+      videoWrap.querySelector('button').addEventListener('click', () => {
+        videoWrap.innerHTML = playerIframe(true);
+      });
+    }
   </script>
 </body>
 </html>

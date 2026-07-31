@@ -511,9 +511,21 @@
       border-bottom: 1px solid rgba(28, 36, 56, 0.12);
     }
 
-    .faq details:first-child {
-      border-top: 1px solid rgba(28, 36, 56, 0.12);
+    /* Group labels. Twenty-one questions in one undifferentiated column is
+       a list nobody reads to the end of; seven labelled runs of two to five
+       are scannable. */
+    .faq-group {
+      margin: 2.25rem 0 0;
+      padding-bottom: 0.5rem;
+      font-family: Georgia, serif;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--fern-deep);
+      border-bottom: 1px solid rgba(28, 36, 56, 0.12);
     }
+
+    .faq-group:first-child { margin-top: 0; }
 
     .faq summary {
       cursor: pointer;
@@ -920,6 +932,25 @@
       <p class="eyebrow">Questions Families Ask</p>
       <h2>Before you begin</h2>
       <div class="faq">
+        <p class="faq-group">The method</p>
+        <details>
+          <summary>What does "classical" actually mean here?</summary>
+          <p>Three stages, matched to how children actually change rather than to a school calendar. In the Grammar stage a child's memory is enormous and their appetite is for facts, names, stories, songs, and dates &mdash; so that is what you feed it. In the Logic stage, somewhere around eleven, the same child starts arguing with everything; that is not defiance, it is the arrival of the faculty you now teach directly &mdash; how claims connect, what follows from what, where an argument breaks. The Rhetoric stage that follows is about saying it well and saying it truly.</p>
+          <p>Bede paces itself to these stages, not just to a grade number. Younger children get one simple, single-idea question at a time; older ones get counterexamples and are asked to defend a position. Alongside that sit the two habits the tradition rests on: living books rather than textbooks &mdash; real authors writing about things they loved &mdash; and narration, where the child tells the passage back in their own words instead of answering a worksheet about it.</p>
+        </details>
+        <details>
+          <summary>Why the Socratic method &mdash; does asking really beat telling?</summary>
+          <p>Because remembering is not a readout, it is a rebuild. Every time a child reconstructs an idea instead of receiving it, the path back to it gets stronger. That is why narration &mdash; tell me that chapter back in your own words &mdash; does more than re-reading the chapter, and why an answer a child generates is held far better than the same answer handed over. Re-reading feels productive and mostly is not; the effort of retrieval is not a cost of the method, it is the method working.</p>
+          <p>The "why" and "how" do a second job. A child can hold a great many <em>whats</em> without any of them connecting to each other, and disconnected facts do not transfer to new problems. Questions that push on reasoning force the connections that make knowledge usable somewhere other than where it was learned.</p>
+          <p>In practice Bede never simply gives the answer. It asks the question your child's actual words invite, follows one thread rather than five, and after a round or two of follow-ups offers a hint or moves on rather than pressing &mdash; a stuck child needs a foothold, not another question. Its own instruction puts it plainly: a child who discovers a truth owns it; a child who is told a truth only borrows it.</p>
+          <p>To be careful about what we are claiming: these are long-standing findings about how people learn, and a tradition with a very long track record. They are not a study of Bede. We have said elsewhere on this page that we do not have one yet.</p>
+        </details>
+        <details>
+          <summary>Why so much emphasis on discipline and attention?</summary>
+          <p>Because everything above depends on it, and none of it survives a divided mind. Retrieval is effortful by design; a child who is half-present cannot do it, and a lesson delivered to a wandering attention has not happened, however long it lasted. This is why lessons here are short &mdash; fifteen to twenty-five minutes a subject &mdash; rather than long. Full attention for twenty minutes beats partial attention for an hour, and it is kinder besides.</p>
+          <p>The older tradition treats attention as a habit to be formed rather than a trait a child either has or lacks, and formed the way any habit is: in small, repeated, unexciting doses, protected by the adults around the child. That is what the pledge in our guarantee is really for. It is not hostility to entertainment. It is that consolidation happens <em>after</em> the lesson, in the quiet, and a mind returned to a fast screen every evening never gets that hour.</p>
+        </details>
+        <p class="faq-group">Faith</p>
         <details>
           <summary>Do we have to be Catholic to use Bede?</summary>
           <p>No. Scripture &amp; Bible Study and Saints &amp; Catechism are two separate subjects, and you enable either, both, or neither. Scripture is deliberately denomination-neutral &mdash; Bible narrative, memory verses, and the moral law the text plainly teaches, without asserting one tradition's doctrine or canon as though every Christian holds it. Saints &amp; Catechism is the Catholic module and openly so. Tell Bede your family's church tradition and the Bible translation you already read, and it frames lessons to match.</p>
@@ -929,6 +960,7 @@
           <p>Bede is not a spiritual advisor and must never become one. Doctrine, moral counsel, and pastoral judgment stay with you and with your own pastor, priest, deacon, or minister. When a child asks something that belongs to them, Bede says so and sends it home.</p>
           <p>Bede also never scores, measures, or quantifies your child's faith. There is no engagement metric on prayer and no progress bar on belief. That is written into Bede's constitution as a rule, not left to a setting.</p>
         </details>
+        <p class="faq-group">Curriculum</p>
         <details>
           <summary>Which curriculum comes with Bede?</summary>
           <p>A living-books catalog covering Years 1 through 8 in the Charlotte Mason tradition, inspired by Mater Amabilis &mdash; Aesop, Kipling, and Milne in the early years, through Plutarch, Shakespeare, Austen, Dickens, and Chesterton by eighth grade. The Catholic catechism module draws on Ignatius Press's <em>Faith and Life</em> series.</p>
@@ -939,13 +971,34 @@
           <p>Set the whole thing to Book Companion and Bede does nothing but discuss the book in your hands, with a light touch and few interruptions. Add structure later, only if you want it.</p>
         </details>
         <details>
+          <summary>What are the recommended resources?</summary>
+          <p>The work that happens after the lesson &mdash; the reading, the practice, the making &mdash; matters as much as the lesson, and picking it well is genuinely hard. That is a job for your coach, not for software: a real person who knows your child's topic, your tradition, and what you already own, recommending what to do next and checking it fits how Bede is teaching it.</p>
+          <p>Bede's own bundled catalog is chosen on the same principle. Every title carries a difficulty, concept tags, and an explicit screen against twaddle, so what a child is handed is a living book rather than whatever filled a slot.</p>
+          <p>What we do not do is pretend the software curates this for you. There is no per-topic resource engine inside Bede today, and we would rather say so than let a coaching service be mistaken for a feature.</p>
+        </details>
+        <p class="faq-group">Your part in it</p>
+        <details>
           <summary>Does Bede replace me as the teacher?</summary>
           <p>No. You set the subjects, the texts, the daily plan, and the boundaries, and you can preview any response in a private sandbox before your child ever sees it. Bede treats the parent as the curriculum director and does not override that judgment.</p>
         </details>
         <details>
+          <summary>What does this ask of me as the parent?</summary>
+          <p>More than a subscription, and we would rather be honest about that than sell you something that quietly fails. Plan on roughly two focused hours a day, and the discipline to protect them: a steady place to work, the books to hand, and the day arranged so the work actually happens.</p>
+          <p>Those two hours are a floor for focused work, not a ceiling on learning. Nothing here caps how much a child reads, narrates, builds, or explores &mdash; time with books and time with Bede can both run well past it, and often should. What is bounded is continuous screen time, not learning.</p>
+          <p>And there is a pledge: no television and no video games on school days, five days a week at the very least. This is the part families find hardest and the part that makes the rest work. Attention that gets spent on a screen in the evening is not available for consolidating what was learned that morning.</p>
+          <p>You remain the curriculum giver: you choose the subjects, the texts, and the topic under the guarantee. Bede is the hands-on tutor working that plan daily. It is a real division of labour, and it does not work if either half goes missing.</p>
+        </details>
+        <p class="faq-group">Progress and evidence</p>
+        <details>
           <summary>What does Bede actually measure?</summary>
           <p>Mastery in mathematics, composition, K&ndash;2 reading foundations, and language exposure &mdash; all of it gathered from the ordinary work of the lesson rather than from quizzes. A narration given, a problem reasoned through, a word sounded out. The session summary reports real movement, and the Progress page shows the record behind it.</p>
         </details>
+        <details>
+          <summary>Has this been tested with other families?</summary>
+          <p>Not yet, and we will not pretend otherwise. Bede has been built and tested in the founder's own family, which is a sample of one. The public beta exists precisely to find out whether what works at our kitchen table works at yours.</p>
+          <p>So the page above describes what Bede does and what it refuses to do &mdash; both checkable the day you install it &mdash; rather than results we have not earned the right to claim. When we have real outcomes across real families, we will publish them, including the parts that did not work.</p>
+        </details>
+        <p class="faq-group">Safety, privacy, and screens</p>
         <details>
           <summary>Where does our data live?</summary>
           <p>In your own database, on a machine in your own house. Voice profiles, student plans, transcripts, and assessments are AES-256-GCM encrypted at rest, so the database itself never holds plaintext. You also get narration history, mastery snapshots, session summaries, and an encrypted audit log &mdash; a real record for a real school year.</p>
@@ -965,17 +1018,13 @@
           <p>The guarantee also asks for the other side of that ledger: no television and no video games on school days, five days a week at minimum. The point was never to minimise screens in general &mdash; it is to spend a child's attention on the things that form them.</p>
         </details>
         <details>
-          <summary>What do I need to run it?</summary>
-          <p>A computer in your house &mdash; Windows, Mac, or Linux, including a Raspberry Pi. There are installers for each. Children connect from their own tablets over your home network, and running a lesson never requires a call back to us.</p>
-        </details>
-        <details>
           <summary>Can I delete everything?</summary>
           <p>Yes. One type-to-confirm button removes everything belonging to a student &mdash; transcripts, narrations, mastery, voice profile, the lot. Not archived. Gone.</p>
         </details>
+        <p class="faq-group">Getting started</p>
         <details>
-          <summary>Has this been tested with other families?</summary>
-          <p>Not yet, and we will not pretend otherwise. Bede has been built and tested in the founder's own family, which is a sample of one. The public beta exists precisely to find out whether what works at our kitchen table works at yours.</p>
-          <p>So the page above describes what Bede does and what it refuses to do &mdash; both checkable the day you install it &mdash; rather than results we have not earned the right to claim. When we have real outcomes across real families, we will publish them, including the parts that did not work.</p>
+          <summary>What do I need to run it?</summary>
+          <p>A computer in your house &mdash; Windows, Mac, or Linux, including a Raspberry Pi. There are installers for each. Children connect from their own tablets over your home network, and running a lesson never requires a call back to us.</p>
         </details>
         <details>
           <summary>What does it cost?</summary>
@@ -994,19 +1043,6 @@
           <p>Often, yes. The arithmetic is roughly linear: a family able to commit about double the focused time &mdash; four hours a day rather than two, split between lessons with Bede and the recommended work afterwards &mdash; can generally carry two topics through the same two weeks instead of one.</p>
           <p>Age decides a great deal here, so we will not print it as a formula. For scale: Bede's entire eleven-subject day totals about three and a half hours. Four focused hours on two topics is more than the whole curriculum, which is realistic for a Logic-stage student with stamina and genuinely not what we would recommend for a six-year-old &mdash; short lessons for young children are not a limitation of this method, they are the method. We would rather set the pace with you on the onboarding call, against your actual child, than publish a number that flatters everyone and fits nobody.</p>
           <p>The guarantee itself stays at one topic in thirty days whatever pace you choose. It is the floor we are willing to stake money on, not a cap on what your family can do.</p>
-        </details>
-        <details>
-          <summary>What are the recommended resources?</summary>
-          <p>The work that happens after the lesson &mdash; the reading, the practice, the making &mdash; matters as much as the lesson, and picking it well is genuinely hard. That is a job for your coach, not for software: a real person who knows your child's topic, your tradition, and what you already own, recommending what to do next and checking it fits how Bede is teaching it.</p>
-          <p>Bede's own bundled catalog is chosen on the same principle. Every title carries a difficulty, concept tags, and an explicit screen against twaddle, so what a child is handed is a living book rather than whatever filled a slot.</p>
-          <p>What we do not do is pretend the software curates this for you. There is no per-topic resource engine inside Bede today, and we would rather say so than let a coaching service be mistaken for a feature.</p>
-        </details>
-        <details>
-          <summary>What does this ask of me as the parent?</summary>
-          <p>More than a subscription, and we would rather be honest about that than sell you something that quietly fails. Plan on roughly two focused hours a day, and the discipline to protect them: a steady place to work, the books to hand, and the day arranged so the work actually happens.</p>
-          <p>Those two hours are a floor for focused work, not a ceiling on learning. Nothing here caps how much a child reads, narrates, builds, or explores &mdash; time with books and time with Bede can both run well past it, and often should. What is bounded is continuous screen time, not learning.</p>
-          <p>And there is a pledge: no television and no video games on school days, five days a week at the very least. This is the part families find hardest and the part that makes the rest work. Attention that gets spent on a screen in the evening is not available for consolidating what was learned that morning.</p>
-          <p>You remain the curriculum giver: you choose the subjects, the texts, and the topic under the guarantee. Bede is the hands-on tutor working that plan daily. It is a real division of labour, and it does not work if either half goes missing.</p>
         </details>
       </div>
       <p class="fineprint">

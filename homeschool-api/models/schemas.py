@@ -27,6 +27,23 @@ BIBLE_TRANSLATIONS = [
     "RSV-CE", "NABRE", "NRSV-CE", "Douay-Rheims",
 ]
 
+# Curriculum publishers commonly used alongside Bede by classical/Christian
+# homeschool families, offered as quick-pick suggestions for
+# SessionConfig.curriculum_resources — NOT a closed enum (a family's own
+# entry outside this list is kept as-is, same "suggestion, not allowlist"
+# treatment as faith_tradition). Deliberately spans several different
+# subjects rather than one (Memoria Press/Classical Academic Press: Latin
+# & classical method; Well-Trained Mind Press: general classical method;
+# Institute for Excellence in Writing: writing; RightStart Mathematics:
+# math; Logic of English: phonics/spelling) since a family may already use
+# several of these for different subjects at once. Mirrored in
+# homeschool-tutor/src/types/index.ts, same duplication convention as
+# BIBLE_TRANSLATIONS above.
+CURRICULUM_RESOURCE_SUGGESTIONS = [
+    "Memoria Press", "Classical Academic Press", "Well-Trained Mind Press",
+    "Institute for Excellence in Writing", "RightStart Mathematics", "Logic of English",
+]
+
 
 def grade_to_stage(grade: str) -> GradeStage:
     """Maps a grade string to its Mater Amabilis-aligned stage (see
@@ -234,6 +251,19 @@ class SessionConfig(BaseModel):
     # with a translation added to BIBLE_TRANSLATIONS later without a schema
     # change.
     bible_translation: Optional[str] = Field(default=None, max_length=40)
+    # Curriculum publishers/resources the family already uses alongside
+    # Bede (see CURRICULUM_RESOURCE_SUGGESTIONS above) — up to 6 short
+    # entries, cleaned/deduped by _validate_curriculum_resources below, same
+    # "cap + clean, never reject" convention term_mastery_topics already
+    # uses. Framing guidance only (see services/ai_service.py's
+    # _curriculum_resources_note): Bede aligns terminology/approach where
+    # it naturally overlaps with a named resource's own known method, but
+    # never claims to reproduce that publisher's specific proprietary
+    # lesson content — unlike data/catechism/faith_and_life.json, there is
+    # no sourced, verified scope-and-sequence backing these names, so
+    # treating them as anything beyond a name to align tone with would risk
+    # fabricating claims about content Bede was never actually given.
+    curriculum_resources: List[str] = Field(default_factory=list)
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
     # The session's hard stop, in minutes — on by default and there by
@@ -303,6 +333,21 @@ class SessionConfig(BaseModel):
             if kept:
                 cleaned[area] = kept
         self.term_mastery_topics = cleaned
+        return self
+
+    @model_validator(mode="after")
+    def _validate_curriculum_resources(self):
+        """Trims, drops empties, dedupes case-insensitively (keeping the
+        first-seen casing), and caps at 6 — the same "clean, never reject"
+        shape _validate_term applies to term_mastery_topics, so a client
+        sending a slightly malformed list never gets a 422 over a field
+        this low-stakes."""
+        seen: dict[str, str] = {}
+        for entry in self.curriculum_resources or []:
+            cleaned = entry.strip()[:60] if entry else ""
+            if cleaned and cleaned.lower() not in seen:
+                seen[cleaned.lower()] = cleaned
+        self.curriculum_resources = list(seen.values())[:6]
         return self
 
     @model_validator(mode="after")

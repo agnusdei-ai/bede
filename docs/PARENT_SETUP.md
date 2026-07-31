@@ -334,6 +334,20 @@ Nothing said there is ever saved — no transcript, no student record. Leave
    sounds like the same Bible your child already reads at home. Leave it
    on "No preference" and Bede quotes Scripture from its own knowledge
    without favoring any particular translation's phrasing.
+
+   The panel also has a **Curriculum Resources You Already Use** field —
+   always available, not tied to any one subject, since a family's
+   curriculum choices span math, writing, phonics, and more, not just
+   faith content. Type in (or click a quick-pick chip for) any publisher
+   or program your family already uses — Memoria Press, Classical Academic
+   Press, Well-Trained Mind Press, Institute for Excellence in Writing,
+   RightStart Mathematics, Logic of English, or your own entry for
+   anything else. Bede will lean into familiar terms and general approach
+   where they naturally overlap with how that resource teaches something
+   (for instance, RightStart's abacus-based math, or Logic of English's
+   phonogram approach) — but it never claims to know or reproduce that
+   publisher's actual lesson content, since Bede was never given their
+   materials to draw from.
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child) — this makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`

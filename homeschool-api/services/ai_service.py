@@ -1292,6 +1292,49 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     )
 
 
+def _curriculum_resources_note(config: SessionConfig) -> str:
+    """
+    Names curriculum publishers/resources the family already uses alongside
+    Bede (SessionConfig.curriculum_resources — see
+    CURRICULUM_RESOURCE_SUGGESTIONS in models/schemas.py for the seed list
+    ParentSetup.tsx offers as quick picks; a family's own free-text entry
+    outside that list is honored the same way). Session-long framing, like
+    _companion_mode_note, not per-subject like _bible_translation_note —
+    these publishers span different subjects (Latin, writing, math,
+    phonics), so this belongs in the static block rather than being gated
+    to any one Subject.
+
+    Deliberately guidance-only, and deliberately narrower than it might
+    look: Bede is told to align terminology/approach where it naturally
+    overlaps with a named resource's known general method, but explicitly
+    never to claim knowledge of that publisher's specific proprietary
+    lesson content, scope-and-sequence, or exact wording. Unlike
+    data/catechism/faith_and_life.json (sourced from Ignatius Press's own
+    public materials) or the poetry/prayer catalogs (verbatim, curated
+    text), there is no verified dataset backing these publisher names here
+    — inventing specific claims about their actual materials would be
+    exactly the kind of fabricated certainty the constitution's first
+    non-negotiable rule forbids. Guessing at a resource's real content is
+    treated as strictly worse than not mentioning it at all.
+    """
+    names = [_sanitize_parent_field(n, max_len=60) for n in (config.curriculum_resources or [])]
+    names = [n for n in names if n]
+    if not names:
+        return ""
+    joined = ", ".join(names)
+    return (
+        f"\n\nThis family already uses material from: {joined}. When your own teaching approach or "
+        "terminology naturally overlaps with how a resource like this generally teaches something — "
+        "phonogram-based phonics, abacus-based math manipulatives, structured note-and-outline writing, "
+        "a classical Latin/logic/rhetoric progression — lean into familiar language so the lesson feels "
+        "like a continuation of what the family already does. Never claim to know or reproduce this "
+        "publisher's specific proprietary lessons, scripts, or exact scope-and-sequence — you were not "
+        "given their actual materials, so teach from your own general knowledge instead of guessing at "
+        "theirs. If unsure whether a claim about a named resource is accurate, leave it out rather than "
+        "risk stating something false about it."
+    )
+
+
 def _constitution_preamble() -> str:
     """
     Renders Bede's verified, tamper-evident constitution (core/constitution.py)
@@ -1499,7 +1542,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}
+{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_curriculum_resources_note(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \

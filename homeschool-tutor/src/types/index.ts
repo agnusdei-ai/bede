@@ -45,6 +45,12 @@ export interface SessionConfig {
   // paraphrasing of Scripture matches the wording the family already reads
   // at home.
   bible_translation?: string
+  // Curriculum publishers/resources the family already uses alongside Bede
+  // (see CURRICULUM_RESOURCE_SUGGESTIONS below) — mirrors the backend's
+  // SessionConfig.curriculum_resources. Set in the same ParentSetup.tsx
+  // panel; Bede aligns terminology/approach where it naturally overlaps,
+  // never claiming to reproduce a named publisher's actual content.
+  curriculum_resources?: string[]
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
@@ -120,6 +126,15 @@ export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
 export const BIBLE_TRANSLATIONS = [
   'KJV', 'NKJV', 'ESV', 'NIV', 'NASB', 'NLT', 'CSB',
   'RSV-CE', 'NABRE', 'NRSV-CE', 'Douay-Rheims',
+] as const
+
+// Curriculum publishers commonly used alongside Bede, offered as quick-pick
+// suggestions for SessionConfig.curriculum_resources — mirrors
+// homeschool-api/models/schemas.py's CURRICULUM_RESOURCE_SUGGESTIONS. Not a
+// closed list — a parent's own free-text entry is kept as typed.
+export const CURRICULUM_RESOURCE_SUGGESTIONS = [
+  'Memoria Press', 'Classical Academic Press', 'Well-Trained Mind Press',
+  'Institute for Excellence in Writing', 'RightStart Mathematics', 'Logic of English',
 ] as const
 
 // Foundational core areas tracked term-by-term — mirrors

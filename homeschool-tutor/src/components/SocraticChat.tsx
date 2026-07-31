@@ -14,6 +14,7 @@ import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
+import { createHoldHandlers } from '../utils/holdGesture'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -254,6 +255,34 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     holdingRef.current = false
     release()
   }
+
+  // Pointer wiring for the hold gesture, with pointer capture — see
+  // utils/holdGesture.ts. This is what stops a finger drifting a few pixels
+  // off the button from ending the recording mid-sentence, which was the
+  // real cause of "the voice button is unreliable" on a tablet.
+  //
+  // The state box lives in a ref so one continuous gesture is tracked
+  // across the re-renders that startHold() itself triggers (isListening
+  // flips, the button restyles); rebuilding it per render would reset
+  // `active`/`captured` mid-hold. holdStart/holdEnd are read through refs
+  // for the same reason — the handlers are built once and must not close
+  // over a stale render's copies.
+  const holdGestureStateRef = useRef({ active: false, captured: false })
+  const holdStartRef = useRef(holdStart)
+  const holdEndRef = useRef(holdEnd)
+  holdStartRef.current = holdStart
+  holdEndRef.current = holdEnd
+  const holdHandlersRef = useRef<ReturnType<typeof createHoldHandlers> | null>(null)
+  if (holdHandlersRef.current === null) {
+    holdHandlersRef.current = createHoldHandlers(
+      {
+        onStart: (e) => holdStartRef.current(e),
+        onEnd: (e) => holdEndRef.current(e),
+      },
+      holdGestureStateRef.current,
+    )
+  }
+  const holdHandlers = holdHandlersRef.current
 
   // It's genuinely the child's turn (nothing streaming, speaking,
   // transcribing, listening, or on break) — show a clear "press and hold to
@@ -796,12 +825,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             <button
               {...(isContinuous
                 ? { onClick: () => setVoiceMode('hold') }
-                : {
-                    onPointerDown: holdStart,
-                    onPointerUp: holdEnd,
-                    onPointerLeave: holdEnd,
-                    onPointerCancel: holdEnd,
-                  })}
+                : holdHandlers)}
               disabled={isStreaming || breakActive || isTranscribing}
               title={
                 isTranscribing
@@ -814,7 +838,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
                   ? t('chat.micHoldListening')
                   : t('chat.micHoldToTalk')
               }
-              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${
+              className={`p-3 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${
                 isListening
                   ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft'
                   : isContinuous

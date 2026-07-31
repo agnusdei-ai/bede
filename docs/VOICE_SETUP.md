@@ -1000,6 +1000,106 @@ hard to reason about from first principles alone, and "native also probably
 needs this" is a hypothesis, not a finding, until an actual trace confirms
 which specific call it was racing against.
 
+## Diagnosing a reported speech "echo"
+
+Open, as of this writing: a doubled/echoing voice has been reported on a
+current build. Root cause not yet found — the earlier fixes in #292 and
+#314 addressed one specific doubling (the browser `speechSynthesis`
+fallback playing *alongside* real backend audio) and are still in place,
+so whatever is happening now is something else.
+
+**The debug overlay only used to log failure paths** — an autoplay
+rejection, a fallback decision. During a normal-looking turn that happens
+to echo, it emitted nothing at all, so a capture came back empty and told
+you nothing. The TTS path is now instrumented on the success paths too, in
+both apps, specifically so one screenshot can distinguish the three
+plausible causes:
+
+| What the log shows | What it means |
+|---|---|
+| `TTS speak()` twice with the same `text="…"` for one turn | Duplication is **upstream**, in the turn-stream consumer batching speech segments — not in playback at all. |
+| Two `TTS backend playback STARTED` with no `ENDED` between | Two clips **overlapping on the shared `<audio>` element** — the doubled/"reverby" case. |
+| `TTS browser fallback STARTED` while a backend clip is playing | **Two different voices at once** — the #292/#314 class, not fully closed. |
+
+Also logged: `TTS processQueue start` (tutor only — the demo has no queue),
+playback `ENDED`/`ERROR`, and `TTS stop()` with the generation counter, so
+barge-in and subject-switch boundaries are visible and a superseded call
+resuming can be spotted by its stale `gen=`.
+
+To capture: open the session, toggle the debug overlay from the session
+header (the muted control set apart from the real session controls),
+reproduce the echo, screenshot the panel. The buffer holds 100 entries
+(`hooks/debugBus.ts`), so screenshot reasonably promptly after it happens.
+
+## Troubleshooting: press-and-hold cuts off mid-sentence, or "the voice button is unreliable"
+
+Reported as press-and-hold feeling unreliable compared with other
+assistants' recording buttons. This was a real bug in the button's pointer
+wiring, not in transcription, the audio graph, or the model.
+
+The mic button's handlers were:
+
+```jsx
+onPointerDown={holdStart}
+onPointerUp={holdEnd}
+onPointerLeave={holdEnd}     // <- the bug
+onPointerCancel={holdEnd}
+```
+
+with no pointer capture. `pointerleave` fires the moment the pointer crosses
+outside the element's box, and it was wired straight to the "stop recording
+and send" path. So any finger drift off the button mid-hold ended the turn
+immediately — silently, mid-sentence, with no error and nothing in the
+resulting transcript to explain the truncation.
+
+On a tablet, held by a child, against what was then a ~38px target, that is
+not an edge case. It is the common case, and it is exactly what "the mic
+keeps cutting me off" and "it only caught half of what she said" look like
+from the outside. Note the failure is *silent*: the partial audio still
+transcribes fine, so the child simply sees a short, oddly-truncated version
+of what they said reach Bede.
+
+**The fix** is `setPointerCapture()`, in `utils/holdGesture.ts` (mirrored to
+`demo/src/holdGesture.ts`). Once the pointer is captured, the capturing
+element receives every subsequent event for that pointer regardless of where
+it travels, and boundary events are suppressed while capture is held. The
+hold then ends only when the child actually lifts their finger — the entire
+contract of a press-and-hold control.
+
+This app already used the technique elsewhere: `HandwritingCanvas.tsx`
+captures the pointer so a drawing stroke survives leaving the canvas bounds.
+The mic button simply never got the same treatment.
+
+Three details worth keeping:
+
+- **`onPointerLeave` is retained, but only as a fallback for when capture
+  could not be established at all** (a very old WebView, a synthetic pointer
+  with no usable id). When capture succeeded, a leave event is ignored,
+  because leaving the box is not the end of the gesture. Degrading to the
+  old lossy behavior is still better than a hold that can only end at the
+  120-second `HOLD_SAFETY_TIMEOUT_MS` ceiling.
+- **Gesture-active is tracked separately from capture-held.** Releasing
+  capture necessarily clears the captured flag, and the spec allows a
+  deferred `pointerleave` immediately afterwards — with a single flag, that
+  trailing event falls through the "capture unavailable" branch and fires a
+  *second* send for one gesture. A regression test caught this during
+  development; the call sites happen to carry their own `holdingRef` guard,
+  but the helper is correct on its own rather than depending on every caller
+  to re-derive that.
+- **The touch target was raised to a 44px floor** (Apple HIG minimum) from
+  roughly 38px. Capture makes drift harmless, but a larger target means less
+  drift to begin with, and this button is aimed at K-8 hands.
+
+`touch-action: none` was already correctly set on this button (Tailwind's
+`touch-none`), so scroll-gesture `pointercancel` was never part of this
+particular failure.
+
+**Not the same issue as continuous mode's missing endpointing** (see that
+feature's section below). Hold-to-talk has always had an explicit end signal
+— the child's own finger lift — and this fix is about that signal being
+delivered reliably. Continuous "Voice on" mode has no end signal at all,
+which remains open, separate work.
+
 ## Troubleshooting: the live transcript while speaking is off-screen
 
 Reported with a screenshot: while holding the mic and talking, the child's

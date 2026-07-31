@@ -1,0 +1,736 @@
+/* Shared stylesheet for agnusdei.io — index.html and faq/index.html.
+   Extracted from index.html's inline <style> when the FAQ moved to its
+   own page, so the two cannot drift apart. No build step: this file is
+   served as-is, same as the pages that link it. */
+
+/* ──────────────────────────────────────────────────────────────────
+   Palette — drawn from the things this education is actually made of
+   rather than a generic brand ramp: iron-gall ink, a fern in a nature
+   notebook, foxed paper, the gilt on a cloth book spine, and madder,
+   the old plant dye. Warmer and more muted than the previous olive/
+   navy pair, so photographs sit on top of it without clashing.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --ink: #1c2438;
+  --ink-soft: #3a4358;
+  --fern: #47613f;
+  --fern-deep: #33482d;
+  --vellum: #faf6ec;
+  --vellum-deep: #f1e7d2;
+  --gilt: #b8860b;
+  --gilt-light: #e0b84a;
+  --madder: #8c3b2e;
+  --prose: #4d4a42;
+
+  /* ────────────────────────────────────────────────────────────────
+     PHOTOGRAPH SLOTS — see site/assets/photos/README.md.
+     Each is `none` until a real photograph is dropped in, and every
+     band below has a solid colour fallback underneath, so the page is
+     complete and correct with all three unset (which is how it ships
+     today). To activate one, replace `none` with:
+
+         url('/assets/photos/hero.jpg')
+
+     and nothing else needs to change — the wash, crop, and text
+     contrast are already handled by the band it belongs to.
+
+     Use real photographs only. No AI-generated imagery.
+     ──────────────────────────────────────────────────────────────── */
+  --photo-hero: url('/assets/photos/live-oak.jpg');
+  --photo-curriculum: url('/assets/photos/meadow-grasses.jpg');
+  --photo-closing: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--vellum);
+  color: var(--ink);
+  font-family: Georgia, Cambria, 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A photographic band. The wash gradient is listed FIRST in
+   background-image so it always paints over the photograph; when the
+   slot is `none` the wash simply sits on the background-color and the
+   band reads as a subtle tint. Every band keeps its text contrast
+   either way — that is the whole point of washing rather than
+   dropping type straight onto a photo. */
+.band {
+  background-color: var(--vellum);
+  background-image:
+    linear-gradient(180deg, rgba(250, 246, 236, 0.88), rgba(241, 231, 210, 0.92)),
+    var(--photo-hero);
+  background-size: cover;
+  background-position: center;
+}
+
+.band-curriculum {
+  background-color: var(--vellum-deep);
+  background-image:
+    linear-gradient(180deg, rgba(241, 231, 210, 0.90), rgba(241, 231, 210, 0.94)),
+    var(--photo-curriculum);
+  background-size: cover;
+  background-position: center;
+}
+
+/* The closing band is the one place type sits on a dark ground, so its
+   wash is heavier — a photograph shows through as texture, never as
+   something competing with the words. */
+.band-closing {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(180deg, rgba(28, 36, 56, 0.82), rgba(28, 36, 56, 0.88)),
+    var(--photo-closing);
+  background-size: cover;
+  background-position: center;
+  color: var(--vellum);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem 3rem;
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+img.emblem {
+  width: 112px;
+  height: auto;
+  margin-bottom: 1.25rem;
+}
+
+h1 {
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+}
+
+p.motto {
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+  font-weight: bold;
+  color: var(--fern-deep);
+  margin: 0 0 1rem;
+}
+
+p.mission {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--prose);
+  margin: 0 0 2rem;
+}
+
+.pillars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 0 0 2.5rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 0.75rem;
+  border: 1px solid var(--vellum-deep);
+}
+
+.pillar {
+  flex: 1 1 12rem;
+  max-width: 14rem;
+}
+
+.pillar h3 {
+  font-family: Georgia, serif;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fern-deep);
+  margin: 0 0 0.35rem;
+}
+
+.pillar p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--prose);
+  margin: 0;
+}
+
+img.bede-portrait {
+  display: block;
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--gilt);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  margin: 0 auto 1rem;
+}
+
+a.cta {
+  display: inline-block;
+  background: var(--fern);
+  color: var(--vellum);
+  text-decoration: none;
+  font-family: Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 0.85rem 2.25rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+a.cta.gilt {
+  background: var(--gilt-light);
+  color: var(--ink);
+}
+
+.cta-sub {
+  margin: 0.75rem 0 2.25rem;
+  font-size: 0.85rem;
+  color: #635f54;
+}
+
+.video-wrap {
+  width: 100%;
+  max-width: 36rem;
+  margin: 0 0 2.5rem;
+  position: relative;
+  aspect-ratio: 16 / 9; /* used for the placeholder and any future landscape video */
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.video-wrap.vertical {
+  max-width: 20rem;
+  aspect-ratio: 9 / 16; /* for a YouTube Shorts style vertical video */
+}
+
+.video-wrap iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Click-to-play facade. Nothing is requested from YouTube until the
+   visitor actually asks for it — which matters on a page whose whole
+   argument is that your data stays where you put it. It also keeps a
+   third-party frame off the critical path for everyone who never
+   presses play. The real iframe replaces this on click.
+
+   Deliberately no thumbnail image: fetching one would mean a request
+   to YouTube on load, which is the exact thing this avoids. */
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  /* Dark rather than parchment: at 9:16 this is a tall panel, and on a
+     parchment page a tall parchment rectangle reads as something that
+     failed to load. Dark reads as a video. */
+  background: var(--ink);
+  color: rgba(250, 246, 236, 0.9);
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  padding: 1rem;
+}
+
+.video-placeholder[disabled] { cursor: default; }
+
+.video-placeholder span {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  background: var(--gilt-light);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  padding-left: 0.2rem; /* optically centre the triangle in the circle */
+  transition: transform 0.15s ease;
+}
+
+.video-placeholder:hover:not([disabled]) span { transform: scale(1.06); }
+
+.video-placeholder:focus-visible {
+  outline: 3px solid var(--gilt);
+  outline-offset: -3px;
+}
+
+.video-placeholder p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.video-placeholder small {
+  font-size: 0.75rem;
+  font-style: normal;
+  color: rgba(250, 246, 236, 0.7);
+  max-width: 16rem;
+  line-height: 1.5;
+}
+
+section {
+  padding: 3.25rem 1.5rem;
+}
+
+.inner {
+  max-width: 58rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.eyebrow {
+  font-family: Georgia, serif;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fern-deep);
+  margin: 0 0 0.5rem;
+}
+
+.band-closing .eyebrow { color: var(--gilt-light); }
+
+h2 {
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  color: var(--ink);
+  margin: 0 0 0.75rem;
+}
+
+.band-closing h2 { color: var(--vellum); }
+
+p.lede {
+  font-size: 1rem;
+  color: var(--prose);
+  max-width: 36rem;
+  margin: 0 auto 2rem;
+  line-height: 1.65;
+}
+
+.band-closing p.lede { color: rgba(250, 246, 236, 0.82); }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  text-align: left;
+}
+
+/* Four-card sections get a wider minimum so they settle into a tidy
+   2x2 rather than a 3+1 with one card stranded on its own row. */
+.card-grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.7);
+  border-left: 4px solid var(--fern);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.card h3 {
+  font-family: Georgia, serif;
+  font-size: 1.02rem;
+  color: var(--ink);
+  margin: 0 0 0.25rem;
+}
+
+.card p {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #55534b;
+  margin: 0;
+}
+
+/* Curriculum tab colours — one per subject, like the colored divider
+   tabs in a school binder, so the eleven subjects read as distinct at
+   a glance instead of one undifferentiated green list. Eleven hues
+   evenly spaced around the wheel (32.7° apart, identical saturation
+   and lightness) so none repeats and the list reads as one continuous
+   spectrum — every subject its own colour, the way every learner is
+   their own person. Muted well below full strength so they sit like
+   the plates in an old botanical folio rather than like highlighter
+   ink. Scoped to .curriculum: the other .card-grid instances on the
+   page aren't subject lists and keep the plain fern border. */
+.curriculum .card:nth-child(1)  { border-left-color: #7f3939; } /* Morning Time */
+.curriculum .card:nth-child(2)  { border-left-color: #7f5f39; } /* Living Books */
+.curriculum .card:nth-child(3)  { border-left-color: #787f39; } /* Mathematics */
+.curriculum .card:nth-child(4)  { border-left-color: #527f39; } /* Nature Study */
+.curriculum .card:nth-child(5)  { border-left-color: #397f46; } /* History & Geography */
+.curriculum .card:nth-child(6)  { border-left-color: #397f6c; } /* Language Arts */
+.curriculum .card:nth-child(7)  { border-left-color: #396c7f; } /* Science */
+.curriculum .card:nth-child(8)  { border-left-color: #39467f; } /* Art & Music */
+.curriculum .card:nth-child(9)  { border-left-color: #52397f; } /* Saints & Catechism */
+.curriculum .card:nth-child(10) { border-left-color: #78397f; } /* Scripture & Bible Study */
+.curriculum .card:nth-child(11) { border-left-color: #7f395f; } /* Free Study */
+
+.founder blockquote {
+  margin: 0 0 0.75rem;
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.founder cite {
+  font-style: normal;
+  font-size: 0.85rem;
+  color: var(--fern-deep);
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  text-align: left;
+}
+
+.compare-col {
+  padding: 1.75rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.compare-col.after {
+  background: rgba(71, 97, 63, 0.07);
+  border-left: 1px solid var(--vellum-deep);
+}
+
+.compare-col h3 {
+  font-family: Georgia, serif;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 1.1rem;
+}
+
+.compare-col.before h3 { color: var(--madder); }
+.compare-col.after h3 { color: var(--fern-deep); }
+
+.compare-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.compare-col li {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--prose);
+}
+
+.compare-col li strong {
+  display: block;
+  font-family: Georgia, serif;
+  color: var(--ink);
+  margin-bottom: 0.15rem;
+}
+
+/* A row of small labels — used for the Bible translations Bede will
+   match its wording to. Shows breadth in a glance, without prose. */
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 0 1.75rem;
+}
+
+.pill {
+  font-family: Georgia, serif;
+  font-size: 0.82rem;
+  color: var(--fern-deep);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--vellum-deep);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+}
+
+/* Where Bede deliberately stops. Set apart from the cards so it reads
+   as a promise rather than another feature. */
+.limit {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.4rem;
+  border-left: 4px solid var(--gilt);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0.5rem;
+  text-align: left;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--prose);
+}
+
+.band-closing .limit {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(250, 246, 236, 0.85);
+}
+
+/* FAQ — plain <details>/<summary>, no JavaScript. Everything the page
+   used to say in full is still here, one question at a time, so the
+   page above can stay short without the detail being lost. */
+.faq {
+  max-width: 44rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.faq details {
+  border-bottom: 1px solid rgba(28, 36, 56, 0.12);
+}
+
+/* Group labels. Twenty-one questions in one undifferentiated column is
+   a list nobody reads to the end of; seven labelled runs of two to five
+   are scannable. */
+.faq-group {
+  margin: 2.25rem 0 0;
+  padding-bottom: 0.5rem;
+  font-family: Georgia, serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--fern-deep);
+  border-bottom: 1px solid rgba(28, 36, 56, 0.12);
+}
+
+.faq-group:first-child { margin-top: 0; }
+
+.faq summary {
+  cursor: pointer;
+  padding: 0.95rem 2.25rem 0.95rem 0;
+  position: relative;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  list-style: none;
+}
+
+/* Suppress the default disclosure triangle in both engines, so the
+   custom +/- on the right is the only marker. */
+.faq summary::-webkit-details-marker { display: none; }
+
+.faq summary::after {
+  content: '+';
+  position: absolute;
+  right: 0.35rem;
+  top: 0.8rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--fern);
+}
+
+.faq details[open] summary::after { content: '\2212'; }
+
+.faq summary:hover { color: var(--fern-deep); }
+
+.faq details p {
+  margin: 0 0 1rem;
+  padding-right: 2.25rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--prose);
+}
+
+.fineprint {
+  max-width: 44rem;
+  margin: 1.75rem auto 0;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  /* Small text, so it needs to clear 4.5:1 against the band it sits on
+     (#f1e7d2) rather than fading to a decorative grey. This is 5.2:1. */
+  color: #635f54;
+  text-align: left;
+}
+
+.workflow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--vellum-deep);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  margin: 0 0 2.5rem;
+}
+
+.workflow-step {
+  flex: 1 1 12rem;
+  max-width: 15rem;
+  padding: 0 1rem;
+}
+
+.workflow-step strong {
+  display: block;
+  font-family: Georgia, serif;
+  color: var(--ink);
+  margin-bottom: 0.3rem;
+}
+
+.workflow-step span {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #55534b;
+}
+
+.workflow-arrow {
+  color: var(--fern);
+  font-weight: bold;
+  font-size: 1.4rem;
+  padding: 0 0.5rem;
+}
+
+/* The guarantee. Given its own frame on the dark band because it is the
+   page's one binding commercial promise, and a promise that is easy to
+   skim past is worth nothing. */
+.guarantee {
+  max-width: 40rem;
+  margin: 0 auto 2rem;
+  padding: 1.5rem 1.75rem;
+  text-align: left;
+  border: 1px solid rgba(224, 184, 74, 0.45);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.guarantee h3 {
+  margin: 0 0 0.6rem;
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: 1.15rem;
+  color: var(--gilt-light);
+}
+
+.guarantee p {
+  margin: 0 0 0.75rem;
+  font-size: 0.94rem;
+  line-height: 1.7;
+  color: rgba(250, 246, 236, 0.88);
+}
+
+.guarantee p:last-child { margin-bottom: 0; }
+
+.cta-sub.light {
+  color: rgba(250, 246, 236, 0.72);
+  margin: 0.9rem 0 0;
+}
+
+.cta-sub.light a {
+  color: var(--gilt-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.25rem 2.25rem;
+  font-size: 0.88rem;
+  color: rgba(250, 246, 236, 0.7);
+}
+
+@media (max-width: 640px) {
+  .workflow-strip {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .workflow-step {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .workflow-arrow {
+    transform: rotate(90deg);
+  }
+}
+
+footer {
+  padding: 1.5rem;
+  font-size: 0.8rem;
+  color: #9a968c;
+  border-top: 1px solid var(--vellum-deep);
+  width: 100%;
+  text-align: center;
+}
+
+.beta-banner {
+  background: var(--ink);
+  color: var(--vellum);
+  text-align: center;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.9rem;
+}
+
+.beta-banner strong {
+  color: var(--gilt-light);
+}
+
+/* ── faq/index.html only ─────────────────────────────────────────────────
+   The FAQ has its own page rather than a section on the home page, so it
+   needs a compact header and a way back. Everything else it uses — bands,
+   .faq, .fineprint, .cta — is shared with the home page above. */
+.page-head {
+  padding: 2.75rem 1.5rem 2.25rem;
+  text-align: center;
+}
+
+.backlink {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  font-family: Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--fern-deep);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(51, 72, 45, 0.35);
+  padding-bottom: 1px;
+}
+
+.backlink:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+.page-head h1 { margin-bottom: 0.75rem; }
+
+.page-head .lede { margin-bottom: 0; }
+
+/* Footer links — the FAQ's only route in from the home page, so they need
+   to read as links rather than as more grey small print. */
+footer a {
+  color: var(--fern-deep);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(51, 72, 45, 0.3);
+}
+
+footer a:hover { color: var(--ink); }
+
+footer br { line-height: 2.4; }

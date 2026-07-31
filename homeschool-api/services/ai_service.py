@@ -1190,6 +1190,32 @@ def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     )
 
 
+def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    Names the family's preferred Bible translation (see models/schemas.py's
+    BIBLE_TRANSLATIONS) for Scripture & Bible Study, Saints & Catechism, and
+    Morning Time — the three subjects where Bede quotes or paraphrases
+    Scripture. Gated the same way _faith_tradition_note is, and set from
+    the same ParentSetup.tsx panel, but answers a narrower question: not
+    "what does this family believe" but "what wording should Bede's own
+    quoting and paraphrasing match" — a family reading ESV at home shouldn't
+    hear Bede quote a verse in KJV phrasing and vice versa.
+
+    Guidance only, never a verbatim quote catalog the way
+    services/prayer_catalog.py's daily prayer rotation is — Bede still
+    quotes/paraphrases from its own knowledge, just oriented toward the
+    stated translation's wording rather than an unstated default.
+    """
+    translation = _sanitize_parent_field(config.bible_translation, max_len=40)
+    if not translation or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
+        return ""
+    return (
+        f"\nThis family reads the Bible in the {translation} translation. When quoting or paraphrasing "
+        f"Scripture, favor {translation}'s wording and phrasing so it sounds familiar to what the child "
+        "hears at home, rather than defaulting to a different translation's language."
+    )
+
+
 def _constitution_preamble() -> str:
     """
     Renders Bede's verified, tamper-evident constitution (core/constitution.py)
@@ -2076,9 +2102,10 @@ async def _build_subject_prompt(
     language_note = _language_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
+    bible_translation_note = _bible_translation_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

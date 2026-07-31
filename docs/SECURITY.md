@@ -150,6 +150,40 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Bede's own hands-on suggestions had no dedicated physical-safety
+  guardrail, closed 2026-07-31.** Found by auditing what the constitution's
+  non-negotiable "protect the full dignity, privacy, safety, and
+  developmental needs of every child" actually covers in code: it's
+  enforced as a reactive rule (`services/moderation.py`'s `self_harm`/
+  `violence` categories, `check_safeguarding`'s deterministic patterns) for
+  a child's *own* reported distress or danger, but nothing previously
+  governed the other direction — Bede's *own* free-text suggestions in
+  ordinary hands-on tutoring (Nature Study, Science, and Mathematics all
+  legitimately call for real-world physical activity in Mater Amabilis's
+  own pedagogy) being safe by design in the first place. Bede's only
+  actual kinesthetic tool, `invite_handwriting`, is already screen-based
+  (drawing/writing on the tablet canvas) and carries no physical-object
+  risk of its own, so this closes a gap in Bede's *language*, not in a
+  tool's behavior.
+
+  `_physical_safety_guardrails()` (`services/ai_service.py`), wired into
+  the cached static prompt block (`_build_static_prompt`) so every
+  session, every grade, gets it at no added cost — universal, unlike
+  grade-varying sections like `_ai_literacy_guardrails`, since a younger
+  child is if anything more literal about a hands-on suggestion, never
+  less. Tells Bede to keep any suggested activity to safe, ordinary items
+  (paper, pencils, blocks, books), never suggest heights, fire/heat, sharp
+  or breakable objects, throwing/forceful impact, electricity, water
+  beyond a sink, or ingesting anything non-food; to say so plainly when an
+  activity genuinely calls for a nearby adult; and to redirect rather than
+  comply if the child proposes something risky as their own idea for the
+  lesson. Deliberately **not** a change to
+  `constitution/bede.constitution.json` itself — this operationalizes an
+  existing non-negotiable rule the same way `_ai_literacy_guardrails`
+  operationalizes Catholic AI teaching: ordinary code, changeable by
+  normal PR review, not the constitution's own founder-review/digest
+  change-control process. Covered by
+  `tests/test_physical_safety_guardrails.py`.
 - **Node 20 was end-of-life, and nothing in the toolchain said so, closed
   2026-07-30.** Follow-up to the sweep below, from asking the obvious next
   question: are node/npm actually clean *everywhere*, or just in the two

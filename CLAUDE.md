@@ -42,6 +42,35 @@ from the child, not from a number Bede optimizes against. If a future
 change proposes any kind of "faith engagement" signal, counter, or
 score, that is out of scope — raise it as a question, don't build it.
 
+**Physical safety of Bede's own suggestions.** `_physical_safety_guardrails()`
+(`services/ai_service.py`, wired into the cached static prompt block via
+`_build_static_prompt`) operationalizes the constitution's non-negotiable
+"protect the full dignity, privacy, safety, and developmental needs of
+every child" rule in a direction nothing else covered: not a child's own
+reported distress or danger (that's `services/moderation.py`'s
+`self_harm`/`violence` categories and `check_safeguarding`'s deterministic
+patterns), but Bede's *own* free-text suggestions in ordinary hands-on
+tutoring — Nature Study, Science, and Mathematics all legitimately call for
+real-world physical activity in Mater Amabilis's own pedagogy. Universal
+across every grade and subject (unlike grade-varying sections like
+`_ai_literacy_guardrails`) — a younger child is if anything more literal
+about a hands-on suggestion, never less. Tells Bede to keep any suggested
+activity to safe, ordinary items already meant for a child to handle
+(paper, pencils, blocks, books), never suggest heights, fire/heat, sharp or
+breakable objects, throwing/forceful impact, electricity, water beyond a
+sink, or ingesting anything non-food; to say so plainly when an activity
+genuinely calls for a nearby adult; and to redirect rather than comply if
+the child proposes something risky as their own idea for the lesson.
+Deliberately **not** a change to
+`constitution/bede.constitution.json` itself — same-status ordinary code,
+changeable by normal PR review, not the constitution's own
+founder-review/digest change-control process. Bede's only actual
+kinesthetic tool, `invite_handwriting`, is already screen-based
+(drawing/writing on the tablet canvas) and carries no physical-object risk
+of its own, so this guardrail is about Bede's language, not a tool's
+behavior. See `docs/SECURITY.md`'s Closed gaps for the audit that surfaced
+this.
+
 ## Running the Full Stack
 
 Full deployment instructions (Docker Compose, database choice, day-to-day

@@ -906,6 +906,56 @@ def _grade_descriptor(grade: str) -> str:
     return _GRADE_DESCRIPTORS.get(grade.strip().upper(), f"a student in grade {grade}")
 
 
+def _physical_safety_guardrails() -> str:
+    """
+    Governs the one gap a live audit of Bede's actual affordances turned up:
+    the constitution's non-negotiable "protect the full dignity, privacy,
+    safety, and developmental needs of every child" is a real, enforced
+    rule at the level of tamper-evidence and moderation categories
+    (self_harm, violence — see services/moderation.py), but neither of
+    those was ever written to cover a narrower case — Bede's OWN
+    suggestions, in ordinary free-text tutoring (Nature Study, Science, and
+    Mathematics all legitimately call for real-world hands-on activity in
+    Mater Amabilis's own pedagogy), never being the source of a physically
+    risky idea in the first place.
+
+    Deliberately NOT a change to the constitution itself
+    (constitution/bede.constitution.json) — this doesn't touch the
+    foundational substance docs/CONSTITUTION.md's non-negotiable rules
+    already state, it operationalizes one of them the same way
+    _ai_literacy_guardrails operationalizes Catholic AI teaching: a
+    same-status static-prompt section, ordinary code, changeable by normal
+    PR review rather than the constitution's own founder-review/digest
+    change-control process.
+
+    Universal — unlike _ai_literacy_guardrails, this doesn't vary by grade
+    or subject. A younger child is if anything more literal about a
+    hands-on suggestion, never less, so there's no stage where loosening
+    this would make sense.
+
+    Bede's only real kinesthetic tool, invite_handwriting, is already
+    screen-based (drawing/writing on the tablet canvas) and carries no
+    physical-object risk of its own — this guardrail is about Bede's own
+    free-text language, not about that tool. See docs/SECURITY.md's Closed
+    gaps for the audit that surfaced this.
+    """
+    return """<physical_safety_guardrails>
+Any time you suggest a hands-on or physical activity — in Nature Study, Science, Mathematics, or any other \
+subject — keep it to safe, ordinary actions with items already meant for a child to handle gently: paper, \
+pencils, blocks, books, everyday objects already in reach. Never suggest anything involving heights (climbing, \
+balconies, furniture), fire or heat, sharp or breakable objects, throwing or forceful impact, electricity, \
+water beyond a sink or a puddle, or eating/drinking anything that isn't food. If an activity would genuinely \
+benefit from a nearby adult — a kitchen tool, anything outdoors, anything needing real physical exertion — say \
+so plainly ("ask a grown-up to help with this part") rather than assuming supervision you can't see. \
+If the child proposes something risky as their own idea for an activity — even framed as part of the lesson \
+itself — do not go along with it: redirect warmly to a safe alternative that still teaches the same idea, \
+without shaming them for asking. This is separate from the safeguarding rule above (which responds to a child's \
+own distress or danger): this one is about never being the source of a risky idea in the first place.
+</physical_safety_guardrails>
+
+"""
+
+
 # Grounded in Pope Leo XIV's encyclical Magnifica Humanitas (15 May 2026) —
 # "technology is never neutral," its warning against a digital colonialism
 # where data, computing power, and the shaping of human thought concentrate
@@ -1423,7 +1473,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}
+{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \

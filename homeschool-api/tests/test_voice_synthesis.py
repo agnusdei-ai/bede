@@ -289,8 +289,13 @@ def test_requests_a_compressed_audio_format(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
 
     asyncio.run(vs._synthesize_openai("hello"))
-    assert _FakeAsyncClient.captured["json"]["response_format"] == "mp3"
-    assert _FakeAsyncClient.captured["json"]["response_format"] != "wav"
+    assert _FakeAsyncClient.captured["json"]["response_format"] not in ("wav", None)
+    # AAC, not MP3 — see AUDIO_FORMAT's own comment: MP3 was tried first and
+    # reported back as sounding "like a lisp" with "a residual echo," a close
+    # match for MP3's well-known pre-echo artifact on sibilant-heavy speech.
+    # Pin the specific format, not just "not wav", so a reintroduction of
+    # that artifact would fail this test rather than pass it silently.
+    assert _FakeAsyncClient.captured["json"]["response_format"] == "aac"
 
 
 def test_media_type_matches_the_requested_audio_format():
@@ -298,7 +303,7 @@ def test_media_type_matches_the_requested_audio_format():
     both frontends hand the response body straight to createObjectURL — so a
     mismatch between the format asked for and the type declared would produce
     a blob no browser could play. Keep the two in lockstep."""
-    assert (vs.AUDIO_FORMAT, vs.AUDIO_MEDIA_TYPE) == ("mp3", "audio/mpeg")
+    assert (vs.AUDIO_FORMAT, vs.AUDIO_MEDIA_TYPE) == ("aac", "audio/aac")
 
 
 def test_pacing_is_untouched_by_the_format_change(monkeypatch):

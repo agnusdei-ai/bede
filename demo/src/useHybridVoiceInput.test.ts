@@ -187,6 +187,33 @@ describe('useHybridVoiceInput core hold-to-talk flow (demo)', () => {
     expect(result.current.isTranscribing).toBe(false)
   })
 
+  it('logs processing time separately from hold time once a transcript is delivered', async () => {
+    // Mirrors "voice stream produced nothing" on the failure path, which
+    // already had this. The success path had no timing signal at all — a
+    // slow-but-successful transcription was invisible in the debug panel,
+    // which is exactly the gap a "~10s delay" report can't be diagnosed
+    // through without it.
+    const { getDebugEntries, clearDebugEntries } = await import('./debugBus')
+    clearDebugEntries()
+    const onFinal = vi.fn()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { result.current.release(); await flush() })
+    await act(async () => {
+      eq.push({ type: 'final', text: 'the quick brown fox' })
+      eq.push({ type: 'done' })
+      await flush()
+    })
+
+    const messages = getDebugEntries().map((e) => e.message)
+    expect(messages.some((m) =>
+      /voice stream delivered "the quick brown fox" — \d+ms after release \(\d+ms total hold\)/.test(m)
+    )).toBe(true)
+  })
+
   it('surfaces unavailable and returns to idle when there is no token to open a session with', async () => {
     const { result } = renderHook(() => useHybridVoiceInput({ token: null }))
 
@@ -436,6 +463,24 @@ describe('useHybridVoiceInput chunk upload cadence (demo)', () => {
 
     const first = pushVoiceStreamChunk.mock.calls[0][2] as Blob
     expect(first.size).toBe(new Blob(['pcm']).size)
+  })
+
+  it('logs how much audio was actually captured at release, for diagnosing an empty transcript', async () => {
+    // A real production trace showed a 2.3s hold come back with NO text at
+    // all. Whether that is a genuinely quiet child or a capture-side race
+    // (e.g. the mic not yet live after a barge-in interrupt) is exactly
+    // what this log line is for — see docs/VOICE_SETUP.md's "produced
+    // nothing with the session already open" section.
+    const { getDebugEntries, clearDebugEntries } = await import('./debugBus')
+    clearDebugEntries()
+    snapshotPcmDelta.mockReturnValue(new Blob([new Uint8Array(3200)])) // ~100ms at 16kHz 16-bit mono
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold() })
+    await act(async () => { result.current.release() })
+
+    const messages = getDebugEntries().map((e) => e.message)
+    expect(messages.some((m) => /release\(\) captured ~100ms of audio this delta \(3200 bytes\)/.test(m))).toBe(true)
   })
 
   it('stops uploading once the turn is released', async () => {

@@ -97,6 +97,12 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     _setMode(m)
   }, [])
   const holdStartedAtRef = useRef(0)
+  // Set at release() (or the hold-safety timeout that calls the same
+  // function) — lets the success/failure log below report processing
+  // time separately from the full hold. heldMs already existed and mixes
+  // "how long the child spoke" with "how long the server took after they
+  // let go"; a slow turn needs those told apart to diagnose.
+  const releasedAtRef = useRef(0)
   const holdSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const chunkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionIdRef = useRef<string | null>(null)
@@ -233,7 +239,14 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     const text = finalText.trim()
     const heldMs = Date.now() - holdStartedAtRef.current
     setMode('idle')
+    const processingMs = releasedAtRef.current ? Date.now() - releasedAtRef.current : null
     if (text) {
+      // Mirrors the "produced nothing" log below for the success path, which
+      // previously had no timing signal at all — a slow-but-successful
+      // transcription was invisible in the debug panel. processingMs is
+      // release() to final text specifically, isolating server/network time
+      // from how long the child was actually still talking.
+      logDebug(`voice stream delivered "${text.slice(0, 40)}${text.length > 40 ? '…' : ''}" — ${processingMs}ms after release (${heldMs}ms total hold)`)
       onFinal?.(text)
     } else if (heldMs >= MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK) {
       // A real, multi-second turn produced literally nothing. Confirmed via
@@ -359,6 +372,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const release = useCallback(() => {
     logDebug(`release() from mode=${modeRef.current}`)
     if (modeRef.current !== 'recording') return
+    releasedAtRef.current = Date.now()
     const attempt = attemptRef.current
     const sessionId = sessionIdRef.current
     clearChunkTimer()
@@ -372,6 +386,16 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // CHUNK_UPLOAD_INTERVAL_MS (so the periodic tick never fired even once)
     // produced a transcript of literally nothing, every single time.
     const finalWavBlob = recorder.snapshotPcmDelta()
+    // Diagnostic for exactly the ambiguity a "produced nothing" result
+    // otherwise leaves open: did the mic actually capture audio during this
+    // hold, or did real audio reach the server and come back empty? PCM is
+    // 16kHz 16-bit mono, so bytes/32 = milliseconds of audio — directly
+    // comparable to the hold duration logged elsewhere. A capturedMs far
+    // below the hold length (especially near 0) points at a capture-side
+    // race — e.g. the mic not yet live when a barge-in interrupts Bede's own
+    // speech — rather than a transcription or network problem.
+    const capturedMs = finalWavBlob ? Math.round(finalWavBlob.size / 32) : 0
+    logDebug(`release() captured ~${capturedMs}ms of audio this delta (${finalWavBlob?.size ?? 0} bytes)`)
     recorder.stopRecording()
     setMode('transcribing')
 

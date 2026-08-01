@@ -438,6 +438,24 @@ describe('useHybridVoiceInput chunk upload cadence', () => {
     expect(first.size).toBe(new Blob(['pcm']).size)
   })
 
+  it('logs how much audio was actually captured at release, for diagnosing an empty transcript', async () => {
+    // A real production trace showed a 2.3s hold come back with NO text at
+    // all. Whether that is a genuinely quiet child or a capture-side race
+    // (e.g. the mic not yet live after a barge-in interrupt) is exactly
+    // what this log line is for — see docs/VOICE_SETUP.md's "produced
+    // nothing with the session already open" section.
+    const { getDebugEntries, clearDebugEntries } = await import('./debugBus')
+    clearDebugEntries()
+    snapshotPcmDelta.mockReturnValue(new Blob([new Uint8Array(3200)])) // ~100ms at 16kHz 16-bit mono
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold() })
+    await act(async () => { result.current.release() })
+
+    const messages = getDebugEntries().map((e) => e.message)
+    expect(messages.some((m) => /release\(\) captured ~100ms of audio this delta \(3200 bytes\)/.test(m))).toBe(true)
+  })
+
   it('stops uploading once the turn is released', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))

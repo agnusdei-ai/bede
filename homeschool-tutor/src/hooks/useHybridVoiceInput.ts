@@ -373,6 +373,16 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // CHUNK_UPLOAD_INTERVAL_MS (so the periodic tick never fired even once)
     // produced a transcript of literally nothing, every single time.
     const finalWavBlob = recorder.snapshotPcmDelta()
+    // Diagnostic for exactly the ambiguity a "produced nothing" result
+    // otherwise leaves open: did the mic actually capture audio during this
+    // hold, or did real audio reach the server and come back empty? PCM is
+    // 16kHz 16-bit mono, so bytes/32 = milliseconds of audio — directly
+    // comparable to the hold duration logged elsewhere. A capturedMs far
+    // below the hold length (especially near 0) points at a capture-side
+    // race — e.g. the mic not yet live when a barge-in interrupts Bede's own
+    // speech — rather than a transcription or network problem.
+    const capturedMs = finalWavBlob ? Math.round(finalWavBlob.size / 32) : 0
+    logDebug(`release() captured ~${capturedMs}ms of audio this delta (${finalWavBlob?.size ?? 0} bytes)`)
     recorder.stopRecording()
     setMode('transcribing')
 

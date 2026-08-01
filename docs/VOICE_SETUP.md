@@ -539,6 +539,29 @@ Two details worth knowing if you touch this path:
   (`useHybridVoiceInput.ts`'s `pendingPartsRef`). One network blip never costs
   the child a word.
 
+## Troubleshooting: everything feels slow and inconsistent on the public demo specifically
+
+**Symptom.** Bede takes several seconds to start speaking, or voice-stream
+session-open times vary wildly between two attempts seconds apart (seen in a
+real trace: 225ms, then 1445ms for the next hold). Both symptoms in the same
+session, with no obvious pattern.
+
+**Likely cause.** `render.yaml` runs `bede-demo-api` on Render's **free**
+plan — a single shared, CPU-constrained instance that sleeps after idle and
+cold-starts on the next request. A chat turn's LLM stream, its TTS
+synthesis, and a voice-input transcription pass can all be competing for the
+same tiny CPU at once. This is a hosting-tier property, not a bug in the
+voice pipeline itself, and it will not reproduce on a self-hosted deployment
+running on real hardware.
+
+If this is affecting real usage rather than occasional testing, moving
+`bede-demo-api` off the free plan is the fix — a `render.yaml`/billing
+change, not a code change.
+
+**Ruled out, not assumed:** the diagnostic below distinguishes this from an
+actual capture-side bug. If a hold produces "voice stream produced nothing"
+with `~0ms` of audio captured, that is NOT this — see below.
+
 ## Troubleshooting: transcription is slow, especially in Spanish
 
 Three levers, in the order worth trying.
@@ -1228,6 +1251,65 @@ Regression coverage lives in each app's `useHybridVoiceInput.test.ts`
 that the ordinary fast-hold path still arms the chunk timer, so this cannot
 be "fixed" by never arming it. Two of those tests were confirmed to fail
 against the unfixed hook.
+
+## Open: "produced nothing" with the session already open (not the release-race above)
+
+A real trace from a phone, captured after the session-open race above was
+already fixed:
+
+```
+[40598ms] useVoiceRecorder.startRecording()
+[40822ms] startVoiceStream opened session after 225ms
+[40582ms] holdStart type=pointerdown isSpeaking=true   <- barge-in: mic
+                                                            pressed while
+                                                            Bede was still
+                                                            speaking
+[42926ms] holdEnd type=pointerup                       <- 2344ms hold
+[42926ms] release() from mode=recording
+[43107ms] voice stream produced nothing after a 2510ms turn — surfacing to the user
+```
+
+Unlike the race documented above, `startVoiceStream` had already resolved
+2.1 seconds before `release()` — `sessionIdRef` was populated the whole
+time, so `pendingReleaseRef` never enters into it. The hold was real and
+well past `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` (1200ms), yet the round trip
+came back with empty text.
+
+**Not yet root-caused.** Two open hypotheses, not confirmed:
+
+1. **A genuinely quiet or silent hold** — the child didn't actually speak,
+   or spoke too quietly for the mic to pick up. Ordinary and not a bug.
+2. **A capture-side race specific to barge-in.** `isSpeaking=true` in the
+   trace means this hold started by interrupting Bede's own speech —
+   `stopSpeech()` fires synchronously, then `enterRecordingAudioSession()`
+   switches the (iOS) audio session category from playback to
+   play-and-record, then `recorder.startRecording()` begins. If the
+   hardware doesn't finish that switch as fast as the JS call returns, real
+   audio could be lost during a window early in the hold specifically when
+   it's barge-in-triggered — a different failure mode from the
+   `enterRecordingAudioSession()` placement bug fixed above, but the same
+   general class of "the JS call returned before the hardware caught up."
+
+**What would tell the two apart, and didn't exist yet at the time of the
+trace above:** `release()` now logs the actual size of the audio it's about
+to upload — `release() captured ~Nms of audio this delta (B bytes)` — right
+where the final delta snapshot is taken, in both apps'
+`useHybridVoiceInput.ts`. Compare that number to the hold length reported in
+the same trace:
+
+- **`~0ms` captured against a multi-second hold** confirms hypothesis 2 (a
+  real capture-side bug) and rules out 1 — something prevented the mic from
+  producing samples during a hold that definitely happened.
+- **`capturedMs` roughly matching the hold length** rules out 2 — the audio
+  reached the server intact, so an empty result is either a genuinely quiet
+  utterance or a server-side transcription problem, not a client capture
+  race.
+
+Until a trace with this line lands, treat this as open. If it turns out to
+be hypothesis 2 and specific to barge-in, the fix is almost certainly
+awaiting the audio-session switch (or at least a short buffer/delay) before
+`startRecording()` runs when `isSpeaking` was true at `holdStart` — but that
+is a plan for once the diagnostic confirms it, not a fix shipped blind.
 
 ## Diagnosing a reported speech "echo"
 

@@ -281,11 +281,24 @@ export async function startVoiceStream(token: string, language = 'en'): Promise<
   return data.session_id as string
 }
 
-/** Uploads the FULL audio captured so far (not a delta) — the server always
- *  re-transcribes the whole growing buffer, matching how useVoiceRecorder.ts
- *  already accumulates one continuous PCM capture per hold. Throws on
- *  failure; the caller decides whether a single dropped chunk is worth
- *  surfacing (the next chunk a few seconds later carries everything anyway). */
+/** Uploads a DELTA — only what was captured since the caller's last upload,
+ *  as raw headerless PCM (see useVoiceRecorder.ts's snapshotPcmDelta and
+ *  audioUtils.ts's encodePcm16). The server appends deltas into one growing
+ *  buffer and wraps it in a WAV header once, at transcription time (see
+ *  homeschool-api/services/streaming_transcription.py's push_chunk/
+ *  _wav_from_pcm16) — it tells this apart from the legacy whole-buffer
+ *  upload by sniffing for a RIFF header, so an older client still works
+ *  against a newer server.
+ *
+ *  The 'chunk.wav' filename below is sent unconditionally regardless of
+ *  which protocol the payload actually is; the server does not use it to
+ *  decide which path to take, only routers/voice.py's own upload-size and
+ *  container/extension allowlist check reads it.
+ *
+ *  Throws on failure. Unlike the old whole-buffer protocol, a dropped delta
+ *  is genuinely lost unless the caller holds and resends it — see
+ *  useHybridVoiceInput.ts's pendingPartsRef, which prepends a failed upload
+ *  to the next one rather than assuming a later chunk will cover it. */
 export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob): Promise<void> {
   const form = new FormData()
   form.append('audio', wavBlob, 'chunk.wav')

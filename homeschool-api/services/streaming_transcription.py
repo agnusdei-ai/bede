@@ -6,13 +6,19 @@ docs/VOICE_SETUP.md's "server-side streaming transcription" section.
 Replaces browser-native SpeechRecognition as the primary voice-input path.
 The client always captures raw mic audio locally (services/transcription.py's
 existing faster-whisper backend, already proven reliable — see
-useVoiceRecorder.ts) and periodically POSTs the growing buffer here; each
-push re-transcribes it and the result is pushed onto a per-session queue the
-SSE endpoint drains. This sidesteps WebKit's SpeechRecognition entirely — the
-source of essentially every voice-pipeline bug fought this session (audio
-session races, instant native failures, stall detection) — at the cost of
-periodic (not true word-by-word) partial results, since faster-whisper has no
-native incremental-streaming mode.
+useVoiceRecorder.ts) and periodically POSTs only what it captured since its
+last upload — a delta, as raw headerless PCM, not the whole growing buffer
+(that was the original design; see push_chunk's own docstring for why it
+changed and how an older client uploading the whole buffer still works
+against this server). Each push re-transcribes the accumulated audio and the
+result is pushed onto a per-session queue the SSE endpoint drains. This
+sidesteps WebKit's SpeechRecognition entirely — the source of essentially
+every voice-pipeline bug fought this session (audio session races, instant
+native failures, stall detection) — at the cost of periodic (not true
+word-by-word) partial results, since faster-whisper has no native
+incremental-streaming mode, and every pass re-transcribes the accumulated
+audio from the start rather than resuming (see VOICE_PARTIAL_MAX_SECONDS in
+core/config.py for how that cost is bounded on a long hold).
 
 Sessions are per-process, in-memory only, never persisted to disk or a
 database — same "never stored anywhere" privacy property as the one-shot

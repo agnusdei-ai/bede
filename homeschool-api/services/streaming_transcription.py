@@ -29,6 +29,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Optional
 
+from core.config import settings
 from services.transcription import transcribe_audio
 
 log = logging.getLogger(__name__)
@@ -160,6 +161,27 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
         audio_snapshot = _wav_from_pcm16(bytes(session.pcm)) if session.pcm else session.audio
         is_finished = session.finished
         text = ""
+        # faster-whisper has no incremental mode, so EVERY pass re-transcribes
+        # the whole buffer from the start. Across a long hold that is O(N^2)
+        # decode work — a 40-second answer costs roughly 220 seconds of audio
+        # decoded — and it is the dominant reason a long answer feels slow to
+        # transcribe. (The delta-upload change fixed the same shape on the
+        # network, not this.)
+        #
+        # Partials exist only to show the child a live "we heard you" preview,
+        # and a partial computed over 60 seconds of audio is both expensive and
+        # stale by the time it lands. So past a threshold, stop paying for them
+        # and let the buffer ride to the final pass. The FINAL pass is never
+        # skipped — correctness of what actually reaches Bede never depends on
+        # this.
+        if audio_snapshot and not is_finished and settings.voice_partial_max_seconds > 0:
+            seconds = len(session.pcm) / (_PCM_SAMPLE_RATE * _PCM_BYTES_PER_SAMPLE)
+            if seconds > settings.voice_partial_max_seconds:
+                log.debug(
+                    "streaming_transcription: session=%s skipping partial at %.1fs of audio",
+                    session_id, seconds,
+                )
+                continue
         if audio_snapshot:
             # Elapsed-time log — previously the only visibility into this
             # pipeline was client-side (DebugOverlay), which can show a

@@ -303,6 +303,21 @@ class Settings(BaseSettings):
     # Spanish should consider setting WHISPER_MODEL_SIZE=small — see
     # docs/VOICE_SETUP.md. Valid: tiny, base, small, medium, large-v3.
     whisper_model_size: str = "base"
+    # Decoding strategy. faster-whisper's own default is 5 (beam search);
+    # 1 is greedy and several times faster, which matters because every
+    # partial pass re-transcribes the whole buffer (faster-whisper has no
+    # incremental mode). Raise it only if accuracy is the complaint and
+    # latency is not.
+    whisper_beam_size: int = 1
+    # Skip silence instead of decoding it. Off by default on purpose: VAD can
+    # clip a child who answers quietly, and losing a word is worse than
+    # waiting for it. See docs/VOICE_SETUP.md.
+    whisper_vad_filter: bool = False
+    # Stop computing live partial transcripts once a hold passes this many
+    # seconds of audio. Every pass re-transcribes the whole buffer, so
+    # partials get quadratically more expensive the longer a child talks,
+    # while also getting staler. 0 disables the cap (always compute partials).
+    voice_partial_max_seconds: float = 25.0
 
     voice_transcription_max_concurrency: int = 1
 

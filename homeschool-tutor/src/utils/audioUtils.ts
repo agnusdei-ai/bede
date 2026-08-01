@@ -60,3 +60,21 @@ export function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffe
 
   return buffer
 }
+
+/** Raw 16kHz mono int16 PCM — no container, no header.
+ *
+ *  The streaming-transcription chunk loop uploads DELTAS (only what was
+ *  captured since its last upload), and a WAV header per delta would be
+ *  meaningless: the server appends the samples into one growing buffer and
+ *  wraps that once, when it transcribes. See
+ *  homeschool-api/services/streaming_transcription.py's push_chunk, which
+ *  tells the two protocols apart by looking for a RIFF header. */
+export function encodePcm16(samples: Float32Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(samples.length * 2)
+  const view = new DataView(buffer)
+  for (let i = 0; i < samples.length; i++) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]))
+    view.setInt16(i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true)
+  }
+  return buffer
+}

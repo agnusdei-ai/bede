@@ -161,6 +161,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       clearHoldSafety()
       clearChunkTimer()
       attemptRef.current += 1
+      pendingPartsRef.current = []
       setMode('idle')
       setMicError(reason)
     },
@@ -171,6 +172,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // and once more, immediately, right at release() so the FINAL chunk
   // reflects audio up to the actual release moment rather than however
   // stale the last interval tick was.
+  // Delta chunks that failed to upload, waiting to ride along with the next
+  // one. Cleared per turn by startHold()/start().
+  const pendingPartsRef = useRef<Blob[]>([])
+
   const uploadSnapshot = useCallback(async (attempt: number, preCapturedBlob?: Blob | null) => {
     const sessionId = sessionIdRef.current
     if (!token || !sessionId || attemptRef.current !== attempt) return
@@ -178,16 +183,22 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // recorder.stopRecording() clears the refs snapshotWav() reads — see
     // that call site for why calling snapshotWav() fresh here would be too
     // late for a release-time upload.
-    const wavBlob = preCapturedBlob !== undefined ? preCapturedBlob : recorder.snapshotWav()
-    if (!wavBlob) return
+    const fresh = preCapturedBlob !== undefined ? preCapturedBlob : recorder.snapshotPcmDelta()
+    // Uploads are DELTAS now, so a dropped chunk would be genuinely lost —
+    // the next tick carries only what came after it. Anything that failed to
+    // send is therefore held here and prepended to the following upload,
+    // which restores the property the old whole-buffer protocol got for free:
+    // one failed chunk never costs the child a word.
+    const parts = [...pendingPartsRef.current, ...(fresh ? [fresh] : [])]
+    if (!parts.length) return
+    pendingPartsRef.current = []
+    const payload = parts.length === 1 ? parts[0] : new Blob(parts)
     try {
-      await pushVoiceStreamChunk(token, sessionId, wavBlob)
+      await pushVoiceStreamChunk(token, sessionId, payload)
     } catch (err) {
-      // A single dropped chunk isn't fatal — the NEXT upload (interval tick
-      // or the release-time final push) carries everything captured so far
-      // anyway, since uploads are never deltas. Only a hard failure to ever
-      // get a session started, or the final push failing too, surfaces to
-      // the child (handled at those call sites).
+      // Put it back at the front of the queue for the next attempt (an
+      // interval tick, or the release-time final push).
+      pendingPartsRef.current = [payload, ...pendingPartsRef.current]
       logDebug(`pushVoiceStreamChunk failed: ${err instanceof Error ? err.message : String(err)}`)
     }
   }, [token, recorder])
@@ -240,6 +251,8 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const _start = useCallback(() => {
     if (modeRef.current !== 'idle') return
     const attempt = ++attemptRef.current
+    // Fresh turn: nothing from a previous one may ride along.
+    pendingPartsRef.current = []
     logDebug(`_start() attempt=${attempt}`)
     holdStartedAtRef.current = Date.now()
     sessionIdRef.current = null
@@ -324,6 +337,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const stop = useCallback(() => {
     logDebug(`stop() (cancel) from mode=${modeRef.current}`)
     attemptRef.current += 1 // invalidates any in-flight chunk upload / SSE consumer
+    pendingPartsRef.current = []
     pendingReleaseRef.current = null // a cancel discards a deferred release too
     clearHoldSafety()
     clearChunkTimer()
@@ -357,7 +371,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     // via a real debug-panel trace: any hold shorter than
     // CHUNK_UPLOAD_INTERVAL_MS (so the periodic tick never fired even once)
     // produced a transcript of literally nothing, every single time.
-    const finalWavBlob = recorder.snapshotWav()
+    const finalWavBlob = recorder.snapshotPcmDelta()
     recorder.stopRecording()
     setMode('transcribing')
 

@@ -102,8 +102,12 @@ async def test_finish_after_a_chunk_transcribes_the_final_buffer_and_cleans_up(m
             st.finish_session(session_id)
 
     assert [e["type"] for e in events_seen] == ["partial", "final", "done"]
-    assert events_seen[0]["text"] == "transcript for 5 bytes"
-    assert events_seen[1]["text"] == "transcript for 5 bytes"
+    # A raw (non-RIFF) push is a PCM delta now, so what reaches the
+    # transcriber is those bytes plus the 44-byte WAV header the worker wraps
+    # them in — see push_chunk and _wav_from_pcm16.
+    wrapped = len(b"short") + 44
+    assert events_seen[0]["text"] == f"transcript for {wrapped} bytes"
+    assert events_seen[1]["text"] == f"transcript for {wrapped} bytes"
     # events() cleans up the session on its own 'done' exit.
     assert session_id not in st._sessions
 
@@ -220,7 +224,9 @@ async def test_each_transcription_pass_logs_its_own_elapsed_time(monkeypatch, ca
     assert pass_logs, "no per-pass timing log was emitted"
     assert f"session={session_id}" in pass_logs[-1].message
     assert "pass=final" in pass_logs[-1].message
-    assert "audio_bytes=16" in pass_logs[-1].message
+    # b"some-audio-bytes" is a raw PCM delta now, so the logged size is
+    # those 16 bytes plus the 44-byte WAV header the worker wraps them in.
+    assert f"audio_bytes={len(b'some-audio-bytes') + 44}" in pass_logs[-1].message
     assert "elapsed=" in pass_logs[-1].message
 
 
@@ -269,3 +275,55 @@ async def test_default_empty_owner_preserves_prior_no_owner_behavior():
     session_id = st.start_session(language="en")
     assert st.push_chunk(session_id, b"audio") is True
     assert st.finish_session(session_id) is True
+
+
+# ── Delta upload protocol ────────────────────────────────────────────────────
+#
+# The client used to re-upload the whole growing buffer on every tick, which
+# is O(N^2) bandwidth over a hold — 8.3MB of upload for a 40-second answer and
+# 63MB at the 120s safety cap. It now sends only what it captured since its
+# last upload. push_chunk tells the two apart by looking for a RIFF header, so
+# an older client keeps working against a newer server.
+
+@pytest.mark.asyncio
+async def test_raw_pcm_chunks_append_rather_than_replace():
+    session_id = st.start_session()
+    session = st._sessions[session_id]
+
+    assert st.push_chunk(session_id, b"\x01\x02" * 100) is True
+    assert st.push_chunk(session_id, b"\x03\x04" * 100) is True
+
+    assert len(session.pcm) == 400
+    assert session.pcm[:2] == b"\x01\x02"
+    assert session.pcm[200:202] == b"\x03\x04"
+    # The legacy whole-buffer field is untouched on this path.
+    assert session.audio == b""
+
+
+@pytest.mark.asyncio
+async def test_a_riff_chunk_still_replaces_for_an_older_client():
+    session_id = st.start_session()
+    session = st._sessions[session_id]
+
+    first = st._wav_from_pcm16(b"\x01\x02" * 100)
+    second = st._wav_from_pcm16(b"\x03\x04" * 200)
+    st.push_chunk(session_id, first)
+    st.push_chunk(session_id, second)
+
+    # Replaced, not concatenated — that is what the old protocol expects.
+    assert session.audio == second
+    assert len(session.pcm) == 0
+
+
+def test_wrapped_pcm_is_a_readable_wav_at_16k_mono():
+    """The worker hands this to services/transcription.py, which decodes via
+    soundfile — loose samples with no container would fail to read at all."""
+    import io
+
+    import soundfile as sf
+
+    wav = st._wav_from_pcm16(b"\x00\x10" * 8000)
+    data, rate = sf.read(io.BytesIO(wav), dtype="float32", always_2d=False)
+    assert rate == 16000
+    assert data.ndim == 1
+    assert len(data) == 8000

@@ -297,6 +297,13 @@ class Settings(BaseSettings):
     # runs on; a deployment with real CPU headroom (more cores, a bigger
     # instance) can raise it to let genuinely-concurrent turns from different
     # tablets overlap. See docs/VOICE_SETUP.md's transcription-delay section.
+    # faster-whisper model size for voice input. "base" is a fine CPU default
+    # for English; "small" is materially better for Spanish (and other
+    # non-English locales) at roughly 3x the compute. Deployments teaching in
+    # Spanish should consider setting WHISPER_MODEL_SIZE=small — see
+    # docs/VOICE_SETUP.md. Valid: tiny, base, small, medium, large-v3.
+    whisper_model_size: str = "base"
+
     voice_transcription_max_concurrency: int = 1
 
     # ── Diagnostic engine (optional) ──────────────────────────────────────────

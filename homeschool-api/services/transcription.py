@@ -57,7 +57,14 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_WHISPER_MODEL_SIZE = "base"
+# faster-whisper model size. "base" is a reasonable CPU default for English,
+# but it is materially weaker on Spanish — the same audio that transcribes
+# cleanly in English comes back garbled often enough to be noticed. "small" is
+# the usual step up for non-English at roughly 3x the compute, which is why
+# this is a setting rather than a constant: a deployment teaching in Spanish
+# can trade CPU for accuracy without a code change, and English-only
+# deployments keep exactly today's behaviour.
+_WHISPER_MODEL_SIZE = settings.whisper_model_size
 MODEL_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "models", "whisper"))
 
 _model = None

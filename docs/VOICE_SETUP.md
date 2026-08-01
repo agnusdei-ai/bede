@@ -631,6 +631,15 @@ Note this is a different problem from the upload-bandwidth one above, and the
 delta-upload change did not fix it. That change made the *network* cost linear;
 this one is *decode* cost, and it is capped rather than eliminated.
 
+The cap applies regardless of which upload protocol a client is speaking — the
+current delta protocol above, or the legacy whole-buffer one a stale browser
+tab might still be running mid-deploy (`streaming_transcription.py`'s
+`push_chunk` supports both — see that module's own docstring). An earlier
+version of this cap computed buffered-audio duration from the delta
+protocol's own buffer only, so a legacy-protocol client silently never hit
+it and kept paying the full O(N²) decode cost for the whole hold; fixed to
+derive the duration from whichever protocol the session is actually using.
+
 ## Troubleshooting: Bede is slow to start speaking, especially in Spanish or on a slow connection
 
 **Symptom.** A noticeable gap between the child finishing their turn and Bede

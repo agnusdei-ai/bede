@@ -361,6 +361,37 @@ async def test_partials_stop_once_the_buffer_grows_past_the_cap(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_partials_stop_past_the_cap_for_a_legacy_riff_client_too(monkeypatch):
+    """The cap above is proven against the delta (raw PCM) protocol. A stale
+    browser tab still running the pre-delta bundle during/after a rolling
+    deploy speaks the OLD whole-buffer (RIFF) protocol instead — push_chunk
+    routes that to session.audio, never session.pcm. The cap check used to
+    read len(session.pcm) unconditionally, which is always 0 on that path,
+    silently disabling the cap this test's sibling just confirmed works for
+    the other one. Same assertions, RIFF-framed input this time."""
+    calls = []
+
+    async def fake_transcribe(audio_bytes, language="en"):
+        calls.append(len(audio_bytes))
+        return {"text": "x", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+    monkeypatch.setattr(st.settings, "voice_partial_max_seconds", 1.0)
+
+    session_id = st.start_session(language="en")
+    # A full legacy WAV upload — 2 seconds of 16kHz mono int16, past the 1s
+    # cap, wrapped exactly as the pre-delta client would have encoded it.
+    st.push_chunk(session_id, st._wav_from_pcm16(b"\x00\x10" * 32000))
+    await asyncio.sleep(0.05)
+    assert calls == [], "a partial was computed despite exceeding the cap (legacy RIFF path)"
+
+    st.finish_session(session_id)
+    events = [item async for item in st.events(session_id)]
+    assert [e["type"] for e in events] == ["final", "done"]
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
 async def test_partials_still_run_under_the_cap(monkeypatch):
     async def fake_transcribe(audio_bytes, language="en"):
         return {"text": "heard you", "language": language}

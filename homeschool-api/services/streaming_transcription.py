@@ -181,7 +181,20 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
         # skipped — correctness of what actually reaches Bede never depends on
         # this.
         if audio_snapshot and not is_finished and settings.voice_partial_max_seconds > 0:
-            seconds = len(session.pcm) / (_PCM_SAMPLE_RATE * _PCM_BYTES_PER_SAMPLE)
+            # Correct for BOTH wire protocols a session might be running —
+            # len(session.pcm) alone is only right for the delta path. A
+            # legacy whole-buffer (RIFF) client never touches session.pcm at
+            # all (see push_chunk above), so that length is always 0 on that
+            # path, which silently disabled this cap for exactly the client
+            # this module's own docstring promises stays fully supported —
+            # a stale browser tab still running the pre-delta bundle during
+            # or just after a rolling deploy. Both protocols produce 16kHz
+            # mono 16-bit PCM (useVoiceRecorder.ts resamples to this before
+            # encoding either way — see _wav_from_pcm16's own comment), so a
+            # plain 44-byte WAV header subtraction is valid for the legacy
+            # path too.
+            pcm_len = len(session.pcm) if session.pcm else max(0, len(session.audio) - 44)
+            seconds = pcm_len / (_PCM_SAMPLE_RATE * _PCM_BYTES_PER_SAMPLE)
             if seconds > settings.voice_partial_max_seconds:
                 log.debug(
                     "streaming_transcription: session=%s skipping partial at %.1fs of audio",

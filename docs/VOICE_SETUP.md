@@ -521,7 +521,11 @@ section above) reduced the number of uploads but left the quadratic growth.
 (`useVoiceRecorder.ts`'s `snapshotPcmDelta`), as raw 16kHz mono int16 PCM with
 no container, and the server appends it (`streaming_transcription.py`'s
 `push_chunk`), wrapping the accumulated buffer in a WAV header when it
-transcribes. Bandwidth and server CPU both go from O(N²) to O(N).
+transcribes. **Upload bandwidth** goes from O(N²) to O(N).
+
+Server decode cost does *not* — every pass still re-transcribes the whole
+buffer, because faster-whisper has no incremental mode. That is a separate
+problem, addressed by `VOICE_PARTIAL_MAX_SECONDS` below.
 
 Two details worth knowing if you touch this path:
 
@@ -535,21 +539,51 @@ Two details worth knowing if you touch this path:
   (`useHybridVoiceInput.ts`'s `pendingPartsRef`). One network blip never costs
   the child a word.
 
-## Troubleshooting: Spanish transcription is inaccurate
+## Troubleshooting: transcription is slow, especially in Spanish
 
-The faster-whisper model size is now configurable via `WHISPER_MODEL_SIZE`
-(default `base`). `base` is a reasonable CPU default for English but is
-materially weaker on Spanish — the same audio that transcribes cleanly in
-English comes back garbled often enough to notice.
+Three levers, in the order worth trying.
 
-If you teach in Spanish, try `WHISPER_MODEL_SIZE=small`. It costs roughly 3x
-the compute per pass, which is a real trade on a small box, but it is the
-single biggest lever on non-English accuracy. `tiny`, `medium` and `large-v3`
-are also valid.
+**1. `WHISPER_BEAM_SIZE` (default `1`).** faster-whisper's own default is `5`,
+i.e. beam search, which is several times slower than greedy decoding. This
+project now defaults to `1`. For short, single-language child utterances where
+the language is already known, greedy gives up very little. Raise it only if
+*accuracy* is the complaint and latency is not.
 
-The session's language is already passed through correctly — the login-time
-locale reaches Whisper's own `language` parameter — so this is about model
-capacity, not configuration.
+**2. `WHISPER_MODEL_SIZE` (default `base`).** This lever cuts both ways, so be
+clear which problem you have:
+
+| Problem | Direction |
+|---|---|
+| Transcription is **slow** | Go **down**: `tiny` is roughly 2-3× faster than `base` |
+| Transcription is **wrong** | Go **up**: `small` is materially more accurate, at ~3× the compute |
+
+Spanish is genuinely harder for the smaller models, so a Spanish deployment
+can find itself wanting accuracy *and* speed. If so, the honest answer is
+hardware, not configuration — Whisper on a CPU is the constraint.
+
+**3. `WHISPER_VAD_FILTER` (default `false`).** Skips silence instead of
+decoding it, a real saving on a hold full of pauses. Off by default on
+purpose: VAD can clip a child who answers quietly, and losing a word is worse
+than waiting for one. Turn it on only after hearing it work on your own
+hardware, with your own children.
+
+### Why long answers get disproportionately slow
+
+faster-whisper has no incremental mode, so **every pass re-transcribes the
+whole buffer from the start**. Across a hold that is O(N²) decode work — a
+40-second answer costs roughly 220 seconds of audio decoded, spread over ten
+passes.
+
+`VOICE_PARTIAL_MAX_SECONDS` (default `25`) caps that: past this much audio,
+live partial transcripts stop being computed and the buffer rides to the
+final pass. A partial computed over 60 seconds of audio is expensive *and*
+stale by the time it lands, so it was never worth much. **The final pass is
+never skipped** — what actually reaches Bede does not depend on this setting.
+Set it to `0` to always compute partials.
+
+Note this is a different problem from the upload-bandwidth one above, and the
+delta-upload change did not fix it. That change made the *network* cost linear;
+this one is *decode* cost, and it is capped rather than eliminated.
 
 ## Troubleshooting: Bede is slow to start speaking, especially in Spanish or on a slow connection
 

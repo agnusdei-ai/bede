@@ -327,3 +327,51 @@ def test_wrapped_pcm_is_a_readable_wav_at_16k_mono():
     assert rate == 16000
     assert data.ndim == 1
     assert len(data) == 8000
+
+
+# ── Partial-pass cost ────────────────────────────────────────────────────────
+#
+# faster-whisper has no incremental mode, so every pass re-transcribes the
+# whole buffer — O(N^2) decode work across a long hold, and the dominant
+# reason a long answer feels slow. Partials are only a live preview, so they
+# stop past a threshold. The final pass never does.
+
+@pytest.mark.asyncio
+async def test_partials_stop_once_the_buffer_grows_past_the_cap(monkeypatch):
+    calls = []
+
+    async def fake_transcribe(audio_bytes, language="en"):
+        calls.append(len(audio_bytes))
+        return {"text": "x", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+    monkeypatch.setattr(st.settings, "voice_partial_max_seconds", 1.0)
+
+    session_id = st.start_session(language="en")
+    # 2 seconds of 16kHz mono int16 — past the 1s cap.
+    st.push_chunk(session_id, b"\x00\x10" * 32000)
+    await asyncio.sleep(0.05)
+    assert calls == [], "a partial was computed despite exceeding the cap"
+
+    # The final pass must still run, over everything captured.
+    st.finish_session(session_id)
+    events = [item async for item in st.events(session_id)]
+    assert [e["type"] for e in events] == ["final", "done"]
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_partials_still_run_under_the_cap(monkeypatch):
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "heard you", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+    monkeypatch.setattr(st.settings, "voice_partial_max_seconds", 30.0)
+
+    session_id = st.start_session(language="en")
+    st.push_chunk(session_id, b"\x00\x10" * 8000)  # 0.5s, well under
+
+    gen = st.events(session_id)
+    item = await asyncio.wait_for(gen.__anext__(), timeout=2)
+    await gen.aclose()
+    assert item == {"type": "partial", "text": "heard you"}

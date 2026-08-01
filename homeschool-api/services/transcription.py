@@ -160,10 +160,24 @@ def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
             pass
 
     try:
+        # beam_size: faster-whisper defaults to 5 (beam search). Greedy
+        # decoding is several times faster and, for short single-language
+        # child utterances where the language is already known, gives up very
+        # little. This is the biggest pure-speed lever here and costs no
+        # audio, unlike VAD below.
+        #
+        # vad_filter: skips silence rather than decoding it, which is a real
+        # saving on a press-and-hold recording full of pauses. Defaults OFF
+        # because the risk is asymmetric — a child who answers quietly can be
+        # clipped by VAD, and losing a word is far worse than waiting for it.
+        # Enable per deployment once you have heard it work on your own
+        # hardware with your own children.
         segments, info = model.transcribe(
             data,
             language=language,
             condition_on_previous_text=False,
+            beam_size=settings.whisper_beam_size,
+            vad_filter=settings.whisper_vad_filter,
         )
         text = "".join(segment.text for segment in segments).strip()
         return {

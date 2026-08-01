@@ -646,22 +646,47 @@ those bytes sit squarely between the child asking and hearing anything:
 | Format | 30s of speech | Time to arrive on a 1.5 Mbps link |
 |---|---|---|
 | WAV (old) | ~1.4 MB | ~7.7s |
-| **MP3 (now)** | ~240 KB | ~1.3s |
+| MP3 (tried, then replaced — see below) | ~240 KB | ~1.3s |
+| **AAC (now)** | roughly similar to MP3 | roughly similar to MP3 |
 
 Spanish suffered most, and predictably so: Spanish runs roughly 15-25% longer
 than English for the same content, so the same lesson produces proportionally
 more audio seconds and therefore proportionally more bytes.
 
-`services/voice_synthesis.py` now requests `AUDIO_FORMAT = "mp3"` and
-`routers/tutor.py` serves it as `AUDIO_MEDIA_TYPE = "audio/mpeg"`. Both
-frontends read the response with `res.blob()` and hand it to
-`createObjectURL`, so the blob inherits whatever Content-Type `/speak` sets
-and no client change was needed — but the two constants must agree, which is
-why the media type is derived from the same module rather than restated.
+**MP3 was the first fix, and it introduced a real regression of its own.**
+Reported back from actual use as sounding "like a lisp," with "a residual
+echo." That is close to a textbook description of MP3's own well-known
+pre-echo artifact — its transform coding spreads quantization noise
+backward in time around a sharp transient, and sibilants/consonants (s, sh,
+f, t — exactly what "lisp" calls out) are the sharpest, most transient-heavy
+content in speech. Bede's own voice (slow, measured, softly spoken, per
+`openai_tts_instructions`) is close to a worst case for this specific
+artifact: lots of soft consonants with quiet space around them for the
+smearing to be audible in.
 
-MP3 rather than Opus (which would be smaller still, ~16x): Safari/iOS support
-for Opus in `<audio>` is patchy and this is a tablet-first product, so the
-universally-playable format wins.
+`services/voice_synthesis.py` now requests `AUDIO_FORMAT = "aac"` and
+`routers/tutor.py` serves it as `AUDIO_MEDIA_TYPE = "audio/aac"`. AAC uses
+temporal noise shaping specifically to control pre-echo, so it should not
+reproduce the same artifact at a similar bitrate, while keeping most of
+MP3's size win over WAV — and it's Apple's own preferred codec, reinforcing
+rather than fighting the tablet-first reasoning that already ruled out Opus
+below. Both frontends read the response with `res.blob()` and hand it to
+`createObjectURL`, so the blob inherits whatever Content-Type `/speak` sets
+and no client change was needed either time — but the two constants must
+agree, which is why the media type is derived from the same module rather
+than restated.
+
+**Not verified by ear.** Same caveat as the MP3 change it replaces — this is
+reasoned from how these codecs actually work, not confirmed against a real
+recording. If a lisp/echo report recurs against AAC, that argues against
+codec choice as the explanation entirely: two different lossy codecs
+producing the same complaint would point at the separate, still-open
+overlapping-playback investigation below ("Diagnosing a reported speech
+echo") rather than a third codec swap.
+
+AAC rather than Opus (which would be smaller still, ~16x, and also avoids
+MP3's pre-echo behavior): Safari/iOS support for Opus in `<audio>` is patchy
+and this is a tablet-first product, so it's not the first thing to reach for.
 
 **This does not change Bede's speaking pace.** Pacing is
 `settings.openai_tts_speed` (0.9) plus `openai_tts_instructions`, both
@@ -1341,6 +1366,21 @@ current build. Root cause not yet found — the earlier fixes in #292 and
 #314 addressed one specific doubling (the browser `speechSynthesis`
 fallback playing *alongside* real backend audio) and are still in place,
 so whatever is happening now is something else.
+
+**A second, distinct hypothesis exists for a similar-sounding complaint —
+don't conflate the two.** A report of "sounds like a lisp" plus "a residual
+echo" was traced instead to MP3's pre-echo artifact on sibilants (see the
+transcription-delay section's MP3→AAC entry above) and addressed by
+switching codecs, not by anything in this section. Both explanations can
+produce something a parent would call "echo": this section is about two
+separate audio clips actually overlapping on playback; the codec one is a
+single clip whose own encoding smears transients. The table below is what
+tells them apart — a genuine overlap shows two `STARTED` events with no
+`ENDED` between them; a codec artifact shows one clean playback with
+nothing unusual in the log at all, since there's only one clip and it never
+overlaps anything. If a report includes the word "lisp" specifically, check
+the AAC change above first; if the debug panel shows a genuine double
+`STARTED`, it's this section instead.
 
 **The debug overlay only used to log failure paths** — an autoplay
 rejection, a fallback decision. During a normal-looking turn that happens

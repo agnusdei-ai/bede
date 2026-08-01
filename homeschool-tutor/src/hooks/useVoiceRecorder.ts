@@ -1,6 +1,6 @@
 // Mirror of demo/src/useVoiceRecorder.ts for the homeschool-tutor app.
 import { useState, useRef, useCallback } from 'react'
-import { resample, encodeWav } from '../utils/audioUtils'
+import { resample, encodeWav, encodePcm16 } from '../utils/audioUtils'
 import { logDebug } from './debugBus'
 
 /**
@@ -212,6 +212,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
 
     const chunks = pcmChunksRef.current
     pcmChunksRef.current = []
+    uploadedChunksRef.current = 0
 
     if (durationMs < MIN_RECORDING_MS) {
       // Too short to be real speech — discard without transcribing. Still
@@ -312,10 +313,36 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // snapshot — matching how the server always re-transcribes the whole
   // growing buffer too. Returns null before the audio graph is actually up
   // (audioCtxRef not yet set, or nothing captured yet).
+  // How many captured chunks the streaming-transcription loop has already
+  // uploaded. snapshotPcmDelta() below reads from here forward, so a long
+  // hold uploads each second of audio exactly once instead of re-sending the
+  // whole recording on every tick — that used to cost 8.3MB of upload for a
+  // 40-second answer, and 63MB at the 120s safety cap.
+  const uploadedChunksRef = useRef(0)
+
+  /** Raw int16 PCM for everything captured since the last call, advancing the
+   *  cursor. Returns null when nothing new has arrived. Non-destructive with
+   *  respect to the buffer itself: stopRecording()'s final encode still sees
+   *  every chunk, so the delta cursor can never cost us the real recording. */
+  const snapshotPcmDelta = useCallback((): Blob | null => {
+    const ctx = audioCtxRef.current
+    if (!ctx) return null
+    const fresh = pcmChunksRef.current.slice(uploadedChunksRef.current)
+    if (!fresh.length) return null
+    uploadedChunksRef.current = pcmChunksRef.current.length
+
+    const total = fresh.reduce((sum, c) => sum + c.length, 0)
+    const merged = new Float32Array(total)
+    let offset = 0
+    for (const chunk of fresh) { merged.set(chunk, offset); offset += chunk.length }
+    const samples = ctx.sampleRate === 16000 ? merged : resample(merged, ctx.sampleRate, 16000)
+    return new Blob([encodePcm16(samples)], { type: 'application/octet-stream' })
+  }, [])
+
   const snapshotWav = useCallback((): Blob | null => {
     if (!audioCtxRef.current || pcmChunksRef.current.length === 0) return null
     return _encodeChunksToWav(pcmChunksRef.current, audioCtxRef.current.sampleRate)
   }, [])
 
-  return { isRecording, level, startRecording, stopRecording, snapshotWav, prewarm, cancelPrewarm }
+  return { isRecording, level, startRecording, stopRecording, snapshotWav, snapshotPcmDelta, prewarm, cancelPrewarm }
 }

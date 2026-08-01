@@ -496,6 +496,61 @@ silently returns `''` on a failed or blank transcription, and nothing is
 sent — no error surfaces to the child either) rather than the watchdog
 failing to trigger at all.
 
+## Troubleshooting: voice input uploads a lot of data, or "Transcribing…" hangs on a slow connection
+
+**Symptom.** Long answers take a very long time to transcribe, worst on a slow
+home connection. Mobile data usage looks far higher than the length of the
+recordings would suggest.
+
+**Cause (fixed).** The chunk-upload loop re-sent **everything captured so far**
+on every tick, and the server replaced its buffer each time, so the client had
+no choice. That is O(N²) upload over a hold:
+
+| Hold | Uploads | Audio actually sent | Bytes | Waste |
+|---|---|---|---|---|
+| 20s | 6 | 80s | 2.6 MB | 4.0× |
+| 40s | 11 | 260s | 8.3 MB | 6.5× |
+| 120s (safety cap) | 31 | 1980s | 63 MB | 16.5× |
+
+Home connections upload far slower than they download, so a 40-second answer
+could spend over a minute uploading on a 1 Mbps uplink. Raising
+`CHUNK_UPLOAD_INTERVAL_MS` from 2.5s to 4s (see the transcription-delay
+section above) reduced the number of uploads but left the quadratic growth.
+
+**Now:** the client sends only what it captured since its last upload
+(`useVoiceRecorder.ts`'s `snapshotPcmDelta`), as raw 16kHz mono int16 PCM with
+no container, and the server appends it (`streaming_transcription.py`'s
+`push_chunk`), wrapping the accumulated buffer in a WAV header when it
+transcribes. Bandwidth and server CPU both go from O(N²) to O(N).
+
+Two details worth knowing if you touch this path:
+
+- **The protocol is sniffed, not flagged.** `push_chunk` treats a payload
+  starting with `RIFF` as the old whole-buffer upload and replaces; anything
+  else is a PCM delta and appends. An older client therefore keeps working
+  against a newer server with no version negotiation.
+- **A dropped chunk is retried.** The old protocol got this for free — any
+  failed upload was covered by the next one. Deltas do not, so a failed chunk
+  is held and prepended to the following upload
+  (`useHybridVoiceInput.ts`'s `pendingPartsRef`). One network blip never costs
+  the child a word.
+
+## Troubleshooting: Spanish transcription is inaccurate
+
+The faster-whisper model size is now configurable via `WHISPER_MODEL_SIZE`
+(default `base`). `base` is a reasonable CPU default for English but is
+materially weaker on Spanish — the same audio that transcribes cleanly in
+English comes back garbled often enough to notice.
+
+If you teach in Spanish, try `WHISPER_MODEL_SIZE=small`. It costs roughly 3x
+the compute per pass, which is a real trade on a small box, but it is the
+single biggest lever on non-English accuracy. `tiny`, `medium` and `large-v3`
+are also valid.
+
+The session's language is already passed through correctly — the login-time
+locale reaches Whisper's own `language` parameter — so this is about model
+capacity, not configuration.
+
 ## Troubleshooting: Bede is slow to start speaking, especially in Spanish or on a slow connection
 
 **Symptom.** A noticeable gap between the child finishing their turn and Bede

@@ -37,6 +37,28 @@ log = logging.getLogger(__name__)
 # (useHybridVoiceInput.ts) — this is a backstop for a session that never
 # calls /finish at all (a crashed tab, a dropped connection), not a normal
 # turn's own timing.
+# The delta protocol carries bare int16 samples with no container, so this
+# module owns the one place that gives them one. Fixed at 16kHz mono because
+# useVoiceRecorder.ts resamples to exactly that before uploading, and
+# services/transcription.py reads via soundfile, which needs a real container
+# rather than loose samples.
+_PCM_SAMPLE_RATE = 16000
+_PCM_BYTES_PER_SAMPLE = 2
+
+
+def _wav_from_pcm16(pcm: bytes) -> bytes:
+    """Wrap raw 16kHz mono int16 PCM in a minimal 44-byte WAV header."""
+    import struct
+
+    byte_rate = _PCM_SAMPLE_RATE * _PCM_BYTES_PER_SAMPLE
+    return b"".join((
+        b"RIFF", struct.pack("<I", 36 + len(pcm)), b"WAVEfmt ",
+        struct.pack("<IHHIIHH", 16, 1, 1, _PCM_SAMPLE_RATE, byte_rate,
+                    _PCM_BYTES_PER_SAMPLE, 8 * _PCM_BYTES_PER_SAMPLE),
+        b"data", struct.pack("<I", len(pcm)), pcm,
+    ))
+
+
 _SESSION_TTL_SECONDS = 180.0
 _SWEEP_INTERVAL_SECONDS = 60.0
 
@@ -54,7 +76,14 @@ class _Session:
     # that never passed an owner (this file's own test suite) keeps working
     # unchanged — "" on both sides still compares equal.
     owner: str = ""
+    # Legacy path: a complete WAV of everything captured so far, replaced on
+    # every push. Still supported so an older client keeps working — see
+    # push_chunk.
     audio: bytes = b""
+    # Delta path: raw 16kHz mono int16 PCM, APPENDED to on every push. The
+    # client sends only what it captured since its last upload, which is what
+    # keeps a long hold from re-uploading the whole recording over and over.
+    pcm: bytearray = field(default_factory=bytearray)
     finished: bool = False
     last_touched: float = field(default_factory=time.monotonic)
     # Set whenever push_chunk/finish_session update state the worker loop
@@ -89,7 +118,20 @@ def push_chunk(session_id: str, audio_bytes: bytes, owner: str = "") -> bool:
     session = _sessions.get(session_id)
     if session is None or session.finished or session.owner != owner:
         return False
-    session.audio = audio_bytes
+    # Two wire protocols, told apart by the container rather than by a flag,
+    # so an older client and a newer one can both talk to this server.
+    #
+    # A RIFF header means the legacy whole-buffer upload: the client re-sent
+    # everything it has captured so far, so replace. That is O(N^2) bandwidth
+    # over a hold — 8.3MB of upload for a 40-second answer — which is exactly
+    # what the delta path below exists to stop.
+    #
+    # No header means raw int16 PCM at _PCM_SAMPLE_RATE: only what was
+    # captured since the client's last upload, so append.
+    if audio_bytes[:4] == b"RIFF":
+        session.audio = audio_bytes
+    else:
+        session.pcm.extend(audio_bytes)
     session.last_touched = time.monotonic()
     session.new_audio.set()
     return True
@@ -112,7 +154,10 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
     while True:
         await session.new_audio.wait()
         session.new_audio.clear()
-        audio_snapshot = session.audio
+        # Whichever protocol this session's client is speaking. The delta
+        # path is preferred when there is any PCM at all; a session only ever
+        # uses one, since the client does not mix them.
+        audio_snapshot = _wav_from_pcm16(bytes(session.pcm)) if session.pcm else session.audio
         is_finished = session.finished
         text = ""
         if audio_snapshot:

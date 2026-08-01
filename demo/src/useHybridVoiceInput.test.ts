@@ -20,6 +20,7 @@ const {
   startRecording,
   stopRecording,
   snapshotWav,
+  snapshotPcmDelta,
   prewarm,
   cancelPrewarm,
   recorderOptions,
@@ -33,6 +34,7 @@ const {
   startRecording: vi.fn(),
   stopRecording: vi.fn(),
   snapshotWav: vi.fn(),
+  snapshotPcmDelta: vi.fn(),
   prewarm: vi.fn(),
   cancelPrewarm: vi.fn(),
   // Captures the options useHybridVoiceInput passes to useVoiceRecorder —
@@ -58,6 +60,7 @@ vi.mock('./useVoiceRecorder', () => ({
       startRecording,
       stopRecording,
       snapshotWav,
+      snapshotPcmDelta,
       prewarm,
       cancelPrewarm,
     }
@@ -119,6 +122,8 @@ beforeEach(() => {
   stopRecording.mockClear()
   snapshotWav.mockReset()
   snapshotWav.mockReturnValue(new Blob(['pcm']))
+  snapshotPcmDelta.mockReset()
+  snapshotPcmDelta.mockReturnValue(new Blob(['pcm']))
   prewarm.mockClear()
   cancelPrewarm.mockClear()
   recorderOptions.current = null
@@ -361,6 +366,78 @@ describe('useHybridVoiceInput chunk upload cadence (demo)', () => {
     expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(2)
   })
 
+  it('uploads only the DELTA on each tick, never the whole buffer again', async () => {
+    // The old protocol re-sent everything captured so far on every tick,
+    // which is O(N^2) upload over a hold: 8.3MB for a 40-second answer, 63MB
+    // at the 120s safety cap. Each tick must now read the delta snapshot,
+    // never the whole-buffer one.
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    await act(async () => {
+      result.current.startHold()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    snapshotWav.mockClear()
+    snapshotPcmDelta.mockClear()
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+
+    expect(snapshotPcmDelta).toHaveBeenCalledTimes(2)
+    expect(snapshotWav).not.toHaveBeenCalled()
+  })
+
+  it('re-sends a delta that failed to upload, so a dropped chunk costs no words', async () => {
+    // The whole-buffer protocol got this for free: any dropped chunk was
+    // covered by the next one. Deltas do not, so a failed chunk is held and
+    // prepended to the following upload.
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    await act(async () => {
+      result.current.startHold()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    pushVoiceStreamChunk.mockClear()
+    pushVoiceStreamChunk.mockRejectedValueOnce(new Error('network went away'))
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
+
+    // Second tick carries the failed delta plus the fresh one, so the bytes
+    // sent are larger than a single delta on its own.
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(2)
+    const retried = pushVoiceStreamChunk.mock.calls[1][2] as Blob
+    const single = pushVoiceStreamChunk.mock.calls[0][2] as Blob
+    expect(retried.size).toBeGreaterThan(single.size)
+  })
+
+  it('does not carry a previous turn\'s failed chunk into the next turn', async () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    await act(async () => {
+      result.current.startHold()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    pushVoiceStreamChunk.mockRejectedValueOnce(new Error('nope'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+
+    await act(async () => { result.current.stop() })
+    pushVoiceStreamChunk.mockClear()
+
+    await act(async () => {
+      result.current.startHold()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+
+    const first = pushVoiceStreamChunk.mock.calls[0][2] as Blob
+    expect(first.size).toBe(new Blob(['pcm']).size)
+  })
+
   it('stops uploading once the turn is released', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
@@ -399,7 +476,7 @@ describe('useHybridVoiceInput chunk upload cadence (demo)', () => {
     stopRecording.mockImplementation(async () => {
       hasAudio = false
     })
-    snapshotWav.mockImplementation(() => (hasAudio ? new Blob(['pcm']) : null))
+    snapshotPcmDelta.mockImplementation(() => (hasAudio ? new Blob(['pcm']) : null))
 
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
 
@@ -583,7 +660,7 @@ describe('release() arriving before the streaming session opens', () => {
     const events = makeEventStream()
     streamVoiceEvents.mockImplementation(() => events.stream())
     const blob = new Blob(['the-childs-answer'])
-    snapshotWav.mockReturnValue(blob)
+    snapshotPcmDelta.mockReturnValue(blob)
 
     const { result } = renderHook(() => useHybridVoiceInput({ token: 't' }))
 

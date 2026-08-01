@@ -270,7 +270,9 @@ Set `SANDBOX_PIN` in your `.env` and a **Sandbox** button appears on your Pod
 Dashboard. It's a direct-answer chat just for you — Bede answers plainly
 instead of Socratically, you can switch topics freely, and you can even try
 your own draft lesson instructions to see how Bede would run with them.
-Nothing said there is ever saved — no transcript, no student record. Leave
+Bede speaks its answers here too, the same voice your child would hear — a
+speaker icon in the header mutes it if you'd rather read silently. Nothing
+said there is ever saved — no transcript, no student record. Leave
 `SANDBOX_PIN` unset to skip this entirely (default).
 
 ## 5. Setting up each student

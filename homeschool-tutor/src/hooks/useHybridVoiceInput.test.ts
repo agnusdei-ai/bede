@@ -187,6 +187,33 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
     expect(result.current.isTranscribing).toBe(false)
   })
 
+  it('logs processing time separately from hold time once a transcript is delivered', async () => {
+    // Mirrors "voice stream produced nothing" on the failure path, which
+    // already had this. The success path had no timing signal at all — a
+    // slow-but-successful transcription was invisible in the debug panel,
+    // which is exactly the gap a "~10s delay" report can't be diagnosed
+    // through without it.
+    const { getDebugEntries, clearDebugEntries } = await import('./debugBus')
+    clearDebugEntries()
+    const onFinal = vi.fn()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { result.current.release(); await flush() })
+    await act(async () => {
+      eq.push({ type: 'final', text: 'the quick brown fox' })
+      eq.push({ type: 'done' })
+      await flush()
+    })
+
+    const messages = getDebugEntries().map((e) => e.message)
+    expect(messages.some((m) =>
+      /voice stream delivered "the quick brown fox" — \d+ms after release \(\d+ms total hold\)/.test(m)
+    )).toBe(true)
+  })
+
   it('surfaces unavailable and returns to idle when there is no token to open a session with', async () => {
     const { result } = renderHook(() => useHybridVoiceInput({ token: null }))
 

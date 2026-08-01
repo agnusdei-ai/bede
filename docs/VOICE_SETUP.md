@@ -558,9 +558,32 @@ If this is affecting real usage rather than occasional testing, moving
 `bede-demo-api` off the free plan is the fix — a `render.yaml`/billing
 change, not a code change.
 
+A ~10-second delay specifically, on what feels like an early interaction in
+a session, is consistent with an additional contributor stacking on top of
+the above: `services/transcription.py`'s faster-whisper model is **lazy**
+— `_get_model()` loads it (deserializing the "base" model's weights into
+memory, real work even though they're pre-baked into the image at build
+time rather than downloaded) on the first call that actually needs it.
+`main.py`'s `_warm_voice_models()` tries to pre-empt this at startup, but it
+is a fire-and-forget background task (`asyncio.create_task`, deliberately
+non-blocking so it doesn't delay the server's own readiness) — on a
+free-tier instance that just woke from sleep, the first REAL transcription
+request can still land before that warm-up finishes, paying the model-load
+cost inline instead of finding it already done. Confirmed from the code;
+not confirmed as the actual cause of any one specific report, since nothing
+here currently logs whether warm-up had completed by the time a given
+request arrived.
+
 **Ruled out, not assumed:** the diagnostic below distinguishes this from an
 actual capture-side bug. If a hold produces "voice stream produced nothing"
-with `~0ms` of audio captured, that is NOT this — see below.
+with `~0ms` of audio captured, that is NOT this — see below. And as of this
+change, a *successful* transcription now logs its own release-to-delivery
+time too (`voice stream delivered "..." — Nms after release (Nms total
+hold)`) — previously only the empty-result path had any timing signal at
+all, so a slow-but-successful transcription was invisible in the debug
+panel. That log is what actually confirms or rules out everything in this
+section for a specific report, rather than each of us reasoning about it
+from the architecture alone.
 
 ## Troubleshooting: transcription is slow, especially in Spanish
 

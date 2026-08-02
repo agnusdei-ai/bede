@@ -42,13 +42,23 @@ point a project needs an architecture assessment like this at all.
 
 **This gap is now closed: see [`docs/ARCHITECTURE_PRINCIPLES.md`](ARCHITECTURE_PRINCIPLES.md).**
 An earlier revision of this section sketched four ad-hoc principles as a
-placeholder. Those have been replaced by a full principle set organized on
-the **eight CISSP domains** and cross-mapped to AIUC-1's six pillars, NIST
-AI RMF, ISO/IEC 42001, OWASP's LLM and Agentic Top 10s, and MITRE ATLAS —
-because inventing a bespoke taxonomy when a well-published industry-standard
-one already exists just forces an auditor or an incoming pentest team to
-translate. Each principle carries a conformance status tied to a real
-tracked finding.
+placeholder. Those have been replaced by a full 22-principle set organized
+on the **eight CISSP domains** (April 2026 outline — governing the
+self-hosted, LAN-scoped deployment) and the **six CCSP domains** (August
+2026 outline — governing the cloud-resident surfaces: the public demo, the
+managed-Postgres option, the AI provider APIs, the Cloudflare Worker, and
+the container platform), cross-mapped to AIUC-1's six pillars, NIST AI RMF,
+ISO/IEC 42001, OWASP's LLM and Agentic Top 10s, and MITRE ATLAS. Inventing
+a bespoke taxonomy when well-published industry-standard ones already exist
+just forces an auditor or an incoming pentest team to translate. Each
+principle carries a conformance status tied to a real tracked finding.
+
+The CISSP/CCSP split is not decorative: applying only CISSP was hiding four
+findings that surface solely through the cloud lens — no shared-
+responsibility artifact for any external dependency, undocumented data
+residency for children's data, LAN-derived defaults inherited by an
+internet-facing multi-tenant demo, and operational monitoring built on
+single-process assumptions that the demo's platform can invalidate.
 
 The four placeholder principles map into that set as P2 (data
 classification), P4 (privileged operations kept off the network surface),
@@ -265,8 +275,9 @@ microservices migration, and not TOGAF's full governance ceremony:
 
 1. ~~Write the architecture principles as a committed document.~~
    **Done (2026-08-02)** — [`docs/ARCHITECTURE_PRINCIPLES.md`](ARCHITECTURE_PRINCIPLES.md),
-   sixteen principles on the eight CISSP domains, cross-mapped to AIUC-1,
-   NIST AI RMF, ISO/IEC 42001, OWASP LLM/Agentic Top 10, and MITRE ATLAS.
+   22 principles on the CISSP domains (Apr 2026) and CCSP domains (Aug
+   2026), cross-mapped to AIUC-1, NIST AI RMF, ISO/IEC 42001, OWASP
+   LLM/Agentic Top 10, and MITRE ATLAS.
 2. **Data Architecture: write the classification table, then implement
    #5 and #6 against it**, not as two independent patches (both are
    governed by P2/P3/P5). This is already scoped work; the only change is

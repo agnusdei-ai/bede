@@ -15,33 +15,57 @@ bespoke taxonomy when a well-published, industry-standard one already exists
 is exactly the kind of thing an auditor or an incoming pentest team should
 not have to translate.
 
-## A note on the CISSP version
+## Standards baseline and versions
 
-Structured on the eight CISSP domain **names**, which are stable and
-uncontested across every source consulted. The exam-outline effective date
-could not be confirmed authoritatively at the time of writing — ISC2's own
-outline page was unreachable, and secondary sources conflict (some describe
-the April 15 2024 outline as current through 2026 with the 2026 ISC2
-refreshes applying to CCSP and CC rather than CISSP; others describe a
-CISSP outline effective April 1 2026, with Domain 1 weighted up to 16% and
-Domain 8 down to 10%). **Domain weightings are exam-preparation concerns and
-have no bearing on this document** — a principle set keys off the domain
-*structure*, which is common to every version. If the current outline is to
-hand, the only thing worth reconciling here is whether any domain was
-renamed; nothing below depends on a percentage.
+Two ISC2 bodies of knowledge are used, both refreshed in 2026, and both
+treated here as **directionally accurate for principle adherence** — this
+document keys off domain *structure* and *content emphasis*, never exam
+weightings, which are preparation concerns with no architectural bearing.
 
-The reported 2026 Domain 1 content additions, if accurate, land directly on
-work already done in this repository rather than opening new gaps: AI risk
-management (the AIUC-1 track, `docs/PENTEST_AIUC1_READINESS.md`),
-implications of quantum computing for cryptographic algorithms
-(`docs/THREAT_MODEL.md`'s explicitly reasoned post-quantum non-goal), and
-supply-chain risk (adversary class A3, and Principle 12 below).
+| Body of knowledge | Outline effective | Role here |
+|---|---|---|
+| **CISSP** (8 domains) | **April 2026** | The spine — governs the self-hosted, LAN-scoped deployment, which is the bulk of Bede |
+| **CCSP** (6 domains) | **August 2026** | Governs Bede's genuinely cloud-resident surfaces — see the split below |
+
+Both 2026 refreshes keep their existing domain structure (8 and 6
+respectively) and refresh content rather than reorganizing it. Where a
+stated 2026 emphasis is load-bearing for a principle below, it's cited
+inline.
+
+### Why both, and where the line falls
+
+`README.md` already draws the distinction this mapping formalizes:
+"Production (self-hosted, your family's real data) and the public demo
+(stateless, cloud-hosted) are deliberately different setups with different
+security models — don't mix the two up." That is precisely a CISSP/CCSP
+split, and treating it as one was hiding real gaps:
+
+- **CISSP governs the self-hosted family instance** — a LAN-scoped,
+  single-tenant application on hardware the operator owns. Principles
+  P1–P16.
+- **CCSP governs everything that leaves that host** — the public demo on
+  a cloud platform, the managed-Postgres option (`docs/PRODUCTION_SETUP.md`
+  offers Neon/Supabase, where "your encrypted data leaves this machine for
+  their cloud"), the AI provider APIs, Resend, the Cloudflare Worker for
+  license checkout, and the container platform itself. Principles P17–P22.
+
+The 2026 refreshes' emphases land squarely on this codebase rather than
+opening abstract new ground. CISSP Domain 1's additions map to work already
+done: AI risk management (the AIUC-1 track), quantum implications for
+cryptography (`docs/THREAT_MODEL.md`'s explicitly reasoned post-quantum
+non-goal), and supply-chain risk (adversary class A3, P15). CCSP's
+additions — AI/ML security, **container security**, **zero trust**, supply
+chain, and increased weight on **Cloud Data Security** and **Cloud Security
+Operations** — map to P17–P22, and the container and zero-trust emphases in
+particular are the same finding the TOGAF assessment reached from a
+different direction (no network zone model, no plane separation).
 
 ## Framework cross-map
 
 | Framework | Role here | What it does *not* cover |
 |---|---|---|
-| **CISSP domains** | The organizing spine of this document — a complete, well-published security taxonomy | Not AI-specific; says nothing about prompt injection or model behavior |
+| **CISSP domains** (8, Apr 2026) | The organizing spine for the self-hosted deployment — a complete, well-published security taxonomy | Not AI-specific; says nothing about prompt injection or model behavior. Also not cloud-specific — assumes you control the platform |
+| **CCSP domains** (6, Aug 2026) | Governs the cloud-resident surfaces CISSP's on-premise assumptions don't reach — shared responsibility, data residency, provider trust | Assumes a conventional cloud consumer; says little about a single-tenant LAN appliance, which is most of Bede |
 | **AIUC-1** | The certification target (6 pillars: Data & Privacy, Security, Safety, Reliability, Accountability, Society) | Requires third-party audit; not a design methodology |
 | **TOGAF** | The principle *format* (Statement/Rationale/Implications) and the assessment structure in `docs/ARCHITECTURE_ASSESSMENT.md` | Not security-specific; treats security as cross-cutting |
 | **NIST AI RMF 1.0** | Risk-management operating model — GOVERN/MAP/MEASURE/MANAGE | No prescriptive technical controls, no certification, no enforcement |
@@ -436,6 +460,198 @@ per-turn tool use; two-tier detection means the deterministic regex layer —
 fully known once source is exposed — is not the last line of defense.
 
 *AIUC-1: Security, Safety · OWASP LLM Top 10 (prompt injection), OWASP Agentic Top 10 · MITRE ATLAS*
+
+---
+
+---
+
+# Cloud-resident surfaces (CCSP domains)
+
+P1–P16 govern the self-hosted instance. The principles below govern
+everything that leaves that host. **This section exists because applying
+only CISSP to Bede was hiding real gaps** — CISSP's domains assume you
+control the platform, which is true of a Raspberry Pi in a family's house
+and false of the public demo, the managed-Postgres option, the provider
+APIs, and the Cloudflare Worker. Four of the six findings below are new,
+surfaced only by looking through the cloud lens.
+
+## CCSP Domain 1 — Cloud Concepts, Architecture and Design
+
+### P17 — The shared-responsibility boundary is written down for every cloud dependency ❌
+
+**Statement.** For each external platform Bede depends on, the split
+between what the provider secures and what this project secures is
+documented explicitly.
+
+**Rationale.** Shared responsibility is the foundational cloud-security
+concept, and Bede has no artifact stating it for any of its six external
+dependencies (the demo's hosting platform, managed Postgres,
+Anthropic/OpenAI/Mistral, Resend, Cloudflare, the container registry).
+`docs/VENDOR_DATA_FLOW.md` documents what *flows* to each — genuinely well
+— but flow is not responsibility. Nothing currently answers "if the managed
+Postgres provider has a backup-encryption failure, whose control was that?"
+Unstated boundaries are where both parties assume the other has it.
+
+**Implications.** A responsibility table per dependency, alongside the
+existing data-flow table. This is also the artifact AIUC-1's
+Accountability pillar wants for vendor due diligence, which
+`docs/PENTEST_AIUC1_READINESS.md` already tracks as open (#11) — the same
+gap seen from the cloud side.
+
+**Conformance.** No shared-responsibility artifact exists.
+
+*AIUC-1: Accountability · CCSP D1 · NIST AI RMF: GOVERN*
+
+---
+
+## CCSP Domain 2 — Cloud Data Security *(increased emphasis, 2026)*
+
+### P18 — Data is encrypted before it leaves the host, and no provider is in the trust base ⚠️
+
+**Statement.** Anything sent to third-party storage is already ciphertext
+under a key that provider never holds; provider-side encryption is defense
+in depth, never the control being relied on.
+
+**Rationale.** Bede gets this **right** for storage, and it's worth
+crediting: application-layer AES-256-GCM means the managed-Postgres option
+receives ciphertext and a KEK-wrapped `DATA_KEY` it cannot unwrap, since
+`MASTER_SECRET` lives only in the API container's environment. Neon or
+Supabase being breached yields nothing readable. That's the correct
+architecture and it's already built.
+
+The deliberate exception is the reason this is ⚠️ not ✅: **the AI provider
+receives plaintext.** Full tutoring context — system prompt, conversation
+history, the child's current message — goes to Anthropic/OpenAI/Mistral in
+the clear, because a model cannot reason over ciphertext. That is inherent,
+not a defect, and `docs/VENDOR_DATA_FLOW.md` documents it accurately. It
+must never be described as anything else, and the `LOCAL_LLM_BASE_URL`
+option (a self-hosted model, zero egress) is the only configuration where
+this exception does not apply.
+
+**Implications.** Any *new* third-party storage dependency encrypts before
+egress. Any new dependency that requires plaintext is a trust-base decision
+requiring the same explicit treatment as the AI provider.
+
+**Conformance.** Storage: conforms. AI provider: a documented, inherent
+exception with a zero-egress alternative available.
+
+*AIUC-1: Data & Privacy · CCSP D2 (2026: AI/ML training data, multi-cloud) · ISO/IEC 42001*
+
+### P19 — Data residency and cross-border processing are known and stated per dependency ❌
+
+**Statement.** Where each provider stores and processes data is documented,
+and the answer is available to a family before they choose that option.
+
+**Rationale.** A 2026 CCSP Domain 2 emphasis, and materially relevant here
+because the data is **children's**. Nothing currently states which region a
+managed Postgres instance sits in, where the demo platform hosts, or which
+jurisdictions the configured AI provider processes in. For a product whose
+compliance posture references COPPA, and for any family outside the US,
+"we don't know where it's processed" is not a durable answer.
+
+**Implications.** Residency recorded per dependency in the same artifact as
+P17's responsibility split. Where a provider offers region selection, the
+recommended region is documented in `docs/PRODUCTION_SETUP.md` rather than
+left to chance.
+
+**Conformance.** Undocumented for every cloud dependency.
+
+*AIUC-1: Data & Privacy, Accountability · CCSP D2/D6 · COPPA/GDPR-adjacent*
+
+---
+
+## CCSP Domain 3 — Cloud Platform and Infrastructure Security *(container security, 2026)*
+
+### P20 — Container hardening is a governed baseline, not a per-file convention ⚠️
+
+**Statement.** Every container in every compose file meets a documented
+hardening baseline, and a new service cannot ship without meeting it.
+
+**Rationale.** The hardening in `docker-compose.yml` is genuinely good —
+`read_only`, `cap_drop: ALL`, `no-new-privileges`, tmpfs mounts, minimal
+added capabilities with each one comment-justified. But it exists as
+*configuration*, not as a *standard*: nothing would catch a new service
+added without it. Container security is a named 2026 CCSP D3 emphasis, and
+this is the classic undocumented-convention failure mode — correct until
+someone doesn't know it was a rule.
+
+**Implications.** A Technology Standards Catalog entry stating the baseline,
+ideally enforced by a compose-lint step in CI rather than review attention.
+Note `docker-compose.redteam.yml` deliberately relaxes `restart` policy —
+a documented, reasoned exception, which is what an exception should look
+like.
+
+**Conformance.** Baseline followed in practice, not documented or enforced.
+
+*AIUC-1: Security · CCSP D3 (2026: container security) · CISSP D3*
+
+---
+
+## CCSP Domain 4 — Cloud Application Security
+
+### P21 — Internet-facing deployments carry stricter defaults than LAN-scoped ones ❌
+
+**Statement.** A cloud-hosted, multi-tenant deployment does not inherit the
+security defaults of a single-tenant LAN appliance; where they differ, the
+stricter applies to the cloud deployment.
+
+**Rationale.** The demo and the family instance run the **same code with
+the same defaults**, differentiated by a `role` claim. But their threat
+models are opposites: the demo is internet-facing, pseudonymous,
+multi-visitor, operator-distinct-from-user. Several controls already
+documented as "not a gap for a self-hosted single-family instance" —
+notably the in-memory, per-process rate limiting and E009 anomaly watch —
+are load-bearing for the demo in a way the reasoning that dismissed them
+does not cover. This is the deployment-shape counterpart to P10's
+identity-domain finding, and zero trust (a 2026 CCSP emphasis) is the
+principle being violated: the demo currently inherits trust from an
+architecture designed around a trusted LAN.
+
+**Implications.** Deployment-shape-aware defaults rather than one set with
+per-role exceptions. Anything justified by "single-tenant, LAN-scoped" is
+re-examined for the demo specifically.
+
+**Conformance.** One default set, LAN assumptions throughout.
+
+*AIUC-1: Security, Data & Privacy (tenant isolation) · CCSP D4 (2026: zero trust)*
+
+---
+
+## CCSP Domain 5 — Cloud Security Operations *(increased weight, 2026)*
+
+### P22 — Cloud deployments have operational visibility that survives their own scaling model ❌
+
+**Statement.** Monitoring, rate limiting, and anomaly detection for a
+cloud-hosted instance work under that platform's actual scaling and restart
+behavior, not under single-process assumptions.
+
+**Rationale.** `docs/SECURITY.md` already discloses this honestly: rate
+limiting and the E009 anomaly watch are in-memory and per-process, so on a
+horizontally-scaled deployment the effective limit becomes
+`limit × instance count` and anomaly thresholds get easier to stay under by
+spreading requests. It is correctly assessed as a non-issue for a family's
+single instance — and the demo is a cloud deployment whose platform can
+restart or scale it, which is exactly the case the disclosure carves out.
+Additionally, anomaly alerts route to `PARENT_EMAIL`, a mechanism that
+presumes a family operator, not a demo operator watching pseudonymous
+traffic.
+
+**Implications.** A shared store (Redis or equivalent) behind any
+multi-replica deployment, and an operator-facing alerting path for the demo
+distinct from the family-facing one.
+
+**Conformance.** Documented as a known limitation; not addressed for the
+cloud deployment where it actually applies.
+
+*AIUC-1: Security, Reliability · CCSP D5 (2026: increased weight)*
+
+---
+
+## CCSP Domain 6 — Legal, Risk and Compliance
+
+Covered by P17 (shared responsibility), P19 (residency), and the vendor
+due-diligence gap tracked as #11 in `docs/PENTEST_AIUC1_READINESS.md`. No
+separate principle — stating one here would duplicate rather than add.
 
 ---
 

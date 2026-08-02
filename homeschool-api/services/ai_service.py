@@ -2886,16 +2886,18 @@ async def _record_language_evidence(
     """
     if db is None:
         return
-    if subject == Subject.latin:
-        if str(tool_input.get("language", "")).lower() != "latin":
-            return
-    elif subject not in _LANGUAGE_CHECKIN_SUBJECTS:
+    if subject != Subject.latin and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return
     try:
         from models.schemas import RecordLanguageEvidenceInput
         from services.diagnostic.language_exposure import process_evidence as _process_language
 
         ev = RecordLanguageEvidenceInput(**tool_input)  # validate/clamp
+        # Checked against the validated value rather than the raw tool
+        # input, so there is one reading of "which language did the model
+        # actually name" instead of two that could drift apart.
+        if subject == Subject.latin and ev.language != "latin":
+            return
         await _process_language(db, config.student_name, ev.language, ev.outcome)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)

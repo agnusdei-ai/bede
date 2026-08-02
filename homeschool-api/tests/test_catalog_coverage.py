@@ -153,3 +153,36 @@ def test_free_study_is_deliberately_uncovered():
             f"Year {year} gained a free_study plan — free_study is child-directed "
             f"by design; prescribing a scope contradicts the subject."
         )
+
+
+@pytest.mark.parametrize("year", YEARS)
+def test_latin_has_a_plan_in_every_year(year):
+    """
+    Latin & Christian Foundations is plan-based for the same reason
+    `scripture` is: it has no book list, and inventing one would mean
+    picking a publisher's Latin primer as canonical.
+    """
+    assert get_subject_plan(year, "latin"), f"Year {year} latin plan missing"
+
+
+@pytest.mark.parametrize("year", YEARS)
+def test_latin_plan_states_the_inclusivity_guarantee(year):
+    """
+    The guarantee that makes this subject teachable by a family of any
+    Christian tradition has to travel with the content, exactly as
+    scripture's canon/translation neutrality does above — not live only in
+    services/latin_catalog.py's prompt block, which a future edit could
+    soften independently of these plans.
+    """
+    plan = get_subject_plan(year, "latin")
+    lowered = plan.lower()
+    assert "shared inheritance" in lowered, (
+        f"Year {year} latin plan does not state that its content is shared across traditions"
+    )
+    assert any(w in lowered for w in ("pastor", "priest", "minister")), (
+        f"Year {year} latin plan does not defer dividing doctrine to the family's own clergy"
+    )
+    # And the verbatim rule, which is what keeps Bede from inventing Latin.
+    assert "never recited from memory" in lowered, (
+        f"Year {year} latin plan does not carry the quote-never-recall rule"
+    )

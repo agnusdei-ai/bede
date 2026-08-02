@@ -3,7 +3,9 @@
 Executive status for two related but distinct goals: surviving an independent
 professional security assessment (penetration test, red team), and passing
 AIUC-1 certification. Companion to `docs/SECURITY.md` (the detailed
-gap-by-gap log this document summarizes and prioritizes) and
+gap-by-gap log this document summarizes and prioritizes), `docs/THREAT_MODEL.md`
+(adversary classes and explicit non-goals — including why "nation-state
+quantum adversary" is a scoped-out non-goal, not an oversight), and
 `docs/INCIDENT_RESPONSE.md`. Like those, this is a factual snapshot of where
 the code stands — **not a certification, not legal advice, and not a
 substitute for the actual third-party engagements both goals ultimately
@@ -95,6 +97,63 @@ mocked). The only 2 failures across the entire suite are a pre-existing
 missing optional `soundfile` import in the verification sandbox, unrelated
 to any change in this pass.
 
+## Testing scaffolding added this pass (2026-08-02)
+
+Distinct from the fixes above — nothing here closes a vulnerability, it
+builds the infrastructure and documentation that make human- and
+AI-executed testing repeatable, isolated, and properly authorized going
+forward. No test described in any of this was executed as part of this
+work — design and scaffolding only, deliberately, per explicit instruction
+that live testing runs only in a genuinely isolated environment, never
+from inside a shared cloud coding session.
+
+- **`docs/THREAT_MODEL.md`** — adversary classes (A1–A9) and an explicit
+  non-goals section, including the reasoning for why "nation-state
+  quantum-capable adversary" is scoped out rather than defended against
+  (this application's actual data-at-rest encryption is symmetric-only —
+  AES-256-GCM + PBKDF2 — so there is no meaningful post-quantum gap to
+  begin with; the two places classical asymmetric crypto does appear,
+  license signing and Caddy's local LAN CA, are named and scoped as
+  low-stakes rather than silently ignored). Also documents the two
+  boundaries that already hold even under a code-execution-level
+  compromise (DB-only compromise ≠ plaintext; source exposure ≠ live
+  secrets) and names fixed-threshold lockout as a self-defeating
+  mechanism worth designing around, not just adding.
+- **`docs/environment-pentests/README.md`** extended with an isolated-
+  environment requirement, a per-tester/per-engagement authorization
+  model, two explicit testing postures (inside-the-network / outside-a-
+  known-access-perimeter), and new checklist items tying directly to the
+  control/data/management-plane discussion (admin-plane LAN reachability,
+  `/trust` onboarding abuse, lockout-as-DoS).
+- **`docker-compose.redteam.yml`** — an isolated, distinctly-named,
+  non-auto-restarting target for that testing, layered on the existing
+  Compose file via an override rather than a parallel deployment
+  definition. Verified via `docker compose config` (client-side merge
+  resolution, no daemon required) that it produces the intended container
+  names and restart policy; a first draft's attempt to also force the
+  local database on via a `profiles: []` override was verified *not* to
+  work — Compose's profile filtering happens before that kind of override
+  applies — and was corrected to require `COMPOSE_PROFILES=local-db`
+  explicitly rather than ship a line that looked functional and wasn't.
+- **`.github/workflows/adversarial-probe.yml`** — `workflow_dispatch`-only
+  CI wrapper around the existing `scripts/adversarial_probe.py`, so
+  re-running the persona probe after a model swap or a constitution change
+  is a one-click action. Deliberately not scheduled or triggered on push —
+  the underlying script's own docstring states it should run "on demand
+  only" because it costs real money and calls a live external API; this
+  scaffolding doesn't override that, it just removes "someone has to
+  remember the local command" as the only way to invoke it. Uses a
+  dedicated `ADVERSARIAL_PROBE_API_KEY` secret, distinct from any
+  production or other CI key, so its usage is separately attributable and
+  independently rotatable. The bootstrap sequence (schema creation +
+  encryption-key initialization, mirroring `main.py`'s own startup
+  lifespan) was verified to execute correctly against a SQLite stand-in;
+  the full path against a real ephemeral Postgres and a real model call
+  has not been executed, since doing so from this session would violate
+  the isolated-environment requirement this scaffolding exists to
+  establish. **First live run is a decision for whoever has repository
+  write access to make explicitly**, not something this pass triggered.
+
 ## Outstanding — prioritized
 
 Carried forward from the original review, ranked the same way: does leaving
@@ -110,8 +169,8 @@ a real but bounded gap.
 | 9 | No enumerated harm taxonomy | Safety | The controls are real and effective (safeguarding patterns, moderation categories, physical-safety guardrails, the constitution) but scattered across five files rather than existing as one document mapping harm → control → test. Certification will want this as a single artifact — a writing task, not an engineering one. |
 | 10 | No factual-accuracy evaluation harness | Reliability | One excellent worked example exists (the Scripture-translation-copyright fix), but nothing systematic measures factual accuracy across K-8 subjects generally — the core claim of a tutoring product. Likely the hardest place an assessor pushes. |
 | 11 | Vendor due diligence is a disclaimer, not an assessment | Accountability | `docs/VENDOR_DATA_FLOW.md` accurately documents what data flows where, then tells the reader to review each vendor's terms themselves. AIUC-1's due-diligence control wants an actual assessment (retention, training-use, subprocessors, DPA) recorded per vendor, not a pointer. |
-| 12 | Independent adversarial testing | Security / Safety | `scripts/adversarial_probe.py` and `docs/adversarial-probes/` are real, reusable, git-SHA-pinned tooling — but self-run. AIUC-1's control language specifically calls for a **third-party** red team; this tooling is what that engagement tests against, not a substitute for it. |
-| 13 | Environment/infrastructure pentest | Security | `docs/environment-pentests/README.md` is a tracker with no entries yet — network exposure, auth/session binding, TLS config, container hardening as actually deployed has not been independently verified, only reasoned about from the code. |
+| 12 | Independent adversarial testing | Security / Safety | `scripts/adversarial_probe.py` and `docs/adversarial-probes/` are real, reusable, git-SHA-pinned tooling. **Scaffolding status (2026-08-02): now also wired into `.github/workflows/adversarial-probe.yml`, a `workflow_dispatch`-only CI job** — bootstraps an ephemeral Postgres, runs the real probe suite against a live model, uploads the transcript as a build artifact for human review. This makes re-testing after a model/persona change a one-click action instead of a remembered local command. **It does not change the underlying gap**: this is still the same tooling that helped build the system, run by the same organization, on demand. AIUC-1's control language specifically calls for a **third-party** red team; this scaffolding is what that engagement tests against and re-runs between engagements, not a substitute for it. |
+| 13 | Environment/infrastructure pentest | Security | `docs/environment-pentests/README.md` is a tracker with no findings yet. **Scaffolding status (2026-08-02): substantially extended** — an isolated-environment requirement and per-tester authorization model, two explicit testing postures (inside-the-network / outside-a-known-access-perimeter, mapped to `docs/THREAT_MODEL.md`'s A1/A2), new checklist items for admin-plane LAN exposure and lockout-as-DoS, and `docker-compose.redteam.yml` — a Compose override standing up a distinctly-named, non-auto-restarting, isolated target for exactly this testing, verified to merge correctly via `docker compose config` (a real, empirically-caught bug in an earlier draft — a `profiles: []` override that looked like it forced the local database on and silently didn't — is documented in the override file itself as a lesson in not shipping a control that looks present and doesn't work). **The findings table is still empty** — scaffolding is not the same as testing having happened; no test in this document has been executed. |
 | 14 | SOC 2 policy set | Accountability | `docs/SECURITY.md` already states this plainly: Information Security, Access Control, Change Management, Vendor Management, and Risk Assessment policies remain undocumented, and none of them can be satisfied by a codebase change. |
 
 ## Path to each goal

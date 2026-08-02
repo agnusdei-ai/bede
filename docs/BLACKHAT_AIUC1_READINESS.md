@@ -5,11 +5,13 @@ professional security assessment (penetration test, red team), and passing
 AIUC-1 certification. Companion to `docs/SECURITY.md` (the detailed
 gap-by-gap log this document summarizes and prioritizes), `docs/THREAT_MODEL.md`
 (adversary classes and explicit non-goals — including why "nation-state
-quantum adversary" is a scoped-out non-goal, not an oversight), and
-`docs/INCIDENT_RESPONSE.md`. Like those, this is a factual snapshot of where
-the code stands — **not a certification, not legal advice, and not a
-substitute for the actual third-party engagements both goals ultimately
-require.**
+quantum adversary" is a scoped-out non-goal, not an oversight),
+`docs/ARCHITECTURE_ASSESSMENT.md` (a TOGAF-aligned assessment of *why* the
+gaps below are shaped the way they are — the architectural root causes
+behind items #5–8 specifically), and `docs/INCIDENT_RESPONSE.md`. Like
+those, this is a factual snapshot of where the code stands — **not a
+certification, not legal advice, and not a substitute for the actual
+third-party engagements both goals ultimately require.**
 
 ## Why these two goals are listed together
 

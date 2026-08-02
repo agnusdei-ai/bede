@@ -159,7 +159,38 @@ derived automatically from that grade set (never hand-maintained
 separately) and used only as a fallback when a session has a stage but no
 specific grade.
 
-### 6. Subject/stage guidance — `services/ai_service.py`
+### 6. Latin — `services/latin_catalog.py`
+
+Verbatim Vulgate anchors and the six foundational terms behind
+`Subject.latin` (Fides, Spes, Caritas, Sapientia, Veritas, Ora et Labora),
+plus per-stage shared-Christian vocabulary. Same weekly calendar rotation
+as poetry. Three rules specific to this file, all of them enforced by
+`tests/test_latin_catalog.py`:
+
+- **Every Latin text must be checked against a published Vulgate edition
+  before it lands here** — a stricter bar than the rest of this doc's
+  sourcing standard, and stricter than `prayer_catalog.py` was actually
+  held to (its docstring records that its texts came from model knowledge
+  because a reference site wasn't reachable at the time). Latin is
+  inflected: a wrong ending is a wrong meaning, and neither the child nor
+  the parent is positioned to catch it. Readings here are the Clementine
+  Vulgate's; the two known edition variants are recorded in the module
+  docstring so a future editor doesn't "fix" one into the other.
+- **Nothing specific to one Christian tradition goes in.** This subject
+  exists so a family that holds none of the distinctively Catholic
+  doctrines can still teach Latin rooted in the faith; `Subject.saints` is
+  where tradition-specific content belongs. Ave Maria, Salve Regina, the
+  Sanctus, and the Confiteor are all deliberately absent and should stay
+  that way.
+- **Attribution gets stated honestly even when it's less tidy.** The
+  `ora_et_labora` entry says outright that the motto is a 19th-century
+  formulation (Maurus Wolter, 1880) rather than a phrase from St.
+  Benedict's Rule, and supplies the sentence that *is* from the Rule to
+  quote instead. Anything similar — a beloved phrase whose usual
+  attribution doesn't survive checking — gets the same treatment rather
+  than a smoothing-over.
+
+### 7. Subject/stage guidance — `services/ai_service.py`
 
 Not a data file — plain Python dicts that are part of the system prompt:
 

@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.database import VoiceProfile
-from core.encryption import decrypt_json, encrypt_json
+from core.encryption import aad_for, decrypt_json, encrypt_json
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +149,23 @@ def _score_against_profile_sync(audio_bytes: bytes, stored: np.ndarray) -> float
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
 
+# Tier 1 (biometric) under docs/DATA_CLASSIFICATION.md — the strictest tier,
+# because a voice embedding is the one asset here that can't be reissued. A
+# child can be given a new PIN, a new password, a new session; they cannot be
+# given a new voice, so compromise is permanent in a way nothing else is.
+#
+# First call site migrated to the v2 (AAD-bound) envelope. Binding
+# table/column/student_name means a profile blob is only valid in the row it
+# was written for — copying one student's ciphertext into another's row now
+# fails authentication instead of decrypting cleanly. Reads still accept v1
+# blobs written before this change (core/encryption.py dispatches on the
+# blob's own version byte), and each profile upgrades itself to v2 the next
+# time it's written — i.e. on the student's next enrollment. No migration
+# script, no bulk rewrite.
+def _profile_aad(student_name: str) -> bytes:
+    return aad_for("voice_profiles", "profile_enc", student_name)
+
+
 async def _get_profile(db: AsyncSession, student_name: str) -> Optional[dict]:
     result = await db.execute(
         select(VoiceProfile).where(VoiceProfile.student_name == student_name)
@@ -156,11 +173,11 @@ async def _get_profile(db: AsyncSession, student_name: str) -> Optional[dict]:
     row = result.scalar_one_or_none()
     if row is None:
         return None
-    return decrypt_json(row.profile_enc)  # type: ignore
+    return decrypt_json(row.profile_enc, _profile_aad(student_name))  # type: ignore
 
 
 async def _save_profile(db: AsyncSession, student_name: str, profile: dict) -> None:
-    enc = encrypt_json(profile)
+    enc = encrypt_json(profile, _profile_aad(student_name))
     result = await db.execute(
         select(VoiceProfile).where(VoiceProfile.student_name == student_name)
     )

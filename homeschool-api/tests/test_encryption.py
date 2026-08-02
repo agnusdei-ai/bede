@@ -132,3 +132,103 @@ async def test_rotate_master_secret_rejects_when_nothing_has_been_encrypted_yet(
             "new-master-secret-" + "b" * 32,
             db_session,
         )
+
+
+# ── AAD context binding (v2 envelope) ───────────────────────────────────────
+# See docs/DATA_CLASSIFICATION.md. The attack these close: with one global
+# DATA_KEY and no associated data, a ciphertext proves only "encrypted by
+# whoever holds the key" — not where it belongs — so blobs are freely
+# interchangeable between rows, columns, and tables by anyone with database
+# write access, decrypting cleanly with no tag failure and no signal.
+
+@pytest.mark.asyncio
+async def test_ciphertext_cannot_be_moved_between_rows_when_aad_bound(db_session):
+    """The actual swap attack, as it would be performed against the DB."""
+    await _boot("master-secret-" + "a" * 32, db_session)
+
+    alice = encryption_module.encrypt_json(
+        {"note": "alice's private note"},
+        encryption_module.aad_for("lesson_bookmarks", "bookmark_enc", "Alice"),
+    )
+
+    # Attacker copies Alice's blob into Bob's row. Bob's read path supplies
+    # Bob's context, which is not what the blob was sealed with.
+    with pytest.raises(ValueError):
+        encryption_module.decrypt_json(
+            alice, encryption_module.aad_for("lesson_bookmarks", "bookmark_enc", "Bob")
+        )
+
+    # Sanity: it still decrypts correctly in the row it belongs to.
+    assert encryption_module.decrypt_json(
+        alice, encryption_module.aad_for("lesson_bookmarks", "bookmark_enc", "Alice")
+    ) == {"note": "alice's private note"}
+
+
+@pytest.mark.asyncio
+async def test_ciphertext_cannot_be_moved_between_columns_or_tables(db_session):
+    await _boot("master-secret-" + "a" * 32, db_session)
+    blob = encryption_module.encrypt(
+        b"x", encryption_module.aad_for("voice_profiles", "profile_enc", "Alice")
+    )
+    # Same row key, different column.
+    with pytest.raises(ValueError):
+        encryption_module.decrypt(
+            blob, encryption_module.aad_for("voice_profiles", "other_enc", "Alice")
+        )
+    # Same column name, different table.
+    with pytest.raises(ValueError):
+        encryption_module.decrypt(
+            blob, encryption_module.aad_for("student_configs", "profile_enc", "Alice")
+        )
+
+
+@pytest.mark.asyncio
+async def test_v2_blob_cannot_be_read_without_its_aad(db_session):
+    """The downgrade that must not be possible: omitting the argument must
+    fail loudly, never silently succeed as an unauthenticated read."""
+    await _boot("master-secret-" + "a" * 32, db_session)
+    blob = encryption_module.encrypt(
+        b"secret", encryption_module.aad_for("voice_profiles", "profile_enc", "Alice")
+    )
+    with pytest.raises(ValueError, match="context binding"):
+        encryption_module.decrypt(blob)
+
+
+@pytest.mark.asyncio
+async def test_v1_blobs_written_before_the_migration_still_decrypt(db_session):
+    """Migration safety: rows written before AAD existed are still live in
+    deployed databases and must keep working, with or without a migrated
+    read path passing an aad."""
+    await _boot("master-secret-" + "a" * 32, db_session)
+    legacy = encryption_module.encrypt(b"written before v2 existed")  # no aad -> v1
+
+    assert legacy[4] == encryption_module._VERSION_LEGACY_NO_AAD
+    # Unmigrated read path.
+    assert encryption_module.decrypt(legacy) == b"written before v2 existed"
+    # Migrated read path, against a not-yet-rewritten row: the aad is ignored
+    # because a v1 blob has nothing bound in its tag to check it against.
+    assert encryption_module.decrypt(
+        legacy, encryption_module.aad_for("voice_profiles", "profile_enc", "Alice")
+    ) == b"written before v2 existed"
+
+
+@pytest.mark.asyncio
+async def test_supplying_aad_writes_v2_and_omitting_it_writes_v1(db_session):
+    await _boot("master-secret-" + "a" * 32, db_session)
+    assert encryption_module.encrypt(b"x")[4] == encryption_module._VERSION_LEGACY_NO_AAD
+    assert encryption_module.encrypt(
+        b"x", encryption_module.aad_for("t", "c", "r")
+    )[4] == encryption_module._VERSION_AAD
+
+
+@pytest.mark.asyncio
+async def test_v2_envelope_header_is_tamper_evident(db_session):
+    """v1 leaves magic+version outside the authenticated data, so flipping
+    the version byte is undetectable until it fails a range check. v2 binds
+    the header into the tag, making it a tag failure like any other tamper."""
+    await _boot("master-secret-" + "a" * 32, db_session)
+    aad = encryption_module.aad_for("voice_profiles", "profile_enc", "Alice")
+    blob = bytearray(encryption_module.encrypt(b"secret", aad))
+    blob[4] = encryption_module._VERSION_LEGACY_NO_AAD   # claim it's v1
+    with pytest.raises(ValueError):
+        encryption_module.decrypt(bytes(blob), aad)

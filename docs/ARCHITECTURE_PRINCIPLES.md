@@ -113,7 +113,7 @@ biometrics authenticate children" overstates what the code enforces
 
 ## Domain 2 — Asset Security
 
-### P2 — Data is classified by sensitivity, and controls differ by class ❌
+### P2 — Data is classified by sensitivity, and controls differ by class ⚠️
 
 **Statement.** Every stored data entity is assigned a sensitivity tier, and
 the encryption key, retention period, and deletion mechanism follow from
@@ -129,8 +129,12 @@ weakest-justified control is applied to the most sensitive asset.
 binding) and #6 (crypto-shredding) are implemented *against* it, not as
 independent patches — they are one gap expressed twice.
 
-**Conformance.** No classification artifact exists. This is the single
-highest-leverage open architectural gap.
+**Conformance.** `docs/DATA_CLASSIFICATION.md` exists as of 2026-08-02 —
+five tiers (T0 key material through T4 operational), every encrypted column
+assigned, with the key strategy and deletion mechanism stated per tier.
+Partial rather than conforming because the *controls* have only begun to
+diverge: AAD binding is implemented and T1 (biometric) is migrated, T2–T4
+are not, and per-record/per-student keys are still pending.
 
 *AIUC-1: Data & Privacy · ISO/IEC 42001: asset/data governance*
 
@@ -181,7 +185,7 @@ reverse-proxy path as tutoring traffic, gated only by a JWT role claim.
 
 *AIUC-1: Security · CISSP D3 secure design principles*
 
-### P5 — Encryption binds ciphertext to its context, not merely to a key ❌
+### P5 — Encryption binds ciphertext to its context, not merely to a key ⚠️
 
 **Statement.** Every AEAD operation binds the record's identity (table,
 column, row) as associated data, and the envelope header is authenticated.
@@ -197,7 +201,13 @@ professional crypto review.
 Cheaper now, at low install count, than after wider deployment — a botched
 migration makes a family's data unreadable.
 
-**Conformance.** Punch-list #5.
+**Conformance.** Mechanism implemented 2026-08-02 — `core/encryption.py`'s
+v2 envelope binds `aad_for(table, column, row_key)` plus the envelope header
+into the GCM tag, with v1 blobs still readable so migration is incremental
+rather than a flag-day across ~50 call sites. T1 (voice biometrics) migrated;
+T2–T4 pending. A v2 blob cannot be read without its exact context — omitting
+the argument raises rather than silently succeeding, so the binding can't be
+downgraded away.
 
 *AIUC-1: Data & Privacy · CISSP D3 cryptographic lifecycle*
 

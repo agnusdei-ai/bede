@@ -15,6 +15,7 @@ voice biometrics authenticate children at session start.
 | Know what hardware I need (can a Raspberry Pi run this?) | [docs/PARENT_SETUP.md](docs/PARENT_SETUP.md#choosing-your-server-machine) — "Choosing your server machine": what a modest always-on box does and doesn't change, and which AI provider options each rules in or out |
 | Install with one command instead of `git clone` + typing | [docs/WINDOWS_INSTALLER.md](docs/WINDOWS_INSTALLER.md) (`.exe`) or [docs/UNIX_INSTALLER.md](docs/UNIX_INSTALLER.md) (`install.sh` — Linux x86_64/arm64 including Raspberry Pi, and macOS Apple Silicon/Intel) |
 | See what's retained and how to delete it | [docs/DATA_RETENTION.md](docs/DATA_RETENTION.md) — per-table retention policy and how to permanently delete a student's data |
+| See how strongly each kind of data is protected | [docs/DATA_CLASSIFICATION.md](docs/DATA_CLASSIFICATION.md) — sensitivity tiers, per-tier key strategy and deletion mechanism, and every encrypted column's assignment |
 | ...the technical/ops reference for that | [docs/PRODUCTION_SETUP.md](docs/PRODUCTION_SETUP.md) — `make setup`, day-to-day commands, database options |
 | Show my child how to use it | [docs/CHILD_GUIDE.md](docs/CHILD_GUIDE.md) — written directly to the child |
 | Understand and join in the Socratic method myself | [docs/SOCRATIC_METHOD.md](docs/SOCRATIC_METHOD.md) — what Bede actually does, and how to ask the same kind of question yourself |

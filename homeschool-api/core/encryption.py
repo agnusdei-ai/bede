@@ -35,34 +35,102 @@ from Crypto.Random import get_random_bytes
 log = logging.getLogger(__name__)
 
 _MAGIC = b"SAGE"
-_VERSION = 1
+
+# v1: no associated data. Everything written before AAD binding existed.
+# v2: the envelope header AND a caller-supplied context string are bound
+#     into the GCM tag as associated data — see aad_for() and
+#     docs/DATA_CLASSIFICATION.md.
+#
+# Both are readable forever; _aes_decrypt dispatches on the version byte in
+# the blob it was handed, so a migrated read path transparently handles rows
+# written before the change. v1 is never *written* again once a call site is
+# migrated — a row upgrades itself the next time it's written, with no bulk
+# rewrite and no migration script. Deliberate: changing the envelope across
+# ~50 call sites in 15 modules as a flag-day would be the riskiest possible
+# way to ship a security improvement, since a botched migration makes a
+# family's data permanently unreadable.
+_VERSION_LEGACY_NO_AAD = 1
+_VERSION_AAD = 2
+_VERSION = _VERSION_AAD   # what new writes use
+
 _HEADER_SIZE = 4 + 1 + 16 + 16   # magic + version + nonce + tag
 _PBKDF2_ITERS = 600_000
 
 _DATA_KEY: Optional[bytes] = None
 
 
+def aad_for(table: str, column: str, row_key: str) -> bytes:
+    """
+    Builds the associated-data string binding a ciphertext to its location.
+
+    Without this, a ciphertext proves only "encrypted by whoever holds
+    DATA_KEY" — not where it belongs. Since one DATA_KEY covers every column
+    in every table, blobs are freely interchangeable: someone with database
+    write access can copy student A's bookmark_enc into student B's row and
+    it decrypts cleanly, no tag failure, no signal. Binding table/column/row
+    makes that swap fail authentication.
+
+    row_key is whatever uniquely identifies the row in practice — a primary
+    key, or the student_name the row is scoped to. It must be stable for the
+    life of the row: if it changes, the row can no longer be decrypted, which
+    is why student_name (never renamed today) is acceptable and a mutable
+    display field would not be.
+    """
+    return f"bede/v2/{table}/{column}/{row_key}".encode("utf-8")
+
+
 # ── Low-level AES-GCM ────────────────────────────────────────────────────────
 
-def _aes_encrypt(plaintext: bytes, key: bytes) -> bytes:
+def _aes_encrypt(plaintext: bytes, key: bytes, aad: Optional[bytes] = None) -> bytes:
+    """Writes a v2 (AAD-bound) envelope when `aad` is supplied, v1 otherwise.
+
+    The header (magic + version) is itself bound into the tag for v2, closing
+    the separate malleability issue: in v1 those five bytes sit outside the
+    authenticated data, so flipping the version byte is undetectable until it
+    fails a range check. For v2 it's a tag failure like any other tamper."""
+    version = _VERSION_AAD if aad is not None else _VERSION_LEGACY_NO_AAD
+    header = _MAGIC + struct.pack("B", version)
     nonce = get_random_bytes(16)
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=16)
+    if aad is not None:
+        cipher.update(header + aad)
     ciphertext, tag = cipher.encrypt_and_digest(plaintext)
-    return _MAGIC + struct.pack("B", _VERSION) + nonce + tag + ciphertext
+    return header + nonce + tag + ciphertext
 
 
-def _aes_decrypt(blob: bytes, key: bytes) -> bytes:
+def _aes_decrypt(blob: bytes, key: bytes, aad: Optional[bytes] = None) -> bytes:
+    """
+    Dispatches on the blob's own version byte, not on whether the caller
+    passed `aad` — that's what makes migration incremental.
+
+    - A v1 blob decrypts without AAD. If the caller supplied one, it is
+      ignored, because there is nothing bound in the tag to check it
+      against. This is the legacy path and the only reason it's permitted
+      is that rows written before the migration are still live.
+    - A v2 blob REQUIRES the exact AAD it was written with. A caller that
+      passes nothing, or the wrong context, gets a tag failure — not a
+      silent success. That asymmetry is the whole point: v2 can never be
+      downgraded to an unauthenticated read by omitting an argument.
+    """
     if len(blob) < _HEADER_SIZE + 1:
         raise ValueError("Encrypted blob too short")
     if blob[:4] != _MAGIC:
         raise ValueError("Bad magic — not a SAGE-encrypted value")
     version = struct.unpack("B", blob[4:5])[0]
-    if version != _VERSION:
+    if version not in (_VERSION_LEGACY_NO_AAD, _VERSION_AAD):
         raise ValueError(f"Unsupported encryption version {version}")
     nonce = blob[5:21]
     tag   = blob[21:37]
     ciphertext = blob[37:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=16)
+    if version == _VERSION_AAD:
+        if aad is None:
+            raise ValueError(
+                "This value was written with context binding (v2) but no "
+                "associated data was supplied to decrypt it — the call site "
+                "needs the same aad_for(...) used when it was written."
+            )
+        cipher.update(blob[:5] + aad)
     return cipher.decrypt_and_verify(ciphertext, tag)
 
 
@@ -156,28 +224,38 @@ async def initialize_encryption(master_secret: str, db) -> None:
 
 # ── Public encrypt/decrypt (called after initialize_encryption) ──────────────
 
-def encrypt(plaintext: bytes) -> bytes:
-    """Encrypt bytes with DATA_KEY. Raises if called before initialization."""
+def encrypt(plaintext: bytes, aad: Optional[bytes] = None) -> bytes:
+    """Encrypt bytes with DATA_KEY. Raises if called before initialization.
+
+    Pass `aad=aad_for(table, column, row_key)` to bind the ciphertext to its
+    location (writes a v2 envelope). Omitting it writes a v1 envelope with no
+    binding — still supported so unmigrated call sites keep working, but new
+    code should always supply one. See docs/DATA_CLASSIFICATION.md."""
     if _DATA_KEY is None:
         raise RuntimeError("Encryption not initialised — call initialize_encryption() at startup")
-    return _aes_encrypt(plaintext, _DATA_KEY)
+    return _aes_encrypt(plaintext, _DATA_KEY, aad)
 
 
-def decrypt(blob: bytes) -> bytes:
-    """Decrypt bytes with DATA_KEY."""
+def decrypt(blob: bytes, aad: Optional[bytes] = None) -> bytes:
+    """Decrypt bytes with DATA_KEY.
+
+    Must be given the same `aad` the value was written with if it's a v2
+    envelope; v1 envelopes ignore it. Dispatch is on the blob's own version
+    byte, so this is safe to call with an aad against data written before
+    the call site was migrated."""
     if _DATA_KEY is None:
         raise RuntimeError("Encryption not initialised")
-    return _aes_decrypt(blob, _DATA_KEY)
+    return _aes_decrypt(blob, _DATA_KEY, aad)
 
 
-def encrypt_json(obj: dict | list) -> bytes:
+def encrypt_json(obj: dict | list, aad: Optional[bytes] = None) -> bytes:
     import json
-    return encrypt(json.dumps(obj, separators=(",", ":")).encode("utf-8"))
+    return encrypt(json.dumps(obj, separators=(",", ":")).encode("utf-8"), aad)
 
 
-def decrypt_json(blob: bytes) -> dict | list:
+def decrypt_json(blob: bytes, aad: Optional[bytes] = None) -> dict | list:
     import json
-    return json.loads(decrypt(blob).decode("utf-8"))
+    return json.loads(decrypt(blob, aad).decode("utf-8"))
 
 
 # ── MASTER_SECRET rotation ───────────────────────────────────────────────────

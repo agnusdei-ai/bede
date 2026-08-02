@@ -22,6 +22,7 @@ voice biometrics authenticate children at session start.
 | Host the public demo | [docs/DEMO_HOSTING.md](docs/DEMO_HOSTING.md) — a Render Blueprint is included |
 | Work on the codebase itself | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — local dev for each app, project layout |
 | Understand the architecture in depth | [CLAUDE.md](CLAUDE.md) — request flow, prompt structure, streaming state machine |
+| Check security/compliance posture, or prep for an audit or pentest | [docs/SECURITY.md](docs/SECURITY.md) (detailed gap log) and [docs/BLACKHAT_AIUC1_READINESS.md](docs/BLACKHAT_AIUC1_READINESS.md) (executive status + prioritized punch list) |
 
 Production (self-hosted, your family's real data) and the public demo
 (stateless, cloud-hosted) are deliberately different setups with different

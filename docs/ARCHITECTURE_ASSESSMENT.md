@@ -19,7 +19,7 @@ E–H would formally track is instead handled here as a "recommended
 sequencing" section at the end, in proportion to what this actually is.
 
 Companion to `docs/THREAT_MODEL.md` (adversary classes, non-goals),
-`docs/SECURITY.md` (detailed gap log), and `docs/BLACKHAT_AIUC1_READINESS.md`
+`docs/SECURITY.md` (detailed gap log), and `docs/PENTEST_AIUC1_READINESS.md`
 (prioritized punch list). Those documents describe *what's broken*. This
 one asks *why the breaks keep taking the same shape* — and the answer,
 across every domain below, is the same: a control exists in code because

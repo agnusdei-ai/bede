@@ -2,7 +2,7 @@
 
 Who Bede defends against, what it doesn't, and why the line is drawn where
 it is. Companion to `docs/SECURITY.md` (compliance posture / AIUC-1
-mapping), `docs/BLACKHAT_AIUC1_READINESS.md` (executive status and punch
+mapping), `docs/PENTEST_AIUC1_READINESS.md` (executive status and punch
 list), and `docs/environment-pentests/` / `docs/adversarial-probes/` (the
 two testing surfaces this document's adversary classes map onto). Like
 those, this is a factual description of the design, **not a certification
@@ -82,7 +82,7 @@ always-on network-facing process — should extend to anything comparably
 dangerous added later, even though this codebase is otherwise a single
 monolithic process with no formal control/data/management-plane
 separation (A4 is not defended against by any existing boundary; see
-`docs/BLACKHAT_AIUC1_READINESS.md`'s punch list for the concrete,
+`docs/PENTEST_AIUC1_READINESS.md`'s punch list for the concrete,
 proportionate mitigations planned).
 
 ## Non-goals
@@ -159,7 +159,7 @@ knowing the password. Any lockout mechanism added elsewhere (a planned fix
 for `CHILD_PIN`, currently undefended by anything but a shared per-IP rate
 bucket) needs to be designed with this tradeoff explicit, not copied
 mechanically from the pattern that already has it — see
-`docs/BLACKHAT_AIUC1_READINESS.md`'s punch list.
+`docs/PENTEST_AIUC1_READINESS.md`'s punch list.
 
 ## Where this document is used
 

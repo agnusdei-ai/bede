@@ -22,7 +22,7 @@ voice biometrics authenticate children at session start.
 | Host the public demo | [docs/DEMO_HOSTING.md](docs/DEMO_HOSTING.md) — a Render Blueprint is included |
 | Work on the codebase itself | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — local dev for each app, project layout |
 | Understand the architecture in depth | [CLAUDE.md](CLAUDE.md) — request flow, prompt structure, streaming state machine |
-| Check security/compliance posture, or prep for an audit or pentest | [docs/SECURITY.md](docs/SECURITY.md) (detailed gap log), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) (adversary classes and explicit non-goals), and [docs/BLACKHAT_AIUC1_READINESS.md](docs/BLACKHAT_AIUC1_READINESS.md) (executive status + prioritized punch list) |
+| Check security/compliance posture, or prep for an audit or pentest | [docs/SECURITY.md](docs/SECURITY.md) (detailed gap log), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) (adversary classes and explicit non-goals), and [docs/PENTEST_AIUC1_READINESS.md](docs/PENTEST_AIUC1_READINESS.md) (executive status + prioritized punch list) |
 | Understand *why* the security gaps are shaped the way they are, architecturally | [docs/ARCHITECTURE_ASSESSMENT.md](docs/ARCHITECTURE_ASSESSMENT.md) — a TOGAF-aligned current-state/gap/target-state assessment across data, application, technology, and identity architecture |
 | Run or design a pentest against my own instance | [docs/environment-pentests/README.md](docs/environment-pentests/README.md) — isolated redteam setup (`docker-compose.redteam.yml`), authorization model, and a test plan for both a device already on your LAN and a tester starting with zero prior access |
 

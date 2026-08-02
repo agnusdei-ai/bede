@@ -40,29 +40,26 @@ something a principle *prevented*. That's a sustainable model for a
 five-person codebase reviewed by hand; it stops being one exactly at the
 point a project needs an architecture assessment like this at all.
 
-Stated plainly, the principles Bede is *inconsistently* already following
-— present in some places, absent in others, because nothing wrote them
-down as a requirement — are:
+**This gap is now closed: see [`docs/ARCHITECTURE_PRINCIPLES.md`](ARCHITECTURE_PRINCIPLES.md).**
+An earlier revision of this section sketched four ad-hoc principles as a
+placeholder. Those have been replaced by a full principle set organized on
+the **eight CISSP domains** and cross-mapped to AIUC-1's six pillars, NIST
+AI RMF, ISO/IEC 42001, OWASP's LLM and Agentic Top 10s, and MITRE ATLAS —
+because inventing a bespoke taxonomy when a well-published industry-standard
+one already exists just forces an auditor or an incoming pentest team to
+translate. Each principle carries a conformance status tied to a real
+tracked finding.
 
-1. **Data must be classified by sensitivity, and controls must differ by
-   class.** Followed for nothing today — see Data Architecture below.
-2. **The more privileged an operation, the further it sits from the
-   always-on, network-facing process.** Followed exactly once
-   (`scripts/rotate_master_secret.py` as an offline-only CLI) and nowhere
-   else — see Application Architecture below.
-3. **Authentication, authorization, and audit are distinct functions and
-   must be independently verifiable.** Followed nowhere — see Identity
-   Architecture below.
-4. **Infrastructure hardening is a governed standard, not a per-file
-   convention.** Followed inconsistently — present in `docker-compose.yml`
-   as configuration, absent as a documented, enforced standard — see
-   Technology Architecture below.
+The four placeholder principles map into that set as P2 (data
+classification), P4 (privileged operations kept off the network surface),
+P7 (authentication/authorization/audit as distinct functions), and P15
+(supply-chain integrity enforced by gates) — alongside twelve others the
+four-principle sketch missed entirely, most notably P11 ("every control has
+a test that fails when the control is absent"), which is the principle whose
+violation produced this engagement's headline finding.
 
-Writing these down is the cheapest, highest-leverage action available,
-and it's the first recommendation in the sequencing section — not because
-principles alone fix anything, but because every fix below becomes a
-one-line justification ("violates principle 3") instead of a fresh
-argument each time.
+Every domain-specific finding below now cites its governing principle, so a
+fix is justified by "violates P*n*" rather than a fresh argument each time.
 
 ## Business Architecture
 
@@ -266,12 +263,14 @@ single-tenant trust assumption the demo doesn't actually share.
 Proportionate to what Bede actually is — not a rewrite, not a
 microservices migration, and not TOGAF's full governance ceremony:
 
-1. **Write the four architecture principles above as an actual committed
-   document.** Zero engineering cost, immediate leverage — every fix after
-   this point cites a principle instead of re-litigating why it matters.
+1. ~~Write the architecture principles as a committed document.~~
+   **Done (2026-08-02)** — [`docs/ARCHITECTURE_PRINCIPLES.md`](ARCHITECTURE_PRINCIPLES.md),
+   sixteen principles on the eight CISSP domains, cross-mapped to AIUC-1,
+   NIST AI RMF, ISO/IEC 42001, OWASP LLM/Agentic Top 10, and MITRE ATLAS.
 2. **Data Architecture: write the classification table, then implement
-   #5 and #6 against it**, not as two independent patches. This is
-   already scoped work; the only change is doing it in the right order.
+   #5 and #6 against it**, not as two independent patches (both are
+   governed by P2/P3/P5). This is already scoped work; the only change is
+   doing it in the right order.
 3. **Identity Architecture: introduce the Policy Decision layer
    separation** (even minimally — a distinct function `core/deps.py` calls
    into, rather than inline role checks) **before** implementing #7's

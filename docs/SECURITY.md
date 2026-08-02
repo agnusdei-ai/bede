@@ -150,6 +150,36 @@ list as items are closed.
 
 ## Closed gaps
 
+- **`MASTER_SECRET` had no rotation path at all, closed 2026-08-02.**
+  `core/encryption.py`'s own docstring, and `docs/INCIDENT_RESPONSE.md`'s
+  containment step for a suspected `MASTER_SECRET` leak, both said the same
+  thing: don't rotate it. Restarting with a new `MASTER_SECRET` and no
+  matching wrapper for the existing `DATA_KEY` meant either a boot failure
+  (`initialize_encryption()` refuses to silently generate a fresh
+  `DATA_KEY` over an existing row) or, on a from-scratch deployment,
+  actually generating a new `DATA_KEY` that abandoned everything encrypted
+  under the old one. So the one credential this app's entire encryption
+  hierarchy roots in had no real response to its own compromise — the
+  Accountability-pillar failure mode of "the incident response plan's
+  answer to its own top severity item is a documented dead end."
+
+  `core/encryption.py`'s new `rotate_master_secret()` re-wraps the
+  *existing* `DATA_KEY` under a new `MASTER_SECRET` — `DATA_KEY` itself
+  never changes, so every row already encrypted under it (every student
+  config, transcript, voice profile) stays valid with zero rewriting; only
+  the single `encryption_config.data_key` row is touched. It verifies the
+  new wrapping round-trips before committing, and raises without writing
+  anything if the supplied old secret doesn't actually unwrap the current
+  `DATA_KEY` — a failed attempt is a true no-op, not a partial one.
+  `scripts/rotate_master_secret.py` is the operator-facing CLI (prompts
+  for both secrets via `getpass`, never as a CLI argument or env var, so
+  neither sits in shell history or a process list); `docs/
+  INCIDENT_RESPONSE.md`'s "Critical" containment step now points here
+  instead of ruling rotation out. Covered by `tests/test_encryption.py`,
+  including that the DATA_KEY bytes are provably identical before and
+  after rotation (proving this re-wraps rather than regenerates) and that
+  the *old* secret genuinely stops working — the actual containment
+  property this exists for, not just a housekeeping rotation.
 - **Scripture quoting had no public-domain/copyright distinction, closed
   2026-07-31.** Found on an explicit instruction not to let Bede present
   non-factual claims — including invented or unverifiable wording of a

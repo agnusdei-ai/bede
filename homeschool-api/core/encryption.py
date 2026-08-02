@@ -11,6 +11,15 @@ Key hierarchy (the plaintext key material never leaves memory):
 
 On-wire envelope (same format as before, now stored in DB columns):
   MAGIC(4) | VERSION(1) | NONCE(16) | TAG(16) | CIPHERTEXT(n)
+
+MASTER_SECRET rotation (see rotate_master_secret() below and
+scripts/rotate_master_secret.py) only ever re-wraps DATA_KEY — DATA_KEY
+itself, and everything encrypted under it, never changes. That's what makes
+rotation cheap: no user data is touched, only the one encryption_config
+row holding the wrapped DATA_KEY. This used to be undocumented as a
+possibility at all; docs/INCIDENT_RESPONSE.md's "Critical" severity entry
+for a leaked MASTER_SECRET now points here instead of treating rotation as
+unconditionally destructive.
 """
 
 import asyncio
@@ -169,3 +178,84 @@ def encrypt_json(obj: dict | list) -> bytes:
 def decrypt_json(blob: bytes) -> dict | list:
     import json
     return json.loads(decrypt(blob).decode("utf-8"))
+
+
+# ── MASTER_SECRET rotation ───────────────────────────────────────────────────
+
+async def rotate_master_secret(old_master_secret: str, new_master_secret: str, db) -> None:
+    """
+    Re-wraps the stored DATA_KEY under a new MASTER_SECRET. DATA_KEY itself
+    never changes, so every row already encrypted under it — student
+    configs, transcripts, voice profiles, everything — stays valid with
+    zero rewriting. Only the one encryption_config row holding the wrapped
+    DATA_KEY is touched.
+
+    This is the crypto half only. It does not read or write .env/the
+    deployment's secrets store, and it does not affect any already-running
+    process (which keeps its in-memory DATA_KEY and keeps serving requests
+    on the old KEK derivation until it next restarts). The operator is
+    responsible for updating MASTER_SECRET and restarting afterward — see
+    scripts/rotate_master_secret.py, the CLI wrapper meant to actually be
+    run, and docs/INCIDENT_RESPONSE.md's rotation procedure for the full
+    sequence including that step.
+
+    Raises ValueError if there's nothing to rotate yet, or if
+    old_master_secret does not actually unwrap the stored DATA_KEY (wrong
+    secret, or it's actually the new one) — aborts without writing anything
+    in either case. Raises RuntimeError (also without writing) if the
+    freshly re-wrapped blob fails its own round-trip check, which should
+    never happen and would indicate a bug in this function rather than bad
+    input.
+    """
+    from sqlalchemy import select
+    from core.database import EncryptionConfig
+
+    result = await db.execute(select(EncryptionConfig).where(EncryptionConfig.key == "device_salt"))
+    salt_row = result.scalar_one_or_none()
+    if salt_row is None:
+        raise ValueError(
+            "No device_salt found in encryption_config — nothing has been "
+            "encrypted yet on this deployment, so there's nothing to rotate."
+        )
+    device_salt = salt_row.value
+
+    result = await db.execute(select(EncryptionConfig).where(EncryptionConfig.key == "data_key"))
+    key_row = result.scalar_one_or_none()
+    if key_row is None:
+        raise ValueError(
+            "No data_key found in encryption_config — nothing has been "
+            "encrypted yet on this deployment, so there's nothing to rotate."
+        )
+
+    old_kek = _derive_kek(old_master_secret, device_salt)
+    try:
+        data_key = _aes_decrypt(key_row.value, old_kek)
+    except Exception as exc:
+        raise ValueError(
+            "Could not unwrap the stored DATA_KEY with the supplied OLD "
+            "master secret. Check it's actually the value currently set as "
+            "MASTER_SECRET — not the new one, and not a typo."
+        ) from exc
+    finally:
+        old_kek = b"\x00" * len(old_kek)  # best-effort — see initialize_encryption's identical caveat
+
+    new_kek = _derive_kek(new_master_secret, device_salt)
+    try:
+        rewrapped = _aes_encrypt(data_key, new_kek)
+        # Round-trip verify BEFORE committing: decrypt what we're about to
+        # store and confirm it's byte-identical to the DATA_KEY we started
+        # with, so a bug here fails loudly rather than silently writing a
+        # wrapper that decrypts to the wrong thing (or nothing).
+        if _aes_decrypt(rewrapped, new_kek) != data_key:
+            raise RuntimeError(
+                "Round-trip verification failed after re-wrapping — refusing "
+                "to write. No change was made; the old wrapping is still in "
+                "place and the deployment is unaffected."
+            )
+    finally:
+        new_kek = b"\x00" * len(new_kek)
+        data_key = b"\x00" * len(data_key)
+
+    key_row.value = rewrapped
+    await db.commit()
+    log.info("MASTER_SECRET rotation: DATA_KEY re-wrapped successfully")

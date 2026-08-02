@@ -364,6 +364,20 @@ class Settings(BaseSettings):
         "0000",
     }
 
+    # Kept separate from _WEAK_SECRETS above (which is also checked against
+    # SECRET_KEY/PARENT_PASSWORD/MASTER_SECRET) rather than added to it:
+    # "602656" isn't inherently weak as a general secret — pin_is_strong()
+    # alone would happily accept it as a CHILD_PIN, since it's a real,
+    # non-sequential, non-repeating 6-digit PIN. It's only a liability
+    # specifically as CHILD_PIN, because it's .env.example's own sample
+    # value (and pin_policy.py's docstring example of a *strong* PIN) —
+    # published in this repo, so a hand-copied .env that never touched
+    # that line boots in production with a PIN anyone can find on GitHub.
+    # A shared set would have also rejected "602656" as a perfectly
+    # reasonable PARENT_PASSWORD/SECRET_KEY/MASTER_SECRET value, which
+    # there's no security reason to do.
+    _WEAK_CHILD_PINS = {"602656"}
+
     # SECRET_KEY/MASTER_SECRET: matches the dev-default placeholders' own
     # "-32-chars-min" naming — SECRET_KEY signs every JWT (core/security.py),
     # MASTER_SECRET derives the encryption key hierarchy (core/encryption.py).
@@ -429,7 +443,7 @@ class Settings(BaseSettings):
                 f"PARENT_PASSWORD must be at least {MIN_PASSWORD_LENGTH} characters — "
                 "the same minimum setup.sh and the setup wizard already enforce interactively"
             )
-        if self.child_pin in self._WEAK_SECRETS:
+        if self.child_pin in self._WEAK_SECRETS or self.child_pin in self._WEAK_CHILD_PINS:
             problems.append("CHILD_PIN is set to the default dev value")
         elif not pin_is_strong(self.child_pin):
             problems.append(

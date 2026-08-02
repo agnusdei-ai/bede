@@ -13,6 +13,7 @@ from core.middleware import (
     _check_rate,
 )
 from fastapi import FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.testclient import TestClient
 
@@ -259,6 +260,48 @@ def test_exfiltration_guard_does_not_scan_sse_streams():
     resp = client.get("/tutor/chat")
     assert resp.status_code == 200
     assert "leaked-if-this-were-scanned" in resp.text
+
+
+# ── ExfiltrationGuard + GZip, assembled in main.py's real order ─────────────
+# The per-middleware tests above each build a throwaway app with ONE
+# middleware, so they can't see an ordering bug that only exists when
+# multiple middlewares are stacked together. This section reconstructs the
+# real main.py stack (ExfiltrationGuard, then GZip added last/outermost —
+# see main.py's ordering comment) to guard against exactly that: an earlier
+# revision had GZip added FIRST, making it the innermost layer instead of
+# the outermost one, so it compressed responses before ExfiltrationGuard
+# ever inspected them — every _BLOCKED_PATTERNS check silently stopped
+# matching on any gzip-eligible response (which is any response over
+# `minimum_size` bytes from a client sending `Accept-Encoding: gzip`, i.e.
+# effectively every browser).
+
+def _guarded_and_compressed_app() -> FastAPI:
+    app = FastAPI()
+    # Same relative order as main.py: ExfiltrationGuard added first (more
+    # inner), GZip added last (outermost) — GZip must see ExfiltrationGuard's
+    # already-scanned output, not the reverse.
+    app.add_middleware(ExfiltrationGuard)
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+
+    @app.get("/leaky-and-big")
+    def leaky_json():
+        # Padded well past GZipMiddleware's minimum_size=500 so compression
+        # actually engages — the bug only manifests once GZip has something
+        # worth compressing.
+        return JSONResponse({"data_key": "should-never-leave-the-server", "pad": "x" * 800})
+
+    return app
+
+
+def test_exfiltration_guard_still_scans_a_gzip_eligible_response_in_the_assembled_stack():
+    client = TestClient(_guarded_and_compressed_app())
+    # Explicitly request gzip, matching every real browser — the bug was
+    # invisible to httpx's default TestClient behavior otherwise not
+    # sending Accept-Encoding, so this must be explicit to actually exercise
+    # the failure mode.
+    resp = client.get("/leaky-and-big", headers={"accept-encoding": "gzip"})
+    assert resp.status_code == 500
+    assert "should-never-leave-the-server" not in resp.text
 
 
 # ── SecurityHeadersMiddleware ────────────────────────────────────────────────

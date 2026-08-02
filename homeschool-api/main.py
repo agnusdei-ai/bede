@@ -179,15 +179,36 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.api_docs_enabled else None,
 )
 
-# ── Middleware (applied in reverse declaration order) ─────────────────────────
-# Outermost → GZip → SecurityHeaders → ExfiltrationGuard → RateLimit → CORS → routes
+# ── Middleware ──────────────────────────────────────────────────────────────
+# Starlette builds the ASGI stack from `app.user_middleware` by wrapping
+# outward: `add_middleware` inserts each new entry at the FRONT of that list
+# (see Starlette's `Starlette.add_middleware`), and `build_middleware_stack`
+# then wraps the router in `reversed(user_middleware)` order. Net effect:
+# the LAST `add_middleware()` call becomes the OUTERMOST layer — first to
+# see the request, LAST to touch the response before it leaves the process.
 #
-# GZip is outermost so it compresses the final response body after
-# ExfiltrationGuard has already scanned/rebuilt it. Starlette's GZipMiddleware
-# auto-excludes text/event-stream by content-type, so /tutor/chat's SSE stream
-# passes through uncompressed and unbuffered, same as before.
+# Declared here so the *last* call is GZip, making it genuinely outermost:
+#   request  →  GZip → LicenseGate → CORS → RateLimit → ExfiltrationGuard → SecurityHeaders  → routes
+#   response ←  GZip ← LicenseGate ← CORS ← RateLimit ← ExfiltrationGuard ← SecurityHeaders  ← routes
+#
+# ExfiltrationGuard must inspect the PLAINTEXT response body — the whole
+# point of _BLOCKED_PATTERNS is scanning for leaked key material — so it has
+# to run before GZip compresses anything. An earlier ordering had GZip added
+# FIRST, which (by the same front-insert/reversed-wrap rule) made GZip the
+# INNERMOST layer instead of the outermost one: it compressed the response
+# before ExfiltrationGuard ever saw it, so every _BLOCKED_PATTERNS check
+# silently stopped matching on any response >= minimum_size sent with
+# `Accept-Encoding: gzip` (i.e. every browser) — the guard was scanning gzip
+# magic bytes, not the JSON it was written to inspect. See
+# tests/test_middleware.py's test_exfiltration_guard_still_scans_a_gzip_
+# eligible_response_in_the_assembled_stack for the regression coverage; that
+# test builds the real multi-middleware stack specifically because the
+# per-middleware unit tests above it can't see an ordering bug like this one.
+#
+# GZipMiddleware auto-excludes text/event-stream by content-type, so
+# /tutor/chat's SSE stream passes through uncompressed and unbuffered
+# regardless of where GZip sits in the stack.
 
-app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ExfiltrationGuard)
 app.add_middleware(RateLimitMiddleware)
@@ -198,11 +219,16 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
-# Innermost (declared last): the license gate — when an unlicensed
-# production instance is in "license required" mode, only login/MFA and
-# the license endpoints pass; everything else gets a clear 403. Inside
-# CORS so gated responses still carry CORS headers the browser can read.
+# When an unlicensed production instance is in "license required" mode,
+# only login/MFA and the license endpoints pass; everything else gets a
+# clear 403. Added before GZip (so still wrapped BY GZip, i.e. compressed
+# on the way out) and after CORS (so a gated response still carries CORS
+# headers) — unchanged from the original relative ordering of these two.
 app.add_middleware(LicenseGateMiddleware)
+# Added LAST: outermost layer, compresses only after every other middleware
+# — including ExfiltrationGuard's scan — has already run. See the ordering
+# note above.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)

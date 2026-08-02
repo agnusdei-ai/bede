@@ -89,12 +89,30 @@ exposed this way (never raw key material).
      take effect until the in-app override is also cleared (Settings →
      Security), or you rotate `SECRET_KEY` above to force everyone back to
      a fresh login regardless.
-   - **Do not rotate `MASTER_SECRET` as a containment step.**
-     `core/encryption.py`'s docstring is explicit about this:  changing it
-     makes **all** previously stored data permanently unreadable — every
-     student config, voice profile, transcript, everything. Only ever do
-     this if you're rebuilding from scratch anyway, never as a response to
-     a suspected breach (it destroys the evidence and the data both).
+   - **Suspect `MASTER_SECRET` itself leaked?** Rotate it with
+     `python -m scripts.rotate_master_secret` (run from `homeschool-api/`,
+     with `DATABASE_URL` pointing at this deployment's database). It
+     prompts for the current secret and a newly generated one
+     (`openssl rand -hex 32`), re-wraps the stored `DATA_KEY` under the new
+     secret, and leaves `DATA_KEY` itself — and every row already
+     encrypted under it — untouched, so no data is destroyed and nothing
+     needs re-encrypting. Then update `MASTER_SECRET` in `.env` (or your
+     secrets store) to the value it generated and `make restart`. Once that
+     restart completes, the old `MASTER_SECRET` no longer unwraps anything
+     — this is the actual containment step for this class of leak, not
+     just a housekeeping rotation.
+
+     This used to be actively discouraged here: an earlier revision of
+     both this document and `core/encryption.py`'s own docstring said not
+     to rotate `MASTER_SECRET` at all, because restarting with a new one
+     and no matching wrapper meant either a boot failure or (on a
+     from-scratch deployment) a brand-new `DATA_KEY` that silently
+     abandoned everything encrypted under the old one — i.e., rotating
+     used to mean destroying the evidence and the data both, which is why
+     it was framed as a last resort. `rotate_master_secret()` closes that
+     gap by re-wrapping the *existing* `DATA_KEY` instead of replacing it,
+     so the accountability story for this specific "Critical" severity
+     item (see the table above) no longer has a dead end.
 3. **Eradicate.** `make update` to pull the latest code (in case the
    incident involved a since-patched vulnerability) and rebuild. If you
    suspect the host itself (not just Bede) is compromised, that's outside

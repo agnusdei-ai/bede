@@ -316,6 +316,63 @@ said there is ever saved — no transcript, no student record. Leave
    family and church already teach the faith. Bede never treats either
    module as a substitute for your own pastor, priest, or church's teaching.
 
+   **Latin & Christian Foundations is a third, separate optional subject —
+   and it's for every Christian family, whatever your tradition.** It
+   teaches real Latin K–8, built around the vocabulary all Christians hold
+   in common: *Fides* (faith), *Spes* (hope), *Caritas* (love), *Sapientia*
+   (wisdom), *Veritas* (truth), and *Ora et Labora* (prayer and work) — all
+   hanging on Christ's own summary of the whole law, in the Latin of the
+   Vulgate:
+
+   > *Diliges Dominum Deum tuum ex toto corde tuo...*
+   > *Diliges proximum tuum sicut teipsum.*
+   >
+   > "Thou shalt love the Lord thy God with thy whole heart...
+   > Thou shalt love thy neighbour as thyself."
+
+   Nothing specific to one tradition is taught in this subject — no
+   devotion to the saints or to Mary, no sacramental theology, no prayers
+   for the dead, no particular church's structure or authority. A family
+   that doesn't hold those can run this subject start to finish and never
+   meet them; a family that wants them has Saints & Catechism available as
+   its own separate subject. If your child asks Bede a doctrinal question
+   that divides Christian traditions, Bede answers the *language* part if
+   there is one and sends the rest to you and your own pastor, priest, or
+   minister — same rule as every other faith content in Bede.
+
+   How much Latin your child actually does depends on their stage, and it
+   is deliberately unhurried:
+
+   - **K–2** — ear only. Your child hears a word, says it back, and learns
+     what it means in one short sentence. Nothing is written, spelled,
+     parsed, or translated, and there's no grammar at all. Two or three
+     words is a full lesson.
+   - **3–5** — words and roots. The same spoken habit, plus what the word
+     means and which English words grew out of it (*veritas* → verify,
+     verdict; *fides* → fidelity, confide). Short Latin copywork by hand
+     starts here.
+   - **6–8** — sentences. Your child meets a whole Vulgate verse, works out
+     who's doing what to whom from the word endings, and translates it into
+     their own English before comparing with a printed translation.
+
+   The lesson block is 10 minutes — the shortest in the curriculum on
+   purpose. A few words met properly beats six words drilled.
+
+   Two things worth knowing:
+
+   - **Bede never improvises Latin.** Every Latin word, phrase, and verse
+     Bede shows your child is quoted from a fixed, pre-reviewed catalog
+     checked against published Vulgate editions — never recalled from
+     memory. In an inflected language a single wrong ending changes the
+     grammar, and a child can't catch the error. If your child asks for
+     Latin Bede wasn't given, Bede says honestly that it would want to
+     check rather than guess.
+   - **Pronunciation is Ecclesiastical (Church) Latin** — the pronunciation
+     used with sung and prayed Latin, and the one most Christian-classical
+     programs teach. If your family uses a program teaching Classical
+     (restored) pronunciation, Bede will not correct your child for saying a
+     word the other way; your own program is the authority.
+
    Once you enable Scripture & Bible Study or Saints & Catechism, a
    **Church Tradition** field appears under that student's "session context"
    panel (the same collapsible section as Current Unit and Faith/Virtue
@@ -329,8 +386,12 @@ said there is ever saved — no transcript, no student record. Leave
 
    The same panel also offers a **Primary Bible Translation** dropdown
    (KJV, NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE, or
-   Douay-Rheims) whenever Morning Time, Scripture & Bible Study, or Saints
-   & Catechism is enabled. This is narrower than Church Tradition — it
+   Douay-Rheims) whenever Morning Time, Scripture & Bible Study, Saints
+   & Catechism, or Latin & Christian Foundations is enabled. (Latin is
+   included because it shows the English alongside its Latin; it is *not*
+   included in the Church Tradition field above, since its content is the
+   shared Christian inheritance and never needs a denominational label.)
+   This is narrower than Church Tradition — it
    doesn't say what your family believes, just which translation's wording
    Bede should favor when it quotes or paraphrases a Bible passage, so it
    sounds like the same Bible your child already reads at home. Leave it

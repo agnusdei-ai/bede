@@ -131,6 +131,7 @@ class Subject(str, Enum):
     art_music = "art_music"             # Composer & artist study
     saints = "saints"                   # Saints, catechism, virtue formation (Catholic-tradition module)
     scripture = "scripture"             # Bible heroes, memory verses, doctrine — denominationally-configurable
+    latin = "latin"                     # Latin rooted in the shared Christian vocabulary — see services/latin_catalog.py
     free_study = "free_study"           # Child-directed exploration
 
 
@@ -145,6 +146,11 @@ SUBJECT_DURATIONS = {
     Subject.art_music: 15,
     Subject.saints: 15,
     Subject.scripture: 15,
+    # Deliberately the shortest block in the curriculum. A Latin session is
+    # a handful of words met properly, not a class period — and at K-2 it
+    # is purely oral (see services/latin_catalog.py's _STAGE_METHOD), where
+    # ten minutes is already generous.
+    Subject.latin: 10,
     Subject.free_study: 20,
 }
 
@@ -159,6 +165,7 @@ SUBJECT_LABELS = {
     Subject.art_music: "Art & Music",
     Subject.saints: "Saints & Catechism",
     Subject.scripture: "Scripture & Bible Study",
+    Subject.latin: "Latin & Christian Foundations",
     Subject.free_study: "Free Study",
 }
 

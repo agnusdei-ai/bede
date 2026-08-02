@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
+from services.latin_catalog import latin_note as _latin_catalog_note
 from services.diagnostic.phonics import (
     DOMAINS as _PHONICS_DOMAINS,
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
@@ -718,6 +719,21 @@ _SUBJECT_CONTEXT = {
         "sibling to Saints & Catechism, not a replacement for it — a family may have either, both, or "
         "neither enabled."
     ),
+    Subject.latin: (
+        "Latin & Christian Foundations session — the language of the Western Church and of the "
+        "classical tradition, met through the vocabulary every Christian tradition shares: Fides, "
+        "Spes, Caritas, Sapientia, Veritas, Ora et Labora, and Christ's own summary of the whole "
+        "law, `Diliges Dominum Deum tuum... et proximum tuum sicut teipsum`. This is a real "
+        "language subject taught the classical way — ear before eye, roots before grammar — and "
+        "at the same time it is formation: each word is a thing to become, not only a thing to "
+        "know. Ask what the word means, what English words grew out of it, and where the child "
+        "has seen the thing itself this week. Deliberately a sibling to BOTH faith modules and "
+        "captive to neither: the content is the shared Christian inheritance, never one "
+        "tradition's distinctive devotions or doctrine (see <latin_foundations> below, which "
+        "governs). All Latin you quote must come from the block below — never recite Latin from "
+        "memory and never compose your own. `invite_handwriting` suits copying out a short Latin "
+        "phrase by hand from Year 3 upward; at K-2 keep it entirely spoken."
+    ),
     Subject.free_study: (
         "Free Study time. The child leads. Ask what they are curious about and follow their interest. "
         "Socratic questions still apply — help them think deeper about whatever they choose. Narration "
@@ -1314,7 +1330,16 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     separate concern.
     """
     translation = _sanitize_parent_field(config.bible_translation, max_len=40)
-    if not translation or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
+    # Latin & Christian Foundations is the fourth gated subject: its Vulgate
+    # anchors are always quoted verbatim from services/latin_catalog.py, but
+    # the ENGLISH alongside them isn't — the catalog supplies Douay-Rheims
+    # (the English made from that same Latin, so the two line up word for
+    # word) and tells Bede to use the family's own translation's wording
+    # instead when they've set one. That instruction needs this note present
+    # to have anything to name.
+    if not translation or subject not in (
+        Subject.scripture, Subject.saints, Subject.morning_time, Subject.latin,
+    ):
         return ""
     if translation in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS:
         return (
@@ -2294,6 +2319,20 @@ async def _build_subject_prompt(
         if subject == Subject.morning_time
         else ""
     )
+    # Latin & Christian Foundations' verbatim content — this week's focus
+    # term, its verified Vulgate anchor, the stage's vocabulary, and the
+    # Great Commandment spine (services/latin_catalog.py). Same weekly
+    # calendar rotation and current_term-as-offset convention as poetry_note
+    # and prayer_recitation_note above; locale-independent, unlike those two,
+    # because the Latin text is the same text in every locale — only Bede's
+    # own surrounding speech is localized (see _locale_directive).
+    latin_note = (
+        _latin_catalog_note(
+            config.grade, config.grade_stage, week_salt=config.current_term, today=local_date,
+        )
+        if subject == Subject.latin
+        else ""
+    )
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
@@ -2305,7 +2344,7 @@ async def _build_subject_prompt(
     bible_translation_note = _bible_translation_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{latin_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2834,14 +2873,31 @@ async def _record_language_evidence(
     prompt-level gate, not a substitute for it. Defensive like
     _record_phonics_evidence, which this mirrors: a diagnostic hiccup must
     never break the child's tutoring turn.
+
+    Subject.latin is the one addition to that gate, and it is narrower than
+    the other three rather than equal to them: the Latin subject may only
+    ever record evidence for `latin` itself. It is a real language subject
+    (see services/latin_catalog.py), so the recall it produces is better
+    evidence than an opportunistic History-lesson moment — but a Latin
+    session has no business claiming a reading on German or French, so a
+    call naming any other language there is dropped rather than trusted.
+    The three opportunistic subjects keep their existing behavior, where
+    any of the six is legitimately in play.
     """
-    if subject not in _LANGUAGE_CHECKIN_SUBJECTS or db is None:
+    if db is None:
+        return
+    if subject != Subject.latin and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return
     try:
         from models.schemas import RecordLanguageEvidenceInput
         from services.diagnostic.language_exposure import process_evidence as _process_language
 
         ev = RecordLanguageEvidenceInput(**tool_input)  # validate/clamp
+        # Checked against the validated value rather than the raw tool
+        # input, so there is one reading of "which language did the model
+        # actually name" instead of two that could drift apart.
+        if subject == Subject.latin and ev.language != "latin":
+            return
         await _process_language(db, config.student_name, ev.language, ev.outcome)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)

@@ -1071,8 +1071,14 @@ function StudentCard({
                   <p className="text-xs text-gray-400 mt-1">{t('parentSetup.faithTraditionHint')}</p>
                 </div>
               )}
+              {/* Latin is included here but deliberately NOT in the church-tradition
+                  gate above: the subject quotes Scripture in English alongside its
+                  Vulgate text, so the translation preference applies — but its content
+                  is the shared Christian inheritance by design, so it never needs a
+                  denominational label to teach. See services/latin_catalog.py. */}
               {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')
-                || student.selected_subjects.includes('morning_time')) && (
+                || student.selected_subjects.includes('morning_time')
+                || student.selected_subjects.includes('latin')) && (
                 <div>
                   <label className="label">{t('parentSetup.bibleTranslation')}</label>
                   <select

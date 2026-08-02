@@ -1,4 +1,4 @@
-import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Sparkles } from 'lucide-react'
+import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Landmark, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
@@ -14,6 +14,7 @@ export type Subject =
   | 'art_music'
   | 'saints'
   | 'scripture'
+  | 'latin'
   | 'free_study'
 
 export interface SessionConfig {
@@ -267,6 +268,14 @@ export const SUBJECTS: SubjectInfo[] = [
     durationMin: 15,
     color: 'bg-sky-50 border-sky-200 text-sky-800',
     description: 'Bible heroes, memory verses & doctrine',
+  },
+  {
+    id: 'latin',
+    label: 'Latin & Christian Foundations',
+    Icon: Landmark,
+    durationMin: 10,
+    color: 'bg-amber-50 border-amber-200 text-amber-800',
+    description: 'Latin rooted in faith, hope & love',
   },
   {
     id: 'free_study',

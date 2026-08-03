@@ -381,6 +381,7 @@
     "brisk": "ágil",
     "beyondTheTask": "más allá de la tarea",
     "lastWorked": "última vez {{date}}",
+    "scoredCount": "{{count}} puntuados",
     "notYetScored": "{{count}} sin puntuar",
     "initiativeTitle": "Señales de iniciativa",
     "standoutIn": "Con más frecuencia en: {{skills}}",

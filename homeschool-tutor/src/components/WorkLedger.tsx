@@ -16,8 +16,15 @@
  *     visual is a count.
  *  2. Unscored work is shown as unscored, never as zero. A dimension Bede
  *     didn't observe is a blank, and a blank must not look like a low mark.
- *  3. Nothing is averaged. Distributions are rendered as the counts they
- *     are.
+ *     The converse holds too and is easier to get wrong: work scored at
+ *     the FLOOR of every scale must not look like work that was never
+ *     scored, which is why a skill row states its scored count even when
+ *     it has earned no chips.
+ *  3. Nothing is averaged, and no count is presented as a shortfall. Only
+ *     the top of each scale gets a chip, and a chip that would read zero
+ *     is not rendered at all — the floors (adequate, expected, deliberate)
+ *     are real outcomes, not deficiencies, and a row of zeros beside them
+ *     would be a verdict this card has no standing to deliver.
  */
 import { useTranslation } from 'react-i18next'
 import { CheckCircle2, Sparkles } from 'lucide-react'
@@ -42,6 +49,19 @@ function Count({ n, label }: { n: number; label: string }) {
 function SkillRow({ skill }: { skill: WorkLedgerSkill }) {
   const { t } = useTranslation()
   const unscored = skill.completed - skill.scored
+  // Only the top of each scale gets a chip — the floors (adequate,
+  // expected, deliberate) are real, honest outcomes and putting them on
+  // screen as chips would read as marks against the work. But that means
+  // a skill scored entirely at the floor produces no chips at all, so the
+  // meta line below has to say the work WAS scored. Otherwise honestly
+  // scored ordinary work renders identically to work Bede never judged,
+  // which inverts this card's own rule that a blank must stay
+  // distinguishable from a low mark.
+  const standouts =
+    skill.quality.exemplary +
+    skill.distinction.noteworthy +
+    skill.distinction.original +
+    skill.speed.brisk
 
   return (
     <li className="border-t border-gray-100 py-3 first:border-t-0">
@@ -58,7 +78,7 @@ function SkillRow({ skill }: { skill: WorkLedgerSkill }) {
         <Count n={skill.with_help} label={t('workLedger.withHelp')} />
       </div>
 
-      {skill.scored > 0 && (
+      {standouts > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {skill.quality.exemplary > 0 && (
             <Count n={skill.quality.exemplary} label={t('workLedger.exemplary')} />
@@ -83,8 +103,11 @@ function SkillRow({ skill }: { skill: WorkLedgerSkill }) {
             })}
           </span>
         )}
-        {/* Unscored work is stated, not hidden and not rendered as a zero
-            mark — a blank has to stay visibly different from a low one. */}
+        {/* Both halves are stated. Scored work is never rendered as a zero
+            mark, and unscored work is never left to look like a low one —
+            a blank has to stay visibly different from a floor score, in
+            both directions. */}
+        {skill.scored > 0 && <span>{t('workLedger.scoredCount', { count: skill.scored })}</span>}
         {unscored > 0 && <span>{t('workLedger.notYetScored', { count: unscored })}</span>}
       </div>
     </li>
@@ -95,11 +118,21 @@ function SkillRow({ skill }: { skill: WorkLedgerSkill }) {
  * The initiative panel. Counts only — no badge, no threshold, no verdict.
  * Whether a child is a "learning entrepreneur" is not a call this software
  * makes; it counts the evidence and the parent reads it.
+ *
+ * THIS PANEL ONLY EVER REPORTS A PRESENCE, NEVER AN ABSENCE, and that is
+ * why it is gated on the counts rather than on `scored_activities`. Gating
+ * on "was anything scored" let a student whose work was scored honestly at
+ * the floor of every scale (adequate / expected / deliberate — each a real
+ * outcome, none of them a deficiency) render as "Signs of initiative:
+ * 0 exemplary, 0 beyond the task, 0 brisk". Three zeros under that heading
+ * IS a verdict on the child, and a caveat underneath does not undo it. So
+ * the panel appears only when there is something to report, and within it
+ * only the non-zero counts render — the same rule the skill rows follow.
  */
 function InitiativePanel({ ledger }: { ledger: WorkLedgerData }) {
   const { t } = useTranslation()
   const s = ledger.initiative
-  if (s.scored_activities === 0) return null
+  if (s.exemplary + s.beyond_the_task + s.brisk === 0) return null
 
   return (
     <div className="mt-4 rounded-xl border border-navy-100 bg-navy-50/60 p-4">
@@ -108,9 +141,11 @@ function InitiativePanel({ ledger }: { ledger: WorkLedgerData }) {
         <h3 className="text-xs font-semibold text-navy-800">{t('workLedger.initiativeTitle')}</h3>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <Count n={s.exemplary} label={t('workLedger.exemplary')} />
-        <Count n={s.beyond_the_task} label={t('workLedger.beyondTheTask')} />
-        <Count n={s.brisk} label={t('workLedger.brisk')} />
+        {s.exemplary > 0 && <Count n={s.exemplary} label={t('workLedger.exemplary')} />}
+        {s.beyond_the_task > 0 && (
+          <Count n={s.beyond_the_task} label={t('workLedger.beyondTheTask')} />
+        )}
+        {s.brisk > 0 && <Count n={s.brisk} label={t('workLedger.brisk')} />}
       </div>
       {s.standout_skills.length > 0 && (
         <p className="mt-2 text-xs text-gray-600">

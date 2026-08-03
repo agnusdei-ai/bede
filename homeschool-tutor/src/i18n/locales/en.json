@@ -381,6 +381,7 @@
     "brisk": "brisk",
     "beyondTheTask": "beyond the task",
     "lastWorked": "last worked {{date}}",
+    "scoredCount": "{{count}} scored",
     "notYetScored": "{{count}} not scored",
     "initiativeTitle": "Signs of initiative",
     "standoutIn": "Most often in: {{skills}}",

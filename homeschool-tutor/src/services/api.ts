@@ -705,9 +705,15 @@ export async function fetchPodActivity(
   studentNames: string[],
   sinceDays = 90,
 ): Promise<PodWorkRoster> {
-  const students = encodeURIComponent(studentNames.join(','))
+  // One repeated `students=` parameter per name, NOT a comma-joined list:
+  // student_name is free text a parent types (max 50 chars, no character
+  // restriction), so a comma in a name would have split it into two
+  // students that don't exist and silently returned a short roster.
+  const params = new URLSearchParams()
+  for (const name of studentNames) params.append('students', name)
+  params.set('since_days', String(sinceDays))
   const res = await fetch(
-    `${BASE}/diagnostic/pod/activity?students=${students}&since_days=${sinceDays}`,
+    `${BASE}/diagnostic/pod/activity?${params.toString()}`,
     { headers: { Authorization: `Bearer ${token}` } }
   )
   if (!res.ok) throw new Error('Failed to load the pod work roster')

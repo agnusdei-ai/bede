@@ -330,7 +330,7 @@ claim than either alone.
 
 *AIUC-1: Security · CISSP D5 device identity*
 
-### P10 — Distinct trust domains get distinct identity domains ❌
+### P10 — Distinct trust domains get distinct identity domains ✅
 
 **Statement.** The single-tenant family deployment and the multi-tenant
 public demo do not share an identity domain.
@@ -344,8 +344,39 @@ no seam there.
 **Implications.** Separate signing context at minimum; arguably a separate
 service per the Application Architecture component split.
 
-**Conformance.** One identity domain built around a single-tenant trust
-assumption the demo does not share.
+**Conformance.** Closed 2026-08-03. `core/identity.py` defines two domains
+— `family` and `demo` — with separate signing keys derived from `SECRET_KEY`
+by domain-labelled HMAC. A token carries its domain in the JWT *header*, so
+it is covered by the signature; verification selects the key by that domain
+and then requires the token's role to be one that domain may issue.
+
+What this buys, stated precisely: a demo-domain token claiming `role:
+"parent"` fails at the signature layer, before any authorization code runs
+and whether or not that code remembered to check a role. The demo's
+credential path — a code minted by an unauthenticated endpoint — can no
+longer produce anything replayable against family data even if it is
+compromised outright. Previously the only thing preventing that was every
+present and future authorization check being written correctly, which is a
+discipline rather than a boundary.
+
+What it does not buy by default: key *isolation*. Both keys derive from one
+`SECRET_KEY`, so compromising that secret still yields both. That is the
+"separate signing context at minimum" this principle asks for, not more.
+Setting `DEMO_SECRET_KEY` gives the demo a key sharing no material with the
+family's, and is the recommended configuration for the public instance —
+`core.identity.demo_key_is_independent()` reports which of the two
+properties a given deployment actually has.
+
+The remaining half of the implication — a separate *service* per the
+Application Architecture component split — is still open, tracked with the
+component split itself rather than here.
+
+Tokens issued before this change carry no domain header and remain valid
+until natural expiry (`LEGACY_TOKEN_GRACE`, on by default), so deploying it
+does not sign a family out mid-lesson. The grace accepts only tokens signed
+with the raw pre-migration key, so it is not a downgrade path: stripping the
+header off a domain-signed token fails, which `tests/test_identity_domains.py`
+pins directly.
 
 *AIUC-1: Data & Privacy (tenant isolation), Security*
 

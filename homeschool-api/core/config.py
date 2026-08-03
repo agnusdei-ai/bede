@@ -184,6 +184,18 @@ class Settings(BaseSettings):
 
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
+    # Optional independent secret for the public demo's identity domain
+    # (core/identity.py, P10). Left empty, the demo's signing key is derived
+    # from secret_key — domain-separated, so a demo token can never be
+    # replayed as a parent token, but not key-isolated. Set this on the
+    # public demo instance, where the operator holds third parties' data and
+    # a SECRET_KEY compromise should not also reach family deployments.
+    demo_secret_key: str = ""
+    # Accept tokens issued before identity domains existed (no domain header,
+    # signed with raw secret_key) until they expire. Self-limiting — no new
+    # ones are ever issued — and exists so deploying P10 doesn't sign every
+    # family out mid-lesson. Safe to set false immediately.
+    legacy_token_grace: bool = True
     algorithm: str = "HS256"
     # Parent sessions: up to 8h (full school day). Child: 4h (single session).
     access_token_expire_minutes: int = 480

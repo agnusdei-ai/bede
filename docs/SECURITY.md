@@ -153,6 +153,38 @@ list as items are closed.
 
 ## Closed gaps
 
+- **The public demo shared one identity domain with the family
+  deployment, closed 2026-08-03.** `routers/auth.py`'s `login()` issued
+  `parent`, `child`, and `demo_code` tokens from one function, in one
+  format, under one signing key, validated by one path — despite the demo
+  being pseudonymous, internet-facing, multi-tenant, and operated *for*
+  strangers rather than *by* them. The practical consequence: every bug in
+  the demo's credential path was a bug in the family's. `demo_code` login
+  consumes a code minted by an unauthenticated endpoint, so any flaw there
+  that yielded an attacker-controlled *signed* token had nothing structural
+  standing between it and `role: "parent"` — only the fact that every
+  authorization check, present and future, remembers to look at the role.
+
+  `core/identity.py` splits this into two domains with separate signing
+  keys, derived from `SECRET_KEY` by domain-labelled HMAC. The domain
+  travels in the JWT header, covered by the signature; verification picks
+  the key by that domain and then requires the role to be one the domain
+  may issue. A demo token claiming `parent` now fails at the signature
+  layer, before authorization runs.
+
+  Stated precisely, because the difference matters: this is domain
+  separation, not key isolation. Both keys derive from one `SECRET_KEY` by
+  default, so compromising that secret still yields both. Setting
+  `DEMO_SECRET_KEY` on the public demo instance gives it a key sharing no
+  material with the family's — recommended there, unnecessary for a
+  self-hosted family deployment that has no demo role in play.
+
+  Tokens issued before the change stay valid until they expire
+  (`LEGACY_TOKEN_GRACE`, default on) so the deploy doesn't sign families out
+  mid-lesson. It is not a downgrade path — the grace accepts only tokens
+  signed with the raw pre-migration key, so stripping the header off a
+  domain-signed token fails.
+
 - **Deletion was logical, not cryptographic, closed 2026-08-03.**
   `services/student_deletion.py` issued real SQL `DELETE`s across every
   student-scoped table, which was correct as far as the live table went and

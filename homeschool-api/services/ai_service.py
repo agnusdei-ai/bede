@@ -3125,6 +3125,7 @@ async def _record_skill_evidence(
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
+    session_id: Optional[str] = None,
 ) -> None:
     """
     Silently record math-skill diagnostic evidence. Routes to exactly one
@@ -3149,6 +3150,27 @@ async def _record_skill_evidence(
             await record_skill_evidence_demo(
                 demo_code, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
             )
+        elif not settings.retain_mastery_profiles:
+            # Deployment-wide privacy posture: run the same diagnostic, hold
+            # the estimate for this session only, write nothing about the
+            # child. Checked BEFORE the db branch so a configured database
+            # cannot quietly become the fallback — the whole point is that
+            # no estimate reaches it. See services/diagnostic_session.py and
+            # docs/diagnostic/EPHEMERAL_DIAGNOSTIC_SPEC.md.
+            #
+            # The work ledger still runs below: it records events ("this task
+            # was completed unaided"), never a claim about the child, and it
+            # is deliberately unaffected by this setting.
+            if session_id:
+                from services import diagnostic_session
+                await diagnostic_session.record(
+                    session_id, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
+                )
+            if db is not None:
+                await _record_work_done(
+                    db, config.student_name, "mathematics",
+                    ev.probe_id.removeprefix("probe."), ev.outcome, ev,
+                )
         elif db is not None:
             from services.diagnostic import process_evidence
             await process_evidence(
@@ -3400,6 +3422,7 @@ async def stream_tutor_response(
     local_date: Optional[date] = None,
     locale: str = "en",
     role: Optional[str] = None,
+    session_id: Optional[str] = None,
     ip: str = "unknown",
     user_agent: str = "",
 ) -> AsyncIterator[str]:
@@ -3712,7 +3735,7 @@ async def stream_tutor_response(
                                     # assess_narration's minimal event. See
                                     # _record_skill_evidence's own docstring for which
                                     # backend (demo_code vs db) actually persists it.
-                                    await _record_skill_evidence(db, demo_code, config, subject, tool_input)
+                                    await _record_skill_evidence(db, demo_code, config, subject, tool_input, session_id)
                                 elif tc["name"] == "record_phonics_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_phonics_evidence's own docstring.

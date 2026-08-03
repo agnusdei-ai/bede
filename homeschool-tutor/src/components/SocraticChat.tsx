@@ -101,6 +101,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     isStreaming,
     timeOfDay,
     localDate,
+    sessionId,
     startAssistantStream,
     addUserMessage,
     appendAssistantChunk,
@@ -389,6 +390,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       undefined,
       state.timeOfDay,
       state.localDate,
+      state.sessionId,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening])
@@ -427,6 +429,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       undefined,
       state.timeOfDay,
       state.localDate,
+      state.sessionId,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
@@ -493,11 +496,12 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       drawingToSend,
       timeOfDay,
       localDate,
+      sessionId,
     )
     await consumeTurnStream(stream)
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
-    timeOfDay, localDate, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
+    timeOfDay, localDate, sessionId, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
   ])
 
   // Keeps sendRef (declared above useHybridVoiceInput, before send() exists)

@@ -517,6 +517,13 @@ class TutorRequest(BaseModel):
     # runs in a different timezone, e.g. UTC). None for older clients /
     # the sandbox, in which case the catalogs fall back to date.today().
     local_date: Optional[date] = None
+    # Minted client-side at startSession() (sessionStore.ts) and sent with
+    # every turn. Used ONLY as the key for a session-scoped mastery
+    # estimate when settings.retain_mastery_profiles is False — see
+    # services/diagnostic_session.py for why the key must be the session
+    # rather than the student. Absent from older clients and the sandbox,
+    # in which case there is simply nothing to accumulate into.
+    session_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class NarrationUploadRequest(BaseModel):

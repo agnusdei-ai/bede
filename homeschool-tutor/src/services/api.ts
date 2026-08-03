@@ -299,7 +299,8 @@ export async function* streamTutorChat(
   signal?: AbortSignal,
   drawingImageDataUrl?: string | null,
   timeOfDay?: TimeOfDay | null,
-  localDate?: string | null
+  localDate?: string | null,
+  sessionId?: string | null
 ): AsyncGenerator<StreamChunk> {
   // The debug panel is the only way a report like "greeting doesn't match
   // the time of day" or "wrong week's poem" can actually be diagnosed
@@ -320,6 +321,10 @@ export async function* streamTutorChat(
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
       local_time_of_day: timeOfDay ?? null,
       local_date: localDate ?? null,
+      // Keys this sitting's mastery estimate when the deployment is set to
+      // keep no profile between sessions (see the backend's
+      // retain_mastery_profiles). Ignored entirely otherwise.
+      session_id: sessionId ?? null,
     }),
     signal,
   })

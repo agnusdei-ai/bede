@@ -1,11 +1,15 @@
 # Measuring Mastery Without Keeping a File on a Child
 
-**A proposal for how Bede assesses learning, and what it should keep afterward.**
+**How Bede assesses learning, and what it keeps afterward.**
 
-> **Status: proposed.** Nothing described here is built. What Bede does
-> today is the persistent approach described in
-> [DIAGNOSTIC_ENGINE_DESIGN.md](DIAGNOSTIC_ENGINE_DESIGN.md). This document
-> exists to be accepted, amended, or rejected.
+> **Status: built, and off by default.** Set `RETAIN_MASTERY_PROFILES=false`
+> to turn it on. Leaving it unset gives exactly the behaviour described in
+> [DIAGNOSTIC_ENGINE_DESIGN.md](DIAGNOSTIC_ENGINE_DESIGN.md), unchanged.
+>
+> **D1 is decided: whole installation.** A privacy posture should be a
+> property of the software a family installed, not a checkbox to remember
+> per child, and one sibling carrying a retained profile while another does
+> not is hard to explain and easy to get wrong by accident.
 
 ---
 
@@ -24,9 +28,9 @@ The second is ordinary. It is the kind of note any tutor keeps. The first
 is a psychological profile, and it is the kind of record that follows a
 person.
 
-**The proposal is to stop keeping the first and continue keeping the
-second.** Bede would still run the full assessment, still report what it
-found, and then let the estimate go when the session ends.
+**This setting stops keeping the first and continues keeping the second.**
+Bede still runs the full assessment and still reports what it found, then
+lets the estimate go when the session ends.
 
 There is a real cost, and Section 5 states it plainly rather than leaving
 it to be discovered later.
@@ -71,9 +75,9 @@ proposal follows that same reasoning one step further.
 
 ---
 
-## 3. The proposal
+## 3. How it works when enabled
 
-Bede would assess exactly as it does now, with one change: the estimate
+Bede assesses exactly as it does otherwise, with one change: the estimate
 lives only for the length of the session.
 
 1. A session begins. Bede starts from what is typical for the child's grade,
@@ -86,17 +90,17 @@ lives only for the length of the session.
 
 ---
 
-## 4. What a family would notice
+## 4. What a family notices
 
 **Unchanged.** The lesson itself, the questions Bede asks, the session
 summary, the record of work completed, the learner's guarantee, and the
 mastery cycle that reports movement over four weeks.
 
-**Changed.** The mastery cards on the Progress page would describe the most
-recent session rather than the term. The "Math Skill Growth" note would
-show movement within a morning rather than across weeks. Long-run trends
-would no longer be available, because showing a six-week arc requires
-keeping a six-week record of the child.
+**Changed.** The mastery cards on the Progress page describe the most
+recent session rather than the term. The "Math Skill Growth" note shows
+movement within a morning rather than across weeks. Long-run trends are no
+longer available, because showing a six-week arc requires keeping a
+six-week record of the child.
 
 ---
 
@@ -124,7 +128,7 @@ understood.
 
 ---
 
-## 6. What this would cost elsewhere
+## 6. What it costs elsewhere
 
 The mastery profile is shared by more than mathematics. Composition,
 phonics, reading and spelling, and language exposure all use it.
@@ -132,7 +136,7 @@ phonics, reading and spelling, and language exposure all use it.
 The most significant loss is **phonics**. A picture of a young child's
 decoding built steadily across a term is arguably the most useful record
 Bede produces for a family in the early years, and it is exactly the kind
-that depends on accumulation. It would become a snapshot.
+that depends on accumulation. It becomes a snapshot.
 
 ---
 
@@ -140,9 +144,9 @@ that depends on accumulation. It would become a snapshot.
 
 | | Question | Recommendation |
 |---|---|---|
-| **D1** | Is this a whole-installation setting, a per-child setting, or a per-session choice? | **Whole installation.** A privacy position should be a property of the software a family installed, not a checkbox to remember. Per-child can follow later. |
+| **D1** | Is this a whole-installation setting, a per-child setting, or a per-session choice? | **DECIDED: whole installation.** Shipped as `RETAIN_MASTERY_PROFILES`. Per-child can follow later without rework. |
 | **D2** | Do narration assessments fall under this too? | **No, and the reason should be published.** They score a piece of work, not the child. That is the distinction being drawn, rather than the word "assessment." |
-| **D3** | What happens to profiles that already exist? | **Delete them when the setting is turned on**, with clear confirmation. Leaving records in place while the software claims none are kept is the worst outcome available. |
+| **D3** | What happens to profiles that already exist? | **Still open, and the one thing to settle before recommending this to an existing family.** Turning the setting on stops new estimates immediately, but rows written earlier stay on disk until that student is deleted. A fresh installation has nothing to migrate, which is why this did not block shipping. Recommendation stands: delete on enable, with clear confirmation. |
 | **D4** | Does the public demo change? | **No.** It is already temporary. |
 | **D5** | How is "still calibrating" explained? | **Plainly, as a design choice.** The summary should say the estimate covers today by design, so it reads as intended behaviour rather than a fault. |
 

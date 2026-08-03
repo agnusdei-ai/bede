@@ -333,6 +333,30 @@ class Settings(BaseSettings):
     # not mentioning skill growth at all (no data to report it from).
     diagnostic_evidence_log_enabled: bool = True
 
+    # Whether a child's mastery estimate is kept between sessions.
+    #
+    # True (the default, and today's behaviour byte for byte) stores the
+    # encrypted vector in MasteryProfile, so the estimate accumulates
+    # across weeks and the Progress page can show a term's picture.
+    #
+    # False runs the same diagnostic and reports the same summary, but
+    # holds the estimate in memory for the session only
+    # (services/diagnostic_session.py) and never writes it down. Nothing
+    # describing the child survives the sitting.
+    #
+    # This is a deployment-wide privacy posture rather than a per-child
+    # setting, deliberately: it should be a property of the software a
+    # family installed, not a checkbox to remember for each student, and
+    # one sibling having a retained psychological profile while another
+    # does not is a hard thing to explain and an easy thing to get wrong.
+    #
+    # The trade is real and is not hidden: an estimate becomes reliable
+    # through accumulation, and a single sitting produces evidence in
+    # roughly the same range as CALIBRATION_THRESHOLD itself, so families
+    # on this setting will see "still getting to know your learner" more
+    # often. See docs/diagnostic/EPHEMERAL_DIAGNOSTIC_SPEC.md.
+    retain_mastery_profiles: bool = True
+
     # ── Demo interaction-pattern analysis (optional) ──────────────────────────
     # On by default for demo sessions only (never parent/child production) —
     # structural signals only (which tools fired, turn counts, subject

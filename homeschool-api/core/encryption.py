@@ -71,10 +71,24 @@ def aad_for(table: str, column: str, row_key: str) -> bytes:
     makes that swap fail authentication.
 
     row_key is whatever uniquely identifies the row in practice — a primary
-    key, or the student_name the row is scoped to. It must be stable for the
-    life of the row: if it changes, the row can no longer be decrypted, which
-    is why student_name (never renamed today) is acceptable and a mutable
-    display field would not be.
+    key, or the student_name the row is scoped to.
+
+    IT MUST BE STABLE FOR THE LIFE OF THE ROW. If it changes, that row can
+    never be decrypted again — the original associated data is gone and
+    there is no way to recover it. student_name is acceptable because no
+    code path mutates it on an existing row: routers/pod.py's
+    save_pod_configs matches on the name and creates a NEW row for a
+    different one, so a "rename" never rewrites an existing row's key. A
+    mutable display field would not be acceptable.
+
+    That property is now load-bearing for decryptability. Adding a rename
+    feature later as an UPDATE on student_name would silently render every
+    AAD-bound row for that student permanently unreadable. A rename must be
+    implemented as decrypt-under-old-key then re-encrypt-under-new. See
+    docs/DATA_CLASSIFICATION.md's feasibility section, and
+    tests/test_encryption.py::test_row_key_stability_is_load_bearing_for_
+    decryptability, which exists to make that failure loud in CI rather
+    than in a family's database.
     """
     return f"bede/v2/{table}/{column}/{row_key}".encode("utf-8")
 

@@ -20,6 +20,159 @@ how long. This document states how strongly each thing is protected and why.
 Retention answers "when does it go away"; classification answers "what
 guards it while it's here."
 
+## What AAD is
+
+Referenced throughout this document and `docs/ARCHITECTURE_PRINCIPLES.md`
+(P5) as a requirement, so it's worth stating plainly rather than assuming
+the reader knows the acronym.
+
+Bede encrypts with **AES-256-GCM**, an *AEAD* cipher — Authenticated
+Encryption with Associated Data. AEAD gives two properties in one operation:
+
+- **Confidentiality** — nobody without the key can read the plaintext.
+- **Authenticity** — nobody without the key can produce ciphertext that
+  decrypts successfully. Tampering makes decryption *fail*, rather than
+  silently returning altered data.
+
+The "AD" is a second input the cipher accepts alongside the plaintext.
+Associated data is **not encrypted** — it isn't secret and isn't stored in
+the ciphertext — but it *is* mixed into the authentication tag. Decryption
+requires being handed the same associated data; supply different data, or
+none, and the tag check fails even though the ciphertext is genuine and the
+key is correct.
+
+Its purpose is to bind ciphertext to **context**: to make a given encrypted
+value valid only in the place it was meant to live, rather than valid in the
+abstract.
+
+### What that buys here, concretely
+
+Bede uses one global `DATA_KEY` for every encrypted column in every table.
+Without associated data, a ciphertext proves exactly one thing: *this was
+encrypted by whoever holds `DATA_KEY`*. It proves nothing about where it
+belongs. So the bytes in one student's `bookmark_enc` are cryptographically
+interchangeable with another's.
+
+Anyone who can write to the database — a stolen DB credential, SQL injection
+elsewhere in the stack, a malicious restore, an insider — can copy one row's
+ciphertext into another row and it decrypts **perfectly**. No tag failure,
+no error, no log line. A student's data silently becomes attributed to a
+different student, and nothing in the system can detect it.
+
+With AAD bound to `table/column/row_key`, that same swap fails
+authentication. The attack goes from undetectable to impossible.
+
+"Does this AEAD usage bind context, or is ciphertext portable between
+records?" is close to a rote question in a professional cryptographic
+review, which is the other reason this is worth closing before an external
+assessment rather than after.
+
+## Feasibility for Bede
+
+Assessed rather than assumed, because the migration touches ~50 call sites
+across 15 modules and a botched one makes a family's data permanently
+unreadable — a worse outcome than the gap staying open longer.
+
+### The load-bearing requirement: row-key stability
+
+AAD must be reconstructible at read time from data the reader already has.
+If the `row_key` component ever *changes* for an existing row, that row
+becomes undecryptable — permanently, since the original AAD is gone.
+
+Most rows here are scoped by `student_name`, which makes "can a student be
+renamed?" the single largest feasibility question. **Verified: there is no
+rename path.** `routers/pod.py`'s `save_pod_configs` matches existing rows
+on `student_name` and updates in place; a config submitted under a different
+name creates a *new* row and leaves the old one untouched. No code path
+mutates `student_name` on an existing row in any table.
+
+So the row key is stable by construction, not by convention — which is the
+strongest form this requirement can take, and it means the primary
+feasibility risk is structurally absent rather than merely unlikely.
+
+**A caveat that must survive future work:** this property is now
+load-bearing for decryptability, and nothing in the code says so. Adding a
+rename feature later — updating `student_name` in place — would silently
+break every AAD-bound row for that student. If a rename is ever wanted, it
+has to be implemented as *decrypt-under-old-key, re-encrypt-under-new*, not
+as an `UPDATE`. Recorded here because it is exactly the kind of constraint
+that gets violated by someone who never read this document.
+
+**Unrelated issue surfaced by the same analysis:** because an effective
+rename creates a new row rather than moving one, the old student's rows are
+orphaned — and `services/student_deletion.py` deletes by `student_name`, so
+those orphans are never cleaned up by deleting either name. Pre-existing,
+nothing to do with AAD, tracked here because this is where it was found.
+
+### Migration cost and risk
+
+The envelope supports both formats simultaneously (v1 unbound, v2 bound),
+and `core/encryption.py` dispatches on the version byte in the blob it was
+handed — not on whether the caller passed an AAD. That yields:
+
+| Property | Consequence |
+|---|---|
+| v1 rows stay readable indefinitely | No flag-day, no downtime |
+| Rows upgrade on next write | No migration script, no bulk rewrite, no long-running job |
+| A migrated read path handles unmigrated rows | Call sites migrate independently, in any order |
+| v2 rows **require** their exact AAD | The binding cannot be downgraded away by omitting an argument |
+
+That last row is the asymmetry that matters. A v2 blob read without its
+context raises rather than silently succeeding, so a partially-migrated
+codebase can't quietly lose the protection it just gained.
+
+Risk is therefore per-call-site rather than global: an error affects one
+table's future writes, is caught by that call site's tests, and leaves
+every already-written row readable.
+
+### Performance
+
+Measured, since performance is a differentiating constraint on this
+hardware:
+
+| Operation | Without AAD | With AAD | Delta |
+|---|---|---|---|
+| `aad_for()` construction | — | 0.12 µs | — |
+| encrypt, 200 B | 60.97 µs | 66.29 µs | +8.7% |
+| decrypt, 200 B | 73.95 µs | 76.59 µs | +3.6% |
+| encrypt, 64 KB transcript | 138.28 µs | 144.23 µs | +4.3% |
+| decrypt, 64 KB transcript | 145.75 µs | 150.50 µs | +3.3% |
+
+Roughly 5 µs absolute per operation, on paths that run per stored record,
+not per request.
+
+Worth noting where that cost actually sits: `AES.new(MODE_GCM)` alone is
+~41 µs, about 74% of a small encryption, because constructing a GCM context
+does the key schedule and GHASH subkey precomputation. AAD is nowhere near
+the dominant term. That construction cost is inherent to the library's API —
+a GCM cipher object cannot be safely reused across messages, since each
+needs its own nonce — so it isn't recoverable without changing libraries.
+
+A 12-byte nonce would save ~5.5 µs (GCM derives its counter directly from a
+96-bit IV, and must hash any other length). Deliberately **not** taken: the
+current 16-byte random nonce gives a 2⁶⁴ collision bound against a 12-byte
+nonce's 2⁴⁸, and trading a documented security margin for 10% of an already
+minor cost is the wrong direction for data that is retained for years.
+
+### Where AAD deliberately does not apply
+
+`encryption_config.data_key` — the KEK-wrapped `DATA_KEY` itself (T0) —
+stays on the v1 envelope. There is exactly one such row, so there is no
+second location to swap it with and nothing for context binding to defend
+against. Changing it would also mean touching the boot path and
+`scripts/rotate_master_secret.py` for no security gain.
+
+### Row keys where `student_name` isn't the scope
+
+Not every encrypted table is student-scoped. These need their key chosen
+deliberately as they migrate:
+
+| Table | Row key | Note |
+|---|---|---|
+| `audit_log` | Row `id` | Deliberately not student-scoped — the log must outlive any student's deletion |
+| `demo_*` | Demo `code` | Short TTL already bounds exposure |
+| `api_usage_events` | Row `id` | Student-scoped rows exist but household-wide rows have `student_name=None` |
+
 ## Tiers
 
 | Tier | Meaning | Key strategy | AAD binding | Deletion |

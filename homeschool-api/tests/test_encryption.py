@@ -222,6 +222,59 @@ async def test_supplying_aad_writes_v2_and_omitting_it_writes_v1(db_session):
 
 
 @pytest.mark.asyncio
+async def test_row_key_stability_is_load_bearing_for_decryptability(db_session):
+    """Documents, as an executable fact, the constraint the AAD design rests
+    on: the row_key must never change for an existing row.
+
+    docs/DATA_CLASSIFICATION.md's feasibility section verifies that no
+    rename path exists today (routers/pod.py's save_pod_configs matches on
+    student_name and creates a new row rather than mutating an existing
+    one), so this holds by construction. But nothing in the code *says* so,
+    and adding a rename later — an UPDATE on student_name — would silently
+    render every AAD-bound row for that student permanently unreadable.
+
+    This test is here so that change fails loudly in CI with a pointer to
+    why, rather than surfacing as a family's data becoming undecryptable.
+    A rename, if ever wanted, must be decrypt-under-old / re-encrypt-under-
+    new."""
+    await _boot("master-secret-" + "a" * 32, db_session)
+
+    blob = encryption_module.encrypt_json(
+        {"grade": "4"},
+        encryption_module.aad_for("student_configs", "config_enc", "Ellie"),
+    )
+    # Renaming the row (same table, same column, new key) makes the stored
+    # value unreadable — there is no way back to it without the old name.
+    with pytest.raises(ValueError):
+        encryption_module.decrypt_json(
+            blob, encryption_module.aad_for("student_configs", "config_enc", "Eleanor")
+        )
+    # The correct migration for a rename: decrypt under the old key,
+    # re-encrypt under the new one.
+    plaintext = encryption_module.decrypt_json(
+        blob, encryption_module.aad_for("student_configs", "config_enc", "Ellie")
+    )
+    rekeyed = encryption_module.encrypt_json(
+        plaintext, encryption_module.aad_for("student_configs", "config_enc", "Eleanor")
+    )
+    assert encryption_module.decrypt_json(
+        rekeyed, encryption_module.aad_for("student_configs", "config_enc", "Eleanor")
+    ) == {"grade": "4"}
+
+
+@pytest.mark.asyncio
+async def test_data_key_wrapping_stays_on_the_v1_envelope(db_session):
+    """T0 key material is deliberately not AAD-bound — there is exactly one
+    encryption_config.data_key row, so there is no second location to swap
+    it with and nothing for context binding to defend against. Asserted so
+    a well-meaning "migrate everything to v2" pass doesn't touch the boot
+    path for no security gain."""
+    await _boot("master-secret-" + "a" * 32, db_session)
+    wrapped = await _get_row(db_session, "data_key")
+    assert wrapped[4] == encryption_module._VERSION_LEGACY_NO_AAD
+
+
+@pytest.mark.asyncio
 async def test_v2_envelope_header_is_tamper_evident(db_session):
     """v1 leaves magic+version outside the authenticated data, so flipping
     the version byte is undetectable until it fails a range check. v2 binds

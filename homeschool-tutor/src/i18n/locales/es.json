@@ -260,7 +260,11 @@
     "companionModeGuided": "Un poco más de estructura",
     "companionModeGuidedDesc": "Conversación basada en libros más algunas materias principales.",
     "companionModeFullPlan": "Plan diario completo",
-    "companionModeFullPlanDesc": "Bede cubre la rotación completa de materias de Mater Amabilis."
+    "companionModeFullPlanDesc": "Bede cubre la rotación completa de materias de Mater Amabilis.",
+    "travelMode": "Viajamos — nuestras semanas no siempre son regulares",
+    "travelModeHelp": "Progreso normalmente informa el avance de las últimas 4 semanas reales. Active esto si los viajes hacen que esa ventana suela ser demasiado corta para ver algo, y elija una más larga. No cambia cómo se enseña a su hijo, solo hasta dónde mira atrás la página de Progreso.",
+    "masteryWindowLabel": "Informar el avance de",
+    "weeksN": "{{n}} semanas"
   },
   "progress": {
     "advance": "Avanzar",
@@ -346,7 +350,15 @@
     "title": "Progreso",
     "noStudentsYet": "Aún no hay estudiantes configurados.",
     "goToSetup": "Ir a Configuración",
-    "failedToLoadProgress": "No se pudieron cargar los datos de progreso"
+    "failedToLoadProgress": "No se pudieron cargar los datos de progreso",
+    "cycleWindowCaption": "El avance se mide sobre {{window}}.",
+    "cycleWindowWeeks_one": "la última semana",
+    "cycleWindowWeeks_other": "las últimas {{count}} semanas",
+    "cycleWindowDays_one": "el último día",
+    "cycleWindowDays_other": "los últimos {{count}} días",
+    "cycleMoved": "avanzó",
+    "cycleQuiet_one": "{{count}} sin registros en {{window}} — revise que esté programado con suficiente frecuencia",
+    "cycleQuiet_other": "{{count}} sin registros en {{window}} — revise que estén programados con suficiente frecuencia"
   },
   "breakActivities": [
     "Mira algo a al menos 6 metros de distancia durante 20 segundos — les da a tus ojos un verdadero descanso.",

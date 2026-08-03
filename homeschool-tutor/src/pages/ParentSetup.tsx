@@ -6,6 +6,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
 import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS } from '../types'
 import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
+import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import LicenseSettings from '../components/LicenseSettings'
@@ -154,6 +155,12 @@ interface StudentForm {
   eye_rest_break_minutes: number
   term_schedule: TermSchedule
   current_term: number
+  // Mastery-cycle window — how far back Progress looks when saying whether
+  // a term topic moved. travel_mode is what unlocks changing it; see
+  // models/schemas.py and utils/masteryCycle.ts for why it is a rolling
+  // window rather than a sprint.
+  travel_mode: boolean
+  mastery_cycle_days: number
   // Comma-separated per area in the form; parsed to string[] on save.
   term_topics: Record<CoreArea, string>
   // Where each interrupted subject left off — see ResumeForm above.
@@ -190,6 +197,8 @@ const blankStudent = (): StudentForm => ({
   eye_rest_break_minutes: 30,
   term_schedule: 'trimester',
   current_term: 1,
+  travel_mode: false,
+  mastery_cycle_days: DEFAULT_MASTERY_CYCLE_DAYS,
   term_topics: {
     phonics_language: '', mathematics: '', reading_literature: '',
     science: '', writing_composition: '',
@@ -226,6 +235,8 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     eye_rest_break_minutes: c.eye_rest_break_minutes ?? 30,
     term_schedule: c.term_schedule ?? 'trimester',
     current_term: c.current_term ?? 1,
+    travel_mode: c.travel_mode ?? false,
+    mastery_cycle_days: c.mastery_cycle_days ?? DEFAULT_MASTERY_CYCLE_DAYS,
     term_topics: {
       ...blank.term_topics,
       ...Object.fromEntries(
@@ -344,6 +355,11 @@ export default function ParentSetup() {
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
       term_schedule: s.term_schedule,
       current_term: Math.min(s.current_term, s.term_schedule === 'trimester' ? 3 : 4),
+      travel_mode: s.travel_mode,
+      // The backend validator is the authority here (it forces the default
+      // back when travel mode is off, and clamps to 3-6 weeks when it is on);
+      // sending the form value unmodified keeps one source of truth.
+      mastery_cycle_days: s.mastery_cycle_days,
       term_mastery_topics: Object.fromEntries(
         CORE_AREAS.map(({ id }) => [
           id,
@@ -979,6 +995,52 @@ function StudentCard({
             <p className="text-xs text-gray-400">
               {t('parentSetup.termTopicsHelp')}
             </p>
+          </div>
+
+          {/* Travel mode — the ONLY control over the mastery-cycle window.
+              With it off there is exactly one honest window (28 actual
+              days, what the guarantee is written against), so a family that
+              doesn't travel is never asked to pick a number. Turning it on
+              is the parent saying "our weeks aren't regular", and the
+              choice appears then and only then. This changes nothing about
+              how the child is taught — it widens how far back Progress
+              looks so the same evidence has room to accumulate. */}
+          <div className="pt-3 border-t border-gray-200">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={student.travel_mode}
+                onChange={(e) => onUpdate({
+                  travel_mode: e.target.checked,
+                  // Coming home resets the window, so a parent never has to
+                  // remember what it used to be. Mirrors the backend
+                  // validator, which does the same thing authoritatively.
+                  mastery_cycle_days: e.target.checked ? student.mastery_cycle_days : DEFAULT_MASTERY_CYCLE_DAYS,
+                })}
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="text-sm font-medium text-gray-700">{t('parentSetup.travelMode')}</span>
+                <span className="block text-xs text-gray-500 mt-0.5">{t('parentSetup.travelModeHelp')}</span>
+              </span>
+            </label>
+            {student.travel_mode && (
+              <div className="mt-2 flex items-center gap-2 pl-6">
+                <label htmlFor={`cycle-${student.student_name}`} className="text-xs text-gray-600">
+                  {t('parentSetup.masteryWindowLabel')}
+                </label>
+                <select
+                  id={`cycle-${student.student_name}`}
+                  value={student.mastery_cycle_days}
+                  onChange={(e) => onUpdate({ mastery_cycle_days: Number(e.target.value) })}
+                  className="input !w-auto text-xs py-1.5"
+                >
+                  {[21, 28, 35, 42].map((d) => (
+                    <option key={d} value={d}>{t('parentSetup.weeksN', { n: d / 7 })}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 

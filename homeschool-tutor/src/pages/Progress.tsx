@@ -7,6 +7,7 @@ import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
 import PodWorkRoster from '../components/PodWorkRoster'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
+import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
 import {
   fetchNarrationAssessments,
@@ -485,6 +486,19 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
     return best
   }
 
+  // The rolling mastery-cycle window (see utils/masteryCycle.ts). The status
+  // chip above answers "where is this now" and never decays; this answers
+  // the different question a parent actually asks between term reports —
+  // "did it move lately" — which the all-time high-water mark structurally
+  // cannot. Deliberately no deadline and no target attached: it bounds how
+  // far back we look, not how fast a child has to be.
+  const windowDays = config.mastery_cycle_days ?? DEFAULT_MASTERY_CYCLE_DAYS
+  const window = describeWindow(windowDays)
+  const windowLabel = t(
+    window.unit === 'week' ? 'progress.cycleWindowWeeks' : 'progress.cycleWindowDays',
+    { count: window.value },
+  )
+
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
@@ -493,6 +507,11 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
           {termWord} {config.current_term ?? 1}
         </span>
       </div>
+      {/* The window is stated plainly rather than left implicit — a parent
+          reading "moved" needs to know what it was measured against. */}
+      <p className="text-[11px] text-gray-400 -mt-2 mb-4">
+        {t('progress.cycleWindowCaption', { window: windowLabel })}
+      </p>
       <div className="space-y-4">
         {CORE_AREAS.map(({ id, label }) => {
           const areaTopics = topics[id]
@@ -500,6 +519,15 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
           const statuses = areaTopics.map((t) => ({ topic: t, status: statusFor(t) }))
           const mastered = statuses.filter((s) => s.status === 'mastered').length
           const untouched = statuses.filter((s) => s.status === 'not_started').length
+          // Topics that HAVE been started but produced nothing inside the
+          // window. Deliberately excludes never-started ones — those are
+          // already reported as "not yet started" and saying it twice would
+          // read as two problems. This is a finding about the plan (the
+          // subject isn't coming up often enough), never about the child,
+          // and the copy says so.
+          const quiet = statuses.filter(
+            (s) => s.status !== 'not_started' && readCycle(assessments, s.topic, windowDays).outcome === 'no_evidence',
+          ).length
           return (
             <div key={id}>
               <div className="flex items-center justify-between mb-1.5">
@@ -511,17 +539,37 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
                       {t('progress.notYetStarted', { count: untouched })}
                     </span>
                   )}
+                  {quiet > 0 && (
+                    <span className="ml-2 text-gray-500">
+                      {t('progress.cycleQuiet', { count: quiet, window: windowLabel })}
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="space-y-1">
-                {statuses.map(({ topic, status }) => (
-                  <div key={topic} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-600 truncate">{topic}</span>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TOPIC_STATUS_STYLE[status].cls}`}>
-                      {t(TOPIC_STATUS_STYLE[status].labelKey)}
-                    </span>
-                  </div>
-                ))}
+                {statuses.map(({ topic, status }) => {
+                  const cycle = readCycle(assessments, topic, windowDays)
+                  return (
+                    <div key={topic} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-600 truncate">{topic}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {/* Only movement earns a mark. "Held" is a normal,
+                            healthy outcome and putting a chip on it would
+                            read as a flag; "no evidence" is reported in the
+                            area summary above as a note about the plan, not
+                            beside the child's topic as if it were a score. */}
+                        {cycle.outcome === 'moved' && (
+                          <span className="text-[10px] font-medium text-sage-700">
+                            {t('progress.cycleMoved')}
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${TOPIC_STATUS_STYLE[status].cls}`}>
+                          {t(TOPIC_STATUS_STYLE[status].labelKey)}
+                        </span>
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )

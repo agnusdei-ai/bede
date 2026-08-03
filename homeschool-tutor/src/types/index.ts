@@ -95,6 +95,16 @@ export interface SessionConfig {
   // term; mastery of these named topics is the outcome. Bede records
   // per-topic evidence via assess_narration (term_topic fields below).
   term_mastery_topics?: Partial<Record<CoreArea, string[]>>
+  // ── Mastery cycle ───────────────────────────────────────────────────────
+  // How far back Progress looks when answering "did this move recently?" —
+  // a ROLLING window, not a sprint: nothing resets, nothing rolls over, and
+  // no rate is computed across cycles. Mirrors models/schemas.py, where the
+  // reasoning lives in full. Default 28 ACTUAL (calendar) days; travel_mode
+  // is what unlocks widening it to 3-6 weeks, for a family whose weeks away
+  // don't fit the usual evidence into 28 days. Parent-facing only — a child
+  // never sees a cycle.
+  travel_mode?: boolean
+  mastery_cycle_days?: number
   // "Meet me where I am" — the parent's note about where an interrupted
   // lesson stopped, so Bede opens that subject mid-thread instead of
   // introducing it fresh (and without asking the child where they got to).

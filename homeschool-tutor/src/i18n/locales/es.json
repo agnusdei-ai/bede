@@ -183,6 +183,7 @@
     "sexHelpUnnamed": "Necesario para que Bede se dirija a tu hijo con el género gramatical correcto en el idioma configurado.",
     "subjects": "Materias",
     "minutesShort": "{{count}} min",
+    "subjectsOverCap": "Estas materias piden {{over}} min más de instrucción de lo que permite la sesión de {{cap}} min de este estudiante, así que el día terminará antes de llegar a las últimas materias. Aumente la duración de la sesión a {{needed}} min para que quepa todo el plan, o quite una materia.",
     "voiceVerification": "Verificación de voz",
     "voiceVerificationOn": "El estudiante dice la frase al iniciar la sesión",
     "voiceVerificationOff": "Solo PIN — sin verificación de voz (silencio / accesibilidad)",

@@ -537,26 +537,24 @@ p.lede {
   padding: 0.3rem 0.85rem;
 }
 
-/* Justified body copy — used only on genuine multi-sentence prose blocks
-   (.limit, .guarantee p, .faq details p), never on short card/list text,
-   where a one- or two-line fragment gives justify too few words to
-   distribute space evenly and the classic ugly gap shows up immediately.
-   text-align-last: left keeps a paragraph's final line ragged rather than
-   stretched or centered — justify's other well-known tell. hyphens: auto
-   is what actually keeps the *earlier* lines from ballooning: without it,
-   a narrow column (a phone-width column runs 40-50 characters) forces the
-   browser to stretch inter-word spacing to fill the line since it can
-   only break between whole words; letting it break mid-word at a
-   syllable gives it far more places to end a line evenly. Relies on
-   <html lang="en"> (already set) for the hyphenation dictionary. */
+/* Body copy — deliberately left-aligned (ragged-right), not justified.
+   A prior pass tried text-align: justify with hyphens: auto to avoid the
+   classic huge-gap problem, and hyphenation did stop the worst cases —
+   but justify still varies inter-word spacing line to line to hit a
+   flush right edge, which is inherent to how browsers justify text, not
+   something hyphenation fully removes. Rendering these paragraphs at
+   several widths (768px down to 480px) showed it plainly: some lines
+   sit at normal spacing, others visibly wider, an unevenness a careful
+   reader notices even without a single dramatic gap. Left-aligned text
+   keeps word-spacing constant on every line, which is why it's the
+   standard choice on Khan Academy and virtually every other site with
+   real body copy — justification is mainly a print convention, built for
+   a fixed page width and a typesetting engine far more sophisticated
+   than a browser's. */
 .limit,
 .guarantee p,
 .faq details p {
-  text-align: justify;
-  text-align-last: left;
-  -webkit-hyphens: auto;
-  -ms-hyphens: auto;
-  hyphens: auto;
+  text-align: left;
 }
 
 /* Where Bede deliberately stops. Set apart from the cards so it reads

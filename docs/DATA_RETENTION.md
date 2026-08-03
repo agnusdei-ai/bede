@@ -93,3 +93,19 @@ describes) are meant to make an honest, informed legal review *possible*,
 not to substitute for one. If you operate this for other families (a
 co-op/parish `coop`-tier license, say), get your own legal review before
 relying on anything here as a compliance statement.
+
+
+## The work ledger (`skill_activity_log`)
+
+One row per completed learning activity — what a student actually finished,
+in which skill, on which date, and how much help it took. Holds no
+transcript, no child's words, and no task prose: `detail_enc` is
+`encrypt_json({skill_id, label, assistance, subject_area})`, the same
+derived-not-raw privacy class as narration assessments and the diagnostic
+evidence log.
+
+Deliberately *not* a psychometric record. The mastery tables hold an
+inference about the child; this holds an observation of an event. It is
+parent-facing only, is never shown to a child, and is removed in full by
+the cascading student deletion (`services/student_deletion.py`) like every
+other per-student table.

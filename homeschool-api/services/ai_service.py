@@ -2933,6 +2933,50 @@ def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> st
     return f"\nWhere this subject left off ({when}): {note}"
 
 
+async def _record_work_done(
+    db: Optional["AsyncSession"],
+    student_name: str,
+    subject_area: str,
+    skill_id: str,
+    outcome: str,
+) -> None:
+    """
+    Append one row to the work ledger (services/diagnostic/activity.py).
+
+    Called alongside every mastery write rather than replacing it: the
+    mastery vector answers "how likely is it this child has mastered X",
+    the ledger answers "what has this child actually done". Only the second
+    can honestly support a parent arranging one of their students to help
+    another, which is why both exist.
+
+    Resolves the human-readable label from whichever engine owns that
+    subject area, so the ledger reads in the parent's language rather than
+    in skill ids. Entirely best-effort — a ledger failure must never
+    surface to the child's turn, and never blocks the mastery write that
+    already succeeded.
+    """
+    if db is None:
+        return
+    try:
+        from services.diagnostic.activity import record_activity
+
+        label = skill_id
+        if subject_area == "mathematics":
+            from services.diagnostic.skill_map import get_skill
+            skill = get_skill(skill_id)
+            label = skill.label if skill else skill_id
+        elif subject_area == "literacy":
+            label = _LITERACY_DOMAIN_LABELS.get(skill_id, skill_id)
+        elif subject_area == "phonics":
+            label = _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
+        elif subject_area == "language_exposure":
+            label = _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
+
+        await record_activity(db, student_name, subject_area, skill_id, label, outcome)
+    except Exception as exc:
+        log.warning("Work-ledger write failed for %s/%s: %s", student_name, skill_id, exc)
+
+
 async def _record_skill_evidence(
     db: Optional["AsyncSession"],
     demo_code: Optional[str],
@@ -2968,6 +3012,13 @@ async def _record_skill_evidence(
             await process_evidence(
                 db, config.student_name, ev.probe_id, ev.outcome, ev.confidence,
                 config.grade_stage.value,
+            )
+            # The work ledger, alongside (not instead of) the mastery
+            # update — the two answer different questions and both are
+            # wanted. See services/diagnostic/activity.py.
+            await _record_work_done(
+                db, config.student_name, "mathematics",
+                ev.probe_id.removeprefix("probe."), ev.outcome,
             )
     except Exception as exc:
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
@@ -3051,6 +3102,7 @@ async def _record_literacy_evidence(
 
         ev = RecordLiteracyEvidenceInput(**tool_input)  # validate/clamp
         await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
+        await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome)
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3082,6 +3134,7 @@ async def _record_phonics_evidence(
 
         ev = RecordPhonicsEvidenceInput(**tool_input)  # validate/clamp
         await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
+        await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome)
     except Exception as exc:
         log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3133,6 +3186,7 @@ async def _record_language_evidence(
         if own_language and ev.language != own_language:
             return
         await _process_language(db, config.student_name, ev.language, ev.outcome)
+        await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
 

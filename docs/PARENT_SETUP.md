@@ -1106,3 +1106,44 @@ effects earlier:
 If that pace doesn't suit your child, adjust their grade level rather than
 pushing — the whole point of a mastery-based approach is that the child sets
 the pace and the map stays honest about where they are.
+
+
+## The work ledger: what your child has actually done
+
+Bede keeps two different kinds of record about each student, and it's worth
+knowing which is which.
+
+The **mastery snapshots** on the Progress page are an *inference*: "how
+likely is it that this child has this skill." They're useful, and they're
+still a judgment Bede is making about your child.
+
+The **work ledger** is not a judgment at all. It records what actually
+happened: on this date, in this subject, a task in this skill was
+completed, and it took no help / a hint / real help. Counts and dates,
+nothing more. There is deliberately no score, no level, no average and no
+percentage anywhere in it, because each of those would quietly turn a
+record of work back into a verdict on the child.
+
+Two things it will not do:
+
+- **A missed attempt is never logged as work.** If your child tried
+  something and didn't get it, that belongs in the mastery picture, not in
+  a ledger of what they finished. This is a record of accomplishment, not
+  of failure.
+- **It never ranks your children against each other.** The pod view shows,
+  per skill, *who has done the work and how often* — a roster, not a
+  league table. There is no per-child total, students are listed
+  alphabetically so the order can't shift with the numbers, and a child who
+  hasn't done a piece of work simply isn't on that skill's list rather than
+  appearing at zero beside a sibling.
+
+**What it's for.** If you're running your pod as a team, this is how you
+arrange one child to help another without measuring either of them against
+the other. "Ada has finished long division fourteen times unaided; Wren is
+just starting it — ask Ada to show her" is a decision made from evidence of
+work done, and the age of either child is irrelevant to it. That's the
+whole idea: a more experienced team member trains a less experienced one,
+and what makes them more experienced is what they've actually done.
+
+Parent-facing only. Your children never see any of it, their own or each
+other's.

@@ -111,6 +111,67 @@ _SUMMARY_BUILDERS = {
 }
 
 
+@router.get("/pod/activity")
+async def get_pod_activity(
+    students: str,
+    since_days: int = 90,
+    subject_area: str | None = None,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    The same ledger across the parent's own students, so a pod can be run
+    as a self-managed team: per skill, WHO HAS DONE the work and how often.
+
+    Emits no ranking, no per-student total, and no student ordering — see
+    services/diagnostic/activity.pod_activity for why each of those is
+    deliberately absent. Parent-only and never surfaced to a child.
+
+    `students` is a comma-separated list, capped at the same 10-seat pod
+    limit PodConfigsRequest enforces.
+
+    DECLARED BEFORE /{student_name}/activity deliberately: FastAPI matches
+    routes in declaration order, so the parameterized path would otherwise
+    swallow this one as student_name="pod".
+    """
+    from services.diagnostic.activity import pod_activity
+
+    names = [n.strip() for n in students.split(",") if n.strip()][:10]
+    if not names:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Name at least one student.",
+        )
+    return await pod_activity(db, names, min(365, max(1, since_days)), subject_area)
+
+
+@router.get("/{student_name}/activity")
+async def get_student_activity(
+    student_name: str,
+    since_days: int = 90,
+    subject_area: str | None = None,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    The work ledger: what this student has actually DONE — counts and
+    dates, never a score. Parent-only, like every other route on this
+    router.
+
+    Distinct from /summary above on purpose. That endpoint reports inferred
+    mastery ("how likely is it they can do X"); this one reports observed
+    activity ("what have they finished, and how much help did it take").
+    See services/diagnostic/activity.py for why both exist and why this one
+    deliberately emits no average, level, or percentage.
+
+    since_days is capped at 365, the same size-capped convention
+    GET /admin/audit's limit uses.
+    """
+    from services.diagnostic.activity import summarize
+
+    return await summarize(db, student_name, min(365, max(1, since_days)), subject_area)
+
+
 @router.get("/{student_name}/summary", response_model=MasteryProfileSummary)
 async def get_student_mastery_summary(
     student_name: str,

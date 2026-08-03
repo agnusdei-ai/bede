@@ -1,258 +1,232 @@
-# Session-Scoped Diagnostic — Specification
+# Measuring Mastery Without Keeping a File on a Child
 
-*Status: **proposed**, not built. This is a design to accept, amend, or
-reject. What ships today is the persistent path described in
-[DIAGNOSTIC_ENGINE_DESIGN.md](DIAGNOSTIC_ENGINE_DESIGN.md); nothing in this
-document is live.*
+**A proposal for how Bede assesses learning, and what it should keep afterward.**
 
----
-
-## 1. The position this encodes
-
-Bede should be able to gauge mastery with real diagnostic rigour, and Agnus
-Dei should not hold a retained psychometric assessment of anybody's child.
-
-Those are only in tension if you treat "the diagnostic" as one thing. It is
-two, and the codebase already separates them:
-
-| | Holds | Example | Retention today |
-|---|---|---|---|
-| `MasteryProfile` / `DiagnosticEvidenceLog` | A **claim about the child** | "0.47 probability of having mastered multi-digit multiplication" | Indefinite |
-| `SkillActivityLog` (work ledger) | An **event** | "on 3 Aug, a multi-digit multiplication task was completed unaided" | Indefinite |
-
-That distinction is not invented here. `services/diagnostic/activity.py`
-exists precisely because the second is safe to keep and the first is the
-kind of record that follows a person. This spec follows the same line one
-step further: **stop retaining the claim; keep the diagnostic.**
-
-### 1.1 What "not stored by us at Agnus Dei" already means
-
-Worth stating plainly, because it changes what this spec is actually for.
-
-For a self-hosted family — the real product — the database is theirs, on
-their hardware, encrypted at rest. `DATABASE_URL` points at their Postgres.
-**Agnus Dei has no pipe to it on any path, including PIN entry.** Nothing in
-this spec is needed to achieve that; it is already structurally true.
-
-The one place Agnus Dei does briefly hold diagnostic data is the public
-demo (`services/diagnostic_demo.py` → `DemoCodeSession`, its own table,
-TTL-evicted, deleted on logout).
-
-So this spec is not about Agnus Dei's servers. It is about whether a
-retained psychometric claim about a child should exist **at all**, on
-anyone's disk, including the family's own.
+> **Status: proposed.** Nothing described here is built. What Bede does
+> today is the persistent approach described in
+> [DIAGNOSTIC_ENGINE_DESIGN.md](DIAGNOSTIC_ENGINE_DESIGN.md). This document
+> exists to be accepted, amended, or rejected.
 
 ---
 
-## 2. Efficacy — the constraint that shapes the design
+## Summary
 
-The reason this is not simply "stop writing the table."
+Bede can assess a child's mastery with genuine rigour. The question this
+document settles is what it should keep once it has.
 
-`mastery.CALIBRATION_THRESHOLD = 5` evidence points, below which a learner
-is reported as still calibrating. The constant carries its own honest
-caveat: *"a placeholder, not yet tuned against real sessions"*, against the
-design doc's `[to verify final N]`.
+Today Bede keeps two different kinds of record. One is a **statement about
+your child**: an estimate that they have, say, a 47% probability of having
+mastered multi-digit multiplication. The other is a **record of what
+happened**: that on the third of August, a multi-digit multiplication task
+was completed without help.
 
-Against that:
+The second is ordinary. It is the kind of note any tutor keeps. The first
+is a psychological profile, and it is the kind of record that follows a
+person.
 
-- `SUBJECT_DURATIONS[mathematics]` is **20 minutes**. A two-hour session is
-  wall-clock and includes a mandatory ten-minute break per hour, so
-  mathematics is one block of it, not the whole.
-- Evidence is recorded only when a skill genuinely surfaces in dialogue
-  (`record_skill_evidence` is silent and opportunistic, never a quiz).
-- `_MAX_TOOL_CALLS_PER_TURN = 6` bounds a single turn.
+**The proposal is to stop keeping the first and continue keeping the
+second.** Bede would still run the full assessment, still report what it
+found, and then let the estimate go when the session ends.
 
-**A single math block plausibly yields a handful of evidence points — the
-same order of magnitude as the calibration threshold itself.** Which gives
-the finding this spec has to design around:
-
-> Discarding everything between sessions costs precisely the accumulation
-> that makes the estimate meaningful. A purely session-scoped diagnostic
-> would frequently report "still getting to know your learner" and never
-> progress past it.
-
-This is not an argument against the position in §1. It is the reason the
-design below keeps *events* and discards *claims*, rather than discarding
-both.
+There is a real cost, and Section 5 states it plainly rather than leaving
+it to be discovered later.
 
 ---
 
-## 3. Design
+## 1. Where a family's data actually lives
 
-### 3.1 What is retained, explicitly
+Worth establishing first, because it is often the real concern behind the
+question.
 
-| Store | Retained? | Why |
+Bede runs on your own computer. The database is yours, on your hardware,
+encrypted, in your house. **Agnus Dei has no connection to it and never
+receives your child's assessments.** That is already true today, on every
+sign-in path including a child's PIN. Nothing in this proposal is needed to
+achieve it.
+
+The one exception is the public demo on our website, which necessarily runs
+on our servers. There, a visitor's practice session is held briefly and
+deleted when the code expires or they log out.
+
+So this document is not about what Agnus Dei can see. It is about a
+narrower and more interesting question: **whether a lasting psychological
+estimate of a child should exist at all, on anyone's computer, including
+your own.**
+
+---
+
+## 2. What Bede keeps today
+
+| What is stored | What it actually says | Kept for |
 |---|---|---|
-| `SkillActivityLog` (work ledger) | **Yes** | Events, not traits. Already the safe half. |
-| `NarrationAssessment` | **Yes** — see §6 | Scores a work product, not the child. The guarantee depends on it. |
-| `MasteryProfile` | **No** | The psychometric claim. This is the thing being retired. |
-| `DiagnosticEvidenceLog` | **No** | Per-update deltas; the audit trail *of* the claim. |
-| In-session vector | **No** | Lives in process memory for the session, then gone. |
+| Mastery profile | "This child probably has or has not mastered X" | Indefinitely |
+| Evidence log | The reasoning behind each change to that estimate | Indefinitely |
+| Work ledger | "This task was completed on this date, unaided" | Indefinitely |
+| Narration assessments | Scores for a specific piece of work the child produced | Indefinitely |
 
-### 3.2 Flow
-
-1. A session starts. A `MasteryVector` is cold-started from grade band via
-   `mastery.new_vector()` — no load, because there is nothing stored to load.
-2. Evidence accumulates **in memory** across the whole session, hits *and*
-   misses, for as long as the session runs. This is where the two-hour
-   window does its work: everything the child does that afternoon informs
-   one estimate.
-3. At session end, `build_summary_view()` renders the snapshot into the
-   parent's summary.
-4. The vector is discarded. Nothing about the estimate reaches disk.
-5. The work ledger continues writing events exactly as it does now.
-
-### 3.3 Why this is small
-
-The engine is already split correctly. `new_vector`, `apply_evidence` and
-`build_summary_view` are **pure functions**; `process_evidence` is the thin
-layer that wraps load/decrypt/apply/encrypt/store around them.
-
-`services/diagnostic_demo.py` is the existing proof: it runs the real
-engine, produces a real summary, and never touches `mastery_profiles`.
-
-So the change is a third branch in a function that already branches twice:
-
-```
-_record_skill_evidence(db, demo_code, ...)
-    demo_code is not None   -> demo backend            (exists)
-    db is not None          -> persistent backend      (exists)
-    ephemeral mode          -> in-session accumulator  (new)
-```
-
-### 3.4 Where the accumulator lives
-
-**Constraint:** `services/streaming_transcription.py` is the precedent and
-the warning. Its own docstring: *single-process, in-memory only — sessions
-don't survive routing to a different instance under horizontal scaling.*
-
-The same applies here, and it is acceptable for the same reason: a tutoring
-session is already pinned to one process by its SSE stream. It must be
-written down rather than discovered.
-
-Requirements:
-
-- Keyed by session, not by student name. A student key would outlive the
-  session and quietly become the thing we are removing.
-- A TTL sweep for abandoned sessions, mirroring
-  `streaming_transcription.py`'s 180-second idle eviction.
-- Hard-bounded in size, so a long session cannot grow memory without limit.
+The distinction between the first two rows and the last two is not new. The
+work ledger was built precisely because a record of *what a child did* is
+safe to keep, while a judgment about *what a child is* is not. This
+proposal follows that same reasoning one step further.
 
 ---
 
-## 4. What changes for a parent
+## 3. The proposal
 
-Stated bluntly, because this is the cost side.
+Bede would assess exactly as it does now, with one change: the estimate
+lives only for the length of the session.
 
-- **The Progress page's mastery cards become a picture of today**, not of a
-  term. `MasterySnapshot` currently reads a vector built over weeks.
-- **"Math Skill Growth" becomes within-session.** It already computes
-  session-start prior vs session-end posterior, so the mechanism survives —
-  but the prior is now always a cold start rather than where the child
-  actually was last week.
-- **Cross-session trend disappears.** There is no honest way to show a
-  six-week arc without retaining something that describes the child.
-- **`next_steps` still works.** `kst.fringe()` operates on the current
-  vector; a session-scoped vector still has a fringe.
+1. A session begins. Bede starts from what is typical for the child's grade,
+   because there is no stored profile to load.
+2. Throughout the session, everything the child demonstrates feeds the
+   estimate. A two-hour morning informs one assessment.
+3. At the end, the parent's summary reports what Bede observed.
+4. The estimate is discarded.
+5. The record of work completed continues exactly as before.
 
 ---
 
-## 5. What survives, and one thing that does not
+## 4. What a family would notice
 
-**The learner's guarantee survives.** Term Mastery Outcomes reads
-`NarrationAssessment.term_topic` / `term_topic_level` — narration rubric
-scores, a *different store* from the diagnostic vector. Retiring
-`MasteryProfile` does not break the guarantee.
+**Unchanged.** The lesson itself, the questions Bede asks, the session
+summary, the record of work completed, the learner's guarantee, and the
+mastery cycle that reports movement over four weeks.
 
-**The mastery cycle survives**, for the same reason: `readCycle()` reads
-narration assessments, not the vector.
-
-**The work ledger survives** untouched, and becomes the primary durable
-record of what a child has actually done.
-
-**What does not survive: the composition, phonics, literacy and
-language-exposure profiles.** They share `MasteryProfile` (by
-`subject_area`) and would go session-scoped with it. A K–2 phonics picture
-built over a term is arguably the most *useful* retained profile in the
-product, and it is the one this costs most. Flagged as a real loss, not
-waved past.
+**Changed.** The mastery cards on the Progress page would describe the most
+recent session rather than the term. The "Math Skill Growth" note would
+show movement within a morning rather than across weeks. Long-run trends
+would no longer be available, because showing a six-week arc requires
+keeping a six-week record of the child.
 
 ---
 
-## 6. Open decisions
+## 5. What it costs
 
-These need answers before implementation, and each changes the shape.
+This is the part that decides whether the proposal is worth adopting.
 
-**D1 — Scope of the control.** Per-session ("don't keep this one"),
-per-student ("never keep mastery for this child"), or deployment-wide
-("this instance never retains an assessment")? These are three different
-products. *Recommendation: deployment-wide flag first.* It matches the
-existing `diagnostic_evidence_log_enabled` precedent, it is the one a
-privacy posture actually needs, and per-student can be layered later.
+A mastery estimate becomes reliable through accumulation. Bede treats a
+learner as "still calibrating" below a threshold of five pieces of
+evidence, and that threshold is marked in our own code as provisional and
+not yet tuned against real families.
 
-**D2 — Is `NarrationAssessment` in scope?** It is retained and it *is* an
-assessment. It scores a work product rather than claiming a trait, which
-puts it on the safer side of the line — but if "no retained assessments" is
-meant literally, it is in scope, and the guarantee genuinely depends on it.
-*Recommendation: out of scope, and say why in the docs* — the distinction
-being drawn is trait vs. work product, not the word "assessment."
+Set against that: mathematics is a twenty-minute block of the day, and
+Bede gathers evidence only when a skill genuinely comes up in conversation.
+It never quizzes for it. **A single session therefore produces evidence in
+roughly the same range as the calibration threshold itself.**
 
-**D3 — Migration for existing families.** Rows exist today. Does turning
-this on delete them, orphan them, or leave them readable until the parent
-deletes the student? *Recommendation: delete on enable, loudly and with
-confirmation.* Leaving a retained assessment in place while the setting
-claims none is retained is the worst of both.
+The consequence is direct. Discarding the estimate between sessions removes
+the accumulation that makes it meaningful, and a family may often see "still
+getting to know your learner" rather than a confident picture.
 
-**D4 — Does the demo change?** It is already ephemeral and TTL-evicted.
-*Recommendation: no change.*
-
-**D5 — Calibration honesty.** With a cold start every session, the
-"calibrating" state will be common. Does the parent-facing copy say so
-plainly? *Recommendation: yes, and it should explain the trade rather than
-reading as a defect* — the summary should say the estimate covers today,
-by design.
+**This proposal buys a privacy position with statistical power.** It is a
+genuine trade, not a free improvement, and it should be adopted with that
+understood.
 
 ---
 
-## 7. Testing requirements
+## 6. What this would cost elsewhere
 
-Non-negotiable for a change of this kind. Every one is a "must refuse"
-test, because the failure mode is silent persistence.
+The mastery profile is shared by more than mathematics. Composition,
+phonics, reading and spelling, and language exposure all use it.
 
-1. **Nothing reaches `mastery_profiles`.** Run a full session's worth of
-   evidence in ephemeral mode against a real test DB and assert the table
-   is empty afterwards. Not a mock — the actual table.
-2. **Nothing reaches `diagnostic_evidence_log`.** Same shape.
-3. **The work ledger is unaffected.** Events still written, same counts.
-4. **Two sessions do not see each other.** Session B cold-starts; no key
-   collision, no leakage via a shared student name.
-5. **Accumulation actually works within a session.** Evidence at minute 5
-   and minute 95 lands in the same vector, and the summary reflects both —
-   this is the efficacy claim, and it needs a test.
-6. **Abandoned sessions are evicted**, and eviction frees the vector.
-7. **The flag genuinely toggles**, with the persistent path unchanged when
-   off — byte-for-byte the same behaviour as today.
+The most significant loss is **phonics**. A picture of a young child's
+decoding built steadily across a term is arguably the most useful record
+Bede produces for a family in the early years, and it is exactly the kind
+that depends on accumulation. It would become a snapshot.
 
 ---
 
-## 8. What this does not solve
+## 7. Decisions still open
 
-The estimate is only as good as one session's evidence, and §2 shows that
-is close to the calibration floor. **This buys a privacy position at a real
-cost in statistical power, and the honest framing is a trade, not a free
-win.**
+| | Question | Recommendation |
+|---|---|---|
+| **D1** | Is this a whole-installation setting, a per-child setting, or a per-session choice? | **Whole installation.** A privacy position should be a property of the software a family installed, not a checkbox to remember. Per-child can follow later. |
+| **D2** | Do narration assessments fall under this too? | **No, and the reason should be published.** They score a piece of work, not the child. That is the distinction being drawn, rather than the word "assessment." |
+| **D3** | What happens to profiles that already exist? | **Delete them when the setting is turned on**, with clear confirmation. Leaving records in place while the software claims none are kept is the worst outcome available. |
+| **D4** | Does the public demo change? | **No.** It is already temporary. |
+| **D5** | How is "still calibrating" explained? | **Plainly, as a design choice.** The summary should say the estimate covers today by design, so it reads as intended behaviour rather than a fault. |
 
-If the diagnostic needs to be genuinely strong, the alternative worth
-considering is a *retained event log with on-demand computation*: keep
-factual events including misses, compute the vector when asked, store no
-claim. That preserves accumulation across sessions with nothing on disk
-that describes the child.
+---
 
-The blocker is that the work ledger deliberately **does not record
-`incorrect`** — *"a missed attempt isn't completed work"* — and a
-psychometric estimate needs the misses. Reversing that would make the
-ledger a record of failures, which is the thing it was explicitly built not
-to be.
+## 8. The question this leaves unresolved
 
-That tension is unresolved and is the most interesting open question in
-this area.
+There is a third option, and it is better than either of the two above if
+it can be made to work.
+
+Keep a factual record of what happened, including the attempts that did not
+succeed, and calculate the estimate only when someone asks for it. Nothing
+describing the child would ever be stored, and accumulation across sessions
+would be preserved. The best of both.
+
+The obstacle is real. The work ledger deliberately does **not** record
+unsuccessful attempts, on the grounds that a missed attempt is not
+completed work and that the ledger should not become a record of a child's
+failures. A statistical estimate needs those attempts; they carry much of
+the information.
+
+So the third option trades one privacy protection for another, and that is
+a decision about what kind of record a family should live with rather than
+a technical problem to solve. It is the most interesting open question in
+this area and it is not settled here.
+
+---
+
+## Appendix A. Implementation notes
+
+*For the engineering team. Everything above is readable without this.*
+
+**The engine is already split correctly.** `mastery.new_vector`,
+`mastery.apply_evidence`, and `mastery.build_summary_view` are pure
+functions; `services.diagnostic.process_evidence` is the thin layer adding
+load, decrypt, apply, encrypt, and store around them.
+`services/diagnostic_demo.py` already proves the engine runs and renders a
+real summary without touching `mastery_profiles`.
+
+**The change is a third branch** in `_record_skill_evidence`
+(`services/ai_service.py`), which already branches twice:
+
+| Condition | Backend | Status |
+|---|---|---|
+| `demo_code is not None` | Demo single-session store | Exists |
+| `db is not None` | `process_evidence` → `mastery_profiles` | Exists |
+| Ephemeral mode | In-session accumulator | **New** |
+
+**Accumulator constraints.** `services/streaming_transcription.py` is both
+the precedent and the warning: single-process, in-memory, does not survive
+routing to another instance under horizontal scaling. Acceptable here for
+the same reason (a tutoring session is pinned to one process by its SSE
+stream), but it must be documented rather than discovered.
+
+- Key by session, never by `student_name`. A student key outlives the
+  session and quietly recreates what is being removed.
+- TTL sweep for abandoned sessions, mirroring the 180-second idle eviction
+  in `streaming_transcription.py`.
+- Bounded in size, so a long session cannot grow memory without limit.
+
+**Numbers behind Section 5.** `mastery.CALIBRATION_THRESHOLD = 5`, carrying
+its own `"placeholder, not yet tuned against real sessions"` comment
+against the design document's `[to verify final N]`.
+`SUBJECT_DURATIONS[Subject.mathematics] = 20` minutes.
+`_MAX_TOOL_CALLS_PER_TURN = 6` bounds a single turn.
+
+**Confirmed unaffected.** Term Mastery Outcomes and the mastery cycle both
+read `NarrationAssessment.term_topic_level`, a different store from the
+vector. `kst.fringe()` operates on the current vector, so `next_steps`
+continues to work session-scoped.
+
+---
+
+## Appendix B. Test requirements
+
+Every test below asserts a **refusal**, because the failure mode is silent
+persistence rather than a visible error.
+
+| # | Must prove |
+|---|---|
+| 1 | A full session of evidence leaves `mastery_profiles` empty. Real table, not a mock. |
+| 2 | The same for `diagnostic_evidence_log`. |
+| 3 | The work ledger is unaffected: same events, same counts. |
+| 4 | Two sessions cannot see each other. Session B cold-starts, with no leakage through a shared student name. |
+| 5 | Accumulation works *within* a session: evidence at minute 5 and minute 95 reach the same estimate. This is the efficacy claim and needs a test of its own. |
+| 6 | Abandoned sessions are evicted, and eviction frees the estimate. |
+| 7 | With the setting off, the persistent path behaves exactly as it does today. |

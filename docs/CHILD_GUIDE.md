@@ -1,9 +1,9 @@
 # Welcome to Bede! 📖
 
-*A note to parents: this page is written directly to your child — print it, read it
+*A note to parents: this page is written directly to your child. Print it, read it
 together the first time, or just hand over the tablet. Nothing here requires the
-parent password. For the parent-facing version of the same ideas — what Bede's
-Socratic method actually is, and how to ask the same kind of question yourself —
+parent password. For the parent-facing version of the same ideas: what Bede's
+Socratic method actually is, and how to ask the same kind of question yourself,
 see [docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md).*
 
 ---
@@ -13,14 +13,14 @@ Hi! I'm **Bede**. I'll be your tutor while you learn today.
 ## Getting started
 
 1. Open Bede on your tablet. If your family uses Bede in more than one language, you'll
-   see **English** and **Español** at the top — tap the one you want before you log in,
+   see **English** and **Español** at the top. Tap the one you want before you log in,
    and I'll talk with you in that language the whole time.
 2. Tap **Student**, then type in your PIN.
-3. When I ask, say: **"I am ready to learn today!"** — that's how I know it's really
+3. When I ask, say: **"I am ready to learn today!"**, that's how I know it's really
    you, not just anyone with the PIN.
-4. If I don't recognize your voice, that's okay — a parent can approve your session
+4. If I don't recognize your voice, that's okay: a parent can approve your session
    instead. It happens sometimes, especially if you have a cold!
-5. The very first time you log in, I'll show you a quick "Meet Bede" screen — the
+5. The very first time you log in, I'll show you a quick "Meet Bede" screen: the
    short version of everything on this page. Tap **Let's begin!** when you're ready,
    and you won't see it again automatically. If you ever want to see it again, tap
    the **?** near the top of the screen.
@@ -30,39 +30,39 @@ Hi! I'm **Bede**. I'll be your tutor while you learn today.
 You can answer me in whichever way feels easiest:
 
 - **Type** your answer in the box at the bottom.
-- **Press and hold the microphone** 🎤 while you talk — like a walkie-talkie —
-  take all the little pauses you need, then **let go when you're done**. The
+- **Press and hold the microphone** 🎤 while you talk, like a walkie-talkie.
+  Take all the little pauses you need, then **let go when you're done**. The
   moment you let go, I hear the whole thing. When it's your turn again, the
   microphone gives a gentle glow to remind you to press and hold. If I ever
   say I can't hear you, it just means this tablet's microphone needs a
-  parent's okay — you can always keep going by typing instead.
+  parent's okay. You can always keep going by typing instead.
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
-  microphone), you don't need to press and hold at all — I'll just start
+  microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and
   when you're done I'll hear you and answer. Tap the microphone anytime to
   go back to press-and-hold instead.
-- **Tap the pencil** ✏️ to draw or write your answer by hand — I can look at your
+- **Tap the pencil** ✏️ to draw or write your answer by hand. I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
   paper for math, dots for shapes and patterns, music staff paper, a nature
   journal page for sketching, or a blank sheet. You can even change the paper's
   color. If you'd rather write with a real pencil, tap the little printer button
-  to print that page — it comes out the true size of a real sheet of paper, with
+  to print that page. It comes out the true size of a real sheet of paper, with
   the lines spaced just like your handwriting practice at your grade.
   - The drawing screen has three tools: **Pen** for bold solid ink, **Pencil**
     for a lighter, softer graphite look, and the **Eraser** to rub out a
-    mistake — pick whichever fits what you're making. Undo and Redo are up
+    mistake. Pick whichever fits what you're making. Undo and Redo are up
     top too, if you change your mind.
   - Drawing with your finger instead of a stylus? The line appears a little
-    above where your finger actually is, on purpose — that way your finger
+    above where your finger actually is, on purpose. That way your finger
     isn't covering up the line while you draw it, just like how a marker
     doesn't hide what you're writing.
 
 There's also a little **palette** 🎨 at the top of the chat. Tap it to choose the
 look of our room: the background behind us, and the color of your own speech
-bubbles. If you don't see the palette, your parent has chosen the look for you —
-that's okay too.
+bubbles. If you don't see the palette, your parent has chosen the look for you,
+and that's okay too.
 
-I'll never just give you the answer — I'll ask you questions instead, because
+I'll never just give you the answer. I'll ask you questions instead, because
 figuring things out yourself is how you really learn something. Take your time.
 There's no rush and no wrong way to think out loud.
 
@@ -70,15 +70,15 @@ There's no rush and no wrong way to think out loud.
 
 - We'll go through your subjects for the day, one at a time.
 - Each week during Morning Time, we'll pray one of the Church's own special prayers
-  together, word for word — the same one all week, so you have time to learn it by
+  together, word for word: the same one all week, so you have time to learn it by
   heart if you'd like to. If your family prays in Spanish, I'll pray it in Spanish too.
-- Sometimes I'll ask you to **tell me back** a story in your own words — that's
+- Sometimes I'll ask you to **tell me back** a story in your own words. That's
   called a *narration*, and it's one of my favorite parts.
 - If your family has picked **Latin** as one of your subjects, we'll learn a few
-  Latin words together — not a whole language all at once, just a word or two at a
+  Latin words together, not a whole language all at once, just a word or two at a
   time, said out loud. Latin is the language a huge amount of Christian prayer,
   music, and writing was first put down in, and a surprising number of your English
-  words are secretly Latin words wearing a coat. *Veritas* means truth — that's
+  words are secretly Latin words wearing a coat. *Veritas* means truth. That's
   where *verify* comes from. *Lux* means light. *Caritas* means the kind of love
   that gives itself away for somebody else.
 
@@ -89,7 +89,7 @@ There's no rush and no wrong way to think out loud.
   > *Diliges proximum tuum sicut teipsum.*  (Love your neighbor as yourself.)
 
   Every other Latin word we learn hangs on that one sentence. If you're little,
-  we'll only ever *say* Latin out loud — nothing to spell, nothing to write, and I
+  we'll only ever *say* Latin out loud: nothing to spell, nothing to write, and I
   will never ask you to translate something. Say it loudly if you want to. That's
   allowed. That's actually the whole point.
 
@@ -97,81 +97,81 @@ There's no rush and no wrong way to think out loud.
   you I'd rather check than guess, because in Latin one wrong letter at the end of a
   word changes what the whole sentence means, and I don't want to teach you
   something wrong. And if you've learned to say a Latin word a different way than I
-  say it, you're not wrong — there are two real ways to pronounce Latin, and however
+  say it, you're not wrong. There are two real ways to pronounce Latin, and however
   your family teaches it is the right one for you.
 - If your family picked **Greek**, we get to do something extra fun first: Greek has
   its own alphabet, with its own letters and shapes. If you're little, learning those
-  letters IS the whole subject, and it's a good one — here's why. The word
+  letters IS the whole subject, and it's a good one: here's why. The word
   *alphabet* is just the first two Greek letters stuck together: **alpha** and
   **beta**. And the very last letter is **omega**. In the last book of the Bible,
-  Jesus says: *"I am the Alpha and the Omega"* — the first letter and the last. So
+  Jesus says: *"I am the Alpha and the Omega"*, the first letter and the last. So
   when you learn your Greek letters, you're learning something he called himself.
 
   Greek matters for another reason too. Most of the New Testament was written down
-  in Greek to begin with — so when we read a word like **ἀγάπη** (say it
+  in Greek to begin with, so when we read a word like **ἀγάπη** (say it
   *ah-GAH-pay*, and it means the kind of love that gives itself away), that's not a
   translation of what someone said. Those are the actual letters they wrote.
 
   I'll always show you three things together: the Greek, how to say it in our own
   letters, and what it means. You'll never get a pile of strange letters with no way
-  in — that wouldn't be fair.
+  in. That wouldn't be fair.
 
-  And if your family or your church already says these words a certain way — some
-  families and churches say Greek quite differently than I will — that's *their*
+  And if your family or your church already says these words a certain way: some
+  families and churches say Greek quite differently than I will. That's *their*
   way and it's a real one. I won't correct you.
 - If your family picked **Logic**, we'll practice thinking clearly. When you're a
-  bit younger, that's mostly learning to ask good questions — *"Is that true
+  bit younger, that's mostly learning to ask good questions: *"Is that true
   always, or only sometimes?"* and *"How do you know?"* and my favorite one, *"Did
   it happen **because** of that, or just **after** it?"* (If you wore red socks and
   your team won, did the socks help? How could we find out?)
 
   When you're older we'll look at arguments properly, and you'll learn something
   that surprises most people: an argument can be built *perfectly* and still end up
-  wrong. Watch — "All birds can fly. A penguin is a bird. So a penguin can fly."
+  wrong. Watch: "All birds can fly. A penguin is a bird. So a penguin can fly."
   Nothing went wrong with the *shape* of that. It went wrong because the first
   sentence isn't true.
 
   Here's the part that matters most to me, though, and I'll say it more than once:
-  **this is for finding out what's true together with someone — not for winning
+  **this is for finding out what's true together with someone, not for winning
   against them.** It would be easy to learn a few of these and start using them to
   catch people out. Please don't. The first person to test an argument on is
   yourself: before you argue against someone, see if you can say *their* side so
   well that they'd agree you got it right.
 
-  And I won't help you argue against your parents. That's not me dodging you —
-  it's that things you disagree about at home belong to your family, and they're
+  And I won't help you argue against your parents. That's not me dodging you.
+  Things you disagree about at home belong to your family, and they're
   not a homework exercise. Bring me the argument about penguins instead.
 - Sometimes I'll open your writing pad myself and invite you to write or draw
-  something — like sketching what you noticed outside, or writing down what
+  something, like sketching what you noticed outside, or writing down what
   happened first in a story.
 - At least once a day, I'll invite you to spend about ten minutes on a real piece
-  of your own work — writing or drawing what you've learned. That's your
+  of your own work: writing or drawing what you've learned. That's your
   composition time. You can always say no, and I won't mind. But putting it down
   on paper in your own words is one of the best ways to make learning stick, so I
   hope you'll give it a real try.
-- Sometimes a lesson gets left unfinished — you run out of day in the middle of a
+- Sometimes a lesson gets left unfinished. You run out of day in the middle of a
   chapter, or something comes up. When that happens, your parent can tell me where
   you stopped, so the next time we open that subject I already know. I won't ask you
   what you were reading or how far you got; we'll just carry on from there. I should
   be honest with you about one thing: I don't remember our lessons afterward the way
-  you do. If I know where we stopped, it's because your parent told me — not because
+  you do. If I know where we stopped, it's because your parent told me, not because
   I remembered it. And if I've got it wrong, say so! Maybe you finished that chapter
   after all, or never quite got there. I'll believe you and we'll start from wherever
   you really are.
 - I might celebrate when you figure something out, or offer a hint if you're stuck.
-- After each hour, the screen will pause for a real break — ten minutes away from
+- After each hour, the screen will pause for a real break, ten minutes away from
   the screen. Go outside, look at something far away, or say a quiet prayer. I'll
   suggest something each time. When the break ends, we pick up right where we
   left off. If you're away for too long during a break (more than 5 minutes)
-  I'll sign you out for safekeeping — just log back in with your PIN when
+  I'll sign you out for safekeeping, just log back in with your PIN when
   you're ready to continue.
 - If you're one of my younger learners, I'll also **ask** you every twenty
-  minutes whether you'd like a quick break. Notice that word — *ask*. You can
+  minutes whether you'd like a quick break. Notice that word: *ask*. You can
   say "no thanks, keep going" and we'll carry right on, and I won't be the least
   bit put out. Some days you'll be in such a good rhythm that stopping would be
   a shame, and you're allowed to know that about yourself. Other days twenty
   minutes is plenty and you should say yes. If you do say yes, you decide when
-  you're ready to come back — there's no timer counting at you.
+  you're ready to come back. There's no timer counting at you.
 
   The break after a whole hour is different, though. That one isn't a question,
   and I can't skip it even if you ask me nicely. An hour is a long time for eyes
@@ -187,13 +187,13 @@ There's no rush and no wrong way to think out loud.
 
 If you ever feel unsafe, upset, or need help with something that isn't about your
 lesson, **stop and go find a parent or trusted adult right away.** I'm your tutor,
-not a substitute for the people who take care of you — and that's exactly as it
+not a substitute for the people who take care of you, and that's exactly as it
 should be.
 
 ## One more thing
 
 You don't need to remember any passwords except your PIN and your voice phrase.
-Anything else — like changing your lessons or looking at your progress — is
+Anything else, like changing your lessons or looking at your progress, is
 something a parent handles. That's not a secret from you; it's just not part of
 your job. Your job is just to show up curious. I'll take it from there.
 

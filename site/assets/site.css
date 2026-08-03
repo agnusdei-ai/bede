@@ -549,26 +549,18 @@ p.lede {
   padding: 0.3rem 0.85rem;
 }
 
-/* Justified body copy — used only on genuine multi-sentence prose blocks
-   (.limit, .guarantee p, .faq details p), never on short card/list text,
-   where a one- or two-line fragment gives justify too few words to
-   distribute space evenly and the classic ugly gap shows up immediately.
-   text-align-last: left keeps a paragraph's final line ragged rather than
-   stretched or centered — justify's other well-known tell. hyphens: auto
-   is what actually keeps the *earlier* lines from ballooning: without it,
-   a narrow column (a phone-width column runs 40-50 characters) forces the
-   browser to stretch inter-word spacing to fill the line since it can
-   only break between whole words; letting it break mid-word at a
-   syllable gives it far more places to end a line evenly. Relies on
-   <html lang="en"> (already set) for the hyphenation dictionary. */
+/* Left-aligned body copy, matching every other prose block on the site
+   (.fineprint, .faq details p's own container, the demo's own Privacy
+   Notice). These three were the last holdout on justify + hyphenation —
+   real-world convention (Khan Academy, most reading-focused sites) reads
+   left-aligned, ragged-right prose more easily than justified text, which
+   produces uneven inter-word gaps at these narrow (40-70ch) column widths
+   regardless of hyphenation. See the readability pass that already
+   reverted every other block from justify to left for the same reason. */
 .limit,
 .guarantee p,
 .faq details p {
-  text-align: justify;
-  text-align-last: left;
-  -webkit-hyphens: auto;
-  -ms-hyphens: auto;
-  hyphens: auto;
+  text-align: left;
 }
 
 /* Where Bede deliberately stops. Set apart from the cards so it reads
@@ -953,7 +945,8 @@ button.cta {
   font-size: 0.95em;
 }
 
-/* Trackers & data-disclosure page (/trackers/) — a plain inventory table
+/* Privacy & data-disclosure page (/privacy/, formerly /trackers/ — see
+   site/trackers/index.html's redirect stub) — a plain inventory table
    and callout note, styled to this site's own palette rather than a
    separate inline stylesheet (compare demo/public/privacy.html, which
    carries its own because a Vite-built app has no shared CSS entry the

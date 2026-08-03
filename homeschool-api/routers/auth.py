@@ -7,16 +7,24 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import child_throttle, parent_lockout
+from core import child_throttle, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
 from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
-from core.deps import require_auth
+from core.deps import require_auth, require_parent
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
-from models.schemas import DemoCodeRequest, DemoCodeResponse, LoginRequest, TokenResponse, VALID_GRADES
+from models.schemas import (
+    DemoCodeRequest,
+    DemoCodeResponse,
+    ElevationRequest,
+    ElevationResponse,
+    LoginRequest,
+    TokenResponse,
+    VALID_GRADES,
+)
 from services import mfa_service
 from services.ai_service import _sanitize_parent_field
 
@@ -248,8 +256,121 @@ async def validate_token(
     return {"role": payload.get("role"), "valid": True}
 
 
+@router.post("/elevate", response_model=ElevationResponse)
+async def elevate(
+    req: ElevationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(require_parent),
+):
+    """Step up to management-plane privilege for a short window (P8).
+
+    Being logged in as the parent is the ordinary account identity. Reading
+    the audit log, repointing the AI provider, changing an authentication
+    factor, or permanently destroying a student's data additionally requires
+    this — a recent, explicit, time-boxed re-authentication. See
+    core/elevation.py for the reasoning and core/policy.py's
+    _REQUIRES_ELEVATION for exactly which actions are covered.
+
+    What it defends against is a *stolen session* rather than a stolen
+    password: a token lifted from a tab left open on a shared device, or
+    replayed by an XSS payload. None of those carry the password, and all of
+    them are the realistic ones for a LAN appliance.
+
+    SECOND FACTOR. A TOTP code is required when TOTP is enrolled. WebAuthn
+    is deliberately NOT required here even when it is enrolled, and that is
+    a real gap rather than a decision: verifying a security key needs a
+    challenge/response round trip, so it needs its own endpoint pair the way
+    login has. A WebAuthn-only deployment therefore elevates on the password
+    alone — still strictly stronger than the nothing that came before, and
+    tracked as the next step on P8.
+    """
+    ctx = audit_from_request(request)
+    jti = auth.get("jti")
+
+    if not jti:
+        # A parent token issued before P8 existed. It has no session id to
+        # key a grant to, so it cannot be elevated at all — and inventing
+        # one here would key the grant to something the token doesn't
+        # actually carry. Re-login mints a token that does.
+        log_event_nowait(
+            AuditEvent.ELEVATION_DENIED, role="parent", success=False,
+            detail="token predates privileged access — no session id", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Please log in again before performing this action",
+        )
+
+    if not await verify_parent_password(db, req.password):
+        # Shares parent_lockout with the login path deliberately: an
+        # attacker holding a live session must not get an unthrottled
+        # password oracle just because they are already authenticated.
+        await parent_lockout.record_failure(db)
+        log_event_nowait(
+            AuditEvent.ELEVATION_DENIED, role="parent", success=False,
+            detail="wrong password", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect",
+        )
+
+    methods = await mfa_service.enrolled_methods(db)
+    if "totp" in methods:
+        if not req.totp_code or not await mfa_service.verify_totp_login(db, req.totp_code):
+            log_event_nowait(
+                AuditEvent.ELEVATION_DENIED, role="parent", success=False,
+                detail="missing or invalid second factor", **ctx,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Enter the current code from your authenticator app",
+            )
+
+    await parent_lockout.record_success(db)
+    expires = await elevation.grant(db, jti)
+    log_event_nowait(
+        AuditEvent.ELEVATION_GRANTED, role="parent", success=True,
+        detail=f"privileged access for {settings.elevation_ttl_minutes} min", **ctx,
+    )
+    return ElevationResponse(
+        elevated=True,
+        expires_at=expires.isoformat(),
+        ttl_seconds=settings.elevation_ttl_minutes * 60,
+    )
+
+
+@router.delete("/elevate")
+async def drop_elevation(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(require_parent),
+):
+    """End privileged access early — "I'm done administering".
+
+    Not required (the grant expires on its own) but the right thing to offer
+    a parent stepping away from a shared machine, and cheap."""
+    dropped = await elevation.drop(db, auth.get("jti"))
+    if dropped:
+        log_event_nowait(
+            AuditEvent.ELEVATION_DROPPED, role="parent", success=True,
+            **audit_from_request(request),
+        )
+    return {"elevated": False, "was_elevated": dropped}
+
+
+@router.get("/elevate")
+async def elevation_status(
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(require_parent),
+):
+    """Whether this session currently holds privileged access, so the
+    frontend can show the state rather than probing with a real action."""
+    return {"elevated": await elevation.is_elevated(db, auth.get("jti"))}
+
+
 @router.post("/logout")
-async def logout(request: Request, auth: dict = Depends(require_auth)):
+async def logout(request: Request, db: AsyncSession = Depends(get_db), auth: dict = Depends(require_auth)):
     """
     Explicit logout. For the demo_code role this immediately deletes the
     code server-side, so the token stops working right away instead of
@@ -261,5 +382,12 @@ async def logout(request: Request, auth: dict = Depends(require_auth)):
     ctx = audit_from_request(request)
     if auth.get("role") == "demo_code":
         await end_code_session(auth.get("code", ""))
+    # A parent token is a stateless JWT that stays valid until it expires,
+    # so "logged out" is a client-side claim. The elevation is the one piece
+    # of this session that IS server-side state, and leaving it behind would
+    # mean a token recovered after logout came back still holding
+    # management-plane privilege.
+    if auth.get("role") == "parent":
+        await elevation.drop(db, auth.get("jti"))
     log_event_nowait(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
     return {"success": True}

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution, license_state, parent_credential, provider_state
+from core import constitution, elevation, license_state, parent_credential, provider_state
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -93,6 +93,18 @@ async def _periodic_data_purge():
                 log.info("Periodic data purge: removed %d expired demo interaction-signal row(s)", deleted)
         except Exception:
             log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
+
+        # Expired privileged-access grants (core/elevation.py). Hygiene, not
+        # a security control — is_elevated() checks the timestamp, so an
+        # expired row is already inert. Without this the table grows by one
+        # row per elevation forever on an appliance nobody prunes. Kept in
+        # its own try so a failure here can't stop the retention sweep above,
+        # which is the one with an actual policy behind it.
+        try:
+            async with AsyncSessionLocal() as db:
+                await elevation.purge_expired(db)
+        except Exception:
+            log.warning("Elevation purge failed — will retry next interval", exc_info=True)
 
 
 @asynccontextmanager

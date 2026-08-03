@@ -54,7 +54,8 @@ authentication rather than a rewrite of every authorization decision.
 | `tutor.email_summary` | ✅ | ❌ | ✅ | A child must not be able to send mail to an arbitrary address |
 | `family.data.read` | ✅ | ✅ | ❌ | Student configs, transcripts, narration, voice profiles, diagnostics |
 | `family.data.write` | ✅ | ✅ | ❌ | |
-| `admin.manage` | ✅ | ❌ | ❌ | Audit log, licensing, AI provider, student deletion |
+| `admin.manage` | ✅ | ❌ | ❌ | The ordinary parent management day — settings, pod configs, narration and transcript review |
+| `admin.privileged` | ✅ | ❌ | ❌ | **Additionally requires a current elevation (P8).** Audit log, licensing, AI provider, authentication/recovery factor changes, permanent student deletion |
 | `sandbox.parent_chat` | ✅ | ❌ | ❌ | Additionally gated by `SANDBOX_PIN` — a second factor, not an authz question |
 | `sandbox.demo_preview` | ❌ | ❌ | ✅ | Demo domain only, deliberately not reachable by a family session |
 | `diagnostic.demo_preview` | ❌ | ❌ | ✅ | Same |
@@ -91,6 +92,7 @@ Regression: `tests/test_deps_policy_equivalence.py::test_parent_recovery_no_long
 | `require_auth` | `session.self` | ✅ |
 | `require_real_user` | `family.data.read` | ✅ |
 | `require_parent` | `admin.manage` | — |
+| `require_elevated_parent` | `admin.privileged` | — (checks elevation instead) |
 | `require_email_summary` | `tutor.email_summary` | ✅ |
 | `require_demo_preview` | `sandbox.demo_preview` | ✅ |
 | `require_mfa_pending` | `mfa.complete` | — |
@@ -106,15 +108,21 @@ The last two guards replaced inline router checks:
 
 Scoped out, each its own step that this layer makes reachable:
 
-- **P8 — step-up / privileged access.** `parent` is still simultaneously the
-  ordinary account identity and the fully-privileged administrative one.
-  Naming `admin.manage` separately from `family.data.*` is what gives an
-  elevation check somewhere to attach; building it is separate work.
 - **P9 — device identity.** Sessions still bind to `SHA-256(IP | UA)`, not a
   per-device keypair, so a lost tablet can't be individually revoked.
-- **P10 — identity domain separation.** Both domains are still issued by one
-  signing key and validated by one path. The subject attribute is the seam,
-  not the fix.
+
+Closed since this document was written:
+
+- **P8 — step-up / privileged access** (closed 2026-08-03). `admin.privileged`
+  and `require_elevated_parent` above. Whether a session *holds* an
+  elevation is a database question, so it is answered in the enforcement
+  layer; what lives in the policy table is the statement of which actions
+  need one. See `core/elevation.py`.
+- **P10 — identity domain separation** (closed 2026-08-03). The two domains
+  now have separate signing keys and a token's domain is verified against
+  the role it claims (`core/identity.py`). The subject attribute here was
+  the seam that made it a change to authentication rather than a rewrite of
+  every authorization decision.
 - **Punch-list #7 — child PIN lockout.** Deliberately sequenced *after* this
   layer so it lands inside a real policy layer rather than extending the
   collapsed one, and so it can be designed around the lockout-as-DoS

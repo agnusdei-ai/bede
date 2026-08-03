@@ -13,19 +13,24 @@ Every protected endpoint uses one of the guards below. Each validates:
   3. credentials_version, for parent/parent_pending tokens
   4. The policy decision for the action being guarded
   5. Session liveness, where the session is server-tracked (demo codes)
+  6. A current privileged-access elevation, for the management-plane
+     actions core/policy.py marks as requiring one (P8)
 
 Failures are always logged to the audit log before raising HTTPException.
 
-The five guards keep the exact signatures, status codes, and user-visible
-messages they had before the policy layer existed. That equivalence is
+The original five guards keep the exact signatures, status codes, and
+user-visible messages they had before the policy layer existed. That equivalence is
 load-bearing and covered by tests/test_deps_policy_equivalence.py: this
 refactor claims to change where the decision is made, not what gets decided.
 """
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import elevation
 from core.audit import AuditEvent, audit_from_request, log_event
+from core.database import get_db
 from core.demo_code_session import code_exists as demo_code_exists
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version
@@ -211,6 +216,44 @@ async def require_parent(
     unauthenticated requests are all rejected."""
     payload = await _validate_token(request, credentials)
     return await _authorize(request, payload, "admin.manage")
+
+
+async def require_elevated_parent(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Require parent role AND a current privileged-access elevation (P8).
+
+    For the management-plane actions a parent cannot undo by trying again:
+    reading the audit log, repointing the AI provider, changing an
+    authentication factor, permanently destroying a student's data. See
+    core/policy.py's _REQUIRES_ELEVATION for where the line is drawn and
+    core/elevation.py for what an elevation is.
+
+    The 403 is deliberately distinguishable from an ordinary authorization
+    denial by its `elevation_required` marker, so the frontend can prompt
+    for the password rather than showing "not authorized" to the one person
+    who is."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "admin.privileged")
+
+    if not await elevation.is_elevated(db, payload.get("jti")):
+        await log_event(
+            AuditEvent.ACCESS_DENIED,
+            role=payload.get("role"),
+            success=False,
+            detail="action=admin.privileged — no current elevation",
+            **audit_from_request(request),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Confirm your password to continue — this action needs to be re-authorised",
+                "elevation_required": True,
+            },
+        )
+    return payload
 
 
 # ── Action-specific guards (previously inline role checks in routers) ────────

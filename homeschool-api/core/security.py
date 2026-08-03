@@ -64,6 +64,16 @@ def create_access_token(
     if fingerprint:
         payload["fp"] = fingerprint
 
+    # A parent token gets a session id whether or not the caller thought to
+    # ask for one. It is what a privileged-access elevation is keyed to
+    # (core/elevation.py, P8), so an issue site that forgot it would mint a
+    # session that can never be elevated — and the symptom would be "the
+    # audit log is broken", not "this token is malformed". Centralized here
+    # rather than at the three issue sites for exactly that reason.
+    if data.get("role") == "parent" and "jti" not in payload:
+        from core.elevation import new_jti
+        payload["jti"] = new_jti()
+
     domain = identity.domain_for_role(data.get("role"))
     header = _b64url_encode(json.dumps({"alg": "HS256", "typ": "JWT", "dom": domain}).encode())
     body = _b64url_encode(json.dumps(payload).encode())

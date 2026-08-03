@@ -196,6 +196,11 @@ class Settings(BaseSettings):
     # ones are ever issued — and exists so deploying P10 doesn't sign every
     # family out mid-lesson. Safe to set false immediately.
     legacy_token_grace: bool = True
+    # How long a management-plane elevation lasts (core/elevation.py, P8).
+    # Absolute from the moment of elevation, not a sliding window on use — a
+    # sliding window would let one password entry hold administrator rights
+    # for the whole session as long as someone kept clicking.
+    elevation_ttl_minutes: int = 10
     algorithm: str = "HS256"
     # Parent sessions: up to 8h (full school day). Child: 4h (single session).
     access_token_expire_minutes: int = 480

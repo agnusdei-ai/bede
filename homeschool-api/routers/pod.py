@@ -15,7 +15,7 @@ from core import license_state
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_elevated_parent, require_parent, require_real_user
 from core import student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from models.schemas import PodConfigsRequest, SessionConfig, VoiceNarrationPreferenceRequest
@@ -168,7 +168,7 @@ async def update_voice_narration_preference(
 async def delete_student_config(
     student_name: str,
     request: Request,
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """

@@ -153,6 +153,40 @@ list as items are closed.
 
 ## Closed gaps
 
+- **"Parent" was administrator for the whole session, closed 2026-08-03.**
+  One role was simultaneously the ordinary account identity — adjusting
+  today's plan, sitting with a child, reading a narration — and the fully
+  privileged administrative one: reading the audit log, repointing the AI
+  provider at a different vendor, deleting a security key, permanently
+  destroying a student's data. Same token, same scope, for up to eight
+  hours. A session left open on an unattended tablet was not just logged
+  in, it was administrator, and none of those actions needed the password
+  the parent typed once that morning.
+
+  `core/elevation.py` adds a step-up: management-plane actions require an
+  elevation granted by re-presenting the password (plus a TOTP code where
+  TOTP is enrolled) at `POST /auth/elevate`, valid for
+  `ELEVATION_TTL_MINUTES` (default 10) and keyed to that one session. What
+  it covers: the audit log, licensing, the AI provider, every
+  authentication/recovery factor change, and permanent student deletion.
+  What it deliberately does not cover is the ordinary parent day —
+  requiring a password to read a narration would train a parent to retype
+  it reflexively, which is how step-up stops being a signal.
+
+  Two limits worth stating rather than burying. This raises the cost of a
+  **stolen session** — a token lifted from an open tab, a shared device, an
+  XSS replay — not of a stolen password; someone with the password can
+  elevate too. And **WebAuthn is not required at the step-up** even when
+  enrolled, because verifying a security key needs its own
+  challenge/response endpoint pair the way login does; a WebAuthn-only
+  deployment elevates on the password alone. That is the next increment,
+  not a decision.
+
+  `/auth/elevate` sits under the same per-IP auth rate limit and the same
+  `parent_lockout` as `/auth/login`, deliberately: an endpoint that compares
+  a submitted password is a password oracle whether or not the caller
+  already holds a session.
+
 - **The public demo shared one identity domain with the family
   deployment, closed 2026-08-03.** `routers/auth.py`'s `login()` issued
   `parent`, `child`, and `demo_code` tokens from one function, in one

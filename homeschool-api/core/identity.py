@@ -65,6 +65,7 @@ DEMO = "demo"
 _ROLE_DOMAIN = {
     "parent": FAMILY,
     "parent_pending": FAMILY,
+    "parent_recovery": FAMILY,
     "child": FAMILY,
     "demo_code": DEMO,
 }

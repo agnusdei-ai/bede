@@ -200,15 +200,15 @@ reverse-proxy path as tutoring traffic, gated only by a JWT role claim.
 
 *AIUC-1: Security · CISSP D3 secure design principles*
 
-### P5 — Encryption binds ciphertext to its context, not merely to a key ⚠️
+### P5 — Encryption binds ciphertext to its context, not merely to a key ✅
 
 **Statement.** Every AEAD operation binds the record's identity (table,
 column, row) as associated data, and the envelope header is authenticated.
 
-**Rationale.** `core/encryption.py`'s AES-GCM calls pass no AAD, so a
-ciphertext proves only "encrypted by whoever holds `DATA_KEY`" — not where
-it belongs. Anyone with database write access can move a blob between rows
-or columns and it decrypts cleanly, with no tag failure and no signal.
+**Rationale.** `core/encryption.py`'s AES-GCM calls passed no AAD, so a
+ciphertext proved only "encrypted by whoever holds `DATA_KEY`" — not where
+it belonged. Anyone with database write access could move a blob between
+rows or columns and it decrypted cleanly, with no tag failure and no signal.
 "Does this AEAD usage bind context?" is close to a rote question in any
 professional crypto review.
 
@@ -216,13 +216,20 @@ professional crypto review.
 Cheaper now, at low install count, than after wider deployment — a botched
 migration makes a family's data unreadable.
 
-**Conformance.** Mechanism implemented 2026-08-02 — `core/encryption.py`'s
-v2 envelope binds `aad_for(table, column, row_key)` plus the envelope header
-into the GCM tag, with v1 blobs still readable so migration is incremental
-rather than a flag-day across ~50 call sites. T1 (voice biometrics) migrated;
-T2–T4 pending. A v2 blob cannot be read without its exact context — omitting
-the argument raises rather than silently succeeding, so the binding can't be
-downgraded away.
+**Conformance.** Mechanism implemented 2026-08-02, migration completed
+2026-08-03 across T1–T4. `core/encryption.py`'s v2 envelope binds
+`aad_for(table, column, row_key)` plus the envelope header into the GCM tag;
+v1 blobs stay readable, so the migration was incremental rather than a
+flag-day across ~50 call sites. A v2 blob cannot be read without its exact
+context — omitting the argument raises rather than silently succeeding, so
+the binding can't be downgraded away.
+
+The residual risk is a *new* call site that forgets the binding, which fails
+silently in the sense that matters: it writes a perfectly readable unbound
+row. `tests/test_student_key_coverage.py` walks the AST of `core/`,
+`services/`, `routers/` and `scripts/` and fails the build on any
+student-scoped crypto call missing its key, which covers the same class of
+omission for P3's per-student keys.
 
 *AIUC-1: Data & Privacy · CISSP D3 cryptographic lifecycle*
 
@@ -292,7 +299,7 @@ rather than being independently verifiable.
 
 *AIUC-1: Security, Accountability · CISSP D5 identity lifecycle*
 
-### P8 — Privilege is elevated per-action, not held per-session ❌
+### P8 — Privilege is elevated per-action, not held per-session ✅
 
 **Statement.** Administrative capability requires an explicit elevation
 distinct from being logged in.
@@ -306,7 +313,44 @@ privilege boundary to enforce even where the network could enforce one.
 **Implications.** A step-up/elevated-session concept for management-plane
 actions, scoped and time-bounded.
 
-**Conformance.** No PAM model.
+**Conformance.** Closed 2026-08-03. `core/elevation.py` grants a
+time-boxed elevation (default 10 minutes) against the session's own `jti`,
+obtained by re-presenting the password — and a TOTP code where TOTP is
+enrolled — at `POST /auth/elevate`. `core/policy.py` declares which actions
+require one (`admin.privileged`); `core/deps.py`'s `require_elevated_parent`
+enforces it, since "does this session hold a grant" is a database question
+and the policy layer is pure.
+
+Scope: the audit log, licensing, the AI provider, every
+authentication/recovery factor change, and permanent student deletion. The
+ordinary parent day — narration, transcripts, today's plan, voice
+enrollment — deliberately does not require it. Requiring a password there
+would train a parent to retype it reflexively many times a day, which is how
+step-up stops being a signal and starts being an obstacle people route
+around.
+
+Three properties, each ruling out a simpler design that would have been
+wrong: the grant is **per-session**, so elevating on the desktop does not
+elevate the tablet in the kitchen; **database-backed**, because an
+in-process grant would be invisible to sibling replicas and present as a
+flaky step-up whose obvious fix (make it sticky) is worse than the bug; and
+**absolutely time-boxed rather than sliding**, so one password entry cannot
+hold administrator rights for a whole session by being used repeatedly.
+
+Two limits stated rather than buried. This raises the cost of a *stolen
+session* — a token lifted from an open tab, a shared device, an XSS replay —
+not of a stolen password; someone holding the password can elevate too.
+And **WebAuthn is not required at the step-up** even when enrolled, because
+verifying a security key needs its own challenge/response endpoint pair the
+way login has; a WebAuthn-only deployment elevates on the password alone.
+That is the next increment on this principle, not a decision.
+
+`tests/test_privileged_elevation.py` runs against the assembled app rather
+than calling route functions directly. That mattered more than usual here:
+every pre-existing test of these endpoints passes `_={"role": "parent"}`
+straight into the route, bypassing dependency resolution, so all of them
+kept passing when the guard was added and would keep passing if it were
+removed. Removing a single guard fails six tests in that file.
 
 *AIUC-1: Security · CISSP D5 privileged account management*
 

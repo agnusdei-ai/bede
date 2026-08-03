@@ -32,13 +32,18 @@ from dataclasses import dataclass
 from typing import Optional
 
 # ── Identity domains ────────────────────────────────────────────────────────
-# The seam for P10 (distinct trust domains get distinct identity domains).
-# Today both domains are issued by the same signing key and validated by the
-# same path — the gap P10 describes. Modeling the domain as a first-class
-# subject attribute now, rather than deriving it from `role == "demo_code"`
-# at each use, is what makes that split cheap later: the policy table already
-# reasons in terms of domains, so separating the *issuance* becomes a change
-# to authentication, not a rewrite of every authorization decision.
+# P10 (distinct trust domains get distinct identity domains). Modeling the
+# domain as a first-class subject attribute here, rather than deriving it
+# from `role == "demo_code"` at each use, is what made the issuance split
+# cheap when it landed: separating the signing keys became a change to
+# authentication (core/identity.py) rather than a rewrite of every
+# authorization decision.
+#
+# This map is deliberately duplicated from core/identity.py rather than
+# imported. Importing it would pull core.config in here and cost this module
+# the purity that makes it exhaustively testable. The two are pinned equal by
+# tests/test_policy.py instead, so drift fails the build rather than
+# producing a subject whose domain disagrees with the key that signed it.
 DOMAIN_FAMILY = "family"
 DOMAIN_DEMO = "demo"
 DOMAIN_UNKNOWN = "unknown"
@@ -136,11 +141,16 @@ _POLICY: dict[str, frozenset[str]] = {
     "family.data.read": frozenset({"parent", "child"}),
     "family.data.write": frozenset({"parent", "child"}),
 
-    # Management plane. P4/P8: today "parent" is simultaneously the ordinary
-    # account identity and the fully-privileged administrative one, with no
-    # step-up between them. Naming this action separately from family.data.*
-    # is what gives P8's elevation check somewhere to attach.
+    # Management plane. P4: named separately from family.data.* so the
+    # boundary exists in the table rather than being implied by which
+    # endpoints happen to use which guard.
     "admin.manage": frozenset({"parent"}),
+
+    # The privileged subset of the management plane (P8). Same role, but
+    # additionally requires a recent re-authentication — see
+    # _REQUIRES_ELEVATION below for what distinguishes these from
+    # admin.manage and why the split is where it is.
+    "admin.privileged": frozenset({"parent"}),
 
     # Parent's direct-answer sandbox, additionally gated by SANDBOX_PIN in
     # routers/sandbox.py (a second factor, not an authorization question).
@@ -163,6 +173,7 @@ _DENIAL: dict[str, str] = {
     "family.data.read": "Not available in demo mode",
     "family.data.write": "Not available in demo mode",
     "admin.manage": "This action requires parent authorisation",
+    "admin.privileged": "This action requires parent authorisation",
     "sandbox.parent_chat": "This action requires parent authorisation",
     "sandbox.demo_preview": "This preview is only available through the public demo login",
     "diagnostic.demo_preview": "This preview is only available through the public demo login",
@@ -172,6 +183,50 @@ _DENIAL: dict[str, str] = {
 }
 
 _DEFAULT_DENIAL = "Not authorized for this action"
+
+# ── Privileged access (P8) ──────────────────────────────────────────────────
+# Actions that require an explicit, recent, time-boxed elevation on top of
+# being authenticated as the parent (core/elevation.py).
+#
+# Whether a session HOLDS an elevation is a database question, so it is
+# answered in the enforcement layer (core/deps.py), not here. What belongs
+# here is the policy statement of WHICH actions need one — that is the part
+# a reviewer should be able to read off a table.
+#
+# The line is drawn at actions whose consequences a parent cannot undo by
+# looking at the screen and trying again:
+#
+#   * reading the audit log — the security record itself, and the one thing
+#     an intruder most wants to read and least wants to leave alone
+#   * repointing the AI provider — decides which vendor a child's
+#     conversation is sent to
+#   * weakening or adding an authentication factor — how an intruder makes
+#     access durable
+#   * permanently deleting a student — now a crypto-shred, so genuinely
+#     irreversible (core/student_keys.py)
+#
+# Deliberately NOT elevated: the ordinary parent day. Reading a narration,
+# adjusting today's plan, viewing a transcript, enrolling a voice. Requiring
+# a password for those would train a parent to retype it reflexively many
+# times a day, which is how step-up stops being a signal and starts being
+# an obstacle people route around.
+_REQUIRES_ELEVATION = frozenset({"admin.privileged"})
+
+
+def requires_elevation(action: str) -> bool:
+    """Whether this action needs a privileged-access elevation.
+
+    Unknown actions return False rather than True: an unknown action is
+    already denied outright by `decide`, so answering True here would only
+    change a clear "unknown action" denial into a confusing "please
+    re-authenticate" prompt for something that will be refused anyway."""
+    return action in _REQUIRES_ELEVATION
+
+
+def elevated_actions() -> frozenset[str]:
+    """Every action requiring elevation. Used by the test suite and by
+    docs/AUTHORIZATION_POLICY.md's rendered table."""
+    return _REQUIRES_ELEVATION
 
 
 def known_actions() -> frozenset[str]:

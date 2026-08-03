@@ -38,6 +38,7 @@ EXPECTED: dict[str, set[str]] = {
     "family.data.read":          {"parent", "child"},
     "family.data.write":         {"parent", "child"},
     "admin.manage":              {"parent"},
+    "admin.privileged":          {"parent"},
     "sandbox.parent_chat":       {"parent"},
     "sandbox.demo_preview":      {"demo_code"},
     "diagnostic.demo_preview":   {"demo_code"},
@@ -58,6 +59,37 @@ def test_documented_matrix_covers_every_action_in_the_table():
     """If a new action is added to core/policy.py without a row here, this
     fails — so the table can't grow an untested entry."""
     assert known_actions() == frozenset(EXPECTED)
+
+
+# Written out by hand for the same reason as EXPECTED above: deriving this
+# from the module under test would assert nothing.
+EXPECTED_ELEVATED = {"admin.privileged"}
+
+
+def test_which_actions_require_privileged_elevation():
+    from core.policy import elevated_actions, requires_elevation
+
+    assert elevated_actions() == frozenset(EXPECTED_ELEVATED)
+    for action in EXPECTED:
+        assert requires_elevation(action) is (action in EXPECTED_ELEVATED)
+
+
+def test_an_unknown_action_does_not_ask_for_elevation():
+    """It is denied outright by decide(), so reporting True here would turn a
+    clear 'unknown action' denial into a re-authenticate prompt for something
+    that will be refused anyway."""
+    from core.policy import requires_elevation
+
+    assert requires_elevation("nonsense.action") is False
+    assert decide(_subject("parent"), "nonsense.action").allowed is False
+
+
+def test_elevation_does_not_widen_who_may_act():
+    """Elevation is a second gate, never a substitute for the role check —
+    a child holding an elevation (impossible today, but the table must not
+    depend on that) still cannot reach the management plane."""
+    for role in ("child", "demo_code", "parent_pending", "parent_recovery"):
+        assert decide(_subject(role), "admin.privileged").allowed is False
 
 
 # ── Fail-closed behavior ────────────────────────────────────────────────────
@@ -184,3 +216,32 @@ def test_subject_and_decision_are_immutable():
 def test_decide_is_deterministic():
     subject = _subject("child")
     assert [decide(subject, "admin.manage").allowed for _ in range(5)] == [False] * 5
+
+
+# ── The domain map is duplicated on purpose; keep the copies honest ─────────
+
+def test_policy_and_identity_agree_on_which_domain_each_role_belongs_to():
+    """core/policy.py duplicates core/identity.py's role->domain map rather
+    than importing it, to keep the policy module free of config imports and
+    exhaustively testable. Drift would produce a Subject whose domain
+    disagrees with the key that actually signed its token — the policy layer
+    would reason about a 'family' subject holding a demo-signed token, or
+    the reverse. Pin them equal so that fails here instead."""
+    from core import identity
+    from core.policy import _DOMAIN_FOR_ROLE, DOMAIN_DEMO, DOMAIN_FAMILY
+
+    assert DOMAIN_FAMILY == identity.FAMILY
+    assert DOMAIN_DEMO == identity.DEMO
+    assert _DOMAIN_FOR_ROLE == identity._ROLE_DOMAIN
+
+
+def test_every_role_the_policy_table_mentions_has_a_domain():
+    """A role that appears in the decision table but not the domain map gets
+    DOMAIN_UNKNOWN, which no policy entry lists — so it would be denied
+    everywhere. That is the safe direction, but it is never the intent."""
+    from core.policy import _DOMAIN_FOR_ROLE, _POLICY, _TRANSIENT_ROLES
+
+    mentioned = {role for roles in _POLICY.values() for role in roles} | set(_TRANSIENT_ROLES)
+    assert mentioned <= set(_DOMAIN_FOR_ROLE), (
+        f"roles with no identity domain: {sorted(mentioned - set(_DOMAIN_FOR_ROLE))}"
+    )

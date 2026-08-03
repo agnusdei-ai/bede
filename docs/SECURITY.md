@@ -153,6 +153,46 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Thirty settings never reached the container, including every value
+  security keys depend on — closed 2026-08-03.**
+  `docker-compose.yml`'s `api` service passes environment variables by
+  naming them one at a time rather than using `env_file`, which is a
+  reasonable choice: the list is a reviewable statement of what the
+  container actually receives. Its own comment states the obligation that
+  follows — "anything set in `.env` and NOT named here is silently
+  dropped. A knob documented in `.env.example` that does nothing is worse
+  than no knob at all" — but nothing enforced it, and 22 documented
+  settings had drifted off the list.
+
+  The security-relevant ones: `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and
+  `WEBAUTHN_ORIGIN`, which together decide whether FIDO2 security keys
+  exist at all. `mfa_service.webauthn_enabled()` is `rp_id and origin`,
+  with no fallback derivation, so with both dropped every packaged
+  deployment reported `webauthn_available: false` and refused both
+  enrollment and authentication, no matter what the parent had put in
+  `.env`. The documented second factor was unreachable in practice. TOTP
+  runs through a separate path and was unaffected, so MFA as a whole
+  still functioned, which is part of why this went unnoticed. Also
+  dropped: `TOTP_ISSUER`, all five `RATE_LIMIT_*` buckets (so the tuned
+  per-endpoint limits documented here and in `docs/VOICE_SETUP.md` ran at
+  code defaults), both `VOICE_THRESHOLD_*` speaker-verification
+  thresholds, and `RETAIN_MASTERY_PROFILES`, whose value the setup wizard
+  had begun asking a parent for that same day.
+
+  The shape of this defect is what makes it worth recording rather than
+  the individual settings. It is silent in both directions: nothing
+  errors, pydantic falls back to the code default, and the deployer sees
+  a running system that ignores them. In a self-hosted product that is
+  the worst available failure mode, because the person affected cannot
+  distinguish "I configured it wrong" from "this was never wired up."
+  Closed by wiring the missing variables and by
+  `homeschool-api/tests/test_compose_settings_passthrough.py`, which
+  fails when a setting documented in either `.env.example` is absent from
+  the list, when a default written in compose disagrees with the one in
+  `core/config.py`, or when a variable in the list is not a real setting.
+  Verified with `docker compose config` against a sample `.env` rather
+  than by reading the YAML.
+
 - **"Parent" was administrator for the whole session — mechanism built
   2026-08-03, enforcement not yet on.**
   One role was simultaneously the ordinary account identity — adjusting

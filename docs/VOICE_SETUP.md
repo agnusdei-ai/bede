@@ -589,6 +589,16 @@ from the architecture alone.
 
 Three levers, in the order worth trying.
 
+> **If you tried these before August 2026 and nothing changed, that was
+> not your imagination.** `docker-compose.yml` passes environment
+> variables to the API container by naming them one at a time, and none
+> of the three below was on that list, so setting them in `.env` had no
+> effect at all under the packaged Docker deployment. Nothing failed
+> visibly: the container simply used the built-in default and ran. They
+> are wired now, and `tests/test_compose_settings_passthrough.py` fails
+> if any documented setting goes missing from that list again. Changes
+> here need `make update` (a rebuild), not just a restart.
+
 **1. `WHISPER_BEAM_SIZE` (default `1`).** faster-whisper's own default is `5`,
 i.e. beam search, which is several times slower than greedy decoding. This
 project now defaults to `1`. For short, single-language child utterances where

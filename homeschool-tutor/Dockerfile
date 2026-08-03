@@ -16,6 +16,15 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Vite reads import.meta.env.VITE_* at build time and inlines the value into
+# the bundle, so the deployment's language has to be known here rather than
+# passed to the running container. docker-compose.yml feeds this from the
+# same LOCALE the api service uses, so the login screen opens in the language
+# the deployment actually chose. Both bundles ship either way and the login
+# toggle switches between them live (see docs/LOCALIZATION.md) — this only
+# decides which one paints first.
+ARG VITE_LOCALE=en
+ENV VITE_LOCALE=$VITE_LOCALE
 RUN npm run build
 
 FROM nginx:alpine

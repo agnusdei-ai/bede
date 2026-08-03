@@ -365,5 +365,33 @@
     "Piensa en una palabra que rime con \"luz\" — ¿cuántas puedes encontrar?",
     "Sal afuera o acércate a una ventana y respira lento y profundo cinco veces.",
     "Cálculo mental: si tienes 3 docenas de huevos, ¿cuántos huevos son?"
-  ]
+  ],
+  "workLedger": {
+    "title": "Trabajo completado",
+    "subtitle": "Lo que realmente se ha terminado en los últimos {{days}} días: un registro del trabajo, no un juicio.",
+    "noData": "Aún no hay trabajo completado registrado para {{name}}. Esto se acumula a medida que ocurren las sesiones.",
+    "totalCompleted": "{{count}} completados",
+    "completedCount": "{{count}}×",
+    "unaided": "sin ayuda",
+    "withAHint": "con una pista",
+    "withHelp": "con ayuda",
+    "exemplary": "ejemplar",
+    "noteworthy": "fue más allá",
+    "original": "idea propia",
+    "brisk": "ágil",
+    "beyondTheTask": "más allá de la tarea",
+    "lastWorked": "última vez {{date}}",
+    "notYetScored": "{{count}} sin puntuar",
+    "initiativeTitle": "Señales de iniciativa",
+    "standoutIn": "Con más frecuencia en: {{skills}}",
+    "initiativeCaveat": "Recuentos de trabajo bien hecho y llevado más lejos, no una calificación de su hijo. Lo que significa lo juzga usted."
+  },
+  "podRoster": {
+    "title": "Quién ha hecho este trabajo",
+    "subtitle": "Para que un estudiante le enseñe a otro. Organizado por destreza, nunca por estudiante: esto es una lista, no una clasificación.",
+    "noData": "Aún no hay trabajo completado registrado en el grupo.",
+    "completedShort": "{{count}}×",
+    "workedByOne": "Trabajado por un solo estudiante hasta ahora",
+    "caveat": "Un estudiante que no ha trabajado una destreza simplemente no aparece en ella. Nadie se puntúa frente a nadie, y los niños nunca ven esto."
+  }
 }

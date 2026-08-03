@@ -365,5 +365,33 @@
     "Think of a word that rhymes with \"light\" — how many can you find?",
     "Step outside or to a window and take five slow, deep breaths.",
     "Mental math: if you have 3 dozen eggs, how many eggs is that?"
-  ]
+  ],
+  "workLedger": {
+    "title": "Work Completed",
+    "subtitle": "What has actually been finished in the last {{days}} days — a record of work, not a judgment.",
+    "noData": "No completed work recorded yet for {{name}}. This builds up as tutoring sessions happen.",
+    "totalCompleted": "{{count}} completed",
+    "completedCount": "{{count}}×",
+    "unaided": "unaided",
+    "withAHint": "with a hint",
+    "withHelp": "with help",
+    "exemplary": "exemplary",
+    "noteworthy": "went further",
+    "original": "own idea",
+    "brisk": "brisk",
+    "beyondTheTask": "beyond the task",
+    "lastWorked": "last worked {{date}}",
+    "notYetScored": "{{count}} not scored",
+    "initiativeTitle": "Signs of initiative",
+    "standoutIn": "Most often in: {{skills}}",
+    "initiativeCaveat": "Counts of work done well and taken further — not a rating of your child. What it means is yours to judge."
+  },
+  "podRoster": {
+    "title": "Who Has Done This Work",
+    "subtitle": "For arranging one student to show another. Listed by skill, never by student — this is a roster, not a ranking.",
+    "noData": "No completed work recorded across the pod yet.",
+    "completedShort": "{{count}}×",
+    "workedByOne": "Worked by one student so far",
+    "caveat": "A student who hasn't worked a skill simply isn't listed under it. Nobody is scored against anybody else, and children never see this."
+  }
 }

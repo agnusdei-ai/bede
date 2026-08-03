@@ -128,6 +128,21 @@ services:
         generateValue: true
       - key: MASTER_SECRET
         generateValue: true
+      # Independent signing key for this instance's DEMO identity domain
+      # (homeschool-api/core/identity.py). Tokens are always domain-separated
+      # — a demo token can never be replayed as a parent token — but without
+      # this both domain keys derive from SECRET_KEY above, which is
+      # separation without isolation.
+      #
+      # This deployment is exactly the case that wants isolation: it is
+      # internet-facing, multi-tenant, and operated for strangers rather than
+      # by them, so a SECRET_KEY compromise here should not reach any family
+      # deployment. Generated rather than `sync: false` — nobody needs to
+      # know its value, and a key nobody has to handle is a key nobody
+      # leaks. GET /admin/status reports whether it is independent or
+      # derived, so this can be confirmed after deploy rather than assumed.
+      - key: DEMO_SECRET_KEY
+        generateValue: true
       - key: PARENT_PASSWORD
         generateValue: true
 

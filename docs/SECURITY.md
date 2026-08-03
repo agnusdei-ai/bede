@@ -82,14 +82,17 @@ list as items are closed.
   locked-out case is now closed (see Closed gaps), which removes the
   biggest objection to eventually requiring MFA — it no longer means "one
   lost device bricks the account."
-- **Child role has no equivalent lockout/recovery scheme.** Everything in
-  the newly-closed account-lockout/recovery work below is parent-only —
-  `CHILD_PIN` still has no lockout of its own. Deliberately out of scope:
-  this app's single-tenant design (docs/SECURITY.md's Society-pillar scope
-  statement) makes the parent the ultimate authority over the one shared
-  child credential, so "recovery" for a locked-out child is simply "ask a
-  parent to change `CHILD_PIN`" — a capability that already exists (parent
-  settings), not a gap.
+- **Child role has no lockout/recovery scheme — and deliberately still
+  won't.** The recovery half of this remains correct and unchanged: the
+  single-tenant design makes the parent the ultimate authority over the one
+  shared child credential, so "recovery" for a child is "ask a parent to
+  change `CHILD_PIN`", a capability that already exists. What this entry
+  previously got wrong was treating that as also answering brute force —
+  it doesn't. Nothing about recoverability makes a 6-digit PIN harder to
+  guess, and the per-IP rate limiter keys on IP alone, which a LAN attacker
+  defeats trivially. That half is now closed by escalating-delay throttling
+  rather than a lockout (see Closed gaps, and `core/child_throttle.py` for
+  why a lockout would have been the wrong instrument here).
 - **`RateLimitMiddleware` and the E009 anomaly watch are in-memory,
   per-process — same class of gap already disclosed for
   `services/streaming_transcription.py` and the OpenAI TTS httpx pool
@@ -150,6 +153,205 @@ list as items are closed.
 
 ## Closed gaps
 
+- **"Parent" was administrator for the whole session — mechanism built
+  2026-08-03, enforcement not yet on.**
+  One role was simultaneously the ordinary account identity — adjusting
+  today's plan, sitting with a child, reading a narration — and the fully
+  privileged administrative one: reading the audit log, repointing the AI
+  provider at a different vendor, deleting a security key, permanently
+  destroying a student's data. Same token, same scope, for up to eight
+  hours. A session left open on an unattended tablet was not just logged
+  in, it was administrator, and none of those actions needed the password
+  the parent typed once that morning.
+
+  `core/elevation.py` adds a step-up: management-plane actions require an
+  elevation granted by re-presenting the password (plus a TOTP code where
+  TOTP is enrolled) at `POST /auth/elevate`, valid for
+  `ELEVATION_TTL_MINUTES` (default 10) and keyed to that one session. What
+  it covers: the audit log, licensing, the AI provider, every
+  authentication/recovery factor change, and permanent student deletion.
+  What it deliberately does not cover is the ordinary parent day —
+  requiring a password to read a narration would train a parent to retype
+  it reflexively, which is how step-up stops being a signal.
+
+  Two limits worth stating rather than burying. This raises the cost of a
+  **stolen session** — a token lifted from an open tab, a shared device, an
+  XSS replay — not of a stolen password; someone with the password can
+  elevate too. And **WebAuthn is not required at the step-up** even when
+  enrolled, because verifying a security key needs its own
+  challenge/response endpoint pair the way login does; a WebAuthn-only
+  deployment elevates on the password alone. That is the next increment,
+  not a decision.
+
+  `/auth/elevate` sits under the same per-IP auth rate limit and the same
+  `parent_lockout` as `/auth/login`, deliberately: an endpoint that compares
+  a submitted password is a password oracle whether or not the caller
+  already holds a session.
+
+  **Enforcement ships off** (`ELEVATION_ENFORCED`), so this belongs in this
+  section only as a mechanism, not yet as a closed gap. The web UI calls
+  these endpoints from ~30 raw `fetch()` sites with no interceptor and has no
+  password prompt; enforcing before that lands would give a parent an
+  unexplained error on every management action. `GET /admin/status` reports
+  which posture a deployment has, so it cannot quietly stay off and be
+  mistaken for on. Remaining work is the frontend flow, then flipping the
+  switch.
+
+- **The public demo shared one identity domain with the family
+  deployment, closed 2026-08-03.** `routers/auth.py`'s `login()` issued
+  `parent`, `child`, and `demo_code` tokens from one function, in one
+  format, under one signing key, validated by one path — despite the demo
+  being pseudonymous, internet-facing, multi-tenant, and operated *for*
+  strangers rather than *by* them. The practical consequence: every bug in
+  the demo's credential path was a bug in the family's. `demo_code` login
+  consumes a code minted by an unauthenticated endpoint, so any flaw there
+  that yielded an attacker-controlled *signed* token had nothing structural
+  standing between it and `role: "parent"` — only the fact that every
+  authorization check, present and future, remembers to look at the role.
+
+  `core/identity.py` splits this into two domains with separate signing
+  keys, derived from `SECRET_KEY` by domain-labelled HMAC. The domain
+  travels in the JWT header, covered by the signature; verification picks
+  the key by that domain and then requires the role to be one the domain
+  may issue. A demo token claiming `parent` now fails at the signature
+  layer, before authorization runs.
+
+  Stated precisely, because the difference matters: this is domain
+  separation, not key isolation. Both keys derive from one `SECRET_KEY` by
+  default, so compromising that secret still yields both. Setting
+  `DEMO_SECRET_KEY` on the public demo instance gives it a key sharing no
+  material with the family's — recommended there, unnecessary for a
+  self-hosted family deployment that has no demo role in play.
+
+  Tokens issued before the change stay valid until they expire
+  (`LEGACY_TOKEN_GRACE`, default on) so the deploy doesn't sign families out
+  mid-lesson. It is not a downgrade path — the grace accepts only tokens
+  signed with the raw pre-migration key, so stripping the header off a
+  domain-signed token fails.
+
+- **Deletion was logical, not cryptographic, closed 2026-08-03.**
+  `services/student_deletion.py` issued real SQL `DELETE`s across every
+  student-scoped table, which was correct as far as the live table went and
+  no further. Postgres keeps dead tuples until VACUUM, the delete is written
+  to WAL, and every `make db-backup` dump taken beforehand still contained
+  the rows — all of it decryptable indefinitely under a global `DATA_KEY`
+  that by design never changes (even `MASTER_SECRET` rotation deliberately
+  preserves it). So README.md's and `docs/DATA_RETENTION.md`'s "permanently
+  delete" was true of the live table and false of the disk, and the standard
+  way an auditor tests an erasure claim — restore a backup and look — would
+  have shown the record intact.
+
+  `core/student_keys.py` gives each student one random 32-byte key, wrapped
+  under `DATA_KEY` and bound to their name as AAD (so a wrapped key cannot
+  be moved between students by anyone with DB write access). Every
+  student-scoped encrypted column is now encrypted under that key, marked
+  by envelope version 3. Deletion destroys the key row *in the same
+  transaction* as the row deletes, so the shred cannot half-succeed and
+  leave the key destroyed but the rows present, or the reverse. Afterwards
+  every copy of that student's ciphertext — live rows, dead tuples, WAL
+  segments, old backups — is permanently unopenable, including by this
+  deployment itself.
+
+  Two deliberate limits worth stating rather than burying. **The audit log
+  is not per-student** and survives a deletion by design (`core/audit.py`);
+  crypto-shredding it per student would destroy the security record along
+  with the data. And **rows written before this change stay readable** —
+  the envelope dispatches on its own version byte, and rows upgrade
+  themselves on next write. A migration that got this wrong would make a
+  family's data permanently unreadable, which is strictly worse than the
+  gap staying open longer.
+
+- **Encrypted columns had no AAD binding, closed 2026-08-03.**
+  `core/encryption.py`'s AES-GCM calls carried no associated data, so a
+  ciphertext blob proved only "encrypted by whoever holds `DATA_KEY`" —
+  making it portable between rows, columns, and tables. Anyone with
+  database write access could swap one student's `profile_enc` into
+  another's row, or a bookmark between subjects, and it would decrypt
+  cleanly. Every T1–T4 column now binds `table/column/row_key`, so a blob
+  is only valid in the row it was written for; moving it fails
+  authentication instead of decrypting. See `docs/DATA_CLASSIFICATION.md`
+  for the per-entity mapping.
+
+- **Child PIN had no brute-force defense, closed 2026-08-02.** The only
+  barrier was `core/middleware.py`'s per-IP auth bucket (10/min), which
+  keys on IP alone — trivially defeated on a LAN, and via IPv6 essentially
+  free. The parent role had DB-backed lockout since July; the child role
+  guarded the same student data with nothing, and this document's prior
+  reasoning for that (a locked-out child just asks a parent to reset the
+  PIN) answered lockout-RECOVERY, not brute force. Nothing about
+  recoverability makes a 6-digit PIN harder to guess.
+
+  `core/child_throttle.py` throttles by escalating DELAY, deliberately not
+  by refusal. Copying `core/parent_lockout.py`'s fixed-threshold lockout
+  here would have closed a brute-force gap by opening an easier
+  availability one: the threshold is public the moment the source is (see
+  `docs/THREAT_MODEL.md`'s self-defeating-mechanisms note), so any sibling
+  or houseguest on the WiFi could reliably end a lesson before it started,
+  with "go find a parent" as the recovery path. Instead the first three
+  failures are free (a child mistyping their own PIN notices nothing),
+  then delay escalates to a 5-second cap — roughly two months of
+  continuous guessing for a 10^6 keyspace, and there is no state an
+  attacker can push the child role into that a parent must clear. State is
+  keyed on the credential rather than the source address, so IP rotation
+  buys nothing; it is in-process rather than DB-backed because this runs on
+  a family's Raspberry Pi and a child logs in every school morning, and a
+  container restart clearing it is acceptable given restarting requires
+  host access. Covered by `tests/test_child_throttle.py`, including that a
+  correct PIN still authenticates after 500 failures — the property that
+  makes this not a lockout.
+
+- **Rate limiter was O(n) per request and leaked memory without bound,
+  closed 2026-08-02.** `_check_rate` rebuilt the entire sliding window on
+  every single request (`[t for t in window if t > cutoff]`) — linear in
+  the configured limit, measured at 0.8 us/call at limit=20 rising to 38.3
+  us at 3000, ahead of every route handler, on hardware
+  `docs/PARENT_SETUP.md` targets at Raspberry Pi class. Separately, idle
+  `(ip, bucket)` entries were never evicted: 50,000 distinct source
+  addresses held 50,000 entries indefinitely, reachable on the
+  internet-facing public demo.
+
+  Timestamps are non-decreasing (`time.monotonic`), so expired entries are
+  always a prefix — `bisect` finds the cut in O(log n) and one slice-delete
+  drops them. Now flat at ~0.38 us/call regardless of limit (~6x faster at
+  the default, ~95x at 3000). Idle entries are swept lazily, at most once
+  every five minutes, using the widest window any caller has requested so a
+  live window can never be evicted (which would silently reset an
+  attacker's progress). A deque benchmarked marginally faster still but
+  costs ~760 bytes per key against a list's ~64 — the wrong trade when the
+  demo's keys are overwhelmingly sparse and the device may have 1-2 GB
+  total.
+
+
+- **`MASTER_SECRET` had no rotation path at all, closed 2026-08-02.**
+  `core/encryption.py`'s own docstring, and `docs/INCIDENT_RESPONSE.md`'s
+  containment step for a suspected `MASTER_SECRET` leak, both said the same
+  thing: don't rotate it. Restarting with a new `MASTER_SECRET` and no
+  matching wrapper for the existing `DATA_KEY` meant either a boot failure
+  (`initialize_encryption()` refuses to silently generate a fresh
+  `DATA_KEY` over an existing row) or, on a from-scratch deployment,
+  actually generating a new `DATA_KEY` that abandoned everything encrypted
+  under the old one. So the one credential this app's entire encryption
+  hierarchy roots in had no real response to its own compromise — the
+  Accountability-pillar failure mode of "the incident response plan's
+  answer to its own top severity item is a documented dead end."
+
+  `core/encryption.py`'s new `rotate_master_secret()` re-wraps the
+  *existing* `DATA_KEY` under a new `MASTER_SECRET` — `DATA_KEY` itself
+  never changes, so every row already encrypted under it (every student
+  config, transcript, voice profile) stays valid with zero rewriting; only
+  the single `encryption_config.data_key` row is touched. It verifies the
+  new wrapping round-trips before committing, and raises without writing
+  anything if the supplied old secret doesn't actually unwrap the current
+  `DATA_KEY` — a failed attempt is a true no-op, not a partial one.
+  `scripts/rotate_master_secret.py` is the operator-facing CLI (prompts
+  for both secrets via `getpass`, never as a CLI argument or env var, so
+  neither sits in shell history or a process list); `docs/
+  INCIDENT_RESPONSE.md`'s "Critical" containment step now points here
+  instead of ruling rotation out. Covered by `tests/test_encryption.py`,
+  including that the DATA_KEY bytes are provably identical before and
+  after rotation (proving this re-wraps rather than regenerates) and that
+  the *old* secret genuinely stops working — the actual containment
+  property this exists for, not just a housekeeping rotation.
 - **Scripture quoting had no public-domain/copyright distinction, closed
   2026-07-31.** Found on an explicit instruction not to let Bede present
   non-factual claims — including invented or unverifiable wording of a

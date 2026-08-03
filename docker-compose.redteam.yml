@@ -1,0 +1,88 @@
+# ── Bede — isolated redteam target override ───────────────────────────────────
+#
+# NOT a standalone file. Always layered on top of docker-compose.yml, never
+# used alone:
+#
+#   docker compose -p bede-redteam --env-file .env.redteam \
+#     -f docker-compose.yml -f docker-compose.redteam.yml up -d
+#
+# `-p bede-redteam` gives this stack its own Compose project namespace
+# (containers, networks, volumes) so it can never collide with — or be
+# confused with — a real deployment running on the same host, even by
+# accident. See docs/environment-pentests/README.md's "Isolated redteam
+# deployment" section for the full setup and the requirements this exists
+# to enforce: fresh, never-copied secrets in .env.redteam, fake identities,
+# and a genuinely separate host/network from any real family's instance —
+# this file cannot enforce those on its own, it only makes the target
+# distinguishable and behaviorally honest once they're followed.
+#
+# What this override actually changes, and why:
+#
+#   1. Distinctly named containers (redteam-*), so `docker ps` output is
+#      never ambiguous with a real deployment's containers.
+#   2. `restart: "no"` everywhere, overriding the base file's
+#      `unless-stopped`. A pentest deliberately tries to crash things —
+#      an exfiltration-guard bypass, a container-breakout attempt, a
+#      resource-exhaustion probe. Auto-restart would silently mask exactly
+#      the failure a tester is trying to observe.
+#   3. A throwaway `banner` service with no function beyond printing an
+#      unmistakable startup message to `docker compose logs` — the
+#      cheapest possible guard against a redteam target being mistaken for
+#      (or confused with) a real deployment by whoever's looking at logs.
+#
+# What this override deliberately does NOT do — and why that's correct:
+#
+#   It does NOT force the local Postgres (`db`) to start. An earlier draft
+#   tried a `profiles: []` override on the `db` service to make that
+#   automatic, on the assumption that an empty profile list in an override
+#   file clears the base file's `profiles: ["local-db"]` requirement.
+#   Verified against a real `docker compose config` run and that
+#   assumption was wrong — Compose's profile filtering happens before this
+#   kind of override is applied, so the line looked correct and did
+#   nothing. Rather than ship a control that appears present and silently
+#   doesn't work — the exact class of bug this whole hardening pass exists
+#   to find — .env.redteam explicitly sets `COMPOSE_PROFILES=local-db`
+#   instead (see docs/environment-pentests/README.md), the same mechanism
+#   the base file already documents for everyone else. Confirmed working:
+#   `db` is present in `docker compose config --services` output with
+#   `COMPOSE_PROFILES=local-db` set, and absent without it.
+
+services:
+  api:
+    container_name: redteam-api
+    restart: "no"
+
+  ui:
+    container_name: redteam-ui
+    restart: "no"
+
+  trust:
+    container_name: redteam-trust
+    restart: "no"
+
+  caddy:
+    container_name: redteam-caddy
+    restart: "no"
+
+  db:
+    container_name: redteam-db
+    restart: "no"
+    # No profiles override here — see the file header's "deliberately does
+    # NOT do" note. Set COMPOSE_PROFILES=local-db in .env.redteam instead.
+
+  banner:
+    image: busybox:stable
+    container_name: redteam-banner
+    command:
+      - sh
+      - -c
+      - |
+        echo "============================================================"
+        echo " THIS IS AN ISOLATED REDTEAM TARGET — NOT A REAL DEPLOYMENT"
+        echo " Fake data only. See docs/environment-pentests/README.md"
+        echo " before running anything against this stack."
+        echo "============================================================"
+        sleep infinity
+    restart: "no"
+    networks:
+      - internal

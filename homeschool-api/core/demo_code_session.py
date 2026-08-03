@@ -159,13 +159,13 @@ async def get_mastery_vector(code: str) -> dict | None:
     see services/diagnostic_demo.py for anything that actually interprets
     or builds one."""
     from core.database import AsyncSessionLocal
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
 
     async with AsyncSessionLocal() as db:
         row = await _fetch_live(db, code)
         if row is None or row.mastery_vector_enc is None:
             return None
-        return decrypt_json(row.mastery_vector_enc)
+        return decrypt_json(row.mastery_vector_enc, aad_for("demo_code_sessions", "mastery_vector_enc", code))
 
 
 async def set_mastery_vector(code: str, vector: dict, evidence_count: int) -> None:
@@ -173,13 +173,13 @@ async def set_mastery_vector(code: str, vector: dict, evidence_count: int) -> No
     an unknown/evicted code — a diagnostic write racing a logout should
     lose silently, not raise."""
     from core.database import AsyncSessionLocal
-    from core.encryption import encrypt_json
+    from core.encryption import aad_for, encrypt_json
 
     async with AsyncSessionLocal() as db:
         row = await _fetch_live(db, code)
         if row is None:
             return
-        row.mastery_vector_enc = encrypt_json(vector)
+        row.mastery_vector_enc = encrypt_json(vector, aad_for("demo_code_sessions", "mastery_vector_enc", code))
         row.mastery_evidence_count = evidence_count
         await db.commit()
 

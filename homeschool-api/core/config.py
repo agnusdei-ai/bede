@@ -184,6 +184,38 @@ class Settings(BaseSettings):
 
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
+    # Optional independent secret for the public demo's identity domain
+    # (core/identity.py, P10). Left empty, the demo's signing key is derived
+    # from secret_key — domain-separated, so a demo token can never be
+    # replayed as a parent token, but not key-isolated. Set this on the
+    # public demo instance, where the operator holds third parties' data and
+    # a SECRET_KEY compromise should not also reach family deployments.
+    demo_secret_key: str = ""
+    # Accept tokens issued before identity domains existed (no domain header,
+    # signed with raw secret_key) until they expire. Self-limiting — no new
+    # ones are ever issued — and exists so deploying P10 doesn't sign every
+    # family out mid-lesson. Safe to set false immediately.
+    legacy_token_grace: bool = True
+    # How long a management-plane elevation lasts (core/elevation.py, P8).
+    # Absolute from the moment of elevation, not a sliding window on use — a
+    # sliding window would let one password entry hold administrator rights
+    # for the whole session as long as someone kept clicking.
+    elevation_ttl_minutes: int = 10
+    # Whether the elevation is actually ENFORCED on the management plane.
+    #
+    # Defaults OFF, and that is a deliberate, temporary state rather than a
+    # judgement that the control isn't worth having. The backend half is
+    # complete and tested; the frontend half is not. homeschool-tutor's API
+    # client calls these endpoints from ~30 separate raw fetch() sites with
+    # no interceptor, so until it grows a password prompt and a retry, a
+    # parent opening Parent Setup would get an unexplained error on every
+    # management action.
+    #
+    # Turn this on the moment that flow lands — or now, for a deployment
+    # driving the API directly. With it off, require_elevated_parent behaves
+    # exactly like require_parent, and GET /admin/status reports the state so
+    # it can't quietly stay off and be mistaken for on.
+    elevation_enforced: bool = False
     algorithm: str = "HS256"
     # Parent sessions: up to 8h (full school day). Child: 4h (single session).
     access_token_expire_minutes: int = 480
@@ -364,6 +396,20 @@ class Settings(BaseSettings):
         "0000",
     }
 
+    # Kept separate from _WEAK_SECRETS above (which is also checked against
+    # SECRET_KEY/PARENT_PASSWORD/MASTER_SECRET) rather than added to it:
+    # "602656" isn't inherently weak as a general secret — pin_is_strong()
+    # alone would happily accept it as a CHILD_PIN, since it's a real,
+    # non-sequential, non-repeating 6-digit PIN. It's only a liability
+    # specifically as CHILD_PIN, because it's .env.example's own sample
+    # value (and pin_policy.py's docstring example of a *strong* PIN) —
+    # published in this repo, so a hand-copied .env that never touched
+    # that line boots in production with a PIN anyone can find on GitHub.
+    # A shared set would have also rejected "602656" as a perfectly
+    # reasonable PARENT_PASSWORD/SECRET_KEY/MASTER_SECRET value, which
+    # there's no security reason to do.
+    _WEAK_CHILD_PINS = {"602656"}
+
     # SECRET_KEY/MASTER_SECRET: matches the dev-default placeholders' own
     # "-32-chars-min" naming — SECRET_KEY signs every JWT (core/security.py),
     # MASTER_SECRET derives the encryption key hierarchy (core/encryption.py).
@@ -429,7 +475,7 @@ class Settings(BaseSettings):
                 f"PARENT_PASSWORD must be at least {MIN_PASSWORD_LENGTH} characters — "
                 "the same minimum setup.sh and the setup wizard already enforce interactively"
             )
-        if self.child_pin in self._WEAK_SECRETS:
+        if self.child_pin in self._WEAK_SECRETS or self.child_pin in self._WEAK_CHILD_PINS:
             problems.append("CHILD_PIN is set to the default dev value")
         elif not pin_is_strong(self.child_pin):
             problems.append(

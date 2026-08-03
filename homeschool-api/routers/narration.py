@@ -27,10 +27,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import LearnerBehaviorCheck, LearnerProfile, NarrationAssessment, get_db
 from core.deps import require_parent, require_real_user
-from core.encryption import decrypt_json, encrypt_json
+from core import student_keys
+from core.encryption import decrypt_json, encrypt_json, student_aad
 from services.ai_service import synthesize_learner_profile
 
 router = APIRouter(prefix="/narration", tags=["narration"])
+# Tier 3 (child session content) — docs/DATA_CLASSIFICATION.md.
+# narration_assessments has an autoincrement id unavailable at insert, so it
+# binds student scope only; learner_profiles and learner_behavior_checks are
+# both keyed by student_name directly.
+def _assessment_aad(student_name: str) -> bytes:
+    return student_aad("narration_assessments", "assessment_enc", student_name)
+
+
+def _profile_aad(student_name: str) -> bytes:
+    return student_aad("learner_profiles", "profile_enc", student_name)
+
+
+def _behavior_aad(student_name: str) -> bytes:
+    return student_aad("learner_behavior_checks", "count_enc", student_name)
+
 
 
 # Styles with a real, comparable tool-level signal (see services/ai_service.py's
@@ -69,7 +85,9 @@ async def _sync_behavior_check(db: AsyncSession, student_name: str, old_style: s
             select(LearnerBehaviorCheck).where(LearnerBehaviorCheck.student_name == student_name)
         )
         row = existing.scalar_one_or_none()
-        count_enc = encrypt_json({"count": 0})
+        count_enc = encrypt_json(
+            {"count": 0}, _behavior_aad(student_name), await student_keys.get_or_create(db, student_name)
+        )
         if row is None:
             db.add(LearnerBehaviorCheck(student_name=student_name, count_enc=count_enc))
         else:
@@ -96,7 +114,8 @@ async def get_assessments(
         .limit(limit)
     )
     rows = result.scalars().all()
-    return [decrypt_json(row.assessment_enc) for row in rows]
+    _key = await student_keys.get_existing(db, student_name)
+    return [decrypt_json(row.assessment_enc, _assessment_aad(row.student_name), _key) for row in rows]
 
 
 @router.get("/{student_name}/profile")
@@ -115,7 +134,9 @@ async def get_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No learner profile yet — complete a session to build one.",
         )
-    return decrypt_json(row.profile_enc)
+    return decrypt_json(
+        row.profile_enc, _profile_aad(student_name), await student_keys.get_existing(db, student_name)
+    )
 
 
 @router.post("/{student_name}/profile")
@@ -145,17 +166,23 @@ async def build_profile(
             detail="No narrations recorded yet — complete a session first.",
         )
 
-    assessments = [decrypt_json(row.assessment_enc) for row in rows]
+    _read_key = await student_keys.get_existing(db, student_name)
+    assessments = [
+        decrypt_json(row.assessment_enc, _assessment_aad(row.student_name), _read_key) for row in rows
+    ]
     profile = await synthesize_learner_profile(student_name, assessments, session_count)
     profile["session_count_assessed"] = session_count
     profile["assessed_at"] = datetime.now(timezone.utc).isoformat()
 
-    enc = encrypt_json(profile)
+    enc = encrypt_json(profile, _profile_aad(student_name), await student_keys.get_or_create(db, student_name))
     existing = await db.execute(
         select(LearnerProfile).where(LearnerProfile.student_name == student_name)
     )
     row = existing.scalar_one_or_none()
-    old_processing_style = decrypt_json(row.profile_enc).get("processing_style") if row is not None else None
+    old_processing_style = (
+        decrypt_json(row.profile_enc, _profile_aad(student_name), _read_key).get("processing_style")
+        if row is not None else None
+    )
     if row is None:
         db.add(LearnerProfile(
             student_name=student_name,
@@ -194,6 +221,8 @@ async def get_behavior_check(
     if row is None:
         return None
     return {
-        "count": decrypt_json(row.count_enc)["count"],
+        "count": decrypt_json(
+            row.count_enc, _behavior_aad(student_name), await student_keys.get_existing(db, student_name)
+        )["count"],
         "since": row.since.isoformat(),
     }

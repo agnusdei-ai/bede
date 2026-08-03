@@ -261,22 +261,49 @@ jobs:
         # signal to go reissue the key (see docs/SECURITY.md's Known open
         # gaps) — it just no longer blocks the rest of this job or later CI
         # on unrelated changes.
+        #
+        # A prior revision relied on that "still reports failure" alone —
+        # true, but easy to miss: continue-on-error hides the step behind a
+        # yellow/passing job in the PR checks list, so it takes actually
+        # opening this step's log to notice. This step now also emits a
+        # `::error::` workflow-command annotation (shows as a red banner on
+        # the PR and the run summary, not just inside the log) and writes
+        # to $GITHUB_STEP_SUMMARY, so a stale secret is visible without
+        # anyone going looking for it. A final always()-run step below
+        # re-surfaces the same banner as the LAST thing in the job summary,
+        # in case later steps' own output pushes this one out of view.
+        id: license_check
         continue-on-error: true
         run: |
           body=$(curl -sk https://localhost/api/pod/configs)
           code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/api/pod/configs)
           if echo "$body" | grep -q 'license_required'; then
-            echo "Instance is GATED — CI_TEST_LICENSE_KEY is missing/invalid/expired."
-            echo "Reissue it (scripts/issue_license.py --tier trial --days 730 ...) and"
-            echo "update the CI_TEST_LICENSE_KEY repository secret."
+            msg="CI_TEST_LICENSE_KEY is missing/invalid/expired — the production-regression license gate has not actually been proven this run. Reissue with scripts/issue_license.py (needs the offline private signing key — docs/PRODUCTION_SETUP.md#licensing) and update the CI_TEST_LICENSE_KEY repository secret."
+            echo "::error title=Stale CI_TEST_LICENSE_KEY::${msg}"
+            {
+              echo "## :rotating_light: License gate NOT verified this run"
+              echo "${msg}"
+              echo ""
+              echo "Response: \`${body}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg"
             echo "Response: $body"
             exit 1
           fi
           if [ "$code" != "401" ] && [ "$code" != "403" ]; then
-            echo "Expected an auth-shaped 401/403 from an unauthenticated /pod/configs, got $code"
+            msg="Expected an auth-shaped 401/403 from an unauthenticated /pod/configs, got ${code} instead — the license gate did not behave as expected."
+            echo "::error title=License gate check failed::${msg}"
+            {
+              echo "## :rotating_light: License gate check failed"
+              echo "${msg}"
+              echo ""
+              echo "Response: \`${body}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg"
             echo "Response: $body"
             exit 1
           fi
+          echo "License gate verified: CI_TEST_LICENSE_KEY is valid and the gate lifts correctly." >> "$GITHUB_STEP_SUMMARY"
           echo "License gate is down (auth answered normally) — license is active."
 
       - name: Confirm the no-CLI tablet-trust page works end-to-end
@@ -349,6 +376,25 @@ jobs:
       - name: Dump logs on failure
         if: failure()
         run: docker compose logs
+
+      - name: Re-flag a stale CI_TEST_LICENSE_KEY, if there was one
+        # The license-gate step above is continue-on-error (see its own
+        # comment for why), so its ::error:: annotation and step summary
+        # can end up buried under everything that ran after it — tablet-
+        # trust, Postgres backup/restore, several more minutes of log
+        # output. This runs unconditionally (always(), so it fires whether
+        # or not anything else failed) as the LAST thing in the job, purely
+        # to check that one step's outcome and re-surface the same signal
+        # if it failed, so "was the license actually verified this run" is
+        # never something you have to scroll back through the whole job to
+        # find out.
+        if: always()
+        run: |
+          if [ "${{ steps.license_check.outcome }}" = "failure" ]; then
+            echo "::error title=Stale CI_TEST_LICENSE_KEY::This run's license gate was NOT verified — see the 'Confirm the license is ACTIVE' step above. CI_TEST_LICENSE_KEY needs reissuing (scripts/issue_license.py, private key required — docs/PRODUCTION_SETUP.md#licensing)."
+            echo "## :rotating_light: Reminder: this run's license gate was NOT verified" >> "$GITHUB_STEP_SUMMARY"
+            echo "See the 'Confirm the license is ACTIVE' step above for details. CI_TEST_LICENSE_KEY needs reissuing." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Tear down
         if: always()

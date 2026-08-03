@@ -7,7 +7,7 @@ from sse_starlette.sse import EventSourceResponse
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import get_db
 from core.demo_code_session import get_personalization
-from core.deps import require_auth, require_parent
+from core.deps import require_auth, require_demo_preview, require_parent
 from core.diagnostic_preview_quota import has_quota, record_use
 from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
 from services.diagnostic import get_mastery_summary
@@ -22,23 +22,17 @@ router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 CONTACT_CTA = "reach out at info@agnusdei.ai"
 
 
-def _require_demo_code(auth: dict = Depends(require_auth)) -> dict:
-    """
-    No separate login — reachable with the exact same demo_code token the
-    child's own session already has (like the "Ask Bede" sandbox preview),
-    since this is single-session, non-sensitive preview data, not a real
-    family's data. Still not reachable by parent/child (production) — see
-    homeschool-tutor isolation note on get_diagnostic_summary below.
-    """
-    if auth.get("role") != "demo_code":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This preview is only available through the public demo login",
-        )
-    return auth
+# The demo-domain restriction here — no separate login, reachable with the
+# exact same demo_code token the child's own session already has (like the
+# "Ask Bede" sandbox preview), since this is single-session, non-sensitive
+# preview data rather than a real family's data, and deliberately NOT
+# reachable by parent/child — used to be a local `_require_demo_code`
+# helper performing an inline role comparison. It's now the
+# "diagnostic.demo_preview" action in core/policy.py's table; the guard
+# below composes on top of require_demo_preview, which enforces it.
 
 
-async def _require_diagnostic_quota(request: Request, auth: dict = Depends(_require_demo_code)) -> dict:
+async def _require_diagnostic_quota(request: Request, auth: dict = Depends(require_demo_preview)) -> dict:
     """
     Blocks entry once core/diagnostic_preview_quota.py's per-IP cap is
     exhausted — see that module's docstring for why the diagnostic

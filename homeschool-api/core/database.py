@@ -117,6 +117,63 @@ class AuditLog(Base):
     event_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
 
+class StudentKey(Base):
+    """One random data key per student, wrapped under DATA_KEY.
+
+    Every encrypted column belonging to a student is encrypted under their
+    key rather than DATA_KEY directly, so destroying this single row
+    crypto-shreds all of their stored data at once — live rows, dead tuples
+    awaiting VACUUM, WAL segments, and every backup taken while the key
+    existed. See core/student_keys.py for the full reasoning, and
+    docs/DATA_CLASSIFICATION.md for how it fits the tier model.
+
+    Deliberately NOT cascaded by a foreign key: services/student_deletion.py
+    destroys the key explicitly in the same transaction as the row deletes,
+    so the ordering and the failure mode are visible in code rather than
+    implied by schema."""
+    __tablename__ = "student_keys"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    wrapped_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PrivilegedElevation(Base):
+    """A time-boxed grant of management-plane privilege to one session.
+
+    P8: being logged in as the parent is the ordinary account identity;
+    doing something on the management plane (reading the audit log,
+    repointing the AI provider, weakening MFA, crypto-shredding a student)
+    additionally requires an explicit, recent re-authentication. This row is
+    that grant.
+
+    Keyed on the token's `jti`, so the grant belongs to one session rather
+    than to "the parent" — a second device logged in at the same time does
+    not inherit it.
+
+    Deliberately in the database rather than in process memory, and this is
+    the point rather than an implementation detail: an in-memory grant would
+    be invisible to sibling replicas, so the same session would be elevated
+    on the replica that granted it and not on the next one a load balancer
+    picked. The failure mode is worse than it sounds — an operator would see
+    privileged actions intermittently rejected and reasonably conclude the
+    step-up was broken, and the natural fix (make it sticky) is worse than
+    the bug. See docs/DEPLOYMENT_TOPOLOGY.md."""
+    __tablename__ = "privileged_elevations"
+
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+
+
 class VoiceProfile(Base):
     """One encrypted embedding row per enrolled student."""
     __tablename__ = "voice_profiles"

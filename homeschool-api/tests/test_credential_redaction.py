@@ -20,7 +20,8 @@ from starlette.requests import Request
 
 from core.config import settings
 from core.database import Base, SessionTranscript
-from core.encryption import decrypt_json, initialize_encryption
+from core.encryption import decrypt_json, initialize_encryption, student_aad
+from core import student_keys
 from models.schemas import ChatMessage, GradeStage, SessionConfig, Subject, TutorRequest
 from routers.tutor import chat as tutor_chat
 from routers.transcripts import save_transcript, TranscriptMessage, TranscriptSaveRequest
@@ -211,7 +212,11 @@ async def test_transcript_save_redacts_credentials_before_encrypting(db_session)
         event.remove(SessionTranscript, "before_insert", _assign_id)
 
     row = (await db_session.execute(select(SessionTranscript))).scalar_one()
-    data = decrypt_json(row.transcript_enc)
+    data = decrypt_json(
+        row.transcript_enc,
+        student_aad("session_transcripts", "transcript_enc", row.student_name),
+        await student_keys.get_existing(db_session, row.student_name),
+    )
     stored_messages = data["messages"]
 
     assert _AWS_KEY not in json.dumps(stored_messages)

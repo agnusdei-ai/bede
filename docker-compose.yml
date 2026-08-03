@@ -56,6 +56,27 @@ services:
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
       - LICENSE_KEY=${LICENSE_KEY:?LICENSE_KEY is required — issue one with homeschool-api/scripts/issue_license.py, see docs/PRODUCTION_SETUP.md#licensing}
+      # Security posture knobs (core/config.py). All optional, all with safe
+      # defaults — but they must be listed here or they never reach the
+      # container: this block enumerates variables explicitly rather than
+      # using env_file, so anything set in .env and NOT named here is
+      # silently dropped. A knob documented in .env.example that does
+      # nothing is worse than no knob at all.
+      #
+      # ELEVATION_ENFORCED — require a password step-up for management-plane
+      # actions (audit log, AI provider, MFA/recovery changes, permanent
+      # student deletion). Ships off pending the web UI's password prompt;
+      # see docs/SECURITY.md. GET /admin/status reports which posture you have.
+      - ELEVATION_ENFORCED=${ELEVATION_ENFORCED:-false}
+      - ELEVATION_TTL_MINUTES=${ELEVATION_TTL_MINUTES:-10}
+      # LEGACY_TOKEN_GRACE — accept JWTs issued before identity domains
+      # existed (core/identity.py). Only needed for the first deploy after
+      # upgrading; set false once every pre-upgrade token has expired (8h).
+      - LEGACY_TOKEN_GRACE=${LEGACY_TOKEN_GRACE:-true}
+      # DEMO_SECRET_KEY — independent signing key for the public demo's
+      # identity domain. Irrelevant on a family instance (no demo role in
+      # play); listed so the variable behaves the same way everywhere.
+      - DEMO_SECRET_KEY=${DEMO_SECRET_KEY:-}
       # AI provider — none of these is individually required; core/config.py
       # instead requires at least ONE of them to be non-empty once
       # PRODUCTION=true (see reject_no_ai_provider_configured_in_production).

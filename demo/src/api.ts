@@ -22,7 +22,7 @@ export const SUBJECT_LABELS: Record<Subject, string> = {
   nature_study: 'Nature Study', history: 'History & Geography', language_arts: 'Language Arts',
   science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism',
   scripture: 'Scripture & Bible Study', latin: 'Latin & Christian Foundations',
-  greek: 'Greek & New Testament Foundations', logic: 'Logic & Clear Thinking',
+  greek: 'Greek & New Testament Foundations', logic: 'Logic',
   free_study: 'Free Study',
 }
 

@@ -173,6 +173,7 @@ than merely conventional.
 | XChaCha20-Poly1305 | ✅ (same AAD slot) | ✅ | none | none | Viable; better random-nonce margin, no advantage on context binding |
 | Tweakable-cipher tweak (XTS-style, tweak = row identity) | ✅ | ❌ | none | none | **Rejected** — XTS provides no authentication at all, which is the property we most need |
 | Merkle tree / hash chain over the table | ⚠️ detects, doesn't prevent | ✅ | root + proofs | none | Table-level tamper *evidence*, not per-record binding; needs a trusted root. This is what Locuto's attestation chain does, and it's the wrong weight here |
+| Fully homomorphic encryption (FHE) | ❌ | ❌ | large ciphertext expansion | none | **Rejected — wrong problem.** See below |
 
 **Per-record derived keys deserve a note**, because they're the one
 alternative that isn't rejected — they're the *next step*. Deriving a
@@ -188,6 +189,66 @@ justify per-record keys, and it's a change to one function rather than a
 key-hierarchy redesign. The two compose — a per-record-keyed value should
 *also* carry AAD, so a bug in key derivation can't silently degrade to an
 unbound read.
+
+### On homomorphic encryption
+
+Worth recording separately because it comes up, and because the honest
+answer has two halves that point in different directions.
+
+**For context binding, FHE is not a candidate.** FHE lets a party *compute
+on* ciphertext without decrypting it. AAD binds ciphertext to *where it
+lives*. Those are different problems, and FHE does not solve ours: a
+validly-encrypted blob is validly encrypted wherever it sits, so nothing
+about homomorphic capability detects that a value was moved between rows.
+The trade would be a 1,000×+ slowdown and substantial ciphertext expansion
+in exchange for not gaining the property, against AAD's zero extra bytes
+and ~5 µs.
+
+**The place it would genuinely matter is the AI provider boundary** — the
+one documented exception in `docs/ARCHITECTURE_PRINCIPLES.md` P18, where
+full tutoring context reaches Anthropic/OpenAI/Mistral in plaintext because
+a model cannot reason over ciphertext. That is the largest privacy
+concession in the system, and private inference is exactly FHE's dream
+application.
+
+As of this writing it is not viable for that. CKKS-based frameworks have
+demonstrated end-to-end private inference on LLMs up to roughly 8B
+parameters, and GPU acceleration has improved encrypted GPT-2-class
+inference substantially — real progress, not stagnation. But the overhead
+remains on the order of 1,000× against plaintext, concentrated in the
+polynomial approximation of nonlinear operations (softmax, GELU), and these
+are research implementations rather than production systems. FHE is
+currently practical for private lookups, small-model inference, and batch
+analytics at tens of transactions per second; it struggles precisely where
+strict sub-second interactive latency is required. A Socratic tutoring turn
+with a child waiting for a reply is close to the worst-fitting workload
+available, and the target hardware is a Raspberry Pi.
+
+**The deployable alternative for that boundary today is confidential
+computing, not FHE** — GPU TEEs (NVIDIA H100/H200 with encrypted VRAM,
+attested jointly with Intel TDX or AMD SEV-SNP) run at roughly 90–99% of
+native performance with a one-off attestation cost of a second or two. Note
+the guarantee is different in kind: a TEE means the operator cannot see the
+data and can prove the hardware is genuine, which is a hardware-trust
+assumption. FHE's guarantee is mathematical. Neither is free of trust; they
+place it differently.
+
+**Bede's actual answer is better than either, and already exists.**
+`LOCAL_LLM_BASE_URL` points at a self-hosted open-weight model with zero
+egress — no third party, no homomorphic overhead, no TEE vendor dependency,
+no attestation chain to verify (`docs/VENDOR_DATA_FLOW.md`: "nothing leaves
+your machine at all"). That closes the P18 exception completely, at no
+cryptographic cost.
+
+Which reframes the question in a way worth stating plainly: **for this
+product the provider-boundary problem is not cryptographic, it is a
+capability question** — whether a locally-runnable model tutors well enough
+on modest hardware. If yes, the boundary is already closed. If no, no
+encryption scheme makes a frontier provider stop being a third party; it
+only changes what that third party can observe. Revisit if FHE inference
+reaches interactive latency at useful model scale, or if a family's
+threat model requires a cloud provider *and* forbids it seeing content —
+a combination this product does not currently have to serve.
 
 ### Quantum tolerance
 

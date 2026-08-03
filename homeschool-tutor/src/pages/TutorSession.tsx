@@ -42,7 +42,7 @@ export default function TutorSession() {
 
   const {
     token, role, sessionConfig, currentSubject, subjectsCompleted,
-    sessionStartedAt, subjectStartedAt, displayMessages, isStreaming,
+    sessionStartedAt, subjectStartedAt, displayMessages, isStreaming, sessionId,
     nextSubject, endSession, setSessionConfig, startSession, logout,
   } = useSessionStore()
 
@@ -279,6 +279,11 @@ export default function TutorSession() {
   const isWarning = !isOnBreak && remainingSecs > 0 && remainingSecs <= timerCfg.warningMinutes * 60
 
   const handleEndSession = async () => {
+    // Captured BEFORE endSession() clears it. The summary is the one moment
+    // a session-scoped mastery estimate is reported (and then released) on
+    // deployments that keep no profile between sessions, so reading it off
+    // a stale hook closure afterwards would work only by accident.
+    const endingSessionId = sessionId
     endSession()
     if (role === 'parent' && token) {
       setSummaryLoading(true)
@@ -286,7 +291,7 @@ export default function TutorSession() {
       try {
         const elapsed = sessionStartedAt ? Math.floor((Date.now() - sessionStartedAt.getTime()) / 60000) : 0
         setSummaryDurationMin(elapsed)
-        const text = await fetchSessionSummary(token, sessionConfig, getApiMessages(displayMessages), subjectsCompleted, elapsed)
+        const text = await fetchSessionSummary(token, sessionConfig, getApiMessages(displayMessages), subjectsCompleted, elapsed, endingSessionId)
         setSummary(text)
       } catch {
         setSummary(t('tutorSession.unableToGenerateSummary'))

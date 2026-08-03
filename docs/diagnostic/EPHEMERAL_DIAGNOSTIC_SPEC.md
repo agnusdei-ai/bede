@@ -96,11 +96,18 @@ lives only for the length of the session.
 summary, the record of work completed, the learner's guarantee, and the
 mastery cycle that reports movement over four weeks.
 
-**Changed.** The mastery cards on the Progress page describe the most
-recent session rather than the term. The "Math Skill Growth" note shows
-movement within a morning rather than across weeks. Long-run trends are no
-longer available, because showing a six-week arc requires keeping a
-six-week record of the child.
+**Changed.** The session summary gains a **Math Skills Today** section in
+place of "Math Skill Growth". It reports where the estimate finished rather
+than a before-and-after, because with nothing stored there is no earlier
+estimate to compare against, and the summary says so plainly rather than
+implying a history it does not have.
+
+**Not available.** The mastery cards on the Progress page. A parent opening
+Progress later is not in the child's session and has no way to reach an
+estimate that only ever existed in memory, so those cards have nothing to
+show. The estimate is delivered once, in the summary at the end of the
+sitting, and that is the honest extent of it. Long-run trends are gone for
+the same reason: a six-week arc requires a six-week record of the child.
 
 ---
 

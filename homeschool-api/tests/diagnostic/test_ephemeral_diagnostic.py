@@ -218,3 +218,59 @@ async def test_no_session_id_records_nothing_rather_than_falling_back(db_session
     rows = (await db_session.execute(select(MasteryProfile))).scalars().all()
     assert rows == []
     assert diagnostic_session.active_session_count() == 0
+
+
+# ── The read paths: an estimate nobody can read is not a feature ──────────
+
+@pytest.mark.asyncio
+async def test_the_live_estimate_reaches_the_prompt_within_the_session(db_session, no_retention):
+    """The first version of this feature wired the WRITE path only, so
+    evidence accumulated in memory and nothing ever read it back. Bede's
+    questioning would not have adapted at all within the sitting, which is
+    the entire reason for accumulating across a session rather than a turn.
+    """
+    empty_vector, empty_count = diagnostic_session.live_vector("sess-read")
+    assert empty_vector is None and empty_count == 0
+
+    await _run_session(db_session, "sess-read", n=4)
+
+    vector, count = diagnostic_session.live_vector("sess-read")
+    assert count == 4
+    assert vector, "the accumulated estimate was not readable for prompt injection"
+
+
+@pytest.mark.asyncio
+async def test_live_vector_matches_the_shape_the_prompt_path_expects(db_session, no_retention):
+    """live_vector stands in for _load_mastery_vector_readonly at the same
+    call site, so it has to return the same (vector-or-None, count) shape."""
+    await _run_session(db_session, "sess-shape", n=2)
+    vector, count = diagnostic_session.live_vector("sess-shape")
+
+    assert isinstance(vector, dict) and isinstance(count, int)
+    assert all(isinstance(v, float) for v in vector.values())
+
+
+@pytest.mark.asyncio
+async def test_reading_the_live_estimate_does_not_consume_it(db_session, no_retention):
+    """The prompt reads it on every turn; a read that emptied it would make
+    the second turn of a session behave like the first."""
+    await _run_session(db_session, "sess-reread", n=3)
+
+    first = diagnostic_session.live_vector("sess-reread")
+    second = diagnostic_session.live_vector("sess-reread")
+    assert first[1] == second[1] == 3
+
+
+@pytest.mark.asyncio
+async def test_the_estimate_is_released_once_the_summary_reports_it(db_session, no_retention):
+    """The summary is the last moment the estimate is needed. Holding it for
+    the full TTL afterwards would mean a finished session's estimate sat in
+    memory for six hours for no reason."""
+    await _run_session(db_session, "sess-summarised", n=3)
+    assert diagnostic_session.active_session_count() == 1
+
+    snapshot = await diagnostic_session.summary("sess-summarised", "Ada")
+    assert snapshot["evidence_count"] == 3
+
+    diagnostic_session.discard("sess-summarised")
+    assert diagnostic_session.active_session_count() == 0

@@ -709,6 +709,10 @@ class SessionSummaryRequest(BaseModel):
     conversation_history: List[ChatMessage]
     subjects_completed: List[Subject]
     duration_minutes: int
+    # Same value TutorRequest carries. Only meaningful when the deployment
+    # keeps no mastery profile between sessions, where the summary is the
+    # ONE moment the session's estimate is reported before being released.
+    session_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class EmailSummaryRequest(BaseModel):

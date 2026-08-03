@@ -549,37 +549,34 @@ p.lede {
   padding: 0.3rem 0.85rem;
 }
 
-/* Justified body copy — used only on genuine multi-sentence prose blocks
-   (.limit, .guarantee p, .faq details p), never on short card/list text,
-   where a one- or two-line fragment gives justify too few words to
-   distribute space evenly and the classic ugly gap shows up immediately.
-   text-align-last: left keeps a paragraph's final line ragged rather than
-   stretched or centered — justify's other well-known tell. hyphens: auto
-   is what actually keeps the *earlier* lines from ballooning: without it,
-   a narrow column (a phone-width column runs 40-50 characters) forces the
-   browser to stretch inter-word spacing to fill the line since it can
-   only break between whole words; letting it break mid-word at a
-   syllable gives it far more places to end a line evenly. Relies on
-   <html lang="en"> (already set) for the hyphenation dictionary. */
+/* Body copy — deliberately left-aligned (ragged-right), not justified.
+   A prior pass tried text-align: justify with hyphens: auto to avoid the
+   classic huge-gap problem, and hyphenation did stop the worst cases —
+   but justify still varies inter-word spacing line to line to hit a
+   flush right edge, which is inherent to how browsers justify text, not
+   something hyphenation fully removes. Rendering these paragraphs at
+   several widths (768px down to 480px) showed it plainly: some lines
+   sit at normal spacing, others visibly wider, an unevenness a careful
+   reader notices even without a single dramatic gap. Left-aligned text
+   keeps word-spacing constant on every line, which is why it's the
+   standard choice on Khan Academy and virtually every other site with
+   real body copy — justification is mainly a print convention, built for
+   a fixed page width and a typesetting engine far more sophisticated
+   than a browser's. */
 .limit,
 .guarantee p,
-.faq details p,
-.lede.flow {
-  text-align: justify;
-  text-align-last: left;
-  -webkit-hyphens: auto;
-  -ms-hyphens: auto;
-  hyphens: auto;
+.faq details p {
+  text-align: left;
 }
 
 /* .inner centres everything, which is right for a two-line lede sitting
    under a heading and wrong the moment a paragraph runs long: centred text
    is ragged on BOTH edges, so the eye has to hunt for where each line
    starts. Add `flow` to a lede that is genuinely several sentences of
-   argument rather than a caption, and it gets the same justified,
-   hyphenated treatment as .limit and the FAQ, plus a measure narrow enough
-   to read. Short ledes keep the centred look the page is built around. */
+   argument rather than a caption, and it gets a narrow measure and
+   left-aligned text rather than the centred look short ledes use. */
 .lede.flow {
+  text-align: left;
   max-width: 42rem;
   margin-left: auto;
   margin-right: auto;

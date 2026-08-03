@@ -15,11 +15,12 @@ import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbac
 import { SUBJECT_MAP } from '../types'
 import {
   getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes, effectiveSessionCap,
-  SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+  getSuggestedBreak, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+  SUGGESTED_BREAK_INTERVAL_MINUTES,
 } from '../utils/gradeTimer'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import { pickBreakActivity } from '../utils/breakActivities'
-import { Coffee, Eye } from 'lucide-react'
+import { Coffee, Eye, Footprints } from 'lucide-react'
 
 // A break screen tells the child to step away from the device — if nobody
 // comes back to it (taps, types, or otherwise touches the page) for this
@@ -71,6 +72,15 @@ export default function TutorSession() {
   // one-time-only screen with no way back would mean a kid who skimmed it
   // nervously the first time never gets a second look.
   const [introReopened, setIntroReopened] = useState(false)
+  // K-3 only: the 20-minute break SUGGESTION the child can wave off (see
+  // getSuggestedBreak). Both hold the suggestion's own key rather than a
+  // bare boolean, so each answer applies to exactly the mark it answered:
+  // `dismissedBreakKey` is "we waved this one off, keep going", and
+  // `acceptedBreakKey` is "we're taking this one" — a break the child also
+  // ends themselves. Neither can leak into the next mark or past a
+  // mandatory break.
+  const [dismissedBreakKey, setDismissedBreakKey] = useState<string | null>(null)
+  const [acceptedBreakKey, setAcceptedBreakKey] = useState<string | null>(null)
 
   useEffect(() => {
     // Checked once so the button never appears only to fail on submit on a
@@ -213,10 +223,41 @@ export default function TutorSession() {
   const isEyeRestBreak = screenPhase?.phase === 'break'
 
   const isOnBreak = isSubjectBreak || isSessionBreak || isEyeRestBreak
+
+  // K-3's optional 20-minute rhythm, offered inside the hour the mandatory
+  // rhythm already governs. Suppressed entirely while a mandatory break is
+  // running or the session has concluded — a suggestion must never compete
+  // with, or look like, something the child is allowed to dismiss.
+  const suggestedBreak = getSuggestedBreak(sessionPhase, timerCfg.isYounger)
+
+  // Both flags are keyed to the SUGGESTION they answer, not kept as bare
+  // booleans, which makes them self-clearing: getSuggestedBreak returns null
+  // during a mandatory break and a fresh key at each new mark, so a
+  // voluntary break can never outlive the hour it was taken in, survive a
+  // mandatory break, or silently continue into the next block. No effect is
+  // needed to tidy up after it — which matters here, because every hook in
+  // this component has to be declared before the sessionConfig guard above.
+  const voluntaryBreakActive =
+    !!suggestedBreak &&
+    acceptedBreakKey === suggestedBreak.key &&
+    !isOnBreak &&
+    !showConcludedMessage
+  const showBreakSuggestion =
+    !!suggestedBreak &&
+    !isOnBreak &&
+    !voluntaryBreakActive &&
+    !showConcludedMessage &&
+    suggestedBreak.key !== dismissedBreakKey &&
+    suggestedBreak.key !== acceptedBreakKey
+
+  // A voluntary break is still a break: the chat pauses and the
+  // inactivity-logout guard applies, exactly as it would for a mandatory
+  // one. It just ends when the child says so rather than on a clock.
+  const isPaused = isOnBreak || voluntaryBreakActive
   // Keeps the pre-guard break-inactivity effect (above) in sync — a plain
   // assignment, not a hook, so it's safe to run after the sessionConfig
   // guard even though the effect itself had to be declared before it.
-  isOnBreakRef.current = isOnBreak
+  isOnBreakRef.current = isPaused
   const breakRemainingSecs = isEyeRestBreak
     ? screenPhase!.remainingSecs
     : isSessionBreak
@@ -229,7 +270,11 @@ export default function TutorSession() {
     ? pickBreakActivity(screenPhase!.cycleIndex)
     : isOnBreak
       ? pickBreakActivity(sessionPhase.cycleIndex)
-      : null
+      : voluntaryBreakActive && suggestedBreak
+        // Offset by the mark so the 20- and 40-minute breaks in the same
+        // hour don't suggest the identical activity twice.
+        ? pickBreakActivity(sessionPhase.cycleIndex + suggestedBreak.mark)
+        : null
 
   const isWarning = !isOnBreak && remainingSecs > 0 && remainingSecs <= timerCfg.warningMinutes * 60
 
@@ -413,6 +458,74 @@ export default function TutorSession() {
             </div>
           </div>
         )}
+        {/* K-3's optional 20-minute break — SUGGESTED, never imposed. A
+            banner rather than a full-screen overlay on purpose: it sits
+            beside the lesson instead of interrupting it, so a child who is
+            genuinely settled can wave it off in one tap and keep working
+            toward the 40-minute mark. The mandatory hourly break below is
+            unaffected and still has no dismiss button. */}
+        {showBreakSuggestion && suggestedBreak && (
+          <div className="absolute inset-x-0 top-0 z-10 p-3">
+            <div className="mx-auto max-w-md rounded-2xl border border-sage-200 bg-white shadow-lg p-4">
+              <div className="flex items-start gap-3">
+                <Footprints size={20} className="mt-0.5 flex-shrink-0 text-sage-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800">
+                    {t('tutorSession.breakSuggestionTitle', {
+                      minutes: suggestedBreak.mark * SUGGESTED_BREAK_INTERVAL_MINUTES,
+                    })}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">{t('tutorSession.breakSuggestionBody')}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setAcceptedBreakKey(suggestedBreak.key)}
+                      className="rounded-xl bg-sage-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sage-700"
+                    >
+                      {t('tutorSession.breakSuggestionTake')}
+                    </button>
+                    <button
+                      onClick={() => setDismissedBreakKey(suggestedBreak.key)}
+                      className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    >
+                      {t('tutorSession.breakSuggestionKeepGoing')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* A break the child chose. Same full-screen treatment as a
+            mandatory one — the point is to be away from the device — but it
+            ends when they say so rather than on a clock, and it cannot
+            outlive the 20-minute mark it belongs to. */}
+        {voluntaryBreakActive && suggestedBreak && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
+            <div className="bg-white rounded-2xl border border-sage-200 shadow-xl p-8 max-w-sm w-full text-center">
+              <Footprints size={36} className="mx-auto mb-4 text-sage-500" />
+              <h2 className="text-xl font-display font-bold text-gray-800 mb-2">
+                {t('tutorSession.voluntaryBreakTitle')}
+              </h2>
+              <p className="text-sm text-gray-600 mb-4">
+                {t('tutorSession.voluntaryBreakBody', { name: sessionConfig.student_name })}
+              </p>
+              {breakActivity && (
+                <div className="bg-sage-50 border border-sage-200 rounded-xl px-4 py-3 mb-4 text-sm text-sage-800">
+                  {(t('breakActivities', { returnObjects: true }) as string[])[breakActivity.index]}
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setAcceptedBreakKey(null)
+                  setDismissedBreakKey(suggestedBreak.key)
+                }}
+                className="rounded-xl bg-sage-600 px-4 py-2 text-sm font-medium text-white hover:bg-sage-700"
+              >
+                {t('tutorSession.voluntaryBreakResume')}
+              </button>
+            </div>
+          </div>
+        )}
         {/* Break overlay */}
         {!showConcludedMessage && isOnBreak && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
@@ -449,7 +562,7 @@ export default function TutorSession() {
             </div>
           </div>
         )}
-        <SocraticChat breakActive={isOnBreak || showConcludedMessage} gradeStage={sessionConfig.grade_stage} />
+        <SocraticChat breakActive={isPaused || showConcludedMessage} gradeStage={sessionConfig.grade_stage} />
         </>
         )}
       </main>

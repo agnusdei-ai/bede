@@ -22,9 +22,12 @@ import {
   MIN_SESSION_CAP_MINUTES,
   SESSION_BREAK_MINUTES,
   SESSION_STUDY_MINUTES,
+  SUGGESTED_BREAK_INTERVAL_MINUTES,
   capForStudyMinutes,
+  getSuggestedBreak,
   studyMinutesWithinCap,
 } from './gradeTimer'
+import type { PhaseInfo } from './gradeTimer'
 import { SUBJECT_MAP, SUBJECTS } from '../types'
 import type { Subject } from '../types'
 
@@ -171,5 +174,82 @@ describe('SESSION constants are what the arithmetic assumes', () => {
   it('is a 60/10 rhythm', () => {
     expect(SESSION_STUDY_MINUTES).toBe(60)
     expect(SESSION_BREAK_MINUTES).toBe(10)
+  })
+})
+
+// ── K-3's optional 20-minute rhythm ──────────────────────────────────────
+//
+// A younger child's attention is shorter but not uniformly so — some
+// 6-year-olds genuinely settle into 40 minutes, and stopping them dead at 20
+// wastes the best stretch of the morning. So the 20-minute rhythm is offered
+// and dismissible, while the 60-minute break stays mandatory for everyone.
+//
+// The invariant that matters most: nothing here can weaken the mandatory
+// break. These tests exist to fail loudly if a future edit lets a suggestion
+// appear during, replace, or extend past one.
+describe('getSuggestedBreak', () => {
+  const study = (elapsedMin: number, cycleIndex = 0): PhaseInfo => ({
+    phase: 'study',
+    remainingSecs: SESSION_STUDY_MINUTES * 60 - elapsedMin * 60,
+    cycleIndex,
+    elapsedSecs: elapsedMin * 60,
+  })
+
+  it('offers nothing in the first 20 minutes', () => {
+    expect(getSuggestedBreak(study(0), true)).toBeNull()
+    expect(getSuggestedBreak(study(19), true)).toBeNull()
+  })
+
+  it('offers the first break at the 20-minute mark', () => {
+    expect(getSuggestedBreak(study(20), true)).toMatchObject({ mark: 1 })
+  })
+
+  it('offers a second at the 40-minute mark, so a 40-minute stretch is possible', () => {
+    expect(getSuggestedBreak(study(39), true)).toMatchObject({ mark: 1 })
+    expect(getSuggestedBreak(study(40), true)).toMatchObject({ mark: 2 })
+  })
+
+  it('never offers a third — the 60-minute break is mandatory, not suggested', () => {
+    for (let m = 40; m < 60; m++) {
+      expect(getSuggestedBreak(study(m), true)!.mark).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('offers nothing to grades 4-8 — the 60/10 cycle IS their pacing', () => {
+    expect(getSuggestedBreak(study(20), false)).toBeNull()
+    expect(getSuggestedBreak(study(45), false)).toBeNull()
+  })
+
+  it('offers nothing during a mandatory break, or once concluded', () => {
+    const onBreak: PhaseInfo = { phase: 'break', remainingSecs: 300, cycleIndex: 0, elapsedSecs: 3900 }
+    const done: PhaseInfo = { phase: 'concluded', remainingSecs: 0, cycleIndex: 3, elapsedSecs: 12900 }
+    expect(getSuggestedBreak(onBreak, true)).toBeNull()
+    expect(getSuggestedBreak(done, true)).toBeNull()
+  })
+
+  it('gives each hour its own keys, so waving one off never silences the next', () => {
+    const first = getSuggestedBreak(study(20, 0), true)!
+    const second = getSuggestedBreak(study(20, 1), true)!
+    expect(first.mark).toBe(second.mark)
+    expect(first.key).not.toBe(second.key)
+  })
+
+  it('gives each mark within an hour its own key', () => {
+    expect(getSuggestedBreak(study(20, 0)!, true)!.key)
+      .not.toBe(getSuggestedBreak(study(40, 0)!, true)!.key)
+  })
+
+  it('is stable across the whole window a mark is open', () => {
+    // The banner must not flicker or re-arm while the child is deciding.
+    const keys = new Set<string>()
+    for (let m = 20; m < 40; m++) keys.add(getSuggestedBreak(study(m), true)!.key)
+    expect(keys.size).toBe(1)
+  })
+
+  it('uses the same interval constant the UI reports to the child', () => {
+    expect(SUGGESTED_BREAK_INTERVAL_MINUTES).toBe(20)
+    // mark * interval is what the banner renders as "you've been working N
+    // minutes", so the two must not drift.
+    expect(getSuggestedBreak(study(40), true)!.mark * SUGGESTED_BREAK_INTERVAL_MINUTES).toBe(40)
   })
 })

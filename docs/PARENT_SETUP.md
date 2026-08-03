@@ -695,6 +695,27 @@ a countdown in the header shortly before each transition. On top of all
 this, you can still set a stricter total screen-time cap per student, with a
 longer eye-rest break, from the student's settings.
 
+**Younger children are also *offered* a break every twenty minutes — but
+never forced to take one.** A younger child's attention is shorter, but it
+isn't uniformly shorter: some six-year-olds genuinely settle into a good
+forty-minute stretch, and stopping them dead at twenty wastes the best part
+of their morning. So for grades K-3, a small banner appears at the twenty-
+and forty-minute marks asking whether they'd like a quick break. Two
+choices, one tap each:
+
+- **"Yes, let's pause"** — a full break screen with an off-screen activity
+  suggestion, which your child ends themselves when they're ready. There's
+  no countdown and no pressure.
+- **"No thanks, keep going"** — the banner disappears and doesn't come back
+  until the next mark.
+
+This is a suggestion only. **The hourly break remains mandatory for every
+grade, and nothing about these suggestions can shorten it, skip it, delay
+it, or extend a working stretch past an hour.** A child who waves off both
+suggestions simply works to the hour and then gets the same compulsory
+ten-minute break everyone else does. Grades 4-8 don't see the suggestion at
+all — the hourly rhythm already is their pacing.
+
 **A break that's never returned to logs itself out.** If nobody touches the
 tablet for 5 minutes while a break screen is showing, the session ends
 automatically and returns to the login screen — whether it's your child's

@@ -407,26 +407,38 @@ p.lede {
 }
 
 /* Curriculum tab colours — one per subject, like the colored divider
-   tabs in a school binder, so the eleven subjects read as distinct at
-   a glance instead of one undifferentiated green list. Eleven hues
-   evenly spaced around the wheel (32.7° apart, identical saturation
-   and lightness) so none repeats and the list reads as one continuous
-   spectrum — every subject its own colour, the way every learner is
-   their own person. Muted well below full strength so they sit like
-   the plates in an old botanical folio rather than like highlighter
-   ink. Scoped to .curriculum: the other .card-grid instances on the
-   page aren't subject lists and keep the plain fern border. */
-.curriculum .card:nth-child(1)  { border-left-color: #7f3939; } /* Morning Time */
-.curriculum .card:nth-child(2)  { border-left-color: #7f5f39; } /* Living Books */
-.curriculum .card:nth-child(3)  { border-left-color: #787f39; } /* Mathematics */
-.curriculum .card:nth-child(4)  { border-left-color: #527f39; } /* Nature Study */
-.curriculum .card:nth-child(5)  { border-left-color: #397f46; } /* History & Geography */
-.curriculum .card:nth-child(6)  { border-left-color: #397f6c; } /* Language Arts */
-.curriculum .card:nth-child(7)  { border-left-color: #396c7f; } /* Science */
-.curriculum .card:nth-child(8)  { border-left-color: #39467f; } /* Art & Music */
-.curriculum .card:nth-child(9)  { border-left-color: #52397f; } /* Saints & Catechism */
-.curriculum .card:nth-child(10) { border-left-color: #78397f; } /* Scripture & Bible Study */
-.curriculum .card:nth-child(11) { border-left-color: #7f395f; } /* Free Study */
+   tabs in a school binder, so the fourteen subjects read as distinct at
+   a glance instead of one undifferentiated green list. Fourteen hues
+   evenly spaced around the wheel (360/14 = 25.7° apart, identical
+   saturation and lightness) so none repeats and the list reads as one
+   continuous spectrum — every subject its own colour, the way every
+   learner is their own person. Muted well below full strength so they
+   sit like the plates in an old botanical folio rather than like
+   highlighter ink. Scoped to .curriculum: the other .card-grid
+   instances on the page aren't subject lists and keep the plain fern
+   border.
+
+   Written as hsl() rather than hex so the even spacing is checkable in
+   the code itself — the hues are the only thing that varies, and adding
+   a subject means respacing this list, not appending to it. The 38%/36%
+   pair is the same saturation and lightness the earlier hex palette
+   used (hsl(0, 38%, 36%) is exactly #7f3939), so the tabs keep the
+   folio-plate weight they already had. Order matches the subject order
+   in the card grid above, which in turn matches the app's own. */
+.curriculum .card:nth-child(1)  { border-left-color: hsl(0, 38%, 36%); }     /* Morning Time */
+.curriculum .card:nth-child(2)  { border-left-color: hsl(25.7, 38%, 36%); }  /* Living Books */
+.curriculum .card:nth-child(3)  { border-left-color: hsl(51.4, 38%, 36%); }  /* Mathematics */
+.curriculum .card:nth-child(4)  { border-left-color: hsl(77.1, 38%, 36%); }  /* Nature Study */
+.curriculum .card:nth-child(5)  { border-left-color: hsl(102.9, 38%, 36%); } /* History & Geography */
+.curriculum .card:nth-child(6)  { border-left-color: hsl(128.6, 38%, 36%); } /* Language Arts */
+.curriculum .card:nth-child(7)  { border-left-color: hsl(154.3, 38%, 36%); } /* Science */
+.curriculum .card:nth-child(8)  { border-left-color: hsl(180, 38%, 36%); }   /* Art & Music */
+.curriculum .card:nth-child(9)  { border-left-color: hsl(205.7, 38%, 36%); } /* Saints & Catechism */
+.curriculum .card:nth-child(10) { border-left-color: hsl(231.4, 38%, 36%); } /* Scripture & Bible Study */
+.curriculum .card:nth-child(11) { border-left-color: hsl(257.1, 38%, 36%); } /* Latin & Christian Foundations */
+.curriculum .card:nth-child(12) { border-left-color: hsl(282.9, 38%, 36%); } /* Greek & New Testament Foundations */
+.curriculum .card:nth-child(13) { border-left-color: hsl(308.6, 38%, 36%); } /* Logic & Clear Thinking */
+.curriculum .card:nth-child(14) { border-left-color: hsl(334.3, 38%, 36%); } /* Free Study */
 
 .founder blockquote {
   margin: 0 0 0.75rem;

@@ -96,11 +96,18 @@ lives only for the length of the session.
 summary, the record of work completed, the learner's guarantee, and the
 mastery cycle that reports movement over four weeks.
 
-**Changed.** The mastery cards on the Progress page describe the most
-recent session rather than the term. The "Math Skill Growth" note shows
-movement within a morning rather than across weeks. Long-run trends are no
-longer available, because showing a six-week arc requires keeping a
-six-week record of the child.
+**Changed.** The session summary gains a **Math Skills Today** section in
+place of "Math Skill Growth". It reports where the estimate finished rather
+than a before-and-after, because with nothing stored there is no earlier
+estimate to compare against, and the summary says so plainly rather than
+implying a history it does not have.
+
+**Not available.** The mastery cards on the Progress page. A parent opening
+Progress later is not in the child's session and has no way to reach an
+estimate that only ever existed in memory, so those cards have nothing to
+show. The estimate is delivered once, in the summary at the end of the
+sitting, and that is the honest extent of it. Long-run trends are gone for
+the same reason: a six-week arc requires a six-week record of the child.
 
 ---
 
@@ -146,7 +153,7 @@ that depends on accumulation. It becomes a snapshot.
 |---|---|---|
 | **D1** | Is this a whole-installation setting, a per-child setting, or a per-session choice? | **DECIDED: whole installation.** Shipped as `RETAIN_MASTERY_PROFILES`. Per-child can follow later without rework. |
 | **D2** | Do narration assessments fall under this too? | **No, and the reason should be published.** They score a piece of work, not the child. That is the distinction being drawn, rather than the word "assessment." |
-| **D3** | What happens to profiles that already exist? | **Still open, and the one thing to settle before recommending this to an existing family.** Turning the setting on stops new estimates immediately, but rows written earlier stay on disk until that student is deleted. A fresh installation has nothing to migrate, which is why this did not block shipping. Recommendation stands: delete on enable, with clear confirmation. |
+| **D3** | What happens to profiles that already exist? | **Partly answered by work that landed since.** Per-student encryption keys (`StudentKey`) now mean destroying one key crypto-shreds everything belonging to that student, including dead tuples, WAL, and every backup taken while the key existed. That is a stronger erasure than a `DELETE` could ever give. But it is all-or-nothing: it also destroys their voice profile, narrations, work ledger, and config. So there is still no *surgical* way to remove only the retained estimates, and a targeted `DELETE` leaves rows recoverable from backups. Turning the setting on stops new estimates immediately; a fresh installation has nothing to migrate, which is why this did not block shipping. **The remaining decision is whether an estimate deserves its own key scope**, separate from the student key, so it can be shredded without taking the family's whole record with it. |
 | **D4** | Does the public demo change? | **No.** It is already temporary. |
 | **D5** | How is "still calibrating" explained? | **Plainly, as a design choice.** The summary should say the estimate covers today by design, so it reads as intended behaviour rather than a fault. |
 

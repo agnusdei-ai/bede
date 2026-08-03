@@ -556,7 +556,8 @@ export async function fetchSessionSummary(
   config: SessionConfig,
   history: ChatMessage[],
   subjectsCompleted: Subject[],
-  durationMinutes: number
+  durationMinutes: number,
+  sessionId?: string | null
 ): Promise<string> {
   const res = await fetch(`${BASE}/tutor/summary`, {
     method: 'POST',
@@ -569,6 +570,9 @@ export async function fetchSessionSummary(
       conversation_history: history,
       subjects_completed: subjectsCompleted,
       duration_minutes: durationMinutes,
+      // Lets the summary report (and then release) this session's mastery
+      // estimate on deployments that keep no profile between sessions.
+      session_id: sessionId ?? null,
     }),
   })
   if (!res.ok) throw new Error('Failed to generate summary')

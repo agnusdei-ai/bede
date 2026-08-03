@@ -457,3 +457,64 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
     })
     main_thread.join(timeout=5)
     assert main_thread.is_alive() is False
+
+
+# ── Mastery retention (RETAIN_MASTERY_PROFILES) ──────────────────────────
+#
+# The setting exists so a family can run the full diagnostic without Bede
+# keeping a lasting estimate of their child. It was reachable only by
+# hand-editing .env, which the whole point of this wizard is to avoid — so
+# for the people it was built for it may as well not have existed. These
+# pin the choice reaching the file it has to reach.
+
+def test_choosing_not_to_keep_mastery_writes_the_setting(running_wizard):
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+        "keep_mastery": "no",
+    })
+    assert resp.status == 200
+    env = open(wizard.ENV_PATH).read()
+    assert "RETAIN_MASTERY_PROFILES=false" in env
+
+
+def test_the_default_install_writes_nothing_about_retention(running_wizard):
+    """Silence and "yes" have to agree: the code default is True, so an
+    ordinary install's .env should stay free of a setting nobody picked
+    rather than restating the default back at itself."""
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+        "keep_mastery": "yes",
+    })
+    assert resp.status == 200
+    env = open(wizard.ENV_PATH).read()
+    assert "RETAIN_MASTERY_PROFILES" not in env
+
+
+def test_an_older_form_with_no_answer_keeps_todays_behaviour(running_wizard):
+    """A submission from before this question existed must not silently
+    switch a family onto the stricter posture."""
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": "602656",
+        "license_key": "eyJ.test-license-key",
+    })
+    assert resp.status == 200
+    env = open(wizard.ENV_PATH).read()
+    assert "RETAIN_MASTERY_PROFILES" not in env
+
+
+def test_the_question_is_actually_shown(running_wizard):
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert "mastered between sessions" in body
+    assert 'name="keep_mastery" value="yes"' in body
+    assert 'name="keep_mastery" value="no"' in body

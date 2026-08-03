@@ -135,8 +135,8 @@ that same box. Each of those three things (serving Docker containers,
 running a full browser well enough for a child's actual lesson, and running
 a local LLM) is individually fine on modest hardware; stacking all three
 onto one Raspberry-Pi-or-Celeron-class board at once is the combination
-that will actually feel slow. If you want one physical box to do everything
-— server, local AI, *and* a screen attached to it. That's the point where
+that will actually feel slow. If you want one physical box to do everything,
+meaning server, local AI, *and* a screen attached to it, that is the point where
 "modest hardware is fine" stops applying, and something closer to a Mac
 Mini or a mid-range mini PC (more RAM, a real CPU, ideally a discrete or
 capable integrated GPU if local AI is part of the plan) is the honest
@@ -149,8 +149,8 @@ Is both the cheaper path and the one this app was actually designed around.
 On GitHub, click the green **Code** button → **Download ZIP**, then unzip it
 wherever you'd like on the server machine (no terminal needed for this part).
 
-*(If you're comfortable with `git`, `git clone <this repository>` works too
-— same result.)*
+*(If you're comfortable with `git`, `git clone <this repository>` works too,
+same result.)*
 
 **Prefer one command instead?** A native installer exists for each platform
 that also installs Docker for you if it's missing, and can optionally set
@@ -171,6 +171,29 @@ A browser tab opens with a short form: fill in the items from step 1
 above, click the button, and everything else happens automatically. When
 it says Bede is running, open `https://localhost` on the same computer to
 confirm.
+
+One question on that form is worth a moment's thought, because it is the
+only one you cannot change later without editing a file by hand.
+
+**"Should Bede remember what your child has mastered between sessions?"**
+
+- **Yes (recommended)** keeps an encrypted estimate on your own machine, so
+  Bede's sense of where your child is gets steadier week by week and the
+  Progress page can show a whole term.
+- **No** runs exactly the same assessment and still reports what Bede saw
+  at the end of each session, but keeps no lasting estimate of your child
+  anywhere at all.
+
+The trade is real and worth understanding before you pick. Judgements get
+steadier with evidence, and one sitting produces only a handful, so with
+**No** you will see "still getting to know your learner" more often and the
+Progress page will not show a term's picture. Your record of the work your
+child actually completed is kept either way; what stops being stored is
+Bede's opinion about them.
+
+Either way, nothing goes to us. On your own machine, on your own hardware,
+this is a choice about what exists in your house, not about what anyone
+else can see.
 
 *(Prefer a terminal? `make setup` or `bash setup.sh` asks the same
 questions as typed prompts instead: see `docs/PRODUCTION_SETUP.md`.)*
@@ -1075,8 +1098,8 @@ actual learning still lives on the Progress page in the next section.
 ## Reading and spelling (grades 3-8)
 
 Bede measured reading only up to 2nd grade. Phonics covers decoding for
-K-2, and composition measures your child's *writing* from their narrations
-— but between them there was nothing for reading in grades 3-8, and no
+K-2, and composition measures your child's *writing* from their narrations.
+Between them there was nothing for reading in grades 3-8, and no
 spelling measurement at any grade. A 5th grader could work with Bede for a
 year and you'd learn nothing about how they read.
 

@@ -150,6 +150,18 @@ async def summary(session_id: str, student_name: str, subject_area: str = "mathe
     )
 
 
+def live_vector(session_id: str, subject_area: str = "mathematics") -> tuple[dict | None, int]:
+    """The raw vector and evidence count for prompt injection, shaped to
+    match _load_mastery_vector_readonly's return so the two are drop-in
+    alternatives at the call site. (None, 0) for a session with no evidence
+    yet, which is a genuine cold start rather than an error."""
+    _sweep()
+    est = _sessions.get((session_id, subject_area))
+    if est is None:
+        return None, 0
+    return dict(est.vector), est.evidence_count
+
+
 def discard(session_id: str) -> int:
     """Drop every estimate for a session. Called when a session ends, so the
     estimate goes at the moment it stops being needed rather than waiting

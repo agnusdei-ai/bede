@@ -3496,8 +3496,19 @@ async def stream_tutor_response(
     # _load_mastery_vector_readonly's docstring. (None, 0) whenever db is
     # None (demo/no evidence yet) or the subject isn't mathematics.
     db_vector, db_evidence_count = None, 0
-    if db is not None and subject == Subject.mathematics:
-        db_vector, db_evidence_count = await _load_mastery_vector_readonly(db, config.student_name)
+    if subject == Subject.mathematics:
+        if not settings.retain_mastery_profiles:
+            # Nothing is stored to load, so the live estimate is this
+            # session's own. Without this, evidence would accumulate in
+            # memory and never reach the prompt, and Bede's questioning
+            # would not adapt at all within the sitting — which is the
+            # entire efficacy argument for accumulating across a session
+            # rather than a turn. See services/diagnostic_session.py.
+            if session_id:
+                from services import diagnostic_session
+                db_vector, db_evidence_count = diagnostic_session.live_vector(session_id)
+        elif db is not None:
+            db_vector, db_evidence_count = await _load_mastery_vector_readonly(db, config.student_name)
 
     # Real sessions only (never demo, which has no narration/profile history
     # to synthesize from) — see _load_processing_style_readonly's docstring
@@ -4030,7 +4041,51 @@ async def generate_session_summary(
     )
 
     growth_note = ""
-    if db is not None and Subject.mathematics in req.subjects_completed:
+    if (
+        not settings.retain_mastery_profiles
+        and req.session_id
+        and Subject.mathematics in req.subjects_completed
+    ):
+        # Nothing was written, so there is no before/after log to diff.
+        # What CAN be reported honestly is where this session's own
+        # estimate finished, which is the whole point of accumulating
+        # across the sitting. This is also the last moment the estimate is
+        # needed, so it is released immediately afterwards rather than
+        # waiting out the TTL.
+        try:
+            from services import diagnostic_session
+
+            snapshot = await diagnostic_session.summary(
+                req.session_id, req.session_config.student_name,
+            )
+        except Exception:
+            log.warning("Session-scoped mastery snapshot failed for summary", exc_info=True)
+            snapshot = None
+
+        if snapshot and snapshot.get("evidence_count"):
+            secure = [s["label"] for d in snapshot.get("domains", [])
+                      for s in d.get("skills", []) if s.get("level") == "secure"][:3]
+            working = [s["label"] for d in snapshot.get("domains", [])
+                       for s in d.get("skills", []) if s.get("level") == "developing"][:3]
+            calibrating = not snapshot.get("calibration", {}).get("calibrated", True)
+            growth_note = f"""
+
+Math skills observed THIS session ({snapshot['evidence_count']} pieces of evidence). This deployment \
+keeps no mastery profile between sessions, so this covers today only and there is no earlier estimate \
+to compare against — say so plainly if you mention it, and never imply a longer history:
+- Looked secure today: {', '.join(secure) or 'nothing yet'}
+- Still developing today: {', '.join(working) or 'nothing yet'}
+{'- Too little evidence today to be confident; frame this as a first impression, not a finding.' if calibrating else ''}
+
+Add a sixth section, **Math Skills Today**, describing the above in plain, warm language a parent would \
+understand — skip clinical terms, and be clear it is a picture of this session rather than a trend."""
+
+        try:
+            diagnostic_session.discard(req.session_id)
+        except Exception:
+            log.warning("Releasing the session estimate failed", exc_info=True)
+
+    elif db is not None and Subject.mathematics in req.subjects_completed:
         try:
             from datetime import timedelta
 

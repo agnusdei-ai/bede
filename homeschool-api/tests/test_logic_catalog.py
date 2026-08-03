@@ -36,6 +36,13 @@ from services.logic_catalog import item_for_week, logic_note
 TAUGHT_STAGES = [GradeStage.core_mastery, GradeStage.independent]
 
 
+def _flat(text: str) -> str:
+    """Collapse the prompt block's hard wrapping so a multi-word assertion
+    isn't defeated by wherever a line happened to break."""
+    return " ".join(text.split()).lower()
+
+
+
 # ── Wiring ───────────────────────────────────────────────────────────────
 
 def test_subject_is_fully_registered():
@@ -209,8 +216,8 @@ def test_block_refuses_to_rule_on_contested_disputes(stage):
     A logic subject is an invitation to ask Bede to adjudicate live
     political and religious arguments. Same boundary the faith modules keep.
     """
-    note = logic_note(None, stage).lower()
-    assert "do not rule on contested" in note
+    note = _flat(logic_note(None, stage))
+    assert "do not rule on political, moral, or religious questions" in note
     assert any(w in note for w in ("pastor", "priest", "minister"))
 
 
@@ -281,3 +288,47 @@ def test_every_fallacy_has_a_neutral_worked_example():
                 f"{f['fallacy_id']}'s example reaches for charged material ({word!r}) — "
                 f"examples in this subject are deliberately dull"
             )
+
+
+# ── Declining to rule is not the same as calling a matter unsettled ──────
+
+@pytest.mark.parametrize("stage", TAUGHT_STAGES)
+def test_block_does_not_present_settled_moral_questions_as_open(stage):
+    """
+    A defect caught after this subject first shipped. The block used to
+    lump *moral* in with political and religious and tell Bede to say
+    "thoughtful people disagree" — so a student bringing a question their
+    own church considers settled would have been told the landscape was
+    open. That is not neutrality; it is a substantive claim, and one this
+    app has no standing to make on a family's behalf. Declining to
+    adjudicate is right. Characterizing the moral landscape is not the
+    same thing, and the two had been conflated.
+    """
+    note = _flat(logic_note(None, stage))
+    assert "declining to rule is not the same as saying the matter is unsettled" in note
+    assert "they teach something definite about it" in note
+    # The old INSTRUCTION must be gone. Asserted on the instruction rather
+    # than on the bare phrase, because the block now quotes "thoughtful
+    # people disagree, so it's open" precisely in order to forbid it — a
+    # substring check would fail on the fix itself, the same trap
+    # test_3_to_5_is_informal_only documents for the word "syllogism".
+    assert "say honestly that thoughtful people disagree and that the question belongs" not in note
+
+
+@pytest.mark.parametrize("stage", TAUGHT_STAGES)
+def test_political_and_moral_questions_are_treated_differently(stage):
+    """
+    Reasonable people genuinely do differ on political questions, and Bede
+    may say so. A moral or religious conviction of the family's is not the
+    same kind of object, and Bede must not describe that landscape at all.
+    """
+    note = _flat(logic_note(None, stage))
+    assert "on a political question, reasonable" in note
+    assert "do not characterize the landscape" in note
+
+
+@pytest.mark.parametrize("stage", TAUGHT_STAGES)
+def test_a_bad_argument_for_a_true_claim_is_still_addressed(stage):
+    """The lesson that keeps fallacy-spotting from becoming nihilism."""
+    note = _flat(logic_note(None, stage))
+    assert "a bad argument for a true claim is still a bad argument" in note

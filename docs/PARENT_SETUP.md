@@ -1061,3 +1061,48 @@ meaning behind spelling that pronunciation actively contradicts (*sign* →
 *signature*), so explicit work on patterns and word roots does more for an
 English-speaking child than it would for a Finnish one. More structure
 here, not less.
+
+
+## If you already use your own Latin or Greek programme
+
+Bede is the practice beside your course, never the course itself. Whenever
+you list your curriculum in **Curriculum Resources You Already Use** (in the
+session-context panel), the Latin and Greek subjects change how they behave:
+
+- **Your sequence wins.** If your child brings vocabulary, a paradigm, or a
+  phrase from their own lessons, Bede drops its own weekly term and works
+  with what they brought.
+- **Your terminology wins.** Bede will not tell your child their programme
+  teaches something in the wrong order or uses the wrong word for a form.
+  Where your course's wording differs from Bede's, Bede uses yours.
+- **Bede stops presenting its term as "the lesson."** It's offered as
+  something extra to enjoy alongside the real course, not as what your child
+  ought to be covering this week.
+- **Bede defers rather than pre-empting.** If your child asks something
+  their own course will cover later, Bede will say their teacher or book
+  will get to it rather than answering it badly first.
+
+This applies to Latin and Greek only. Mathematics, Logic and the other
+subjects relate to your curriculum resources differently — see §5.
+
+## What your child works on in mathematics, year by year
+
+The maths scope now targets what an independent or classical preparatory
+school expects, which means **grade 8 is a full Algebra I year** rather than
+the lighter grade-8 scope a conventional curriculum sets. That has knock-on
+effects earlier:
+
+| Year | Scope |
+|---|---|
+| K-1 | Counting, number bonds, skip counting, shapes, measurable attributes |
+| 2 | Addition/subtraction within 100, place value to 1,000, arrays as the bridge to multiplication, money, time |
+| 3 | Multiplication and division fluency, factors and multiples, order of operations, unit fractions, area and perimeter |
+| 4 | Multi-digit multiplication and long division, primes and factorization, mixed numbers, angles, multi-step problems |
+| 5 | All four decimal operations, multiplying **and dividing** fractions, volume, coordinate plane — **the last year of pure arithmetic** |
+| 6 | Pre-algebra begins: ratios and percent, negatives and absolute value, expressions and one/two-step equations |
+| 7 | Pre-algebra completed and **Algebra I begun**: exponent laws, multi-step equations, variables on both sides, inequalities, factoring linear expressions |
+| 8 | **Algebra I**: roots and irrationals, scientific notation, polynomials, factoring, quadratics by factoring, systems, slope-intercept form, Pythagorean theorem |
+
+If that pace doesn't suit your child, adjust their grade level rather than
+pushing — the whole point of a mastery-based approach is that the child sets
+the pace and the map stays honest about where they are.

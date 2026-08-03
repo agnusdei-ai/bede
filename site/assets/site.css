@@ -952,3 +952,50 @@ button.cta {
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 0.95em;
 }
+
+/* Trackers & data-disclosure page (/trackers/) — a plain inventory table
+   and callout note, styled to this site's own palette rather than a
+   separate inline stylesheet (compare demo/public/privacy.html, which
+   carries its own because a Vite-built app has no shared CSS entry the
+   marketing site's build reaches). */
+.tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0 2rem;
+  font-size: 0.9rem;
+}
+
+.tracker-table th,
+.tracker-table td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--vellum-deep);
+  vertical-align: top;
+}
+
+.tracker-table th {
+  color: var(--fern-deep);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tracker-table td code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.tracker-note {
+  background: rgba(184, 134, 11, 0.08);
+  border: 1px solid rgba(184, 134, 11, 0.35);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.tracker-note strong {
+  color: var(--ink);
+}

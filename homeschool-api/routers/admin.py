@@ -127,20 +127,24 @@ async def apply_license(
 def _ai_provider_status_payload() -> dict:
     """Current AI-provider selection state for the parent settings card —
     which adapters are actually usable (credentials configured in .env),
-    which one is primary right now, and whether that's a parent's live DB
-    override (core/provider_state.py) or just the env
+    which one is primary right now, which one is the first failover tried
+    if primary errors, and whether either is a parent's live DB override
+    (core/provider_state.py) or just the env
     BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER preference."""
     configured = adapter_router.configured_adapters(settings)
     env_order = adapter_router.preference_order(settings)
     effective = provider_state.effective_order(configured)
-    override = provider_state.current_primary()
+    primary_override = provider_state.current_primary()
+    secondary_override = provider_state.current_secondary()
     return {
         "known": list(adapter_router.KNOWN_ADAPTERS),
         "configured": configured,
         "env_order": env_order,
         "effective_order": effective,
         "primary": effective[0] if effective else None,
-        "override": override if override in configured else None,
+        "secondary": effective[1] if len(effective) > 1 else None,
+        "override": primary_override if primary_override in configured else None,
+        "secondary_override": secondary_override if secondary_override in configured else None,
         "forced": settings.bede_force_adapter or None,
     }
 
@@ -150,12 +154,39 @@ class SetAIProviderRequest(BaseModel):
     provider: str | None = Field(default=None, max_length=20)
 
 
+class SetAIProviderSecondaryRequest(BaseModel):
+    # None clears the secondary override and reverts to the env order's
+    # next configured adapter after primary.
+    provider: str | None = Field(default=None, max_length=20)
+
+
 @router.get("/ai-provider")
 async def ai_provider_status(_: dict = Depends(require_parent)):
     """Which AI adapters are configured and which is primary right now —
     for the parent settings "AI Provider" card. See core/provider_state.py
     and docs/PROVIDER_ADAPTERS.md."""
     return _ai_provider_status_payload()
+
+
+def _validate_known_and_configured(provider: str, configured: list[str]) -> str:
+    """Shared validation for both the primary and secondary setters —
+    a provider must be a real adapter name AND already have credentials
+    configured before either override may name it."""
+    name = provider.strip().lower()
+    if name not in adapter_router.KNOWN_ADAPTERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown provider {name!r} — expected one of {adapter_router.KNOWN_ADAPTERS}.",
+        )
+    if name not in configured:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"{name} isn't configured yet — add its credentials to this "
+                "deployment's .env (see docs/PROVIDER_ADAPTERS.md) before selecting it here."
+            ),
+        )
+    return name
 
 
 @router.post("/ai-provider")
@@ -172,29 +203,59 @@ async def set_ai_provider(
     BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER preference. A BEDE_FORCE_ADAPTER
     pin, if set, still wins regardless of this override — it never leaves
     more than one adapter in the "configured" set for this to reorder
-    (see services/adapters/router.py's _order())."""
+    (see services/adapters/router.py's _order()). See POST
+    /admin/ai-provider/secondary to also choose which adapter is tried
+    first if this one errors."""
     configured = adapter_router.configured_adapters(settings)
 
     if body.provider is None:
         await provider_state.clear_primary(db)
         detail = "cleared (reverted to env order)"
     else:
-        provider = body.provider.strip().lower()
-        if provider not in adapter_router.KNOWN_ADAPTERS:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Unknown provider {provider!r} — expected one of {adapter_router.KNOWN_ADAPTERS}.",
-            )
-        if provider not in configured:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"{provider} isn't configured yet — add its credentials to this "
-                    "deployment's .env (see docs/PROVIDER_ADAPTERS.md) before selecting it here."
-                ),
-            )
+        provider = _validate_known_and_configured(body.provider, configured)
         await provider_state.set_primary(db, provider)
         detail = f"primary={provider}"
+
+    await log_event(
+        AuditEvent.AI_PROVIDER_CHANGED,
+        role="parent",
+        detail=detail,
+        **audit_from_request(request),
+    )
+    return _ai_provider_status_payload()
+
+
+@router.post("/ai-provider/secondary")
+async def set_ai_provider_secondary(
+    body: SetAIProviderSecondaryRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    """Choose which configured adapter is tried first if primary errors —
+    live, no restart, same mechanism as POST /admin/ai-provider. Meaningful
+    only with 3+ adapters configured (e.g. openai, mistral, anthropic):
+    with exactly two, whichever isn't primary is already the only
+    fallback there is. Passing provider=null clears the override, so the
+    failover-after-primary reverts to whichever configured adapter comes
+    next in the env BEDE_ADAPTER_ORDER preference. Rejects naming the
+    current primary as secondary (a no-op that would just hide which
+    adapter actually comes second) — clear the field instead."""
+    configured = adapter_router.configured_adapters(settings)
+
+    if body.provider is None:
+        await provider_state.clear_secondary(db)
+        detail = "secondary cleared (reverted to env order)"
+    else:
+        provider = _validate_known_and_configured(body.provider, configured)
+        primary = provider_state.effective_order(configured)
+        if primary and provider == primary[0]:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{provider} is already primary — pick a different adapter as secondary.",
+            )
+        await provider_state.set_secondary(db, provider)
+        detail = f"secondary={provider}"
 
     await log_event(
         AuditEvent.AI_PROVIDER_CHANGED,

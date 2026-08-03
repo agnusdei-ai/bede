@@ -32,7 +32,7 @@
 <body>
 
 <h1>Privacy Notice — Public Beta Demo</h1>
-<p class="sub">Applies only to the free public demo at this domain. Last updated 2026-07-14.</p>
+<p class="sub">Applies only to the free public demo at this domain. Last updated 2026-08-03.</p>
 
 <p>
   This page covers the <strong>public beta demo</strong> only — the version anyone can try
@@ -47,8 +47,9 @@
   <strong>In short:</strong> we never store the conversation itself. We do store, briefly,
   the name/grade you optionally provide and anonymized structural signals about how the
   session went (which tools were used, how many turns, which subjects) — never what was
-  actually said. Feedback is entirely optional, and we never ask a child for their own
-  email address.
+  actually said. If you use the microphone, your audio is transcribed to text for that
+  turn only and is not stored. Feedback is entirely optional, and we never ask a child
+  for their own email address.
 </div>
 
 <h2>What we collect, and for how long</h2>
@@ -61,10 +62,15 @@
   </tr>
   <tr>
     <td>The conversation itself</td>
-    <td>Sent in real time to Anthropic's Claude API so Bede can generate its responses</td>
+    <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with our configured backup provider instead &mdash; Mistral by default, or Claude (Anthropic) if we've configured that as the backup instead.</td>
     <td><strong>Never stored by us, under any circumstance.</strong> It exists on our side only for the
-      length of the live session. Anthropic processes it as our service provider to power Bede's replies
+      length of the live session. Each provider processes it as our service provider to power Bede's replies
       and does not use it to train its models.</td>
+  </tr>
+  <tr>
+    <td>Your voice, if you use the microphone <em>(optional)</em></td>
+    <td>Transcribed to text on our own server so Bede can respond to what you said; Bede's own spoken reply is synthesized by OpenAI's text-to-speech service</td>
+    <td><strong>Never stored.</strong> Processed only for the live turn, then discarded.</td>
   </tr>
   <tr>
     <td>Anonymized interaction-pattern signals — which tutoring tools fired, turn counts, which subjects were visited/completed</td>
@@ -127,9 +133,14 @@
     pressure to fill it in. If you do provide it, it is used for this one session's framing and
     nothing else — never to categorize, segment, target, or profile your family, and never shared
     with anyone.</li>
-  <li><strong>The conversation itself</strong>, transmitted in real time to our AI provider,
-    Anthropic, so Bede can generate its tutoring responses — never stored by us and never
-    used by us or, per Anthropic's terms, by Anthropic to train models.</li>
+  <li><strong>The conversation itself</strong>, transmitted in real time to our AI providers,
+    OpenAI (primary) and, only if OpenAI is briefly unavailable, our configured backup — Mistral
+    by default, or Claude (Anthropic) if we've configured that as the backup instead — so Bede
+    can generate its tutoring responses. Never stored by us and never used by any of these
+    providers to train their models, per their own terms.</li>
+  <li><strong>Your voice, if you use the microphone</strong> <em>(optional)</em> — the audio is
+    sent to our own server to transcribe it into text, and is not stored beyond that one turn.
+    Bede's own spoken reply is generated as audio by OpenAI's text-to-speech service.</li>
   <li><strong>Anonymized interaction-pattern signals</strong> (which teaching tools were used, how
     many turns, which subjects) — cryptographically keyed so it cannot be traced back to your
     child, and never includes anything that was actually said.</li>
@@ -153,7 +164,10 @@
 <p>We use the information described above only to:</p>
 <ul>
   <li>Personalize the single tutoring session in progress.</li>
-  <li>Generate Bede's tutoring responses (via Anthropic's Claude API).</li>
+  <li>Generate Bede's tutoring responses and spoken voice (via OpenAI, with a configured backup
+    — Mistral by default, or Claude/Anthropic instead — for text responses only, if OpenAI is
+    briefly unavailable).</li>
+  <li>Transcribe your microphone audio into text, on our own server, so Bede can respond to it.</li>
   <li>Understand, in aggregate and anonymized form, which teaching patterns work well, so we
     can improve Bede.</li>
   <li>Reply to a parent or guardian who has asked us to.</li>
@@ -162,10 +176,13 @@
 <h3 style="font-size:15px;margin-top:20px;">Disclosure to third parties</h3>
 <p>
   We do not sell your child's information, and we do not use it for advertising. We share
-  it only with the service providers that make the demo work — Anthropic (to generate
-  Bede's responses) and Resend (to deliver an optional feedback email) — each of whom is
-  contractually and technically limited to using it for that purpose. We may also disclose
-  information if required by law or to protect someone's safety.
+  it only with the service providers that make the demo work — OpenAI (to generate Bede's
+  responses and synthesize its spoken voice), our configured backup text provider (Mistral by
+  default, or Claude/Anthropic if we've configured that instead, used only if OpenAI is briefly
+  unavailable), and Resend (to deliver an optional feedback
+  email) — each of whom is contractually and technically limited to using it for that
+  purpose. We may also disclose information if required by law or to protect someone's
+  safety.
 </p>
 
 <h3 style="font-size:15px;margin-top:20px;">Your parental rights under COPPA</h3>
@@ -205,6 +222,11 @@
   This demo is operated by Agnus Dei Technologies, LLC, 112 Civita Rd., Liberty Hill, TX
   78642. Questions about this notice, or about your (or your child's) data specifically,
   can go to <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.
+</p>
+<p>
+  For the technical inventory behind this notice — every cookie, every piece of browser
+  storage, and every outside service this domain contacts, including the marketing site
+  outside this demo — see <a href="/trackers/">Trackers &amp; Data Disclosure</a>.
 </p>
 
 <a class="back" href="./">&larr; Back to the demo</a>

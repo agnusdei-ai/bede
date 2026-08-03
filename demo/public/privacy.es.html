@@ -32,7 +32,7 @@
 <body>
 
 <h1>Aviso de Privacidad — Demo Pública Beta</h1>
-<p class="sub">Aplica únicamente a la demo pública gratuita de este dominio. Última actualización: 2026-07-14.</p>
+<p class="sub">Aplica únicamente a la demo pública gratuita de este dominio. Última actualización: 2026-08-03.</p>
 
 <p>
   Esta página cubre únicamente la <strong>demo pública beta</strong> — la versión que cualquiera
@@ -47,7 +47,8 @@
   <strong>En resumen:</strong> nunca almacenamos la conversación en sí. Sí almacenamos, brevemente,
   el nombre/grado que proporciones de manera opcional y señales estructurales anonimizadas sobre
   cómo se desarrolló la sesión (qué herramientas se usaron, cuántos turnos, qué materias) — nunca
-  lo que realmente se dijo. Los comentarios son completamente opcionales, y nunca le pedimos a un
+  lo que realmente se dijo. Si usas el micrófono, tu audio se transcribe a texto solo para ese
+  turno y no se almacena. Los comentarios son completamente opcionales, y nunca le pedimos a un
   niño su propio correo electrónico.
 </div>
 
@@ -61,10 +62,15 @@
   </tr>
   <tr>
     <td>La conversación en sí</td>
-    <td>Se envía en tiempo real a la API de Claude de Anthropic para que Bede pueda generar sus respuestas</td>
+    <td>Se envía en tiempo real a OpenAI, nuestro proveedor principal de IA para esta demo, para que Bede pueda generar sus respuestas. Si OpenAI no está disponible brevemente, el mismo turno se reintenta automáticamente con nuestro proveedor de respaldo configurado &mdash; Mistral por defecto, o Claude (Anthropic) si hemos configurado ese como respaldo en su lugar.</td>
     <td><strong>Nunca almacenada por nosotros, bajo ninguna circunstancia.</strong> Existe de nuestro lado
-      solo mientras dura la sesión en vivo. Anthropic la procesa como nuestro proveedor de servicios
+      solo mientras dura la sesión en vivo. Cada proveedor la procesa como nuestro proveedor de servicios
       para generar las respuestas de Bede y no la utiliza para entrenar sus modelos.</td>
+  </tr>
+  <tr>
+    <td>Tu voz, si usas el micrófono <em>(opcional)</em></td>
+    <td>Se transcribe a texto en nuestro propio servidor para que Bede pueda responder a lo que dijiste; la voz hablada de Bede se genera con el servicio de texto a voz de OpenAI</td>
+    <td><strong>Nunca almacenada.</strong> Se procesa solo para ese turno y luego se descarta.</td>
   </tr>
   <tr>
     <td>Señales anonimizadas de patrones de interacción — qué herramientas de enseñanza se activaron, número de turnos, qué materias se visitaron/completaron</td>
@@ -111,10 +117,15 @@
   <li><strong>Nombre y nivel de grado</strong> <em>(opcional)</em> — usado únicamente para
     personalizar la sesión en curso, se conserva por un máximo de 6 horas, y nunca se incorpora
     a un perfil persistente.</li>
-  <li><strong>La conversación en sí</strong>, transmitida en tiempo real a nuestro proveedor de
-    IA, Anthropic, para que Bede pueda generar sus respuestas de tutoría — nunca almacenada por
-    nosotros y nunca utilizada por nosotros ni, según los términos de Anthropic, por Anthropic
-    para entrenar modelos.</li>
+  <li><strong>La conversación en sí</strong>, transmitida en tiempo real a nuestros proveedores de
+    IA, OpenAI (principal) y, solo si OpenAI no está disponible brevemente, nuestro respaldo
+    configurado — Mistral por defecto, o Claude (Anthropic) si hemos configurado ese en su lugar —
+    para que Bede pueda generar sus respuestas de tutoría. Nunca almacenada por nosotros y nunca
+    utilizada por ninguno de estos proveedores para entrenar sus modelos, según sus propios
+    términos.</li>
+  <li><strong>Tu voz, si usas el micrófono</strong> <em>(opcional)</em> — el audio se envía a
+    nuestro propio servidor para transcribirlo a texto, y no se almacena más allá de ese turno. La
+    voz hablada de Bede se genera como audio con el servicio de texto a voz de OpenAI.</li>
   <li><strong>Señales anonimizadas de patrones de interacción</strong> (qué herramientas de
     enseñanza se usaron, cuántos turnos, qué materias) — vinculadas de forma criptográfica para
     que no puedan rastrearse hasta tu hijo o hija, y que nunca incluyen lo que realmente se
@@ -139,7 +150,11 @@
 <p>Usamos la información descrita arriba únicamente para:</p>
 <ul>
   <li>Personalizar la única sesión de tutoría en curso.</li>
-  <li>Generar las respuestas de tutoría de Bede (a través de la API de Claude de Anthropic).</li>
+  <li>Generar las respuestas de tutoría de Bede y su voz hablada (a través de OpenAI, con un
+    respaldo configurado — Mistral por defecto, o Claude/Anthropic en su lugar — solo para
+    respuestas de texto, si OpenAI no está disponible brevemente).</li>
+  <li>Transcribir el audio de tu micrófono a texto, en nuestro propio servidor, para que Bede
+    pueda responder a él.</li>
   <li>Entender, de forma agregada y anonimizada, qué patrones de enseñanza funcionan bien, para
     poder mejorar a Bede.</li>
   <li>Responder a un padre, madre o tutor que nos lo haya solicitado.</li>
@@ -148,10 +163,12 @@
 <h3 style="font-size:15px;margin-top:20px;">Divulgación a terceros</h3>
 <p>
   No vendemos la información de tu hijo o hija, y no la usamos para publicidad. La compartimos
-  únicamente con los proveedores de servicios que hacen posible la demo — Anthropic (para
-  generar las respuestas de Bede) y Resend (para enviar un correo de comentarios opcional) —
-  cada uno de los cuales está limitado contractual y técnicamente a usarla solo para ese
-  propósito. También podríamos divulgar información si la ley lo exige o para proteger la
+  únicamente con los proveedores de servicios que hacen posible la demo — OpenAI (para generar
+  las respuestas de Bede y su voz hablada), nuestro proveedor de respaldo de texto configurado
+  (Mistral por defecto, o Claude/Anthropic si hemos configurado ese en su lugar, usado solo si
+  OpenAI no está disponible brevemente) y Resend (para enviar un correo de comentarios
+  opcional) — cada uno de los cuales está limitado contractual y técnicamente a usarla solo para
+  ese propósito. También podríamos divulgar información si la ley lo exige o para proteger la
   seguridad de alguien.
 </p>
 
@@ -192,6 +209,12 @@
   Esta demo es operada por Agnus Dei Technologies, LLC, 112 Civita Rd., Liberty Hill, TX 78642,
   EE. UU. Las preguntas sobre este aviso, o sobre tus datos (o los de tu hijo o hija)
   específicamente, pueden enviarse a <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.
+</p>
+<p>
+  Para el inventario técnico detrás de este aviso — cada cookie, cada dato de
+  almacenamiento del navegador, y cada servicio externo que contacta este dominio,
+  incluyendo el sitio de mercadeo fuera de esta demo — consulta
+  <a href="/trackers/">Rastreadores y Divulgación de Datos</a> (en inglés).
 </p>
 
 <p style="font-size:13px;color:#6b7280;margin-top:28px;">

@@ -903,18 +903,22 @@ class DemoInteractionSignal(Base):
 
 class AIProviderOverride(Base):
     """
-    Single row (key="primary") that, when present, picks which already-
-    CONFIGURED AI adapter (services/adapters/) serves as primary — same "DB
-    value wins over the env default, live, no restart" precedent
-    core/license_state.py and core/parent_credential.py already established
-    for LICENSE_KEY/PARENT_PASSWORD, applied here to
+    Up to two rows (key="primary", key="secondary") that, when present,
+    pick which already-CONFIGURED AI adapters (services/adapters/) serve
+    as primary and, optionally, the first failover tried if primary errors
+    — same "DB value wins over the env default, live, no restart"
+    precedent core/license_state.py and core/parent_credential.py already
+    established for LICENSE_KEY/PARENT_PASSWORD, applied here to
     BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER (core/config.py) for the same
     reason: those are plain env-loaded Settings read once at process
     startup, so switching providers (e.g. a degraded local Ollama model,
-    want Mistral instead) used to mean an .env edit and a restart. See
-    core/provider_state.py, the only module that reads/writes this table,
-    and services/adapters/router.py's FailoverClient, which consults the
-    in-process cache on every request.
+    want Mistral instead, or picking Claude over Mistral as backup) used
+    to mean an .env edit and a restart. See core/provider_state.py, the
+    only module that reads/writes this table, and services/adapters/
+    router.py's FailoverClient, which consults the in-process cache on
+    every request. `key` was always a String primary key rather than a
+    hardcoded singleton specifically so a second row could be added later
+    without a schema change — this is that second row.
 
     Deliberately narrow: this table only ever stores the NAME of an adapter
     that is already configured elsewhere (real credentials in
@@ -922,7 +926,8 @@ class AIProviderOverride(Base):
     picking a provider with no credentials configured before it ever
     reaches this table, and services/adapters/router.py's
     provider_state.effective_order() silently ignores a stored name that
-    is no longer configured (falls back to the env order) rather than
+    is no longer configured, unknown, or (for secondary) identical to
+    primary (falls back to the env order for that slot) rather than
     breaking service.
     """
     __tablename__ = "ai_provider_override"

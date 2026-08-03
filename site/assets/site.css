@@ -951,7 +951,8 @@ button.cta {
   font-size: 0.95em;
 }
 
-/* Trackers & data-disclosure page (/trackers/) — a plain inventory table
+/* Privacy & data-disclosure page (/privacy/, formerly /trackers/ — see
+   site/trackers/index.html's redirect stub) — a plain inventory table
    and callout note, styled to this site's own palette rather than a
    separate inline stylesheet (compare demo/public/privacy.html, which
    carries its own because a Vite-built app has no shared CSS entry the

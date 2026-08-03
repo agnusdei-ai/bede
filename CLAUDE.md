@@ -461,8 +461,12 @@ deployer testing their own instance — see
 which tracks findings pinned to the git SHA tested so they can be
 correlated release-to-release.
 
-**Public tracker & data disclosure page (`site/trackers/index.html`,
-`/trackers/`):** answers, for `agnusdei.io` itself (the marketing site
+**Public tracker & data disclosure page (`site/privacy/index.html`,
+`/privacy/` — renamed from `/trackers/` for GA; `site/trackers/index.html`
+is now a redirect stub to `/privacy/`, matching
+`scripts/build_github_pages_redirect.sh`'s existing meta-refresh + JS +
+plain-link pattern, so an already-shared or bookmarked `/trackers/` link
+still lands somewhere real):** answers, for `agnusdei.io` itself (the marketing site
 and the public demo it hosts under `/bede/`) rather than the self-hosted
 product, what actually sets a cookie, what uses browser storage, and what
 third-party origin is contacted — a code-audited inventory, not a
@@ -480,7 +484,7 @@ domain, and the page says so explicitly rather than adding one for its
 own sake: nothing found rises above strictly-necessary/functional, and
 the demo already gates its own data collection behind an explicit consent
 step (`demo/src/useConsent.ts`, `demo/src/ConsentModal.tsx`) before the
-tracker page's own review even begins. Reciprocally linked with the
+page's own review even begins. Reciprocally linked with the
 demo's Privacy Notice (`demo/public/privacy.html`/`privacy.es.html`).
 
 That same review caught the Privacy Notice naming the wrong AI vendor —

@@ -44,10 +44,11 @@ and leading the response to any security incident per
 ## 3. What is collected, and where it actually lives
 
 Everything below is scoped to the public demo, since the marketing site
-outside `/bede/` collects nothing (see `site/trackers/index.html`, the
-public-facing tracker inventory this policy's technical claims are drawn
-from). `docs/RETENTION_POLICY.md` states purpose and retention for each
-category in full; this section covers how it's protected while it exists.
+outside `/bede/` collects nothing (see `site/privacy/index.html`, the
+public-facing tracker/data-disclosure inventory this policy's technical
+claims are drawn from). `docs/RETENTION_POLICY.md` states purpose and
+retention for each category in full; this section covers how it's
+protected while it exists.
 
 | Data | Storage | Protected how |
 |---|---|---|

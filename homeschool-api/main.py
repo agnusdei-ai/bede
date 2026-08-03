@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution, license_state, parent_credential, provider_state
+from core import constitution, elevation, identity, license_state, parent_credential, provider_state
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -69,6 +69,54 @@ async def _warm_voice_models():
 _DATA_PURGE_INTERVAL_SECONDS = 6 * 60 * 60  # every 6 hours
 
 
+def _log_security_posture() -> None:
+    """One line per posture setting, every boot.
+
+    These are the settings whose wrong value is invisible: a step-up that is
+    configured off looks exactly like one that is on until somebody attempts
+    a privileged action, and a legacy-token grace that nobody ever turned off
+    looks exactly like one that was never needed. Neither fails, neither
+    logs, and neither shows up in a test. The only thing that surfaces them
+    is saying so at startup — GET /admin/status reports the same facts for
+    anyone who would rather query than read logs.
+
+    Warnings, not errors: every one of these has a legitimate reason to be
+    in its weaker state (the web UI can't prompt yet; the upgrade was an hour
+    ago; this is a family instance with no demo role). Refusing to boot over
+    a defensible choice is how operators learn to work around startup checks.
+    """
+    if settings.elevation_enforced:
+        log.info("Privileged access: step-up ENFORCED (%d min)", settings.elevation_ttl_minutes)
+    else:
+        log.warning(
+            "Privileged access: step-up NOT enforced — a parent session holds "
+            "management-plane rights for its full lifetime. Set ELEVATION_ENFORCED=true "
+            "once the web UI can prompt for a password. See docs/SECURITY.md."
+        )
+
+    if settings.legacy_token_grace:
+        log.warning(
+            "Auth: LEGACY_TOKEN_GRACE is on — JWTs issued before identity domains "
+            "existed are still accepted. Needed only for the first deploy after "
+            "upgrading; set LEGACY_TOKEN_GRACE=false once every pre-upgrade token "
+            "has expired (8h max)."
+        )
+
+    # Only meaningful where the demo role is actually reachable. On a family
+    # instance there is no demo token to isolate, so saying anything would be
+    # noise an operator learns to skip past.
+    if settings.demo_pin:
+        if identity.demo_key_is_independent():
+            log.info("Identity domains: demo signing key is INDEPENDENT of SECRET_KEY ✓")
+        else:
+            log.warning(
+                "Identity domains: demo signing key is DERIVED from SECRET_KEY. Tokens are "
+                "still domain-separated (a demo token cannot be replayed as a parent token), "
+                "but a SECRET_KEY compromise yields both. Set DEMO_SECRET_KEY on an "
+                "internet-facing demo instance."
+            )
+
+
 async def _periodic_data_purge():
     """
     Runs the demo's own retention policy (services/interaction_signals.py's
@@ -93,6 +141,18 @@ async def _periodic_data_purge():
                 log.info("Periodic data purge: removed %d expired demo interaction-signal row(s)", deleted)
         except Exception:
             log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
+
+        # Expired privileged-access grants (core/elevation.py). Hygiene, not
+        # a security control — is_elevated() checks the timestamp, so an
+        # expired row is already inert. Without this the table grows by one
+        # row per elevation forever on an appliance nobody prunes. Kept in
+        # its own try so a failure here can't stop the retention sweep above,
+        # which is the one with an actual policy behind it.
+        try:
+            async with AsyncSessionLocal() as db:
+                await elevation.purge_expired(db)
+        except Exception:
+            log.warning("Elevation purge failed — will retry next interval", exc_info=True)
 
 
 @asynccontextmanager
@@ -151,13 +211,24 @@ async def lifespan(app: FastAPI):
         log.critical("FATAL: %s", exc)
         sys.exit(1)
 
+    _log_security_posture()
+
     warmup_task = asyncio.create_task(_warm_voice_models())
     purge_task = asyncio.create_task(_periodic_data_purge())
+    # Bounds how long a running replica can keep honouring a token that a
+    # SIBLING replica already invalidated by a password change or recovery.
+    # A no-op cost on a single-instance deployment (which is what both
+    # supported topologies are today) and the thing that stops "change your
+    # password to end a takeover" from being quietly false under
+    # replication — see core/parent_credential.py and
+    # docs/DEPLOYMENT_TOPOLOGY.md.
+    credentials_refresh_task = asyncio.create_task(parent_credential.periodic_refresh())
 
     yield
 
     warmup_task.cancel()
     purge_task.cancel()
+    credentials_refresh_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")
@@ -179,15 +250,36 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.api_docs_enabled else None,
 )
 
-# ── Middleware (applied in reverse declaration order) ─────────────────────────
-# Outermost → GZip → SecurityHeaders → ExfiltrationGuard → RateLimit → CORS → routes
+# ── Middleware ──────────────────────────────────────────────────────────────
+# Starlette builds the ASGI stack from `app.user_middleware` by wrapping
+# outward: `add_middleware` inserts each new entry at the FRONT of that list
+# (see Starlette's `Starlette.add_middleware`), and `build_middleware_stack`
+# then wraps the router in `reversed(user_middleware)` order. Net effect:
+# the LAST `add_middleware()` call becomes the OUTERMOST layer — first to
+# see the request, LAST to touch the response before it leaves the process.
 #
-# GZip is outermost so it compresses the final response body after
-# ExfiltrationGuard has already scanned/rebuilt it. Starlette's GZipMiddleware
-# auto-excludes text/event-stream by content-type, so /tutor/chat's SSE stream
-# passes through uncompressed and unbuffered, same as before.
+# Declared here so the *last* call is GZip, making it genuinely outermost:
+#   request  →  GZip → LicenseGate → CORS → RateLimit → ExfiltrationGuard → SecurityHeaders  → routes
+#   response ←  GZip ← LicenseGate ← CORS ← RateLimit ← ExfiltrationGuard ← SecurityHeaders  ← routes
+#
+# ExfiltrationGuard must inspect the PLAINTEXT response body — the whole
+# point of _BLOCKED_PATTERNS is scanning for leaked key material — so it has
+# to run before GZip compresses anything. An earlier ordering had GZip added
+# FIRST, which (by the same front-insert/reversed-wrap rule) made GZip the
+# INNERMOST layer instead of the outermost one: it compressed the response
+# before ExfiltrationGuard ever saw it, so every _BLOCKED_PATTERNS check
+# silently stopped matching on any response >= minimum_size sent with
+# `Accept-Encoding: gzip` (i.e. every browser) — the guard was scanning gzip
+# magic bytes, not the JSON it was written to inspect. See
+# tests/test_middleware.py's test_exfiltration_guard_still_scans_a_gzip_
+# eligible_response_in_the_assembled_stack for the regression coverage; that
+# test builds the real multi-middleware stack specifically because the
+# per-middleware unit tests above it can't see an ordering bug like this one.
+#
+# GZipMiddleware auto-excludes text/event-stream by content-type, so
+# /tutor/chat's SSE stream passes through uncompressed and unbuffered
+# regardless of where GZip sits in the stack.
 
-app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ExfiltrationGuard)
 app.add_middleware(RateLimitMiddleware)
@@ -198,11 +290,16 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
-# Innermost (declared last): the license gate — when an unlicensed
-# production instance is in "license required" mode, only login/MFA and
-# the license endpoints pass; everything else gets a clear 403. Inside
-# CORS so gated responses still carry CORS headers the browser can read.
+# When an unlicensed production instance is in "license required" mode,
+# only login/MFA and the license endpoints pass; everything else gets a
+# clear 403. Added before GZip (so still wrapped BY GZip, i.e. compressed
+# on the way out) and after CORS (so a gated response still carries CORS
+# headers) — unchanged from the original relative ordering of these two.
 app.add_middleware(LicenseGateMiddleware)
+# Added LAST: outermost layer, compresses only after every other middleware
+# — including ExfiltrationGuard's scan — has already run. See the ordering
+# note above.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)

@@ -25,7 +25,11 @@ def _base_production_kwargs(**overrides) -> dict:
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        # Not 602656 — that's .env.example's own sample value, now in
+        # _WEAK_SECRETS (see test_env_example_child_pin_sample_rejected_
+        # in_production below), so it can no longer double as "a valid PIN"
+        # for tests unrelated to CHILD_PIN's own validation.
+        child_pin="602657",
         master_secret="b" * 40,
         demo_pin="",
         anthropic_api_key="sk-ant-real",
@@ -73,6 +77,18 @@ def test_known_dev_default_secrets_still_rejected_by_the_exact_match_first():
     rather than silently passing the length floor and booting."""
     with pytest.raises(ValueError, match="MASTER_SECRET is set to the default dev value"):
         Settings(**_base_production_kwargs(master_secret="change-me-master-secret-32-chars-min"))
+
+
+def test_env_example_child_pin_sample_rejected_in_production():
+    """602656 is .env.example's own sample CHILD_PIN value — a real,
+    pin_is_strong()-passing 6-digit PIN, which is exactly the problem: it's
+    published in this repo's own example file, so it must be rejected on
+    its own merits (like the other three dev-default placeholders above),
+    not just happen to be weak-shaped. A hand-copied .env that never
+    touched this line must not boot in production with a PIN anyone can
+    find on GitHub."""
+    with pytest.raises(ValueError, match="CHILD_PIN is set to the default dev value"):
+        Settings(**_base_production_kwargs(child_pin="602656"))
 
 
 def test_length_floors_do_not_apply_outside_production():

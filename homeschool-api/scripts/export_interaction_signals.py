@@ -27,14 +27,17 @@ async def _load_all_signals() -> list[dict]:
     from sqlalchemy import select
 
     from core.database import AsyncSessionLocal, DemoInteractionSignal
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
 
     signals = []
     async with AsyncSessionLocal() as db:
         rows = (await db.execute(select(DemoInteractionSignal))).scalars().all()
         for row in rows:
             try:
-                signals.append(decrypt_json(row.signals_enc))
+                signals.append(decrypt_json(
+                    row.signals_enc,
+                    aad_for("demo_interaction_signals", "signals_enc", row.session_token),
+                ))
             except Exception:
                 # A corrupted row is skipped for reporting purposes — same
                 # degrade-don't-crash convention as the rest of this

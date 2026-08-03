@@ -566,6 +566,25 @@ class SandboxDemoChatRequest(BaseModel):
     custom_instructions: str = Field(default="", max_length=4000)
 
 
+class ElevationRequest(BaseModel):
+    """Step-up to management-plane privilege (P8, core/elevation.py).
+
+    The parent re-presents the password they already used to log in, plus a
+    TOTP code if one is enrolled. Deliberately not a second, separate
+    "admin password" — one more secret for a family to lose is a worse
+    trade than re-typing the one they already know."""
+    password: str
+    totp_code: str = ""
+
+
+class ElevationResponse(BaseModel):
+    elevated: bool
+    expires_at: str
+    # Echoed so the frontend can schedule its own re-prompt rather than
+    # discovering the expiry by getting a 403 mid-action.
+    ttl_seconds: int
+
+
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo_code"]
     credential: str   # password for parent, PIN for child, generated code for demo_code

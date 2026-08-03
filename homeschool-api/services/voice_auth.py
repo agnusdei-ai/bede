@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.database import VoiceProfile
-from core.encryption import decrypt_json, encrypt_json
+from core.encryption import aad_for, decrypt_json, encrypt_json
 
 logger = logging.getLogger(__name__)
 
@@ -149,18 +149,45 @@ def _score_against_profile_sync(audio_bytes: bytes, stored: np.ndarray) -> float
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
 
+# Tier 1 (biometric) under docs/DATA_CLASSIFICATION.md — the strictest tier,
+# because a voice embedding is the one asset here that can't be reissued. A
+# child can be given a new PIN, a new password, a new session; they cannot be
+# given a new voice, so compromise is permanent in a way nothing else is.
+#
+# First call site migrated to the v2 (AAD-bound) envelope. Binding
+# table/column/student_name means a profile blob is only valid in the row it
+# was written for — copying one student's ciphertext into another's row now
+# fails authentication instead of decrypting cleanly. Reads still accept v1
+# blobs written before this change (core/encryption.py dispatches on the
+# blob's own version byte), and each profile upgrades itself to v2 the next
+# time it's written — i.e. on the student's next enrollment. No migration
+# script, no bulk rewrite.
+def _profile_aad(student_name: str) -> bytes:
+    return aad_for("voice_profiles", "profile_enc", student_name)
+
+
 async def _get_profile(db: AsyncSession, student_name: str) -> Optional[dict]:
+    from core import student_keys
+
     result = await db.execute(
         select(VoiceProfile).where(VoiceProfile.student_name == student_name)
     )
     row = result.scalar_one_or_none()
     if row is None:
         return None
-    return decrypt_json(row.profile_enc)  # type: ignore
+    # get_existing, never get_or_create: a read must not write, and must not
+    # resurrect a key row for a student who was just shredded. None is
+    # correct for a profile written before per-student keys existed — those
+    # are v1/v2 under DATA_KEY and open without one.
+    key = await student_keys.get_existing(db, student_name)
+    return decrypt_json(row.profile_enc, _profile_aad(student_name), key)  # type: ignore
 
 
 async def _save_profile(db: AsyncSession, student_name: str, profile: dict) -> None:
-    enc = encrypt_json(profile)
+    from core import student_keys
+
+    key = await student_keys.get_or_create(db, student_name)
+    enc = encrypt_json(profile, _profile_aad(student_name), key)
     result = await db.execute(
         select(VoiceProfile).where(VoiceProfile.student_name == student_name)
     )

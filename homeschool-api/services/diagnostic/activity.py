@@ -93,29 +93,36 @@ async def record_activity(
     if assistance is None:
         return False
 
+    from core import student_keys
     from core.database import SkillActivityLog
-    from core.encryption import encrypt_json
+    from core.encryption import encrypt_json, student_aad
 
     try:
+        _key = await student_keys.get_or_create(db, student_name)
         db.add(SkillActivityLog(
             student_name=student_name,
             subject_area=subject_area,
             skill_id=skill_id,
-            detail_enc=encrypt_json({
-                "skill_id": skill_id,
-                "label": label,
-                "assistance": assistance,
-                "subject_area": subject_area,
-                # Scores of the WORK. Stored inside the encrypted blob
-                # rather than as columns so adding a dimension later needs
-                # no schema change — this codebase has no ALTER TABLE path
-                # (see core/database.py). Absent when Bede didn't observe
-                # enough to judge, which is an honest state and must stay
-                # distinguishable from a low score.
-                "quality": quality if quality in WORK_QUALITY_LEVELS else None,
-                "distinction": distinction if distinction in WORK_DISTINCTION_LEVELS else None,
-                "speed": speed if speed in WORK_SPEED_LEVELS else None,
-            }),
+            detail_enc=encrypt_json(
+                {
+                    "skill_id": skill_id,
+                    "label": label,
+                    "assistance": assistance,
+                    "subject_area": subject_area,
+                    # Scores of the WORK. Stored inside the encrypted blob
+                    # rather than as columns so adding a dimension later needs
+                    # no schema change — this codebase has no ALTER TABLE path
+                    # (see core/database.py). Absent when Bede didn't observe
+                    # enough to judge, which is an honest state and must stay
+                    # distinguishable from a low score.
+                    "quality": quality if quality in WORK_QUALITY_LEVELS else None,
+                    "distinction": distinction if distinction in WORK_DISTINCTION_LEVELS else None,
+                    "speed": speed if speed in WORK_SPEED_LEVELS else None,
+                },
+                student_aad("skill_activity_log", "detail_enc", student_name,
+                            subject_area, skill_id),
+                _key,
+            ),
         ))
         await db.commit()
         return True
@@ -142,8 +149,9 @@ async def summarize(
     """
     from sqlalchemy import select
 
+    from core import student_keys
     from core.database import SkillActivityLog
-    from core.encryption import decrypt_json
+    from core.encryption import decrypt_json, student_aad
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, since_days))
     try:
@@ -158,10 +166,21 @@ async def summarize(
         log.warning("Skill-activity summary failed for %s: %s", student_name, exc)
         return {"student_name": student_name, "since_days": since_days, "total": 0, "skills": []}
 
+    # Resolved once for the whole batch rather than per row — it is the same
+    # student for every row, and get_existing caches. None is correct for a
+    # student whose rows predate per-student keys; those are v1/v2 under
+    # DATA_KEY and open without one.
+    _key = await student_keys.get_existing(db, student_name)
+
     by_skill: dict[str, dict] = {}
     for row in rows:
         try:
-            detail = decrypt_json(row.detail_enc)
+            detail = decrypt_json(
+                row.detail_enc,
+                student_aad("skill_activity_log", "detail_enc", student_name,
+                            row.subject_area, row.skill_id),
+                _key,
+            )
         except Exception:
             continue
         entry = by_skill.setdefault(row.skill_id, {

@@ -96,7 +96,7 @@ async def _record_signal_unsafe(demo_code: str, event_type: str, subject_area: O
     from sqlalchemy import select
 
     from core.database import AsyncSessionLocal, DemoInteractionSignal
-    from core.encryption import decrypt_json, encrypt_json
+    from core.encryption import aad_for, decrypt_json, encrypt_json
 
     token = _session_token(demo_code)
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -108,7 +108,9 @@ async def _record_signal_unsafe(demo_code: str, event_type: str, subject_area: O
         row = result.scalar_one_or_none()
 
         try:
-            signals = dict(_EMPTY_SIGNALS) if row is None else decrypt_json(row.signals_enc)
+            signals = dict(_EMPTY_SIGNALS) if row is None else decrypt_json(
+                row.signals_enc, aad_for("demo_interaction_signals", "signals_enc", token)
+            )
         except Exception:
             # A corrupted row degrades to a fresh one rather than blocking
             # this session's signals forever — same convention as
@@ -142,7 +144,7 @@ async def _record_signal_unsafe(demo_code: str, event_type: str, subject_area: O
             signals["first_event_at"] = now_iso
         signals["last_event_at"] = now_iso
 
-        signals_enc = encrypt_json(signals)
+        signals_enc = encrypt_json(signals, aad_for("demo_interaction_signals", "signals_enc", token))
         if row is None:
             db.add(DemoInteractionSignal(session_token=token, signals_enc=signals_enc))
         else:

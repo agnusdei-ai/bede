@@ -245,7 +245,8 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
     from sqlalchemy import select
 
     from core.database import MasteryProfile
-    from core.encryption import decrypt_json, encrypt_json
+    from core import student_keys
+    from core.encryption import decrypt_json, encrypt_json, student_aad
 
     row = None
     vector_is_cold_start = False
@@ -265,7 +266,11 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
             # Backfilled against the CURRENT domain list, same reasoning as
             # mastery.ensure_complete: a vector stored before a domain was
             # added would otherwise never report or offer it.
-            stored = decrypt_json(row.profile_enc)
+            stored = decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, SUBJECT_AREA),
+                await student_keys.get_existing(db, student_name),
+            )
             vector = new_vector()
             for domain_id, probability in stored.items():
                 if domain_id in vector:
@@ -286,7 +291,11 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
         return None
 
     try:
-        profile_enc = encrypt_json(updated_vector)
+        profile_enc = encrypt_json(
+            updated_vector,
+            student_aad("mastery_profiles", "profile_enc", student_name, SUBJECT_AREA),
+            await student_keys.get_or_create(db, student_name),
+        )
         if row is None:
             db.add(MasteryProfile(
                 student_name=student_name,
@@ -312,7 +321,8 @@ async def get_literacy_summary(db, student_name: str) -> Optional[dict]:
     from sqlalchemy import select
 
     from core.database import MasteryProfile
-    from core.encryption import decrypt_json
+    from core import student_keys
+    from core.encryption import decrypt_json, student_aad
 
     try:
         result = await db.execute(
@@ -324,7 +334,11 @@ async def get_literacy_summary(db, student_name: str) -> Optional[dict]:
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        stored = decrypt_json(row.profile_enc)
+        stored = decrypt_json(
+            row.profile_enc,
+            student_aad("mastery_profiles", "profile_enc", student_name, SUBJECT_AREA),
+            await student_keys.get_existing(db, student_name),
+        )
         vector = new_vector()
         for domain_id, probability in stored.items():
             if domain_id in vector:

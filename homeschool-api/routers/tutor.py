@@ -18,7 +18,7 @@ from core.demo_code_session import (
     get_personalization as get_demo_personalization,
     record_message as demo_code_record_message,
 )
-from core.deps import require_auth, require_parent
+from core.deps import require_auth, require_email_summary, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import (
     EmailSummaryRequest,
@@ -392,25 +392,29 @@ async def session_summary(
 async def email_summary(
     req: EmailSummaryRequest,
     request: Request,
-    auth: dict = Depends(require_auth),
+    auth: dict = Depends(require_email_summary),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Generate the same end-of-session summary as /summary, then email it once
     to a parent-supplied address via Resend — never shown to the child, never
     written anywhere (see services/email_service.py). Available to the parent
-    role and the scoped public demo role; child and parent_pending are not
-    parents, so they're rejected here the same way /summary rejects them by
-    only depending on require_parent.
+    role and the scoped public demo role; a child may not send mail to an
+    arbitrary address, and the transient roles aren't parents either.
+
+    That restriction used to be an inline `role not in ("parent",
+    "demo_code")` check in this function body — a real authorization
+    decision living outside the dependency layer, invisible to anyone
+    auditing authorization by reading core/deps.py. It's now the
+    "tutor.email_summary" action in core/policy.py's table, enforced by
+    require_email_summary.
 
     The demo role is additionally capped to exactly one send per session
     (core/demo_code_session.claim_email_send) — the public demo shouldn't
     let one visitor spam an address or run up the operator's Resend usage.
+    That cap is a quota, not an authorization decision, so it stays here.
     """
     role = auth.get("role")
-    if role not in ("parent", "demo_code"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this action")
-
     if role == "demo_code":
         # Never trust client-supplied session_config for the demo role —
         # only the transcript/subjects it already streamed are real; mirrors /chat.

@@ -11,7 +11,8 @@ from sqlalchemy.pool import StaticPool
 
 from core.config import settings
 from core.database import Base, MasteryProfile
-from core.encryption import decrypt_json
+from core.encryption import decrypt_json, student_aad
+from core import student_keys
 from services.diagnostic.composition import (
     CALIBRATION_THRESHOLD,
     DOMAINS,
@@ -191,7 +192,11 @@ async def test_corrupted_existing_row_degrades_to_cold_start_instead_of_raising(
         select(MasteryProfile).where(MasteryProfile.student_name == "Zoe")
     )).scalars().all()
     assert len(rows) == 1  # updated in place, not a duplicate PK row
-    assert decrypt_json(rows[0].profile_enc) == result_vector
+    assert decrypt_json(
+        rows[0].profile_enc,
+        student_aad("mastery_profiles", "profile_enc", rows[0].student_name, "composition"),
+        await student_keys.get_existing(db_session, rows[0].student_name),
+    ) == result_vector
 
 
 @pytest.mark.asyncio

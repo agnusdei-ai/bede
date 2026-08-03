@@ -2768,7 +2768,7 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         from sqlalchemy import select
 
         from core.database import LearnerBehaviorCheck
-        from core.encryption import decrypt_json, encrypt_json
+        from core.encryption import decrypt_json, encrypt_json, student_aad
 
         result = await db.execute(
             select(LearnerBehaviorCheck).where(LearnerBehaviorCheck.student_name == student_name)
@@ -2776,8 +2776,12 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         row = result.scalar_one_or_none()
         if row is None:
             return
-        count = decrypt_json(row.count_enc)["count"]
-        row.count_enc = encrypt_json({"count": count + 1})
+        from core import student_keys
+
+        _aad = student_aad("learner_behavior_checks", "count_enc", student_name)
+        _key = await student_keys.get_or_create(db, student_name)
+        count = decrypt_json(row.count_enc, _aad, _key)["count"]
+        row.count_enc = encrypt_json({"count": count + 1}, _aad, _key)
         await db.commit()
     except Exception as exc:
         log.warning("Behavior-check increment failed for %s: %s", student_name, exc)
@@ -2797,7 +2801,7 @@ async def _save_assessment(
         return None
     try:
         from core.database import NarrationAssessment
-        from core.encryption import encrypt_json
+        from core.encryption import encrypt_json, student_aad
 
         total = (
             tool_input.get("completeness", 0)
@@ -2830,7 +2834,11 @@ async def _save_assessment(
             student_name=student_name,
             subject=subject.value,
             session_date=now,
-            assessment_enc=encrypt_json(data),
+            assessment_enc=encrypt_json(
+                data,
+                student_aad("narration_assessments", "assessment_enc", student_name),
+                await _student_keys_mod().get_or_create(db, student_name),
+            ),
         ))
         await db.commit()
 
@@ -2862,6 +2870,14 @@ async def _save_assessment(
 # quietly causing. 5 minutes is short enough that a freshly (re)synthesized
 # profile takes effect within the same session, not just next login.
 _READONLY_PROMPT_CACHE_TTL_SECONDS = 300
+def _student_keys_mod():
+    """Local import indirection — core.student_keys imports core.encryption,
+    and these loaders are themselves imported early; keeping it lazy avoids
+    an import cycle at module load."""
+    from core import student_keys
+    return student_keys
+
+
 _mastery_vector_cache: dict[str, tuple[tuple[Optional[dict], int], float]] = {}
 _processing_style_cache: dict[str, tuple[Optional[str], float]] = {}
 _lesson_bookmark_cache: dict[tuple[str, str], tuple[Optional[dict], float]] = {}
@@ -2891,7 +2907,7 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
         from sqlalchemy import select
 
         from core.database import MasteryProfile
-        from core.encryption import decrypt_json
+        from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
             select(MasteryProfile).where(
@@ -2900,7 +2916,14 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
             )
         )
         row = result.scalar_one_or_none()
-        value = (None, 0) if row is None else (decrypt_json(row.profile_enc), row.evidence_count)
+        value = (None, 0) if row is None else (
+            decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, "mathematics"),
+                await _student_keys_mod().get_existing(db, student_name),
+            ),
+            row.evidence_count,
+        )
     except Exception as exc:
         log.warning("Mastery vector prompt-load failed for %s: %s", student_name, exc)
         value = (None, 0)
@@ -2935,13 +2958,17 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
         from sqlalchemy import select
 
         from core.database import LearnerProfile
-        from core.encryption import decrypt_json
+        from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
             select(LearnerProfile).where(LearnerProfile.student_name == student_name)
         )
         row = result.scalar_one_or_none()
-        value = None if row is None else decrypt_json(row.profile_enc).get("processing_style")
+        value = None if row is None else decrypt_json(
+            row.profile_enc,
+            student_aad("learner_profiles", "profile_enc", student_name),
+            await _student_keys_mod().get_existing(db, student_name),
+        ).get("processing_style")
     except Exception as exc:
         log.warning("Processing-style prompt-load failed for %s: %s", student_name, exc)
         value = None
@@ -2976,7 +3003,7 @@ async def _load_lesson_bookmark_readonly(
         from sqlalchemy import select
 
         from core.database import LessonBookmark
-        from core.encryption import decrypt_json
+        from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
             select(LessonBookmark).where(
@@ -2986,7 +3013,11 @@ async def _load_lesson_bookmark_readonly(
         )
         row = result.scalar_one_or_none()
         value = None if row is None else {
-            "note": decrypt_json(row.bookmark_enc)["note"],
+            "note": decrypt_json(
+                row.bookmark_enc,
+                student_aad("lesson_bookmarks", "bookmark_enc", student_name, subject.value),
+                await _student_keys_mod().get_existing(db, student_name),
+            )["note"],
             "updated_at": row.updated_at,
         }
     except Exception as exc:
@@ -3882,9 +3913,13 @@ async def _persist_lesson_bookmarks(db: "AsyncSession", student_name: str, bookm
     from sqlalchemy import select
 
     from core.database import LessonBookmark
-    from core.encryption import encrypt_json
+    from core.encryption import encrypt_json, student_aad
+
+    from core import student_keys
 
     valid_subjects = {s.value for s in Subject}
+    # One key resolution for the whole batch rather than per subject.
+    _bookmark_key = await student_keys.get_or_create(db, student_name)
     for subject_key, raw_note in bookmarks.items():
         if subject_key not in valid_subjects:
             continue
@@ -3926,7 +3961,11 @@ async def _persist_lesson_bookmarks(db: "AsyncSession", student_name: str, bookm
         if row is None:
             row = LessonBookmark(student_name=student_name, subject=subject_key)
             db.add(row)
-        row.bookmark_enc = encrypt_json({"note": note})
+        row.bookmark_enc = encrypt_json(
+            {"note": note},
+            student_aad("lesson_bookmarks", "bookmark_enc", student_name, subject_key),
+            _bookmark_key,
+        )
     await db.commit()
     _lesson_bookmark_cache.clear()
 

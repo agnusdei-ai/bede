@@ -15,6 +15,7 @@ voice biometrics authenticate children at session start.
 | Know what hardware I need (can a Raspberry Pi run this?) | [docs/PARENT_SETUP.md](docs/PARENT_SETUP.md#choosing-your-server-machine) — "Choosing your server machine": what a modest always-on box does and doesn't change, and which AI provider options each rules in or out |
 | Install with one command instead of `git clone` + typing | [docs/WINDOWS_INSTALLER.md](docs/WINDOWS_INSTALLER.md) (`.exe`) or [docs/UNIX_INSTALLER.md](docs/UNIX_INSTALLER.md) (`install.sh` — Linux x86_64/arm64 including Raspberry Pi, and macOS Apple Silicon/Intel) |
 | See what's retained and how to delete it | [docs/DATA_RETENTION.md](docs/DATA_RETENTION.md) — per-table retention policy and how to permanently delete a student's data |
+| See how strongly each kind of data is protected | [docs/DATA_CLASSIFICATION.md](docs/DATA_CLASSIFICATION.md) — sensitivity tiers, per-tier key strategy and deletion mechanism, and every encrypted column's assignment |
 | ...the technical/ops reference for that | [docs/PRODUCTION_SETUP.md](docs/PRODUCTION_SETUP.md) — `make setup`, day-to-day commands, database options |
 | Show my child how to use it | [docs/CHILD_GUIDE.md](docs/CHILD_GUIDE.md) — written directly to the child |
 | Understand and join in the Socratic method myself | [docs/SOCRATIC_METHOD.md](docs/SOCRATIC_METHOD.md) — what Bede actually does, and how to ask the same kind of question yourself |
@@ -22,6 +23,12 @@ voice biometrics authenticate children at session start.
 | Host the public demo | [docs/DEMO_HOSTING.md](docs/DEMO_HOSTING.md) — a Render Blueprint is included |
 | Work on the codebase itself | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — local dev for each app, project layout |
 | Understand the architecture in depth | [CLAUDE.md](CLAUDE.md) — request flow, prompt structure, streaming state machine |
+| Check security/compliance posture, or prep for an audit or pentest | [docs/SECURITY.md](docs/SECURITY.md) (detailed gap log), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) (adversary classes and explicit non-goals), and [docs/PENTEST_AIUC1_READINESS.md](docs/PENTEST_AIUC1_READINESS.md) (executive status + prioritized punch list) |
+| Understand *why* the security gaps are shaped the way they are, architecturally | [docs/ARCHITECTURE_ASSESSMENT.md](docs/ARCHITECTURE_ASSESSMENT.md) — a TOGAF-aligned current-state/gap/target-state assessment across data, application, technology, and identity architecture |
+| Know exactly what each role is allowed to do | [docs/AUTHORIZATION_POLICY.md](docs/AUTHORIZATION_POLICY.md) — the full role × action decision table, the authn/authz/enforcement/audit layer split, and what's deliberately still open |
+| Know what principles govern security design decisions | [docs/ARCHITECTURE_PRINCIPLES.md](docs/ARCHITECTURE_PRINCIPLES.md) — 22 principles on the CISSP domains (self-hosted) and CCSP domains (cloud-resident surfaces), cross-mapped to AIUC-1, NIST AI RMF, ISO/IEC 42001, OWASP LLM/Agentic Top 10, and MITRE ATLAS, each with a conformance status |
+| Know whether Bede needs Kubernetes/Rancher, and what breaks if it's replicated | [docs/DEPLOYMENT_TOPOLOGY.md](docs/DEPLOYMENT_TOPOLOGY.md) — why single-node is the right shape, when a co-op deployment would change that, and the controls that fail silently under horizontal scaling |
+| Run or design a pentest against my own instance | [docs/environment-pentests/README.md](docs/environment-pentests/README.md) — isolated redteam setup (`docker-compose.redteam.yml`), authorization model, and a test plan for both a device already on your LAN and a tester starting with zero prior access |
 
 Production (self-hosted, your family's real data) and the public demo
 (stateless, cloud-hosted) are deliberately different setups with different

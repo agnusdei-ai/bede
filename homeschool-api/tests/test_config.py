@@ -52,7 +52,7 @@ def test_sandbox_pin_matching_parent_password_rejected():
 
 def test_sandbox_pin_matching_child_pin_rejected():
     with pytest.raises(ValueError, match="SANDBOX_PIN"):
-        Settings(sandbox_pin="602656", child_pin="602656")
+        Settings(sandbox_pin="602657", child_pin="602657")
 
 
 def test_sandbox_pin_matching_demo_pin_rejected():
@@ -76,7 +76,7 @@ def test_weak_sandbox_pin_rejected_in_production(valid_license):
             disable_api_docs="true",
             secret_key="a" * 40,
             parent_password="a-strong-password",
-            child_pin="602656",
+            child_pin="602657",
             master_secret="b" * 40,
             sandbox_pin="111111",
             license_key=valid_license,
@@ -92,7 +92,7 @@ def test_strong_sandbox_pin_accepted_in_production(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         sandbox_pin="749283",
         license_key=valid_license,
@@ -108,7 +108,7 @@ def test_unset_sandbox_pin_never_blocks_production_startup(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=valid_license,
     )
@@ -131,7 +131,7 @@ def test_missing_license_key_boots_into_gated_mode_not_refusal():
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         demo_pin="",
     )
@@ -147,7 +147,7 @@ def test_invalid_license_key_boots_into_gated_mode_not_refusal():
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key="not-a-real-license",
         demo_pin="",
@@ -164,7 +164,7 @@ def test_valid_license_key_accepted_in_production(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=valid_license,
         demo_pin="",
@@ -199,7 +199,7 @@ def test_expired_license_key_gates_production(monkeypatch):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=expired_license,
         demo_pin="",
@@ -220,7 +220,7 @@ def test_demo_deployment_exempt_from_missing_license():
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         demo_pin="749283",
     )
@@ -233,7 +233,7 @@ def test_demo_deployment_exempt_from_invalid_license():
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         demo_pin="749283",
         license_key="not-a-real-license",
@@ -255,7 +255,7 @@ def test_real_family_production_without_demo_pin_still_requires_license():
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         demo_pin="",
     )
@@ -267,7 +267,7 @@ def test_real_family_production_without_demo_pin_still_requires_license():
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         demo_pin="749283",
     )
@@ -288,7 +288,7 @@ def test_no_ai_provider_configured_rejected_in_production(valid_license):
             disable_api_docs="true",
             secret_key="a" * 40,
             parent_password="a-strong-password",
-            child_pin="602656",
+            child_pin="602657",
             master_secret="b" * 40,
             license_key=valid_license,
             demo_pin="",
@@ -302,7 +302,7 @@ def test_anthropic_alone_satisfies_the_ai_provider_requirement(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=valid_license,
         demo_pin="",
@@ -319,7 +319,7 @@ def test_local_llm_alone_satisfies_the_ai_provider_requirement(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=valid_license,
         demo_pin="",
@@ -335,7 +335,7 @@ def test_openai_alone_satisfies_the_ai_provider_requirement(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=valid_license,
         demo_pin="",
@@ -351,7 +351,7 @@ def test_mistral_alone_satisfies_the_ai_provider_requirement(valid_license):
         disable_api_docs="true",
         secret_key="a" * 40,
         parent_password="a-strong-password",
-        child_pin="602656",
+        child_pin="602657",
         master_secret="b" * 40,
         license_key=valid_license,
         demo_pin="",

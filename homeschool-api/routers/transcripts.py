@@ -9,10 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import SessionTranscript, get_db
 from core.deps import require_parent, require_real_user
-from core.encryption import decrypt_json, encrypt_json
+from core import student_keys
+from core.encryption import decrypt_json, encrypt_json, student_aad
 from services.ai_service import _redact_credentials
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
+def _transcript_aad(student_name: str) -> bytes:
+    """Tier 3 — docs/DATA_CLASSIFICATION.md. session_transcripts has an
+    autoincrement id unavailable at insert, so this binds student scope
+    only; see core/encryption.py's student_aad for the residual."""
+    return student_aad("session_transcripts", "transcript_enc", student_name)
+
 
 
 class TranscriptMessage(BaseModel):
@@ -60,7 +67,9 @@ async def save_transcript(
         session_date=now,
         subjects=",".join(req.subjects),
         duration_minutes=req.duration_minutes,
-        transcript_enc=encrypt_json(data),
+        transcript_enc=encrypt_json(
+            data, _transcript_aad(student_name), await student_keys.get_or_create(db, student_name)
+        ),
     ))
     await db.commit()
     await log_event(
@@ -92,7 +101,11 @@ async def list_transcripts(
     transcripts = []
     for row in rows:
         try:
-            data = decrypt_json(row.transcript_enc)
+            data = decrypt_json(
+                row.transcript_enc,
+                _transcript_aad(row.student_name),
+                await student_keys.get_existing(db, row.student_name),
+            )
             transcripts.append({
                 "id": row.id,
                 "session_date": row.session_date.isoformat(),
@@ -124,4 +137,6 @@ async def get_transcript(
     if row is None:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Transcript not found")
-    return decrypt_json(row.transcript_enc)
+    return decrypt_json(
+        row.transcript_enc, _transcript_aad(student_name), await student_keys.get_existing(db, student_name)
+    )

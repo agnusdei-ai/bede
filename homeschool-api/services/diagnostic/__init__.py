@@ -31,6 +31,7 @@ from services.diagnostic.mastery import (
     bayesian_update,
     build_summary_view,
     classify_level,
+    ensure_complete,
     new_vector,
 )
 from services.diagnostic.qmatrix import EvidenceObservation, Q_MATRIX
@@ -129,7 +130,11 @@ async def process_evidence(
             vector = new_vector(grade_band)
             vector_is_cold_start = True
         else:
-            vector = decrypt_json(row.profile_enc)
+            # Backfilled against the CURRENT skill map — a vector stored
+            # before the map grew is missing the new ids, and without this
+            # they could never be probed or reported. See
+            # mastery.ensure_complete.
+            vector = ensure_complete(decrypt_json(row.profile_enc), grade_band)
     except Exception as exc:
         log.warning(
             "Mastery profile load failed for %s/%s, treating as cold-start: %s",
@@ -235,7 +240,10 @@ async def get_mastery_summary(db, student_name: str, subject_area: str = "mathem
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        vector = decrypt_json(row.profile_enc)
+        # Same backfill as the write path above, minus the grade band this
+        # render path has no way to know — missing skills fill at a neutral
+        # 0.5, which honestly says "no evidence yet".
+        vector = ensure_complete(decrypt_json(row.profile_enc))
     except Exception as exc:
         log.warning("Mastery summary load failed for %s/%s: %s", student_name, subject_area, exc)
         return None

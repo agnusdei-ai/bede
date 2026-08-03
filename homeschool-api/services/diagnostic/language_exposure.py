@@ -213,7 +213,7 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
     from sqlalchemy import select
 
     from core.database import MasteryProfile
-    from core.encryption import decrypt_json, encrypt_json
+    from core.encryption import decrypt_json, encrypt_json, student_aad
 
     row = None
     vector_is_cold_start = False
@@ -230,7 +230,7 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
             vector = new_vector()
             vector_is_cold_start = True
         else:
-            vector = decrypt_json(row.profile_enc)
+            vector = decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"))
     except Exception as exc:
         log.warning("Language-exposure mastery load failed for %s, treating as cold-start: %s", student_name, exc)
         vector = new_vector()
@@ -247,7 +247,7 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
         return None
 
     try:
-        profile_enc = encrypt_json(updated_vector)
+        profile_enc = encrypt_json(updated_vector, student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"))
         if row is None:
             db.add(MasteryProfile(
                 student_name=student_name,
@@ -273,7 +273,7 @@ async def get_language_summary(db, student_name: str) -> Optional[dict]:
     from sqlalchemy import select
 
     from core.database import MasteryProfile
-    from core.encryption import decrypt_json
+    from core.encryption import decrypt_json, student_aad
 
     try:
         result = await db.execute(
@@ -285,7 +285,7 @@ async def get_language_summary(db, student_name: str) -> Optional[dict]:
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        vector = decrypt_json(row.profile_enc)
+        vector = decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"))
     except Exception as exc:
         log.warning("Language-exposure mastery summary load failed for %s: %s", student_name, exc)
         return None

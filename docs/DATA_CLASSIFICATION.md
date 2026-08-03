@@ -427,8 +427,9 @@ binding's call-site audit establishes.
 | Classification artifact (this document) | ✅ Done |
 | v2 envelope with AAD support + v1 fallback | ✅ Done — `core/encryption.py` |
 | T1 call sites migrated to v2 | ✅ Done — `services/voice_auth.py` |
-| T2 call sites migrated to v2 | ⬜ Next |
-| T3 call sites migrated to v2 | ⬜ |
-| T4 call sites migrated to v2 | ⬜ |
+| T2 call sites migrated to v2 | ✅ Done — `services/mfa_service.py` |
+| T3 call sites migrated to v2 | ✅ Done — `routers/pod.py`, `routers/transcripts.py`, `routers/narration.py`, `services/ai_service.py`, all four `services/diagnostic/` modules |
+| T4 call sites migrated to v2 | ✅ Done — `core/audit.py`, `core/demo_code_session.py`, `services/interaction_signals.py`, `scripts/export_interaction_signals.py` |
+| Regression guard against unmigrated call sites | ✅ Done — `tests/test_aad_coverage.py` (AST check over every production module) |
 | Per-record keys (T1) | ⬜ Blocked on AAD migration completing |
 | Per-student keys + crypto-shredding (T3) | ⬜ Blocked on the above; this is punch-list #6 |

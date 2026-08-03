@@ -29,7 +29,7 @@ from sqlalchemy.pool import StaticPool
 
 from core.config import settings
 from core.database import Base, DiagnosticEvidenceLog, MasteryProfile
-from core.encryption import decrypt_json
+from core.encryption import decrypt_json, student_aad
 from services.diagnostic import apply_evidence, process_evidence
 
 
@@ -95,7 +95,7 @@ async def test_persisted_vector_matches_the_in_memory_computation_exactly(db_ses
     row = (await db_session.execute(
         select(MasteryProfile).where(MasteryProfile.student_name == "Liam")
     )).scalar_one_or_none()
-    assert decrypt_json(row.profile_enc) == expected_vector
+    assert decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", row.student_name, row.subject_area)) == expected_vector
 
 
 @pytest.mark.asyncio
@@ -153,7 +153,7 @@ async def test_corrupted_existing_row_degrades_to_cold_start_instead_of_raising(
         select(MasteryProfile).where(MasteryProfile.student_name == "Zoe")
     )).scalars().all()
     assert len(rows) == 1  # updated in place, not a duplicate PK row
-    assert decrypt_json(rows[0].profile_enc) == result_vector
+    assert decrypt_json(rows[0].profile_enc, student_aad("mastery_profiles", "profile_enc", rows[0].student_name, rows[0].subject_area)) == result_vector
 
 
 @pytest.mark.asyncio
@@ -180,7 +180,7 @@ async def test_evidence_log_gets_exactly_one_row_per_call_when_flag_is_on(db_ses
     assert len(rows) == 1
     assert rows[0].student_name == "Oliver"
 
-    deltas = decrypt_json(rows[0].delta_enc)
+    deltas = decrypt_json(rows[0].delta_enc, student_aad("diagnostic_evidence_log", "delta_enc", rows[0].student_name))
     assert isinstance(deltas, list)
     assert len(deltas) == 1
     assert deltas[0]["skill_id"] == "cc.rote_count_20"
@@ -198,7 +198,7 @@ async def test_evidence_log_row_never_contains_the_raw_outcome_or_confidence(db_
     await process_evidence(db_session, "Mia", "probe.cc.rote_count_20", "correct", 1.0, "K-2")
 
     row = (await db_session.execute(select(DiagnosticEvidenceLog))).scalar_one()
-    deltas = decrypt_json(row.delta_enc)
+    deltas = decrypt_json(row.delta_enc, student_aad("diagnostic_evidence_log", "delta_enc", row.student_name))
     for delta in deltas:
         assert set(delta.keys()) == {"skill_id", "prior", "posterior", "probe_id", "model_used"}
 

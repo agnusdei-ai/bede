@@ -108,6 +108,10 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
 
+from core.encryption import aad_for
+
+_AUDIT_AAD = aad_for("audit_log", "event_enc", "audit")
+
 _anomaly_windows: dict[tuple[str, str], list[float]] = {}
 _anomaly_last_alert: dict[tuple[str, str], float] = {}
 
@@ -190,7 +194,15 @@ async def log_event(
         entry["detail"] = detail[:500]
 
     try:
-        blob = encrypt(json.dumps(entry, separators=(",", ":")).encode())
+        # Tier 4 — docs/DATA_CLASSIFICATION.md. audit_log has an
+        # autoincrement id unavailable at insert and is deliberately NOT
+        # student-scoped (the log must outlive any student deletion), so
+        # this binds table and column only. That blocks moving an audit
+        # payload into a different table or column; reordering rows within
+        # the log stays undetected, which is acceptable because an attacker
+        # with the DB write access needed to do it can also just delete or
+        # insert audit rows outright — AAD was never the control for that.
+        blob = encrypt(json.dumps(entry, separators=(",", ":")).encode(), _AUDIT_AAD)
         async with AsyncSessionLocal() as db:
             db.add(AuditLog(event_enc=blob))
             await db.commit()
@@ -244,7 +256,7 @@ async def read_audit_log(db, limit: int = 100) -> list[dict]:
     entries = []
     for row in rows:
         try:
-            entry = json.loads(decrypt(row.event_enc))
+            entry = json.loads(decrypt(row.event_enc, _AUDIT_AAD))
             entries.append({k: v for k, v in entry.items() if k in safe_fields})
         except Exception:
             entries.append({"_corrupt": True})

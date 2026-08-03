@@ -17,7 +17,7 @@ from sqlalchemy.pool import StaticPool
 
 from core.config import settings
 from core.database import Base, MasteryProfile, NarrationAssessment
-from core.encryption import decrypt_json
+from core.encryption import decrypt_json, student_aad
 from models.schemas import Subject
 from services.ai_service import _save_assessment
 
@@ -65,7 +65,10 @@ async def test_save_assessment_writes_both_the_raw_row_and_the_composition_rollu
     )).scalar_one_or_none()
     assert mastery_row is not None
     assert mastery_row.evidence_count == 1
-    vector = decrypt_json(mastery_row.profile_enc)
+    vector = decrypt_json(
+        mastery_row.profile_enc,
+        student_aad("mastery_profiles", "profile_enc", mastery_row.student_name, mastery_row.subject_area),
+    )
     assert vector["language_quality"] > 0.5  # the 5-of-5 score nudged this domain up
 
 

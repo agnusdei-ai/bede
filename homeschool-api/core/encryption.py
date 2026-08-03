@@ -93,6 +93,28 @@ def aad_for(table: str, column: str, row_key: str) -> bytes:
     return f"bede/v2/{table}/{column}/{row_key}".encode("utf-8")
 
 
+# Convenience wrappers for the two row-key shapes that recur across the
+# codebase, so call sites don't each hand-assemble the same strings (and so a
+# typo in one becomes a decryption failure at that call site rather than a
+# silently different binding).
+def student_aad(table: str, column: str, student_name: str, *scope: str) -> bytes:
+    """Row key for a student-scoped table. Extra `scope` parts are appended
+    for composite primary keys — e.g. lesson_bookmarks is (student_name,
+    subject), mastery_profiles is (student_name, subject_area).
+
+    For tables whose real primary key is an autoincrement id that does not
+    exist at insert time (session_transcripts, narration_assessments,
+    diagnostic_evidence_log, api_usage_events), the student_name is used
+    alone. That blocks the attack that matters — moving one student's record
+    into another student's history, or into a different table or column —
+    and leaves swaps between two rows of the SAME student in the SAME column
+    undetected. Binding the id would require a two-phase insert (write,
+    read back the id, re-encrypt, update), which trades a real correctness
+    and failure-mode risk for a marginal threat. Documented in
+    docs/DATA_CLASSIFICATION.md rather than left implicit."""
+    return aad_for(table, column, "/".join((student_name, *scope)))
+
+
 # ── Low-level AES-GCM ────────────────────────────────────────────────────────
 
 def _aes_encrypt(plaintext: bytes, key: bytes, aad: Optional[bytes] = None) -> bytes:

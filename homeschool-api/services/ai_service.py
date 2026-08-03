@@ -2475,7 +2475,7 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         from sqlalchemy import select
 
         from core.database import LearnerBehaviorCheck
-        from core.encryption import decrypt_json, encrypt_json
+        from core.encryption import decrypt_json, encrypt_json, student_aad
 
         result = await db.execute(
             select(LearnerBehaviorCheck).where(LearnerBehaviorCheck.student_name == student_name)
@@ -2483,8 +2483,9 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         row = result.scalar_one_or_none()
         if row is None:
             return
-        count = decrypt_json(row.count_enc)["count"]
-        row.count_enc = encrypt_json({"count": count + 1})
+        _aad = student_aad("learner_behavior_checks", "count_enc", student_name)
+        count = decrypt_json(row.count_enc, _aad)["count"]
+        row.count_enc = encrypt_json({"count": count + 1}, _aad)
         await db.commit()
     except Exception as exc:
         log.warning("Behavior-check increment failed for %s: %s", student_name, exc)
@@ -2504,7 +2505,7 @@ async def _save_assessment(
         return None
     try:
         from core.database import NarrationAssessment
-        from core.encryption import encrypt_json
+        from core.encryption import encrypt_json, student_aad
 
         total = (
             tool_input.get("completeness", 0)
@@ -2537,7 +2538,7 @@ async def _save_assessment(
             student_name=student_name,
             subject=subject.value,
             session_date=now,
-            assessment_enc=encrypt_json(data),
+            assessment_enc=encrypt_json(data, student_aad("narration_assessments", "assessment_enc", student_name)),
         ))
         await db.commit()
 
@@ -2598,7 +2599,7 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
         from sqlalchemy import select
 
         from core.database import MasteryProfile
-        from core.encryption import decrypt_json
+        from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
             select(MasteryProfile).where(
@@ -2607,7 +2608,10 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
             )
         )
         row = result.scalar_one_or_none()
-        value = (None, 0) if row is None else (decrypt_json(row.profile_enc), row.evidence_count)
+        value = (None, 0) if row is None else (
+            decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, "mathematics")),
+            row.evidence_count,
+        )
     except Exception as exc:
         log.warning("Mastery vector prompt-load failed for %s: %s", student_name, exc)
         value = (None, 0)
@@ -2642,13 +2646,15 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
         from sqlalchemy import select
 
         from core.database import LearnerProfile
-        from core.encryption import decrypt_json
+        from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
             select(LearnerProfile).where(LearnerProfile.student_name == student_name)
         )
         row = result.scalar_one_or_none()
-        value = None if row is None else decrypt_json(row.profile_enc).get("processing_style")
+        value = None if row is None else decrypt_json(
+            row.profile_enc, student_aad("learner_profiles", "profile_enc", student_name)
+        ).get("processing_style")
     except Exception as exc:
         log.warning("Processing-style prompt-load failed for %s: %s", student_name, exc)
         value = None
@@ -2683,7 +2689,7 @@ async def _load_lesson_bookmark_readonly(
         from sqlalchemy import select
 
         from core.database import LessonBookmark
-        from core.encryption import decrypt_json
+        from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
             select(LessonBookmark).where(
@@ -2693,7 +2699,10 @@ async def _load_lesson_bookmark_readonly(
         )
         row = result.scalar_one_or_none()
         value = None if row is None else {
-            "note": decrypt_json(row.bookmark_enc)["note"],
+            "note": decrypt_json(
+                row.bookmark_enc,
+                student_aad("lesson_bookmarks", "bookmark_enc", student_name, subject.value),
+            )["note"],
             "updated_at": row.updated_at,
         }
     except Exception as exc:
@@ -3345,7 +3354,7 @@ async def _persist_lesson_bookmarks(db: "AsyncSession", student_name: str, bookm
     from sqlalchemy import select
 
     from core.database import LessonBookmark
-    from core.encryption import encrypt_json
+    from core.encryption import encrypt_json, student_aad
 
     valid_subjects = {s.value for s in Subject}
     for subject_key, raw_note in bookmarks.items():
@@ -3389,7 +3398,9 @@ async def _persist_lesson_bookmarks(db: "AsyncSession", student_name: str, bookm
         if row is None:
             row = LessonBookmark(student_name=student_name, subject=subject_key)
             db.add(row)
-        row.bookmark_enc = encrypt_json({"note": note})
+        row.bookmark_enc = encrypt_json(
+            {"note": note}, student_aad("lesson_bookmarks", "bookmark_enc", student_name, subject_key)
+        )
     await db.commit()
     _lesson_bookmark_cache.clear()
 

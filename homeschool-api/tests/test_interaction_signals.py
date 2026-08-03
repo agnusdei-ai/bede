@@ -37,7 +37,7 @@ async def patched_session_factory(monkeypatch):
 
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
-        from core.encryption import initialize_encryption
+        from core.encryption import aad_for, initialize_encryption
         await initialize_encryption(settings.master_secret, session)
 
     monkeypatch.setattr(database_module, "AsyncSessionLocal", factory)
@@ -92,7 +92,7 @@ async def test_record_signal_respects_the_disabled_setting(patched_session_facto
 
 @pytest.mark.asyncio
 async def test_turn_and_tool_counts_accumulate_across_calls(patched_session_factory):
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
 
     await record_signal("123456", "turn", "mathematics")
     await record_signal("123456", "offer_socratic_hint", "mathematics")
@@ -102,7 +102,7 @@ async def test_turn_and_tool_counts_accumulate_across_calls(patched_session_fact
     from sqlalchemy import select
     async with patched_session_factory() as db:
         row = (await db.execute(select(DemoInteractionSignal))).scalar_one()
-    signals = decrypt_json(row.signals_enc)
+    signals = decrypt_json(row.signals_enc, aad_for("demo_interaction_signals", "signals_enc", row.session_token))
 
     assert signals["turn_count"] == 2
     assert signals["tool_counts"]["offer_socratic_hint"] == 2
@@ -111,7 +111,7 @@ async def test_turn_and_tool_counts_accumulate_across_calls(patched_session_fact
 
 @pytest.mark.asyncio
 async def test_subject_complete_is_tracked_once_per_subject(patched_session_factory):
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
 
     await record_signal("123456", "subject_complete", "mathematics")
     await record_signal("123456", "subject_complete", "mathematics")  # duplicate
@@ -120,14 +120,14 @@ async def test_subject_complete_is_tracked_once_per_subject(patched_session_fact
     from sqlalchemy import select
     async with patched_session_factory() as db:
         row = (await db.execute(select(DemoInteractionSignal))).scalar_one()
-    signals = decrypt_json(row.signals_enc)
+    signals = decrypt_json(row.signals_enc, aad_for("demo_interaction_signals", "signals_enc", row.session_token))
 
     assert sorted(signals["subjects_completed"]) == ["language_arts", "mathematics"]
 
 
 @pytest.mark.asyncio
 async def test_different_codes_are_fully_independent_sessions(patched_session_factory):
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
 
     await record_signal("111111", "turn", "mathematics")
     await record_signal("111111", "turn", "mathematics")
@@ -138,7 +138,7 @@ async def test_different_codes_are_fully_independent_sessions(patched_session_fa
         rows = (await db.execute(select(DemoInteractionSignal))).scalars().all()
 
     assert len(rows) == 2
-    counts = sorted(decrypt_json(r.signals_enc)["turn_count"] for r in rows)
+    counts = sorted(decrypt_json(r.signals_enc, aad_for("demo_interaction_signals", "signals_enc", r.session_token))["turn_count"] for r in rows)
     assert counts == [1, 2]
 
 
@@ -147,14 +147,14 @@ async def test_no_raw_content_ever_lands_in_the_stored_signal(patched_session_fa
     """The whole point of this module: only structural signals, never
     conversation content. Confirms nothing resembling free text sneaks in
     via the event_type or subject_area params."""
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
 
     await record_signal("123456", "offer_socratic_hint", "mathematics")
 
     from sqlalchemy import select
     async with patched_session_factory() as db:
         row = (await db.execute(select(DemoInteractionSignal))).scalar_one()
-    signals = decrypt_json(row.signals_enc)
+    signals = decrypt_json(row.signals_enc, aad_for("demo_interaction_signals", "signals_enc", row.session_token))
 
     assert set(signals.keys()) == {
         "tool_counts", "subjects_visited", "subjects_completed",
@@ -174,11 +174,11 @@ async def test_corrupted_row_degrades_to_a_fresh_start_instead_of_raising(patche
     # Must not raise despite the corrupted existing row.
     await record_signal("123456", "turn", "mathematics")
 
-    from core.encryption import decrypt_json
+    from core.encryption import aad_for, decrypt_json
     from sqlalchemy import select
     async with patched_session_factory() as db:
         row = (await db.execute(select(DemoInteractionSignal))).scalar_one()
-    signals = decrypt_json(row.signals_enc)
+    signals = decrypt_json(row.signals_enc, aad_for("demo_interaction_signals", "signals_enc", row.session_token))
     assert signals["turn_count"] == 1
 
 

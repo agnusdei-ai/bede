@@ -504,6 +504,54 @@ product actually does, so they get an extra human checkpoint the rest of the
 repo doesn't require. Everything else about the workflow (test first, open a
 PR with a real test plan, tell the user once merged) still applies.
 
+## Standing Workflow: Carry Out the Decision, Don't Just Record It
+
+A design decision is not finished when it is written down. It is finished
+when the code, the docs, and the user-facing copy all say the same thing.
+**Do not leave a gap between a decision and its execution**, and do not
+close a piece of work with a "still to do" that quietly hands the gap to
+whoever comes next.
+
+This rule exists because this repository has repeatedly produced exactly
+that gap, and each time the gap was invisible in the place someone would
+look for it:
+
+- `DiagnosticEvidenceLog`'s docstring said "opt-in and off by default"
+  for four phases after `docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md`
+  §5.3 recorded the flip to `True`. A deployer reading the model to
+  decide what their database held would have concluded the table stayed
+  empty. The decision was recorded; it was never carried into the code
+  it described.
+- The site said "Eleven subjects" for three shipped subjects, because
+  the decision to add them stopped at the app.
+- A subject rename landed in `models/schemas.py` and not in `site/`,
+  twice, because the two live in files that never conflict in git.
+- A readability pass cleared dash overuse from every page, and copy
+  written days earlier missed the sweep, so one document contradicted
+  the style the same repository had just adopted.
+
+**In practice this means:**
+
+1. **Finish the sweep.** If a rule now applies (a rename, a style, a
+   guarantee), apply it everywhere it holds in the same change, not to
+   the file that prompted it. Grep for the old form and prove it is gone.
+2. **Where the same fact lives twice, make one check that they agree.**
+   A UI string quoted verbatim in a doc, a label duplicated between
+   `schemas.py` and `types/index.ts`, a constant mirrored in two
+   languages: add the assertion that fails when they drift, rather than
+   trusting the next person to remember. `tests/test_catalog_coverage.py`
+   and the `SUBJECT_LABELS` parity check are the pattern.
+3. **A spec that stays unbuilt needs a reason, not a status.** "Proposed"
+   is legitimate only when a decision genuinely belongs to the founder
+   (scope, product direction, a privacy posture). Anything blocked only
+   on effort gets built.
+4. **State what remains, and why, in the same breath.** If part of a
+   change genuinely cannot land yet, say which part and what blocks it.
+   Silence about a gap is what turns it into a defect nobody owns.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever change prompted it.
+
 ## Standing Workflow: Feature Documentation
 
 Every feature or user-facing behavior change introduced to this repo needs

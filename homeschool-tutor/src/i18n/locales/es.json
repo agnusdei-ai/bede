@@ -261,7 +261,7 @@
     "companionModeGuidedDesc": "Conversación basada en libros más algunas materias principales.",
     "companionModeFullPlan": "Plan diario completo",
     "companionModeFullPlanDesc": "Bede cubre la rotación completa de materias de Mater Amabilis.",
-    "travelMode": "Viajamos — nuestras semanas no siempre son regulares",
+    "travelMode": "Viajamos, así que nuestras semanas no siempre son regulares",
     "travelModeHelp": "Progreso normalmente informa el avance de las últimas 4 semanas reales. Active esto si los viajes hacen que esa ventana suela ser demasiado corta para ver algo, y elija una más larga. No cambia cómo se enseña a su hijo, solo hasta dónde mira atrás la página de Progreso.",
     "masteryWindowLabel": "Informar el avance de",
     "weeksN": "{{n}} semanas"

@@ -261,7 +261,7 @@
     "companionModeGuidedDesc": "Book-based discussion plus a few core subjects.",
     "companionModeFullPlan": "Full Daily Plan",
     "companionModeFullPlanDesc": "Bede covers the full Mater Amabilis subject rotation.",
-    "travelMode": "We travel — our weeks aren't always regular",
+    "travelMode": "We travel, so our weeks aren't always regular",
     "travelModeHelp": "Progress normally reports movement over the last 4 actual weeks. Turn this on if weeks away mean that window is often too short to see anything, and choose a longer one. It doesn't change how your child is taught, only how far back the Progress page looks.",
     "masteryWindowLabel": "Report movement over",
     "weeksN": "{{n}} weeks"

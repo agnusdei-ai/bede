@@ -148,6 +148,65 @@ contains a wildcard (`reject_exposed_docs_and_wildcard_cors_in_production`
 — at least one AI provider is required, but never a specific one; see
 `docs/PROVIDER_ADAPTERS.md`). All four validators live in `core/config.py`.
 
+**One credential policy, three implementations, and a test that they
+agree.** `core/pin_policy.py` holds both rules: `pin_is_strong()` (shape —
+6+ digits, no sequential run, repeated block, or palindrome) and
+`is_published_credential()` (whether the exact value is one this repository
+prints as an example, `PUBLISHED_EXAMPLE_PINS`/`WEAK_PLACEHOLDER_SECRETS`).
+They are deliberately separate questions: `602656` passes every shape rule
+and is still unusable, because it was the published example everywhere —
+`.env.example`, `setup.sh`, the wizard's own hint and placeholder, two
+docs, and `config.py`'s own error messages. When the boot-time rejection
+landed in `config.py` alone, the wizard went on recommending and accepting
+it, so a parent following the installer's advice got an `.env` it called
+valid and a container that refused to start blaming them for "the default
+dev value" — and `main` went red for five consecutive
+`production-regression.yml` runs, all of them this. The policy lives in
+`pin_policy.py` because it is the one module the wizard's pydantic-free
+container already copies; `setup.sh` necessarily keeps a bash copy (as
+`demo/src/App.tsx` does in TypeScript).
+`homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py` pins the
+invariant in both directions — **the wizard must never accept a credential
+the API will refuse to boot on** — including building the `.env` the form
+produces and constructing `Settings` from it. No interface names a concrete
+PIN any longer: `suggest_pin()` generates one per run in both installers,
+since the only example that stays usable is one that was never committed.
+
+**A setting in `.env` only exists if `docker-compose.yml` names it.** The
+`api` service enumerates environment variables one at a time rather than
+using `env_file`, deliberately — the block is a reviewable statement of what
+the container receives. The obligation that follows is stated in the block's
+own comment ("anything set in `.env` and NOT named here is silently
+dropped"), and it had drifted badly: 22 documented settings never reached
+the container, among them every `WEBAUTHN_*` value (so FIDO2 security keys
+were unreachable in the packaged deployment — `mfa_service.webauthn_enabled()`
+is `rp_id and origin` with no fallback), `LOCALE` (so the entire
+localization feature was off, and `docs/LOCALIZATION.md`'s promise that a
+family "should never discover Bede is still speaking English" could not
+hold, since startup validation cannot reject a value that never arrived),
+every `RATE_LIMIT_*` and `WHISPER_*` tuning knob the docs tell families to
+reach for, and `RETAIN_MASTERY_PROFILES` on the same day the setup wizard
+began asking a parent to choose it. The failure is silent in both
+directions — pydantic falls back to the code default and the stack runs —
+which in a self-hosted product is the worst shape available, since the
+deployer cannot tell "I configured it wrong" from "this was never wired
+up." `homeschool-api/tests/test_compose_settings_passthrough.py` now pins
+three things: every setting documented in either `.env.example` is passed,
+every default written in compose equals the one in `core/config.py` (two
+copies of one fact, checked rather than trusted — `OPENAI_TTS_INSTRUCTIONS`
+is duplicated verbatim on that basis), and every variable in the block is a
+real setting (a typo there is otherwise permanent). Deliberate divergences
+(`CORS_ORIGINS`, `RESEND_FROM_ADDRESS`) live in a named exemption list with
+stated reasons, and a parametrized test fails if an exemption outlives the
+setting it excused. Note there are **two** `.env.example` files — the root
+one (Docker deployment) and `homeschool-api/`'s (local dev) — which do not
+agree on which settings they document; the test treats their union as the
+contract rather than requiring them to be merged. `VITE_LOCALE` is the one
+setting that cannot travel this way: Vite inlines `import.meta.env.VITE_*`
+at build time, so the `ui` service takes it as a **build arg** fed from the
+same `LOCALE`, deciding which language the login screen paints first (both
+bundles always ship; the toggle switches live).
+
 ## Architecture
 
 ### Backend (`homeschool-api/`)

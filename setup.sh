@@ -19,7 +19,9 @@ blank()   { echo ""; }
 # At least 6 digits and not an easily-guessable pattern: no sequential run —
 # ascending or descending, wraparound included (123456, 654321, 789012) — no
 # repeated block (111111, 123123, 121212), and not a palindrome (669966).
-# Repeated digits are otherwise fine, e.g. 602656 is a good PIN.
+# Repeated digits are otherwise fine. No concrete example is given here on
+# purpose: printing one publishes it, which is exactly how 602656 became a
+# PIN the app now refuses to start with.
 is_sequential_pin() {
   local pin="$1" prev="" d="" diff="" first_diff="" all_same=1
   for ((i = 0; i < ${#pin}; i++)); do
@@ -57,13 +59,40 @@ is_palindrome_pin() {
   [[ "$pin" == "$rev" ]]
 }
 
+# Values this repository publishes as examples. Rejected however well-formed
+# they are, matching PUBLISHED_EXAMPLE_PINS in homeschool-api/core/pin_policy.py
+# — a PIN printed on GitHub is not a secret. Kept in step by hand because
+# this is the bash copy of a policy that necessarily exists in three
+# languages; the API refuses to boot on these, so accepting one here would
+# hand a family an .env that cannot start.
+PUBLISHED_EXAMPLE_PINS=("602656")
+
+is_published_pin() {
+  local pin="$1" published=""
+  for published in "${PUBLISHED_EXAMPLE_PINS[@]}"; do
+    [[ "$pin" == "$published" ]] && return 0
+  done
+  return 1
+}
+
 is_strong_pin() {
   local pin="$1"
   [[ "$pin" =~ ^[0-9]{6,}$ ]] || return 1
   is_sequential_pin "$pin" && return 1
   is_repeating_block_pin "$pin" && return 1
   is_palindrome_pin "$pin" && return 1
+  is_published_pin "$pin" && return 1
   return 0
+}
+
+# A fresh suggestion to offer instead of naming a literal, which is what made
+# 602656 unusable in the first place. Generated per run and never committed.
+suggest_pin() {
+  local pin=""
+  while true; do
+    pin=$(printf '%06d' $(( (RANDOM * 32768 + RANDOM) % 1000000 )))
+    is_strong_pin "$pin" && { printf '%s' "$pin"; return 0; }
+  done
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -197,11 +226,13 @@ while true; do
 done
 
 blank
+SUGGESTED_PIN=$(suggest_pin)
 info "4/6  Child PIN (student login, 6+ digits, no easily-guessable pattern)"
+info "     Not sure? ${SUGGESTED_PIN} was just generated for you and works."
 while true; do
   read -rp "     CHILD_PIN: " CHILD_PIN
   is_strong_pin "$CHILD_PIN" && break
-  warn "Must be 6+ digits and not a sequential run, repeated block, or palindrome (e.g. 602656 is fine, not 111111, 123123, 121212, 123456, 654321, or 669966)."
+  warn "Must be 6+ digits, not a sequential run, repeated block, or palindrome (not 111111, 123123, 121212, 123456, 654321, or 669966), and not one of Bede's own published examples. ${SUGGESTED_PIN} works."
 done
 
 # ── License ───────────────────────────────────────────────────────────────────

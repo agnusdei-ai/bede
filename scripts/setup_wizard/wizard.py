@@ -30,7 +30,19 @@ from urllib.parse import parse_qs
 _CONTAINER_PATH = "/app/homeschool-api"
 _REPO_PATH = str(Path(__file__).resolve().parent.parent.parent / "homeschool-api")
 sys.path.insert(0, _CONTAINER_PATH if os.path.isdir(_CONTAINER_PATH) else _REPO_PATH)
-from core.pin_policy import pin_is_strong  # noqa: E402
+from core.pin_policy import (  # noqa: E402
+    is_published_credential,
+    pin_is_strong,
+    suggest_pin,
+)
+
+# Generated once per wizard process, so a parent sees a stable suggestion
+# across a re-render after a validation error rather than a new one each
+# time. Per install and never committed, which is the whole point: naming a
+# fixed PIN here is what made 602656 unusable, since a value printed in this
+# repository stops being a secret the moment it ships. See
+# homeschool-api/core/pin_policy.py.
+SUGGESTED_CHILD_PIN = suggest_pin()
 # Deliberately NOT importing core.licensing here — real signature
 # verification needs pycryptodome, and this container stays pure-stdlib on
 # purpose (see module docstring). This form only checks the field is
@@ -373,8 +385,8 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append('<input type="password" name="parent_password">')
 
     body.append('<label>Student PIN</label>')
-    body.append('<div class="hint">At least 6 digits, and not an obvious pattern like 111111 or 123456 — e.g. 602656 is a good one. Your child uses this to log in.</div>')
-    body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="602656">')
+    body.append(f'<div class="hint">At least 6 digits, and not an obvious pattern like 111111 or 123456. Your child uses this to log in. Not sure? <strong>{SUGGESTED_CHILD_PIN}</strong> was just generated for you and is fine to use.</div>')
+    body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
 
     body.append('<label>License key</label>')
     body.append('<div class="hint">The LICENSE_KEY you received when you purchased or started a trial of Bede. No internet connection is needed to use it.</div>')
@@ -500,8 +512,27 @@ def validate(fields: dict) -> str:
         return "Please enter your database connection string, or choose \"On this computer\" instead."
     if len(fields.get("parent_password", "")) < 8:
         return "Parent password must be at least 8 characters."
+    if is_published_credential(fields.get("parent_password", "")):
+        return (
+            "That password is one of Bede's own published example values, so it's "
+            "public. Please pick something else."
+        )
     if not pin_is_strong(fields.get("child_pin", "")):
-        return "Student PIN must be 6+ digits and not an obvious pattern (like 111111 or 123456) — e.g. 602656 works."
+        return (
+            f"Student PIN must be 6+ digits and not an obvious pattern (like 111111 "
+            f"or 123456). {SUGGESTED_CHILD_PIN} was generated for you and works."
+        )
+    # Checked separately from shape, and this is the check that used to be
+    # missing entirely: 602656 passes every strength rule above, but it was
+    # this wizard's own on-screen example for a long time, so the API refuses
+    # to boot on it. Without this the wizard accepted it, wrote it to .env,
+    # and the parent's stack then failed to start blaming them for using
+    # "the default dev value" — for a PIN this screen had recommended.
+    if is_published_credential(fields.get("child_pin", "")):
+        return (
+            f"That PIN is Bede's own published example, so it's public and the app "
+            f"won't start with it. {SUGGESTED_CHILD_PIN} was generated for you and works."
+        )
     if not fields.get("license_key", "").strip():
         return "Please enter your license key."
     return ""

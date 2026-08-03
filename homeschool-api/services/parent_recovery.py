@@ -128,7 +128,7 @@ async def enroll_recovery_pin(db: AsyncSession, pin: str) -> None:
         raise ValueError(
             "Recovery PIN must be 6-12 digits and not an easily-guessable pattern — "
             "no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-            "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
+            "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes"
         )
     if len(pin) > _PIN_MAX_LENGTH:
         raise ValueError(f"Recovery PIN must be at most {_PIN_MAX_LENGTH} digits")

@@ -99,6 +99,19 @@ services:
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
       - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-fable}
       - OPENAI_TTS_SPEED=${OPENAI_TTS_SPEED:-0.9}
+      # The default below is a verbatim copy of core/config.py's. Two copies
+      # of one string would normally be a drift risk; here
+      # tests/test_compose_settings_passthrough.py compares them on every
+      # run, so the duplication is checked rather than trusted.
+      - OPENAI_TTS_INSTRUCTIONS=${OPENAI_TTS_INSTRUCTIONS:-Speak as Bede, an elderly Benedictine monk from Southern England. Warm and gentle, but speak at a slow, deliberate, unhurried pace with clear, distinct diction — leave real space between phrases, never rushed or run together. The quiet, measured cadence of someone used to contemplation and reading aloud, never brisk or robotic. Gentle authority, softly spoken.}
+      # Language. Bede converses natively in this language rather than
+      # machine-translating; the UI chrome follows via the ui service's own
+      # VITE_LOCALE build arg below, which reads this same value. One locale
+      # per deployment, offered as a per-login toggle beside English — see
+      # docs/LOCALIZATION.md. Setting this also makes SessionConfig.sex
+      # required for every student (routers/pod.py), since any student could
+      # land in a non-English session once the toggle exists.
+      - LOCALE=${LOCALE:-en}
       # Optional — leave RESEND_API_KEY unset to disable the post-session
       # diagnostic email feature entirely. See docs/VOICE_SETUP.md's sibling,
       # services/email_service.py, for what this powers.
@@ -109,10 +122,74 @@ services:
       # Leave unset to disable this specific alert (the safeguarding event is
       # always recorded in the encrypted audit log regardless).
       - PARENT_EMAIL=${PARENT_EMAIL:-}
+      # Optional — where in-app feedback is routed. Unset means POST
+      # /feedback returns 404 and the frontend hides the feedback UI
+      # entirely (GET /feedback/enabled). Reuses RESEND_API_KEY above.
+      - FEEDBACK_EMAIL=${FEEDBACK_EMAIL:-}
       # Optional — unlocks a direct-answer sandbox chat for the parent to
       # test/explore Bede's behavior. Requires already being logged in as
       # parent; leave unset to disable entirely. See routers/sandbox.py.
       - SANDBOX_PIN=${SANDBOX_PIN:-}
+      # Parent MFA. Both of these must be set for security keys to work at
+      # all: mfa_service.webauthn_enabled() is `rp_id and origin`, and with
+      # it false, enrollment and authentication both refuse and
+      # GET /mfa/status reports webauthn_available: false. There is no
+      # fallback derivation from the request. Since neither reached the
+      # container before this list included them, FIDO2 keys were
+      # unreachable in the packaged deployment however carefully a parent
+      # filled them into .env. They must match the host the parent actually
+      # opens Bede on (e.g. RP_ID=bede.lan, ORIGIN=https://bede.lan), since
+      # a browser binds a credential to the origin that created it. TOTP is
+      # a separate path and was unaffected.
+      - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-}
+      - WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME:-Bede}
+      - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-}
+      # Shown as the account name in an authenticator app (Google
+      # Authenticator, 1Password). Cosmetic, but it is what a parent sees
+      # when they look for Bede's code among a dozen others.
+      - TOTP_ISSUER=${TOTP_ISSUER:-Bede Homeschool}
+      - MFA_PENDING_TOKEN_EXPIRE_MINUTES=${MFA_PENDING_TOKEN_EXPIRE_MINUTES:-5}
+      # Session lifetimes, in minutes. A parent session outlives a child's
+      # on purpose: a parent is administering, a child is in one sitting.
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      - CHILD_TOKEN_EXPIRE_MINUTES=${CHILD_TOKEN_EXPIRE_MINUTES:-240}
+      # Voice. WHISPER_MODEL_SIZE and VOICE_TRANSCRIPTION_MAX_CONCURRENCY are
+      # the two knobs docs/VOICE_SETUP.md tells a family to reach for when
+      # "Transcribing…" takes too long, so they have to actually work.
+      # VOICE_THRESHOLD_* govern speaker verification: above HIGH passes,
+      # between MEDIUM and HIGH asks a parent, below MEDIUM fails.
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+      - WHISPER_BEAM_SIZE=${WHISPER_BEAM_SIZE:-1}
+      - WHISPER_VAD_FILTER=${WHISPER_VAD_FILTER:-false}
+      - VOICE_PARTIAL_MAX_SECONDS=${VOICE_PARTIAL_MAX_SECONDS:-25.0}
+      - VOICE_TRANSCRIPTION_MAX_CONCURRENCY=${VOICE_TRANSCRIPTION_MAX_CONCURRENCY:-1}
+      - VOICE_THRESHOLD_HIGH=${VOICE_THRESHOLD_HIGH:-0.82}
+      - VOICE_THRESHOLD_MEDIUM=${VOICE_THRESHOLD_MEDIUM:-0.68}
+      # Per-IP rate limits (core/middleware.py). The voice-stream and
+      # account-recovery buckets are separate from their neighbours on
+      # purpose — see the comments on each in core/config.py.
+      - RATE_LIMIT_AUTH_PER_MINUTE=${RATE_LIMIT_AUTH_PER_MINUTE:-10}
+      - RATE_LIMIT_API_PER_MINUTE=${RATE_LIMIT_API_PER_MINUTE:-120}
+      - RATE_LIMIT_VOICE_PER_MINUTE=${RATE_LIMIT_VOICE_PER_MINUTE:-20}
+      - RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE=${RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE:-120}
+      - RATE_LIMIT_ACCOUNT_RECOVERY_PER_MINUTE=${RATE_LIMIT_ACCOUNT_RECOVERY_PER_MINUTE:-10}
+      # What Bede is allowed to keep about a child. RETAIN_MASTERY_PROFILES
+      # false runs the identical diagnostic but holds the estimate in memory
+      # for the session only, writing nothing describing the child; the
+      # setup wizard asks a parent this directly. It reaching the container
+      # is the whole point of the setting, and for one day it did not.
+      - RETAIN_MASTERY_PROFILES=${RETAIN_MASTERY_PROFILES:-true}
+      - DIAGNOSTIC_EVIDENCE_LOG_ENABLED=${DIAGNOSTIC_EVIDENCE_LOG_ENABLED:-true}
+      # Public-demo only. Irrelevant to a family instance (no demo role is
+      # ever reachable without DEMO_PIN); listed so every documented variable
+      # behaves the same way everywhere rather than some being silently
+      # dropped. See render.yaml for the demo's own deployment.
+      - DEMO_PIN=${DEMO_PIN:-}
+      - DEMO_STUDENT_NAME=${DEMO_STUDENT_NAME:-Guest}
+      - DEMO_GRADE=${DEMO_GRADE:-4}
+      - DEMO_GRADE_STAGE=${DEMO_GRADE_STAGE:-3-5}
+      - DEMO_CODE_TOKEN_EXPIRE_MINUTES=${DEMO_CODE_TOKEN_EXPIRE_MINUTES:-120}
+      - INTERACTION_SIGNAL_LOGGING_ENABLED=${INTERACTION_SIGNAL_LOGGING_ENABLED:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true
@@ -178,6 +255,15 @@ services:
     build:
       context: ./homeschool-tutor
       dockerfile: Dockerfile
+      # The UI half of LOCALE above. Vite inlines VITE_* at BUILD time, not
+      # run time, so this has to be a build arg — an environment entry on
+      # this service would reach nginx and nothing else. Both language
+      # bundles always ship and Login.tsx switches between them live, so
+      # this is not what makes the other language available; it decides
+      # which one the login screen paints FIRST, before the toggle is
+      # touched. A deployment that opted into Spanish should open in it.
+      args:
+        VITE_LOCALE: ${LOCALE:-en}
     expose:
       - "80"
     depends_on:

@@ -153,6 +153,85 @@ list as items are closed.
 
 ## Closed gaps
 
+- **The setup wizard recommended a PIN the API refuses to boot on —
+  closed 2026-08-03.**
+  Hardening rejected `602656` as a `CHILD_PIN` at startup, which is
+  correct: it had been this repository's published example, printed in
+  `.env.example`, `setup.sh`, the setup wizard's own hint text and input
+  placeholder, `docs/PARENT_SETUP.md`, `docs/DEMO_HOSTING.md`, and the
+  error messages that told a parent what a good PIN looks like. A value
+  on GitHub is not a secret.
+
+  The rejection landed in `core/config.py` and nowhere else. The wizard
+  kept printing "e.g. 602656 is a good one" and kept accepting it,
+  because its own check was `pin_is_strong()`, which passes: the PIN is
+  well-shaped, and shape was never the problem. So a parent who followed
+  the installer's on-screen advice got an `.env` the installer called
+  valid and a container that then refused to start, reporting that their
+  PIN was "the default dev value." `setup.sh` had the identical defect on
+  the terminal path. `config.py`'s own error messages recommended
+  `602656` inside the same validator that rejected it, so following the
+  error's advice led to the other branch of the same failure.
+
+  It also broke the deployment regression suite, which drives the wizard
+  exactly as a parent would. `main` was red for five consecutive runs,
+  and every one of them was this.
+
+  The fix is structural rather than textual. Both rules now live in
+  `core/pin_policy.py`, the one module the API and the wizard already
+  share (the wizard runs in a pydantic-free container and copies just
+  that file): `pin_is_strong()` for shape, and `is_published_credential()`
+  for whether the exact value has been printed publicly. Two different
+  questions, deliberately kept apart, since a published value can be
+  perfectly well-shaped. `homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py`
+  asserts the invariant directly — **the wizard must never accept a
+  credential the API will refuse to boot on** — in both directions,
+  including submitting the form and constructing `Settings` from the
+  `.env` it produces. No interface names a concrete PIN any more: both
+  installers generate a fresh suggestion per run, which is the only kind
+  of example that stays usable. `setup.sh`'s bash copy carries the same
+  list, verified by running its generator against its own checker.
+
+- **Thirty settings never reached the container, including every value
+  security keys depend on — closed 2026-08-03.**
+  `docker-compose.yml`'s `api` service passes environment variables by
+  naming them one at a time rather than using `env_file`, which is a
+  reasonable choice: the list is a reviewable statement of what the
+  container actually receives. Its own comment states the obligation that
+  follows — "anything set in `.env` and NOT named here is silently
+  dropped. A knob documented in `.env.example` that does nothing is worse
+  than no knob at all" — but nothing enforced it, and 22 documented
+  settings had drifted off the list.
+
+  The security-relevant ones: `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and
+  `WEBAUTHN_ORIGIN`, which together decide whether FIDO2 security keys
+  exist at all. `mfa_service.webauthn_enabled()` is `rp_id and origin`,
+  with no fallback derivation, so with both dropped every packaged
+  deployment reported `webauthn_available: false` and refused both
+  enrollment and authentication, no matter what the parent had put in
+  `.env`. The documented second factor was unreachable in practice. TOTP
+  runs through a separate path and was unaffected, so MFA as a whole
+  still functioned, which is part of why this went unnoticed. Also
+  dropped: `TOTP_ISSUER`, all five `RATE_LIMIT_*` buckets (so the tuned
+  per-endpoint limits documented here and in `docs/VOICE_SETUP.md` ran at
+  code defaults), both `VOICE_THRESHOLD_*` speaker-verification
+  thresholds, and `RETAIN_MASTERY_PROFILES`, whose value the setup wizard
+  had begun asking a parent for that same day.
+
+  The shape of this defect is what makes it worth recording rather than
+  the individual settings. It is silent in both directions: nothing
+  errors, pydantic falls back to the code default, and the deployer sees
+  a running system that ignores them. In a self-hosted product that is
+  the worst available failure mode, because the person affected cannot
+  distinguish "I configured it wrong" from "this was never wired up."
+  Closed by wiring the missing variables and by
+  `homeschool-api/tests/test_compose_settings_passthrough.py`, which
+  fails when a setting documented in either `.env.example` is absent from
+  the list, when a default written in compose disagrees with the one in
+  `core/config.py`, or when a variable in the list is not a real setting.
+  Verified with `docker compose config` against a sample `.env` rather
+  than by reading the YAML.
+
 - **"Parent" was administrator for the whole session — mechanism built
   2026-08-03, enforcement not yet on.**
   One role was simultaneously the ordinary account identity — adjusting

@@ -102,15 +102,19 @@ def is_published_credential(value: str) -> bool:
 
 
 def suggest_pin() -> str:
-    """A freshly generated, policy-passing PIN to offer a parent who wants
-    one, instead of naming a literal in the interface.
+    """A freshly generated, policy-passing PIN for TESTS AND CI, which need
+    one without committing a literal to this repository.
 
-    This is the fix for the underlying problem rather than another instance
-    of it: any concrete PIN written into a hint, a placeholder, or a doc is
-    published the moment it ships, so the only example that stays safe is
-    one generated per install and never committed. Uses `secrets`, not
-    `random` — this is offered to a parent as a credential they may well
-    accept as-is.
+    Deliberately NOT used by either installer, and it should not become so.
+    Generating a PIN for a parent would solve the secrecy problem that
+    retired 602656 and introduce a worse one: a child has to recall this
+    PIN from memory at the login screen, possibly aged five, and a random
+    six-digit number is close to the worst thing to hand them. Any value
+    already on screen also invites a parent to accept it rather than
+    decide. Both installers state the rules and check the answer instead.
+
+    Uses `secrets` rather than `random` because these values do end up in a
+    real (if throwaway) .env during a CI run.
     """
     import secrets
 

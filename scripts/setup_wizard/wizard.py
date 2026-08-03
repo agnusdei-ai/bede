@@ -31,18 +31,60 @@ _CONTAINER_PATH = "/app/homeschool-api"
 _REPO_PATH = str(Path(__file__).resolve().parent.parent.parent / "homeschool-api")
 sys.path.insert(0, _CONTAINER_PATH if os.path.isdir(_CONTAINER_PATH) else _REPO_PATH)
 from core.pin_policy import (  # noqa: E402
+    MIN_PIN_LENGTH,
     is_published_credential,
     pin_is_strong,
-    suggest_pin,
 )
 
-# Generated once per wizard process, so a parent sees a stable suggestion
-# across a re-render after a validation error rather than a new one each
-# time. Per install and never committed, which is the whole point: naming a
-# fixed PIN here is what made 602656 unusable, since a value printed in this
-# repository stops being a secret the moment it ships. See
-# homeschool-api/core/pin_policy.py.
-SUGGESTED_CHILD_PIN = suggest_pin()
+# The PIN field is never pre-filled, and the form never puts a specific PIN
+# on screen — not a fixed one, not a generated one.
+#
+# The fixed example (602656) had to go because printing a credential in this
+# repository publishes it. A *generated* suggestion would have fixed that
+# and still been wrong, for a reason that has nothing to do with secrecy: a
+# child has to remember this PIN from memory, at the login screen, possibly
+# aged five. A random six-digit number is close to the worst thing to hand
+# them, and any value already sitting on screen invites a parent to accept
+# it without deciding. The parent chooses something their own child can
+# actually recall; the wizard's job is to say what makes a choice a bad one
+# and to check the answer, not to answer for them.
+PIN_RULES_HINT = (
+    f"{MIN_PIN_LENGTH} or more digits, and not an easily-guessable pattern: "
+    "no counting up or down (123456, 654321), no repeated block (111111, "
+    "123123, 121212), and not the same forwards and backwards (669966). "
+    "Repeated digits are fine otherwise. Pick something your child can "
+    "remember without writing it down."
+)
+
+
+def check_child_pin(pin: str) -> str:
+    """The one place the child PIN is judged. Returns an error message, or
+    an empty string when the PIN is fine.
+
+    Used by both the submit handler and the live check the form makes while
+    a parent types, so the feedback under the field and the decision to
+    accept the form can never disagree — the live check calls back into
+    this rather than reimplementing the rules in JavaScript. A fourth copy
+    of this policy (after Python, bash and TypeScript) is exactly the kind
+    of duplication that produced the 602656 defect in the first place.
+    """
+    if not pin:
+        return "Please choose a PIN for your child."
+    if not pin.isdigit():
+        return "Digits only, so it's easy for a child to type."
+    if len(pin) < MIN_PIN_LENGTH:
+        return f"A bit longer: {MIN_PIN_LENGTH} digits at least."
+    if not pin_is_strong(pin):
+        return (
+            "That's an easily-guessable pattern. Avoid counting up or down, "
+            "a repeated block, or the same digits forwards and backwards."
+        )
+    if is_published_credential(pin):
+        return (
+            "That PIN appears in Bede's own published documentation, so it's "
+            "public knowledge. Please choose your own."
+        )
+    return ""
 # Deliberately NOT importing core.licensing here — real signature
 # verification needs pycryptodome, and this container stays pure-stdlib on
 # purpose (see module docstring). This form only checks the field is
@@ -385,8 +427,16 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append('<input type="password" name="parent_password">')
 
     body.append('<label>Student PIN</label>')
-    body.append(f'<div class="hint">At least 6 digits, and not an obvious pattern like 111111 or 123456. Your child uses this to log in. Not sure? <strong>{SUGGESTED_CHILD_PIN}</strong> was just generated for you and is fine to use.</div>')
-    body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
+    # No value, no placeholder PIN, nothing pre-filled — see PIN_RULES_HINT.
+    # inputmode/pattern get a numeric keypad on a tablet, where a fair number
+    # of these installs happen.
+    body.append(f'<div class="hint">Your child types this to log in. {html.escape(PIN_RULES_HINT)}</div>')
+    body.append(
+        '<input type="text" name="child_pin" id="child_pin" autocomplete="off" '
+        'inputmode="numeric" pattern="[0-9]*" '
+        f'value="{html.escape(v.get("child_pin", ""))}">'
+    )
+    body.append('<div class="hint" id="child_pin_feedback" aria-live="polite"></div>')
 
     body.append('<label>License key</label>')
     body.append('<div class="hint">The LICENSE_KEY you received when you purchased or started a trial of Bede. No internet connection is needed to use it.</div>')
@@ -401,6 +451,53 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
       document.querySelectorAll('.choice').forEach(function(el) { el.classList.remove('selected'); });
       document.querySelector('input[name=db_choice]:checked').closest('.choice').classList.add('selected');
     }
+
+    // Live check on the child PIN, so a parent finds out while they are
+    // typing rather than after submitting the whole form.
+    //
+    // It asks the wizard's own server (POST /check-pin) instead of
+    // re-implementing the rules here. That matters: this policy already
+    // exists in Python, bash and TypeScript, and the defect this replaced
+    // was two of those copies disagreeing. A JavaScript fourth copy would
+    // be the same mistake, and the server is on localhost, so there is
+    // nothing to gain by guessing locally.
+    //
+    // Advisory only. The submit handler validates server-side regardless,
+    // so a parent with JavaScript disabled loses the live hint and keeps
+    // every guarantee.
+    (function () {
+      var input = document.getElementById('child_pin');
+      var out = document.getElementById('child_pin_feedback');
+      if (!input || !out) return;
+      var timer = null;
+
+      function render(message) {
+        if (!input.value) { out.textContent = ''; out.style.color = ''; return; }
+        out.textContent = message || 'That works.';
+        out.style.color = message ? '#b3261e' : '#146c2e';
+      }
+
+      function check() {
+        var value = input.value;
+        if (!value) { render(''); return; }
+        fetch('/check-pin', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'child_pin=' + encodeURIComponent(value)
+        })
+          .then(function (r) { return r.json(); })
+          // Silence on a failed request rather than a scary message: the
+          // real check still runs on submit.
+          .then(function (d) { render(d.error); })
+          .catch(function () {});
+      }
+
+      input.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(check, 250);
+      });
+      input.addEventListener('blur', check);
+    })();
     </script>
     """)
     return _PAGE_HEAD + "".join(body) + _PAGE_TAIL
@@ -517,22 +614,16 @@ def validate(fields: dict) -> str:
             "That password is one of Bede's own published example values, so it's "
             "public. Please pick something else."
         )
-    if not pin_is_strong(fields.get("child_pin", "")):
-        return (
-            f"Student PIN must be 6+ digits and not an obvious pattern (like 111111 "
-            f"or 123456). {SUGGESTED_CHILD_PIN} was generated for you and works."
-        )
-    # Checked separately from shape, and this is the check that used to be
-    # missing entirely: 602656 passes every strength rule above, but it was
-    # this wizard's own on-screen example for a long time, so the API refuses
-    # to boot on it. Without this the wizard accepted it, wrote it to .env,
-    # and the parent's stack then failed to start blaming them for using
-    # "the default dev value" — for a PIN this screen had recommended.
-    if is_published_credential(fields.get("child_pin", "")):
-        return (
-            f"That PIN is Bede's own published example, so it's public and the app "
-            f"won't start with it. {SUGGESTED_CHILD_PIN} was generated for you and works."
-        )
+    # One function, used here and by the live check under the field, so the
+    # form cannot say "that works" and then refuse the submission. It also
+    # covers the case that used to be missing entirely: 602656 passes every
+    # strength rule, but the API refuses to boot on it, so while this only
+    # checked shape the wizard accepted it, wrote it to .env, and the
+    # parent's stack failed to start blaming them for a PIN this screen had
+    # recommended.
+    pin_error = check_child_pin(fields.get("child_pin", ""))
+    if pin_error:
+        return f"Student PIN: {pin_error}"
     if not fields.get("license_key", "").strip():
         return "Please enter your license key."
     return ""
@@ -586,6 +677,9 @@ class Handler(BaseHTTPRequestHandler):
         self._send_html(render_form(banner=banner))
 
     def do_POST(self):
+        if self.path == "/check-pin":
+            self._check_pin()
+            return
         if self.path != "/submit":
             self.send_response(404)
             self.end_headers()
@@ -621,6 +715,34 @@ class Handler(BaseHTTPRequestHandler):
         # process exits — the launcher script is waiting on this container
         # to stop as its signal that the wizard finished successfully.
         threading.Timer(0.5, _shutdown_event.set).start()
+
+    def _check_pin(self):
+        """Live feedback while a parent types, judged by check_child_pin —
+        the same function the submit handler uses, so what the form says
+        under the field and what it accepts cannot disagree.
+
+        Deliberately does nothing but judge a candidate PIN: it stores
+        nothing, writes no file, and never ends the wizard, so it is not a
+        way around the real submit path. The PIN is not logged either
+        (log_message is already suppressed for the whole handler).
+        """
+        length = int(self.headers.get("Content-Length", 0))
+        # A form field, not a file upload. Bound it so a malformed or
+        # hostile request can't make this small local server read forever.
+        if length > 4096:
+            self.send_response(413)
+            self.end_headers()
+            return
+        raw = self.rfile.read(length).decode("utf-8", errors="replace")
+        pin = parse_qs(raw).get("child_pin", [""])[0]
+
+        payload = json.dumps({"error": check_child_pin(pin)}).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
 
 
 def main():

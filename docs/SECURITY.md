@@ -187,10 +187,21 @@ list as items are closed.
   asserts the invariant directly — **the wizard must never accept a
   credential the API will refuse to boot on** — in both directions,
   including submitting the form and constructing `Settings` from the
-  `.env` it produces. No interface names a concrete PIN any more: both
-  installers generate a fresh suggestion per run, which is the only kind
-  of example that stays usable. `setup.sh`'s bash copy carries the same
-  list, verified by running its generator against its own checker.
+  `.env` it produces.
+
+  **Neither installer offers a PIN at all** — not a fixed one, and not a
+  generated one. Generating one would have answered the secrecy problem
+  and left a worse one: a child recalls this PIN from memory at the login
+  screen, possibly aged five, so a random six-digit number is close to
+  the worst thing to hand them, and any value already on screen invites a
+  parent to accept it rather than decide. Both installers state the rules
+  and check the answer. The browser form adds a live check as a parent
+  types, which calls back into the wizard's own `check_child_pin` over
+  `POST /check-pin` rather than reimplementing the rules in JavaScript —
+  a fourth copy of this policy is precisely what caused the defect, and
+  the server is on localhost. It is advisory: submission is validated
+  server-side regardless, so disabling JavaScript costs the hint and no
+  guarantee.
 
 - **Thirty settings never reached the container, including every value
   security keys depend on — closed 2026-08-03.**

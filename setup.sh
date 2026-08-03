@@ -85,15 +85,6 @@ is_strong_pin() {
   return 0
 }
 
-# A fresh suggestion to offer instead of naming a literal, which is what made
-# 602656 unusable in the first place. Generated per run and never committed.
-suggest_pin() {
-  local pin=""
-  while true; do
-    pin=$(printf '%06d' $(( (RANDOM * 32768 + RANDOM) % 1000000 )))
-    is_strong_pin "$pin" && { printf '%s' "$pin"; return 0; }
-  done
-}
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 blank
@@ -226,13 +217,20 @@ while true; do
 done
 
 blank
-SUGGESTED_PIN=$(suggest_pin)
-info "4/6  Child PIN (student login, 6+ digits, no easily-guessable pattern)"
-info "     Not sure? ${SUGGESTED_PIN} was just generated for you and works."
+info "4/6  Child PIN (student login)"
+# No value is offered here, and none is printed. A child has to recall
+# this from memory at the login screen, so the parent picks something
+# their own child can remember. The prompt states the rules and the loop
+# below checks the answer; it never answers for them.
+echo "     6 or more digits, and not an easily-guessable pattern: no counting"
+echo "     up or down (123456, 654321), no repeated block (111111, 123123,"
+echo "     121212), and not the same forwards and backwards (669966)."
+echo "     Repeated digits are fine otherwise. Pick something your child can"
+echo "     remember without writing it down."
 while true; do
   read -rp "     CHILD_PIN: " CHILD_PIN
   is_strong_pin "$CHILD_PIN" && break
-  warn "Must be 6+ digits, not a sequential run, repeated block, or palindrome (not 111111, 123123, 121212, 123456, 654321, or 669966), and not one of Bede's own published examples. ${SUGGESTED_PIN} works."
+  warn "That one won't work: it must be 6+ digits, not a counting run, repeated block, or palindrome, and not a PIN published in Bede's own documentation."
 done
 
 # ── License ───────────────────────────────────────────────────────────────────

@@ -168,9 +168,16 @@ container already copies; `setup.sh` necessarily keeps a bash copy (as
 `homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py` pins the
 invariant in both directions — **the wizard must never accept a credential
 the API will refuse to boot on** — including building the `.env` the form
-produces and constructing `Settings` from it. No interface names a concrete
-PIN any longer: `suggest_pin()` generates one per run in both installers,
-since the only example that stays usable is one that was never committed.
+produces and constructing `Settings` from it. **No interface offers a PIN at
+all** — not fixed, not generated: a child has to remember this one from
+memory, so a random six-digit number is a poor answer however strong, and a
+value already on screen invites acceptance over choice. Both installers
+state the rules and validate the answer; the browser form checks live as a
+parent types via `POST /check-pin`, which calls `check_child_pin` on the
+server rather than adding a JavaScript fourth copy of the policy.
+`suggest_pin()` survives for tests and CI only, which need a policy-passing
+PIN without committing a literal, and a test asserts the wizard does not
+use it.
 
 **A setting in `.env` only exists if `docker-compose.yml` names it.** The
 `api` service enumerates environment variables one at a time rather than

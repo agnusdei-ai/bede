@@ -155,22 +155,6 @@ def test_the_env_file_the_wizard_writes_boots_in_production():
 
 # ── The suggestion the wizard now prints instead of a literal ────────────
 
-def test_the_suggested_pin_is_one_the_api_will_boot_on():
-    """The wizard offers this to a parent as a credential they may accept
-    as-is, so it has to satisfy every rule the API applies, not just shape."""
-    for _ in range(50):
-        pin = suggest_pin()
-        assert pin_is_strong(pin)
-        assert not is_published_credential(pin)
-        assert _boots_in_production(child_pin=pin)
-
-
-def test_the_suggested_pin_is_not_a_fixed_literal():
-    """A hardcoded suggestion is exactly what created this bug. If these
-    ever collide across 200 draws, the generator has stopped being random."""
-    assert len({suggest_pin() for _ in range(200)}) > 1
-
-
 def test_the_wizard_never_shows_a_parent_a_published_credential():
     """The hint text and the input placeholder both named 602656, so the
     screen recommended it. Asserted against the RENDERED page rather than
@@ -181,7 +165,37 @@ def test_the_wizard_never_shows_a_parent_a_published_credential():
         assert value not in page, f"the setup form still shows {value!r} to a parent"
 
 
-def test_the_wizard_offers_its_generated_suggestion_instead():
-    page = wizard.render_form()
-    assert wizard.SUGGESTED_CHILD_PIN in page
-    assert wizard.validate(_wizard_fields(child_pin=wizard.SUGGESTED_CHILD_PIN)) == ""
+def test_the_wizard_offers_no_pin_of_its_own_either():
+    """Replacing the fixed example with a generated one would have fixed the
+    secrecy problem and left a worse one: a child has to remember this PIN
+    from memory, and a random six-digit number is close to the worst thing
+    to hand a five-year-old. The installer states the rules and checks the
+    answer. It does not answer."""
+    field = wizard.render_form()
+    field = field[field.index('name="child_pin"'):]
+    field = field[:field.index(">") + 1]
+    assert 'value=""' in field, f"the PIN field arrives pre-filled: {field}"
+    assert "placeholder" not in field, f"the PIN field suggests a value: {field}"
+
+
+def test_the_live_check_and_the_boot_check_agree():
+    """check_child_pin backs the feedback a parent sees while typing. If it
+    accepted something Settings refuses, the form would reassure a parent
+    inline and hand them a stack that will not start — the original defect
+    with a faster feedback loop."""
+    for pin in ["481973", "602656", "111111", "123456", "1234", "", "99x999", "907183"]:
+        live_ok = wizard.check_child_pin(pin) == ""
+        boots = _boots_in_production(child_pin=pin)
+        assert live_ok == boots, (
+            f"live check says {'ok' if live_ok else 'no'} for {pin!r} but the API "
+            f"{'boots' if boots else 'refuses to boot'}"
+        )
+
+
+def test_suggest_pin_is_not_used_by_the_installer():
+    """It survives for tests and CI, which need a policy-passing PIN without
+    committing a literal. Reintroducing it into the wizard would undo the
+    decision above, so this says so out loud."""
+    for pin in {suggest_pin() for _ in range(50)}:
+        assert pin_is_strong(pin) and not is_published_credential(pin)
+    assert "suggest_pin" not in _WIZARD.read_text()

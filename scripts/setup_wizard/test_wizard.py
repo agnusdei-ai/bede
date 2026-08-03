@@ -11,6 +11,7 @@ daemon is actually available.
 """
 import json
 import os
+import re
 import stat
 import threading
 import time
@@ -21,13 +22,24 @@ import urllib.request
 import pytest
 
 import wizard
+# wizard.py puts homeschool-api on sys.path at import, so this resolves.
+from core.pin_policy import suggest_pin
 
 # Generated once per test run rather than written as a literal. The wizard
-# now refuses any PIN this repository publishes as an example, which is what
+# refuses any PIN this repository publishes as an example, which is what
 # retired the old hardcoded 602656 here — see
 # homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py for why a
-# well-shaped PIN can still be an unusable one.
-TEST_PIN = wizard.suggest_pin()
+# well-shaped PIN can still be an unusable one. Note the INSTALLER never
+# generates a PIN; this is a test fixture, and suggest_pin exists for that
+# and for CI, not for anything a parent sees.
+TEST_PIN = suggest_pin()
+
+
+def _check_pin(base: str, pin: str) -> dict:
+    """POST the live PIN check the form's own JavaScript calls."""
+    data = urllib.parse.urlencode({"child_pin": pin}).encode()
+    with urllib.request.urlopen(f"{base}/check-pin", data=data) as resp:
+        return json.loads(resp.read().decode())
 
 
 @pytest.fixture
@@ -80,7 +92,7 @@ def test_weak_pin_rejected_without_writing_env(running_wizard):
             "child_pin": "111111",
         })
     assert exc_info.value.code == 400
-    assert "obvious pattern" in exc_info.value.read().decode()
+    assert "easily-guessable" in exc_info.value.read().decode()
     assert not os.path.exists(wizard.ENV_PATH)
 
 
@@ -547,27 +559,74 @@ def test_the_published_example_pin_is_refused(running_wizard):
             "license_key": "eyJ.test-license-key",
         })
     assert exc_info.value.code == 400
-    assert "published example" in exc_info.value.read().decode()
+    assert "published" in exc_info.value.read().decode()
     assert not os.path.exists(wizard.ENV_PATH), (
         "the wizard wrote an .env the API would refuse to boot on"
     )
 
 
-def test_the_form_recommends_a_generated_pin_not_a_published_one(running_wizard):
+def test_the_form_offers_no_pin_value_at_all(running_wizard):
+    """Not a fixed example, and not a generated one either. A child has to
+    remember this PIN from memory, so a machine-picked number is a poor
+    answer however strong it is, and any value already on screen invites a
+    parent to accept it without deciding. The form states the rules and
+    checks the answer; it never supplies one."""
     body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
-    assert "602656" not in body
-    assert wizard.SUGGESTED_CHILD_PIN in body
+    field = body[body.index('name="child_pin"'):]
+    field = field[:field.index(">") + 1]
+
+    assert 'value=""' in field, f"the PIN field is pre-filled: {field}"
+    assert "placeholder" not in field, f"the PIN field suggests a PIN: {field}"
+
+    # And no digit run long enough to be a PIN anywhere in the visible copy,
+    # which would catch a suggestion reappearing in the hint text instead.
+    hint = body[body.index("Your child types this to log in"):]
+    hint = hint[:hint.index("</div>")]
+    assert not re.search(r"\d{6,}", hint.replace("123456", "").replace("654321", "")
+                         .replace("111111", "").replace("123123", "")
+                         .replace("121212", "").replace("669966", "")), hint
 
 
-def test_the_suggested_pin_is_actually_accepted(running_wizard):
-    """A suggestion the form then rejects would be the same defect wearing a
-    different value."""
-    resp = _post(running_wizard, {
-        "anthropic_key": "sk-ant-real-key",
-        "db_choice": "local",
-        "parent_password": "parentpass123",
-        "child_pin": wizard.SUGGESTED_CHILD_PIN,
-        "license_key": "eyJ.test-license-key",
-    })
-    assert resp.status == 200
-    assert f"CHILD_PIN={wizard.SUGGESTED_CHILD_PIN}" in open(wizard.ENV_PATH).read()
+def test_the_live_check_accepts_a_good_pin(running_wizard):
+    """The validator a parent meets while typing, rather than after
+    submitting the whole form."""
+    body = _check_pin(running_wizard, "481973")
+    assert body["error"] == ""
+
+
+@pytest.mark.parametrize("pin,fragment", [
+    ("", "choose a PIN"),
+    ("12ab56", "Digits only"),
+    ("1234", "longer"),
+    ("123456", "easily-guessable"),
+    ("111111", "easily-guessable"),
+    ("669966", "easily-guessable"),
+    ("602656", "published"),
+])
+def test_the_live_check_explains_what_is_wrong(running_wizard, pin, fragment):
+    assert fragment in _check_pin(running_wizard, pin)["error"]
+
+
+def test_the_live_check_and_the_submit_check_cannot_disagree(running_wizard):
+    """The point of routing both through check_child_pin. A form that says
+    "that works" under the field and then refuses the submission is worse
+    than no live feedback at all."""
+    for pin in ["481973", "602656", "111111", "1234", "", "99x999"]:
+        live_ok = _check_pin(running_wizard, pin)["error"] == ""
+        submit_ok = wizard.validate({
+            "provider": "anthropic",
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": pin,
+            "license_key": "eyJ.test",
+        }) == ""
+        assert live_ok == submit_ok, f"live and submit disagree on {pin!r}"
+
+
+def test_the_live_check_never_writes_anything(running_wizard):
+    """It judges a candidate and nothing else — no .env, and the wizard must
+    not treat it as a successful submission and exit."""
+    _check_pin(running_wizard, "481973")
+    assert not os.path.exists(wizard.ENV_PATH)
+    assert urllib.request.urlopen(f"{running_wizard}/").status == 200

@@ -1080,3 +1080,23 @@ All references are to published methods; no third-party code (EduCAT, mirt, CDM 
 - Frontend precedents: `App.tsx` `/progress` route (83–90), `services/api.ts` `fetchLearnerProfile` (422–432), `pages/Progress.tsx`.
 - Grade bands: `models/schemas.py::GradeStage` (7–11), `grade_to_stage` (18–31); timer split `utils/gradeTimer.ts::getTimerConfig` (38–44).
 - Demo `db=None`: `routers/tutor.py::chat` (92).
+
+### Correction: `fringe`'s prerequisite threshold (found by live session run)
+
+`kst.fringe` originally required every prerequisite at `hi` (0.8) — the same
+floor `mastery._MASTERY_LEVELS` uses for "secure". That silently broke next-step
+selection for every student above K-2: `new_vector` cold-starts a below-band
+skill at 0.7 on the stated presumption that earlier bands are "very likely
+already mastered", and 0.7 < 0.8, so every unprobed lower-band prerequisite
+blocked its dependents. A 3-5 student's entire fringe was the two K-2 skills
+with no prerequisites at all, and no amount of 3-5 evidence could change it.
+
+`prereq_hi` (0.65) now answers "is the ground solid enough to build on"
+separately from `hi`'s "is this mastered". It sits between the same-band prior
+(0.5, still gates — that is KST's whole point) and the below-band prior (0.7,
+presumed solid). A lower-band skill actually probed and missed falls well under
+it and still blocks.
+
+`cat.py`'s adaptive probe selection consumes the same `fringe()`, so this was
+steering probe choice as well as the parent report. Regression coverage:
+`tests/diagnostic/test_next_steps_band_leak.py`.

@@ -65,21 +65,52 @@ def propagate_prerequisites(vector: dict[str, float], threshold: float = 0.8) ->
     return updated
 
 
-def fringe(vector: dict[str, float], lo: float = 0.2, hi: float = 0.8) -> list[str]:
-    """The outer fringe: skills whose full prerequisite closure is already
-    mastered (every prerequisite's probability >= hi — vacuously true for
-    a skill with no prerequisites at all, e.g. cc.rote_count_20) but which
-    are not themselves mastered yet (probability < hi) and are not a
-    confirmed gap either (probability >= lo) — these are the ideal next
-    things to probe. A skill scored below lo has already been probed and
-    firmly missed; propagate_prerequisites/kst.surmise_closure handle
-    reconciling that separately rather than re-offering it as "next up."
+def fringe(
+    vector: dict[str, float],
+    lo: float = 0.2,
+    hi: float = 0.8,
+    prereq_hi: float = 0.65,
+) -> list[str]:
+    """The outer fringe: skills whose full prerequisite closure is solid
+    enough to build on (every prerequisite's probability >= prereq_hi —
+    vacuously true for a skill with no prerequisites at all, e.g.
+    cc.rote_count_20) but which are not themselves mastered yet
+    (probability < hi) and are not a confirmed gap either (probability >=
+    lo) — these are the ideal next things to probe. A skill scored below
+    lo has already been probed and firmly missed; propagate_prerequisites/
+    kst.surmise_closure handle reconciling that separately rather than
+    re-offering it as "next up."
+
+    WHY prereq_hi IS SEPARATE FROM hi, AND LOWER. The two answer different
+    questions: hi is a MASTERY claim ("secure", 0.8 — the same floor
+    mastery._MASTERY_LEVELS uses on the parent dashboard), while prereq_hi
+    asks only whether the ground beneath a skill is solid enough to build
+    on. Requiring the stronger claim for both silently broke this function
+    for every student above K-2.
+
+    mastery.new_vector cold-starts a below-band skill at 0.7 on the stated
+    presumption that "a student at this level has very likely already
+    mastered earlier-band foundations, even if never directly probed" —
+    but 0.7 < 0.8, so every unprobed K-2 prerequisite BLOCKED its
+    dependents. A 4th grader's entire fringe was the two K-2 skills that
+    happen to have no prerequisites at all (cc.rote_count_20,
+    geo.identify_shapes); not one 3-5 skill could ever appear, no matter
+    how much 3-5 evidence had been gathered, until somebody directly
+    probed the K-2 material to >= 0.8. The parent-facing "next steps" and
+    cat.py's adaptive probe selection both fed on that.
+
+    0.65 sits deliberately between new_vector's same-band prior (0.5, so a
+    genuinely unprobed same-band prerequisite still gates its dependents,
+    which is the point of KST) and its below-band prior (0.7, presumed
+    solid). A below-band skill that has actually been probed and missed
+    falls well under 0.65 and blocks correctly — the presumption yields to
+    evidence, which is the only behavior that was ever wanted here.
     """
     result = []
     for skill_id, probability in vector.items():
         if not (lo <= probability < hi):
             continue
         prereqs = _transitive_prerequisites(skill_id)
-        if all(vector.get(prereq_id, 0.0) >= hi for prereq_id in prereqs):
+        if all(vector.get(prereq_id, 0.0) >= prereq_hi for prereq_id in prereqs):
             result.append(skill_id)
     return sorted(result)

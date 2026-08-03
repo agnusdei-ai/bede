@@ -60,8 +60,8 @@
     "heading": "Continuing Mastery",
     "followingOwnLesson": "Following your own lesson: {{unit}}",
     "resume": "Resume →",
-    "moreInPicker_one": "{{count}} more subject is in the picker above.",
-    "moreInPicker_other": "{{count}} more subjects are in the picker above."
+    "inProgress_one": "{{count}} subject in progress",
+    "inProgress_other": "{{count}} subjects in progress"
   },
   "sessionPaused": {
     "greatWorkToday": "Great work today!",

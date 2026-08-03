@@ -60,8 +60,8 @@
     "heading": "Continuando el dominio",
     "followingOwnLesson": "Siguiendo tu propia lección: {{unit}}",
     "resume": "Continuar →",
-    "moreInPicker_one": "Hay {{count}} materia más en el selector de arriba.",
-    "moreInPicker_other": "Hay {{count}} materias más en el selector de arriba."
+    "inProgress_one": "{{count}} materia en curso",
+    "inProgress_other": "{{count}} materias en curso"
   },
   "sessionPaused": {
     "greatWorkToday": "¡Excelente trabajo hoy!",

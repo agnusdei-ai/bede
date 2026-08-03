@@ -185,6 +185,43 @@ generate/collect values that satisfy all of these, so this only bites a
 `.env` edited by hand afterward (e.g. during incident-response
 containment, `docs/INCIDENT_RESPONSE.md`) with a weak replacement value.
 
+## Security posture settings
+
+Four optional settings control how strict this deployment is. All have safe
+defaults, none is required to boot, and **the API logs each one's state at
+startup** — so if you'd rather not read this section, start the stack and
+read the log. `GET /admin/status` reports the same facts.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `ELEVATION_ENFORCED` | `false` | Require a password step-up for management-plane actions — audit log, AI provider, MFA/recovery changes, permanent student deletion. |
+| `ELEVATION_TTL_MINUTES` | `10` | How long a step-up lasts, absolute from the moment of elevation. |
+| `LEGACY_TOKEN_GRACE` | `true` | Accept JWTs issued before identity domains existed. |
+| `DEMO_SECRET_KEY` | unset | Independent signing key for the public demo's identity domain. |
+
+Two of these want your attention rather than being left alone:
+
+**`ELEVATION_ENFORCED` ships off**, which means a parent session holds
+administrator rights for its whole 8-hour lifetime — a tablet left open on
+the kitchen table is logged in *and* administrator. The mechanism to fix
+that is built and tested; what's missing is the web UI's password prompt,
+without which turning this on gives you an unexplained error on every
+management action. Turn it on the moment that lands. If you drive the API
+directly rather than through the web UI, turn it on now.
+
+**`LEGACY_TOKEN_GRACE` should be turned off** after your first deploy on a
+version that has identity domains. It exists only so upgrading doesn't sign
+your family out mid-lesson; once every pre-upgrade token has expired (8
+hours at most), it accepts nothing that a normal token wouldn't, and it
+keeps an alternate signature-verification path alive for no reason. Set it
+to `false` the next day.
+
+`DEMO_SECRET_KEY` is only meaningful where the public demo role is reachable
+— a family instance has no demo token to isolate, and `render.yaml` already
+generates one for the hosted demo. `docker-compose.yml` passes all four
+through; note that it enumerates environment variables explicitly, so a
+setting you add to `.env` without also naming it there is silently ignored.
+
 ## Licensing
 
 Once `PRODUCTION=true`, Bede requires a valid license. A license is a

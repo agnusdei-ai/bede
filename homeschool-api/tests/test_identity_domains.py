@@ -206,3 +206,44 @@ def test_a_non_object_header_is_rejected():
     b = _b64url_encode(json.dumps({"role": "parent", "exp": 9999999999}).encode())
     sig = hmac.new(settings.secret_key.encode(), f"{h}.{b}".encode(), hashlib.sha256).digest()
     assert decode_token(f"{h}.{b}.{base64.urlsafe_b64encode(sig).rstrip(b'=').decode()}") is None
+
+
+# ── Deployment wiring ───────────────────────────────────────────────────────
+
+def test_every_security_setting_reaches_the_container():
+    """docker-compose.yml enumerates environment variables explicitly rather
+    than using env_file, so a variable set in .env and not named there is
+    silently dropped. That makes a documented-but-unwired setting worse than
+    no setting: an operator sets ELEVATION_ENFORCED=true, sees no error, and
+    believes the step-up is on. Caught exactly that way once already."""
+    import pathlib
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    compose = yaml.safe_load((root / "docker-compose.yml").read_text())
+    declared = {
+        e.split("=")[0]
+        for svc in compose["services"].values()
+        for e in (svc.get("environment") or [])
+    }
+    required = {"SECRET_KEY", "MASTER_SECRET", "DEMO_SECRET_KEY",
+                "ELEVATION_ENFORCED", "ELEVATION_TTL_MINUTES", "LEGACY_TOKEN_GRACE"}
+
+    assert required <= declared, f"not passed through to the container: {sorted(required - declared)}"
+
+
+def test_the_public_demo_blueprint_gives_the_demo_domain_its_own_key():
+    """render.yaml is the internet-facing, multi-tenant deployment — the one
+    case where domain separation is not enough and the demo's signing key
+    should share no material with the family's."""
+    import pathlib
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    blueprint = yaml.safe_load((root / "render.yaml").read_text())
+    env = {e["key"]: e for svc in blueprint["services"] for e in svc["envVars"]}
+
+    assert "DEMO_SECRET_KEY" in env, "the public demo has no independent demo signing key"
+    assert env["DEMO_SECRET_KEY"].get("generateValue") is True, (
+        "should be generated, not hand-set — a key nobody handles is a key nobody leaks"
+    )

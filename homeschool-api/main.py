@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution, elevation, license_state, parent_credential, provider_state
+from core import constitution, elevation, identity, license_state, parent_credential, provider_state
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -67,6 +67,54 @@ async def _warm_voice_models():
 
 
 _DATA_PURGE_INTERVAL_SECONDS = 6 * 60 * 60  # every 6 hours
+
+
+def _log_security_posture() -> None:
+    """One line per posture setting, every boot.
+
+    These are the settings whose wrong value is invisible: a step-up that is
+    configured off looks exactly like one that is on until somebody attempts
+    a privileged action, and a legacy-token grace that nobody ever turned off
+    looks exactly like one that was never needed. Neither fails, neither
+    logs, and neither shows up in a test. The only thing that surfaces them
+    is saying so at startup — GET /admin/status reports the same facts for
+    anyone who would rather query than read logs.
+
+    Warnings, not errors: every one of these has a legitimate reason to be
+    in its weaker state (the web UI can't prompt yet; the upgrade was an hour
+    ago; this is a family instance with no demo role). Refusing to boot over
+    a defensible choice is how operators learn to work around startup checks.
+    """
+    if settings.elevation_enforced:
+        log.info("Privileged access: step-up ENFORCED (%d min)", settings.elevation_ttl_minutes)
+    else:
+        log.warning(
+            "Privileged access: step-up NOT enforced — a parent session holds "
+            "management-plane rights for its full lifetime. Set ELEVATION_ENFORCED=true "
+            "once the web UI can prompt for a password. See docs/SECURITY.md."
+        )
+
+    if settings.legacy_token_grace:
+        log.warning(
+            "Auth: LEGACY_TOKEN_GRACE is on — JWTs issued before identity domains "
+            "existed are still accepted. Needed only for the first deploy after "
+            "upgrading; set LEGACY_TOKEN_GRACE=false once every pre-upgrade token "
+            "has expired (8h max)."
+        )
+
+    # Only meaningful where the demo role is actually reachable. On a family
+    # instance there is no demo token to isolate, so saying anything would be
+    # noise an operator learns to skip past.
+    if settings.demo_pin:
+        if identity.demo_key_is_independent():
+            log.info("Identity domains: demo signing key is INDEPENDENT of SECRET_KEY ✓")
+        else:
+            log.warning(
+                "Identity domains: demo signing key is DERIVED from SECRET_KEY. Tokens are "
+                "still domain-separated (a demo token cannot be replayed as a parent token), "
+                "but a SECRET_KEY compromise yields both. Set DEMO_SECRET_KEY on an "
+                "internet-facing demo instance."
+            )
 
 
 async def _periodic_data_purge():
@@ -162,6 +210,8 @@ async def lifespan(app: FastAPI):
     except RuntimeError as exc:
         log.critical("FATAL: %s", exc)
         sys.exit(1)
+
+    _log_security_posture()
 
     warmup_task = asyncio.create_task(_warm_voice_models())
     purge_task = asyncio.create_task(_periodic_data_purge())

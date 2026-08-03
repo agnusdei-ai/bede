@@ -648,6 +648,7 @@ export default function Progress() {
   const [compositionSummary, setCompositionSummary] = useState<MasteryProfileSummary | null>(null)
   const [phonicsSummary, setPhonicsSummary] = useState<MasteryProfileSummary | null>(null)
   const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
+  const [literacySummary, setLiteracySummary] = useState<MasteryProfileSummary | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -658,6 +659,11 @@ export default function Progress() {
   // an older student rather than showing a card that can never have data.
   const activeStudentIsFoundations =
     podStudents.find((s) => s.student_name === activeStudent)?.grade_stage === 'K-2'
+  // Reading & spelling is the other half of that gate: phonics owns K-2
+  // decoding, services/diagnostic/literacy.py owns grades 3-8, and the two
+  // never overlap. Skip the fetch for a K-2 student rather than showing a
+  // card that can never have data — same reasoning as phonics above.
+  const activeStudentIsBeyondFoundations = !activeStudentIsFoundations
 
   useEffect(() => {
     if (!token || !activeStudent) return
@@ -670,6 +676,7 @@ export default function Progress() {
     setCompositionSummary(null)
     setPhonicsSummary(null)
     setLanguageSummary(null)
+    setLiteracySummary(null)
     setUsage(null)
 
     Promise.all([
@@ -682,9 +689,12 @@ export default function Progress() {
         ? fetchMasteryProfileSummary(token, activeStudent, 'phonics')
         : Promise.resolve(null),
       fetchMasteryProfileSummary(token, activeStudent, 'language_exposure'),
+      activeStudentIsBeyondFoundations
+        ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
+        : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, lang, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, lit, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
@@ -692,13 +702,14 @@ export default function Progress() {
         setCompositionSummary(c)
         setPhonicsSummary(ph)
         setLanguageSummary(lang)
+        setLiteracySummary(lit)
         setUsage(u)
       })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : t('progress.failedToLoadProgress'))
       })
       .finally(() => setLoading(false))
-  }, [token, activeStudent, activeStudentIsFoundations])
+  }, [token, activeStudent, activeStudentIsFoundations, activeStudentIsBeyondFoundations])
 
   return (
     <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
@@ -792,6 +803,16 @@ export default function Progress() {
               noDataText={t('progress.noCompositionMasteryData', { name: activeStudent })}
               calibrationText={t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 })}
             />
+            {activeStudentIsBeyondFoundations && (
+              <MasterySnapshot
+                studentName={activeStudent}
+                summary={literacySummary}
+                loading={loading}
+                title={t('progress.literacyMasterySnapshotTitle')}
+                noDataText={t('progress.noLiteracyMasteryData', { name: activeStudent })}
+                calibrationText={t('progress.literacyMasteryCalibration', { name: activeStudent, count: literacySummary?.evidence_count ?? 0 })}
+              />
+            )}
             {activeStudentIsFoundations && (
               <MasterySnapshot
                 studentName={activeStudent}

@@ -563,12 +563,26 @@ p.lede {
    <html lang="en"> (already set) for the hyphenation dictionary. */
 .limit,
 .guarantee p,
-.faq details p {
+.faq details p,
+.lede.flow {
   text-align: justify;
   text-align-last: left;
   -webkit-hyphens: auto;
   -ms-hyphens: auto;
   hyphens: auto;
+}
+
+/* .inner centres everything, which is right for a two-line lede sitting
+   under a heading and wrong the moment a paragraph runs long: centred text
+   is ragged on BOTH edges, so the eye has to hunt for where each line
+   starts. Add `flow` to a lede that is genuinely several sentences of
+   argument rather than a caption, and it gets the same justified,
+   hyphenated treatment as .limit and the FAQ, plus a measure narrow enough
+   to read. Short ledes keep the centred look the page is built around. */
+.lede.flow {
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Where Bede deliberately stops. Set apart from the cards so it reads

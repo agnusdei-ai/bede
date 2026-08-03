@@ -299,7 +299,7 @@ rather than being independently verifiable.
 
 *AIUC-1: Security, Accountability · CISSP D5 identity lifecycle*
 
-### P8 — Privilege is elevated per-action, not held per-session ✅
+### P8 — Privilege is elevated per-action, not held per-session ⚠️
 
 **Statement.** Administrative capability requires an explicit elevation
 distinct from being logged in.
@@ -313,7 +313,17 @@ privilege boundary to enforce even where the network could enforce one.
 **Implications.** A step-up/elevated-session concept for management-plane
 actions, scoped and time-bounded.
 
-**Conformance.** Closed 2026-08-03. `core/elevation.py` grants a
+**Conformance.** Backend complete 2026-08-03, **enforcement ships off**
+(`ELEVATION_ENFORCED`) pending the web UI's password prompt — marked partial
+rather than conforming for exactly that reason. A control that is configured
+off is off, and this document does not get to call it closed because the
+code exists. `homeschool-tutor`'s API client calls these endpoints from ~30
+separate raw `fetch()` sites with no interceptor, so enforcing before that
+flow lands would give a parent an unexplained error on every management
+action. `GET /admin/status` reports which posture a deployment has, so it
+cannot quietly stay off and be mistaken for on.
+
+The mechanism itself: `core/elevation.py` grants a
 time-boxed elevation (default 10 minutes) against the session's own `jti`,
 obtained by re-presenting the password — and a TOTP code where TOTP is
 enrolled — at `POST /auth/elevate`. `core/policy.py` declares which actions

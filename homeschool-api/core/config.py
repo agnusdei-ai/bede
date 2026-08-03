@@ -201,6 +201,21 @@ class Settings(BaseSettings):
     # sliding window would let one password entry hold administrator rights
     # for the whole session as long as someone kept clicking.
     elevation_ttl_minutes: int = 10
+    # Whether the elevation is actually ENFORCED on the management plane.
+    #
+    # Defaults OFF, and that is a deliberate, temporary state rather than a
+    # judgement that the control isn't worth having. The backend half is
+    # complete and tested; the frontend half is not. homeschool-tutor's API
+    # client calls these endpoints from ~30 separate raw fetch() sites with
+    # no interceptor, so until it grows a password prompt and a retry, a
+    # parent opening Parent Setup would get an unexplained error on every
+    # management action.
+    #
+    # Turn this on the moment that flow lands — or now, for a deployment
+    # driving the API directly. With it off, require_elevated_parent behaves
+    # exactly like require_parent, and GET /admin/status reports the state so
+    # it can't quietly stay off and be mistaken for on.
+    elevation_enforced: bool = False
     algorithm: str = "HS256"
     # Parent sessions: up to 8h (full school day). Child: 4h (single session).
     access_token_expire_minutes: int = 480

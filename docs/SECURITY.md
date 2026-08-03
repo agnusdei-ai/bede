@@ -153,7 +153,8 @@ list as items are closed.
 
 ## Closed gaps
 
-- **"Parent" was administrator for the whole session, closed 2026-08-03.**
+- **"Parent" was administrator for the whole session — mechanism built
+  2026-08-03, enforcement not yet on.**
   One role was simultaneously the ordinary account identity — adjusting
   today's plan, sitting with a child, reading a narration — and the fully
   privileged administrative one: reading the audit log, repointing the AI
@@ -186,6 +187,15 @@ list as items are closed.
   `parent_lockout` as `/auth/login`, deliberately: an endpoint that compares
   a submitted password is a password oracle whether or not the caller
   already holds a session.
+
+  **Enforcement ships off** (`ELEVATION_ENFORCED`), so this belongs in this
+  section only as a mechanism, not yet as a closed gap. The web UI calls
+  these endpoints from ~30 raw `fetch()` sites with no interceptor and has no
+  password prompt; enforcing before that lands would give a parent an
+  unexplained error on every management action. `GET /admin/status` reports
+  which posture a deployment has, so it cannot quietly stay off and be
+  mistaken for on. Remaining work is the frontend flow, then flipping the
+  switch.
 
 - **The public demo shared one identity domain with the family
   deployment, closed 2026-08-03.** `routers/auth.py`'s `login()` issued

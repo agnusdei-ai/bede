@@ -198,6 +198,15 @@ UNGUARDED = [
 
 
 @pytest.fixture(autouse=True)
+def _enforce_elevation(monkeypatch):
+    """settings.elevation_enforced ships OFF until homeschool-tutor grows a
+    password prompt (see core/config.py). These tests are about the control
+    itself, so they turn it on — a test suite that inherited the shipped
+    default would assert nothing about the guard."""
+    monkeypatch.setattr(settings, "elevation_enforced", True)
+
+
+@pytest.fixture(autouse=True)
 def _reset_rate_limiter():
     """/auth/elevate sits under the per-IP auth rate limit (10/min) — the
     same bucket as /auth/login, and deliberately so: an endpoint that
@@ -372,3 +381,37 @@ def test_a_child_cannot_elevate(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 403
+
+
+# ── The off switch ──────────────────────────────────────────────────────────
+
+def test_with_enforcement_off_the_management_plane_behaves_as_before(client, monkeypatch):
+    """The shipped default. require_elevated_parent must degrade to exactly
+    require_parent — not to "open", and not to a different error — so that
+    turning enforcement on later changes one thing rather than switching on
+    an untested path."""
+    monkeypatch.setattr(settings, "elevation_enforced", False)
+
+    assert client.get("/admin/audit", headers=_parent_headers(client)).status_code == 200
+
+
+def test_with_enforcement_off_a_child_is_still_refused(client, monkeypatch):
+    """The role check is not part of what the switch gates."""
+    monkeypatch.setattr(settings, "elevation_enforced", False)
+    token = create_access_token({"sub": "child", "role": "child"})
+
+    resp = client.get("/admin/audit", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 403
+
+
+def test_admin_status_reports_whether_step_up_is_enforced(client, monkeypatch):
+    """An operator must be able to see which posture they have without
+    probing for a 403 — a step-up configured off looks identical to one
+    configured on until someone tries a privileged action."""
+    monkeypatch.setattr(settings, "elevation_enforced", False)
+    body = client.get("/admin/status", headers=_parent_headers(client)).json()
+    assert body["privileged_access"]["step_up_enforced"] is False
+
+    monkeypatch.setattr(settings, "elevation_enforced", True)
+    body = client.get("/admin/status", headers=_parent_headers(client)).json()
+    assert body["privileged_access"]["step_up_enforced"] is True

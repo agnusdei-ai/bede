@@ -14,6 +14,7 @@ from core.audit import AuditEvent, audit_from_request, log_event, read_audit_log
 from core.api_usage import get_loop_stats, get_usage_summary
 from core.config import settings
 from core.database import LicenseConfig, get_db
+from core import elevation, identity
 from core.deps import require_elevated_parent, require_parent
 from core import license_state, licensing, provider_state
 from models.schemas import AgenticLoopStats, UsageSummary
@@ -224,6 +225,19 @@ async def system_status(
         "audit_log":      "AES-256-GCM encrypted rows in managed PostgreSQL",
         "usage": usage,
         "license": license_status,
+        # Surfaced rather than left implicit: a step-up that is configured
+        # off looks identical to one that is on until someone tries a
+        # privileged action. An operator should be able to see which they
+        # have without probing for a 403. Same reasoning as
+        # core.identity.demo_key_is_independent() below.
+        "privileged_access": {
+            "step_up_enforced": settings.elevation_enforced,
+            "elevation_ttl_minutes": settings.elevation_ttl_minutes,
+            "sessions_elevated_now": await elevation.active_count(db),
+        },
+        "demo_identity_domain_key": (
+            "independent" if identity.demo_key_is_independent() else "derived from SECRET_KEY"
+        ),
     }
 
 

@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import elevation
 from core.audit import AuditEvent, audit_from_request, log_event
+from core.config import settings
 from core.database import get_db
 from core.demo_code_session import code_exists as demo_code_exists
 from core.middleware import compute_fingerprint
@@ -237,6 +238,13 @@ async def require_elevated_parent(
     who is."""
     payload = await _validate_token(request, credentials)
     await _authorize(request, payload, "admin.privileged")
+
+    # See settings.elevation_enforced for why this can be off, and why that
+    # is temporary. The policy decision above still runs either way — only
+    # the step-up requirement is gated, so turning it on changes one thing
+    # rather than switching on an untested path.
+    if not settings.elevation_enforced:
+        return payload
 
     if not await elevation.is_elevated(db, payload.get("jti")):
         await log_event(

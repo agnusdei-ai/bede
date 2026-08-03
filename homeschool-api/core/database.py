@@ -308,10 +308,22 @@ class DiagnosticEvidenceLog(Base):
     services.diagnostic.mastery.MasteryUpdate exactly. Never a
     transcript, never the child's words, never probe prose — the same
     privacy class as NarrationAssessment (derived scores, not raw
-    content). Opt-in and off by default
-    (settings.diagnostic_evidence_log_enabled) — the strictest reading of
-    "never persist raw evidence"; when disabled, only MasteryProfile is
-    written and this table stays empty.
+    content).
+
+    Governed by settings.diagnostic_evidence_log_enabled, which is ON by
+    default. This docstring previously said "opt-in and off by default",
+    which was true only for Phases 1-4: the flag was flipped to True once
+    the end-of-session "Math Skill Growth" before/after report
+    (services.diagnostic.get_session_growth) needed real deltas to read
+    back — see docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §5.3, which
+    records that change. The stale wording mattered more than a typo
+    normally would: a deployer reading this model to decide what their
+    database holds would have concluded nothing was written here.
+
+    Turning the flag off is still supported and is the strictest reading
+    of privacy constraint P3 — when disabled, only MasteryProfile is
+    written, this table stays empty, and session summaries omit skill
+    growth entirely rather than reporting it from nothing.
     """
     __tablename__ = "diagnostic_evidence_log"
 

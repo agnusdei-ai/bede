@@ -98,6 +98,29 @@ gh api /repos/agnusdei-ai/bede/rulesets
 gate is switched on. Enabling it first blocks every PR that doesn't touch
 `homeschool-api/`.
 
+### It found something on its first run
+
+Removing the `paths:` filter meant `frontend-tests.yml` ran on a pull request
+that touched no frontend code — and it failed immediately, on a **live
+high-severity advisory**: `undici` 7.0.0–7.28.0, reachable transitively
+through `jsdom`, flagged for response desynchronization and cross-user
+information disclosure.
+
+Nothing in that PR caused it. The advisory had been sitting in both
+`homeschool-tutor` and `demo` lockfiles, and `npm audit --audit-level=moderate`
+would have caught it on any run — except the workflow only ran when someone
+touched `homeschool-tutor/` or `demo/`, and nobody had since the advisory
+published.
+
+That is the same shape as the failure this gate exists for, one layer out:
+a control that was correct, present, and simply not being asked the
+question. The path filter was not only a merge-blocking hazard, it was
+suppressing a supply-chain gate that P15 says should be enforced by gates
+rather than convention.
+
+Fixed by bumping `undici` to 7.29.0 in both lockfiles — within `jsdom`'s
+existing `^7.25.0` range, so no dependency change was needed.
+
 ### What it does not do
 
 It does not stop a change that is wrong on its own — that is what the tests

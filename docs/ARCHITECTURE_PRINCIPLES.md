@@ -505,10 +505,30 @@ A comment is not an assertion.
 
 `tests/test_app_composition.py` now asserts the real `app.user_middleware`
 order and a table of all 75 endpoints against their expected guard chain. It
-catches 8 of 8 wiring mutations, in 3 seconds rather than 130. Still ⚠️
-rather than ✅: middleware and guards are covered, other composed
-components (the adapter router's failover chain, the diagnostic pipeline
-stages, the audit path) are not, and the probe's mutation list is
+catches 8 of 8 wiring mutations, in 3 seconds rather than 130.
+
+A third round extended the probe to every remaining principle with a
+mutatable runtime control — the audit write (P7), anomaly alerting (P14),
+`MASTER_SECRET` rotation (P13), parent-field sanitization, tier-1
+adversarial detection and moderation blocking (P16), both production config
+validators (P21), and encryption itself (P18). **9 of 9 caught.** Across all
+three rounds: 25 of 25 logic mutations detected, and composition was the
+only real gap.
+
+Infrastructure was the same gap one layer down. Container hardening and
+network zoning were all genuinely in place — `USER sage`, `read_only: true`,
+`no-new-privileges` on every service, only Caddy publishing ports — and had
+no assertion anywhere, so adding `ports: - "8000:8000"` to the api service
+would have put the application directly on the LAN, bypassing the reverse
+proxy P6 rests on, with the suite green.
+`tests/test_deployment_hardening.py` pins it (verified against three
+infrastructure mutations).
+
+Still ⚠️ rather than ✅. What remains uncovered is composition of the
+*non-security* pipelines — the adapter router's live failover chain, the
+diagnostic pipeline stages, and whether every security decision point
+actually calls the audit path (round 3 proved the audit function works, not
+that every guard invokes it) — plus the probe's mutation list being
 hand-written rather than exhaustive.
 
 *AIUC-1: Security, Reliability · CISSP D6 control testing*

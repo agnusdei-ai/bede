@@ -232,3 +232,77 @@ def test_every_skill_has_a_label_and_domain():
         skill = get_skill(skill_id)
         assert skill.label.strip(), f"{skill_id} has no label"
         assert skill.domain.strip(), f"{skill_id} has no domain"
+
+
+# ── The year plans must teach what the skill map measures ────────────────
+#
+# The skill map is what Bede MEASURES; data/catalog/yearN.json's
+# mathematics plan is what Bede is told to TEACH. Raising one without the
+# other produces a diagnostic that probes for material the prompt never
+# introduces — measurement without instruction, which would read to a
+# parent as their child failing at things Bede never taught.
+
+from services.catalog_service import get_subject_plan  # noqa: E402
+
+# (year, phrase that must appear in that year's mathematics plan)
+YEAR_PLAN_COMPETENCIES = [
+    (1, "number bond"),
+    (1, "skip counting"),
+    (2, "arrays"),
+    (2, "even and odd"),
+    (3, "factors and multiples"),
+    (3, "order of operations"),
+    (3, "line plot"),
+    (4, "primes"),
+    (4, "mixed numbers"),
+    (4, "angles"),
+    (5, "dividing fractions"),
+    (5, "decimals"),
+    (6, "absolute value"),
+    (6, "distributive"),
+    (7, "exponents"),
+    (7, "inequalities"),
+    (7, "variables on both sides"),
+    (7, "solve for a"),
+    (8, "polynomials"),
+    (8, "factoring"),
+    (8, "quadratic"),
+    (8, "slope"),
+    (8, "scientific notation"),
+    (8, "irrational"),
+    (8, "Pythagorean"),
+    (8, "systems of linear equations"),
+    (8, "line of best fit"),
+]
+
+
+@pytest.mark.parametrize("year,phrase", YEAR_PLAN_COMPETENCIES)
+def test_year_plan_teaches_what_the_map_measures(year, phrase):
+    plan = get_subject_plan(year, "mathematics")
+    assert plan, f"year {year} has no mathematics plan"
+    assert phrase.lower() in plan.lower(), (
+        f"year {year}'s mathematics plan never mentions {phrase!r}, but the skill map "
+        f"measures it — Bede would probe for something it was never told to teach"
+    )
+
+
+def test_grade_8_is_stated_as_a_full_algebra_one_year():
+    """
+    The headline claim. If a future edit softens this back toward a
+    conventional grade-8 scope, the map and the plan part company again.
+    """
+    plan = get_subject_plan(8, "mathematics").lower()
+    assert "algebra i" in plan
+    assert "preparatory" in plan
+
+
+def test_grade_7_starts_the_algebra_rather_than_deferring_it():
+    """A student cannot finish Algebra I in grade 8 if it begins in grade 8."""
+    plan = get_subject_plan(7, "mathematics").lower()
+    assert "algebra i begun" in plan or "algebra i" in plan
+
+
+def test_grade_5_is_named_as_the_last_arithmetic_year():
+    """The handoff into pre-algebra is a real boundary and should be stated,
+    so a parent knows what has to be finished before grade 6."""
+    assert "last year of pure arithmetic" in get_subject_plan(5, "mathematics").lower()

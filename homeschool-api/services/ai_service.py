@@ -1351,6 +1351,55 @@ def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     )
 
 
+def _classical_language_companion_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    When a family already runs their own Latin or Greek programme, tell
+    Bede plainly that it is the practice beside that course, not the course.
+
+    _curriculum_resources_note already asks Bede to align terminology with a
+    named resource, but it lives in the STATIC prompt block and is
+    deliberately generic — it spans math, writing and phonics publishers
+    too, and says nothing about who owns the sequence. That is not enough
+    here. A family running Latina Christiana or a school Latin programme has
+    a real syllabus with its own order, its own vocabulary list, and its own
+    teacher; Bede arriving with a weekly term of its own can quietly compete
+    with all three. The instruction this app is built on is that Bede be an
+    asset, never a replacement.
+
+    Deliberately keyed off `curriculum_resources` being set at all rather
+    than trying to detect which named programme is a Latin one. Matching
+    publisher names would mean maintaining a list that is wrong the moment a
+    family types something unexpected, and the guidance is safe either way:
+    a family who listed only a maths publisher still benefits from Bede
+    deferring to whatever sequence they actually follow.
+    """
+    if subject not in _CLASSICAL_LANGUAGE_SUBJECTS:
+        return ""
+    resources = [_sanitize_parent_field(r, max_len=60) for r in (config.curriculum_resources or [])]
+    resources = [r for r in resources if r]
+    if not resources:
+        return ""
+    named = ", ".join(resources)
+    return (
+        f"\n\n<companion_to_their_own_programme>\nThis family already uses: {named}. If any of those is "
+        "their own Latin or Greek course, then THEY own the sequence and you do not. You are the "
+        "conversational practice beside it — the place their child gets to say the words aloud, be "
+        "asked what a word reminds them of, and hunt the English hiding inside it — never the "
+        "syllabus itself.\n"
+        "- If the child brings vocabulary, a paradigm, or a phrase from their own lessons, drop this "
+        "week's term and work with what they brought. Their course's material always outranks this "
+        "block's.\n"
+        "- Never tell a child their programme teaches something in the wrong order, uses the wrong "
+        "word for a form, or should be doing it differently. If their course's terminology differs "
+        "from yours, use THEIRS.\n"
+        "- Never present your weekly term as 'the lesson' or as what they ought to be covering now. "
+        "Offer it as something extra to enjoy alongside the real course.\n"
+        "- If a child asks something their own course will answer later, it is better to say their "
+        "teacher or book will get to it than to pre-empt it badly.\n"
+        "</companion_to_their_own_programme>"
+    )
+
+
 def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     """
     Names the family's preferred Bible translation (see models/schemas.py's
@@ -2441,9 +2490,10 @@ async def _build_subject_prompt(
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
+    companion_note = _classical_language_companion_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

@@ -1,5 +1,5 @@
 """
-Logic & Clear Thinking (Subject.logic, services/logic_catalog.py).
+Logic (Subject.logic, services/logic_catalog.py).
 
 Two things are pinned here that no other subject needs:
 
@@ -47,7 +47,7 @@ def _flat(text: str) -> str:
 
 def test_subject_is_fully_registered():
     assert Subject.logic in SUBJECT_DURATIONS
-    assert SUBJECT_LABELS[Subject.logic] == "Logic & Clear Thinking"
+    assert SUBJECT_LABELS[Subject.logic] == "Logic"
 
 
 def test_subject_has_a_context_blurb():
@@ -136,8 +136,8 @@ def test_dropping_logic_also_drops_its_orphaned_resume_note():
 @pytest.mark.parametrize("stage", TAUGHT_STAGES)
 def test_note_renders_for_taught_stages(stage):
     note = logic_note(None, stage)
-    assert "<logic_and_clear_thinking>" in note
-    assert "</logic_and_clear_thinking>" in note
+    assert "<logic>" in note
+    assert "</logic>" in note
 
 
 def test_3_to_5_is_informal_only():

@@ -1199,3 +1199,33 @@ than it was set, done efficiently — and in which skills. There is
 deliberately no badge, threshold, or "is/isn't" verdict attached. Whether
 your child is a learning entrepreneur is not a call Bede is competent to
 make; what it can do is count the evidence so you can see it yourself.
+
+
+### Where you'll see the ledger
+
+Two cards on the Progress page, both parent-only.
+
+**Work Completed** — per student, for the last 90 days. Each skill they've
+worked, how many times, how much help it took, and how much of it was
+exemplary or went beyond the task. Under it, a short **Signs of initiative**
+panel: counts of work done well and taken further, and the skills where
+that happened most. It carries a caveat in the card itself, because it's
+worth repeating — those are counts, not a rating of your child.
+
+You'll notice this card looks nothing like the mastery snapshots above it.
+That's deliberate. Those show bars, because they're estimating how far
+along your child is. This shows counts, because it's recording what
+happened. Giving them the same look would blur two quite different claims.
+
+**Who Has Done This Work** — only appears when you have more than one
+student. Organised **by skill**, with the children who've worked each one
+listed underneath, alphabetically. That shape is chosen on purpose: a list
+of children with numbers beside them would read as a table of who's ahead
+no matter what the numbers meant. There's no total per child anywhere, the
+order never changes with the counts, and a child who hasn't worked a skill
+simply isn't listed under it rather than appearing at zero next to a
+sibling.
+
+Use it the way you'd use any record of completed work on a team: to spot
+that one of your children has finished something another is just starting,
+and ask the first to show the second. Your children never see either card.

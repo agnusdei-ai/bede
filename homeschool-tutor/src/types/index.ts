@@ -473,3 +473,80 @@ export interface AIProviderStatus {
   override: AIProviderName | null
   forced: AIProviderName | null
 }
+
+
+// ── The work ledger ──────────────────────────────────────────────────────
+//
+// Mirrors services/diagnostic/activity.py. Deliberately carries no
+// probability, level, average, or rank: the ledger records what a student
+// DID, while the mastery summaries above record what Bede infers they can
+// do. Keeping the two shapes visibly different is part of keeping the two
+// ideas apart.
+
+export type WorkAssistance = 'unaided' | 'with_a_hint' | 'with_help'
+export type WorkQuality = 'adequate' | 'proficient' | 'exemplary'
+export type WorkDistinction = 'expected' | 'noteworthy' | 'original'
+export type WorkSpeed = 'deliberate' | 'steady' | 'brisk'
+
+export interface WorkLedgerSkill {
+  skill_id: string
+  label: string
+  subject_area: string
+  completed: number
+  unaided: number
+  with_a_hint: number
+  with_help: number
+  /** How many of `completed` carried at least one score. */
+  scored: number
+  quality: Record<WorkQuality, number>
+  distinction: Record<WorkDistinction, number>
+  speed: Record<WorkSpeed, number>
+  last_worked: string | null
+}
+
+/**
+ * Counts of work done exemplarily, taken beyond the task, and done
+ * briskly. Deliberately has no verdict, threshold, or type field — whether
+ * a child is a "learning entrepreneur" is not a call the software makes.
+ */
+export interface InitiativeSignal {
+  student_name: string
+  scored_activities: number
+  exemplary: number
+  beyond_the_task: number
+  brisk: number
+  standout_skills: Array<{
+    skill_id: string
+    label: string
+    exemplary: number
+    beyond_the_task: number
+  }>
+}
+
+export interface WorkLedger {
+  student_name: string
+  since_days: number
+  total: number
+  skills: WorkLedgerSkill[]
+  initiative: InitiativeSignal
+}
+
+/**
+ * The pod roster. Note the shape: keyed by SKILL, with the students who
+ * have worked it nested inside. A per-student shape would invite a
+ * leaderboard; this one can only answer "who has done this work".
+ */
+export interface PodWorkRoster {
+  since_days: number
+  skills: Array<{
+    skill_id: string
+    label: string
+    subject_area: string
+    worked_by: Array<{
+      student_name: string
+      completed: number
+      unaided: number
+      last_worked: string | null
+    }>
+  }>
+}

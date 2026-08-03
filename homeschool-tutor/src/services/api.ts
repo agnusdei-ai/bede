@@ -1,4 +1,4 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 
@@ -675,6 +675,42 @@ export async function fetchMasteryProfileSummary(
   )
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to load the ${subjectArea} mastery summary for ${studentName}`)
+  return res.json()
+}
+
+/**
+ * The work ledger: what this student has actually finished. Distinct from
+ * fetchMasteryProfileSummary above, which reports inferred mastery.
+ */
+export async function fetchStudentActivity(
+  token: string,
+  studentName: string,
+  sinceDays = 90,
+): Promise<WorkLedger> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/activity?since_days=${sinceDays}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) throw new Error(`Failed to load the work ledger for ${studentName}`)
+  return res.json()
+}
+
+/**
+ * The same ledger across the parent's own students, keyed by skill. Used
+ * to arrange peer teaching from evidence of completed work — never to rank
+ * children, which is why the payload has no per-student total.
+ */
+export async function fetchPodActivity(
+  token: string,
+  studentNames: string[],
+  sinceDays = 90,
+): Promise<PodWorkRoster> {
+  const students = encodeURIComponent(studentNames.join(','))
+  const res = await fetch(
+    `${BASE}/diagnostic/pod/activity?students=${students}&since_days=${sinceDays}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) throw new Error('Failed to load the pod work roster')
   return res.json()
 }
 

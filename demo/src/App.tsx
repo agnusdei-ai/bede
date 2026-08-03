@@ -605,7 +605,43 @@ interface ChatScreenProps {
 // rather than a synthesized summary — there's no per-subject LLM bookmark
 // call available client-side for the demo the way the real app's
 // LessonBookmark has server-side. Renders nothing when there's neither.
-function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLastExchange, onResume }: {
+//
+// This card lives in the <header>, which is `shrink-0` above a `flex-1`
+// chat body — so every row it renders inline is a row taken away from the
+// conversation, permanently, with no scroll of its own to absorb it. The
+// demo hands every visitor all fourteen subjects (_demo_session_config
+// sets subjects=list(Subject)), so the original always-expanded list grew
+// to thirteen rows of unclamped free text: measured at 875px on a 390x844
+// phone, taller than the entire viewport, with the chat pushed off screen
+// entirely. Reported from a real session at three subjects, where it had
+// already taken better than half the screen.
+//
+// So the list is not inline any more. It is a DISCLOSURE: a one-line
+// trigger that always costs the same ~34px no matter how much of the demo
+// has been explored, opening a panel that floats OVER the chat rather than
+// displacing it. Two consequences worth keeping:
+//
+//   - The closed state is a constant, and a small one. Continuity is
+//     advertised ("3 subjects in progress") without being paid for in
+//     screen space until someone actually wants it.
+//   - The open state is unbounded and scrolls, so there is no row cap and
+//     nothing is hidden. An earlier cut of this fix capped the inline list
+//     at three rows and told the visitor where the rest had gone; a panel
+//     with its own scroll makes both the cap and that apology unnecessary,
+//     which is strictly simpler than explaining a limit.
+//
+// TAP, NOT HOVER, and that is not a detail. Bede's learners are on their
+// own tablets and this demo is opened on phones (the report that prompted
+// this came from one). Hover does not exist on touch: a hover-opened panel
+// either never opens, or gets synthesized into a first tap that only
+// reveals and a second that activates — the "double-tap to follow a link"
+// trap. It is also invisible to keyboard and screen-reader users. Nothing
+// else in this demo opens on hover, and this should not be first.
+// `hover:` styling on the trigger is fine and present; hover as the way IN
+// is not.
+
+// Exported for ContinuingMasteryCard.test.tsx — same reason CodeScreen is.
+export function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLastExchange, onResume }: {
   currentUnit?: string | null
   subjects: readonly Subject[]
   activeSubject: Subject
@@ -613,42 +649,115 @@ function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLa
   onResume: (s: Subject) => void
 }) {
   const { t } = useTranslation()
-  const touched = subjects.filter((s) => s !== activeSubject && subjectLastExchange[s])
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  // Most recently touched first, NOT Subject-enum order: this answers
+  // "where was I just now", and enum order would put Morning Time at the
+  // top of a list whose newest entry is Logic.
+  const touched = subjects
+    .filter((s) => s !== activeSubject && subjectLastExchange[s])
+    .sort((a, b) => subjectLastExchange[b]!.updatedAt - subjectLastExchange[a]!.updatedAt)
+
+  // Escape closes and hands focus back to the trigger, so a keyboard user
+  // is never stranded inside the panel. Bound only while open.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // The panel's contents are the reason to open it, so if the last subject
+  // in it becomes the active one there is nothing left to show — close
+  // rather than leaving an empty panel floating over the chat.
+  useEffect(() => {
+    if (touched.length === 0) setOpen(false)
+  }, [touched.length])
+
   if (!currentUnit && touched.length === 0) return null
 
-  return (
-    <div className="mt-2 border-l-[3px] border-gold-400 bg-gold-50/70 rounded-r-xl px-3 py-2.5 animate-fade-in">
-      <div className="flex items-center gap-1.5 text-xs font-display font-bold text-gray-800 mb-1.5">
-        <GraduationCap size={13} className="text-gold-600 flex-shrink-0" /> {t('continuingMastery.heading')}
+  const unitNote = currentUnit ? t('continuingMastery.followingOwnLesson', { unit: currentUnit }) : null
+
+  // Nothing touched yet: the unit note is a single short line and has no
+  // growth problem of its own, so it stays inline. Hiding "Bede is reading
+  // what you typed" behind a tap would cost the demo its best early moment
+  // to save nothing.
+  if (touched.length === 0) {
+    return (
+      <div className="mt-2 border-l-[3px] border-gold-400 bg-gold-50/70 rounded-r-xl px-3 py-2 animate-fade-in">
+        <p className="text-xs text-gray-600 leading-snug">{unitNote}</p>
       </div>
-      {currentUnit && (
-        <p className="text-xs text-gray-600 mb-2 leading-snug">
-          {t('continuingMastery.followingOwnLesson', { unit: currentUnit })}
-        </p>
-      )}
-      {touched.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
-          {touched.map((s) => {
-            const entry = subjectLastExchange[s]!
-            const excerpt = entry.bedeText.length > 100 ? entry.bedeText.slice(0, 100).trimEnd() + '…' : entry.bedeText
-            return (
-              <li key={s} className="flex items-start gap-2 text-xs leading-snug">
-                <span className="w-1.5 h-1.5 rounded-full bg-sage-500 mt-1 flex-shrink-0" aria-hidden="true" />
-                <span className="flex-1 text-gray-700">
-                  <span className="font-semibold">{t(`subjects.${s}`, SUBJECT_LABELS[s])}</span>
-                  {' — '}<span className="text-gray-500">{excerpt}</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onResume(s)}
-                  className="text-gold-700 font-semibold hover:text-gold-800 underline flex-shrink-0"
-                >
-                  {t('continuingMastery.resume')}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+    )
+  }
+
+  return (
+    <div className="mt-2 relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="continuing-mastery-panel"
+        className="w-full flex items-center gap-1.5 border-l-[3px] border-gold-400 bg-gold-50/70 hover:bg-gold-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+      >
+        <GraduationCap size={13} className="text-gold-600 flex-shrink-0" aria-hidden="true" />
+        <span className="font-display font-bold text-gray-800">{t('continuingMastery.heading')}</span>
+        <span className="text-gray-600 truncate">{t('continuingMastery.inProgress', { count: touched.length })}</span>
+        {open
+          ? <ChevronUp size={14} className="text-gold-600 flex-shrink-0 ml-auto" aria-hidden="true" />
+          : <ChevronDown size={14} className="text-gold-600 flex-shrink-0 ml-auto" aria-hidden="true" />}
+      </button>
+
+      {open && (
+        <>
+          {/* Dismiss-on-tap-outside. A plain fixed sibling rather than a
+              document listener: no capture-phase ordering to reason about,
+              and it cannot fire on the same tap that opened the panel.
+              aria-hidden + no role, so it adds nothing for a screen reader
+              — Escape and the trigger are the accessible ways out. */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            id="continuing-mastery-panel"
+            className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gold-200 rounded-xl shadow-xl px-3 py-2.5 max-h-[50vh] overflow-y-auto animate-fade-in"
+          >
+            {unitNote && <p className="text-xs text-gray-600 mb-2 leading-snug">{unitNote}</p>}
+            {/* No row cap: the panel floats over the chat and scrolls, so
+                length costs nothing the conversation has to pay for. */}
+            <ul className="flex flex-col gap-2">
+              {touched.map((s) => {
+                const entry = subjectLastExchange[s]!
+                const excerpt = entry.bedeText.length > 100 ? entry.bedeText.slice(0, 100).trimEnd() + '…' : entry.bedeText
+                return (
+                  <li key={s} className="flex items-start gap-2 text-xs leading-snug">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sage-500 mt-1 flex-shrink-0" aria-hidden="true" />
+                    {/* min-w-0 so the clamped excerpt can actually shrink —
+                        a flex child defaults to min-width:auto and would
+                        refuse to go narrower than its longest word, which
+                        is how a long subject name pushes Resume off the
+                        row. */}
+                    <span className="flex-1 min-w-0 text-gray-700">
+                      <span className="font-semibold block">{t(`subjects.${s}`, SUBJECT_LABELS[s])}</span>
+                      <span className="text-gray-500 line-clamp-2">{excerpt}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { onResume(s); setOpen(false) }}
+                      className="text-gold-700 font-semibold hover:text-gold-800 underline flex-shrink-0"
+                    >
+                      {t('continuingMastery.resume')}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </>
       )}
     </div>
   )
@@ -1161,7 +1270,13 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still
           covers a real corner of the viewport, not just page content. */}
-      <header className="bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
+      {/* relative z-30: the Continuing Mastery panel is absolutely
+          positioned inside this header and floats DOWN over the chat body
+          below. The chat wrapper is itself `relative` and carries a z-10
+          break overlay, so without a stacking context above it here, a
+          panel painted from earlier markup would render underneath the
+          conversation it is supposed to cover. */}
+      <header className="relative z-30 bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
         <div className="flex items-center gap-3">
           <img
             src={`${import.meta.env.BASE_URL}bede-icon.webp`}

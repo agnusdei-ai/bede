@@ -59,7 +59,9 @@
   "continuingMastery": {
     "heading": "Continuando el dominio",
     "followingOwnLesson": "Siguiendo tu propia lección: {{unit}}",
-    "resume": "Continuar →"
+    "resume": "Continuar →",
+    "inProgress_one": "{{count}} materia en curso",
+    "inProgress_other": "{{count}} materias en curso"
   },
   "sessionPaused": {
     "greatWorkToday": "¡Excelente trabajo hoy!",

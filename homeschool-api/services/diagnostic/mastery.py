@@ -101,6 +101,42 @@ def new_vector(grade_band: str) -> MasteryVector:
     return vector
 
 
+def ensure_complete(vector: MasteryVector, grade_band: str | None = None) -> MasteryVector:
+    """
+    Return a copy of `vector` with every skill in the current SKILL_MAP
+    present, filling anything missing at its cold-start prior.
+
+    THIS IS WHAT MAKES GROWING THE SKILL MAP SAFE. A MasteryProfile row
+    holds `encrypt_json({skill_id: probability})` — a snapshot of whatever
+    the map contained on the day it was last written. When skills are added
+    (as the preparatory-school extension in skill_map.py did, taking the map
+    from 42 to 95), every already-stored vector is missing the new ids.
+    Nothing crashed on that: aggregate_for_parent, build_summary_view and
+    kst.fringe all iterate the VECTOR rather than the map, so the new skills
+    would simply have been invisible — never rolled up, never offered as a
+    next step, never probed — for exactly those families who had been using
+    Bede the longest. Silent, permanent, and impossible to notice from the
+    UI. Backfilling on load closes that.
+
+    An unknown or absent grade_band fills at a flat 0.5 rather than raising:
+    get_mastery_summary is a render path that has no grade to hand (
+    MasteryProfile stores no band, and this codebase has no ALTER TABLE
+    path to add one — see core/database.py). A neutral prior there is
+    honest, since it says only "we have no evidence about this yet", which
+    is precisely true.
+
+    Skills no longer in the map are dropped, so a retired id can't linger in
+    a rollup forever.
+    """
+    complete = new_vector(grade_band) if grade_band is not None else {
+        skill_id: 0.5 for skill_id in all_skill_ids()
+    }
+    for skill_id, probability in vector.items():
+        if skill_id in complete:
+            complete[skill_id] = probability
+    return complete
+
+
 def _classify(probability: float) -> str:
     for level, floor in _MASTERY_LEVELS:
         if probability >= floor:

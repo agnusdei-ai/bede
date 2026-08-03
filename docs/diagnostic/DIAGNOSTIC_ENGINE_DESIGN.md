@@ -1100,3 +1100,37 @@ it and still blocks.
 `cat.py`'s adaptive probe selection consumes the same `fringe()`, so this was
 steering probe choice as well as the parent report. Regression coverage:
 `tests/diagnostic/test_next_steps_band_leak.py`.
+
+### Preparatory-school scope (skill map 42 → 95)
+
+The original map tracked a conventional public-school K-8 scope. Measured against
+what an independent/classical preparatory school expects, the top of the map
+stopped at two-step equations and a first look at linear functions — while a
+prep-school 8th grader is normally **finishing Algebra I** (Singapore's Dimensions
+Math 7-8, common in classical and prep schools, covers pre-algebra plus Algebra I
+with an introduction to geometry across those two years).
+
+Bands now target:
+
+| Band | Scope |
+|---|---|
+| K-2 (24) | Number sense deep enough to carry multiplication later — number bonds, skip counting, equal groups/arrays, money, halves and fourths — not counting and adding alone. |
+| 3-5 (28) | What pre-algebra assumes is already finished — order of operations, factors/multiples/primes, all four decimal operations, dividing fractions, mixed numbers, angle measure, volume of a prism. |
+| 6-8 (43) | Genuine Algebra I — multi-step, literal and both-sides equations; inequalities; systems; exponent laws; radicals; scientific notation; irrationals; polynomial arithmetic; factoring; quadratics by factoring; slope and slope-intercept form; Pythagorean theorem; transformations, similarity and surface area; scatter plots and line of best fit. |
+
+**The extension is strictly additive.** No existing skill id, label, band, or
+prerequisite tuple changed. `MasteryProfile` stores `encrypt_json({skill_id:
+probability})`, so those ids are the only link to a family's accumulated history
+and there is no migration path for an encrypted blob — renaming one would orphan
+real data silently. `tests/diagnostic/test_prep_school_scope.py` pins all 42
+original ids.
+
+**`mastery.ensure_complete()` is what makes growing the map safe.** Every stored
+vector predates the new ids. Nothing crashed on that, which is the danger:
+`aggregate_for_parent`, `build_summary_view` and `kst.fringe` all iterate the
+VECTOR rather than the map, so the new skills would simply have been invisible —
+never rolled up, never offered as a next step, never probed — for exactly the
+families who had used Bede longest. Both load paths now backfill against the
+current map (band-aware on the write path, neutral 0.5 on the render path, which
+has no grade to hand). Skills retired from the map are dropped rather than
+lingering in a rollup.

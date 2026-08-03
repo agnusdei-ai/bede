@@ -36,6 +36,14 @@ PLAN_ONLY = {"mathematics", "art_music", "language_arts", "morning_time"}
 # Deliberately open-ended — see this module's docstring.
 EXCLUDED = {"free_study"}
 
+# Years 1-2 map to grades K-2 (see _infer_year in services/ai_service.py),
+# and Logic is deliberately not a K-2 subject — formal reasoning before the
+# Logic stage is the premature abstraction classical education warns
+# against. So `logic` is expected to have NO plan in those two years and a
+# plan in every year from 3 on, which is asserted directly below rather
+# than waived.
+STAGE_GATED = {"logic": {1, 2}}
+
 COVERED_SUBJECTS = sorted({s.value for s in Subject} - EXCLUDED)
 
 
@@ -50,11 +58,49 @@ def test_every_subject_has_year_specific_content(year, subject):
     The real contract: for any (year, subject) a family can actually land
     on, Bede gets either a book list or a plan — never nothing.
     """
+    if year in STAGE_GATED.get(subject, set()):
+        pytest.skip(f"{subject} is deliberately not taught in year {year} — see STAGE_GATED")
     note = get_catalog_note(year, subject)
     plan = get_subject_plan(year, subject)
     assert note or plan, (
         f"Year {year} / {subject} has neither catalog books nor a subject plan — "
         f"Bede would fall back to grade-agnostic guidance only."
+    )
+
+
+@pytest.mark.parametrize("year", sorted(STAGE_GATED["logic"]))
+def test_logic_is_absent_from_the_k2_years(year):
+    """
+    The gate, asserted rather than assumed. A logic plan appearing in Year
+    1 or 2 would mean a K-2 child could be taught formal reasoning, which
+    three separate mechanisms exist to prevent (SessionConfig.
+    _validate_logic_stage, the UI's subject list, and logic_catalog.
+    logic_note returning "" for that stage). This is the fourth, and the
+    one that fails loudest in CI.
+    """
+    assert not get_subject_plan(year, "logic"), (
+        f"Year {year} gained a logic plan — Logic is deliberately a 3-8 subject."
+    )
+
+
+@pytest.mark.parametrize("year", [3, 4, 5, 6, 7, 8])
+def test_logic_plan_states_the_charity_guardrail(year):
+    """
+    The guardrail that matters most in this subject travels with the
+    content, exactly as scripture's neutrality and the classical
+    languages' inclusivity guarantees do. A child newly able to name a
+    fallacy has been handed a weapon, and the obvious first target is
+    their own parents.
+    """
+    lowered = get_subject_plan(year, "logic").lower()
+    assert "never winning" in lowered or "never for winning" in lowered, (
+        f"Year {year} logic plan does not state that logic serves truth, not winning"
+    )
+    assert "parents" in lowered, (
+        f"Year {year} logic plan does not protect the parents' own authority"
+    )
+    assert "never invent" in lowered, (
+        f"Year {year} logic plan does not carry the no-improvised-arguments rule"
     )
 
 

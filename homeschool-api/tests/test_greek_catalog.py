@@ -64,12 +64,16 @@ def test_subject_is_registered_as_a_classical_language():
     _record_language_evidence). A subject missing from it silently loses
     its catalog block, so this is worth pinning directly.
     """
-    from services.ai_service import _CLASSICAL_LANGUAGE_SUBJECTS
+    from services.ai_service import _CATALOG_NOTE_SUBJECTS, _CLASSICAL_LANGUAGE_SUBJECTS
 
-    assert Subject.greek in _CLASSICAL_LANGUAGE_SUBJECTS
-    assert Subject.latin in _CLASSICAL_LANGUAGE_SUBJECTS
-    _, language = _CLASSICAL_LANGUAGE_SUBJECTS[Subject.greek]
-    assert language == "greek"
+    # Two mappings, deliberately: "renders a weekly catalog block" and "is a
+    # classical language" are different questions (Subject.logic is the
+    # first and not the second). See test_logic_catalog.py.
+    for subject in (Subject.latin, Subject.greek):
+        assert subject in _CATALOG_NOTE_SUBJECTS
+        assert subject in _CLASSICAL_LANGUAGE_SUBJECTS
+    assert _CLASSICAL_LANGUAGE_SUBJECTS[Subject.greek] == "greek"
+    assert _CLASSICAL_LANGUAGE_SUBJECTS[Subject.latin] == "latin"
 
 
 @pytest.mark.parametrize("stage", ALL_STAGES)

@@ -14,6 +14,7 @@ from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
 from services.latin_catalog import latin_note as _latin_catalog_note
 from services.greek_catalog import greek_note as _greek_catalog_note
+from services.logic_catalog import logic_note as _logic_catalog_note
 from services.diagnostic.phonics import (
     DOMAINS as _PHONICS_DOMAINS,
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
@@ -749,6 +750,22 @@ _SUBJECT_CONTEXT = {
         "governs). All Greek you quote must come from the block below — never recite Greek from "
         "memory and never compose your own. `invite_handwriting` suits writing Greek letters by "
         "hand from Year 3 upward; at K-2 tracing in the air or on paper is enough."
+    ),
+    Subject.logic: (
+        "Logic & Clear Thinking session — the second art of the trivium, taught directly for once "
+        "rather than only practised. At 3-5 this is a handful of questions the child learns to ask "
+        "out loud (\"always or just sometimes?\", \"how do you know?\"); at 6-8 it is formal — "
+        "syllogisms, validity, and the named fallacies. Deliberately NOT a K-2 subject: a "
+        "Grammar-stage child is gathering the world, not auditing it. The one idea everything here "
+        "serves is that logic is for finding what is true WITH someone, never for winning against "
+        "them — a student who leaves this subject better at arguing and no better at thinking has "
+        "been harmed by it. Work only from the arguments given in <logic_and_clear_thinking> "
+        "below, which governs; never invent a syllogism or a fallacy example of your own, since an "
+        "invalid argument can look perfectly fine and the student cannot yet catch that. Let them "
+        "judge before you do. Invite the student to narrate their reasoning aloud before you say "
+        "anything — hearing where the reasoning actually went is the assessment here — and from "
+        "6-8, `invite_handwriting` suits laying a syllogism's premises and conclusion out on "
+        "paper, where the structure becomes visible in a way it never is in speech."
     ),
     Subject.free_study: (
         "Free Study time. The child leads. Ask what they are curious about and follow their interest. "
@@ -1995,19 +2012,33 @@ move on warmly; do not correct or drill. Never mention this tracking to the chil
 
 _LANGUAGE_CHECKIN_SUBJECTS = (Subject.history, Subject.saints, Subject.art_music)
 
-# Subjects that teach one classical language systematically, each mapped to
-# its verbatim catalog and to the single services/diagnostic/
-# language_exposure.py language it is allowed to record evidence for.
+# Subjects that carry their own weekly, stage-filtered catalog block, each
+# mapped to the function that renders it. All three share the signature
+# (grade, grade_stage, week_salt, today) -> str and the same VERBATIM
+# discipline: fixed, pre-reviewed content Bede quotes rather than material
+# it generates fresh each session.
 #
-# This is a mapping rather than a chain of `if subject == Subject.latin`
-# branches because the three places that need it — the prompt block, the
-# Bible-translation gate, and the evidence gate — would otherwise each grow
-# a parallel special case per language. Adding Greek alongside Latin was
-# what made that concrete; a future third language should be a row here,
-# not another branch in three functions.
-_CLASSICAL_LANGUAGE_SUBJECTS: "dict[Subject, tuple]" = {
-    Subject.latin: (_latin_catalog_note, "latin"),
-    Subject.greek: (_greek_catalog_note, "greek"),
+# A mapping rather than a chain of `if subject == Subject.latin` branches:
+# adding Greek beside Latin would otherwise have meant a parallel special
+# case in every consumer. A future subject of this shape should be a row
+# here, not another branch.
+_CATALOG_NOTE_SUBJECTS = {
+    Subject.latin: _latin_catalog_note,
+    Subject.greek: _greek_catalog_note,
+    Subject.logic: _logic_catalog_note,
+}
+
+# The subset of those that teach a classical LANGUAGE, mapped to the single
+# services/diagnostic/language_exposure.py language each may record
+# evidence for. Deliberately narrower than _CATALOG_NOTE_SUBJECTS above:
+# Subject.logic has a catalog block but is not a language, so it takes
+# neither the Bible-translation gate (_bible_translation_note) nor the
+# language-evidence gate (_record_language_evidence). Keeping the two
+# concerns as two mappings is what stops "has a weekly block" and "is a
+# language" from silently becoming the same question.
+_CLASSICAL_LANGUAGE_SUBJECTS: "dict[Subject, str]" = {
+    Subject.latin: "latin",
+    Subject.greek: "greek",
 }
 
 
@@ -2349,18 +2380,20 @@ async def _build_subject_prompt(
         if subject == Subject.morning_time
         else ""
     )
-    # The classical-language subjects' verbatim content — this week's focus
-    # term, its verified anchor text, the stage's vocabulary, and the Great
-    # Commandment spine (services/latin_catalog.py, services/greek_catalog.py).
-    # Same weekly calendar rotation and current_term-as-offset convention as
+    # Weekly catalog content for the subjects that have it — Latin's and
+    # Greek's verified anchor texts and vocabulary, Logic's fixed worked
+    # argument (services/{latin,greek,logic}_catalog.py). Same weekly
+    # calendar rotation and current_term-as-offset convention as
     # poetry_note and prayer_recitation_note above; locale-independent,
-    # unlike those two, because the Latin and Greek texts are the same texts
-    # in every locale — only Bede's own surrounding speech is localized (see
-    # _locale_directive).
-    classical_language_note = ""
-    if subject in _CLASSICAL_LANGUAGE_SUBJECTS:
-        _catalog_note, _ = _CLASSICAL_LANGUAGE_SUBJECTS[subject]
-        classical_language_note = _catalog_note(
+    # unlike those two, because a Latin or Greek text is the same text in
+    # every locale and a syllogism's structure doesn't change either —
+    # only Bede's own surrounding speech is localized (see
+    # _locale_directive). Logic's renderer returns "" for K-2 on its own,
+    # which is the last of that subject's three stage gates (the others
+    # being SessionConfig._validate_logic_stage and the UI).
+    subject_catalog_note = ""
+    if subject in _CATALOG_NOTE_SUBJECTS:
+        subject_catalog_note = _CATALOG_NOTE_SUBJECTS[subject](
             config.grade, config.grade_stage, week_salt=config.current_term, today=local_date,
         )
     term_note = _term_outcomes_note(config, subject)
@@ -2374,7 +2407,7 @@ async def _build_subject_prompt(
     bible_translation_note = _bible_translation_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{classical_language_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2928,7 +2961,7 @@ async def _record_language_evidence(
         # Checked against the validated value rather than the raw tool
         # input, so there is one reading of "which language did the model
         # actually name" instead of two that could drift apart.
-        own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject, (None, None))[1]
+        own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject)
         if own_language and ev.language != own_language:
             return
         await _process_language(db, config.student_name, ev.language, ev.outcome)

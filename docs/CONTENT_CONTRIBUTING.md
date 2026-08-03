@@ -209,13 +209,48 @@ Greek adds three rules of its own, on top of all of the above:
   these words the way their own parish does. The instruction never to
   correct them is load-bearing, not politeness.
 
-If a third classical language is ever added, note that the *wiring* is
-already generalized: `_CLASSICAL_LANGUAGE_SUBJECTS` in
-`services/ai_service.py` maps a `Subject` to its catalog note and its
-`language_exposure` id, and the prompt block, the Bible-translation gate,
-and the evidence gate all read from it. Adding a language should be a row
-in that mapping plus a catalog module — not another branch in three
-functions.
+Two mappings in `services/ai_service.py` carry the wiring, and they are
+deliberately different sets:
+
+- `_CATALOG_NOTE_SUBJECTS` — every subject with its own weekly,
+  stage-filtered catalog block (Latin, Greek, Logic), mapped to its
+  renderer. All share the signature `(grade, stage, week_salt, today) -> str`.
+- `_CLASSICAL_LANGUAGE_SUBJECTS` — the subset that teaches a *language*,
+  mapped to its `language_exposure` id. This is what gates the
+  Bible-translation note and the own-language-only evidence check.
+
+`Subject.logic` is in the first and not the second, which is the whole
+reason they're two mappings rather than one. Adding a language means a row
+in both plus a catalog module; adding a non-language catalog subject means
+a row in the first only — never another branch in three functions.
+
+### 6b. Logic — `services/logic_catalog.py`
+
+Same fixed-content discipline as the language catalogs, for a sharper
+reason: a model asked to invent a syllogism will sometimes produce an
+invalid one and label it valid, and catching that error is exactly what
+the student is still learning to do. Every syllogism and fallacy example
+is fixed, worked out, and carries an explicit verdict.
+
+Three rules specific to this subject, all enforced by
+`tests/test_logic_catalog.py`:
+
+- **Nothing here renders for K-2, and the gate is real in four places** —
+  `SessionConfig._validate_logic_stage` (drops the subject),
+  `subjectsForStage` in `ParentSetup.tsx` (never offers the card),
+  `logic_note` (returns `""`), and the absent year-1/2 plans (asserted by
+  `tests/test_catalog_coverage.py`). Prompt text alone would not have been
+  a gate.
+- **Examples stay deliberately dull** — weather, animals, chores,
+  homework. An example with real stakes teaches the stakes rather than the
+  form, and a family-shaped example teaches a child to audit their
+  parents. A test scans every fallacy example for politically, religiously,
+  or family-charged material and fails on a hit.
+- **The charity guardrails are content, not decoration.** Logic serves
+  truth and never winning; Bede never coaches a child in arguing against
+  their own parents; Bede rules on no contested political, moral, or
+  religious dispute. Each guarantee travels in both the prompt block and
+  every year plan, so softening one doesn't quietly soften the feature.
 
 ### 7. Subject/stage guidance — `services/ai_service.py`
 

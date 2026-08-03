@@ -1,4 +1,4 @@
-import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Landmark, Columns3, Sparkles } from 'lucide-react'
+import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Landmark, Columns3, Scale, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
@@ -16,6 +16,7 @@ export type Subject =
   | 'scripture'
   | 'latin'
   | 'greek'
+  | 'logic'
   | 'free_study'
 
 export interface SessionConfig {
@@ -285,6 +286,16 @@ export const SUBJECTS: SubjectInfo[] = [
     durationMin: 10,
     color: 'bg-indigo-50 border-indigo-200 text-indigo-800',
     description: 'The alphabet & the New Testament’s own words',
+  },
+  {
+    // Not offered to K-2 students — see subjectsForStage in ParentSetup.tsx
+    // and SessionConfig._validate_logic_stage on the backend.
+    id: 'logic',
+    label: 'Logic & Clear Thinking',
+    Icon: Scale,
+    durationMin: 15,
+    color: 'bg-slate-50 border-slate-200 text-slate-800',
+    description: 'Reasoning, argument & clear thinking',
   },
   {
     id: 'free_study',

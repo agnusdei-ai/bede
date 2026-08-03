@@ -119,6 +119,28 @@ There's no rush and no wrong way to think out loud.
   And if your family or your church already says these words a certain way — some
   families and churches say Greek quite differently than I will — that's *their*
   way and it's a real one. I won't correct you.
+- If your family picked **Logic**, we'll practice thinking clearly. When you're a
+  bit younger, that's mostly learning to ask good questions — *"Is that true
+  always, or only sometimes?"* and *"How do you know?"* and my favorite one, *"Did
+  it happen **because** of that, or just **after** it?"* (If you wore red socks and
+  your team won, did the socks help? How could we find out?)
+
+  When you're older we'll look at arguments properly, and you'll learn something
+  that surprises most people: an argument can be built *perfectly* and still end up
+  wrong. Watch — "All birds can fly. A penguin is a bird. So a penguin can fly."
+  Nothing went wrong with the *shape* of that. It went wrong because the first
+  sentence isn't true.
+
+  Here's the part that matters most to me, though, and I'll say it more than once:
+  **this is for finding out what's true together with someone — not for winning
+  against them.** It would be easy to learn a few of these and start using them to
+  catch people out. Please don't. The first person to test an argument on is
+  yourself: before you argue against someone, see if you can say *their* side so
+  well that they'd agree you got it right.
+
+  And I won't help you argue against your parents. That's not me dodging you —
+  it's that things you disagree about at home belong to your family, and they're
+  not a homework exercise. Bring me the argument about penguins instead.
 - Sometimes I'll open your writing pad myself and invite you to write or draw
   something — like sketching what you noticed outside, or writing down what
   happened first in a story.

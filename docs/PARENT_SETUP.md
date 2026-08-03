@@ -299,6 +299,12 @@ said there is ever saved — no transcript, no student record. Leave
    controls. This doesn't limit *which* subjects are available to pick from,
    only what's pre-selected to start.
 
+   Note that "Full Daily Plan" means the full Mater Amabilis **core**
+   rotation. The three electives — Latin, Greek, and Logic — are never
+   pre-selected by any preset, so you always add them on purpose rather
+   than discovering them already in your child's day. (Logic additionally
+   doesn't appear at all for a K–2 student; see below.)
+
    Whichever you pick, Bede is a partner in your family's teaching, not a
    replacement for it — see **[docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md)**
    for what "Socratic" actually means in practice and how to ask the same
@@ -426,6 +432,54 @@ said there is ever saved — no transcript, no student record. Leave
      these words the way your own parish or program says them (Modern or
      Byzantine pronunciation, as an Orthodox or Greek-heritage family
      would), Bede will not correct them.
+
+   **Logic & Clear Thinking is the second art of the trivium, taught
+   directly — and it is deliberately not offered before 3rd grade.** Formal
+   reasoning at K–2 is exactly the premature abstraction classical
+   education warns against: a Grammar-stage child is gathering the world,
+   not auditing it. The card simply doesn't appear for a K–2 student, and
+   if one somehow reaches the server it's dropped.
+
+   - **3–5** — informal and entirely spoken. No fallacy names, no
+     syllogisms, no technical vocabulary. Just a handful of questions your
+     child learns to ask out loud: *"Is that true always, or just
+     sometimes?"* *"How do you know?"* *"Did it happen because of that, or
+     just after it?"* If your child starts asking "how do you know?"
+     unprompted, the stage has done its whole job.
+   - **6–8** — formal. Premises and conclusions, the two safe argument
+     forms and the two classic mistakes, and the named fallacies (ad
+     hominem, straw man, false dilemma, circular reasoning, and the rest).
+     The idea Bede returns to most: **valid and true are not the same
+     thing.** An argument can be built perfectly and still reach a false
+     conclusion, because a premise was false.
+
+   15 minutes — longer than the language blocks, because a single argument
+   judged properly needs your child to reason out loud, be wrong, and be
+   walked back through it.
+
+   **Three things this subject is built to protect**, and you should know
+   about them because they're the real risk of teaching a child logic:
+
+   - **Logic is for finding what's true *with* someone, never for winning
+     against them.** A child newly able to say "that's a straw man" has
+     been handed a weapon. Bede says this often and means it.
+   - **Bede will not coach your child in arguing against you.** If your
+     student starts turning these tools on your instructions or your
+     church, Bede redirects — warmly, but firmly — and points out that the
+     first person to test an argument on is yourself. A disagreement at
+     home belongs to your family, not to a logic lesson.
+   - **Bede takes no side on contested political, moral, or religious
+     disputes**, however logically the question is dressed up. It teaches
+     the *form* using deliberately dull examples (weather, animals,
+     chores) and sends the substance back to you and your own pastor,
+     priest, or minister. Your student also learns something worth
+     knowing here: naming a fallacy in someone's argument does not show
+     their conclusion is false.
+
+   Bede also never invents arguments for this subject — every syllogism and
+   fallacy example is fixed and worked out in advance. An invalid argument
+   can look perfectly sound, and catching that is precisely what your child
+   is still learning to do.
 
    Once you enable Scripture & Bible Study or Saints & Catechism, a
    **Church Tradition** field appears under that student's "session context"

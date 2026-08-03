@@ -78,25 +78,32 @@ beneath them.
 
 ## 5. Third-party vendors with access to personal information
 
-Only vendors actually reached by live code, per `render.yaml` and
+Only vendors actually reachable by live code, per `render.yaml` and
 `services/adapters/router.py`, are listed — not every adapter that
 exists in the codebase but isn't configured for this deployment.
 
 | Vendor | What it receives | Purpose |
 |---|---|---|
 | OpenAI | Conversation text (primary AI provider); Bede's reply text (text-to-speech) | Generate and voice Bede's tutoring responses |
-| Mistral | Conversation text, only on automatic failover if OpenAI errors | Backup AI provider, live circuit-breaker failover |
+| Mistral | Conversation text, only on automatic failover if OpenAI errors — **default backup** | Backup AI provider, live circuit-breaker failover |
+| Anthropic (Claude) | Conversation text, only on automatic failover if OpenAI errors — **only if configured as the backup instead of Mistral** (`ANTHROPIC_API_KEY` set AND selected via `core/provider_state.py`'s secondary override) | Alternate backup AI provider, same mechanism as Mistral |
 | Resend | Feedback message + optional reply email | Deliver the feedback form to the operator's own inbox |
 | Render | All of the above, as the host running `bede-demo-api` and its Postgres database | Infrastructure hosting |
 | Cloudflare | Static site/demo asset delivery | Infrastructure hosting (no personal information reaches this layer — it serves static files only) |
 
-Changing which vendor is primary (e.g. switching `BEDE_ADAPTER_ORDER` in
-`render.yaml`) is a change this policy requires the designated individual
-(§2) to review, since it changes the answer to "who processes a child's
-conversation" — the exact drift this policy exists to catch (see the
-2026-08-03 correction described in `docs/RETENTION_POLICY.md`'s changelog
-and `demo/public/privacy.html`, where the notice previously named the
-wrong vendor).
+The backup slot is genuinely configurable, not a hardcoded claim: `render.yaml`'s
+`BEDE_ADAPTER_ORDER=openai,mistral,anthropic` lists all three as candidates,
+and `POST /admin/ai-provider/secondary` (`routers/admin.py`) is how the
+responsible individual (§2) would actually switch the backup from Mistral
+to Claude on this deployment — live, no redeploy — if that vendor
+relationship changes (see `docs/PROVIDER_ADAPTERS.md`'s "Choosing the
+failover itself" section). Changing which vendor is primary OR secondary
+is a change this policy requires the designated individual (§2) to review,
+since it changes the answer to "who processes a child's conversation" —
+the exact drift this policy exists to catch (see the 2026-08-03 correction
+described in `docs/RETENTION_POLICY.md`'s changelog and
+`demo/public/privacy.html`, where the notice previously named the wrong
+vendor entirely).
 
 ## 6. Operational access control
 

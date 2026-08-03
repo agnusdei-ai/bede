@@ -62,7 +62,7 @@
   </tr>
   <tr>
     <td>The conversation itself</td>
-    <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with Mistral instead.</td>
+    <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with our configured backup provider instead &mdash; Mistral by default, or Claude (Anthropic) if we've configured that as the backup instead.</td>
     <td><strong>Never stored by us, under any circumstance.</strong> It exists on our side only for the
       length of the live session. Each provider processes it as our service provider to power Bede's replies
       and does not use it to train its models.</td>
@@ -134,9 +134,10 @@
     nothing else — never to categorize, segment, target, or profile your family, and never shared
     with anyone.</li>
   <li><strong>The conversation itself</strong>, transmitted in real time to our AI providers,
-    OpenAI (primary) and Mistral (an automatic backup used only if OpenAI is briefly
-    unavailable), so Bede can generate its tutoring responses — never stored by us and never
-    used by either provider to train their models, per their own terms.</li>
+    OpenAI (primary) and, only if OpenAI is briefly unavailable, our configured backup — Mistral
+    by default, or Claude (Anthropic) if we've configured that as the backup instead — so Bede
+    can generate its tutoring responses. Never stored by us and never used by any of these
+    providers to train their models, per their own terms.</li>
   <li><strong>Your voice, if you use the microphone</strong> <em>(optional)</em> — the audio is
     sent to our own server to transcribe it into text, and is not stored beyond that one turn.
     Bede's own spoken reply is generated as audio by OpenAI's text-to-speech service.</li>
@@ -163,8 +164,9 @@
 <p>We use the information described above only to:</p>
 <ul>
   <li>Personalize the single tutoring session in progress.</li>
-  <li>Generate Bede's tutoring responses and spoken voice (via OpenAI, with Mistral as an
-    automatic backup for text responses only).</li>
+  <li>Generate Bede's tutoring responses and spoken voice (via OpenAI, with a configured backup
+    — Mistral by default, or Claude/Anthropic instead — for text responses only, if OpenAI is
+    briefly unavailable).</li>
   <li>Transcribe your microphone audio into text, on our own server, so Bede can respond to it.</li>
   <li>Understand, in aggregate and anonymized form, which teaching patterns work well, so we
     can improve Bede.</li>
@@ -175,8 +177,9 @@
 <p>
   We do not sell your child's information, and we do not use it for advertising. We share
   it only with the service providers that make the demo work — OpenAI (to generate Bede's
-  responses and synthesize its spoken voice), Mistral (an automatic backup for text
-  responses if OpenAI is briefly unavailable), and Resend (to deliver an optional feedback
+  responses and synthesize its spoken voice), our configured backup text provider (Mistral by
+  default, or Claude/Anthropic if we've configured that instead, used only if OpenAI is briefly
+  unavailable), and Resend (to deliver an optional feedback
   email) — each of whom is contractually and technically limited to using it for that
   purpose. We may also disclose information if required by law or to protect someone's
   safety.

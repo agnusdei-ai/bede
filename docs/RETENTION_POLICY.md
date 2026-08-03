@@ -60,14 +60,30 @@ As of 2026-08-03, this policy (and the demo's public Privacy Notice,
 `demo/public/privacy.html`/`privacy.es.html`) previously named Anthropic
 as the AI vendor processing the demo's conversation. The deployed demo
 actually runs on `BEDE_ADAPTER_ORDER=openai,mistral` (`render.yaml`) —
-OpenAI primary, Mistral as automatic failover — and does not depend on
+OpenAI primary, Mistral as automatic failover — and did not depend on
 Anthropic at all. Both the public notice and the vendor table in
 `docs/INFORMATION_SECURITY_POLICY.md` §5 have been corrected to match.
 This is recorded here, rather than silently fixed, because a retention/
 disclosure policy that quietly corrects its own past inaccuracy without
 a record of having done so is exactly the kind of drift this document
-exists to prevent. Any future change to which AI vendor is primary must
-update both this policy and the public notice in the same change.
+exists to prevent.
+
+**Same day, a second, related change:** the failover vendor was made
+genuinely configurable rather than fixed to Mistral. `render.yaml` now
+lists `BEDE_ADAPTER_ORDER=openai,mistral,anthropic`, and
+`core/provider_state.py`'s new secondary-adapter override
+(`POST /admin/ai-provider/secondary`, see `docs/PROVIDER_ADAPTERS.md`)
+lets the responsible individual (`docs/INFORMATION_SECURITY_POLICY.md`
+§2) pick Claude over Mistral as this deployment's backup, live, without
+a redeploy. Mistral remains the default failover unless that override is
+set. Both the public notice and this policy's own vendor language were
+written to name both possibilities rather than asserting one — see
+`docs/INFORMATION_SECURITY_POLICY.md` §5's table.
+
+Any future change to which AI vendor is primary OR secondary must update
+this policy, `docs/INFORMATION_SECURITY_POLICY.md` §5, and the public
+notice in the same change — that is the actual commitment this section
+records, not just the one 2026-08-03 fix.
 
 ## Review schedule
 

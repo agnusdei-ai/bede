@@ -94,6 +94,16 @@ Then confirm it took effect — editing the file changes nothing on its own:
 gh api /repos/agnusdei-ai/bede/rulesets
 ```
 
+**No bypass actors.** The rule applies to everyone, owner included. An
+earlier draft carried an `actor_id: 5` RepositoryRole entry meant to read
+"repository admin" — written from memory rather than checked. That fails in
+the worse direction than it sounds: a wrong id does not necessarily error, it
+can grant standing bypass to a role nobody picked, and the ruleset still
+displays as active. The gate would report enforced while someone walks
+through it. An empty list has no such ambiguity, and an emergency merge stays
+available by disabling the ruleset — visible and audited, rather than a
+permanent exemption nobody re-reads.
+
 **Order matters.** The workflow restructure must be on `main` before the
 gate is switched on. Enabling it first blocks every PR that doesn't touch
 `homeschool-api/`.

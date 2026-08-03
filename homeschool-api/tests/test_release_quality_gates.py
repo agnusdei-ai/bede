@@ -82,6 +82,28 @@ def test_the_ruleset_is_active_rather_than_evaluate_only():
     assert _ruleset()["enforcement"] == "active"
 
 
+def test_nobody_bypasses_the_gate():
+    """A bypass actor is the quiet way a gate stops being one.
+
+    An earlier draft of the ruleset carried an `actor_id: 5` RepositoryRole
+    entry meant to read "repository admin", written from memory rather than
+    checked against GitHub's role ids. That fails in the worse direction than
+    it sounds: a wrong id does not necessarily error, it can grant standing
+    bypass to a role nobody picked — and the ruleset still displays as
+    active, so the gate reports enforced while someone walks through it.
+
+    An empty list is unambiguous. An emergency merge is still available by
+    disabling the ruleset, which is visible and audited, rather than by a
+    permanent exemption nobody re-reads.
+    """
+    actors = _ruleset().get("bypass_actors", [])
+    assert actors == [], (
+        f"the ruleset grants bypass to {actors!r}. If that is genuinely "
+        f"intended, verify the actor_id against GitHub's documented role ids "
+        f"first — guessing it is how a gate silently stops applying."
+    )
+
+
 # ── The prerequisite ────────────────────────────────────────────────────────
 
 def test_every_required_check_is_defined_by_some_workflow():

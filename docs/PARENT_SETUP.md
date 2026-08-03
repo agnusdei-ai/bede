@@ -1160,79 +1160,119 @@ Parent-facing only. Your children never see any of it, their own or each
 other's.
 
 
-### How the work is scored
+### What Bede notices about the work
 
-Each completed piece of work can also carry three scores. They describe
-**the work**, never your child:
+**Bede is a guide, not the teacher.** You teach. Bede sits alongside your
+child during the lesson and afterwards tells you plainly what it saw — the
+way one adult describes a piece of work to the adult responsible for it.
+None of what follows is a grade, a level, or a judgment about whether your
+child is doing well enough. It's one observation, handed to the person who
+decides what it means.
 
-| | What it means |
+Everything Bede notes is measured against **what the task asked for** —
+never against another child, never against what a child that age "should"
+be doing, and never against how your own child did last week. That last one
+sounds like encouragement and isn't: it turns an observation into a running
+comparison your child can lose.
+
+Three things, and Bede leaves out any of them it didn't actually see.
+
+**How well the work was done**
+
+| On the card | What Bede saw |
 |---|---|
-| **Quality** | adequate · proficient · exemplary — how well the work itself was done |
-| **Distinction** | expected · noteworthy · original — did it go *beyond* the task as set |
-| **Speed** | deliberate · steady · brisk — the observed pace, purely descriptive |
+| *(no note)* | It did what was asked, and nothing was wrong with it. Perfectly good work — it just doesn't need pointing out. |
+| *(no note)* | It did what was asked and the thinking was visible: you could follow how they got there. |
+| **One to show** | It's good enough to hand another child as the example. |
 
-**Distinction is the one to watch.** Correctness can't tell apart a child
-who answered the question from a child who answered it and then asked a
-better one — and it's the second that shows initiative. That's why it's a
-separate dimension rather than part of quality.
+**How far past the task they went** — the one to watch
+
+| On the card | What Bede saw |
+|---|---|
+| *(no note)* | They answered the question they were asked. |
+| **Went further** | They went past it without being told to: connected it to something else, asked what would happen if, or checked their own answer a second way. |
+| **Their own idea** | They brought a genuine idea, question, or method of their own. Bede keeps this rare on purpose — if it's handed out for enthusiasm, it stops meaning anything. |
+
+Correctness can't tell apart a child who answered the question from a child
+who answered it *and then asked a better one*. This is the only column that
+can, and it's where initiative actually shows up.
+
+**How much the work still costs them**
+
+| On the card | What Bede saw |
+|---|---|
+| *(no note)* | It took real effort and full attention. That's normal, and it's *good*, for work that's new to them. |
+| *(no note)* | They worked without strain. |
+| **Came easily** | It barely costs them anything now. |
+
+**This one is about effort, not speed.** Bede never times your child, never
+hurries them, and never mentions pace to them — a child who feels raced does
+worse work and enjoys it less. What's worth knowing is that a skill has
+stopped costing them everything they've got, because that's what frees up
+room for the next thing. A quick answer that skipped the thinking doesn't
+count as *came easily*; it doesn't count as good work at all.
+
+**And separately, how much help it took** — on their own, after a nudge, or
+worked through together. This describes what the *work* needed, not what
+your child is capable of. Every piece of real teaching involves help; the
+useful signal is watching how much of it a skill needs over time.
 
 Four things Bede will not do:
 
-- **It won't score what it didn't see.** Any dimension it didn't genuinely
-  observe is left blank. A missing score stays visibly different from a low
-  one, so a blank never quietly counts against your child.
-- **It won't hurry your child, time them, or mention pace to them.** A
-  child who feels raced does worse work and enjoys it less. Pace is
-  something Bede notices, never something it asks for — and *deliberate* is
-  a description, not a deficiency. No scale here has a "poor" or a "slow"
-  at the bottom.
-- **It won't score your child, only their work.** "That narration was
-  exemplary" is a judgment about a piece of work. "That child is
-  exemplary" is not something Bede has any standing to say, and it won't.
-- **It won't average anything.** You get counts — how many pieces of work
-  were exemplary, how many went beyond the task — never a mean, a grade or
-  a percentage, because those turn a record of work back into a verdict.
+- **It won't note what it didn't see.** Anything it didn't genuinely
+  observe is left blank, and the card tells you how much it noted and how
+  much it didn't — so a blank never quietly reads as a poor result.
+- **It won't count anything down.** You'll notice the tables above have
+  gaps: solid, ordinary, careful work simply doesn't get a note, because
+  putting "adequate" or "deliberate" on screen would read as a mark against
+  it. Nothing here has a "poor" or a "slow" at the bottom of it.
+- **It won't judge your child, only their work.** "That narration was one to
+  show" is something Bede saw. "That child is exemplary" is a claim about a
+  person, and Bede has no standing to make it.
+- **It won't average anything.** You get counts, never a mean, a grade or a
+  percentage — those turn a record of work back into a verdict.
 
-**The initiative read.** From those counts, the ledger surfaces where a
-student's work shows the entrepreneurial pattern: done well, taken further
-than it was set, done efficiently — and in which skills. There is
-deliberately no badge, threshold, or "is/isn't" verdict attached. Whether
-your child is a learning entrepreneur is not a call Bede is competent to
-make; what it can do is count the evidence so you can see it yourself.
+**Where you can see initiative.** Pull those three together and a pattern
+shows up: work done well, taken further than it was set, and no longer
+costing much — and which skills that happened in. There's no badge, no
+threshold, no "is/isn't" attached to it. Whether your child is a learning
+entrepreneur isn't a call Bede is competent to make. What it can do is
+notice the evidence and put it in front of you.
 
 
 ### Where you'll see the ledger
 
 Two cards on the Progress page, both parent-only.
 
-**Work Completed** — per student, for the last 90 days. Each skill they've
-worked, how many times, how much help it took, and how much of it was
-exemplary or went beyond the task. Under it, a short **Signs of initiative**
-panel: counts of work done well and taken further, and the skills where
-that happened most. It carries a caveat in the card itself, because it's
-worth repeating — those are counts, not a rating of your child.
+**What's Been Done** — per student, for the last 90 days. Every skill they
+worked, how many times, how much help it took, and anything Bede thought
+worth pointing out. Under it, a short **Where you can see initiative**
+panel: work done well, taken further, and no longer costing much, plus the
+skills that happened in. A "what do these mean?" link on the card explains
+every phrase on it, so you never have to come back here to read it.
 
-**Nothing on this card ever counts down.** Only the top of each scale is
-ever shown, and a count that would read zero isn't shown at all. If a
-week's work was solid but unremarkable — adequate, as expected, at a
-deliberate pace, all of which are perfectly good outcomes — you'll see the
-work and how much of it Bede scored, and the initiative panel simply won't
-appear. It shows up when there's something in it to show you, and stays
-away otherwise. A row of zeros under a heading like "Signs of initiative"
-would be a verdict on your child dressed up as a count, which is precisely
-what this card exists not to do.
+**Nothing on this card ever counts down.** Only the notable end of each
+scale ever appears, and a count that would read zero isn't shown at all. If
+a week's work was solid but ordinary — did what was asked, at a pace that
+took real effort, all of which is perfectly good work — you'll see the work
+itself and how much of it Bede noted, and the initiative panel simply won't
+appear. It shows up when there's something in it to show you and stays away
+otherwise. A row of zeros under a heading about initiative would be a
+verdict on your child dressed up as a count, which is precisely what this
+card exists not to do.
 
-Each skill also tells you how much of its work was **scored** and how much
-wasn't. That distinction matters: Bede leaves a dimension blank when it
-didn't see enough to judge, and "not scored" must never be mistaken for a
-low mark — nor the other way round.
+Each skill also says how much of its work Bede **noted** and how much went
+by **without notes**. That difference matters in both directions: Bede
+leaves things blank when it didn't see enough to say, so "without notes"
+must never be read as a poor result — and ordinary work that Bede *did*
+watch closely must never be mistaken for work nobody looked at.
 
 You'll notice this card looks nothing like the mastery snapshots above it.
 That's deliberate. Those show bars, because they're estimating how far
 along your child is. This shows counts, because it's recording what
 happened. Giving them the same look would blur two quite different claims.
 
-**Who Has Done This Work** — only appears when you have more than one
+**Who's Done This Work** — only appears when you have more than one
 student. Organised **by skill**, with the children who've worked each one
 listed underneath, alphabetically. That shape is chosen on purpose: a list
 of children with numbers beside them would read as a table of who's ahead

@@ -399,6 +399,75 @@ def test_the_prompt_scores_the_work_and_forbids_hurrying():
     assert "reserve it for a child bringing a genuine idea" in note
 
 
+def test_the_prompt_judges_against_the_task_and_never_against_a_person():
+    """
+    Criterion-referenced, in the sense an assessment course uses the term:
+    each level describes what the WORK looks like against what the task
+    asked for. The three comparisons named here are the ones that would
+    turn an observation into a ranking — of this child against another,
+    against an age norm, or against their own past self — and the last is
+    the subtlest, because it sounds like encouragement.
+    """
+    from services.ai_service import _WORK_SCORING_NOTE
+
+    note = " ".join(_WORK_SCORING_NOTE.split()).lower()
+    assert "judge the work against what the task actually asked for" in note
+    assert "never against another child" in note
+    assert 'what a child that age "should" be doing' in note
+    assert "never against how this same child did last week" in note
+
+
+def test_the_prompt_frames_bede_as_a_guide_rather_than_the_teacher():
+    """
+    The parent teaches; Bede walks alongside and reports. That distinction
+    is what keeps these three fields an observation rather than a grade —
+    and it is the one a model will drift away from first, because scoring
+    vocabulary pulls towards a teacher's voice on its own.
+    """
+    from services.ai_service import _WORK_SCORING_NOTE
+
+    note = " ".join(_WORK_SCORING_NOTE.split()).lower()
+    assert "you are a guide, not the teacher" in note
+    assert "the parent teaches" in note
+    assert "nothing here is a grade, a pass, a level, or a verdict" in note
+
+
+def test_speed_is_defined_as_ease_rather_than_the_clock():
+    """
+    The wire value stays `speed` because it's frozen in already-stored
+    rows, but what it MEASURES is how much the work still costs the child.
+    Defining it as ease is what makes it consistent with the rule against
+    hurrying rather than in tension with it — and it closes the obvious
+    misreading, that a fast shallow answer earns `brisk`.
+    """
+    from services.ai_service import TUTOR_TOOLS, _WORK_SCORING_NOTE
+
+    note = " ".join(_WORK_SCORING_NOTE.split()).lower()
+    assert "read this as ease, not as the clock" in note
+    assert "a quick answer that skipped the thinking is not `brisk`" in note
+
+    for tool in TUTOR_TOOLS:
+        if not tool["name"].startswith("record_"):
+            continue
+        described = tool["input_schema"]["properties"]["speed"]["description"].lower()
+        assert "ease, not the clock" in described, tool["name"]
+
+
+def test_the_score_criteria_are_declared_once_for_all_four_tools():
+    """
+    These three fields were written out four times before, which is four
+    chances for the criteria — the part most likely to be revised — to
+    drift apart between tools.
+    """
+    from services.ai_service import TUTOR_TOOLS, _WORK_SCORE_TOOL_FIELDS
+
+    recorders = [t for t in TUTOR_TOOLS if t["name"].startswith("record_")]
+    assert len(recorders) == 4
+    for tool in recorders:
+        for field, spec in _WORK_SCORE_TOOL_FIELDS.items():
+            assert tool["input_schema"]["properties"][field] is spec, f"{tool['name']}.{field}"
+
+
 def test_every_recording_tool_accepts_the_three_dimensions_as_optional():
     from services.ai_service import TUTOR_TOOLS
 

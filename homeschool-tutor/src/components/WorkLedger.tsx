@@ -191,9 +191,31 @@ export default function WorkLedger({
           {t('workLedger.totalCompleted', { count: ledger.total })}
         </span>
       </div>
-      <p className="mb-3 text-xs text-gray-500">
-        {t('workLedger.subtitle', { days: ledger.since_days })}
+      <p className="mb-2 text-xs text-gray-500">
+        {t('workLedger.subtitle', { name: studentName, days: ledger.since_days })}
       </p>
+
+      {/* Collapsed by default: a parent who wants to know what "took it
+          further" means shouldn't have to leave the page for it, but the
+          card shouldn't carry a permanent block of definitions either.
+          These are the same criteria Bede works from — see
+          _WORK_SCORING_NOTE in services/ai_service.py. */}
+      <details className="mb-3 group">
+        <summary className="cursor-pointer text-xs text-navy-600 hover:text-navy-700 marker:text-navy-300">
+          {t('workLedger.legendToggle')}
+        </summary>
+        <dl className="mt-2 space-y-1.5 rounded-xl bg-gray-50 px-3 py-2.5 text-xs">
+          {(['onTheirOwn', 'oneToShow', 'tookItFurther', 'theirOwnIdea', 'cameEasily'] as const).map(
+            (key) => (
+              <div key={key} className="flex flex-wrap gap-x-1.5">
+                <dt className="font-semibold text-gray-700">{t(`workLedger.legend.${key}.term`)}</dt>
+                <dd className="m-0 flex-1 text-gray-500">{t(`workLedger.legend.${key}.means`)}</dd>
+              </div>
+            )
+          )}
+          <p className="pt-1 text-gray-500">{t('workLedger.legend.blank')}</p>
+        </dl>
+      </details>
 
       <ul className="mb-1">
         {ledger.skills.map((skill) => (

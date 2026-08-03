@@ -215,6 +215,66 @@ _MAX_TOOL_LOOP_ROUNDS = 3
 # back into the model's own context.
 _TRIVIAL_TOOL_RESULT = {"acknowledged": True}
 
+# ── What Bede noticed about the work ────────────────────────────────────
+#
+# Declared ONCE and spliced into all four `record_*_evidence` tools below,
+# because these three fields were previously written out four times and the
+# criteria are the part most likely to be revised — four copies is four
+# chances for them to drift apart.
+#
+# THE ENUM VALUES ARE FROZEN; THE CRITERIA ARE NOT. Every value here is
+# stored verbatim inside SkillActivityLog.detail_enc, and this codebase has
+# no ALTER TABLE path (see core/database.py), so renaming a level would
+# silently orphan every observation a family has already accumulated —
+# services/diagnostic/activity.summarize drops any value it doesn't
+# recognize. What a level MEANS, and what a parent sees it called on
+# screen, are both revisable without touching a stored row; the wire word
+# is not. That is why `speed` still says "speed" here while everything
+# facing a human calls it ease.
+#
+# The criteria themselves are criterion-referenced, in the ordinary sense
+# an M.Ed. assessment course uses the term: each level describes what the
+# WORK looks like against what the task asked for, with no reference to
+# other children, to an age norm, or to the same child last week. That is
+# not a stylistic preference — it is the property that lets the pod roster
+# exist at all without becoming a ranking.
+_WORK_SCORE_TOOL_FIELDS: dict = {
+    "quality": {
+        "type": "string",
+        "enum": ["adequate", "proficient", "exemplary"],
+        "description": (
+            "OPTIONAL. How well this piece of WORK was done, judged only against what the "
+            "task asked for. adequate = it does what was asked and nothing is wrong with it. "
+            "proficient = it does what was asked and the thinking is visible — someone else "
+            "could follow how they got there. exemplary = it could be shown to another child "
+            "as the example. Omit unless you genuinely saw enough to say; a blank is honest."
+        ),
+    },
+    "distinction": {
+        "type": "string",
+        "enum": ["expected", "noteworthy", "original"],
+        "description": (
+            "OPTIONAL. How far past the task the child went. expected = they answered the "
+            "question they were asked. noteworthy = they went past it unprompted — connected "
+            "it to something else, asked what would happen if, or checked their own answer a "
+            "second way. original = they brought a genuine idea, question, or method of their "
+            "own. Keep `original` rare or it stops meaning anything. This is the field a "
+            "parent reads for initiative."
+        ),
+    },
+    "speed": {
+        "type": "string",
+        "enum": ["deliberate", "steady", "brisk"],
+        "description": (
+            "OPTIONAL. How much the work still COSTS this child — ease, not the clock. "
+            "deliberate = it took real effort and full attention, which is normal and good "
+            "for new work. steady = they worked without strain. brisk = it has become easy "
+            "and barely costs them anything now. A quick answer that skipped the thinking is "
+            "NOT brisk. Never mention pace to the child and never hurry them."
+        ),
+    },
+}
+
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
     {
@@ -533,31 +593,7 @@ TUTOR_TOOLS = [
                     "type": "number", "minimum": 0, "maximum": 1,
                     "description": "Your certainty this exchange was genuinely diagnostic (default 1.0)",
                 },
-                "quality": {
-                    "type": "string",
-                    "enum": ["adequate", "proficient", "exemplary"],
-                    "description": (
-                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
-                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
-                    ),
-                },
-                "distinction": {
-                    "type": "string",
-                    "enum": ["expected", "noteworthy", "original"],
-                    "description": (
-                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
-                        "asked; noteworthy=went further unprompted; original=brought an idea, "
-                        "question or method of their own. This is the field that shows initiative."
-                    ),
-                },
-                "speed": {
-                    "type": "string",
-                    "enum": ["deliberate", "steady", "brisk"],
-                    "description": (
-                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
-                        "than 'brisk'. Never mention pace to the child and never hurry them."
-                    ),
-                },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["probe_id", "outcome"],
         },
@@ -588,31 +624,7 @@ TUTOR_TOOLS = [
                         "incorrect=missed it, hint_dependent=only after you helped"
                     ),
                 },
-                "quality": {
-                    "type": "string",
-                    "enum": ["adequate", "proficient", "exemplary"],
-                    "description": (
-                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
-                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
-                    ),
-                },
-                "distinction": {
-                    "type": "string",
-                    "enum": ["expected", "noteworthy", "original"],
-                    "description": (
-                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
-                        "asked; noteworthy=went further unprompted; original=brought an idea, "
-                        "question or method of their own. This is the field that shows initiative."
-                    ),
-                },
-                "speed": {
-                    "type": "string",
-                    "enum": ["deliberate", "steady", "brisk"],
-                    "description": (
-                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
-                        "than 'brisk'. Never mention pace to the child and never hurry them."
-                    ),
-                },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["domain", "outcome"],
         },
@@ -642,31 +654,7 @@ TUTOR_TOOLS = [
                         "incorrect=missed it, hint_dependent=only after you helped"
                     ),
                 },
-                "quality": {
-                    "type": "string",
-                    "enum": ["adequate", "proficient", "exemplary"],
-                    "description": (
-                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
-                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
-                    ),
-                },
-                "distinction": {
-                    "type": "string",
-                    "enum": ["expected", "noteworthy", "original"],
-                    "description": (
-                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
-                        "asked; noteworthy=went further unprompted; original=brought an idea, "
-                        "question or method of their own. This is the field that shows initiative."
-                    ),
-                },
-                "speed": {
-                    "type": "string",
-                    "enum": ["deliberate", "steady", "brisk"],
-                    "description": (
-                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
-                        "than 'brisk'. Never mention pace to the child and never hurry them."
-                    ),
-                },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["domain", "outcome"],
         },
@@ -698,31 +686,7 @@ TUTOR_TOOLS = [
                         "incorrect=missed it, hint_dependent=only after you helped"
                     ),
                 },
-                "quality": {
-                    "type": "string",
-                    "enum": ["adequate", "proficient", "exemplary"],
-                    "description": (
-                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
-                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
-                    ),
-                },
-                "distinction": {
-                    "type": "string",
-                    "enum": ["expected", "noteworthy", "original"],
-                    "description": (
-                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
-                        "asked; noteworthy=went further unprompted; original=brought an idea, "
-                        "question or method of their own. This is the field that shows initiative."
-                    ),
-                },
-                "speed": {
-                    "type": "string",
-                    "enum": ["deliberate", "steady", "brisk"],
-                    "description": (
-                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
-                        "than 'brisk'. Never mention pace to the child and never hurry them."
-                    ),
-                },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["language", "outcome"],
         },
@@ -3181,30 +3145,57 @@ _LITERACY_STAGES = (GradeStage.core_mastery, GradeStage.independent)
 
 _WORK_SCORING_NOTE = """
 
-<scoring_the_work>
-Whenever you record evidence with one of the silent recording tools, you may also score the WORK —
-optionally, and only when you actually saw enough to judge. Three separate things:
-  - quality: how well the work itself was done (adequate / proficient / exemplary).
-  - distinction: whether it went BEYOND the task as set (expected / noteworthy / original). A child
-    who answered the question and a child who answered it and then asked a better one have produced
-    different work; this is the only field that can tell them apart, and it is the one a parent
-    looking for initiative actually reads.
-  - speed: the observed pace (deliberate / steady / brisk). Purely descriptive.
+<what_you_noticed_about_the_work>
+When you record evidence with one of the silent recording tools, you may also say what you noticed
+about the WORK — optionally, and only where you genuinely saw enough to say it.
 
-Rules, and they matter more than the scores:
-- You are scoring the WORK, never the child. "This narration was exemplary" is a judgment you are
-  competent to make. "This child is exemplary" is not, and you must never record or imply it.
-- Omit any dimension you did not genuinely observe. A missing score is honest and useful; a guessed
-  one quietly corrupts the parent's whole picture. Never fill all three out of a sense of tidiness.
-- NEVER hurry a child, time them, mention pace, or let speed enter your voice in any way. A child
-  who works deliberately is not working worse, and a child who feels raced will produce worse work
-  and enjoy it less. Pace is something you notice, never something you ask for.
-- Never tell the child any of this is happening, and never use these words with them. Praise the
-  specific thing they did well, as you always would.
+YOU ARE A GUIDE, NOT THE TEACHER. The parent teaches. You sit alongside the child, and afterwards
+you tell the parent plainly what you saw, the way one adult describes a piece of work to the adult
+responsible for it. Nothing here is a grade, a pass, a level, or a verdict on whether the child is
+doing well enough. It is one honest observation handed to the person who decides what it means.
+
+Judge the WORK against what the task actually asked for. Never against another child, never against
+what a child that age "should" be doing, never against how this same child did last week. Those
+comparisons are not yours to make, and they are not what the parent needs from you.
+
+Three separate things, each optional and each independent of the others:
+
+  quality — how well this piece of work was done.
+    adequate    it does what the task asked, and nothing is wrong with it.
+    proficient  it does what was asked and the thinking is visible: someone else could follow how
+                they got there.
+    exemplary   it could be shown to another child as the example.
+
+  distinction — how far past the task they went. A child who answered the question, and a child who
+  answered it and then asked a better one, have produced different work. This is the only field
+  that can tell those two apart, and it is what a parent looking for initiative actually reads.
+    expected    they answered the question they were asked.
+    noteworthy  they went past it unprompted — connected it to something else, asked what would
+                happen if, or checked their own answer a second way.
+    original    they brought a genuine idea, question, or method of their own.
+
+  speed — read this as EASE, not as the clock. What it records is how much the work still costs
+  this child, which is the thing worth knowing: work that has stopped costing them everything has
+  freed up room for the next thing.
+    deliberate  it took real effort and full attention. This is normal, and it is good, for work
+                that is new to them.
+    steady      they worked without strain.
+    brisk       it has become easy; it barely costs them anything now.
+
+Rules, and they matter more than the three fields:
+- You are scoring the work, never the child. "This narration was exemplary" is something you saw.
+  "This child is exemplary" is a claim about a person, and you must never record or imply it.
+- Omit any dimension you did not genuinely observe. A blank is honest and useful; a guessed one
+  quietly corrupts the parent's whole picture. Never fill all three out of a sense of tidiness.
+- NEVER hurry a child, time them, mention pace, or let any of this enter your voice. A child who
+  works deliberately is not working worse, and a child who feels raced does worse work and enjoys
+  it less. A quick answer that skipped the thinking is not `brisk` — it is not even adequate.
 - `original` is rare and should stay rare. Reserve it for a child bringing a genuine idea, question,
   or method of their own — not for enthusiasm, not for a long answer, and not for agreeing with you
   eagerly.
-</scoring_the_work>"""
+- Never tell the child any of this is happening, and never use these words with them. Praise the
+  specific thing they did well, exactly as you always would.
+</what_you_noticed_about_the_work>"""
 
 
 def _literacy_checkin_note(config: SessionConfig, subject: Subject) -> str:

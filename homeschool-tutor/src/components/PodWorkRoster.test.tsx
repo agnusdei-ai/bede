@@ -77,7 +77,7 @@ describe('PodWorkRoster', () => {
 
   it('separates a skill only one student has worked, rather than listing the others at zero', () => {
     render(<PodWorkRoster roster={roster} loading={false} />)
-    expect(screen.getByText(/worked by one student so far/i)).toBeTruthy()
+    expect(screen.getByText(/only one of them has done these yet/i)).toBeTruthy()
     expect(screen.getByText(/Divides fractions \(Ada\)/)).toBeTruthy()
     // Wren has not worked that skill and must be absent from it — never
     // shown at zero beside a sibling.
@@ -88,13 +88,13 @@ describe('PodWorkRoster', () => {
   it('states plainly that this is a roster and not a ranking', () => {
     render(<PodWorkRoster roster={roster} loading={false} />)
     expect(screen.getByText(/a roster, not a ranking/i)).toBeTruthy()
-    expect(screen.getByText(/Nobody is scored against anybody else/i)).toBeTruthy()
-    expect(screen.getByText(/children never see this/i)).toBeTruthy()
+    expect(screen.getByText(/Nobody is measured against anybody else/i)).toBeTruthy()
+    expect(screen.getByText(/the children never see this/i)).toBeTruthy()
   })
 
   it('renders an empty state rather than an empty card', () => {
     render(<PodWorkRoster roster={{ since_days: 90, skills: [] }} loading={false} />)
-    expect(screen.getByText(/no completed work recorded across the pod/i)).toBeTruthy()
+    expect(screen.getByText(/nothing recorded across the group yet/i)).toBeTruthy()
   })
 
   it('renders nothing while loading, so no partial roster flashes', () => {

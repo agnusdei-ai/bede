@@ -367,32 +367,56 @@
     "Cálculo mental: si tienes 3 docenas de huevos, ¿cuántos huevos son?"
   ],
   "workLedger": {
-    "title": "Trabajo completado",
-    "subtitle": "Lo que realmente se ha terminado en los últimos {{days}} días: un registro del trabajo, no un juicio.",
-    "noData": "Aún no hay trabajo completado registrado para {{name}}. Esto se acumula a medida que ocurren las sesiones.",
-    "totalCompleted": "{{count}} completados",
+    "title": "Lo que se ha hecho",
+    "subtitle": "El trabajo que {{name}} realmente terminó en los últimos {{days}} días, y lo que Bede observó. Un registro, no un boletín de notas.",
+    "noData": "Todavía no hay nada registrado para {{name}}. Esto se va llenando a medida que trabajan juntos.",
+    "totalCompleted": "{{count}} terminados",
     "completedCount": "{{count}}×",
-    "unaided": "sin ayuda",
-    "withAHint": "con una pista",
-    "withHelp": "con ayuda",
-    "exemplary": "ejemplar",
+    "unaided": "por su cuenta",
+    "withAHint": "tras una pista",
+    "withHelp": "lo resolvieron juntos",
+    "exemplary": "para mostrar de ejemplo",
     "noteworthy": "fue más allá",
-    "original": "idea propia",
-    "brisk": "ágil",
-    "beyondTheTask": "más allá de la tarea",
+    "original": "idea suya",
+    "brisk": "le salió con soltura",
+    "beyondTheTask": "lo llevaron más lejos",
     "lastWorked": "última vez {{date}}",
-    "scoredCount": "{{count}} puntuados",
-    "notYetScored": "{{count}} sin puntuar",
-    "initiativeTitle": "Señales de iniciativa",
+    "scoredCount": "Bede observó {{count}}",
+    "notYetScored": "{{count}} sin observaciones",
+    "initiativeTitle": "Dónde se nota la iniciativa",
     "standoutIn": "Con más frecuencia en: {{skills}}",
-    "initiativeCaveat": "Recuentos de trabajo bien hecho y llevado más lejos, no una calificación de su hijo. Lo que significa lo juzga usted."
+    "initiativeCaveat": "Esto cuenta trabajos, no a su hijo. Bede los observó; lo que significan en conjunto lo dice usted.",
+    "legendToggle": "¿Qué significan?",
+    "legend": {
+      "onTheirOwn": {
+        "term": "Por su cuenta",
+        "means": "lo lograron sin ayuda. Una pista o resolverlo juntos vale igual: dice lo que necesitó el trabajo, no de lo que es capaz su hijo."
+      },
+      "oneToShow": {
+        "term": "Para mostrar de ejemplo",
+        "means": "el trabajo quedó tan bien que serviría de ejemplo para otro niño."
+      },
+      "tookItFurther": {
+        "term": "Fue más allá",
+        "means": "pasaron de lo que se les pidió sin que nadie se lo dijera: lo conectaron con otra cosa, preguntaron qué pasaría si, o comprobaron su propia respuesta de otra manera."
+      },
+      "theirOwnIdea": {
+        "term": "Idea suya",
+        "means": "una idea, pregunta o método genuinamente propio. Bede reserva esto a propósito."
+      },
+      "cameEasily": {
+        "term": "Le salió con soltura",
+        "means": "el trabajo ya casi no les cuesta. No se trata de rapidez: Bede nunca cronometra ni apura a un niño."
+      },
+      "blank": "Bede deja todo esto en blanco cuando no vio lo suficiente para opinar, por eso la tarjeta le dice cuánto observó y cuánto no. Un espacio en blanco no es una mala nota."
+    }
   },
   "podRoster": {
     "title": "Quién ha hecho este trabajo",
-    "subtitle": "Para que un estudiante le enseñe a otro. Organizado por destreza, nunca por estudiante: esto es una lista, no una clasificación.",
-    "noData": "Aún no hay trabajo completado registrado en el grupo.",
+    "subtitle": "Para que pueda pedirle a uno que le enseñe a otro. Organizado por destreza, nunca por niño: es una lista, no una clasificación.",
+    "noData": "Todavía no hay nada registrado en el grupo.",
     "completedShort": "{{count}}×",
-    "workedByOne": "Trabajado por un solo estudiante hasta ahora",
-    "caveat": "Un estudiante que no ha trabajado una destreza simplemente no aparece en ella. Nadie se puntúa frente a nadie, y los niños nunca ven esto."
+    "workedByOne": "Esto solo lo ha hecho uno de ellos por ahora",
+    "caveat": "Un niño que no ha hecho un trabajo simplemente no aparece en él. Nadie se mide con nadie, y los niños nunca ven esto."
   }
 }

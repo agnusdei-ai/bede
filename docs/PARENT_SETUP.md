@@ -305,6 +305,70 @@ said there is ever saved — no transcript, no student record. Leave
    than discovering them already in your child's day. (Logic additionally
    doesn't appear at all for a K–2 student; see below.)
 
+   **Mathematics is in every preset, including the lightest one.** It is
+   foundational, and it is also the only subject carrying Bede's full
+   diagnostic engine — a plan without math gives you no real mastery signal
+   at all. You can still remove it, but no preset will ever leave it out
+   for you.
+
+### The stated time commitment, and what it is meant to buy
+
+This is deliberate and worth reading before you commit a term to it. A
+mastery-based outcome is a claim about *consistency over time*, so the time
+has to be named rather than left to whatever fits.
+
+| Preset | Instruction | Session length | Breaks |
+|---|---|---|---|
+| Book Companion | 65 min | 75 min | 10 min |
+| A Bit More Structure | 100 min | 110 min | 10 min |
+| **Full Daily Plan** | **185 min** | **215 min** | **30 min** |
+
+Session length is wall-clock and includes the mandatory 10-minute break
+after every hour — that's why it always exceeds the instruction figure.
+Each preset's session length is now **derived from its own subject list**,
+so what you're scheduled to teach and what the day can actually hold are
+the same number by construction. (Before this they were set independently
+and had drifted: the Full Daily Plan asked for 185 minutes of subjects
+inside a 120-minute session, so roughly 75 minutes of it were never
+reachable and the day simply stopped mid-subject.)
+
+The setup page now shows both figures together — `185 min / 185 min` — and
+warns you if your subject choices exceed what your session length allows,
+telling you exactly how much longer the session would need to be.
+
+**What 185 minutes a day is intended to produce.** Run consistently, five
+days a week:
+
+- **Mathematics** — real, evidenced per-skill mastery. This is the one
+  subject where "mastery-based" is literally true rather than a manner of
+  speaking. Expect a first honest read within about a week of daily work,
+  and a meaningful picture within a term.
+- **Written composition** — a real rubric rollup from narration
+  assessment, and the fastest to calibrate of anything Bede measures.
+- **Phonics** (K–2 only) — real but opportunistic; it accumulates slowly
+  because it is woven into Language Arts rather than drilled.
+- **Latin, Greek, and other language exposure** — a *readiness* signal,
+  deliberately coarse. It tells you whether a child picks up and retains a
+  phrase, not whether they are proficient.
+- **Everything else** — history, science, nature study, art & music,
+  saints, scripture, living books, and logic — is measured the Charlotte
+  Mason way: by whether your child can narrate back what they met. That is
+  your judgment, not a number, and it is not a gap in the software.
+
+**Two honest caveats.**
+
+First, Bede's calibration thresholds are not yet tuned against real
+family outcomes — the code says so. Treat early mastery figures as
+directional rather than precise.
+
+Second, **185 minutes is a grades 6–8 figure.** Mater Amabilis is explicit
+that young children get short lessons, and a Kindergartener should not be
+sitting three hours of instruction. For K–2, shorten the day deliberately:
+pick fewer subjects, or lower the session length and let the preset warning
+tell you what won't fit. The app enforces a 4-hour structural ceiling and a
+break every hour for every child, but it will not tell you that your
+5-year-old's day is too long — that judgment stays yours.
+
    Whichever you pick, Bede is a partner in your family's teaching, not a
    replacement for it — see **[docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md)**
    for what "Socratic" actually means in practice and how to ask the same

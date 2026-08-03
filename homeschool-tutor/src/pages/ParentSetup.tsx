@@ -5,6 +5,7 @@ import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shiel
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
 import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS } from '../types'
+import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import LicenseSettings from '../components/LicenseSettings'
@@ -75,6 +76,10 @@ const subjectsForStage = (stage: GradeStage) =>
 // See models/schemas.py's CompanionMode for the backend-side rationale —
 // full_plan also changes nothing about Bede's own tutoring prompt; the
 // other two lightly reframe it (services/ai_service.py's _companion_mode_note).
+// Minutes of instruction a subject list actually asks for.
+const studyMinutesFor = (subjects: Subject[]) =>
+  subjects.reduce((acc, id) => acc + (SUBJECT_MAP[id]?.durationMin ?? 0), 0)
+
 const COMPANION_MODES: Array<{
   value: CompanionMode
   labelKey: string
@@ -83,21 +88,34 @@ const COMPANION_MODES: Array<{
   subjects: Subject[]
   sessionCapMinutes: number
 }> = [
+  // Mathematics is in EVERY preset, deliberately. It is foundational, and
+  // it is also the only subject carrying Bede's full diagnostic engine
+  // (services/diagnostic/) — a family on a lighter preset was previously
+  // getting no math and therefore no real mastery signal at all, which
+  // made "mastery-based outcome" untrue for exactly the families most
+  // likely to need the reassurance.
+  //
+  // Every cap below is DERIVED from its own subject list rather than typed
+  // in, so intent and capacity are equal by construction. Before this they
+  // were independent literals and had silently diverged: full_plan asked
+  // for 185 minutes of subjects inside a 120-minute cap.
   {
     value: 'book_companion',
     labelKey: 'parentSetup.companionModeBookCompanion',
     descriptionKey: 'parentSetup.companionModeBookCompanionDesc',
     emoji: '📖',
-    subjects: ['living_books', 'morning_time'],
-    sessionCapMinutes: 60,
+    subjects: ['living_books', 'morning_time', 'mathematics'],
+    sessionCapMinutes: capForStudyMinutes(studyMinutesFor(['living_books', 'morning_time', 'mathematics'])),
   },
   {
     value: 'guided',
     labelKey: 'parentSetup.companionModeGuided',
     descriptionKey: 'parentSetup.companionModeGuidedDesc',
     emoji: '🧭',
-    subjects: ['living_books', 'morning_time', 'language_arts', 'nature_study'],
-    sessionCapMinutes: 90,
+    subjects: ['living_books', 'morning_time', 'mathematics', 'language_arts', 'nature_study'],
+    sessionCapMinutes: capForStudyMinutes(
+      studyMinutesFor(['living_books', 'morning_time', 'mathematics', 'language_arts', 'nature_study']),
+    ),
   },
   {
     value: 'full_plan',
@@ -105,7 +123,7 @@ const COMPANION_MODES: Array<{
     descriptionKey: 'parentSetup.companionModeFullPlanDesc',
     emoji: '🗓️',
     subjects: DEFAULT_SUBJECTS,
-    sessionCapMinutes: 120,
+    sessionCapMinutes: capForStudyMinutes(studyMinutesFor(DEFAULT_SUBJECTS)),
   },
 ]
 
@@ -163,7 +181,10 @@ const blankStudent = (): StudentForm => ({
   curriculum_resources: '',
   voice_required: true,
   appearance_locked: false,
-  session_cap_minutes: 120,
+  // Derived from DEFAULT_SUBJECTS, not a literal — a new student's session
+  // must actually hold the plan they're given. A saved config keeps
+  // whatever the parent chose (see formFromConfig's own fallback).
+  session_cap_minutes: capForStudyMinutes(studyMinutesFor(DEFAULT_SUBJECTS)),
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
@@ -556,6 +577,14 @@ function StudentCard({
     const info = availableSubjects.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
   }, 0)
+  // Intent vs. capacity, reconciled in front of the parent rather than left
+  // for the timer to resolve by hard-stopping mid-subject. `totalMin` is
+  // instruction time; the cap is wall-clock and includes the mandatory break
+  // each hour, so the two are never directly comparable — see
+  // studyMinutesWithinCap in utils/gradeTimer.ts.
+  const availableStudyMin = studyMinutesWithinCap(student.session_cap_minutes)
+  const overSubscribedBy = Math.max(0, totalMin - availableStudyMin)
+  const capNeededForPlan = capForStudyMinutes(totalMin)
 
   const label = student.student_name.trim() || t('parentSetup.studentFallbackLabel', { n: index + 1 })
 
@@ -693,8 +722,22 @@ function StudentCard({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">{t('parentSetup.subjects')}</label>
-            <span className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: totalMin })}</span>
+            <span className={`text-xs ${overSubscribedBy > 0 ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
+              {t('parentSetup.minutesShort', { count: totalMin })} / {t('parentSetup.minutesShort', { count: availableStudyMin })}
+            </span>
           </div>
+          {overSubscribedBy > 0 && (
+            <div className="mb-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+              <p className="text-xs text-amber-800">
+                {t('parentSetup.subjectsOverCap', {
+                  over: overSubscribedBy,
+                  cap: student.session_cap_minutes,
+                  needed: capNeededForPlan,
+                })}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {availableSubjects.map((s) => {
               const active = student.selected_subjects.includes(s.id)

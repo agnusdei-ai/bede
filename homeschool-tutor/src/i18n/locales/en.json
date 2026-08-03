@@ -183,6 +183,7 @@
     "sexHelpUnnamed": "Needed so Bede addresses your child with the correct grammatical gender in the configured language.",
     "subjects": "Subjects",
     "minutesShort": "{{count}} min",
+    "subjectsOverCap": "These subjects ask for {{over}} min more instruction than this student's {{cap}} min session allows, so the day will stop before the last subjects are reached. Raise the session length to {{needed}} min to fit the whole plan, or remove a subject.",
     "voiceVerification": "Voice verification",
     "voiceVerificationOn": "Student says passphrase at session start",
     "voiceVerificationOff": "PIN-only — no voice check (mute / accessibility)",

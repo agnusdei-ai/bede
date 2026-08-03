@@ -110,13 +110,14 @@ Engine, which doesn't provide that DNS name on its own. See
 
 ## Local Development (without Docker)
 
-**Frontend** — Vite + React + TypeScript + Tailwind, no test runner configured:
+**Frontend** — Vite + React + TypeScript + Tailwind (vitest for tests):
 ```bash
 cd homeschool-tutor
 npm install
 npm run dev        # http://localhost:5173 with HMR
 npm run build      # tsc + vite build (type errors fail the build)
 npx tsc --noEmit   # type-check without building
+npm test           # vitest run
 ```
 
 **Backend** — FastAPI with async SQLAlchemy:
@@ -282,6 +283,12 @@ Three things are genuinely Greek-specific, not inherited from Latin. **The manus
 **Wiring — two mappings, deliberately not one.** `_CATALOG_NOTE_SUBJECTS` (`services/ai_service.py`) is every subject with its own weekly stage-filtered catalog block — `latin`/`greek`/`logic` — mapped to its renderer, all sharing `(grade, stage, week_salt, today) -> str`, consumed by `_build_subject_prompt`'s `subject_catalog_note`. `_CLASSICAL_LANGUAGE_SUBJECTS` is the narrower subset that teaches a *language*, mapped to its `language_exposure` id, and is what gates `_bible_translation_note` and `_record_language_evidence`'s own-language-only check. `Subject.logic` is in the first and not the second — that split is why they're two mappings, and `tests/test_logic_catalog.py` pins it (a Logic session must not pick up a Bible-translation note).
 
 **A defect this surfaced and closed.** `ParentSetup.tsx`'s `full_plan` preset and `blankStudent()` both computed their subject list as "every subject except `free_study`", so shipping `latin`/`greek` had silently made them defaults for every new student — 20 extra minutes and Latin in front of families who never asked, contradicting the opt-in promise those subjects are documented with. `ELECTIVE_SUBJECTS`/`DEFAULT_SUBJECTS` now name the electives explicitly (`latin`, `greek`, `logic`, `free_study`), so "Full Daily Plan" means the Mater Amabilis **core** rotation and the electives are only ever added on purpose.
+
+**Stated intent vs. capacity (mastery-based outcomes):** `session_cap_minutes` is WALL-CLOCK time and includes `gradeTimer.ts`'s mandatory 10-minute break each hour; a subject list is INSTRUCTION time. Nothing reconciled the two, and they had silently diverged — `COMPANION_MODES`' `full_plan` preset scheduled `DEFAULT_SUBJECTS`' **185 minutes** of subjects into a hardcoded **120-minute** cap, which holds only 110, so ~75 minutes of every default day were structurally unreachable and the only symptom was the timer hard-stopping mid-subject. `studyMinutesWithinCap()`/`capForStudyMinutes()` (`utils/gradeTimer.ts`, exact inverses of each other) make the arithmetic explicit, and **every preset's `sessionCapMinutes` is now derived from its own subject list** rather than typed in, so the two can't drift again: book_companion 65→75, guided 100→110, full_plan **185→215**. `blankStudent()`'s cap is derived the same way; `formFromConfig`'s `?? 120` fallback and `models/schemas.py`'s `session_cap_minutes` default are deliberately left alone so an existing saved config keeps whatever the parent chose. `ParentSetup.tsx` renders `totalMin / availableStudyMin` together and warns (with the exact cap needed) when subjects exceed capacity — the mismatch used to be invisible. `src/utils/sessionCapacity.test.ts` pins the inverse relationship, the 185/215 figures, and that every preset fits its derived cap. Note the 4-hour structural ceiling (`MAX_SESSION_CAP_MINUTES`) means the full plan PLUS all three electives (220 min) genuinely cannot fit one sitting — asserted as a known fact rather than left to surprise a family.
+
+**Mathematics is in every `COMPANION_MODES` preset**, deliberately: it's foundational, and it's the only subject carrying the full `services/diagnostic/` engine, so a family on `book_companion`/`guided` previously got no mastery signal at all — which made "mastery-based outcome" untrue for exactly the families most likely to need it. Still removable by hand; just never omitted by a preset.
+
+**Frontend tests DO run** — `npm test` (`vitest run`), 187 passing. Earlier text in this file claiming "no test runner configured" was stale.
 
 **Real Parent Setup.** `ParentSetup.tsx`'s optional "session context" panel (`StudentForm.faith_tradition`, alongside `current_unit`/`faith_emphasis`/`lesson_focus`) gains a **Church Tradition** field, shown only once that student has `scripture` or `saints` enabled — a family not using either faith module never sees it, and enabling one already narrows which module the label refines the framing for. Saved/loaded through `handleSavePod`/`formFromConfig` exactly like the sibling context fields; sanitized the same way every other free-text parent field is, at prompt-build time (`_faith_tradition_note` above), not at save time.
 

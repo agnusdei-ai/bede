@@ -49,6 +49,42 @@ export function effectiveSessionCap(configured: number | null | undefined): numb
   return Math.min(MAX_SESSION_CAP_MINUTES, Math.max(MIN_SESSION_CAP_MINUTES, configured ?? DEFAULT_SESSION_CAP_MINUTES))
 }
 
+// ── Intent vs. capacity ──────────────────────────────────────────────────
+//
+// The session cap is WALL-CLOCK time, but a parent picking subjects is
+// budgeting INSTRUCTION time, and the mandatory 60/10 rhythm means those
+// two numbers are never the same. A 120-minute cap holds 110 minutes of
+// instruction, not 120; a 185-minute plan needs a 215-minute cap, not 185.
+//
+// Before these helpers that arithmetic existed nowhere: ParentSetup showed
+// a subject-minutes total and a cap field side by side with nothing
+// reconciling them, so the default "Full Daily Plan" quietly scheduled 185
+// minutes of subjects into a 120-minute cap and the timer simply hard-stopped
+// wherever the child happened to be. For a mastery-based outcome the intent
+// and the capacity have to be stated, and equal, on purpose.
+
+/** How many minutes of actual instruction fit inside a wall-clock cap,
+ *  after the mandatory break each hour. */
+export function studyMinutesWithinCap(capMinutes: number): number {
+  const cap = effectiveSessionCap(capMinutes)
+  const cycle = SESSION_STUDY_MINUTES + SESSION_BREAK_MINUTES
+  const wholeCycles = Math.floor(cap / cycle)
+  const remainder = cap % cycle
+  return wholeCycles * SESSION_STUDY_MINUTES + Math.min(remainder, SESSION_STUDY_MINUTES)
+}
+
+/** The wall-clock cap required to actually deliver this much instruction —
+ *  the exact inverse of studyMinutesWithinCap. Used to derive each preset's
+ *  cap from its own subject list, so the two can never drift apart again. */
+export function capForStudyMinutes(studyMinutes: number): number {
+  if (studyMinutes <= 0) return MIN_SESSION_CAP_MINUTES
+  const breaks = Math.floor((studyMinutes - 1) / SESSION_STUDY_MINUTES)
+  return Math.min(
+    MAX_SESSION_CAP_MINUTES,
+    Math.max(MIN_SESSION_CAP_MINUTES, studyMinutes + breaks * SESSION_BREAK_MINUTES),
+  )
+}
+
 export interface TimerConfig {
   blockMinutes: number
   breakMinutes: number

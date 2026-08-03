@@ -459,6 +459,46 @@ deployer testing their own instance — see
 which tracks findings pinned to the git SHA tested so they can be
 correlated release-to-release.
 
+**Public tracker & data disclosure page (`site/trackers/index.html`,
+`/trackers/`):** answers, for `agnusdei.io` itself (the marketing site
+and the public demo it hosts under `/bede/`) rather than the self-hosted
+product, what actually sets a cookie, what uses browser storage, and what
+third-party origin is contacted — a code-audited inventory, not a
+boilerplate cookie-policy template. Built from a from-scratch review that
+found the marketing pages set no cookie and use no client storage at all
+(one exception: a click-to-play YouTube embed on the home page, inert
+until a visitor presses play), while the demo under `/bede/` uses
+first-party `sessionStorage`/`localStorage` only (session identity, chat
+history, UI preferences — enumerated in full on the page) and contacts
+OpenAI (primary AI + text-to-speech), Mistral (automatic failover), and
+Resend (feedback email) server-side. No consent banner exists on this
+domain, and the page says so explicitly rather than adding one for its
+own sake: nothing found rises above strictly-necessary/functional, and
+the demo already gates its own data collection behind an explicit consent
+step (`demo/src/useConsent.ts`, `demo/src/ConsentModal.tsx`) before the
+tracker page's own review even begins. Reciprocally linked with the
+demo's Privacy Notice (`demo/public/privacy.html`/`privacy.es.html`).
+
+That same review caught the Privacy Notice naming the wrong AI vendor —
+it said the conversation goes to Anthropic, when the deployed demo's
+`BEDE_ADAPTER_ORDER=openai,mistral` (`render.yaml`) means OpenAI is
+primary and Mistral is the live failover, with Anthropic not called at
+all. Corrected in both language versions (2026-08-03), along with adding
+a voice-audio disclosure (mic input transcribed on our own server; TTS
+via OpenAI) that had never been documented — see `docs/RETENTION_POLICY.md`'s
+own changelog note for why this is recorded there rather than silently
+fixed. Two further internal documents, deliberately **not** public page
+content (excluded from `scripts/build_pages_site.sh`'s `publish/` output
+the same way the rest of `docs/` is), satisfy COPPA's separate
+requirement for a written security program and a written retention
+policy: **[docs/INFORMATION_SECURITY_POLICY.md](docs/INFORMATION_SECURITY_POLICY.md)**
+(names the individual responsible, per-vendor data-access table, honestly
+states which demo fields are plaintext rather than encrypted and why) and
+**[docs/RETENTION_POLICY.md](docs/RETENTION_POLICY.md)** (purpose and
+deletion timeframe for every category the demo collects — the compliance
+counterpart to `docs/DATA_RETENTION.md`'s technical description, which it
+cross-references rather than duplicates).
+
 - `.env`, `.env.backup`, `.env.local` are gitignored — never commit them
 - JWTs are IP + User-Agent fingerprinted at issuance; replaying from a different device returns 401
 - Auth credential comparisons use `hmac.compare_digest()` (constant-time)

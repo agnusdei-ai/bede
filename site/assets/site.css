@@ -496,6 +496,28 @@ p.lede {
   padding: 0.3rem 0.85rem;
 }
 
+/* Justified body copy — used only on genuine multi-sentence prose blocks
+   (.limit, .guarantee p, .faq details p), never on short card/list text,
+   where a one- or two-line fragment gives justify too few words to
+   distribute space evenly and the classic ugly gap shows up immediately.
+   text-align-last: left keeps a paragraph's final line ragged rather than
+   stretched or centered — justify's other well-known tell. hyphens: auto
+   is what actually keeps the *earlier* lines from ballooning: without it,
+   a narrow column (a phone-width column runs 40-50 characters) forces the
+   browser to stretch inter-word spacing to fill the line since it can
+   only break between whole words; letting it break mid-word at a
+   syllable gives it far more places to end a line evenly. Relies on
+   <html lang="en"> (already set) for the hyphenation dictionary. */
+.limit,
+.guarantee p,
+.faq details p {
+  text-align: justify;
+  text-align-last: left;
+  -webkit-hyphens: auto;
+  -ms-hyphens: auto;
+  hyphens: auto;
+}
+
 /* Where Bede deliberately stops. Set apart from the cards so it reads
    as a promise rather than another feature. */
 .limit {
@@ -505,7 +527,6 @@ p.lede {
   border-left: 4px solid var(--gilt);
   background: rgba(255, 255, 255, 0.6);
   border-radius: 0.5rem;
-  text-align: left;
   font-size: 0.92rem;
   line-height: 1.65;
   color: var(--prose);

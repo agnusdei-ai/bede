@@ -9,6 +9,7 @@ import pytest_asyncio
 
 from core import parent_credential
 from core.config import settings
+from core.database import ParentCredentialOverride
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
 
@@ -66,3 +67,44 @@ async def test_has_override_reflects_whether_a_password_was_ever_set(db_session)
     assert await parent_credential.has_override(db_session) is False
     await parent_credential.set_parent_password_override(db_session, "a-password")
     assert await parent_credential.has_override(db_session) is True
+
+
+# ── Multi-replica staleness bound ───────────────────────────────────────────
+
+async def test_periodic_refresh_picks_up_a_sibling_replicas_bump(db_session, monkeypatch):
+    """The replication landmine this bound exists for.
+
+    Simulates two replicas sharing one database: replica A changes the
+    password (bumping credentials_version in the DB and its own cache),
+    while replica B is already running with a stale cached value. Before the
+    periodic refresh, B would keep honouring a token A had invalidated until
+    B restarted -- so "change your password to end a takeover" was true on
+    one replica and false on the others, with nothing reporting a fault.
+
+    See core/parent_credential.py's docstring and
+    docs/DEPLOYMENT_TOPOLOGY.md.
+    """
+    # Replica B's view: started before any password change.
+    parent_credential._set_cached_version(0)
+    assert parent_credential.current_credentials_version() == 0
+
+    # Replica A changes the password against the shared database.
+    await parent_credential.set_parent_password_override(db_session, "a-new-password")
+    db_version = (await db_session.get(ParentCredentialOverride, "password")).credentials_version
+    assert db_version == 1
+
+    # Replica B still holds the stale value -- this is the window the
+    # refresh interval bounds, not something it eliminates.
+    parent_credential._set_cached_version(0)
+    assert parent_credential.current_credentials_version() == 0
+
+    # One refresh cycle on replica B closes it.
+    await parent_credential.refresh_from_db(db_session)
+    assert parent_credential.current_credentials_version() == db_version
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestWarning")
+async def test_refresh_interval_is_short_enough_to_bound_a_takeover():
+    """A stolen token surviving a password change for minutes would make the
+    control substantially untrue under replication; seconds is acceptable."""
+    assert 0 < parent_credential._REFRESH_INTERVAL_SECONDS <= 30

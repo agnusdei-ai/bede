@@ -73,6 +73,16 @@ _WINDOW_SECONDS = 15 * 60
 # address, so cycling IPs buys an attacker nothing. Single-entry today
 # (this app has exactly one child credential) but keyed for clarity and so
 # a future per-student PIN doesn't need this rewritten.
+#
+# REPLICATION: in-process means per-replica. Under N replicas the free
+# allowance effectively becomes 3*N and an attacker spreading guesses
+# across pods resets the escalation, which defeats the point of this
+# module. Correct for both topologies Bede actually supports today (see
+# docs/DEPLOYMENT_TOPOLOGY.md — a single-instance self-hosted deployment or
+# the single-instance demo), and a landmine for anyone who scales it
+# without moving this to a shared store first. Tracked there rather than
+# left implicit, because it fails silently: the throttle still appears to
+# work, just N times weaker.
 _KEY = "child_pin"
 _failures: dict[str, tuple[int, float]] = {}
 

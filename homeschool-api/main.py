@@ -153,11 +153,20 @@ async def lifespan(app: FastAPI):
 
     warmup_task = asyncio.create_task(_warm_voice_models())
     purge_task = asyncio.create_task(_periodic_data_purge())
+    # Bounds how long a running replica can keep honouring a token that a
+    # SIBLING replica already invalidated by a password change or recovery.
+    # A no-op cost on a single-instance deployment (which is what both
+    # supported topologies are today) and the thing that stops "change your
+    # password to end a takeover" from being quietly false under
+    # replication — see core/parent_credential.py and
+    # docs/DEPLOYMENT_TOPOLOGY.md.
+    credentials_refresh_task = asyncio.create_task(parent_credential.periodic_refresh())
 
     yield
 
     warmup_task.cancel()
     purge_task.cancel()
+    credentials_refresh_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

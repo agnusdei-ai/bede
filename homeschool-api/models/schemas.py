@@ -820,6 +820,19 @@ class RecordSkillEvidenceInput(BaseModel):
     outcome:    Literal["correct", "partial", "incorrect", "hint_dependent"]
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
+class RecordLiteracyEvidenceInput(BaseModel):
+    """Server-side validation of the silent record_literacy_evidence tool's
+    input — see services/diagnostic/literacy.py (reading and spelling,
+    grades 3-8). Never leaves the server; not part of any response body.
+    `domain` isn't validated against literacy.DOMAINS here for the same
+    reason RecordPhonicsEvidenceInput doesn't: a Literal would require
+    importing the diagnostic package into the schema module, and
+    literacy.apply_evidence already degrades an unrecognized domain to a
+    true no-op, so a hallucinated value is harmless — just unpersisted."""
+    domain:  str = Field(..., max_length=60)
+    outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+
 class RecordPhonicsEvidenceInput(BaseModel):
     """Server-side validation of the silent record_phonics_evidence tool's
     input — see services/diagnostic/phonics.py. Never leaves the server;

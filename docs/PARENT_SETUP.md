@@ -1021,3 +1021,43 @@ actual learning still lives on the Progress page in the next section.
   study). Other grades fall back to general guidance until more years are added.
 - **Voice check keeps failing** — try re-enrolling; background noise and phone/tablet
   mic quality affect matching more than most people expect.
+
+
+## Reading and spelling (grades 3-8)
+
+Bede measured reading only up to 2nd grade. Phonics covers decoding for
+K-2, and composition measures your child's *writing* from their narrations
+— but between them there was nothing for reading in grades 3-8, and no
+spelling measurement at any grade. A 5th grader could work with Bede for a
+year and you'd learn nothing about how they read.
+
+There is now a **Reading & Spelling** picture on the Progress page for
+grades 3-8, built from ten areas in the order reading actually develops:
+
+| | Area |
+|---|---|
+| **Word recognition** | Reading longer words · Spelling patterns & rules · Prefixes, suffixes & word roots · Homophones & tricky spellings · Reading smoothly and with expression |
+| **Understanding** | Word meanings · Retelling what the text said · Reading between the lines · How a text is built · The author's craft & purpose |
+
+**It is built by noticing, not by testing.** Bede never sets your child a
+reading test. The evidence comes from what an ordinary lesson already
+reveals — a long word they stall on, a homophone chosen wrongly in
+copywork, a narration that reorders events, an inference they reach without
+being asked. At most one observation per session, and your child is never
+told any of it is happening.
+
+**Next steps follow the order reading develops, not the lowest number.** If
+your child is still working at decoding longer words, that's what Bede
+points you to — even if a later area scores lower. A child still sounding
+out *disappointment* has no attention left over for the author's purpose,
+and pointing you at the latter first would be advice you couldn't use.
+
+**Why spelling gets its own explicit attention.** Three of the ten areas
+touch spelling directly, which is deliberate for English specifically.
+Languages with regular spelling — Finnish is the standard example, with
+close to one letter per sound — let children decode fluently within months,
+so their curricula move to comprehension almost immediately. English hides
+meaning behind spelling that pronunciation actively contradicts (*sign* →
+*signature*), so explicit work on patterns and word roots does more for an
+English-speaking child than it would for a Finnish one. More structure
+here, not less.

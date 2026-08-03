@@ -20,6 +20,11 @@ from services.diagnostic.phonics import (
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
     DOMAIN_LABELS as _PHONICS_DOMAIN_LABELS,
 )
+from services.diagnostic.literacy import (
+    DOMAINS as _LITERACY_DOMAINS,
+    DOMAIN_CHECKIN_HINTS as _LITERACY_DOMAIN_HINTS,
+    DOMAIN_LABELS as _LITERACY_DOMAIN_LABELS,
+)
 from services.diagnostic.language_exposure import (
     LANGUAGES as _EXPOSURE_LANGUAGES,
     LANGUAGE_CHECKIN_HINTS as _EXPOSURE_LANGUAGE_HINTS,
@@ -530,6 +535,36 @@ TUTOR_TOOLS = [
                 },
             },
             "required": ["probe_id", "outcome"],
+        },
+    },
+    {
+        "name": "record_literacy_evidence",
+        "description": (
+            "SILENTLY record evidence about READING or SPELLING from something that genuinely came "
+            "up in a grades 3-8 Language Arts or Living Books session — a word misread, a spelling "
+            "pattern that held or didn't, a retelling that missed the order, an inference the child "
+            "made or couldn't. Never a test, never announced, and never more than one per session. "
+            "Only call this when the child's own reading, spelling, or narration actually showed you "
+            "something. The child never sees this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "enum": list(_LITERACY_DOMAINS),
+                    "description": "Which reading/spelling domain this was evidence for",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How the child performed: correct=solid unaided, partial=some grasp, "
+                        "incorrect=missed it, hint_dependent=only after you helped"
+                    ),
+                },
+            },
+            "required": ["domain", "outcome"],
         },
     },
     {
@@ -2401,13 +2436,14 @@ async def _build_subject_prompt(
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
     phonics_note = _phonics_checkin_note(config, subject)
+    literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2887,6 +2923,88 @@ async def _record_skill_evidence(
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
 
 
+# Reading and spelling live where a child actually reads and writes:
+# Language Arts (copywork, narration, grammar) and Living Books
+# (literature). Deliberately grades 3-8 only — K-2 reading is
+# services/diagnostic/phonics.py's job, and two engines competing for the
+# same child's decoding evidence would produce two disagreeing pictures.
+_LITERACY_CHECKIN_SUBJECTS = (Subject.language_arts, Subject.living_books)
+_LITERACY_STAGES = (GradeStage.core_mastery, GradeStage.independent)
+
+
+def _literacy_checkin_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    Grades 3-8, Language Arts and Living Books: a nudge to notice what the
+    child's own reading, spelling, and narration already reveal — never to
+    administer a test.
+
+    This is the counterpart to _phonics_checkin_note one stage up, and it
+    closes the larger of the two gaps: phonics stops at 2nd grade, and
+    before services/diagnostic/literacy.py nothing measured reading or
+    spelling after it. A 5th grader could work with Bede for a year and
+    produce no evidence at all about how they read.
+
+    Deliberately observational rather than probing. Reading evidence is
+    lying around in an ordinary lesson — a long word stalled on, a
+    homophone chosen wrongly in copywork, a narration that reorders events,
+    an inference reached without being asked for. Bede should record what
+    it genuinely saw, not manufacture an assessment. Same
+    "prompt-instruction-only" pacing limit as the phonics and language
+    check-ins, since record_literacy_evidence is fully silent and leaves
+    nothing in the transcript to scan for.
+    """
+    if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
+        return ""
+    domain_lines = "\n".join(
+        f"  - {domain} ({_LITERACY_DOMAIN_LABELS[domain]}): {_LITERACY_DOMAIN_HINTS[domain]}"
+        for domain in _LITERACY_DOMAINS
+    )
+    return f"""
+
+<literacy_checkin>
+Reading and spelling are measured by NOTICING, not by testing. During this session, if the
+child's own reading, copywork, or narration genuinely shows you something about one of these,
+call `record_literacy_evidence` with that domain id and an honest outcome:
+{domain_lines}
+Record what actually happened — do NOT invent an exercise to generate evidence, do not announce
+that you are noting anything, and never record more than one domain per session. If a child
+stumbles, help them warmly and move on; the observation is for their parent's picture of them
+over time, never a verdict delivered to the child.
+</literacy_checkin>"""
+
+
+async def _record_literacy_evidence(
+    db: Optional["AsyncSession"],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently record reading/spelling evidence — see
+    services/diagnostic/literacy.py for the domain sequence and why it is
+    ordered developmentally. Real (parent/child) sessions only, mirroring
+    _record_phonics_evidence's no-demo-backend wiring.
+
+    Gated at the code level to exactly where the prompt guidance is gated
+    (Language Arts and Living Books, grades 3-8) as a second, defensive
+    backstop — the same belt-and-braces match _record_phonics_evidence uses
+    for its own K-2 gate. The stage gate matters especially here: a K-2
+    session must fall through to phonics.py, never to this engine.
+    """
+    if db is None:
+        return
+    if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
+        return
+    try:
+        from models.schemas import RecordLiteracyEvidenceInput
+        from services.diagnostic.literacy import process_evidence as _process_literacy
+
+        ev = RecordLiteracyEvidenceInput(**tool_input)  # validate/clamp
+        await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
+    except Exception as exc:
+        log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
+
+
 async def _record_phonics_evidence(
     db: Optional["AsyncSession"],
     config: SessionConfig,
@@ -3298,6 +3416,10 @@ async def stream_tutor_response(
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_phonics_evidence's own docstring.
                                     await _record_phonics_evidence(db, config, subject, tool_input)
+                                elif tc["name"] == "record_literacy_evidence":
+                                    # Fully silent, same as record_skill_evidence above —
+                                    # see _record_literacy_evidence's own docstring.
+                                    await _record_literacy_evidence(db, config, subject, tool_input)
                                 elif tc["name"] == "record_language_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.

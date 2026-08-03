@@ -144,7 +144,7 @@ describe('open panel', () => {
 
     const headings = screen.getAllByRole('listitem').map((li) => li.querySelector('.font-semibold')?.textContent)
     expect(headings).toEqual([
-      'Logic & Clear Thinking',
+      'Logic',
       'Greek & New Testament Foundations',
       'Morning Time',
     ])

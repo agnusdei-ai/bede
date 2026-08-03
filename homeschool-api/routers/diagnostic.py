@@ -167,9 +167,14 @@ async def get_student_activity(
     since_days is capped at 365, the same size-capped convention
     GET /admin/audit's limit uses.
     """
-    from services.diagnostic.activity import summarize
+    from services.diagnostic.activity import initiative_signal, summarize
 
-    return await summarize(db, student_name, min(365, max(1, since_days)), subject_area)
+    summary = await summarize(db, student_name, min(365, max(1, since_days)), subject_area)
+    # The entrepreneurial read, alongside the raw ledger — counts of work
+    # done exemplarily, taken beyond the task, and done briskly. Never a
+    # verdict on the child; see activity.initiative_signal.
+    summary["initiative"] = initiative_signal(summary)
+    return summary
 
 
 @router.get("/{student_name}/summary", response_model=MasteryProfileSummary)

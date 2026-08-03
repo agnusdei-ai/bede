@@ -249,3 +249,148 @@ def test_the_pod_route_is_declared_before_the_parameterized_one():
 
     paths = [r.path for r in router.routes]
     assert paths.index("/diagnostic/pod/activity") < paths.index("/diagnostic/{student_name}/activity")
+
+
+# ── Scoring the work: quality, distinction, speed ────────────────────────
+#
+# The distinction that makes this safe: Bede scores the WORK PRODUCT, which
+# is ordinary assessment, and never the child, which would be a claim it has
+# no standing to make. Every scale's floor is a real outcome — there is no
+# "poor" quality and no "slow" pace.
+
+@pytest.mark.asyncio
+async def test_scores_are_recorded_and_reported_as_distributions(db_session):
+    for quality, distinction, speed in [
+        ("exemplary", "original", "brisk"),
+        ("proficient", "expected", "steady"),
+        ("exemplary", "noteworthy", "deliberate"),
+    ]:
+        await record_activity(
+            db_session, "Ada", "mathematics", "ee.factor_expressions", "Factors expressions",
+            "correct", quality=quality, distinction=distinction, speed=speed,
+        )
+    entry = (await summarize(db_session, "Ada"))["skills"][0]
+
+    assert entry["scored"] == 3
+    assert entry["quality"] == {"adequate": 0, "proficient": 1, "exemplary": 2}
+    assert entry["distinction"] == {"expected": 1, "noteworthy": 1, "original": 1}
+    assert entry["speed"] == {"deliberate": 1, "steady": 1, "brisk": 1}
+
+
+@pytest.mark.asyncio
+async def test_scores_are_optional_and_absence_is_distinguishable(db_session):
+    """
+    A missing score must never read as a low one. Bede omits a dimension it
+    didn't genuinely observe, and that has to stay visible as 'not judged'
+    rather than collapsing into 'adequate'.
+    """
+    await record_activity(db_session, "Ada", "mathematics", "ns.integers", "Integers", "correct")
+    entry = (await summarize(db_session, "Ada"))["skills"][0]
+
+    assert entry["completed"] == 1
+    assert entry["scored"] == 0
+    assert sum(entry["quality"].values()) == 0
+
+
+@pytest.mark.asyncio
+async def test_an_invalid_score_is_dropped_not_coerced(db_session):
+    """A hallucinated level must not silently become a real one."""
+    await record_activity(
+        db_session, "Ada", "mathematics", "ns.integers", "Integers", "correct",
+        quality="brilliant", distinction="amazing", speed="lightning",
+    )
+    entry = (await summarize(db_session, "Ada"))["skills"][0]
+    assert entry["scored"] == 0
+    assert sum(entry["quality"].values()) == 0
+
+
+@pytest.mark.asyncio
+async def test_summary_still_reports_no_average_or_grade(db_session):
+    """
+    Scoring the work must not reintroduce a score for the CHILD. The
+    payload gains distributions, never a mean, a letter, or a level — a
+    mean over an ordinal scale would invent precision the scale doesn't
+    carry and read as a grade.
+    """
+    await record_activity(
+        db_session, "Ada", "mathematics", "ns.integers", "Integers", "correct",
+        quality="exemplary", distinction="original", speed="brisk",
+    )
+    summary = await summarize(db_session, "Ada")
+    entry = summary["skills"][0]
+    forbidden = {"average", "mean", "score", "grade", "level", "rank", "percentile"}
+    assert not (forbidden & set(entry))
+    assert not (forbidden & set(summary))
+
+
+# ── The learning-entrepreneur read ───────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_initiative_signal_counts_work_beyond_the_task(db_session):
+    from services.diagnostic.activity import initiative_signal
+
+    await record_activity(db_session, "Ada", "mathematics", "fn.slope", "Slope", "correct",
+                          quality="exemplary", distinction="original", speed="brisk")
+    await record_activity(db_session, "Ada", "mathematics", "fn.slope", "Slope", "correct",
+                          quality="proficient", distinction="noteworthy", speed="steady")
+    await record_activity(db_session, "Ada", "mathematics", "ns.integers", "Integers", "correct",
+                          quality="adequate", distinction="expected", speed="deliberate")
+
+    signal = initiative_signal(await summarize(db_session, "Ada"))
+    assert signal["exemplary"] == 1
+    assert signal["beyond_the_task"] == 2      # original + noteworthy
+    assert signal["brisk"] == 1
+    assert signal["standout_skills"][0]["skill_id"] == "fn.slope"
+
+
+@pytest.mark.asyncio
+async def test_initiative_signal_assigns_no_verdict_or_label(db_session):
+    """
+    The guard that keeps this from becoming a character rating. A learning
+    entrepreneur is not a category Bede is competent to place a child in —
+    it reports counts of work and lets the parent read them.
+    """
+    from services.diagnostic.activity import initiative_signal
+
+    await record_activity(db_session, "Ada", "mathematics", "fn.slope", "Slope", "correct",
+                          quality="exemplary", distinction="original", speed="brisk")
+    signal = initiative_signal(await summarize(db_session, "Ada"))
+
+    forbidden = {"is_entrepreneur", "entrepreneur", "verdict", "label", "rating",
+                 "score", "type", "percentile", "threshold"}
+    assert not (forbidden & set(signal))
+    assert set(signal) == {
+        "student_name", "scored_activities", "exemplary", "beyond_the_task",
+        "brisk", "standout_skills",
+    }
+
+
+def test_the_prompt_scores_the_work_and_forbids_hurrying():
+    """
+    Two rules that matter more than the scores themselves: Bede judges the
+    work rather than the child, and pace is something it notices, never
+    something it asks for. A child who feels raced produces worse work.
+    """
+    from services.ai_service import _WORK_SCORING_NOTE
+
+    note = " ".join(_WORK_SCORING_NOTE.split()).lower()
+    assert "you are scoring the work, never the child" in note
+    assert "never hurry a child" in note
+    assert "omit any dimension you did not genuinely observe" in note
+    # `original` must stay rare, or the signal stops meaning anything.
+    assert "reserve it for a child bringing a genuine idea" in note
+
+
+def test_every_recording_tool_accepts_the_three_dimensions_as_optional():
+    from services.ai_service import TUTOR_TOOLS
+
+    need = {"quality", "distinction", "speed"}
+    for tool in TUTOR_TOOLS:
+        if not tool["name"].startswith("record_"):
+            continue
+        schema = tool["input_schema"]
+        assert need <= set(schema["properties"]), f"{tool['name']} is missing scoring fields"
+        # Optional, never required — a missing score has to stay honest.
+        assert not (need & set(schema.get("required", []))), f"{tool['name']} made a score mandatory"
+        # And they must live INSIDE properties, not as stray sibling keys.
+        assert not (need & set(schema)), f"{tool['name']} has scoring keys outside properties"

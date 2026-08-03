@@ -16,6 +16,18 @@
     "requiring every endpoint to have an entry. Neither PR's CI could see the",
     "other. main went red on the merge.",
     "",
+    "NO BYPASS ACTORS, deliberately. An earlier draft carried an",
+    "`actor_id: 5` RepositoryRole entry meant to be \"repository admin\" —",
+    "written from memory rather than checked. A wrong id there fails in the",
+    "worse direction than it looks: rather than erroring, it can grant",
+    "standing bypass to a role nobody chose, leaving a gate that reports as",
+    "enforced and is not. An empty list has no such ambiguity — the rule",
+    "applies to everyone, including the owner.",
+    "",
+    "That is also the right posture for a quality gate. An emergency merge",
+    "stays possible by disabling this ruleset, which is a visible act with",
+    "an audit trail rather than a permanent exemption nobody re-reads.",
+    "",
     "PREREQUISITE, and it is not optional: every workflow named below must",
     "START on every pull request. A required check that never runs leaves the",
     "PR blocked forever on 'Expected — waiting for status to be reported', not",
@@ -67,11 +79,5 @@
       }
     }
   ],
-  "bypass_actors": [
-    {
-      "actor_id": 5,
-      "actor_type": "RepositoryRole",
-      "bypass_mode": "always"
-    }
-  ]
+  "bypass_actors": []
 }

@@ -43,6 +43,13 @@ _BAND_INDEX = {band.value: index for index, band in enumerate(_BAND_ORDER)}
 # change at Phase 5's tuning pass without touching the demo's number.
 CALIBRATION_THRESHOLD = 5
 
+# How many "next steps" the parent-facing summary offers. kst.fringe can
+# legitimately return a dozen or more candidates at once; a list that long
+# is an inventory, not a priority. Matches composition.py's and
+# language_exposure.py's own cap in spirit — theirs is 3, this is a little
+# wider because math spans eight domains rather than one rubric.
+_MAX_NEXT_STEPS = 5
+
 
 def calibration_weight_for(evidence_count: int, threshold: int = CALIBRATION_THRESHOLD) -> float:
     """
@@ -249,6 +256,20 @@ def build_summary_view(
         "calibration": evidence_count < calibration_threshold,
         "domains": domains,
         "gaps": [v for skill_id in rollup["gaps"] if (v := _skill_view(skill_id)) is not None],
-        "next_steps": [v for skill_id in rollup["next_steps"] if (v := _skill_view(skill_id)) is not None],
+        # Least-secure first, capped — the same ordering composition.py and
+        # language_exposure.py already use for their own next_steps, and
+        # for the same reason: "what's worth working on next" is a
+        # priority list, not an inventory. kst.fringe returns skill-id
+        # order, which is alphabetical and therefore meaningless to a
+        # parent; unsorted it put "Compares two quantities" (a K-2 skill
+        # sitting at its untouched 0.70 prior) above the multi-digit
+        # multiplication a 4th grader had actually struggled with at 0.47.
+        # Sorting by probability also does the band work implicitly, since
+        # new_vector seeds a student's own band lower than the bands below
+        # it.
+        "next_steps": sorted(
+            (v for skill_id in rollup["next_steps"] if (v := _skill_view(skill_id)) is not None),
+            key=lambda v: v["probability"],
+        )[:_MAX_NEXT_STEPS],
         "updated_at": updated_at,
     }

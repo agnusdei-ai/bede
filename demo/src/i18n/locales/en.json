@@ -59,7 +59,9 @@
   "continuingMastery": {
     "heading": "Continuing Mastery",
     "followingOwnLesson": "Following your own lesson: {{unit}}",
-    "resume": "Resume →"
+    "resume": "Resume →",
+    "moreInPicker_one": "{{count}} more subject is in the picker above.",
+    "moreInPicker_other": "{{count}} more subjects are in the picker above."
   },
   "sessionPaused": {
     "greatWorkToday": "Great work today!",

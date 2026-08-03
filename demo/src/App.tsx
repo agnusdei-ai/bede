@@ -605,7 +605,32 @@ interface ChatScreenProps {
 // rather than a synthesized summary — there's no per-subject LLM bookmark
 // call available client-side for the demo the way the real app's
 // LessonBookmark has server-side. Renders nothing when there's neither.
-function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLastExchange, onResume }: {
+//
+// This card lives in the <header>, which is `shrink-0` above a `flex-1`
+// chat body — so every row it adds is a row taken away from the
+// conversation, permanently, with no scroll of its own to absorb it. The
+// demo hands every visitor all fourteen subjects (_demo_session_config
+// sets subjects=list(Subject)), so an unbounded row-per-touched-subject
+// list grows to thirteen rows and swallows the screen; at three touched
+// subjects it was already taking better than half a phone viewport, with
+// the chat reduced to a sliver underneath. Hence the two bounds below,
+// which are the whole reason this isn't a plain .filter().map():
+//
+//   MAX_RESUME_ROWS  — a hard row cap, so the card's height is a constant
+//                      rather than a function of how much of the demo the
+//                      visitor has explored.
+//   line-clamp       — one excerpt line on a phone, two once there's room,
+//                      so a long opener can't turn one row into five.
+//
+// Capping is safe here in a way it would not be in a navigation-only
+// surface: the subject <select> immediately above this card already
+// reaches every subject, so a row that falls off the list costs a nudge,
+// never access. The overflow is stated rather than silently dropped, and
+// points at that picker.
+const MAX_RESUME_ROWS = 3
+
+// Exported for ContinuingMasteryCard.test.tsx — same reason CodeScreen is.
+export function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLastExchange, onResume }: {
   currentUnit?: string | null
   subjects: readonly Subject[]
   activeSubject: Subject
@@ -613,7 +638,16 @@ function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLa
   onResume: (s: Subject) => void
 }) {
   const { t } = useTranslation()
-  const touched = subjects.filter((s) => s !== activeSubject && subjectLastExchange[s])
+  // Most recently touched first, NOT Subject-enum order: this card answers
+  // "where was I just now", and the enum order would put Morning Time at
+  // the top of a list whose newest entry is Logic. Ordering by recency is
+  // also what makes the row cap defensible — what falls off the bottom is
+  // the oldest thread, not an arbitrary one.
+  const touched = subjects
+    .filter((s) => s !== activeSubject && subjectLastExchange[s])
+    .sort((a, b) => subjectLastExchange[b]!.updatedAt - subjectLastExchange[a]!.updatedAt)
+  const shown = touched.slice(0, MAX_RESUME_ROWS)
+  const hiddenCount = touched.length - shown.length
   if (!currentUnit && touched.length === 0) return null
 
   return (
@@ -626,17 +660,21 @@ function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLa
           {t('continuingMastery.followingOwnLesson', { unit: currentUnit })}
         </p>
       )}
-      {touched.length > 0 && (
+      {shown.length > 0 && (
         <ul className="flex flex-col gap-1.5">
-          {touched.map((s) => {
+          {shown.map((s) => {
             const entry = subjectLastExchange[s]!
             const excerpt = entry.bedeText.length > 100 ? entry.bedeText.slice(0, 100).trimEnd() + '…' : entry.bedeText
             return (
               <li key={s} className="flex items-start gap-2 text-xs leading-snug">
                 <span className="w-1.5 h-1.5 rounded-full bg-sage-500 mt-1 flex-shrink-0" aria-hidden="true" />
-                <span className="flex-1 text-gray-700">
-                  <span className="font-semibold">{t(`subjects.${s}`, SUBJECT_LABELS[s])}</span>
-                  {' — '}<span className="text-gray-500">{excerpt}</span>
+                {/* min-w-0 so the clamped excerpt can actually shrink —
+                    a flex child defaults to min-width:auto and would
+                    refuse to go narrower than its longest word, which is
+                    how a long subject name pushes Resume off the row. */}
+                <span className="flex-1 min-w-0 text-gray-700">
+                  <span className="font-semibold block">{t(`subjects.${s}`, SUBJECT_LABELS[s])}</span>
+                  <span className="text-gray-500 line-clamp-1 sm:line-clamp-2">{excerpt}</span>
                 </span>
                 <button
                   type="button"
@@ -649,6 +687,11 @@ function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLa
             )
           })}
         </ul>
+      )}
+      {hiddenCount > 0 && (
+        <p className="text-[11px] text-gray-500 mt-1.5 leading-snug">
+          {t('continuingMastery.moreInPicker', { count: hiddenCount })}
+        </p>
       )}
     </div>
   )

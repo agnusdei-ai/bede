@@ -59,7 +59,8 @@ export default function SubjectDrawer({
               return (
                 <div
                   key={subj}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                  style={{ borderLeftColor: info.color, borderLeftWidth: '4px' }}
+                  className={`flex items-center gap-3 min-w-0 pl-2 pr-3 py-2.5 rounded-xl transition-colors ${
                     isCurrent ? 'bg-navy-50' : 'hover:bg-gray-50'
                   }`}
                 >
@@ -74,14 +75,23 @@ export default function SubjectDrawer({
                     size={14}
                     className={`shrink-0 ${isCurrent ? 'text-navy-600' : isDone ? 'text-gray-400' : 'text-gray-400'}`}
                   />
-                  <span className={`flex-1 text-sm ${
-                    isCurrent ? 'font-semibold text-navy-700'
-                    : isDone ? 'text-gray-400 line-through'
-                    : 'text-gray-600'
-                  }`}>
+                  {/* min-w-0 lets truncate actually shrink below its content
+                      width — a flex child's default min-width:auto is what
+                      silently defeats truncate without it. Every label fits
+                      on one line at the drawer's usual widths; this is the
+                      fallback for the longest ones (Greek & New Testament
+                      Foundations) on a narrow phone. */}
+                  <span
+                    title={info.label}
+                    className={`flex-1 min-w-0 truncate text-sm ${
+                      isCurrent ? 'font-semibold text-navy-700'
+                      : isDone ? 'text-gray-400 line-through'
+                      : 'text-gray-600'
+                    }`}
+                  >
                     {info.label}
                   </span>
-                  <span className="text-xs text-gray-400 tabular-nums">{info.durationMin}m</span>
+                  <span className="text-xs text-gray-400 tabular-nums shrink-0">{info.durationMin}m</span>
                 </div>
               )
             })}

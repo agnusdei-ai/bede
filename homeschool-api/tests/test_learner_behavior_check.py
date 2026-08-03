@@ -29,6 +29,7 @@ from sqlalchemy.pool import StaticPool
 from core.config import settings
 from core.database import Base, LearnerBehaviorCheck, LearnerProfile
 from core.encryption import decrypt_json, encrypt_json, student_aad
+from core import student_keys
 from models.schemas import GradeStage, SessionConfig, Subject
 from routers.narration import _sync_behavior_check, get_behavior_check
 from services import ai_service
@@ -64,7 +65,9 @@ async def _get_row(db_session, student_name):
 async def _count(db_session, student_name) -> int:
     row = await _get_row(db_session, student_name)
     return decrypt_json(
-        row.count_enc, student_aad("learner_behavior_checks", "count_enc", student_name)
+        row.count_enc,
+        student_aad("learner_behavior_checks", "count_enc", student_name),
+        await student_keys.get_existing(db_session, student_name),
     )["count"]
 
 

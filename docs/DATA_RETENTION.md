@@ -57,10 +57,24 @@ irreversible.
   page's security section (or `DELETE /mfa/webauthn/{id}` / `DELETE
   /mfa/totp`) instead.
 
-**Backups:** if you run `make db-backup` regularly (recommended in
-`docs/PRODUCTION_SETUP.md`), deleting a student here does not retroactively
-scrub them from backups already taken. Prune or re-take backups
-separately if that matters to you.
+**Backups:** deleting a student destroys the encryption key that their data
+was stored under, not just the rows. Every copy of that child's data
+becomes permanently unreadable at the same moment — including backups
+already taken, and including by this deployment itself. The rows still
+physically exist in an old `make db-backup` dump; nothing can open them.
+That is what makes "irreversible" above literally true rather than a
+statement about the live database only.
+
+Two caveats, stated plainly because they are the difference between a
+promise and a guarantee:
+
+- **Data written before 2026-08-03 is not covered.** Rows created before
+  per-student keys existed are encrypted under the deployment-wide key and
+  stay readable in backups taken before then. They are upgraded
+  individually the next time each one is written. If you have backups older
+  than that date and this matters to you, prune them.
+- **The audit log is deliberately excluded** (see below), so a deletion
+  does not erase the security record of what happened on this deployment.
 
 ## The public demo's data
 

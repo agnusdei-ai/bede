@@ -38,6 +38,22 @@ def _clear_readonly_prompt_caches():
     ai_service_module._lesson_bookmark_cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_student_key_cache():
+    """core/student_keys.py caches each student's unwrapped data key
+    process-globally for _CACHE_TTL_SECONDS. Every test gets a fresh
+    in-memory database but shares this process, so without a reset a key
+    created for "Emma" in one test would be served from cache in the next —
+    where no student_keys row exists — and writes would be encrypted under
+    a key that isn't in that database. Same reasoning as the caches above,
+    with a sharper failure mode: the symptom is unreadable data, not a
+    stale value."""
+    from core import student_keys
+    student_keys.clear_cache()
+    yield
+    student_keys.clear_cache()
+
+
 @pytest_asyncio.fixture
 async def demo_db(monkeypatch):
     """

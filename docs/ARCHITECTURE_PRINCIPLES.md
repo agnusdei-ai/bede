@@ -113,15 +113,15 @@ biometrics authenticate children" overstates what the code enforces
 
 ## Domain 2 — Asset Security
 
-### P2 — Data is classified by sensitivity, and controls differ by class ⚠️
+### P2 — Data is classified by sensitivity, and controls differ by class ✅
 
 **Statement.** Every stored data entity is assigned a sensitivity tier, and
 the encryption key, retention period, and deletion mechanism follow from
 that tier.
 
-**Rationale.** Today a voice biometric embedding, a TOTP secret, and an
-internal lesson-bookmark note are encrypted identically under one global
-`DATA_KEY` with one shared blast radius. Undifferentiated controls mean the
+**Rationale.** A voice biometric embedding, a TOTP secret, and an internal
+lesson-bookmark note were encrypted identically under one global `DATA_KEY`
+with one shared blast radius. Undifferentiated controls mean the
 weakest-justified control is applied to the most sensitive asset.
 
 **Implications.** The tier table in `docs/ARCHITECTURE_ASSESSMENT.md`
@@ -132,13 +132,14 @@ independent patches — they are one gap expressed twice.
 **Conformance.** `docs/DATA_CLASSIFICATION.md` exists as of 2026-08-02 —
 five tiers (T0 key material through T4 operational), every encrypted column
 assigned, with the key strategy and deletion mechanism stated per tier.
-Partial rather than conforming because the *controls* have only begun to
-diverge: AAD binding is implemented and T1 (biometric) is migrated, T2–T4
-are not, and per-record/per-student keys are still pending.
+Conforming as of 2026-08-03: AAD binding is implemented across T1–T4, and
+per-student keys are in place for every `student_name`-scoped column. The
+tiers now differ in their *controls*, not only on paper — T1/T3 under
+per-student keys, T2/T4 under the shared `DATA_KEY`, all AAD-bound.
 
 *AIUC-1: Data & Privacy · ISO/IEC 42001: asset/data governance*
 
-### P3 — Deletion means cryptographic destruction, not logical removal ❌
+### P3 — Deletion means cryptographic destruction, not logical removal ✅
 
 **Statement.** An erasure request destroys the key that opens the data, not
 only the row that holds it.
@@ -154,8 +155,22 @@ would currently show the record intact.
 deletion destroying the record key. Natural fit given tables are already
 `student_name`-scoped.
 
-**Conformance.** Punch-list #6. Materially worse for the public demo (an
-operator holding third parties' data) than a self-hosted family instance.
+**Conformance.** Closed 2026-08-03 (punch-list #6). `core/student_keys.py`
+issues one wrapped 32-byte key per student; `services/student_deletion.py`
+destroys it in the same transaction as the row deletes, so the shred cannot
+half-succeed. Envelope v3 marks per-student ciphertext, and v1/v2 rows
+written before the change still open — a botched key migration would make a
+family's data permanently unreadable, which is strictly worse than the gap
+staying open a while longer.
+
+Deviation from the implication above: one key per *student*, not per
+*record*. Rationale in `docs/DATA_CLASSIFICATION.md` — the erasure unit is
+the child, and a single-row shred cannot partially fail the way a
+multi-key one can. Enforced structurally by
+`tests/test_student_key_coverage.py`, which fails the build if any
+student-scoped encrypt/decrypt omits the key: that mistake is otherwise
+silent, since it just writes a readable v2 row and quietly drops the
+shredding guarantee.
 
 *AIUC-1: Data & Privacy · COPPA erasure obligations*
 

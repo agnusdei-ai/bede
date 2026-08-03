@@ -49,6 +49,8 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
         VoiceProfile,
     )
 
+    from core import student_keys
+
     counts: dict[str, int] = {}
     for label, model in (
         ("student_config", StudentConfig),
@@ -64,6 +66,20 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
     ):
         result = await db.execute(delete(model).where(model.student_name == student_name))
         counts[label] = result.rowcount or 0
+
+    # Crypto-shred LAST, in the same transaction as the row deletes, so the
+    # two cannot diverge: a partial failure can never leave the key destroyed
+    # while rows remain (unreadable data with no way back) or the rows gone
+    # while the key survives (backups still openable).
+    #
+    # This is what makes the deletion claim true beyond the live table.
+    # DELETE alone leaves the rows in dead tuples until VACUUM, in WAL, and
+    # in every backup taken beforehand — all decryptable indefinitely under a
+    # DATA_KEY that never changes. Destroying the student's own key makes
+    # every one of those copies permanently unopenable at once, including by
+    # this deployment. See core/student_keys.py.
+    shredded = await student_keys.destroy(db, student_name)
+    counts["data_key_shredded"] = 1 if shredded else 0
 
     await db.commit()
     log.info("Deleted all data for student %r: %s", student_name, counts)

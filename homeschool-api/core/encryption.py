@@ -49,9 +49,14 @@ _MAGIC = b"SAGE"
 # ~50 call sites in 15 modules as a flag-day would be the riskiest possible
 # way to ship a security improvement, since a botched migration makes a
 # family's data permanently unreadable.
+# v3: AAD-bound AND encrypted under a per-student key rather than DATA_KEY
+#     directly — see core/student_keys.py. Destroying that student's key
+#     makes every v3 ciphertext of theirs permanently unopenable, which is
+#     what makes deletion cryptographic rather than a storage-layer promise.
 _VERSION_LEGACY_NO_AAD = 1
 _VERSION_AAD = 2
-_VERSION = _VERSION_AAD   # what new writes use
+_VERSION_STUDENT_KEY = 3
+_VERSION = _VERSION_AAD   # default for writes with no explicit key
 
 _HEADER_SIZE = 4 + 1 + 16 + 16   # magic + version + nonce + tag
 _PBKDF2_ITERS = 600_000
@@ -117,14 +122,24 @@ def student_aad(table: str, column: str, student_name: str, *scope: str) -> byte
 
 # ── Low-level AES-GCM ────────────────────────────────────────────────────────
 
-def _aes_encrypt(plaintext: bytes, key: bytes, aad: Optional[bytes] = None) -> bytes:
+def _aes_encrypt(
+    plaintext: bytes,
+    key: bytes,
+    aad: Optional[bytes] = None,
+    version: Optional[int] = None,
+) -> bytes:
     """Writes a v2 (AAD-bound) envelope when `aad` is supplied, v1 otherwise.
+
+    `version` overrides that choice — used to stamp v3 when the caller
+    encrypted under a per-student key, so the read path knows which key to
+    resolve without having to guess.
 
     The header (magic + version) is itself bound into the tag for v2, closing
     the separate malleability issue: in v1 those five bytes sit outside the
     authenticated data, so flipping the version byte is undetectable until it
     fails a range check. For v2 it's a tag failure like any other tamper."""
-    version = _VERSION_AAD if aad is not None else _VERSION_LEGACY_NO_AAD
+    if version is None:
+        version = _VERSION_AAD if aad is not None else _VERSION_LEGACY_NO_AAD
     header = _MAGIC + struct.pack("B", version)
     nonce = get_random_bytes(16)
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=16)
@@ -153,13 +168,13 @@ def _aes_decrypt(blob: bytes, key: bytes, aad: Optional[bytes] = None) -> bytes:
     if blob[:4] != _MAGIC:
         raise ValueError("Bad magic — not a SAGE-encrypted value")
     version = struct.unpack("B", blob[4:5])[0]
-    if version not in (_VERSION_LEGACY_NO_AAD, _VERSION_AAD):
+    if version not in (_VERSION_LEGACY_NO_AAD, _VERSION_AAD, _VERSION_STUDENT_KEY):
         raise ValueError(f"Unsupported encryption version {version}")
     nonce = blob[5:21]
     tag   = blob[21:37]
     ciphertext = blob[37:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=16)
-    if version == _VERSION_AAD:
+    if version in (_VERSION_AAD, _VERSION_STUDENT_KEY):
         if aad is None:
             raise ValueError(
                 "This value was written with context binding (v2) but no "
@@ -260,7 +275,7 @@ async def initialize_encryption(master_secret: str, db) -> None:
 
 # ── Public encrypt/decrypt (called after initialize_encryption) ──────────────
 
-def encrypt(plaintext: bytes, aad: Optional[bytes] = None) -> bytes:
+def encrypt(plaintext: bytes, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> bytes:
     """Encrypt bytes with DATA_KEY. Raises if called before initialization.
 
     Pass `aad=aad_for(table, column, row_key)` to bind the ciphertext to its
@@ -269,10 +284,16 @@ def encrypt(plaintext: bytes, aad: Optional[bytes] = None) -> bytes:
     code should always supply one. See docs/DATA_CLASSIFICATION.md."""
     if _DATA_KEY is None:
         raise RuntimeError("Encryption not initialised — call initialize_encryption() at startup")
+    if key is not None:
+        # Per-student key -> stamp v3 so the read path knows to resolve that
+        # student's key rather than reaching for DATA_KEY.
+        if aad is None:
+            raise ValueError("A per-student key requires an aad — see core/student_keys.py")
+        return _aes_encrypt(plaintext, key, aad, version=_VERSION_STUDENT_KEY)
     return _aes_encrypt(plaintext, _DATA_KEY, aad)
 
 
-def decrypt(blob: bytes, aad: Optional[bytes] = None) -> bytes:
+def decrypt(blob: bytes, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> bytes:
     """Decrypt bytes with DATA_KEY.
 
     Must be given the same `aad` the value was written with if it's a v2
@@ -281,17 +302,29 @@ def decrypt(blob: bytes, aad: Optional[bytes] = None) -> bytes:
     the call site was migrated."""
     if _DATA_KEY is None:
         raise RuntimeError("Encryption not initialised")
+    # Dispatch on the blob's own version, never on what the caller happened
+    # to pass: a v1/v2 row predates per-student keys and must still open
+    # under DATA_KEY even when the caller now has a student key in hand.
+    if blob[4:5] == struct.pack("B", _VERSION_STUDENT_KEY):
+        if key is None:
+            raise ValueError(
+                "This value is encrypted under a per-student key but none was "
+                "supplied — the call site needs core.student_keys.get_existing(). "
+                "If the student's key was destroyed, this data is intentionally "
+                "unrecoverable (crypto-shredded)."
+            )
+        return _aes_decrypt(blob, key, aad)
     return _aes_decrypt(blob, _DATA_KEY, aad)
 
 
-def encrypt_json(obj: dict | list, aad: Optional[bytes] = None) -> bytes:
+def encrypt_json(obj: dict | list, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> bytes:
     import json
-    return encrypt(json.dumps(obj, separators=(",", ":")).encode("utf-8"), aad)
+    return encrypt(json.dumps(obj, separators=(",", ":")).encode("utf-8"), aad, key)
 
 
-def decrypt_json(blob: bytes, aad: Optional[bytes] = None) -> dict | list:
+def decrypt_json(blob: bytes, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> dict | list:
     import json
-    return json.loads(decrypt(blob, aad).decode("utf-8"))
+    return json.loads(decrypt(blob, aad, key).decode("utf-8"))
 
 
 # ── MASTER_SECRET rotation ───────────────────────────────────────────────────

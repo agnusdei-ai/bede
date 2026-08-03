@@ -214,6 +214,7 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
 
     from core.database import MasteryProfile
     from core.encryption import decrypt_json, encrypt_json, student_aad
+    from core import student_keys
 
     row = None
     vector_is_cold_start = False
@@ -230,7 +231,11 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
             vector = new_vector()
             vector_is_cold_start = True
         else:
-            vector = decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"))
+            vector = decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"),
+                await student_keys.get_existing(db, student_name),
+            )
     except Exception as exc:
         log.warning("Language-exposure mastery load failed for %s, treating as cold-start: %s", student_name, exc)
         vector = new_vector()
@@ -247,7 +252,11 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
         return None
 
     try:
-        profile_enc = encrypt_json(updated_vector, student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"))
+        profile_enc = encrypt_json(
+            updated_vector,
+            student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"),
+            await student_keys.get_or_create(db, student_name),
+        )
         if row is None:
             db.add(MasteryProfile(
                 student_name=student_name,
@@ -274,6 +283,7 @@ async def get_language_summary(db, student_name: str) -> Optional[dict]:
 
     from core.database import MasteryProfile
     from core.encryption import decrypt_json, student_aad
+    from core import student_keys
 
     try:
         result = await db.execute(
@@ -285,7 +295,11 @@ async def get_language_summary(db, student_name: str) -> Optional[dict]:
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        vector = decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"))
+        vector = decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, "language_exposure"),
+                await student_keys.get_existing(db, student_name),
+            )
     except Exception as exc:
         log.warning("Language-exposure mastery summary load failed for %s: %s", student_name, exc)
         return None

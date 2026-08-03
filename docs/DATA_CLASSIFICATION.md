@@ -333,7 +333,7 @@ deliberately as they migrate:
 | Tier | Meaning | Key strategy | AAD binding | Deletion |
 |---|---|---|---|---|
 | **T0** | Key material | Never in the DB in plaintext; env/hardware only | N/A | Rotation, not deletion (`scripts/rotate_master_secret.py`) |
-| **T1** | Biometric / irreplaceable | Per-record key, wrapped by `DATA_KEY` | Required | Crypto-shred (destroy record key) |
+| **T1** | Biometric / irreplaceable | Per-student key, wrapped by `DATA_KEY` | Required | Crypto-shred (destroy student key) |
 | **T2** | Authentication secrets | Shared `DATA_KEY`, or one-way hash where never re-read | Required | Crypto-shred where per-student; hash destruction otherwise |
 | **T3** | Child session content / PII | Per-student key, wrapped by `DATA_KEY` | Required | Crypto-shred per student |
 | **T4** | Derived / internal operational | Shared `DATA_KEY` | Required | Ordinary row delete acceptable |
@@ -357,22 +357,43 @@ compared to transcripts.
 |---|---|---|---|---|
 | `encryption_config.data_key` | KEK-wrapped `DATA_KEY` | **T0** | Wrapped by KEK from `MASTER_SECRET` ✅ | Unchanged — already correct |
 | `encryption_config.device_salt` | PBKDF2 salt | **T0** | Plaintext (correct — a salt is not secret) ✅ | Unchanged |
-| `voice_profiles.profile_enc` | Speaker embedding | **T1** | Shared key, no AAD | Per-record key + AAD |
-| `parent_totp_config.secret_enc` | TOTP shared secret | **T2** | Shared key, no AAD | Shared key + AAD (must stay reversible — needed to compute codes) |
-| `parent_webauthn_credentials.credential_enc` | WebAuthn credential | **T2** | Shared key, no AAD | Shared key + AAD |
+| `voice_profiles.profile_enc` | Speaker embedding | **T1** | Per-student key + AAD ✅ | Reached, with one deviation: **per-student**, not per-record — see note below |
+| `parent_totp_config.secret_enc` | TOTP shared secret | **T2** | Shared key + AAD ✅ | Reached (stays reversible — needed to compute codes) |
+| `parent_webauthn_credentials.credential_enc` | WebAuthn credential | **T2** | Shared key + AAD ✅ | Reached |
 | `parent_credential_override` | Password hash + salt | **T2** | PBKDF2 one-way ✅ | Unchanged — one-way is strictly stronger than this app's reversible default |
 | `parent_recovery_*` | Recovery PIN / code | **T2** | PBKDF2 one-way ✅ | Unchanged |
-| `session_transcripts.transcript_enc` | Full session transcript | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `student_configs.config_enc` | Daily plan, grade, context | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `narration_assessments.assessment_enc` | Rubric scores | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `learner_profiles.profile_enc` | Synthesized learner read | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `lesson_bookmarks.bookmark_enc` | Bede-authored resume note | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `mastery_profiles.profile_enc` | Skill-mastery vector | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `diagnostic_evidence_log.delta_enc` | Probe deltas | **T3** | Shared key, no AAD | Per-student key + AAD |
-| `audit_log.event_enc` | Security event records | **T4** | Shared key, no AAD | Shared key + AAD. **Deliberately NOT per-student** — the audit log must survive a student's deletion, per `core/audit.py`'s own design note; crypto-shredding it per student would destroy the security record along with the data |
-| `learner_behavior_checks.count_enc` | Adaptation counter | **T4** | Shared key, no AAD | Shared key + AAD |
-| `api_usage_events` | Token counts | **T4** | Shared key, no AAD | Shared key + AAD |
-| `demo_*` (codes, notes, signals) | Pseudonymous demo state | **T4** | Shared key, no AAD | Shared key + AAD. Short TTL already does most of the work here |
+| `session_transcripts.transcript_enc` | Full session transcript | **T3** | Per-student key + AAD ✅ | Reached |
+| `student_configs.config_enc` | Daily plan, grade, context | **T3** | Per-student key + AAD ✅ | Reached |
+| `narration_assessments.assessment_enc` | Rubric scores | **T3** | Per-student key + AAD ✅ | Reached |
+| `learner_profiles.profile_enc` | Synthesized learner read | **T3** | Per-student key + AAD ✅ | Reached |
+| `lesson_bookmarks.bookmark_enc` | Bede-authored resume note | **T3** | Per-student key + AAD ✅ | Reached |
+| `mastery_profiles.profile_enc` | Skill-mastery vector | **T3** | Per-student key + AAD ✅ | Reached |
+| `diagnostic_evidence_log.delta_enc` | Probe deltas | **T3** | Per-student key + AAD ✅ | Reached |
+| `audit_log.event_enc` | Security event records | **T4** | Shared key + AAD ✅ | Reached. **Deliberately NOT per-student** — the audit log must survive a student's deletion, per `core/audit.py`'s own design note; crypto-shredding it per student would destroy the security record along with the data |
+| `learner_behavior_checks.count_enc` | Adaptation counter | **T4** | Per-student key + AAD ✅ | Exceeds the T4 target deliberately: the row is `student_name`-scoped and dies with the student, so keying it per student costs nothing and makes it shreddable too |
+| `api_usage_events` | Token counts | **T4** | No encrypted column (counts only) | Unchanged — nothing to bind |
+| `demo_*` (codes, notes, signals) | Pseudonymous demo state | **T4** | Shared key + AAD ✅ | Reached. Bound to the demo code/session token, not a student — these have no student identity to key on |
+
+### Deviation: per-student keys, not per-record
+
+T1 originally specified a *per-record* key. What shipped is one key per
+student, shared across all of that student's rows in every table. The
+reasoning, recorded here because the deviation is deliberate:
+
+* **Nothing asks for per-record shredding.** The erasure unit in the product
+  and in COPPA is the child, not an individual transcript. A per-record
+  scheme would buy a granularity no feature uses.
+* **A per-student shred cannot partially succeed.** It is a single row
+  delete. A per-table or per-record scheme can destroy six keys of eight and
+  leave two tables readable — a worse failure than either extreme, and one
+  that would present as successful deletion.
+* **Cost.** Per-record keys mean a wrap/unwrap and a key row per transcript,
+  on a Raspberry Pi. Per-student, the unwrap is once per student per cache
+  TTL (`core/student_keys.py`, 300 s).
+
+The property T1 actually needs — that a compromised biometric row cannot be
+recovered after erasure, and that voice data is not openable under the same
+key as everything else in the deployment — holds either way.
 
 ## AAD composition
 

@@ -28,6 +28,7 @@ from core.database import (
     NarrationAssessment,
     SessionTranscript,
     StudentConfig,
+    StudentKey,
     VoiceProfile,
 )
 from routers.pod import delete_student_config
@@ -61,7 +62,13 @@ _next_id = iter(range(1, 100_000))
 
 
 async def _seed_all_tables(db, student_name: str):
+    from core import student_keys
     from core.encryption import encrypt_json
+
+    # Give the student a data key too, so the shred is actually exercised
+    # rather than counted as a no-op: this is the row whose destruction is
+    # what makes the deletion reach backups and dead tuples.
+    await student_keys.get_or_create(db, student_name)
 
     now = datetime.now(timezone.utc)
     db.add(StudentConfig(student_name=student_name, config_enc=encrypt_json({"a": 1})))
@@ -105,6 +112,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),
         ("api_usage_events", ApiUsageEvent),
+        ("data_key_shredded", StudentKey),
     ):
         result = await db.execute(select(model).where(model.student_name == student_name))
         counts[label] = len(result.scalars().all())

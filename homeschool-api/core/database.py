@@ -117,6 +117,31 @@ class AuditLog(Base):
     event_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
 
+class StudentKey(Base):
+    """One random data key per student, wrapped under DATA_KEY.
+
+    Every encrypted column belonging to a student is encrypted under their
+    key rather than DATA_KEY directly, so destroying this single row
+    crypto-shreds all of their stored data at once — live rows, dead tuples
+    awaiting VACUUM, WAL segments, and every backup taken while the key
+    existed. See core/student_keys.py for the full reasoning, and
+    docs/DATA_CLASSIFICATION.md for how it fits the tier model.
+
+    Deliberately NOT cascaded by a foreign key: services/student_deletion.py
+    destroys the key explicitly in the same transaction as the row deletes,
+    so the ordering and the failure mode are visible in code rather than
+    implied by schema."""
+    __tablename__ = "student_keys"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    wrapped_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class VoiceProfile(Base):
     """One encrypted embedding row per enrolled student."""
     __tablename__ = "voice_profiles"

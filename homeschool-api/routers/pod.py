@@ -16,6 +16,7 @@ from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
 from core.deps import require_parent, require_real_user
+from core import student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from models.schemas import PodConfigsRequest, SessionConfig, VoiceNarrationPreferenceRequest
 from services.student_deletion import delete_all_student_data
@@ -77,7 +78,8 @@ async def save_pod_configs(
                 ),
             )
     for config in req.configs:
-        enc = encrypt_json(config.model_dump(), _config_aad(config.student_name))
+        _key = await student_keys.get_or_create(db, config.student_name)
+        enc = encrypt_json(config.model_dump(), _config_aad(config.student_name), _key)
         result = await db.execute(
             select(StudentConfig).where(StudentConfig.student_name == config.student_name)
         )
@@ -97,7 +99,14 @@ async def list_pod_configs(
     """Parent retrieves all stored student configs for the dashboard."""
     result = await db.execute(select(StudentConfig))
     rows = result.scalars().all()
-    return [SessionConfig(**decrypt_json(row.config_enc, _config_aad(row.student_name))) for row in rows]
+    return [
+        SessionConfig(**decrypt_json(
+            row.config_enc,
+            _config_aad(row.student_name),
+            await student_keys.get_existing(db, row.student_name),
+        ))
+        for row in rows
+    ]
 
 
 @router.get("/configs/{student_name}", response_model=SessionConfig)
@@ -116,7 +125,9 @@ async def get_student_config(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No configuration found for '{student_name}' — ask a parent to set up today's pod.",
         )
-    return SessionConfig(**decrypt_json(row.config_enc, _config_aad(student_name)))
+    return SessionConfig(**decrypt_json(
+        row.config_enc, _config_aad(student_name), await student_keys.get_existing(db, student_name)
+    ))
 
 
 @router.patch("/configs/{student_name}/voice-narration", status_code=204)
@@ -144,9 +155,12 @@ async def update_voice_narration_preference(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No configuration found for '{student_name}'",
         )
-    config = decrypt_json(row.config_enc, _config_aad(student_name))
+    _key = await student_keys.get_existing(db, student_name)
+    config = decrypt_json(row.config_enc, _config_aad(student_name), _key)
     config["voice_narration_enabled"] = req.voice_narration_enabled
-    row.config_enc = encrypt_json(config, _config_aad(student_name))
+    row.config_enc = encrypt_json(
+        config, _config_aad(student_name), _key or await student_keys.get_or_create(db, student_name)
+    )
     await db.commit()
 
 

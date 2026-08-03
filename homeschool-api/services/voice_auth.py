@@ -167,17 +167,27 @@ def _profile_aad(student_name: str) -> bytes:
 
 
 async def _get_profile(db: AsyncSession, student_name: str) -> Optional[dict]:
+    from core import student_keys
+
     result = await db.execute(
         select(VoiceProfile).where(VoiceProfile.student_name == student_name)
     )
     row = result.scalar_one_or_none()
     if row is None:
         return None
-    return decrypt_json(row.profile_enc, _profile_aad(student_name))  # type: ignore
+    # get_existing, never get_or_create: a read must not write, and must not
+    # resurrect a key row for a student who was just shredded. None is
+    # correct for a profile written before per-student keys existed — those
+    # are v1/v2 under DATA_KEY and open without one.
+    key = await student_keys.get_existing(db, student_name)
+    return decrypt_json(row.profile_enc, _profile_aad(student_name), key)  # type: ignore
 
 
 async def _save_profile(db: AsyncSession, student_name: str, profile: dict) -> None:
-    enc = encrypt_json(profile, _profile_aad(student_name))
+    from core import student_keys
+
+    key = await student_keys.get_or_create(db, student_name)
+    enc = encrypt_json(profile, _profile_aad(student_name), key)
     result = await db.execute(
         select(VoiceProfile).where(VoiceProfile.student_name == student_name)
     )

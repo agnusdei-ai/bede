@@ -111,6 +111,7 @@ async def process_evidence(
     from core.config import settings
     from core.database import DiagnosticEvidenceLog, MasteryProfile
     from core.encryption import decrypt_json, encrypt_json, student_aad
+    from core import student_keys
     from services.diagnostic.mastery import calibration_weight_for
 
     log = logging.getLogger(__name__)
@@ -129,7 +130,11 @@ async def process_evidence(
             vector = new_vector(grade_band)
             vector_is_cold_start = True
         else:
-            vector = decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, subject_area))
+            vector = decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, subject_area),
+                await student_keys.get_existing(db, student_name),
+            )
     except Exception as exc:
         log.warning(
             "Mastery profile load failed for %s/%s, treating as cold-start: %s",
@@ -153,7 +158,11 @@ async def process_evidence(
         return updated_vector
 
     try:
-        profile_enc = encrypt_json(updated_vector, student_aad("mastery_profiles", "profile_enc", student_name, subject_area))
+        profile_enc = encrypt_json(
+            updated_vector,
+            student_aad("mastery_profiles", "profile_enc", student_name, subject_area),
+            await student_keys.get_or_create(db, student_name),
+        )
         if row is None:
             db.add(MasteryProfile(
                 student_name=student_name,
@@ -183,7 +192,11 @@ async def process_evidence(
             db.add(DiagnosticEvidenceLog(
                 student_name=student_name,
                 subject_area=subject_area,
-                delta_enc=encrypt_json(delta_payload, student_aad("diagnostic_evidence_log", "delta_enc", student_name)),
+                delta_enc=encrypt_json(
+                    delta_payload,
+                    student_aad("diagnostic_evidence_log", "delta_enc", student_name),
+                    await student_keys.get_or_create(db, student_name),
+                ),
             ))
 
         await db.commit()
@@ -222,6 +235,7 @@ async def get_mastery_summary(db, student_name: str, subject_area: str = "mathem
 
     from core.database import MasteryProfile
     from core.encryption import decrypt_json, student_aad
+    from core import student_keys
 
     log = logging.getLogger(__name__)
 
@@ -235,7 +249,11 @@ async def get_mastery_summary(db, student_name: str, subject_area: str = "mathem
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        vector = decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name, subject_area))
+        vector = decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, subject_area),
+                await student_keys.get_existing(db, student_name),
+            )
     except Exception as exc:
         log.warning("Mastery summary load failed for %s/%s: %s", student_name, subject_area, exc)
         return None
@@ -272,6 +290,7 @@ async def get_session_growth(
 
     from core.database import DiagnosticEvidenceLog
     from core.encryption import decrypt_json, student_aad
+    from core import student_keys
     from services.diagnostic.skill_map import get_skill
 
     log = logging.getLogger(__name__)
@@ -295,7 +314,11 @@ async def get_session_growth(
     after: dict[str, float] = {}
     for row in rows:
         try:
-            deltas = decrypt_json(row.delta_enc, student_aad("diagnostic_evidence_log", "delta_enc", student_name))
+            deltas = decrypt_json(
+                row.delta_enc,
+                student_aad("diagnostic_evidence_log", "delta_enc", student_name),
+                await student_keys.get_existing(db, student_name),
+            )
         except Exception as exc:
             log.warning("Session growth delta decrypt failed for %s/%s: %s", student_name, subject_area, exc)
             continue

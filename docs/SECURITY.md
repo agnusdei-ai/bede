@@ -153,6 +153,49 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Deletion was logical, not cryptographic, closed 2026-08-03.**
+  `services/student_deletion.py` issued real SQL `DELETE`s across every
+  student-scoped table, which was correct as far as the live table went and
+  no further. Postgres keeps dead tuples until VACUUM, the delete is written
+  to WAL, and every `make db-backup` dump taken beforehand still contained
+  the rows — all of it decryptable indefinitely under a global `DATA_KEY`
+  that by design never changes (even `MASTER_SECRET` rotation deliberately
+  preserves it). So README.md's and `docs/DATA_RETENTION.md`'s "permanently
+  delete" was true of the live table and false of the disk, and the standard
+  way an auditor tests an erasure claim — restore a backup and look — would
+  have shown the record intact.
+
+  `core/student_keys.py` gives each student one random 32-byte key, wrapped
+  under `DATA_KEY` and bound to their name as AAD (so a wrapped key cannot
+  be moved between students by anyone with DB write access). Every
+  student-scoped encrypted column is now encrypted under that key, marked
+  by envelope version 3. Deletion destroys the key row *in the same
+  transaction* as the row deletes, so the shred cannot half-succeed and
+  leave the key destroyed but the rows present, or the reverse. Afterwards
+  every copy of that student's ciphertext — live rows, dead tuples, WAL
+  segments, old backups — is permanently unopenable, including by this
+  deployment itself.
+
+  Two deliberate limits worth stating rather than burying. **The audit log
+  is not per-student** and survives a deletion by design (`core/audit.py`);
+  crypto-shredding it per student would destroy the security record along
+  with the data. And **rows written before this change stay readable** —
+  the envelope dispatches on its own version byte, and rows upgrade
+  themselves on next write. A migration that got this wrong would make a
+  family's data permanently unreadable, which is strictly worse than the
+  gap staying open longer.
+
+- **Encrypted columns had no AAD binding, closed 2026-08-03.**
+  `core/encryption.py`'s AES-GCM calls carried no associated data, so a
+  ciphertext blob proved only "encrypted by whoever holds `DATA_KEY`" —
+  making it portable between rows, columns, and tables. Anyone with
+  database write access could swap one student's `profile_enc` into
+  another's row, or a bookmark between subjects, and it would decrypt
+  cleanly. Every T1–T4 column now binds `table/column/row_key`, so a blob
+  is only valid in the row it was written for; moving it fails
+  authentication instead of decrypting. See `docs/DATA_CLASSIFICATION.md`
+  for the per-entity mapping.
+
 - **Child PIN had no brute-force defense, closed 2026-08-02.** The only
   barrier was `core/middleware.py`'s per-IP auth bucket (10/min), which
   keys on IP alone — trivially defeated on a LAN, and via IPv6 essentially

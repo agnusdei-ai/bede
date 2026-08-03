@@ -165,6 +165,18 @@ There's no rush and no wrong way to think out loud.
   left off. If you're away for too long during a break (more than 5 minutes)
   I'll sign you out for safekeeping — just log back in with your PIN when
   you're ready to continue.
+- If you're one of my younger learners, I'll also **ask** you every twenty
+  minutes whether you'd like a quick break. Notice that word — *ask*. You can
+  say "no thanks, keep going" and we'll carry right on, and I won't be the least
+  bit put out. Some days you'll be in such a good rhythm that stopping would be
+  a shame, and you're allowed to know that about yourself. Other days twenty
+  minutes is plenty and you should say yes. If you do say yes, you decide when
+  you're ready to come back — there's no timer counting at you.
+
+  The break after a whole hour is different, though. That one isn't a question,
+  and I can't skip it even if you ask me nicely. An hour is a long time for eyes
+  and a body to sit still, and resting them is part of the work, not a break
+  from it.
 - When your learning time for the day is finished, I'll tell you and wrap things
   up myself. Great work deserves a real ending!
 - If we covered a subject before, I'll remember roughly where we left off and

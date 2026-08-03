@@ -63,6 +63,7 @@ GUARDS = {
     ('GET', '/admin/agentic-loop-stats'): 'require_parent',
     ('GET', '/admin/ai-provider'): 'require_parent',
     ('POST', '/admin/ai-provider'): 'require_elevated_parent',
+    ('POST', '/admin/ai-provider/secondary'): 'require_elevated_parent',
     ('GET', '/admin/audit'): 'require_elevated_parent',
     ('GET', '/admin/license'): 'require_parent',
     ('POST', '/admin/license'): 'require_elevated_parent',
@@ -220,8 +221,17 @@ def test_every_endpoint_carries_the_guard_the_table_says_it_does():
     }
 
     drifted = {k: (GUARDS.get(k, "<not in table>"), v) for k, v in actual.items() if GUARDS.get(k) != v}
-    assert not drifted, "guard chain changed for:\n" + "\n".join(
-        f"  {m} {p}: expected {exp!r}, found {got!r}" for (m, p), (exp, got) in sorted(drifted.items())
+    assert not drifted, (
+        "guard chain changed for:\n"
+        + "\n".join(
+            f"  {m} {p}: expected {exp!r}, found {got!r}"
+            for (m, p), (exp, got) in sorted(drifted.items())
+        )
+        + "\n\nIf you added an endpoint, add its row to GUARDS above — and decide "
+        "its guard deliberately rather than copying the neighbour, which is the "
+        "whole point of this failing. If you changed an existing endpoint's guard "
+        "on purpose, update its row. This test is brittle by design: a protection "
+        "boundary should not move without someone editing this table."
     )
 
 

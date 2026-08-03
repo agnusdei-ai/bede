@@ -172,6 +172,7 @@ GUARDED = [
     ("GET",    "/admin/audit"),
     ("POST",   "/admin/license"),
     ("POST",   "/admin/ai-provider"),
+    ("POST",   "/admin/ai-provider/secondary"),
     ("DELETE", "/pod/configs/Emma"),
     ("POST",   "/mfa/webauthn/register/options"),
     ("POST",   "/mfa/webauthn/register/verify"),

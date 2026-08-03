@@ -230,7 +230,14 @@ async def set_ai_provider_secondary(
     body: SetAIProviderSecondaryRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    # Elevation-guarded to match POST /ai-provider above (P8). Choosing the
+    # failover adapter decides which vendor receives a child's conversation
+    # the moment the primary errors, which is the same class of decision as
+    # choosing the primary. Leaving only this one at require_parent would be
+    # an asymmetry worth exploiting: someone who cannot repoint the primary
+    # repoints the failover instead and waits for — or induces — a primary
+    # failure.
+    _: dict = Depends(require_elevated_parent),
 ):
     """Choose which configured adapter is tried first if primary errors —
     live, no restart, same mechanism as POST /admin/ai-provider. Meaningful

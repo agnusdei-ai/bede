@@ -549,14 +549,20 @@ p.lede {
   padding: 0.3rem 0.85rem;
 }
 
-/* Left-aligned body copy, matching every other prose block on the site
-   (.fineprint, .faq details p's own container, the demo's own Privacy
-   Notice). These three were the last holdout on justify + hyphenation —
-   real-world convention (Khan Academy, most reading-focused sites) reads
-   left-aligned, ragged-right prose more easily than justified text, which
-   produces uneven inter-word gaps at these narrow (40-70ch) column widths
-   regardless of hyphenation. See the readability pass that already
-   reverted every other block from justify to left for the same reason. */
+/* Body copy — deliberately left-aligned (ragged-right), not justified.
+   A prior pass tried text-align: justify with hyphens: auto to avoid the
+   classic huge-gap problem, and hyphenation did stop the worst cases —
+   but justify still varies inter-word spacing line to line to hit a
+   flush right edge, which is inherent to how browsers justify text, not
+   something hyphenation fully removes. Rendering these paragraphs at
+   several widths (768px down to 480px) showed it plainly: some lines
+   sit at normal spacing, others visibly wider, an unevenness a careful
+   reader notices even without a single dramatic gap. Left-aligned text
+   keeps word-spacing constant on every line, which is why it's the
+   standard choice on Khan Academy and virtually every other site with
+   real body copy — justification is mainly a print convention, built for
+   a fixed page width and a typesetting engine far more sophisticated
+   than a browser's. */
 .limit,
 .guarantee p,
 .faq details p {

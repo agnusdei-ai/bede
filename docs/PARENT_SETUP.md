@@ -1158,3 +1158,44 @@ and what makes them more experienced is what they've actually done.
 
 Parent-facing only. Your children never see any of it, their own or each
 other's.
+
+
+### How the work is scored
+
+Each completed piece of work can also carry three scores. They describe
+**the work**, never your child:
+
+| | What it means |
+|---|---|
+| **Quality** | adequate · proficient · exemplary — how well the work itself was done |
+| **Distinction** | expected · noteworthy · original — did it go *beyond* the task as set |
+| **Speed** | deliberate · steady · brisk — the observed pace, purely descriptive |
+
+**Distinction is the one to watch.** Correctness can't tell apart a child
+who answered the question from a child who answered it and then asked a
+better one — and it's the second that shows initiative. That's why it's a
+separate dimension rather than part of quality.
+
+Four things Bede will not do:
+
+- **It won't score what it didn't see.** Any dimension it didn't genuinely
+  observe is left blank. A missing score stays visibly different from a low
+  one, so a blank never quietly counts against your child.
+- **It won't hurry your child, time them, or mention pace to them.** A
+  child who feels raced does worse work and enjoys it less. Pace is
+  something Bede notices, never something it asks for — and *deliberate* is
+  a description, not a deficiency. No scale here has a "poor" or a "slow"
+  at the bottom.
+- **It won't score your child, only their work.** "That narration was
+  exemplary" is a judgment about a piece of work. "That child is
+  exemplary" is not something Bede has any standing to say, and it won't.
+- **It won't average anything.** You get counts — how many pieces of work
+  were exemplary, how many went beyond the task — never a mean, a grade or
+  a percentage, because those turn a record of work back into a verdict.
+
+**The initiative read.** From those counts, the ledger surfaces where a
+student's work shows the entrepreneurial pattern: done well, taken further
+than it was set, done efficiently — and in which skills. There is
+deliberately no badge, threshold, or "is/isn't" verdict attached. Whether
+your child is a learning entrepreneur is not a call Bede is competent to
+make; what it can do is count the evidence so you can see it yourself.

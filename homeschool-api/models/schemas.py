@@ -813,14 +813,49 @@ class AgenticLoopStats(BaseModel):
     extra_round_estimated_cost_usd: float
 
 
-class RecordSkillEvidenceInput(BaseModel):
+# How a completed piece of work is scored. Three dimensions, all optional
+# and all about the WORK PRODUCT rather than about the child — that
+# distinction is the whole design (see services/diagnostic/activity.py).
+# Scoring what a student produced is ordinary assessment; scoring what a
+# student IS would be a claim this app has no standing to make.
+#
+# Every scale's floor is a real, respectable outcome. There is no "poor"
+# quality and no "slow" pace, because an attempt that failed is never
+# logged as completed work in the first place, and because a child who
+# works deliberately is not thereby working worse.
+WORK_QUALITY_LEVELS = ("adequate", "proficient", "exemplary")
+
+# Did this piece of work go beyond the task as set? This is the dimension
+# that actually surfaces initiative — a student who answered the question
+# and one who answered it and then asked a better one have produced
+# different work, and only this field can tell them apart.
+WORK_DISTINCTION_LEVELS = ("expected", "noteworthy", "original")
+
+# Observed pace. Deliberately non-pejorative at both ends: "deliberate" is
+# a description, not a deficiency, and a child is never shown any of this.
+WORK_SPEED_LEVELS = ("deliberate", "steady", "brisk")
+
+
+class WorkScoreFields(BaseModel):
+    """
+    The three optional scoring dimensions shared by every silent evidence
+    tool. Optional throughout: Bede fills them when it genuinely observed
+    enough to judge, and omits them otherwise. A missing score is honest;
+    an invented one is not.
+    """
+    quality:     Optional[Literal["adequate", "proficient", "exemplary"]] = None
+    distinction: Optional[Literal["expected", "noteworthy", "original"]] = None
+    speed:       Optional[Literal["deliberate", "steady", "brisk"]] = None
+
+
+class RecordSkillEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_skill_evidence tool's
     input (Phase 3). Never leaves the server; not part of any response body."""
     probe_id:   str = Field(..., max_length=80)
     outcome:    Literal["correct", "partial", "incorrect", "hint_dependent"]
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
-class RecordLiteracyEvidenceInput(BaseModel):
+class RecordLiteracyEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_literacy_evidence tool's
     input — see services/diagnostic/literacy.py (reading and spelling,
     grades 3-8). Never leaves the server; not part of any response body.
@@ -833,7 +868,7 @@ class RecordLiteracyEvidenceInput(BaseModel):
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
 
 
-class RecordPhonicsEvidenceInput(BaseModel):
+class RecordPhonicsEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_phonics_evidence tool's
     input — see services/diagnostic/phonics.py. Never leaves the server;
     not part of any response body. domain isn't validated against
@@ -844,7 +879,7 @@ class RecordPhonicsEvidenceInput(BaseModel):
     domain:  str = Field(..., max_length=40)
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
 
-class RecordLanguageEvidenceInput(BaseModel):
+class RecordLanguageEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_language_evidence tool's
     input — see services/diagnostic/language_exposure.py. Never leaves the
     server; not part of any response body. language isn't validated against

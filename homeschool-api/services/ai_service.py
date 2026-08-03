@@ -533,6 +533,31 @@ TUTOR_TOOLS = [
                     "type": "number", "minimum": 0, "maximum": 1,
                     "description": "Your certainty this exchange was genuinely diagnostic (default 1.0)",
                 },
+                "quality": {
+                    "type": "string",
+                    "enum": ["adequate", "proficient", "exemplary"],
+                    "description": (
+                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
+                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
+                    ),
+                },
+                "distinction": {
+                    "type": "string",
+                    "enum": ["expected", "noteworthy", "original"],
+                    "description": (
+                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
+                        "asked; noteworthy=went further unprompted; original=brought an idea, "
+                        "question or method of their own. This is the field that shows initiative."
+                    ),
+                },
+                "speed": {
+                    "type": "string",
+                    "enum": ["deliberate", "steady", "brisk"],
+                    "description": (
+                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
+                        "than 'brisk'. Never mention pace to the child and never hurry them."
+                    ),
+                },
             },
             "required": ["probe_id", "outcome"],
         },
@@ -561,6 +586,31 @@ TUTOR_TOOLS = [
                     "description": (
                         "How the child performed: correct=solid unaided, partial=some grasp, "
                         "incorrect=missed it, hint_dependent=only after you helped"
+                    ),
+                },
+                "quality": {
+                    "type": "string",
+                    "enum": ["adequate", "proficient", "exemplary"],
+                    "description": (
+                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
+                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
+                    ),
+                },
+                "distinction": {
+                    "type": "string",
+                    "enum": ["expected", "noteworthy", "original"],
+                    "description": (
+                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
+                        "asked; noteworthy=went further unprompted; original=brought an idea, "
+                        "question or method of their own. This is the field that shows initiative."
+                    ),
+                },
+                "speed": {
+                    "type": "string",
+                    "enum": ["deliberate", "steady", "brisk"],
+                    "description": (
+                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
+                        "than 'brisk'. Never mention pace to the child and never hurry them."
                     ),
                 },
             },
@@ -592,6 +642,31 @@ TUTOR_TOOLS = [
                         "incorrect=missed it, hint_dependent=only after you helped"
                     ),
                 },
+                "quality": {
+                    "type": "string",
+                    "enum": ["adequate", "proficient", "exemplary"],
+                    "description": (
+                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
+                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
+                    ),
+                },
+                "distinction": {
+                    "type": "string",
+                    "enum": ["expected", "noteworthy", "original"],
+                    "description": (
+                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
+                        "asked; noteworthy=went further unprompted; original=brought an idea, "
+                        "question or method of their own. This is the field that shows initiative."
+                    ),
+                },
+                "speed": {
+                    "type": "string",
+                    "enum": ["deliberate", "steady", "brisk"],
+                    "description": (
+                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
+                        "than 'brisk'. Never mention pace to the child and never hurry them."
+                    ),
+                },
             },
             "required": ["domain", "outcome"],
         },
@@ -621,6 +696,31 @@ TUTOR_TOOLS = [
                     "description": (
                         "How the child recalled it: correct=remembered unaided, partial=some grasp, "
                         "incorrect=missed it, hint_dependent=only after you helped"
+                    ),
+                },
+                "quality": {
+                    "type": "string",
+                    "enum": ["adequate", "proficient", "exemplary"],
+                    "description": (
+                        "OPTIONAL. How well the WORK ITSELF was done — not how able the child is. "
+                        "Omit unless you genuinely saw enough to judge; a missing score is honest."
+                    ),
+                },
+                "distinction": {
+                    "type": "string",
+                    "enum": ["expected", "noteworthy", "original"],
+                    "description": (
+                        "OPTIONAL. Did the work go BEYOND the task as set? expected=did what was "
+                        "asked; noteworthy=went further unprompted; original=brought an idea, "
+                        "question or method of their own. This is the field that shows initiative."
+                    ),
+                },
+                "speed": {
+                    "type": "string",
+                    "enum": ["deliberate", "steady", "brisk"],
+                    "description": (
+                        "OPTIONAL. Observed pace. Purely descriptive — 'deliberate' is not worse "
+                        "than 'brisk'. Never mention pace to the child and never hurry them."
                     ),
                 },
             },
@@ -2524,6 +2624,7 @@ async def _build_subject_prompt(
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
     phonics_note = _phonics_checkin_note(config, subject)
+    work_scoring_note = _WORK_SCORING_NOTE
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
@@ -2532,7 +2633,7 @@ async def _build_subject_prompt(
     companion_note = _classical_language_companion_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2978,6 +3079,7 @@ async def _record_work_done(
     subject_area: str,
     skill_id: str,
     outcome: str,
+    ev=None,
 ) -> None:
     """
     Append one row to the work ledger (services/diagnostic/activity.py).
@@ -3011,7 +3113,12 @@ async def _record_work_done(
         elif subject_area == "language_exposure":
             label = _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
 
-        await record_activity(db, student_name, subject_area, skill_id, label, outcome)
+        await record_activity(
+            db, student_name, subject_area, skill_id, label, outcome,
+            quality=getattr(ev, "quality", None),
+            distinction=getattr(ev, "distinction", None),
+            speed=getattr(ev, "speed", None),
+        )
     except Exception as exc:
         log.warning("Work-ledger write failed for %s/%s: %s", student_name, skill_id, exc)
 
@@ -3057,7 +3164,7 @@ async def _record_skill_evidence(
             # wanted. See services/diagnostic/activity.py.
             await _record_work_done(
                 db, config.student_name, "mathematics",
-                ev.probe_id.removeprefix("probe."), ev.outcome,
+                ev.probe_id.removeprefix("probe."), ev.outcome, ev,
             )
     except Exception as exc:
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
@@ -3070,6 +3177,34 @@ async def _record_skill_evidence(
 # same child's decoding evidence would produce two disagreeing pictures.
 _LITERACY_CHECKIN_SUBJECTS = (Subject.language_arts, Subject.living_books)
 _LITERACY_STAGES = (GradeStage.core_mastery, GradeStage.independent)
+
+
+_WORK_SCORING_NOTE = """
+
+<scoring_the_work>
+Whenever you record evidence with one of the silent recording tools, you may also score the WORK —
+optionally, and only when you actually saw enough to judge. Three separate things:
+  - quality: how well the work itself was done (adequate / proficient / exemplary).
+  - distinction: whether it went BEYOND the task as set (expected / noteworthy / original). A child
+    who answered the question and a child who answered it and then asked a better one have produced
+    different work; this is the only field that can tell them apart, and it is the one a parent
+    looking for initiative actually reads.
+  - speed: the observed pace (deliberate / steady / brisk). Purely descriptive.
+
+Rules, and they matter more than the scores:
+- You are scoring the WORK, never the child. "This narration was exemplary" is a judgment you are
+  competent to make. "This child is exemplary" is not, and you must never record or imply it.
+- Omit any dimension you did not genuinely observe. A missing score is honest and useful; a guessed
+  one quietly corrupts the parent's whole picture. Never fill all three out of a sense of tidiness.
+- NEVER hurry a child, time them, mention pace, or let speed enter your voice in any way. A child
+  who works deliberately is not working worse, and a child who feels raced will produce worse work
+  and enjoy it less. Pace is something you notice, never something you ask for.
+- Never tell the child any of this is happening, and never use these words with them. Praise the
+  specific thing they did well, as you always would.
+- `original` is rare and should stay rare. Reserve it for a child bringing a genuine idea, question,
+  or method of their own — not for enthusiasm, not for a long answer, and not for agreeing with you
+  eagerly.
+</scoring_the_work>"""
 
 
 def _literacy_checkin_note(config: SessionConfig, subject: Subject) -> str:
@@ -3141,7 +3276,7 @@ async def _record_literacy_evidence(
 
         ev = RecordLiteracyEvidenceInput(**tool_input)  # validate/clamp
         await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
-        await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome)
+        await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3173,7 +3308,7 @@ async def _record_phonics_evidence(
 
         ev = RecordPhonicsEvidenceInput(**tool_input)  # validate/clamp
         await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
-        await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome)
+        await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3225,7 +3360,7 @@ async def _record_language_evidence(
         if own_language and ev.language != own_language:
             return
         await _process_language(db, config.student_name, ev.language, ev.outcome)
-        await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome)
+        await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
 

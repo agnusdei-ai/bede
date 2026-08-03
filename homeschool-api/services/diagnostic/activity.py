@@ -40,6 +40,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from models.schemas import (
+    WORK_DISTINCTION_LEVELS,
+    WORK_QUALITY_LEVELS,
+    WORK_SPEED_LEVELS,
+)
+
 log = logging.getLogger(__name__)
 
 # Factual, not evaluative. Records how the work went, never how able the
@@ -70,6 +76,9 @@ async def record_activity(
     skill_id: str,
     label: str,
     outcome: str,
+    quality: Optional[str] = None,
+    distinction: Optional[str] = None,
+    speed: Optional[str] = None,
 ) -> bool:
     """
     Append one completed-activity row. Returns True if a row was written.
@@ -97,6 +106,15 @@ async def record_activity(
                 "label": label,
                 "assistance": assistance,
                 "subject_area": subject_area,
+                # Scores of the WORK. Stored inside the encrypted blob
+                # rather than as columns so adding a dimension later needs
+                # no schema change — this codebase has no ALTER TABLE path
+                # (see core/database.py). Absent when Bede didn't observe
+                # enough to judge, which is an honest state and must stay
+                # distinguishable from a low score.
+                "quality": quality if quality in WORK_QUALITY_LEVELS else None,
+                "distinction": distinction if distinction in WORK_DISTINCTION_LEVELS else None,
+                "speed": speed if speed in WORK_SPEED_LEVELS else None,
             }),
         ))
         await db.commit()
@@ -154,12 +172,31 @@ async def summarize(
             "unaided": 0,
             "with_a_hint": 0,
             "with_help": 0,
+            "scored": 0,
+            "quality": {level: 0 for level in WORK_QUALITY_LEVELS},
+            "distinction": {level: 0 for level in WORK_DISTINCTION_LEVELS},
+            "speed": {level: 0 for level in WORK_SPEED_LEVELS},
             "last_worked": None,
         })
         entry["completed"] += 1
         assistance = detail.get("assistance")
         if assistance in ASSISTANCE_LEVELS:
             entry[assistance] += 1
+        # Distributions, never an average. A mean over an ordinal scale
+        # would invent a precision the scale doesn't carry and would read
+        # as a grade for the child rather than a picture of their work.
+        scored_here = False
+        for dimension, levels in (
+            ("quality", WORK_QUALITY_LEVELS),
+            ("distinction", WORK_DISTINCTION_LEVELS),
+            ("speed", WORK_SPEED_LEVELS),
+        ):
+            value = detail.get(dimension)
+            if value in levels:
+                entry[dimension][value] += 1
+                scored_here = True
+        if scored_here:
+            entry["scored"] += 1
         stamp = row.completed_at.replace(microsecond=0).isoformat()
         if entry["last_worked"] is None or stamp > entry["last_worked"]:
             entry["last_worked"] = stamp
@@ -170,6 +207,59 @@ async def summarize(
         "since_days": since_days,
         "total": sum(e["completed"] for e in skills),
         "skills": skills,
+    }
+
+
+def initiative_signal(summary: dict) -> dict:
+    """
+    Where a student's WORK shows the entrepreneurial pattern: done well,
+    taken further than it was set, and done efficiently.
+
+    WHAT THIS IS AND ISN'T. It reports three counts over completed work —
+    how often it was exemplary, how often it went beyond the task as set,
+    and how often it moved briskly. It does NOT rate the child as
+    entrepreneurial, assign them a type, or produce a single number
+    standing for their character. A learning entrepreneur is not a category
+    Bede is competent to place a child in; initiative shown in a term's
+    work is something a parent can see for themselves once the work is
+    counted, and then decide what it means.
+
+    `beyond_the_task` is the load-bearing one. Correctness alone cannot
+    distinguish a student who answered the question from one who answered
+    it and then asked a better one, and it is the second that a parent
+    looking for initiative actually wants to find. That is exactly why
+    `distinction` had to be its own dimension rather than folded into
+    quality.
+
+    Deliberately no threshold, badge, or "is/isn't" verdict. Counts and the
+    skills they occurred in, so the parent reads the evidence rather than
+    a label Bede assigned.
+    """
+    exemplary = beyond = brisk = 0
+    standout_skills: list[dict] = []
+    for entry in summary.get("skills", []):
+        e = entry["quality"].get("exemplary", 0)
+        b = entry["distinction"].get("noteworthy", 0) + entry["distinction"].get("original", 0)
+        k = entry["speed"].get("brisk", 0)
+        exemplary += e
+        beyond += b
+        brisk += k
+        if e or b:
+            standout_skills.append({
+                "skill_id": entry["skill_id"],
+                "label": entry["label"],
+                "exemplary": e,
+                "beyond_the_task": b,
+            })
+
+    standout_skills.sort(key=lambda s: (-(s["beyond_the_task"] + s["exemplary"]), s["label"]))
+    return {
+        "student_name": summary.get("student_name"),
+        "scored_activities": sum(e["scored"] for e in summary.get("skills", [])),
+        "exemplary": exemplary,
+        "beyond_the_task": beyond,
+        "brisk": brisk,
+        "standout_skills": standout_skills[:5],
     }
 
 

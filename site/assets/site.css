@@ -760,12 +760,27 @@ p.lede {
 }
 
 footer {
-  padding: 1.5rem;
+  padding: 2.25rem 1.5rem 2rem;
   font-size: 0.8rem;
   color: #9a968c;
   border-top: 1px solid var(--vellum-deep);
   width: 100%;
   text-align: center;
+}
+
+/* Two deliberate rows — a link line, then copyright — rather than the
+   old single wrapped paragraph broken by a <br>, whose only vertical
+   rhythm was that tag's own line-height. A link row can wrap to two
+   lines on a narrow phone width, so its own line-height (not a margin
+   sized for one line) is what keeps that wrap readable; the gap down to
+   the copyright line is a real margin instead. */
+.footer-links {
+  margin-bottom: 0.85rem;
+  line-height: 1.8;
+}
+
+.footer-copyright {
+  margin: 0;
 }
 
 .beta-banner {
@@ -816,8 +831,6 @@ footer a {
 }
 
 footer a:hover { color: var(--ink); }
-
-footer br { line-height: 2.4; }
 
 /* ── feedback/index.html ─────────────────────────────────────────────────
    The marketing site is static — no backend, and the product's own

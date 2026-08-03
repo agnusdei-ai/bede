@@ -372,8 +372,12 @@ def greek_note(
     latin_catalog.latin_note, plus the alphabet work Greek needs and Latin
     does not.
     """
+    # Resolve once here; everything below (the letter slice, the stage
+    # method, the vocabulary, the caution gate) reads the resolved value.
+    # term_for_week is then called with grade=None so it doesn't redo the
+    # same lookup on the way to the same answer.
     stage = grade_to_stage(grade) if grade else stage
-    term = term_for_week(grade, stage, week_salt, today)
+    term = term_for_week(None, stage, week_salt, today)
     if not term:
         return ""
 

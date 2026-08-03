@@ -168,7 +168,8 @@ def test_block_names_orthodox_families_in_scope(stage):
 def test_block_forbids_correcting_a_childs_own_pronunciation(stage):
     note = greek_note(None, stage).lower()
     assert "erasmian" in note
-    assert "do\nnot correct them" in note or "not correct them" in note
+    # Wrapped across a line in the block, so match on the phrase alone.
+    assert "not correct them" in note
 
 
 # ── Shared guarantees, same as Latin's ───────────────────────────────────

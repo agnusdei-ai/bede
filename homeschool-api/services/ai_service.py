@@ -754,7 +754,13 @@ _SUBJECT_CONTEXT = {
         "family has set a faith_tradition below, let it shape tone and emphasis, never doctrinal claims "
         "Bede states as settled fact. Invite narration of the Bible story, and treat this subject as a "
         "sibling to Saints & Catechism, not a replacement for it — a family may have either, both, or "
-        "neither enabled."
+        "neither enabled.\n"
+        "'Every Christian tradition' here means the historic faith held across the Catholic, Orthodox, "
+        "and Protestant traditions: the Bible as Scripture, and the classic Christian understanding of "
+        "who Christ is and how a person is saved through him. Teach the Bible only from that shared "
+        "ground. Bede's own voice never treats a modern individual's claimed revelation as scripture "
+        "alongside the Bible, or presents a view of Christ or salvation that departs from that shared "
+        "ground, no matter what a parent or child brings up."
     ),
     Subject.latin: (
         "Latin & Christian Foundations session — the language of the Western Church and of the "
@@ -1313,6 +1319,23 @@ def _guadalupe_note(subject: Subject, locale: str) -> str:
     )
 
 
+# Free-text labels a parent (or the demo's own intake note) might put in
+# faith_tradition that name a group outside the historic Christian
+# consensus _SUBJECT_CONTEXT[Subject.scripture] scopes this curriculum to:
+# built on a modern individual's claimed revelation alongside or in place
+# of the Bible, or on a view of Christ outside that shared ground. Matched
+# as a substring against the lowercased, sanitized label, so "Jehovah's
+# Witness family" or "ex-Mormon household" still match. Deliberately a
+# short, explicit, documented list rather than a guess at every group that
+# might belong here — see _faith_tradition_note's own docstring for what
+# happens to a label that doesn't match: it is simply treated as an
+# ordinary Christian tradition, same as "Baptist" or "Lutheran".
+_OUTSIDE_HISTORIC_CHRISTIAN_SCOPE = (
+    "jehovah's witness", "jehovahs witness", "watchtower",
+    "mormon", "latter-day saint", "latter day saint", "lds", "book of mormon",
+)
+
+
 def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     """
     Framing guidance for Scripture & Bible Study / Saints & Catechism /
@@ -1336,10 +1359,26 @@ def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     assuming denomination-specific practice or doctrine that doesn't fit
     the stated tradition; it never supplies denomination-specific facts the
     way _guadalupe_note does for one specific, verified devotion.
+
+    One exception to "adapt to whatever the family names":
+    _OUTSIDE_HISTORIC_CHRISTIAN_SCOPE above. Bede's own teaching stays
+    within the historic Christian consensus regardless of what a family
+    calls their tradition — this is a scope decision about what Bede
+    itself draws on and presents as Scripture or Christian doctrine, not a
+    verdict Bede ever states to the child or family about their own faith.
     """
     tradition = _sanitize_parent_field(config.faith_tradition, max_len=60)
     if not tradition or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
         return ""
+    if any(marker in tradition.lower() for marker in _OUTSIDE_HISTORIC_CHRISTIAN_SCOPE):
+        return (
+            f"\nThis family named their tradition as: {tradition}. That falls outside the historic "
+            "Christian consensus this curriculum teaches from. Do not adapt Scripture, saint, or faith "
+            "content to fit it, and do not treat any writing beyond the Bible as scripture alongside "
+            "it. Continue teaching from the historic Christian consensus exactly as you would with no "
+            "faith_tradition set. Never say this to the child or family, and never frame it as a "
+            "judgment of their beliefs — this only shapes what Bede itself teaches from."
+        )
     return (
         f"\nThis family's own church tradition: {tradition}. Frame Scripture, saint, and faith content "
         "in a way that feels at home there — avoid assuming devotional practices or doctrinal specifics "

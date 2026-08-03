@@ -454,14 +454,36 @@ p.lede {
   margin-bottom: 0.15rem;
 }
 
-/* A row of small labels — used for the Bible translations Bede will
-   match its wording to. Shows breadth in a glance, without prose. */
+/* Rows of small labels — used for the Bible translations Bede will match
+   its wording to. Split into two labeled groups (Protestant / Catholic
+   editions) rather than one 11-item flex-wrap list: at a narrow width
+   that single row wraps unevenly (5/4/2 on a phone), and flexbox centers
+   each wrapped line independently, so it reads as a ragged staircase
+   rather than a tidy block. Two shorter, meaningfully-grouped rows wrap
+   far less often, and when they do it still reads as organized rather
+   than accidental. */
+.pill-group {
+  margin: 0 0 1.1rem;
+}
+
+.pill-group:last-child {
+  margin-bottom: 1.75rem;
+}
+
+.pill-label {
+  font-family: Georgia, serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8c887c;
+  margin: 0 0 0.5rem;
+}
+
 .pill-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
-  margin: 0 0 1.75rem;
 }
 
 .pill {

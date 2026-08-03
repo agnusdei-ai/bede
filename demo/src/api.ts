@@ -13,7 +13,7 @@ export type GradeStage = 'K-2' | '3-5' | '6-8'
 
 export const SUBJECTS = [
   'morning_time', 'living_books', 'mathematics', 'nature_study', 'history',
-  'language_arts', 'science', 'art_music', 'saints', 'scripture', 'latin', 'free_study',
+  'language_arts', 'science', 'art_music', 'saints', 'scripture', 'latin', 'greek', 'free_study',
 ] as const
 export type Subject = typeof SUBJECTS[number]
 
@@ -22,7 +22,7 @@ export const SUBJECT_LABELS: Record<Subject, string> = {
   nature_study: 'Nature Study', history: 'History & Geography', language_arts: 'Language Arts',
   science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism',
   scripture: 'Scripture & Bible Study', latin: 'Latin & Christian Foundations',
-  free_study: 'Free Study',
+  greek: 'Greek & New Testament Foundations', free_study: 'Free Study',
 }
 
 export interface ChatMessage {

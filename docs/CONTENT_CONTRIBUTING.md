@@ -159,7 +159,7 @@ derived automatically from that grade set (never hand-maintained
 separately) and used only as a fallback when a session has a stage but no
 specific grade.
 
-### 6. Latin — `services/latin_catalog.py`
+### 6. Classical languages — `services/latin_catalog.py`, `services/greek_catalog.py`
 
 Verbatim Vulgate anchors and the six foundational terms behind
 `Subject.latin` (Fides, Spes, Caritas, Sapientia, Veritas, Ora et Labora),
@@ -189,6 +189,33 @@ as poetry. Three rules specific to this file, all of them enforced by
   quote instead. Anything similar — a beloved phrase whose usual
   attribution doesn't survive checking — gets the same treatment rather
   than a smoothing-over.
+
+Greek adds three rules of its own, on top of all of the above:
+
+- **Never quote a passage where the manuscript traditions differ.** Greek
+  has a live and denominationally charged textual divide the Vulgate does
+  not: the Textus Receptus (behind the KJV/NKJV) against the modern
+  critical text (behind the ESV/NIV/NASB/CSB). A K-8 subject must not
+  adjudicate it. Every anchor in `greek_catalog.py` was chosen because both
+  traditions read it identically at the phrase quoted — verify that before
+  adding a new one, and if a passage has a real variant, pick a different
+  passage. Same instinct as Latin's psalm-numbering decision.
+- **Transliteration and English are mandatory, never optional.** Any Greek
+  a child sees must carry both. Latin needs no equivalent rule; its script
+  is already the child's own.
+- **Pronunciation is Erasmian and is labelled as a convention, not a
+  reconstruction.** Modern and Byzantine pronunciation are closer to the
+  living tradition, and an Orthodox or Greek-heritage child may well say
+  these words the way their own parish does. The instruction never to
+  correct them is load-bearing, not politeness.
+
+If a third classical language is ever added, note that the *wiring* is
+already generalized: `_CLASSICAL_LANGUAGE_SUBJECTS` in
+`services/ai_service.py` maps a `Subject` to its catalog note and its
+`language_exposure` id, and the prompt block, the Bible-translation gate,
+and the evidence gate all read from it. Adding a language should be a row
+in that mapping plus a catalog module — not another branch in three
+functions.
 
 ### 7. Subject/stage guidance — `services/ai_service.py`
 

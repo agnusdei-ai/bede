@@ -132,6 +132,7 @@ class Subject(str, Enum):
     saints = "saints"                   # Saints, catechism, virtue formation (Catholic-tradition module)
     scripture = "scripture"             # Bible heroes, memory verses, doctrine — denominationally-configurable
     latin = "latin"                     # Latin rooted in the shared Christian vocabulary — see services/latin_catalog.py
+    greek = "greek"                     # Koine Greek, the New Testament's own language — see services/greek_catalog.py
     free_study = "free_study"           # Child-directed exploration
 
 
@@ -151,6 +152,11 @@ SUBJECT_DURATIONS = {
     # is purely oral (see services/latin_catalog.py's _STAGE_METHOD), where
     # ten minutes is already generous.
     Subject.latin: 10,
+    # Same 10 minutes as Latin, and for the same reason — a few words or
+    # letters met properly, not a class period. A family running both gets
+    # 20 minutes of classical language a day, which is already more than
+    # most K-8 homeschool days give it.
+    Subject.greek: 10,
     Subject.free_study: 20,
 }
 
@@ -166,6 +172,7 @@ SUBJECT_LABELS = {
     Subject.saints: "Saints & Catechism",
     Subject.scripture: "Scripture & Bible Study",
     Subject.latin: "Latin & Christian Foundations",
+    Subject.greek: "Greek & New Testament Foundations",
     Subject.free_study: "Free Study",
 }
 

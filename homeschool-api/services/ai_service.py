@@ -13,6 +13,7 @@ from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
 from services.latin_catalog import latin_note as _latin_catalog_note
+from services.greek_catalog import greek_note as _greek_catalog_note
 from services.diagnostic.phonics import (
     DOMAINS as _PHONICS_DOMAINS,
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
@@ -734,6 +735,21 @@ _SUBJECT_CONTEXT = {
         "memory and never compose your own. `invite_handwriting` suits copying out a short Latin "
         "phrase by hand from Year 3 upward; at K-2 keep it entirely spoken."
     ),
+    Subject.greek: (
+        "Greek & New Testament Foundations session — Koine Greek, the language the New Testament "
+        "was actually written in, met through the vocabulary every Christian tradition shares: "
+        "πίστις, ἐλπίς, ἀγάπη (the same three virtues Latin calls Fides, Spes, Caritas — here in "
+        "the words Paul himself wrote), σοφία, ἀλήθεια, and λόγος. Unlike Latin, where the Vulgate "
+        "is a translation, this is the original text — say so; for many families that is the whole "
+        "reason to learn it. A real language subject taught the classical way, and at K-2 that "
+        "means the alphabet itself, which is concrete and delightful where abstract vocabulary "
+        "would not be. Always show the transliteration and the English beside any Greek. "
+        "Deliberately a sibling to BOTH faith modules and captive to neither — this subject serves "
+        "Protestant, Catholic, and Orthodox families alike (see <greek_foundations> below, which "
+        "governs). All Greek you quote must come from the block below — never recite Greek from "
+        "memory and never compose your own. `invite_handwriting` suits writing Greek letters by "
+        "hand from Year 3 upward; at K-2 tracing in the air or on paper is enough."
+    ),
     Subject.free_study: (
         "Free Study time. The child leads. Ask what they are curious about and follow their interest. "
         "Socratic questions still apply — help them think deeper about whatever they choose. Narration "
@@ -1330,15 +1346,14 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     separate concern.
     """
     translation = _sanitize_parent_field(config.bible_translation, max_len=40)
-    # Latin & Christian Foundations is the fourth gated subject: its Vulgate
-    # anchors are always quoted verbatim from services/latin_catalog.py, but
-    # the ENGLISH alongside them isn't — the catalog supplies Douay-Rheims
-    # (the English made from that same Latin, so the two line up word for
-    # word) and tells Bede to use the family's own translation's wording
-    # instead when they've set one. That instruction needs this note present
-    # to have anything to name.
-    if not translation or subject not in (
-        Subject.scripture, Subject.saints, Subject.morning_time, Subject.latin,
+    # The classical-language subjects are gated too: their Latin/Greek is
+    # always quoted verbatim from their own catalog, but the ENGLISH
+    # alongside it isn't, and each catalog tells Bede to use the family's
+    # own translation's wording when they've set one. That instruction
+    # needs this note present to have anything to name.
+    if not translation or (
+        subject not in (Subject.scripture, Subject.saints, Subject.morning_time)
+        and subject not in _CLASSICAL_LANGUAGE_SUBJECTS
     ):
         return ""
     if translation in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS:
@@ -1980,6 +1995,21 @@ move on warmly; do not correct or drill. Never mention this tracking to the chil
 
 _LANGUAGE_CHECKIN_SUBJECTS = (Subject.history, Subject.saints, Subject.art_music)
 
+# Subjects that teach one classical language systematically, each mapped to
+# its verbatim catalog and to the single services/diagnostic/
+# language_exposure.py language it is allowed to record evidence for.
+#
+# This is a mapping rather than a chain of `if subject == Subject.latin`
+# branches because the three places that need it — the prompt block, the
+# Bible-translation gate, and the evidence gate — would otherwise each grow
+# a parallel special case per language. Adding Greek alongside Latin was
+# what made that concrete; a future third language should be a row here,
+# not another branch in three functions.
+_CLASSICAL_LANGUAGE_SUBJECTS: "dict[Subject, tuple]" = {
+    Subject.latin: (_latin_catalog_note, "latin"),
+    Subject.greek: (_greek_catalog_note, "greek"),
+}
+
 
 def _language_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
@@ -2319,20 +2349,20 @@ async def _build_subject_prompt(
         if subject == Subject.morning_time
         else ""
     )
-    # Latin & Christian Foundations' verbatim content — this week's focus
-    # term, its verified Vulgate anchor, the stage's vocabulary, and the
-    # Great Commandment spine (services/latin_catalog.py). Same weekly
-    # calendar rotation and current_term-as-offset convention as poetry_note
-    # and prayer_recitation_note above; locale-independent, unlike those two,
-    # because the Latin text is the same text in every locale — only Bede's
-    # own surrounding speech is localized (see _locale_directive).
-    latin_note = (
-        _latin_catalog_note(
+    # The classical-language subjects' verbatim content — this week's focus
+    # term, its verified anchor text, the stage's vocabulary, and the Great
+    # Commandment spine (services/latin_catalog.py, services/greek_catalog.py).
+    # Same weekly calendar rotation and current_term-as-offset convention as
+    # poetry_note and prayer_recitation_note above; locale-independent,
+    # unlike those two, because the Latin and Greek texts are the same texts
+    # in every locale — only Bede's own surrounding speech is localized (see
+    # _locale_directive).
+    classical_language_note = ""
+    if subject in _CLASSICAL_LANGUAGE_SUBJECTS:
+        _catalog_note, _ = _CLASSICAL_LANGUAGE_SUBJECTS[subject]
+        classical_language_note = _catalog_note(
             config.grade, config.grade_stage, week_salt=config.current_term, today=local_date,
         )
-        if subject == Subject.latin
-        else ""
-    )
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
@@ -2344,7 +2374,7 @@ async def _build_subject_prompt(
     bible_translation_note = _bible_translation_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{latin_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{classical_language_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2874,19 +2904,21 @@ async def _record_language_evidence(
     _record_phonics_evidence, which this mirrors: a diagnostic hiccup must
     never break the child's tutoring turn.
 
-    Subject.latin is the one addition to that gate, and it is narrower than
-    the other three rather than equal to them: the Latin subject may only
-    ever record evidence for `latin` itself. It is a real language subject
-    (see services/latin_catalog.py), so the recall it produces is better
-    evidence than an opportunistic History-lesson moment — but a Latin
-    session has no business claiming a reading on German or French, so a
-    call naming any other language there is dropped rather than trusted.
-    The three opportunistic subjects keep their existing behavior, where
-    any of the six is legitimately in play.
+    The classical-language subjects (_CLASSICAL_LANGUAGE_SUBJECTS — Latin,
+    Greek) are additions to that gate, and each is narrower than the three
+    above rather than equal to them: such a subject may only ever record
+    evidence for its OWN language. These are real language subjects (see
+    services/latin_catalog.py, services/greek_catalog.py), so the recall
+    they produce is better evidence than an opportunistic History-lesson
+    moment — but a Latin session has no business claiming a reading on
+    German, and a Greek session none on Latin, so a call naming any other
+    language there is dropped rather than trusted. The three opportunistic
+    subjects keep their existing behavior, where any of the six is
+    legitimately in play.
     """
     if db is None:
         return
-    if subject != Subject.latin and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
+    if subject not in _CLASSICAL_LANGUAGE_SUBJECTS and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return
     try:
         from models.schemas import RecordLanguageEvidenceInput
@@ -2896,7 +2928,8 @@ async def _record_language_evidence(
         # Checked against the validated value rather than the raw tool
         # input, so there is one reading of "which language did the model
         # actually name" instead of two that could drift apart.
-        if subject == Subject.latin and ev.language != "latin":
+        own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject, (None, None))[1]
+        if own_language and ev.language != own_language:
             return
         await _process_language(db, config.student_name, ev.language, ev.outcome)
     except Exception as exc:

@@ -1,4 +1,4 @@
-import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Landmark, Sparkles } from 'lucide-react'
+import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Landmark, Columns3, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
@@ -15,6 +15,7 @@ export type Subject =
   | 'saints'
   | 'scripture'
   | 'latin'
+  | 'greek'
   | 'free_study'
 
 export interface SessionConfig {
@@ -276,6 +277,14 @@ export const SUBJECTS: SubjectInfo[] = [
     durationMin: 10,
     color: 'bg-amber-50 border-amber-200 text-amber-800',
     description: 'Latin rooted in faith, hope & love',
+  },
+  {
+    id: 'greek',
+    label: 'Greek & New Testament Foundations',
+    Icon: Columns3,
+    durationMin: 10,
+    color: 'bg-indigo-50 border-indigo-200 text-indigo-800',
+    description: 'The alphabet & the New Testament’s own words',
   },
   {
     id: 'free_study',

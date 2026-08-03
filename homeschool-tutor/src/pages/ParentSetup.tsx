@@ -1078,7 +1078,8 @@ function StudentCard({
                   denominational label to teach. See services/latin_catalog.py. */}
               {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')
                 || student.selected_subjects.includes('morning_time')
-                || student.selected_subjects.includes('latin')) && (
+                || student.selected_subjects.includes('latin')
+                || student.selected_subjects.includes('greek')) && (
                 <div>
                   <label className="label">{t('parentSetup.bibleTranslation')}</label>
                   <select

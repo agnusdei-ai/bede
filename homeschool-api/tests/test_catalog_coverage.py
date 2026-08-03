@@ -155,6 +155,54 @@ def test_free_study_is_deliberately_uncovered():
         )
 
 
+# Both classical-language subjects are plan-based for the same reason
+# `scripture` is: they have no book list, and naming one publisher's primer
+# as canonical would be a curriculum endorsement this project has no basis
+# to make.
+CLASSICAL_LANGUAGES = ["latin", "greek"]
+
+
+@pytest.mark.parametrize("year", YEARS)
+@pytest.mark.parametrize("language", CLASSICAL_LANGUAGES)
+def test_classical_language_has_a_plan_in_every_year(year, language):
+    assert get_subject_plan(year, language), f"Year {year} {language} plan missing"
+
+
+@pytest.mark.parametrize("year", YEARS)
+@pytest.mark.parametrize("language", CLASSICAL_LANGUAGES)
+def test_classical_language_plan_states_the_inclusivity_guarantee(year, language):
+    """
+    The guarantee that makes these subjects teachable by a family of any
+    Christian tradition travels with the content, exactly as scripture's
+    canon/translation neutrality does above — not only in the catalog
+    module's prompt block, which a future edit could soften independently.
+    """
+    plan = get_subject_plan(year, language)
+    lowered = plan.lower()
+    assert "shared inheritance" in lowered, (
+        f"Year {year} {language} plan does not state that its content is shared across traditions"
+    )
+    assert any(w in lowered for w in ("pastor", "priest", "minister")), (
+        f"Year {year} {language} plan does not defer dividing doctrine to the family's own clergy"
+    )
+    assert "never recited from memory" in lowered, (
+        f"Year {year} {language} plan does not carry the quote-never-recall rule"
+    )
+
+
+@pytest.mark.parametrize("year", YEARS)
+def test_greek_plan_refuses_to_pick_a_manuscript_tradition(year):
+    """
+    Specific to Greek: the Textus Receptus / critical-text divide is live
+    and denominationally charged in a way the Vulgate's edition variants
+    are not. Every year's plan must say the subject takes no side.
+    """
+    lowered = get_subject_plan(year, "greek").lower()
+    assert "manuscript tradition" in lowered, (
+        f"Year {year} greek plan does not address the manuscript question"
+    )
+
+
 @pytest.mark.parametrize("year", YEARS)
 def test_latin_has_a_plan_in_every_year(year):
     """

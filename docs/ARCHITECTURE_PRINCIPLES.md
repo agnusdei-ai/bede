@@ -476,9 +476,40 @@ not a tested control.
 assembled-stack coverage. New controls state explicitly what failure their
 test would catch.
 
-**Conformance.** Improved 2026-08-02 (assembled-stack regression test added,
-verified to fail under the old ordering). The general practice is not yet
-systematic across other composed components.
+**Conformance.** Measured rather than asserted on 2026-08-03, by mutation
+testing: defeat each control, run the suite, see whether anything fails
+(`homeschool-api/scripts/mutation_probe.py`). Two rounds, opposite results.
+
+**Logic mutations — 16 of 16 caught.** Breaking a control's own behaviour
+(fingerprint binding always true, token expiry never checked, deny-by-default
+made allow-by-default, AAD collapsed to one constant, every student issued
+the same key) failed the suite every time, usually within a minute. The
+controls are genuinely exercised, which is better than this principle's
+⚠️ implies in isolation.
+
+**Wiring mutations — 0 of 8 caught.** Leaving every control's code untouched
+and breaking only its composition: unmounting `ExfiltrationGuard`,
+`RateLimitMiddleware`, `SecurityHeadersMiddleware`, and `LicenseGateMiddleware`
+from `main.py` one at a time; reintroducing the exact GZip-ahead-of-guard
+ordering bug this engagement opened with; downgrading transcript reads, voice
+enrollment, and the parent sandbox from `require_parent` to `require_auth` so
+a child could reach all three. **All 1,603 tests passed for all eight.**
+
+That is the finding, and it is sharper than the original one. The suite tested
+components thoroughly and composition almost not at all: 1 of 125 test files
+exercised the real application object. Worse, the 2026-08-02 fix cited above
+was itself an instance of the defect — `test_exfiltration_guard_still_scans_a_gzip_eligible_response_in_the_assembled_stack`
+builds a hand-maintained *replica* of `main.py`'s ordering in the test file
+("Same relative order as main.py"), so reordering `main.py` never fails it.
+A comment is not an assertion.
+
+`tests/test_app_composition.py` now asserts the real `app.user_middleware`
+order and a table of all 75 endpoints against their expected guard chain. It
+catches 8 of 8 wiring mutations, in 3 seconds rather than 130. Still ⚠️
+rather than ✅: middleware and guards are covered, other composed
+components (the adapter router's failover chain, the diagnostic pipeline
+stages, the audit path) are not, and the probe's mutation list is
+hand-written rather than exhaustive.
 
 *AIUC-1: Security, Reliability · CISSP D6 control testing*
 

@@ -14,6 +14,7 @@ from services.diagnostic import get_mastery_summary
 from services.diagnostic.composition import get_composition_summary
 from services.diagnostic.phonics import get_phonics_summary
 from services.diagnostic.language_exposure import get_language_summary
+from services.diagnostic.literacy import get_literacy_summary
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
@@ -106,6 +107,7 @@ _SUMMARY_BUILDERS = {
     "composition": get_composition_summary,
     "phonics": get_phonics_summary,
     "language_exposure": get_language_summary,
+    "literacy": get_literacy_summary,
 }
 
 

@@ -311,6 +311,43 @@ said there is ever saved — no transcript, no student record. Leave
    at all. You can still remove it, but no preset will ever leave it out
    for you.
 
+### How often you get an honest read: the mastery cycle
+
+Under the term topics you'll see one checkbox: **"We travel — our weeks
+aren't always regular."** Most families never need to touch it. Here is what
+it changes, and why it exists at all.
+
+Your term topics are scored over a whole term — nine to twelve weeks. That's
+a long time to wait to find out whether something is working, and the
+learner's guarantee is written in thirty days, so the Progress page also
+reports **movement over the last four actual weeks**. Not four weeks of
+school: four weeks of calendar, whatever happened in them.
+
+Against that window each topic reads one of three ways:
+
+- **Moved** — there is real evidence your child advanced on it recently.
+- **(no mark)** — worked on, no visible movement yet. This is normal and it
+  is not a warning. Plenty of real learning looks like this for weeks.
+- **"had no notes in the last 4 weeks"** — nothing was recorded at all.
+  **This is a note about the plan, not about your child.** It almost always
+  means the subject isn't coming up often enough for that topic to surface,
+  and the fix is in your schedule rather than in anything they need to do.
+
+**What this deliberately is not.** There is no deadline attached to the
+window, no target, and nothing your child has to finish inside it. It bounds
+*how far back we look*, never how fast anyone has to be — and your child
+never sees it. Nothing resets when four weeks are up; it simply rolls, the
+way the last four weeks always does.
+
+**So what is travel mode for?** If your family is away often, four calendar
+weeks may not hold enough lessons for anything to show, and you'd see "no
+notes" for topics that are genuinely fine. Turning it on lets you widen the
+window to three, four, five, or six weeks so the same evidence has room to
+accumulate. It changes nothing whatsoever about how your child is taught —
+only how far back the Progress page looks. Turn it off when you're home and
+the window returns to four weeks on its own; you don't have to remember what
+it was.
+
 ### The stated time commitment, and what it is meant to buy
 
 This is deliberate and worth reading before you commit a term to it. A

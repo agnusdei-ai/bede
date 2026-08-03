@@ -107,6 +107,16 @@ class CompanionMode(str, Enum):
 # the parent's chosen topics (up to 3 per area per term) — see
 # SessionConfig.term_mastery_topics and services/ai_service.py's
 # _term_outcomes_note.
+#
+# Mastery-cycle window (SessionConfig.mastery_cycle_days). The default is
+# four ACTUAL weeks — calendar days, not days school happened — which is
+# also what the learner's guarantee is written against. TRAVEL_* bound the
+# range a travelling family may widen it to; a family not travelling gets
+# the default and no choice to make.
+DEFAULT_MASTERY_CYCLE_DAYS = 28
+TRAVEL_MASTERY_CYCLE_MIN_DAYS = 21   # 3 weeks
+TRAVEL_MASTERY_CYCLE_MAX_DAYS = 42   # 6 weeks
+
 CORE_AREAS = {
     "phonics_language":    "Phonics & Language",
     "mathematics":         "Math",
@@ -351,6 +361,29 @@ class SessionConfig(BaseModel):
     # assess_narration's term_topic fields.
     term_mastery_topics: dict[str, list[str]] = Field(default_factory=dict)
 
+    # ── Mastery cycle — how often the parent gets an honest read ──────────
+    # A term (9-12 weeks) is too coarse to answer "is this on track?", and
+    # the learner's guarantee is written in 30 days, so there was nothing
+    # between today's session summary and the whole term. This is that
+    # middle cadence.
+    #
+    # It bounds the LOOKING, never the child's work. Deliberately a ROLLING
+    # window rather than a numbered sprint with a start date: there is no
+    # boundary to hit, nothing resets, nothing rolls over, and no velocity
+    # can be computed across cycles. "In the last N days, did this move" is
+    # the only question it can answer — which is the question a parent
+    # actually has, and is safe to ask about a child in a way "did they
+    # finish on time" is not. Nothing here is ever shown to a child (see
+    # Progress.tsx, parent-only, same posture as the work ledger).
+    #
+    # 28 ACTUAL days — calendar days, not days school happened. A family
+    # that travels can't fit the usual evidence into 28 calendar days, so
+    # travel_mode unlocks a longer window (3-6 weeks) to let the same
+    # evidence accumulate. It lengthens the window; it does not pause a
+    # clock, and it does not change one thing about how the child is taught.
+    travel_mode: bool = False
+    mastery_cycle_days: int = Field(default=DEFAULT_MASTERY_CYCLE_DAYS)
+
     # ── "Meet me where I am" — resuming an interrupted lesson ─────────────
     # At most one note per subject (later duplicates win; see the validator),
     # and only for subjects actually scheduled for this student today —
@@ -371,6 +404,21 @@ class SessionConfig(BaseModel):
             if kept:
                 cleaned[area] = kept
         self.term_mastery_topics = cleaned
+
+        # Mastery-cycle window, same "clean, never reject" shape as above.
+        # Travel mode is what UNLOCKS the choice — with it off there is only
+        # one honest answer (28 actual days, what the guarantee is written
+        # against), so a stale or hand-crafted value is corrected rather
+        # than 422'd. With it on the parent picks, and we clamp to 3-6
+        # weeks: under three there isn't room for evidence to accumulate,
+        # over six it stops being a cadence and becomes the term again.
+        if not self.travel_mode:
+            self.mastery_cycle_days = DEFAULT_MASTERY_CYCLE_DAYS
+        else:
+            self.mastery_cycle_days = max(
+                TRAVEL_MASTERY_CYCLE_MIN_DAYS,
+                min(TRAVEL_MASTERY_CYCLE_MAX_DAYS, self.mastery_cycle_days),
+            )
         return self
 
     @model_validator(mode="after")

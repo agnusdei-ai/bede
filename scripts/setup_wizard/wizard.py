@@ -353,6 +353,21 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append(f'<input type="text" name="database_url" value="{html.escape(v.get("database_url", ""))}" placeholder="postgresql://user:pass@host/dbname">')
     body.append('</div>')
 
+    keep_mastery = v.get("keep_mastery", "yes")
+    body.append('<label>Should Bede remember what your child has mastered between sessions?</label>')
+    body.append(f"""
+    <label class="choice {'selected' if keep_mastery == 'yes' else ''}">
+      <input type="radio" name="keep_mastery" value="yes" {'checked' if keep_mastery == 'yes' else ''}>
+      <span class="choice-title">Yes, build a picture over time (recommended)</span>
+      <div class="choice-desc">Bede's sense of what your child has mastered gets steadier week by week, and the Progress page can show a whole term. The estimate is encrypted and never leaves this machine.</div>
+    </label>
+    <label class="choice {'selected' if keep_mastery == 'no' else ''}">
+      <input type="radio" name="keep_mastery" value="no" {'checked' if keep_mastery == 'no' else ''}>
+      <span class="choice-title">No, start fresh each session</span>
+      <div class="choice-desc">Bede still assesses fully and still reports what it saw at the end of each session, but keeps no lasting estimate of your child anywhere. The trade is real: judgements get steadier with evidence, so with this on you'll see "still getting to know your learner" more often, and the Progress page won't show a term's picture. Your record of the work they actually completed is kept either way.</div>
+    </label>
+    """)
+
     body.append('<label>Parent password</label>')
     body.append('<div class="hint">At least 8 characters. This is what you\'ll use to log in as the parent/admin.</div>')
     body.append('<input type="password" name="parent_password">')
@@ -451,6 +466,10 @@ def build_env_file(fields: dict) -> str:
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
         f"LICENSE_KEY={fields['license_key']}\n"
+        # Written only when the parent actually chose it. A default install's
+        # .env stays free of settings nobody picked, and the code default
+        # (True) already means "remember", so silence and "yes" agree.
+        + ("RETAIN_MASTERY_PROFILES=false\n" if fields.get("keep_mastery") == "no" else "")
     )
 
 

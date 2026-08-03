@@ -57,11 +57,16 @@ services:
           property: connectionString
 
       # Secrets — set these in Render's dashboard after the first deploy.
-      # ANTHROPIC_API_KEY is left declared for legacy/optional use (see
-      # docs/PROVIDER_ADAPTERS.md), but this deployment does NOT depend on it —
-      # BEDE_ADAPTER_ORDER below boots this demo on OpenAI/Mistral instead,
-      # since Render has no GPU for the self-hosted "local" adapter and this
-      # demo should not assume Anthropic access is available.
+      # ANTHROPIC_API_KEY is OPTIONAL — this deployment does not require it
+      # to boot (BEDE_ADAPTER_ORDER below already has OpenAI as primary and
+      # Mistral as the default failover), but it's listed in the order
+      # below as a SECOND, selectable failover option: fill this in and
+      # Claude becomes available as a failover choice via
+      # core/provider_state.py's live secondary-adapter override (see
+      # routers/admin.py's POST /admin/ai-provider/secondary and
+      # docs/PROVIDER_ADAPTERS.md) without any further deploy. Leave it
+      # blank and nothing changes — an unconfigured adapter is simply
+      # invisible to that override, exactly as before.
       - key: ANTHROPIC_API_KEY
         sync: false
       # Doubles as both OpenAI TTS (services/voice_synthesis.py) and the
@@ -75,20 +80,27 @@ services:
       - key: MISTRAL_API_KEY
         sync: false
       # Cloud-first boot order for this Render demo/dev deployment: OpenAI
-      # primary, Mistral secondary/fallback. Deliberately excludes "local"
-      # (Render has no GPU to run vLLM/Qwen3-Coder) and does not require
-      # "anthropic" to be configured at all — this demo boots and serves
-      # fully on OpenAI+Mistral. Because services/ai_service.py's `_client`
-      # resolves via router.resolve_with_failover() (not the plain
-      # get_default_client()), this is LIVE failover, not just a boot-time
-      # preference: if OpenAI errors (auth/rate-limit/connection failure) on
-      # a request, that request automatically retries against Mistral before
-      # any content streams back, with a ~60s circuit-breaker cooldown on
-      # the failed provider.
+      # primary, Mistral the DEFAULT failover, Anthropic a third, optional
+      # candidate — present in the order so it's a legitimate choice for
+      # core/provider_state.py's live secondary override the moment
+      # ANTHROPIC_API_KEY above is filled in, without changing this file or
+      # redeploying. Deliberately excludes "local" (Render has no GPU to run
+      # vLLM/Qwen3-Coder) and does not require "anthropic" to be configured
+      # at all — this demo boots and serves fully on OpenAI+Mistral with
+      # that key left blank, unchanged from before. Because
+      # services/ai_service.py's `_client` resolves via
+      # router.resolve_with_failover() (not the plain get_default_client()),
+      # this is LIVE failover, not just a boot-time preference: if OpenAI
+      # errors (auth/rate-limit/connection failure) on a request, that
+      # request automatically retries against whichever adapter is second
+      # in the effective order (Mistral by default, or Claude if an
+      # operator has picked it via the secondary override) before any
+      # content streams back, with a ~60s circuit-breaker cooldown on the
+      # failed provider.
       # A family's self-hosted production instance should instead follow the
       # docs/PROVIDER_ADAPTERS.md default (local,anthropic) or its own choice.
       - key: BEDE_ADAPTER_ORDER
-        value: openai,mistral
+        value: openai,mistral,anthropic
       # Neither of these was ever declared here before — without them,
       # services/email_service.py's email_configured() is False, which
       # silently no-ops the post-session summary email, the distress alert,

@@ -446,6 +446,20 @@ export async function setAIProvider(token: string, provider: AIProviderName | nu
   return data
 }
 
+/** Chooses which configured adapter is tried first if primary errors —
+ *  only meaningful with 3+ adapters configured. Pass `null` to clear the
+ *  override and revert to whichever adapter is next in the env order. */
+export async function setAIProviderSecondary(token: string, provider: AIProviderName | null): Promise<AIProviderStatus> {
+  const res = await fetch(`${BASE}/admin/ai-provider/secondary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ provider }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || 'Could not switch the failover AI provider')
+  return data
+}
+
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {
   const res = await fetch(`${BASE}/admin/status`, {
     headers: { Authorization: `Bearer ${token}` },

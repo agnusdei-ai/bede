@@ -738,21 +738,31 @@ function StudentCard({
               </p>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Single column, not a 2-up grid: several labels (Greek & New
+              Testament Foundations, Latin & Christian Foundations, Scripture
+              & Bible Study) don't fit a half-width card on one line, and
+              wrapping to two lines read as unpolished. Full width comfortably
+              fits every current label on one line; truncate + title remain
+              as a safety net for a future label that doesn't. The left
+              border is each subject's own color from SUBJECTS, matching
+              agnusdei.io's curriculum color binder — see that field's own
+              comment in types/index.ts. */}
+          <div className="grid grid-cols-1 gap-1.5">
             {availableSubjects.map((s) => {
               const active = student.selected_subjects.includes(s.id)
               return (
                 <button
                   key={s.id}
                   onClick={() => onToggleSubject(s.id)}
-                  className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-left transition-all hover:scale-[1.03] active:scale-[0.97] ${
+                  style={{ borderLeftColor: s.color, borderLeftWidth: '4px' }}
+                  className={`flex items-center gap-2 rounded-xl border-2 pl-2 pr-3 py-2 text-left transition-all hover:scale-[1.02] active:scale-[0.98] min-w-0 ${
                     active ? 'border-navy-400 bg-navy-50 shadow-sm' : 'border-gray-200 bg-white opacity-50'
                   }`}
                 >
                   <s.Icon size={16} className="flex-shrink-0 text-current" />
-                  <div>
-                    <div className="text-xs font-medium text-gray-800">{s.label}</div>
-                    <div className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: s.durationMin })}</div>
+                  <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                    <span className="text-xs font-medium text-gray-800 truncate" title={s.label}>{s.label}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{t('parentSetup.minutesShort', { count: s.durationMin })}</span>
                   </div>
                 </button>
               )

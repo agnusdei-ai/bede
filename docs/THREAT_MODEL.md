@@ -109,7 +109,7 @@ has to infer the boundary from what's absent.
   be encrypted in the first place. Grover's algorithm reduces AES-256 to
   roughly 128-bit effective strength, which stays infeasible; there is no
   meaningful post-quantum gap here because the mechanism was never built
-  on a primitive quantum computing threatens. (Contrast this with a
+  on a primitive quantum computing threatens. The same reasoning is worked through in more detail for the context-binding layer specifically — including why GCM's known break in the superposition-query (Q2) model presupposes an adversary who already holds the key — in `docs/DATA_CLASSIFICATION.md`'s "Quantum tolerance" section. (Contrast this with a
   network protocol whose ciphertext is captured and stored by an observer
   today for decryption once a quantum computer exists — a real concern for
   a system like that, and not a paper reasoning applied here out of

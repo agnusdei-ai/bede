@@ -154,6 +154,100 @@ current 16-byte random nonce gives a 2⁶⁴ collision bound against a 12-byte
 nonce's 2⁴⁸, and trading a documented security margin for 10% of an already
 minor cost is the wrong direction for data that is retained for years.
 
+### Alternatives considered
+
+Recorded after the fact, honestly: AAD was chosen because it is the
+standard mechanism for this problem and costs nothing extra — it uses a
+slot AES-GCM already provides. A documented comparison was not made first.
+This is that comparison, so the choice is defensible to a reviewer rather
+than merely conventional.
+
+| Mechanism | Binds context? | Authenticated? | Extra storage | Extra key | Verdict |
+|---|:--:|:--:|---|---|---|
+| **AAD in AES-256-GCM** (chosen) | ✅ | ✅ | none | none | Free, standard, ~5 µs |
+| Per-record derived keys — `KDF(DATA_KEY, table‖column‖row_key)` | ✅ implicitly | ✅ | none | derived | **Complementary, planned** — see below |
+| Encrypt-then-MAC — separate HMAC-SHA256 over ciphertext ‖ context | ✅ | ✅ | +32 B/record | +1 | Redundant; GCM already authenticates |
+| Context hash in a sibling column, checked in application code | ⚠️ | ❌ | +32 B/record | none | **Rejected** — not cryptographic; anyone who can write the blob can write the hash |
+| Per-row asymmetric signature (Ed25519 over the row) | ✅ | ✅ | +64 B/record | +1 keypair | **Rejected** — huge cost, and the only option here with a real quantum weakness |
+| AES-GCM-SIV (RFC 8452) | ✅ (same AAD slot) | ✅ | none | none | Viable; buys nonce-misuse resistance we don't currently need |
+| XChaCha20-Poly1305 | ✅ (same AAD slot) | ✅ | none | none | Viable; better random-nonce margin, no advantage on context binding |
+| Tweakable-cipher tweak (XTS-style, tweak = row identity) | ✅ | ❌ | none | none | **Rejected** — XTS provides no authentication at all, which is the property we most need |
+| Merkle tree / hash chain over the table | ⚠️ detects, doesn't prevent | ✅ | root + proofs | none | Table-level tamper *evidence*, not per-record binding; needs a trusted root. This is what Locuto's attestation chain does, and it's the wrong weight here |
+
+**Per-record derived keys deserve a note**, because they're the one
+alternative that isn't rejected — they're the *next step*. Deriving a
+distinct key per record from the context achieves binding implicitly: wrong
+context yields the wrong key, so decryption fails. That's equivalent
+protection against the swap attack. It is on the roadmap for T1 and T3
+regardless, because it's the prerequisite for crypto-shredding (punch-list
+#6) — you can only destroy a key that exists per record.
+
+AAD is still the right thing to do first: it protects every tier
+immediately at zero storage cost, including the T4 tables that will never
+justify per-record keys, and it's a change to one function rather than a
+key-hierarchy redesign. The two compose — a per-record-keyed value should
+*also* carry AAD, so a bug in key derivation can't silently degrade to an
+unbound read.
+
+### Quantum tolerance
+
+The honest framing first: **AAD has no quantum posture of its own.** It adds
+no key material and no new hardness assumption — it feeds extra bytes into
+an authentication tag the cipher was already computing. Its resistance is
+whatever AES-256-GCM's is. So the real question is how the *primitive* holds
+up, and the answer differs sharply by threat model.
+
+**In the realistic model (classical queries, quantum offline computation —
+"Q1"):** AES-256-GCM is fine. Grover's algorithm halves effective key
+strength, so AES-256 offers roughly 128-bit security against a quantum
+adversary, which remains infeasible. Nothing here rests on factoring or
+discrete log, so Shor's algorithm is irrelevant. This is the same reasoning
+`docs/THREAT_MODEL.md` uses to scope post-quantum cryptanalysis of Bede's
+at-rest encryption out as a non-goal, and it holds for the AAD binding
+specifically.
+
+**In the superposition-query model ("Q2"):** GCM and GMAC are *completely
+broken*. Kaplan, Leurent, Leverrier and Naya-Plasencia showed in 2016 that
+Simon's algorithm recovers the hidden period in Wegman-Carter-style
+constructions with O(n) superposition queries, and their result covers
+CBC-MAC, PMAC, GMAC, GCM and OCB alike. Tag forgery becomes cheap.
+
+That sounds alarming and is not, for a specific and checkable reason: **Q2
+requires the adversary to query Bede's encryption oracle with quantum
+superposition inputs** — to run the cipher, with the real key, on
+superposed plaintexts. For encryption at rest, an attacker who can do that
+already has code execution inside the process that holds `DATA_KEY`
+unwrapped in memory (`docs/THREAT_MODEL.md`'s adversary A4), at which point
+they read the plaintext directly and never bother forging a tag. The attack
+model presupposes a compromise strictly worse than the one it enables.
+
+It also would not be fixed by switching: the same paper breaks the obvious
+alternatives (CBC-MAC, PMAC, OCB) in the same model, and Poly1305 is a
+Wegman-Carter MAC of the same family. Sponge-based AEADs — Ascon, the NIST
+lightweight-cryptography selection — have a better-studied Q2 story and
+would be the direction to look if this model ever became relevant. It
+isn't, and adopting a less-deployed primitive to defend against an
+adversary that already owns the process would be a poor trade.
+
+**The one genuinely quantum-vulnerable alternative** in the table above is
+per-row asymmetric signatures: Ed25519 falls to Shor outright, and a
+post-quantum replacement (ML-DSA) costs ~4.6 KB per signature against AAD's
+zero. That option was rejected on cost long before quantum entered the
+picture; the quantum weakness merely confirms it.
+
+**Verdict:** AAD's quantum tolerance is AES-256-GCM's, which is adequate in
+every threat model that applies to a self-hosted family server. The
+alternatives are either equivalent (other symmetric AEADs, all sharing the
+same Q2 caveat), complementary (per-record keys, planned), or strictly
+worse (signatures — expensive *and* the only real quantum liability).
+
+*Sources: [Kaplan, Leurent, Leverrier, Naya-Plasencia, "Breaking Symmetric
+Cryptosystems using Quantum Period Finding" (CRYPTO
+2016)](https://who.rocq.inria.fr/Gaetan.Leurent/files/Simon_CR16.pdf);
+[Bonnetain et al., "Quantum Attacks without Superposition Queries: the
+Offline Simon's Algorithm"](https://arxiv.org/pdf/2002.12439); [Quantum
+Linearization Attacks](https://eprint.iacr.org/2021/1239.pdf).*
+
 ### Where AAD deliberately does not apply
 
 `encryption_config.data_key` — the KEK-wrapped `DATA_KEY` itself (T0) —

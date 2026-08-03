@@ -251,6 +251,24 @@ def test_the_pod_route_is_declared_before_the_parameterized_one():
     assert paths.index("/diagnostic/pod/activity") < paths.index("/diagnostic/{student_name}/activity")
 
 
+def test_the_pod_route_takes_students_as_a_repeated_parameter_not_a_joined_string():
+    """
+    student_name is free text a parent types with no character restriction,
+    so a comma-joined `students` value split a name like "Ada, Jr." into
+    two students who don't exist — and the parent silently got a roster
+    with that child missing rather than an error. One repeated parameter
+    per name is the only form that can't do that.
+    """
+    import inspect
+
+    from routers.diagnostic import get_pod_activity
+
+    signature = inspect.signature(get_pod_activity)
+    annotation = signature.parameters["students"].annotation
+    assert annotation in (list[str], "list[str]"), annotation
+    assert 'split(","' not in inspect.getsource(get_pod_activity)
+
+
 # ── Scoring the work: quality, distinction, speed ────────────────────────
 #
 # The distinction that makes this safe: Bede scores the WORK PRODUCT, which

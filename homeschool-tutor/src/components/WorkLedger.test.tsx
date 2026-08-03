@@ -50,6 +50,37 @@ function ledger(overrides: Partial<WorkLedgerData> = {}): WorkLedgerData {
   }
 }
 
+/** Every completion scored, every score at the floor of its scale. */
+function floorScored(): WorkLedgerData {
+  return ledger({
+    total: 4,
+    skills: [
+      {
+        skill_id: 'fr.divide_fractions',
+        label: 'Divides fractions',
+        subject_area: 'mathematics',
+        completed: 4,
+        unaided: 4,
+        with_a_hint: 0,
+        with_help: 0,
+        scored: 4,
+        quality: { adequate: 4, proficient: 0, exemplary: 0 },
+        distinction: { expected: 4, noteworthy: 0, original: 0 },
+        speed: { deliberate: 4, steady: 0, brisk: 0 },
+        last_worked: '2026-08-02T00:00:00+00:00',
+      },
+    ],
+    initiative: {
+      student_name: 'Ada',
+      scored_activities: 4,
+      exemplary: 0,
+      beyond_the_task: 0,
+      brisk: 0,
+      standout_skills: [],
+    },
+  })
+}
+
 describe('WorkLedger', () => {
   it('reports counts of completed work and how much help it took', () => {
     render(<WorkLedger ledger={ledger()} loading={false} studentName="Ada" />)
@@ -83,6 +114,30 @@ describe('WorkLedger', () => {
     expect(screen.getByText(/signs of initiative/i)).toBeTruthy()
     expect(screen.getByText('beyond the task')).toBeTruthy()
     expect(screen.getByText(/not a rating of your child/i)).toBeTruthy()
+  })
+
+  it('states that floor-scored work WAS scored, so it cannot pass for unobserved', () => {
+    // Every completion scored, every score at the floor of its scale —
+    // adequate / expected / deliberate, each a real outcome. None of them
+    // earns a chip, so without an explicit count this row would render
+    // identically to work Bede never judged at all.
+    render(<WorkLedger ledger={floorScored()} loading={false} studentName="Ada" />)
+    expect(screen.getByText(/4 scored/i)).toBeTruthy()
+    expect(screen.queryByText(/not scored/i)).toBeNull()
+  })
+
+  it('never renders a zero count as a shortfall against the work', () => {
+    // The floors are honest outcomes, not deficiencies. A chip reading
+    // "0 exemplary" beside them would be a mark against the work, and
+    // three of them under "Signs of initiative" would be a verdict on the
+    // child that the caveat underneath does not undo.
+    const { container } = render(
+      <WorkLedger ledger={floorScored()} loading={false} studentName="Ada" />
+    )
+    expect(screen.queryByText(/signs of initiative/i)).toBeNull()
+    expect(container.textContent).not.toMatch(/0\s*exemplary/i)
+    expect(container.textContent).not.toMatch(/0\s*beyond the task/i)
+    expect(container.textContent).not.toMatch(/0\s*brisk/i)
   })
 
   it('hides the initiative panel entirely when nothing has been scored', () => {

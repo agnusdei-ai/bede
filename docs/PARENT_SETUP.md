@@ -1212,6 +1212,21 @@ panel: counts of work done well and taken further, and the skills where
 that happened most. It carries a caveat in the card itself, because it's
 worth repeating — those are counts, not a rating of your child.
 
+**Nothing on this card ever counts down.** Only the top of each scale is
+ever shown, and a count that would read zero isn't shown at all. If a
+week's work was solid but unremarkable — adequate, as expected, at a
+deliberate pace, all of which are perfectly good outcomes — you'll see the
+work and how much of it Bede scored, and the initiative panel simply won't
+appear. It shows up when there's something in it to show you, and stays
+away otherwise. A row of zeros under a heading like "Signs of initiative"
+would be a verdict on your child dressed up as a count, which is precisely
+what this card exists not to do.
+
+Each skill also tells you how much of its work was **scored** and how much
+wasn't. That distinction matters: Bede leaves a dimension blank when it
+didn't see enough to judge, and "not scored" must never be mistaken for a
+low mark — nor the other way round.
+
 You'll notice this card looks nothing like the mastery snapshots above it.
 That's deliberate. Those show bars, because they're estimating how far
 along your child is. This shows counts, because it's recording what

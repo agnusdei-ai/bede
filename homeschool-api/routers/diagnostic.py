@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
@@ -113,7 +113,7 @@ _SUMMARY_BUILDERS = {
 
 @router.get("/pod/activity")
 async def get_pod_activity(
-    students: str,
+    students: list[str] = Query(default_factory=list),
     since_days: int = 90,
     subject_area: str | None = None,
     auth: dict = Depends(require_parent),
@@ -127,8 +127,12 @@ async def get_pod_activity(
     services/diagnostic/activity.pod_activity for why each of those is
     deliberately absent. Parent-only and never surfaced to a child.
 
-    `students` is a comma-separated list, capped at the same 10-seat pod
-    limit PodConfigsRequest enforces.
+    `students` is a REPEATED query parameter (students=Ada&students=Wren),
+    capped at the same 10-seat pod limit PodConfigsRequest enforces. It was
+    briefly a single comma-separated value, which was wrong: student_name
+    is free text a parent types with no character restriction, so a name
+    containing a comma split into two students who don't exist and the
+    parent silently got a roster missing that child.
 
     DECLARED BEFORE /{student_name}/activity deliberately: FastAPI matches
     routes in declaration order, so the parameterized path would otherwise
@@ -136,7 +140,7 @@ async def get_pod_activity(
     """
     from services.diagnostic.activity import pod_activity
 
-    names = [n.strip() for n in students.split(",") if n.strip()][:10]
+    names = [n.strip() for n in students if n.strip()][:10]
     if not names:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

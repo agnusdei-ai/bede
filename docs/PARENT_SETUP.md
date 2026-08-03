@@ -497,8 +497,9 @@ break every hour for every child, but it will not tell you that your
      Byzantine pronunciation, as an Orthodox or Greek-heritage family
      would), Bede will not correct them.
 
-   **Logic & Clear Thinking is the second art of the trivium, taught
-   directly — and it is deliberately not offered before 3rd grade.** Formal
+   **Logic is the second art of the trivium, taught directly — and it is
+   deliberately not offered before 3rd grade.** Clear thinking is what the
+   subject gives your child, not part of its name. Formal
    reasoning at K–2 is exactly the premature abstraction classical
    education warns against: a Grammar-stage child is gathering the world,
    not auditing it. The card simply doesn't appear for a K–2 student, and

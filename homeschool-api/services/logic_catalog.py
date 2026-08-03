@@ -1,5 +1,7 @@
 """
-Logic & Clear Thinking — the content behind Subject.logic.
+Logic — the content behind Subject.logic. The label is "Logic", not "Logic
+& Clear Thinking": clear thinking is what the subject produces in a
+student who studies it well, not part of the subject's own name.
 
 WHY THIS EXISTS. `GradeStage.core_mastery` and `GradeStage.independent` are
 labelled in models/schemas.py as the Logic stage and the Rhetoric stage,
@@ -348,7 +350,7 @@ def logic_note(
 
     return f"""
 
-<logic_and_clear_thinking>
+<logic>
 {_render_item(item)}
 
 HOW TO TEACH IT AT THIS STAGE:
@@ -392,4 +394,4 @@ WHAT LOGIC IS FOR — this matters more here than in any other subject:
 - Naming a fallacy in someone's position is not the same as showing their conclusion is false, and
   a student should learn that here rather than the hard way. A bad argument for a true claim is
   still a bad argument — and the claim may still be true.
-</logic_and_clear_thinking>"""
+</logic>"""

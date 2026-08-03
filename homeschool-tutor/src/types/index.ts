@@ -291,7 +291,7 @@ export const SUBJECTS: SubjectInfo[] = [
     // Not offered to K-2 students — see subjectsForStage in ParentSetup.tsx
     // and SessionConfig._validate_logic_stage on the backend.
     id: 'logic',
-    label: 'Logic & Clear Thinking',
+    label: 'Logic',
     Icon: Scale,
     durationMin: 15,
     color: 'bg-slate-50 border-slate-200 text-slate-800',

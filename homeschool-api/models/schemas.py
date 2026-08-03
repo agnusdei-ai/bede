@@ -178,7 +178,7 @@ SUBJECT_LABELS = {
     Subject.scripture: "Scripture & Bible Study",
     Subject.latin: "Latin & Christian Foundations",
     Subject.greek: "Greek & New Testament Foundations",
-    Subject.logic: "Logic & Clear Thinking",
+    Subject.logic: "Logic",
     Subject.free_study: "Free Study",
 }
 
@@ -390,8 +390,8 @@ class SessionConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_logic_stage(self):
-        """Logic & Clear Thinking is not a K-2 subject, and this is where
-        that is actually enforced rather than assumed.
+        """Logic is not a K-2 subject, and this is where that is actually
+        enforced rather than assumed.
 
         Formal reasoning before the Logic stage is the premature
         abstraction classical education specifically warns against — a

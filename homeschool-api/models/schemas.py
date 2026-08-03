@@ -132,6 +132,8 @@ class Subject(str, Enum):
     saints = "saints"                   # Saints, catechism, virtue formation (Catholic-tradition module)
     scripture = "scripture"             # Bible heroes, memory verses, doctrine — denominationally-configurable
     latin = "latin"                     # Latin rooted in the shared Christian vocabulary — see services/latin_catalog.py
+    greek = "greek"                     # Koine Greek, the New Testament's own language — see services/greek_catalog.py
+    logic = "logic"                     # Reasoning — 3-5 informal, 6-8 formal; NEVER K-2, see services/logic_catalog.py
     free_study = "free_study"           # Child-directed exploration
 
 
@@ -151,6 +153,15 @@ SUBJECT_DURATIONS = {
     # is purely oral (see services/latin_catalog.py's _STAGE_METHOD), where
     # ten minutes is already generous.
     Subject.latin: 10,
+    # Same 10 minutes as Latin, and for the same reason — a few words or
+    # letters met properly, not a class period. A family running both gets
+    # 20 minutes of classical language a day, which is already more than
+    # most K-8 homeschool days give it.
+    Subject.greek: 10,
+    # Longer than the language blocks: a single argument judged properly
+    # needs the student to reason out loud, be wrong, and be walked back
+    # through it. That doesn't compress the way a vocabulary word does.
+    Subject.logic: 15,
     Subject.free_study: 20,
 }
 
@@ -166,6 +177,8 @@ SUBJECT_LABELS = {
     Subject.saints: "Saints & Catechism",
     Subject.scripture: "Scripture & Bible Study",
     Subject.latin: "Latin & Christian Foundations",
+    Subject.greek: "Greek & New Testament Foundations",
+    Subject.logic: "Logic & Clear Thinking",
     Subject.free_study: "Free Study",
 }
 
@@ -373,6 +386,37 @@ class SessionConfig(BaseModel):
             if cleaned and cleaned.lower() not in seen:
                 seen[cleaned.lower()] = cleaned
         self.curriculum_resources = list(seen.values())[:6]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_logic_stage(self):
+        """Logic & Clear Thinking is not a K-2 subject, and this is where
+        that is actually enforced rather than assumed.
+
+        Formal reasoning before the Logic stage is the premature
+        abstraction classical education specifically warns against — a
+        Grammar-stage child is gathering the world, not auditing it. The UI
+        never offers the card to a K-2 student and services/logic_catalog.py
+        renders nothing for that stage, but neither of those is a
+        server-side guarantee: a hand-rolled request, a saved config from
+        before a student's stage was corrected downward, or a future client
+        bug would all sail past them.
+
+        "Clean, never reject" — the same shape _validate_term and
+        _validate_curriculum_resources use. A parent who somehow submits
+        this gets a config without it, not a 422 they can't act on. It runs
+        BEFORE _validate_lesson_resume deliberately, so a resume note
+        attached to the dropped subject is filtered out by that validator
+        in the same pass rather than surviving as an orphan.
+
+        Dropping this can in principle leave `subjects` empty (a K-2 config
+        naming logic and nothing else). That is a state the UI cannot
+        produce and the parent can immediately fix by picking subjects —
+        strictly better than honoring a subject the child shouldn't be
+        sitting.
+        """
+        if self.grade_stage == GradeStage.foundations and Subject.logic in self.subjects:
+            self.subjects = [s for s in self.subjects if s != Subject.logic]
         return self
 
     @model_validator(mode="after")

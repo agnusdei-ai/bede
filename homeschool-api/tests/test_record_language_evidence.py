@@ -189,12 +189,56 @@ async def test_second_valid_call_accumulates_on_the_same_row_across_subjects(db_
     assert rows[0].evidence_count == 2
 
 
-# ── Subject.latin's narrower gate ────────────────────────────────────────
+# ── The classical-language subjects' narrower gate ───────────────────────
 #
-# The Latin subject (services/latin_catalog.py) records evidence too, but
-# unlike the three opportunistic subjects above it may only ever claim a
-# reading on Latin itself — a Latin lesson has no business producing
-# evidence about German or French.
+# Latin and Greek (services/latin_catalog.py, services/greek_catalog.py)
+# record evidence too, but unlike the three opportunistic subjects above,
+# each may only ever claim a reading on its OWN language — a Latin lesson
+# has no business producing evidence about German, and a Greek lesson none
+# about Latin.
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("subject,language", [
+    (Subject.latin, "latin"),
+    (Subject.greek, "greek"),
+])
+async def test_classical_subject_records_its_own_language(db_session, subject, language):
+    await _record_language_evidence(
+        db_session, _config(student_name=f"Own{language}"), subject,
+        {"language": language, "outcome": "correct"},
+    )
+    row = (await db_session.execute(
+        select(MasteryProfile).where(
+            MasteryProfile.student_name == f"Own{language}",
+            MasteryProfile.subject_area == "language_exposure",
+        )
+    )).scalar_one_or_none()
+    assert row is not None, f"the {subject.value} subject should feed the {language} domain"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("subject,wrong_language", [
+    (Subject.latin, "greek"),
+    (Subject.greek, "latin"),
+])
+async def test_classical_subjects_do_not_claim_each_others_language(
+    db_session, subject, wrong_language, monkeypatch,
+):
+    """
+    The pair that matters most now that both exist: a Greek session must
+    not quietly record Latin evidence, or a parent reading the Progress
+    page would see growth in a subject the child never sat.
+    """
+    mock_process_evidence = AsyncMock()
+    monkeypatch.setattr("services.diagnostic.language_exposure.process_evidence", mock_process_evidence)
+
+    await _record_language_evidence(
+        db_session, _config(student_name="CrossTalk"), subject,
+        {"language": wrong_language, "outcome": "correct"},
+    )
+
+    mock_process_evidence.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_latin_subject_records_latin_evidence(db_session):

@@ -299,6 +299,12 @@ said there is ever saved — no transcript, no student record. Leave
    controls. This doesn't limit *which* subjects are available to pick from,
    only what's pre-selected to start.
 
+   Note that "Full Daily Plan" means the full Mater Amabilis **core**
+   rotation. The three electives — Latin, Greek, and Logic — are never
+   pre-selected by any preset, so you always add them on purpose rather
+   than discovering them already in your child's day. (Logic additionally
+   doesn't appear at all for a K–2 student; see below.)
+
    Whichever you pick, Bede is a partner in your family's teaching, not a
    replacement for it — see **[docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md)**
    for what "Socratic" actually means in practice and how to ask the same
@@ -373,6 +379,108 @@ said there is ever saved — no transcript, no student record. Leave
      (restored) pronunciation, Bede will not correct your child for saying a
      word the other way; your own program is the authority.
 
+   **Greek & New Testament Foundations is the companion subject to Latin —
+   and for some families it's the more compelling of the two.** Where the
+   Vulgate is a *translation*, Koine Greek is the language the New
+   Testament was actually written in. If reading Scripture in its own words
+   matters to your family, that's the whole argument. It's also the one
+   classical language that serves Orthodox families, who aren't served by
+   Saints & Catechism (Catholic in scope) or by Latin.
+
+   It teaches the same six virtues as Latin, in the original — **πίστις**
+   (faith), **ἐλπίς** (hope), **ἀγάπη** (love), **σοφία** (wisdom),
+   **ἀλήθεια** (truth), and **λόγος** (word, reason) — and four of them use
+   the *same anchor verse* Latin does. A child taking both subjects meets
+   one verse in two languages and can see for themselves that Latin's
+   *caritas* is translating Greek's *ἀγάπη*. That's the payoff of running
+   them together, and it's built in deliberately.
+
+   The stages differ from Latin's in one important way, because Greek has
+   its own alphabet:
+
+   - **K–2** — **the alphabet is the whole subject**, and that's a feature.
+     Two or three letters a session: their names, sounds, and shapes,
+     traced in the air or on paper. The payoff lands immediately — the word
+     *alphabet* is alpha plus beta, and Christ calls himself the first
+     letter and the last (Revelation 22:13). Concrete and delightful in a
+     way abstract vocabulary isn't at that age.
+   - **3–5** — reading and transliterating. Your child turns λόγος into
+     "logos" and back. Then the roots: a child who owns *logos* owns every
+     *-ology* word they'll ever meet.
+   - **6–8** — reading short New Testament phrases, the definite article,
+     and translating the Great Commandment from Matthew's own Greek.
+
+   Also 10 minutes, like Latin. A family running both gets 20 minutes of
+   classical language a day — already more than most K–8 homeschool days
+   give it.
+
+   Three things worth knowing:
+
+   - **Bede never shows bare Greek.** The transliteration and the English
+     always appear beside it, so a child who can't yet read the alphabet is
+     never handed a wall of letters with no way in.
+   - **Bede takes no side on Greek manuscripts.** The Textus Receptus
+     (behind the KJV) and the modern critical text (behind the ESV and NIV)
+     differ in places, and Christians differ about which to prefer. Every
+     Greek text in this subject was chosen because *both traditions read it
+     identically* — so the question never has to come up in front of your
+     child. If your student raises it, Bede says Christians differ and
+     sends them to you and your pastor.
+   - **Pronunciation is Erasmian, and Bede is honest that it's a
+     convention** — the system classical schools and Memoria Press use,
+     not a reconstruction of how Greek actually sounded. If your child says
+     these words the way your own parish or program says them (Modern or
+     Byzantine pronunciation, as an Orthodox or Greek-heritage family
+     would), Bede will not correct them.
+
+   **Logic & Clear Thinking is the second art of the trivium, taught
+   directly — and it is deliberately not offered before 3rd grade.** Formal
+   reasoning at K–2 is exactly the premature abstraction classical
+   education warns against: a Grammar-stage child is gathering the world,
+   not auditing it. The card simply doesn't appear for a K–2 student, and
+   if one somehow reaches the server it's dropped.
+
+   - **3–5** — informal and entirely spoken. No fallacy names, no
+     syllogisms, no technical vocabulary. Just a handful of questions your
+     child learns to ask out loud: *"Is that true always, or just
+     sometimes?"* *"How do you know?"* *"Did it happen because of that, or
+     just after it?"* If your child starts asking "how do you know?"
+     unprompted, the stage has done its whole job.
+   - **6–8** — formal. Premises and conclusions, the two safe argument
+     forms and the two classic mistakes, and the named fallacies (ad
+     hominem, straw man, false dilemma, circular reasoning, and the rest).
+     The idea Bede returns to most: **valid and true are not the same
+     thing.** An argument can be built perfectly and still reach a false
+     conclusion, because a premise was false.
+
+   15 minutes — longer than the language blocks, because a single argument
+   judged properly needs your child to reason out loud, be wrong, and be
+   walked back through it.
+
+   **Three things this subject is built to protect**, and you should know
+   about them because they're the real risk of teaching a child logic:
+
+   - **Logic is for finding what's true *with* someone, never for winning
+     against them.** A child newly able to say "that's a straw man" has
+     been handed a weapon. Bede says this often and means it.
+   - **Bede will not coach your child in arguing against you.** If your
+     student starts turning these tools on your instructions or your
+     church, Bede redirects — warmly, but firmly — and points out that the
+     first person to test an argument on is yourself. A disagreement at
+     home belongs to your family, not to a logic lesson.
+   - **Bede takes no side on contested political, moral, or religious
+     disputes**, however logically the question is dressed up. It teaches
+     the *form* using deliberately dull examples (weather, animals,
+     chores) and sends the substance back to you and your own pastor,
+     priest, or minister. Your student also learns something worth
+     knowing here: naming a fallacy in someone's argument does not show
+     their conclusion is false.
+
+   Bede also never invents arguments for this subject — every syllogism and
+   fallacy example is fixed and worked out in advance. An invalid argument
+   can look perfectly sound, and catching that is precisely what your child
+   is still learning to do.
+
    Once you enable Scripture & Bible Study or Saints & Catechism, a
    **Church Tradition** field appears under that student's "session context"
    panel (the same collapsible section as Current Unit and Faith/Virtue
@@ -387,10 +495,11 @@ said there is ever saved — no transcript, no student record. Leave
    The same panel also offers a **Primary Bible Translation** dropdown
    (KJV, NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE, or
    Douay-Rheims) whenever Morning Time, Scripture & Bible Study, Saints
-   & Catechism, or Latin & Christian Foundations is enabled. (Latin is
-   included because it shows the English alongside its Latin; it is *not*
-   included in the Church Tradition field above, since its content is the
-   shared Christian inheritance and never needs a denominational label.)
+   & Catechism, Latin & Christian Foundations, or Greek & New Testament
+   Foundations is enabled. (Latin and Greek are included because they show
+   the English alongside their own text; neither is included in the Church
+   Tradition field above, since their content is the shared Christian
+   inheritance and never needs a denominational label.)
    This is narrower than Church Tradition — it
    doesn't say what your family believes, just which translation's wording
    Bede should favor when it quotes or paraphrases a Bible passage, so it

@@ -137,6 +137,8 @@
     "saints": "Saints & Catechism",
     "scripture": "Scripture & Bible Study",
     "latin": "Latin & Christian Foundations",
+    "greek": "Greek & New Testament Foundations",
+    "logic": "Logic & Clear Thinking",
     "free_study": "Free Study"
   },
   "breakActivities": [

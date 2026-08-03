@@ -44,6 +44,27 @@ const blankResume = (): ResumeForm => ({
   recorded_on: '',
 })
 
+// Subjects a family opts INTO, never receives by default. Everything else
+// is the Mater Amabilis core rotation that "Full Daily Plan" has always
+// meant. The classical languages and Logic are real electives most
+// families won't run: auto-selecting them would silently add 35 minutes to
+// every new student's day and put Latin in front of a family that never
+// asked for it, which is the opposite of the opt-in promise those subjects
+// are documented with. `free_study` was already excluded for its own
+// reasons and keeps that behavior.
+const ELECTIVE_SUBJECTS: Subject[] = ['latin', 'greek', 'logic', 'free_study']
+const DEFAULT_SUBJECTS: Subject[] = SUBJECTS
+  .filter((s) => !ELECTIVE_SUBJECTS.includes(s.id))
+  .map((s) => s.id)
+
+// Logic is the app's only stage-gated subject: formal reasoning before the
+// Logic stage is the premature abstraction classical education warns
+// against, so a K-2 student is never offered the card. The backend drops
+// it independently (SessionConfig._validate_logic_stage) — this is the
+// UI's half of that gate, not the whole of it.
+const subjectsForStage = (stage: GradeStage) =>
+  SUBJECTS.filter((s) => s.id !== 'logic' || stage !== 'K-2')
+
 // A "start here" preset, not a lock — picking one fills in selected_subjects
 // and session_cap_minutes as sensible defaults; both remain freely editable
 // afterward via their own controls below. Meets a family where they are:
@@ -83,7 +104,7 @@ const COMPANION_MODES: Array<{
     labelKey: 'parentSetup.companionModeFullPlan',
     descriptionKey: 'parentSetup.companionModeFullPlanDesc',
     emoji: '🗓️',
-    subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
+    subjects: DEFAULT_SUBJECTS,
     sessionCapMinutes: 120,
   },
 ]
@@ -133,7 +154,7 @@ const blankStudent = (): StudentForm => ({
   grade_stage: '3-5',
   sex: '',
   companion_mode: 'full_plan',
-  selected_subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
+  selected_subjects: DEFAULT_SUBJECTS,
   lesson_focus: '',
   faith_emphasis: '',
   current_unit: '',
@@ -527,8 +548,12 @@ function StudentCard({
   onUpdate, onToggleSubject, onEnrolled, onRemove,
 }: StudentCardProps) {
   const { t } = useTranslation()
+  // Both the grid and the minutes total read from this, so a student moved
+  // down to K-2 after picking Logic stops showing it AND stops being
+  // billed 15 minutes for a subject the backend will drop on save.
+  const availableSubjects = subjectsForStage(student.grade_stage)
   const totalMin = student.selected_subjects.reduce((acc, s) => {
-    const info = SUBJECTS.find((x) => x.id === s)
+    const info = availableSubjects.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
   }, 0)
 
@@ -671,7 +696,7 @@ function StudentCard({
             <span className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: totalMin })}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {SUBJECTS.map((s) => {
+            {availableSubjects.map((s) => {
               const active = student.selected_subjects.includes(s.id)
               return (
                 <button
@@ -1078,7 +1103,8 @@ function StudentCard({
                   denominational label to teach. See services/latin_catalog.py. */}
               {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')
                 || student.selected_subjects.includes('morning_time')
-                || student.selected_subjects.includes('latin')) && (
+                || student.selected_subjects.includes('latin')
+                || student.selected_subjects.includes('greek')) && (
                 <div>
                   <label className="label">{t('parentSetup.bibleTranslation')}</label>
                   <select

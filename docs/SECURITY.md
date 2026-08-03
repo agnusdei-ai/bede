@@ -82,14 +82,17 @@ list as items are closed.
   locked-out case is now closed (see Closed gaps), which removes the
   biggest objection to eventually requiring MFA — it no longer means "one
   lost device bricks the account."
-- **Child role has no equivalent lockout/recovery scheme.** Everything in
-  the newly-closed account-lockout/recovery work below is parent-only —
-  `CHILD_PIN` still has no lockout of its own. Deliberately out of scope:
-  this app's single-tenant design (docs/SECURITY.md's Society-pillar scope
-  statement) makes the parent the ultimate authority over the one shared
-  child credential, so "recovery" for a locked-out child is simply "ask a
-  parent to change `CHILD_PIN`" — a capability that already exists (parent
-  settings), not a gap.
+- **Child role has no lockout/recovery scheme — and deliberately still
+  won't.** The recovery half of this remains correct and unchanged: the
+  single-tenant design makes the parent the ultimate authority over the one
+  shared child credential, so "recovery" for a child is "ask a parent to
+  change `CHILD_PIN`", a capability that already exists. What this entry
+  previously got wrong was treating that as also answering brute force —
+  it doesn't. Nothing about recoverability makes a 6-digit PIN harder to
+  guess, and the per-IP rate limiter keys on IP alone, which a LAN attacker
+  defeats trivially. That half is now closed by escalating-delay throttling
+  rather than a lockout (see Closed gaps, and `core/child_throttle.py` for
+  why a lockout would have been the wrong instrument here).
 - **`RateLimitMiddleware` and the E009 anomaly watch are in-memory,
   per-process — same class of gap already disclosed for
   `services/streaming_transcription.py` and the OpenAI TTS httpx pool
@@ -149,6 +152,56 @@ list as items are closed.
   actually green, not just that the workflow overall is.
 
 ## Closed gaps
+
+- **Child PIN had no brute-force defense, closed 2026-08-02.** The only
+  barrier was `core/middleware.py`'s per-IP auth bucket (10/min), which
+  keys on IP alone — trivially defeated on a LAN, and via IPv6 essentially
+  free. The parent role had DB-backed lockout since July; the child role
+  guarded the same student data with nothing, and this document's prior
+  reasoning for that (a locked-out child just asks a parent to reset the
+  PIN) answered lockout-RECOVERY, not brute force. Nothing about
+  recoverability makes a 6-digit PIN harder to guess.
+
+  `core/child_throttle.py` throttles by escalating DELAY, deliberately not
+  by refusal. Copying `core/parent_lockout.py`'s fixed-threshold lockout
+  here would have closed a brute-force gap by opening an easier
+  availability one: the threshold is public the moment the source is (see
+  `docs/THREAT_MODEL.md`'s self-defeating-mechanisms note), so any sibling
+  or houseguest on the WiFi could reliably end a lesson before it started,
+  with "go find a parent" as the recovery path. Instead the first three
+  failures are free (a child mistyping their own PIN notices nothing),
+  then delay escalates to a 5-second cap — roughly two months of
+  continuous guessing for a 10^6 keyspace, and there is no state an
+  attacker can push the child role into that a parent must clear. State is
+  keyed on the credential rather than the source address, so IP rotation
+  buys nothing; it is in-process rather than DB-backed because this runs on
+  a family's Raspberry Pi and a child logs in every school morning, and a
+  container restart clearing it is acceptable given restarting requires
+  host access. Covered by `tests/test_child_throttle.py`, including that a
+  correct PIN still authenticates after 500 failures — the property that
+  makes this not a lockout.
+
+- **Rate limiter was O(n) per request and leaked memory without bound,
+  closed 2026-08-02.** `_check_rate` rebuilt the entire sliding window on
+  every single request (`[t for t in window if t > cutoff]`) — linear in
+  the configured limit, measured at 0.8 us/call at limit=20 rising to 38.3
+  us at 3000, ahead of every route handler, on hardware
+  `docs/PARENT_SETUP.md` targets at Raspberry Pi class. Separately, idle
+  `(ip, bucket)` entries were never evicted: 50,000 distinct source
+  addresses held 50,000 entries indefinitely, reachable on the
+  internet-facing public demo.
+
+  Timestamps are non-decreasing (`time.monotonic`), so expired entries are
+  always a prefix — `bisect` finds the cut in O(log n) and one slice-delete
+  drops them. Now flat at ~0.38 us/call regardless of limit (~6x faster at
+  the default, ~95x at 3000). Idle entries are swept lazily, at most once
+  every five minutes, using the widest window any caller has requested so a
+  live window can never be evicted (which would silently reset an
+  attacker's progress). A deque benchmarked marginally faster still but
+  costs ~760 bytes per key against a list's ~64 — the wrong trade when the
+  demo's keys are overwhelmingly sparse and the device may have 1-2 GB
+  total.
+
 
 - **`MASTER_SECRET` had no rotation path at all, closed 2026-08-02.**
   `core/encryption.py`'s own docstring, and `docs/INCIDENT_RESPONSE.md`'s

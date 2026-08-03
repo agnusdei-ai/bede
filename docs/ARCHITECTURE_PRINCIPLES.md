@@ -427,7 +427,13 @@ escalating delay rather than a flat lock, or a more tightly scoped counter —
 rather than mechanically copying the pattern that already has the flaw.
 
 **Conformance.** CI visibility fixed 2026-08-02. The lockout-as-DoS property
-is documented (`docs/THREAT_MODEL.md`) but not yet mitigated.
+is documented (`docs/THREAT_MODEL.md`) and was designed around rather than
+inherited when the child-PIN gap was closed the same day:
+`core/child_throttle.py` throttles by escalating delay rather than refusal,
+specifically so that closing a brute-force gap didn't open a more easily
+triggered availability one. Partial because `core/parent_lockout.py`'s
+fixed-threshold rule still carries the property for the parent role, where
+it's mitigated by a documented recovery path rather than by design.
 
 *AIUC-1: Reliability, Accountability · CISSP D7 detection and response*
 

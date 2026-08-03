@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Optional
 import hmac
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import parent_lockout
+from core import child_throttle, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
@@ -153,8 +154,21 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
         if not hmac.compare_digest(req.credential, settings.child_pin):
+            # Escalating delay, not a lockout — see core/child_throttle.py
+            # for why copying parent_lockout's fixed-threshold refusal here
+            # would have closed a brute-force gap by opening an easier
+            # availability one (any sibling who knows the threshold could
+            # end a lesson before it starts). The first few failures cost
+            # nothing, so a child mistyping their own PIN notices no
+            # difference; sustained guessing gets expensive regardless of
+            # how many source addresses it comes from, which is the gap the
+            # per-IP rate limiter alone can't close on a LAN.
+            delay = child_throttle.record_failure()
+            if delay:
+                await asyncio.sleep(delay)
             log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        child_throttle.record_success()
         expires = timedelta(minutes=settings.child_token_expire_minutes)
     elif req.role == "demo_code":
         # No static secret to compare against — the credential is a code

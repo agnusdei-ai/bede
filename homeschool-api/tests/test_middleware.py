@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 def setup_function():
     """Module-level sliding-window state, shared across every app instance —
     reset it so one test's requests can't push another test over its limit."""
-    middleware._rate_windows = middleware.defaultdict(list)
+    middleware.reset_rate_limiter()
 
 
 # ── _check_rate (sliding window) ────────────────────────────────────────────

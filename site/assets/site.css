@@ -437,7 +437,7 @@ p.lede {
 .curriculum .card:nth-child(10) { border-left-color: hsl(231.4, 38%, 36%); } /* Scripture & Bible Study */
 .curriculum .card:nth-child(11) { border-left-color: hsl(257.1, 38%, 36%); } /* Latin & Christian Foundations */
 .curriculum .card:nth-child(12) { border-left-color: hsl(282.9, 38%, 36%); } /* Greek & New Testament Foundations */
-.curriculum .card:nth-child(13) { border-left-color: hsl(308.6, 38%, 36%); } /* Logic & Clear Thinking */
+.curriculum .card:nth-child(13) { border-left-color: hsl(308.6, 38%, 36%); } /* Logic */
 .curriculum .card:nth-child(14) { border-left-color: hsl(334.3, 38%, 36%); } /* Free Study */
 
 .founder blockquote {

@@ -245,7 +245,7 @@ The domain with the most structural gaps, because Bede models identity as one
 undifferentiated layer where the IAM reference architecture treats it as
 several distinct functions.
 
-### P7 — Authentication, authorization, and audit are distinct functions, independently verifiable ❌
+### P7 — Authentication, authorization, and audit are distinct functions, independently verifiable ⚠️
 
 **Statement.** Identity verification, policy decision, and policy enforcement
 are separable components, not a single inline check.
@@ -261,9 +261,19 @@ extending the current model further. Punch-list #7's child-PIN lockout must
 land inside a real layer rather than repeating `core/parent_lockout.py`'s
 pattern of bolting onto the collapsed one.
 
-**Conformance.** Collapsed. Highest-leverage identity item relative to cost —
-it is a single-module refactor and a prerequisite for P8 and P9 being
-reachable at all.
+**Conformance.** Separated 2026-08-02. `core/policy.py` is the Policy
+Decision layer — pure, no I/O, no FastAPI types — and `core/deps.py` is now
+enforcement only. The decision table is a committed artifact
+(`docs/AUTHORIZATION_POLICY.md`), tested exhaustively across all 55
+role × action pairs, and the five inline `role == "..."` checks that lived
+in router bodies are gone. Deny-by-default replaced reject-known-bad, which
+closed a real gap in passing: `parent_recovery` previously passed
+`require_auth` and could reach any of the 17 endpoints behind it.
+
+Partial rather than conforming because the layer exists but the capabilities
+it unblocks do not: P8 (step-up), P9 (device identity), and P10 (identity
+domain split) are all still open, and audit remains coupled to enforcement
+rather than being independently verifiable.
 
 *AIUC-1: Security, Accountability · CISSP D5 identity lifecycle*
 

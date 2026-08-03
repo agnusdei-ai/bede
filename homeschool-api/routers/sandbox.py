@@ -9,7 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.demo_code_session import record_message as demo_code_record_message
-from core.deps import require_auth, require_parent
+from core.deps import require_auth, require_demo_preview, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services.ai_service import check_safeguarding, SAFEGUARDING_RESPONSE, stream_sandbox_response
@@ -69,7 +69,7 @@ async def chat(
 async def demo_chat(
     req: SandboxDemoChatRequest,
     request: Request,
-    auth: dict = Depends(require_auth),
+    auth: dict = Depends(require_demo_preview),
 ):
     """
     Public-demo preview of the sandbox above — same direct-answer, relaxed
@@ -78,13 +78,11 @@ async def demo_chat(
     keeps the deterministic safeguarding check as a defensive baseline,
     since anyone who generates a demo_code can reach this, not just the
     deployment's trusted operator.
+
+    The demo-domain restriction was an inline `role != "demo_code"` check in
+    this body; it's now the "sandbox.demo_preview" action in
+    core/policy.py's table, enforced by require_demo_preview.
     """
-    role = auth.get("role")
-    if role != "demo_code":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This preview is only available through the public demo login",
-        )
     # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
     await demo_code_record_message(auth.get("code", ""))
 

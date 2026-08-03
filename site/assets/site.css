@@ -36,8 +36,8 @@
 
      Use real photographs only. No AI-generated imagery.
      ──────────────────────────────────────────────────────────────── */
-  --photo-hero: url('/assets/photos/live-oak.jpg');
-  --photo-curriculum: url('/assets/photos/meadow-grasses.jpg');
+  --photo-hero: none;
+  --photo-curriculum: none;
   --photo-closing: none;
 }
 
@@ -51,12 +51,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* A photographic band. The wash gradient is listed FIRST in
-   background-image so it always paints over the photograph; when the
-   slot is `none` the wash simply sits on the background-color and the
-   band reads as a subtle tint. Every band keeps its text contrast
-   either way — that is the whole point of washing rather than
-   dropping type straight onto a photo. */
+/* .band and .band-curriculum are shared page-chrome classes — every one
+   of site/index.html, site/faq/index.html, and site/feedback/index.html
+   reuses them for its own page-head and body wrapper. Their SHARED rule
+   below has to stay the original light wash, or the navy treatment
+   below meant only for the home page's hero and curriculum grid leaks
+   into the other two pages' headers and body text, which were never
+   designed for it. index.html opts in with its own extra class instead
+   (.hero-band on the hero wrapper; the curriculum grid already carries
+   a second class, .curriculum, unique to it). */
 .band {
   background-color: var(--vellum);
   background-image:
@@ -75,9 +78,9 @@ body {
   background-position: center;
 }
 
-/* The closing band is the one place type sits on a dark ground, so its
-   wash is heavier — a photograph shows through as texture, never as
-   something competing with the words. */
+/* The closing band is the one place type sits on a dark ground on every
+   page that has one — a photograph would still show through as
+   texture, never as something competing with the words. */
 .band-closing {
   background-color: var(--ink);
   background-image:
@@ -86,6 +89,30 @@ body {
   background-size: cover;
   background-position: center;
   color: var(--vellum);
+}
+
+/* The home page's own dark ground — same navy as .band-closing, on the
+   founder's preference for that contrast and the gold accents it sets
+   off. Scoped so it touches ONLY index.html: .hero-band is a class
+   found nowhere else, and .curriculum.band-curriculum requires BOTH
+   classes, which only index.html's actual subject grid carries — the
+   FAQ and feedback pages' own .band-curriculum wrapper has no
+   .curriculum class alongside it. */
+.hero-band,
+.curriculum.band-curriculum {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(180deg, rgba(28, 36, 56, 0.82), rgba(28, 36, 56, 0.88)),
+    var(--photo-hero);
+  background-size: cover;
+  background-position: center;
+  color: var(--vellum);
+}
+
+.curriculum.band-curriculum {
+  background-image:
+    linear-gradient(180deg, rgba(28, 36, 56, 0.82), rgba(28, 36, 56, 0.88)),
+    var(--photo-curriculum);
 }
 
 .hero {
@@ -111,21 +138,30 @@ h1 {
   color: var(--ink);
 }
 
+/* h1 is also the FAQ page's plain-background title, so the hero's own
+   light-on-navy override is scoped here rather than changing the bare
+   h1 rule above. */
+.hero h1 { color: var(--vellum); }
+
 p.motto {
   font-family: 'Palatino Linotype', Palatino, serif;
   font-size: clamp(1.35rem, 3.5vw, 1.75rem);
   font-weight: bold;
-  color: var(--fern-deep);
+  color: var(--gilt-light);
   margin: 0 0 1rem;
 }
 
 p.mission {
   font-size: 1.05rem;
   line-height: 1.7;
-  color: var(--prose);
+  color: rgba(250, 246, 236, 0.85);
   margin: 0 0 2rem;
 }
 
+/* A quiet panel on the dark ground, the same restrained translucency as
+   .guarantee/.limit below — not the brighter card look .card uses
+   elsewhere, since this sits directly on the band rather than as one
+   card among several. */
 .pillars {
   display: flex;
   flex-wrap: wrap;
@@ -133,9 +169,9 @@ p.mission {
   gap: 1.5rem;
   margin: 0 0 2.5rem;
   padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 0.75rem;
-  border: 1px solid var(--vellum-deep);
+  border: 1px solid rgba(224, 184, 74, 0.3);
 }
 
 .pillar {
@@ -148,14 +184,14 @@ p.mission {
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--fern-deep);
+  color: var(--gilt-light);
   margin: 0 0 0.35rem;
 }
 
 .pillar p {
   font-size: 0.9rem;
   line-height: 1.55;
-  color: var(--prose);
+  color: rgba(250, 246, 236, 0.85);
   margin: 0;
 }
 
@@ -210,6 +246,11 @@ img.bede-portrait {
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
+
+/* The placeholder is already dark navy (below) — on the hero's own navy
+   ground it would otherwise vanish into the band around it with nothing
+   but the shadow to mark its edge. */
+.hero .video-wrap { border: 1px solid rgba(224, 184, 74, 0.3); }
 
 .video-wrap.vertical {
   max-width: 20rem;
@@ -309,7 +350,7 @@ section {
   margin: 0 0 0.5rem;
 }
 
-.band-closing .eyebrow { color: var(--gilt-light); }
+.band-closing .eyebrow, .curriculum.band-curriculum .eyebrow, .founder .eyebrow { color: var(--gilt-light); }
 
 h2 {
   font-family: 'Palatino Linotype', Palatino, serif;
@@ -318,7 +359,7 @@ h2 {
   margin: 0 0 0.75rem;
 }
 
-.band-closing h2 { color: var(--vellum); }
+.band-closing h2, .curriculum.band-curriculum h2 { color: var(--vellum); }
 
 p.lede {
   font-size: 1rem;
@@ -328,7 +369,7 @@ p.lede {
   line-height: 1.65;
 }
 
-.band-closing p.lede { color: rgba(250, 246, 236, 0.82); }
+.band-closing p.lede, .curriculum.band-curriculum p.lede { color: rgba(250, 246, 236, 0.82); }
 
 .card-grid {
   display: grid;
@@ -366,26 +407,38 @@ p.lede {
 }
 
 /* Curriculum tab colours — one per subject, like the colored divider
-   tabs in a school binder, so the eleven subjects read as distinct at
-   a glance instead of one undifferentiated green list. Eleven hues
-   evenly spaced around the wheel (32.7° apart, identical saturation
-   and lightness) so none repeats and the list reads as one continuous
-   spectrum — every subject its own colour, the way every learner is
-   their own person. Muted well below full strength so they sit like
-   the plates in an old botanical folio rather than like highlighter
-   ink. Scoped to .curriculum: the other .card-grid instances on the
-   page aren't subject lists and keep the plain fern border. */
-.curriculum .card:nth-child(1)  { border-left-color: #7f3939; } /* Morning Time */
-.curriculum .card:nth-child(2)  { border-left-color: #7f5f39; } /* Living Books */
-.curriculum .card:nth-child(3)  { border-left-color: #787f39; } /* Mathematics */
-.curriculum .card:nth-child(4)  { border-left-color: #527f39; } /* Nature Study */
-.curriculum .card:nth-child(5)  { border-left-color: #397f46; } /* History & Geography */
-.curriculum .card:nth-child(6)  { border-left-color: #397f6c; } /* Language Arts */
-.curriculum .card:nth-child(7)  { border-left-color: #396c7f; } /* Science */
-.curriculum .card:nth-child(8)  { border-left-color: #39467f; } /* Art & Music */
-.curriculum .card:nth-child(9)  { border-left-color: #52397f; } /* Saints & Catechism */
-.curriculum .card:nth-child(10) { border-left-color: #78397f; } /* Scripture & Bible Study */
-.curriculum .card:nth-child(11) { border-left-color: #7f395f; } /* Free Study */
+   tabs in a school binder, so the fourteen subjects read as distinct at
+   a glance instead of one undifferentiated green list. Fourteen hues
+   evenly spaced around the wheel (360/14 = 25.7° apart, identical
+   saturation and lightness) so none repeats and the list reads as one
+   continuous spectrum — every subject its own colour, the way every
+   learner is their own person. Muted well below full strength so they
+   sit like the plates in an old botanical folio rather than like
+   highlighter ink. Scoped to .curriculum: the other .card-grid
+   instances on the page aren't subject lists and keep the plain fern
+   border.
+
+   Written as hsl() rather than hex so the even spacing is checkable in
+   the code itself — the hues are the only thing that varies, and adding
+   a subject means respacing this list, not appending to it. The 38%/36%
+   pair is the same saturation and lightness the earlier hex palette
+   used (hsl(0, 38%, 36%) is exactly #7f3939), so the tabs keep the
+   folio-plate weight they already had. Order matches the subject order
+   in the card grid above, which in turn matches the app's own. */
+.curriculum .card:nth-child(1)  { border-left-color: hsl(0, 38%, 36%); }     /* Morning Time */
+.curriculum .card:nth-child(2)  { border-left-color: hsl(25.7, 38%, 36%); }  /* Living Books */
+.curriculum .card:nth-child(3)  { border-left-color: hsl(51.4, 38%, 36%); }  /* Mathematics */
+.curriculum .card:nth-child(4)  { border-left-color: hsl(77.1, 38%, 36%); }  /* Nature Study */
+.curriculum .card:nth-child(5)  { border-left-color: hsl(102.9, 38%, 36%); } /* History & Geography */
+.curriculum .card:nth-child(6)  { border-left-color: hsl(128.6, 38%, 36%); } /* Language Arts */
+.curriculum .card:nth-child(7)  { border-left-color: hsl(154.3, 38%, 36%); } /* Science */
+.curriculum .card:nth-child(8)  { border-left-color: hsl(180, 38%, 36%); }   /* Art & Music */
+.curriculum .card:nth-child(9)  { border-left-color: hsl(205.7, 38%, 36%); } /* Saints & Catechism */
+.curriculum .card:nth-child(10) { border-left-color: hsl(231.4, 38%, 36%); } /* Scripture & Bible Study */
+.curriculum .card:nth-child(11) { border-left-color: hsl(257.1, 38%, 36%); } /* Latin & Christian Foundations */
+.curriculum .card:nth-child(12) { border-left-color: hsl(282.9, 38%, 36%); } /* Greek & New Testament Foundations */
+.curriculum .card:nth-child(13) { border-left-color: hsl(308.6, 38%, 36%); } /* Logic */
+.curriculum .card:nth-child(14) { border-left-color: hsl(334.3, 38%, 36%); } /* Free Study */
 
 .founder blockquote {
   margin: 0 0 0.75rem;
@@ -393,13 +446,13 @@ p.lede {
   font-style: italic;
   font-size: 1.1rem;
   line-height: 1.7;
-  color: var(--ink);
+  color: rgba(250, 246, 236, 0.9);
 }
 
 .founder cite {
   font-style: normal;
   font-size: 0.85rem;
-  color: var(--fern-deep);
+  color: var(--gilt-light);
 }
 
 .compare {
@@ -454,14 +507,36 @@ p.lede {
   margin-bottom: 0.15rem;
 }
 
-/* A row of small labels — used for the Bible translations Bede will
-   match its wording to. Shows breadth in a glance, without prose. */
+/* Rows of small labels — used for the Bible translations Bede will match
+   its wording to. Split into two labeled groups (Protestant / Catholic
+   editions) rather than one 11-item flex-wrap list: at a narrow width
+   that single row wraps unevenly (5/4/2 on a phone), and flexbox centers
+   each wrapped line independently, so it reads as a ragged staircase
+   rather than a tidy block. Two shorter, meaningfully-grouped rows wrap
+   far less often, and when they do it still reads as organized rather
+   than accidental. */
+.pill-group {
+  margin: 0 0 1.1rem;
+}
+
+.pill-group:last-child {
+  margin-bottom: 1.75rem;
+}
+
+.pill-label {
+  font-family: Georgia, serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8c887c;
+  margin: 0 0 0.5rem;
+}
+
 .pill-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
-  margin: 0 0 1.75rem;
 }
 
 .pill {
@@ -474,6 +549,28 @@ p.lede {
   padding: 0.3rem 0.85rem;
 }
 
+/* Justified body copy — used only on genuine multi-sentence prose blocks
+   (.limit, .guarantee p, .faq details p), never on short card/list text,
+   where a one- or two-line fragment gives justify too few words to
+   distribute space evenly and the classic ugly gap shows up immediately.
+   text-align-last: left keeps a paragraph's final line ragged rather than
+   stretched or centered — justify's other well-known tell. hyphens: auto
+   is what actually keeps the *earlier* lines from ballooning: without it,
+   a narrow column (a phone-width column runs 40-50 characters) forces the
+   browser to stretch inter-word spacing to fill the line since it can
+   only break between whole words; letting it break mid-word at a
+   syllable gives it far more places to end a line evenly. Relies on
+   <html lang="en"> (already set) for the hyphenation dictionary. */
+.limit,
+.guarantee p,
+.faq details p {
+  text-align: justify;
+  text-align-last: left;
+  -webkit-hyphens: auto;
+  -ms-hyphens: auto;
+  hyphens: auto;
+}
+
 /* Where Bede deliberately stops. Set apart from the cards so it reads
    as a promise rather than another feature. */
 .limit {
@@ -483,7 +580,6 @@ p.lede {
   border-left: 4px solid var(--gilt);
   background: rgba(255, 255, 255, 0.6);
   border-radius: 0.5rem;
-  text-align: left;
   font-size: 0.92rem;
   line-height: 1.65;
   color: var(--prose);
@@ -676,12 +772,28 @@ p.lede {
 }
 
 footer {
-  padding: 1.5rem;
+  padding: 2.25rem 1.5rem 2rem;
   font-size: 0.8rem;
   color: #9a968c;
   border-top: 1px solid var(--vellum-deep);
   width: 100%;
   text-align: center;
+}
+
+/* Two deliberate rows — a link line, then copyright — rather than the
+   old single wrapped paragraph broken by a <br>, whose only vertical
+   rhythm was that tag's own line-height. A link row can wrap to two
+   lines on a narrow phone width, so its own line-height (not a margin
+   sized for one line) is what keeps that wrap readable; the gap down to
+   the copyright line is a real margin instead. */
+.footer-links {
+  margin-bottom: 0.85rem;
+  line-height: 1.8;
+}
+
+.footer-copyright {
+  margin: 0;
+  line-height: 1.6;
 }
 
 .beta-banner {
@@ -732,8 +844,6 @@ footer a {
 }
 
 footer a:hover { color: var(--ink); }
-
-footer br { line-height: 2.4; }
 
 /* ── feedback/index.html ─────────────────────────────────────────────────
    The marketing site is static — no backend, and the product's own

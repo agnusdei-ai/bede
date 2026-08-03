@@ -12,10 +12,18 @@ if TYPE_CHECKING:
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
+from services.latin_catalog import latin_note as _latin_catalog_note
+from services.greek_catalog import greek_note as _greek_catalog_note
+from services.logic_catalog import logic_note as _logic_catalog_note
 from services.diagnostic.phonics import (
     DOMAINS as _PHONICS_DOMAINS,
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
     DOMAIN_LABELS as _PHONICS_DOMAIN_LABELS,
+)
+from services.diagnostic.literacy import (
+    DOMAINS as _LITERACY_DOMAINS,
+    DOMAIN_CHECKIN_HINTS as _LITERACY_DOMAIN_HINTS,
+    DOMAIN_LABELS as _LITERACY_DOMAIN_LABELS,
 )
 from services.diagnostic.language_exposure import (
     LANGUAGES as _EXPOSURE_LANGUAGES,
@@ -206,6 +214,66 @@ _MAX_TOOL_LOOP_ROUNDS = 3
 # free text, so it can never carry anything resembling an instruction
 # back into the model's own context.
 _TRIVIAL_TOOL_RESULT = {"acknowledged": True}
+
+# ── What Bede noticed about the work ────────────────────────────────────
+#
+# Declared ONCE and spliced into all four `record_*_evidence` tools below,
+# because these three fields were previously written out four times and the
+# criteria are the part most likely to be revised — four copies is four
+# chances for them to drift apart.
+#
+# THE ENUM VALUES ARE FROZEN; THE CRITERIA ARE NOT. Every value here is
+# stored verbatim inside SkillActivityLog.detail_enc, and this codebase has
+# no ALTER TABLE path (see core/database.py), so renaming a level would
+# silently orphan every observation a family has already accumulated —
+# services/diagnostic/activity.summarize drops any value it doesn't
+# recognize. What a level MEANS, and what a parent sees it called on
+# screen, are both revisable without touching a stored row; the wire word
+# is not. That is why `speed` still says "speed" here while everything
+# facing a human calls it ease.
+#
+# The criteria themselves are criterion-referenced, in the ordinary sense
+# an M.Ed. assessment course uses the term: each level describes what the
+# WORK looks like against what the task asked for, with no reference to
+# other children, to an age norm, or to the same child last week. That is
+# not a stylistic preference — it is the property that lets the pod roster
+# exist at all without becoming a ranking.
+_WORK_SCORE_TOOL_FIELDS: dict = {
+    "quality": {
+        "type": "string",
+        "enum": ["adequate", "proficient", "exemplary"],
+        "description": (
+            "OPTIONAL. How well this piece of WORK was done, judged only against what the "
+            "task asked for. adequate = it does what was asked and nothing is wrong with it. "
+            "proficient = it does what was asked and the thinking is visible — someone else "
+            "could follow how they got there. exemplary = it could be shown to another child "
+            "as the example. Omit unless you genuinely saw enough to say; a blank is honest."
+        ),
+    },
+    "distinction": {
+        "type": "string",
+        "enum": ["expected", "noteworthy", "original"],
+        "description": (
+            "OPTIONAL. How far past the task the child went. expected = they answered the "
+            "question they were asked. noteworthy = they went past it unprompted — connected "
+            "it to something else, asked what would happen if, or checked their own answer a "
+            "second way. original = they brought a genuine idea, question, or method of their "
+            "own. Keep `original` rare or it stops meaning anything. This is the field a "
+            "parent reads for initiative."
+        ),
+    },
+    "speed": {
+        "type": "string",
+        "enum": ["deliberate", "steady", "brisk"],
+        "description": (
+            "OPTIONAL. How much the work still COSTS this child — ease, not the clock. "
+            "deliberate = it took real effort and full attention, which is normal and good "
+            "for new work. steady = they worked without strain. brisk = it has become easy "
+            "and barely costs them anything now. A quick answer that skipped the thinking is "
+            "NOT brisk. Never mention pace to the child and never hurry them."
+        ),
+    },
+}
 
 # Agentic tools the tutor can invoke during a session
 TUTOR_TOOLS = [
@@ -525,8 +593,40 @@ TUTOR_TOOLS = [
                     "type": "number", "minimum": 0, "maximum": 1,
                     "description": "Your certainty this exchange was genuinely diagnostic (default 1.0)",
                 },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["probe_id", "outcome"],
+        },
+    },
+    {
+        "name": "record_literacy_evidence",
+        "description": (
+            "SILENTLY record evidence about READING or SPELLING from something that genuinely came "
+            "up in a grades 3-8 Language Arts or Living Books session — a word misread, a spelling "
+            "pattern that held or didn't, a retelling that missed the order, an inference the child "
+            "made or couldn't. Never a test, never announced, and never more than one per session. "
+            "Only call this when the child's own reading, spelling, or narration actually showed you "
+            "something. The child never sees this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "enum": list(_LITERACY_DOMAINS),
+                    "description": "Which reading/spelling domain this was evidence for",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How the child performed: correct=solid unaided, partial=some grasp, "
+                        "incorrect=missed it, hint_dependent=only after you helped"
+                    ),
+                },
+                **_WORK_SCORE_TOOL_FIELDS,
+            },
+            "required": ["domain", "outcome"],
         },
     },
     {
@@ -554,6 +654,7 @@ TUTOR_TOOLS = [
                         "incorrect=missed it, hint_dependent=only after you helped"
                     ),
                 },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["domain", "outcome"],
         },
@@ -585,6 +686,7 @@ TUTOR_TOOLS = [
                         "incorrect=missed it, hint_dependent=only after you helped"
                     ),
                 },
+                **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["language", "outcome"],
         },
@@ -716,7 +818,60 @@ _SUBJECT_CONTEXT = {
         "family has set a faith_tradition below, let it shape tone and emphasis, never doctrinal claims "
         "Bede states as settled fact. Invite narration of the Bible story, and treat this subject as a "
         "sibling to Saints & Catechism, not a replacement for it — a family may have either, both, or "
-        "neither enabled."
+        "neither enabled.\n"
+        "'Every Christian tradition' here means the historic faith held across the Catholic, Orthodox, "
+        "and Protestant traditions: the Bible as Scripture, and the classic Christian understanding of "
+        "who Christ is and how a person is saved through him. Teach the Bible only from that shared "
+        "ground. Bede's own voice never treats a modern individual's claimed revelation as scripture "
+        "alongside the Bible, or presents a view of Christ or salvation that departs from that shared "
+        "ground, no matter what a parent or child brings up."
+    ),
+    Subject.latin: (
+        "Latin & Christian Foundations session — the language of the Western Church and of the "
+        "classical tradition, met through the vocabulary every Christian tradition shares: Fides, "
+        "Spes, Caritas, Sapientia, Veritas, Ora et Labora, and Christ's own summary of the whole "
+        "law, `Diliges Dominum Deum tuum... et proximum tuum sicut teipsum`. This is a real "
+        "language subject taught the classical way — ear before eye, roots before grammar — and "
+        "at the same time it is formation: each word is a thing to become, not only a thing to "
+        "know. Ask what the word means, what English words grew out of it, and where the child "
+        "has seen the thing itself this week. Deliberately a sibling to BOTH faith modules and "
+        "captive to neither: the content is the shared Christian inheritance, never one "
+        "tradition's distinctive devotions or doctrine (see <latin_foundations> below, which "
+        "governs). All Latin you quote must come from the block below — never recite Latin from "
+        "memory and never compose your own. `invite_handwriting` suits copying out a short Latin "
+        "phrase by hand from Year 3 upward; at K-2 keep it entirely spoken."
+    ),
+    Subject.greek: (
+        "Greek & New Testament Foundations session — Koine Greek, the language the New Testament "
+        "was actually written in, met through the vocabulary every Christian tradition shares: "
+        "πίστις, ἐλπίς, ἀγάπη (the same three virtues Latin calls Fides, Spes, Caritas — here in "
+        "the words Paul himself wrote), σοφία, ἀλήθεια, and λόγος. Unlike Latin, where the Vulgate "
+        "is a translation, this is the original text — say so; for many families that is the whole "
+        "reason to learn it. A real language subject taught the classical way, and at K-2 that "
+        "means the alphabet itself, which is concrete and delightful where abstract vocabulary "
+        "would not be. Always show the transliteration and the English beside any Greek. "
+        "Deliberately a sibling to BOTH faith modules and captive to neither — this subject serves "
+        "Protestant, Catholic, and Orthodox families alike (see <greek_foundations> below, which "
+        "governs). All Greek you quote must come from the block below — never recite Greek from "
+        "memory and never compose your own. `invite_handwriting` suits writing Greek letters by "
+        "hand from Year 3 upward; at K-2 tracing in the air or on paper is enough."
+    ),
+    Subject.logic: (
+        "Logic session — the second art of the trivium, taught directly for once rather than only "
+        "practised. At 3-5 this is a handful of questions the child learns to ask out loud "
+        "(\"always or just sometimes?\", \"how do you know?\"); at 6-8 it is formal — syllogisms, "
+        "validity, and the named fallacies. Deliberately NOT a K-2 subject: a Grammar-stage child "
+        "is gathering the world, not auditing it. The one idea everything here serves is that "
+        "logic is for finding what is true WITH someone, never for winning against them — a "
+        "student who leaves this subject better at arguing and no better at thinking has been "
+        "harmed by it. Clear thinking is what this subject produces in a student who studies it "
+        "well, not part of its own name. Work only from the arguments given in <logic> below, "
+        "which governs; never invent a syllogism or a fallacy example of your own, since an "
+        "invalid argument can look perfectly fine and the student cannot yet catch that. Let them "
+        "judge before you do. Invite the student to narrate their reasoning aloud before you say "
+        "anything — hearing where the reasoning actually went is the assessment here — and from "
+        "6-8, `invite_handwriting` suits laying a syllogism's premises and conclusion out on "
+        "paper, where the structure becomes visible in a way it never is in speech."
     ),
     Subject.free_study: (
         "Free Study time. The child leads. Ask what they are curious about and follow their interest. "
@@ -1229,6 +1384,23 @@ def _guadalupe_note(subject: Subject, locale: str) -> str:
     )
 
 
+# Free-text labels a parent (or the demo's own intake note) might put in
+# faith_tradition that name a group outside the historic Christian
+# consensus _SUBJECT_CONTEXT[Subject.scripture] scopes this curriculum to:
+# built on a modern individual's claimed revelation alongside or in place
+# of the Bible, or on a view of Christ outside that shared ground. Matched
+# as a substring against the lowercased, sanitized label, so "Jehovah's
+# Witness family" or "ex-Mormon household" still match. Deliberately a
+# short, explicit, documented list rather than a guess at every group that
+# might belong here — see _faith_tradition_note's own docstring for what
+# happens to a label that doesn't match: it is simply treated as an
+# ordinary Christian tradition, same as "Baptist" or "Lutheran".
+_OUTSIDE_HISTORIC_CHRISTIAN_SCOPE = (
+    "jehovah's witness", "jehovahs witness", "watchtower",
+    "mormon", "latter-day saint", "latter day saint", "lds", "book of mormon",
+)
+
+
 def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     """
     Framing guidance for Scripture & Bible Study / Saints & Catechism /
@@ -1252,10 +1424,26 @@ def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
     assuming denomination-specific practice or doctrine that doesn't fit
     the stated tradition; it never supplies denomination-specific facts the
     way _guadalupe_note does for one specific, verified devotion.
+
+    One exception to "adapt to whatever the family names":
+    _OUTSIDE_HISTORIC_CHRISTIAN_SCOPE above. Bede's own teaching stays
+    within the historic Christian consensus regardless of what a family
+    calls their tradition — this is a scope decision about what Bede
+    itself draws on and presents as Scripture or Christian doctrine, not a
+    verdict Bede ever states to the child or family about their own faith.
     """
     tradition = _sanitize_parent_field(config.faith_tradition, max_len=60)
     if not tradition or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
         return ""
+    if any(marker in tradition.lower() for marker in _OUTSIDE_HISTORIC_CHRISTIAN_SCOPE):
+        return (
+            f"\nThis family named their tradition as: {tradition}. That falls outside the historic "
+            "Christian consensus this curriculum teaches from. Do not adapt Scripture, saint, or faith "
+            "content to fit it, and do not treat any writing beyond the Bible as scripture alongside "
+            "it. Continue teaching from the historic Christian consensus exactly as you would with no "
+            "faith_tradition set. Never say this to the child or family, and never frame it as a "
+            "judgment of their beliefs — this only shapes what Bede itself teaches from."
+        )
     return (
         f"\nThis family's own church tradition: {tradition}. Frame Scripture, saint, and faith content "
         "in a way that feels at home there — avoid assuming devotional practices or doctrinal specifics "
@@ -1264,6 +1452,55 @@ def _faith_tradition_note(config: SessionConfig, subject: Subject) -> str:
         "Christ, Scripture, and the moral law common across Christian traditions. Defer any "
         "denomination-specific doctrinal question to the family's own pastor or priest rather than "
         "answering it as settled fact yourself."
+    )
+
+
+def _classical_language_companion_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    When a family already runs their own Latin or Greek programme, tell
+    Bede plainly that it is the practice beside that course, not the course.
+
+    _curriculum_resources_note already asks Bede to align terminology with a
+    named resource, but it lives in the STATIC prompt block and is
+    deliberately generic — it spans math, writing and phonics publishers
+    too, and says nothing about who owns the sequence. That is not enough
+    here. A family running Latina Christiana or a school Latin programme has
+    a real syllabus with its own order, its own vocabulary list, and its own
+    teacher; Bede arriving with a weekly term of its own can quietly compete
+    with all three. The instruction this app is built on is that Bede be an
+    asset, never a replacement.
+
+    Deliberately keyed off `curriculum_resources` being set at all rather
+    than trying to detect which named programme is a Latin one. Matching
+    publisher names would mean maintaining a list that is wrong the moment a
+    family types something unexpected, and the guidance is safe either way:
+    a family who listed only a maths publisher still benefits from Bede
+    deferring to whatever sequence they actually follow.
+    """
+    if subject not in _CLASSICAL_LANGUAGE_SUBJECTS:
+        return ""
+    resources = [_sanitize_parent_field(r, max_len=60) for r in (config.curriculum_resources or [])]
+    resources = [r for r in resources if r]
+    if not resources:
+        return ""
+    named = ", ".join(resources)
+    return (
+        f"\n\n<companion_to_their_own_programme>\nThis family already uses: {named}. If any of those is "
+        "their own Latin or Greek course, then THEY own the sequence and you do not. You are the "
+        "conversational practice beside it — the place their child gets to say the words aloud, be "
+        "asked what a word reminds them of, and hunt the English hiding inside it — never the "
+        "syllabus itself.\n"
+        "- If the child brings vocabulary, a paradigm, or a phrase from their own lessons, drop this "
+        "week's term and work with what they brought. Their course's material always outranks this "
+        "block's.\n"
+        "- Never tell a child their programme teaches something in the wrong order, uses the wrong "
+        "word for a form, or should be doing it differently. If their course's terminology differs "
+        "from yours, use THEIRS.\n"
+        "- Never present your weekly term as 'the lesson' or as what they ought to be covering now. "
+        "Offer it as something extra to enjoy alongside the real course.\n"
+        "- If a child asks something their own course will answer later, it is better to say their "
+        "teacher or book will get to it than to pre-empt it badly.\n"
+        "</companion_to_their_own_programme>"
     )
 
 
@@ -1314,7 +1551,15 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     separate concern.
     """
     translation = _sanitize_parent_field(config.bible_translation, max_len=40)
-    if not translation or subject not in (Subject.scripture, Subject.saints, Subject.morning_time):
+    # The classical-language subjects are gated too: their Latin/Greek is
+    # always quoted verbatim from their own catalog, but the ENGLISH
+    # alongside it isn't, and each catalog tells Bede to use the family's
+    # own translation's wording when they've set one. That instruction
+    # needs this note present to have anything to name.
+    if not translation or (
+        subject not in (Subject.scripture, Subject.saints, Subject.morning_time)
+        and subject not in _CLASSICAL_LANGUAGE_SUBJECTS
+    ):
         return ""
     if translation in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS:
         return (
@@ -1955,6 +2200,35 @@ move on warmly; do not correct or drill. Never mention this tracking to the chil
 
 _LANGUAGE_CHECKIN_SUBJECTS = (Subject.history, Subject.saints, Subject.art_music)
 
+# Subjects that carry their own weekly, stage-filtered catalog block, each
+# mapped to the function that renders it. All three share the signature
+# (grade, grade_stage, week_salt, today) -> str and the same VERBATIM
+# discipline: fixed, pre-reviewed content Bede quotes rather than material
+# it generates fresh each session.
+#
+# A mapping rather than a chain of `if subject == Subject.latin` branches:
+# adding Greek beside Latin would otherwise have meant a parallel special
+# case in every consumer. A future subject of this shape should be a row
+# here, not another branch.
+_CATALOG_NOTE_SUBJECTS = {
+    Subject.latin: _latin_catalog_note,
+    Subject.greek: _greek_catalog_note,
+    Subject.logic: _logic_catalog_note,
+}
+
+# The subset of those that teach a classical LANGUAGE, mapped to the single
+# services/diagnostic/language_exposure.py language each may record
+# evidence for. Deliberately narrower than _CATALOG_NOTE_SUBJECTS above:
+# Subject.logic has a catalog block but is not a language, so it takes
+# neither the Bible-translation gate (_bible_translation_note) nor the
+# language-evidence gate (_record_language_evidence). Keeping the two
+# concerns as two mappings is what stops "has a weekly block" and "is a
+# language" from silently becoming the same question.
+_CLASSICAL_LANGUAGE_SUBJECTS: "dict[Subject, str]" = {
+    Subject.latin: "latin",
+    Subject.greek: "greek",
+}
+
 
 def _language_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
@@ -2294,18 +2568,37 @@ async def _build_subject_prompt(
         if subject == Subject.morning_time
         else ""
     )
+    # Weekly catalog content for the subjects that have it — Latin's and
+    # Greek's verified anchor texts and vocabulary, Logic's fixed worked
+    # argument (services/{latin,greek,logic}_catalog.py). Same weekly
+    # calendar rotation and current_term-as-offset convention as
+    # poetry_note and prayer_recitation_note above; locale-independent,
+    # unlike those two, because a Latin or Greek text is the same text in
+    # every locale and a syllogism's structure doesn't change either —
+    # only Bede's own surrounding speech is localized (see
+    # _locale_directive). Logic's renderer returns "" for K-2 on its own,
+    # which is the last of that subject's three stage gates (the others
+    # being SessionConfig._validate_logic_stage and the UI).
+    subject_catalog_note = ""
+    if subject in _CATALOG_NOTE_SUBJECTS:
+        subject_catalog_note = _CATALOG_NOTE_SUBJECTS[subject](
+            config.grade, config.grade_stage, week_salt=config.current_term, today=local_date,
+        )
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
     phonics_note = _phonics_checkin_note(config, subject)
+    work_scoring_note = _WORK_SCORING_NOTE
+    literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
+    companion_note = _classical_language_companion_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{language_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -2776,6 +3069,56 @@ def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> st
     return f"\nWhere this subject left off ({when}): {note}"
 
 
+async def _record_work_done(
+    db: Optional["AsyncSession"],
+    student_name: str,
+    subject_area: str,
+    skill_id: str,
+    outcome: str,
+    ev=None,
+) -> None:
+    """
+    Append one row to the work ledger (services/diagnostic/activity.py).
+
+    Called alongside every mastery write rather than replacing it: the
+    mastery vector answers "how likely is it this child has mastered X",
+    the ledger answers "what has this child actually done". Only the second
+    can honestly support a parent arranging one of their students to help
+    another, which is why both exist.
+
+    Resolves the human-readable label from whichever engine owns that
+    subject area, so the ledger reads in the parent's language rather than
+    in skill ids. Entirely best-effort — a ledger failure must never
+    surface to the child's turn, and never blocks the mastery write that
+    already succeeded.
+    """
+    if db is None:
+        return
+    try:
+        from services.diagnostic.activity import record_activity
+
+        label = skill_id
+        if subject_area == "mathematics":
+            from services.diagnostic.skill_map import get_skill
+            skill = get_skill(skill_id)
+            label = skill.label if skill else skill_id
+        elif subject_area == "literacy":
+            label = _LITERACY_DOMAIN_LABELS.get(skill_id, skill_id)
+        elif subject_area == "phonics":
+            label = _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
+        elif subject_area == "language_exposure":
+            label = _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
+
+        await record_activity(
+            db, student_name, subject_area, skill_id, label, outcome,
+            quality=getattr(ev, "quality", None),
+            distinction=getattr(ev, "distinction", None),
+            speed=getattr(ev, "speed", None),
+        )
+    except Exception as exc:
+        log.warning("Work-ledger write failed for %s/%s: %s", student_name, skill_id, exc)
+
+
 async def _record_skill_evidence(
     db: Optional["AsyncSession"],
     demo_code: Optional[str],
@@ -2812,8 +3155,153 @@ async def _record_skill_evidence(
                 db, config.student_name, ev.probe_id, ev.outcome, ev.confidence,
                 config.grade_stage.value,
             )
+            # The work ledger, alongside (not instead of) the mastery
+            # update — the two answer different questions and both are
+            # wanted. See services/diagnostic/activity.py.
+            await _record_work_done(
+                db, config.student_name, "mathematics",
+                ev.probe_id.removeprefix("probe."), ev.outcome, ev,
+            )
     except Exception as exc:
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
+
+
+# Reading and spelling live where a child actually reads and writes:
+# Language Arts (copywork, narration, grammar) and Living Books
+# (literature). Deliberately grades 3-8 only — K-2 reading is
+# services/diagnostic/phonics.py's job, and two engines competing for the
+# same child's decoding evidence would produce two disagreeing pictures.
+_LITERACY_CHECKIN_SUBJECTS = (Subject.language_arts, Subject.living_books)
+_LITERACY_STAGES = (GradeStage.core_mastery, GradeStage.independent)
+
+
+_WORK_SCORING_NOTE = """
+
+<what_you_noticed_about_the_work>
+When you record evidence with one of the silent recording tools, you may also say what you noticed
+about the WORK — optionally, and only where you genuinely saw enough to say it.
+
+YOU ARE A GUIDE, NOT THE TEACHER. The parent teaches. You sit alongside the child, and afterwards
+you tell the parent plainly what you saw, the way one adult describes a piece of work to the adult
+responsible for it. Nothing here is a grade, a pass, a level, or a verdict on whether the child is
+doing well enough. It is one honest observation handed to the person who decides what it means.
+
+Judge the WORK against what the task actually asked for. Never against another child, never against
+what a child that age "should" be doing, never against how this same child did last week. Those
+comparisons are not yours to make, and they are not what the parent needs from you.
+
+Three separate things, each optional and each independent of the others:
+
+  quality — how well this piece of work was done.
+    adequate    it does what the task asked, and nothing is wrong with it.
+    proficient  it does what was asked and the thinking is visible: someone else could follow how
+                they got there.
+    exemplary   it could be shown to another child as the example.
+
+  distinction — how far past the task they went. A child who answered the question, and a child who
+  answered it and then asked a better one, have produced different work. This is the only field
+  that can tell those two apart, and it is what a parent looking for initiative actually reads.
+    expected    they answered the question they were asked.
+    noteworthy  they went past it unprompted — connected it to something else, asked what would
+                happen if, or checked their own answer a second way.
+    original    they brought a genuine idea, question, or method of their own.
+
+  speed — read this as EASE, not as the clock. What it records is how much the work still costs
+  this child, which is the thing worth knowing: work that has stopped costing them everything has
+  freed up room for the next thing.
+    deliberate  it took real effort and full attention. This is normal, and it is good, for work
+                that is new to them.
+    steady      they worked without strain.
+    brisk       it has become easy; it barely costs them anything now.
+
+Rules, and they matter more than the three fields:
+- You are scoring the work, never the child. "This narration was exemplary" is something you saw.
+  "This child is exemplary" is a claim about a person, and you must never record or imply it.
+- Omit any dimension you did not genuinely observe. A blank is honest and useful; a guessed one
+  quietly corrupts the parent's whole picture. Never fill all three out of a sense of tidiness.
+- NEVER hurry a child, time them, mention pace, or let any of this enter your voice. A child who
+  works deliberately is not working worse, and a child who feels raced does worse work and enjoys
+  it less. A quick answer that skipped the thinking is not `brisk` — it is not even adequate.
+- `original` is rare and should stay rare. Reserve it for a child bringing a genuine idea, question,
+  or method of their own — not for enthusiasm, not for a long answer, and not for agreeing with you
+  eagerly.
+- Never tell the child any of this is happening, and never use these words with them. Praise the
+  specific thing they did well, exactly as you always would.
+</what_you_noticed_about_the_work>"""
+
+
+def _literacy_checkin_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    Grades 3-8, Language Arts and Living Books: a nudge to notice what the
+    child's own reading, spelling, and narration already reveal — never to
+    administer a test.
+
+    This is the counterpart to _phonics_checkin_note one stage up, and it
+    closes the larger of the two gaps: phonics stops at 2nd grade, and
+    before services/diagnostic/literacy.py nothing measured reading or
+    spelling after it. A 5th grader could work with Bede for a year and
+    produce no evidence at all about how they read.
+
+    Deliberately observational rather than probing. Reading evidence is
+    lying around in an ordinary lesson — a long word stalled on, a
+    homophone chosen wrongly in copywork, a narration that reorders events,
+    an inference reached without being asked for. Bede should record what
+    it genuinely saw, not manufacture an assessment. Same
+    "prompt-instruction-only" pacing limit as the phonics and language
+    check-ins, since record_literacy_evidence is fully silent and leaves
+    nothing in the transcript to scan for.
+    """
+    if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
+        return ""
+    domain_lines = "\n".join(
+        f"  - {domain} ({_LITERACY_DOMAIN_LABELS[domain]}): {_LITERACY_DOMAIN_HINTS[domain]}"
+        for domain in _LITERACY_DOMAINS
+    )
+    return f"""
+
+<literacy_checkin>
+Reading and spelling are measured by NOTICING, not by testing. During this session, if the
+child's own reading, copywork, or narration genuinely shows you something about one of these,
+call `record_literacy_evidence` with that domain id and an honest outcome:
+{domain_lines}
+Record what actually happened — do NOT invent an exercise to generate evidence, do not announce
+that you are noting anything, and never record more than one domain per session. If a child
+stumbles, help them warmly and move on; the observation is for their parent's picture of them
+over time, never a verdict delivered to the child.
+</literacy_checkin>"""
+
+
+async def _record_literacy_evidence(
+    db: Optional["AsyncSession"],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently record reading/spelling evidence — see
+    services/diagnostic/literacy.py for the domain sequence and why it is
+    ordered developmentally. Real (parent/child) sessions only, mirroring
+    _record_phonics_evidence's no-demo-backend wiring.
+
+    Gated at the code level to exactly where the prompt guidance is gated
+    (Language Arts and Living Books, grades 3-8) as a second, defensive
+    backstop — the same belt-and-braces match _record_phonics_evidence uses
+    for its own K-2 gate. The stage gate matters especially here: a K-2
+    session must fall through to phonics.py, never to this engine.
+    """
+    if db is None:
+        return
+    if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
+        return
+    try:
+        from models.schemas import RecordLiteracyEvidenceInput
+        from services.diagnostic.literacy import process_evidence as _process_literacy
+
+        ev = RecordLiteracyEvidenceInput(**tool_input)  # validate/clamp
+        await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
+        await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
+    except Exception as exc:
+        log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_phonics_evidence(
@@ -2843,6 +3331,7 @@ async def _record_phonics_evidence(
 
         ev = RecordPhonicsEvidenceInput(**tool_input)  # validate/clamp
         await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
+        await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -2865,15 +3354,36 @@ async def _record_language_evidence(
     prompt-level gate, not a substitute for it. Defensive like
     _record_phonics_evidence, which this mirrors: a diagnostic hiccup must
     never break the child's tutoring turn.
+
+    The classical-language subjects (_CLASSICAL_LANGUAGE_SUBJECTS — Latin,
+    Greek) are additions to that gate, and each is narrower than the three
+    above rather than equal to them: such a subject may only ever record
+    evidence for its OWN language. These are real language subjects (see
+    services/latin_catalog.py, services/greek_catalog.py), so the recall
+    they produce is better evidence than an opportunistic History-lesson
+    moment — but a Latin session has no business claiming a reading on
+    German, and a Greek session none on Latin, so a call naming any other
+    language there is dropped rather than trusted. The three opportunistic
+    subjects keep their existing behavior, where any of the six is
+    legitimately in play.
     """
-    if subject not in _LANGUAGE_CHECKIN_SUBJECTS or db is None:
+    if db is None:
+        return
+    if subject not in _CLASSICAL_LANGUAGE_SUBJECTS and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return
     try:
         from models.schemas import RecordLanguageEvidenceInput
         from services.diagnostic.language_exposure import process_evidence as _process_language
 
         ev = RecordLanguageEvidenceInput(**tool_input)  # validate/clamp
+        # Checked against the validated value rather than the raw tool
+        # input, so there is one reading of "which language did the model
+        # actually name" instead of two that could drift apart.
+        own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject)
+        if own_language and ev.language != own_language:
+            return
         await _process_language(db, config.student_name, ev.language, ev.outcome)
+        await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3207,6 +3717,10 @@ async def stream_tutor_response(
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_phonics_evidence's own docstring.
                                     await _record_phonics_evidence(db, config, subject, tool_input)
+                                elif tc["name"] == "record_literacy_evidence":
+                                    # Fully silent, same as record_skill_evidence above —
+                                    # see _record_literacy_evidence's own docstring.
+                                    await _record_literacy_evidence(db, config, subject, tool_input)
                                 elif tc["name"] == "record_language_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.

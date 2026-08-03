@@ -39,6 +39,7 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
     from core.database import (
         ApiUsageEvent,
         DiagnosticEvidenceLog,
+        SkillActivityLog,
         LearnerBehaviorCheck,
         LearnerProfile,
         LessonBookmark,
@@ -61,6 +62,7 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
         ("lesson_bookmarks", LessonBookmark),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
+        ("skill_activity_log", SkillActivityLog),
         ("session_transcripts", SessionTranscript),
         ("api_usage_events", ApiUsageEvent),
     ):

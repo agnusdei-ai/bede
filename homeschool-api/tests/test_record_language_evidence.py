@@ -187,3 +187,104 @@ async def test_second_valid_call_accumulates_on_the_same_row_across_subjects(db_
     )).scalars().all()
     assert len(rows) == 1
     assert rows[0].evidence_count == 2
+
+
+# ── The classical-language subjects' narrower gate ───────────────────────
+#
+# Latin and Greek (services/latin_catalog.py, services/greek_catalog.py)
+# record evidence too, but unlike the three opportunistic subjects above,
+# each may only ever claim a reading on its OWN language — a Latin lesson
+# has no business producing evidence about German, and a Greek lesson none
+# about Latin.
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("subject,language", [
+    (Subject.latin, "latin"),
+    (Subject.greek, "greek"),
+])
+async def test_classical_subject_records_its_own_language(db_session, subject, language):
+    await _record_language_evidence(
+        db_session, _config(student_name=f"Own{language}"), subject,
+        {"language": language, "outcome": "correct"},
+    )
+    row = (await db_session.execute(
+        select(MasteryProfile).where(
+            MasteryProfile.student_name == f"Own{language}",
+            MasteryProfile.subject_area == "language_exposure",
+        )
+    )).scalar_one_or_none()
+    assert row is not None, f"the {subject.value} subject should feed the {language} domain"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("subject,wrong_language", [
+    (Subject.latin, "greek"),
+    (Subject.greek, "latin"),
+])
+async def test_classical_subjects_do_not_claim_each_others_language(
+    db_session, subject, wrong_language, monkeypatch,
+):
+    """
+    The pair that matters most now that both exist: a Greek session must
+    not quietly record Latin evidence, or a parent reading the Progress
+    page would see growth in a subject the child never sat.
+    """
+    mock_process_evidence = AsyncMock()
+    monkeypatch.setattr("services.diagnostic.language_exposure.process_evidence", mock_process_evidence)
+
+    await _record_language_evidence(
+        db_session, _config(student_name="CrossTalk"), subject,
+        {"language": wrong_language, "outcome": "correct"},
+    )
+
+    mock_process_evidence.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_latin_subject_records_latin_evidence(db_session):
+    await _record_language_evidence(
+        db_session, _config(student_name="Cato"), Subject.latin,
+        {"language": "latin", "outcome": "correct"},
+    )
+    row = (await db_session.execute(
+        select(MasteryProfile).where(
+            MasteryProfile.student_name == "Cato",
+            MasteryProfile.subject_area == "language_exposure",
+        )
+    )).scalar_one_or_none()
+    assert row is not None, "the Latin subject should feed the language_exposure latin domain"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("language", ["german", "french", "greek", "italian", "spanish"])
+async def test_latin_subject_refuses_evidence_for_any_other_language(db_session, language, monkeypatch):
+    mock_process_evidence = AsyncMock()
+    monkeypatch.setattr("services.diagnostic.language_exposure.process_evidence", mock_process_evidence)
+
+    await _record_language_evidence(
+        db_session, _config(student_name="Cato"), Subject.latin,
+        {"language": language, "outcome": "correct"},
+    )
+
+    mock_process_evidence.assert_not_called()
+    rows = (await db_session.execute(
+        select(MasteryProfile).where(MasteryProfile.student_name == "Cato")
+    )).scalars().all()
+    assert rows == [], f"a Latin session must not record a reading on {language}"
+
+
+@pytest.mark.asyncio
+async def test_opportunistic_subjects_keep_accepting_every_language(db_session):
+    """
+    The narrower Latin gate must not have narrowed the three existing
+    subjects along with it — an Art & Music session legitimately produces
+    Italian evidence.
+    """
+    await _record_language_evidence(
+        db_session, _config(student_name="Vivaldi"), Subject.art_music,
+        {"language": "italian", "outcome": "correct"},
+    )
+    row = (await db_session.execute(
+        select(MasteryProfile).where(MasteryProfile.student_name == "Vivaldi")
+    )).scalar_one_or_none()
+    assert row is not None

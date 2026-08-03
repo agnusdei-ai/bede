@@ -5,6 +5,8 @@ import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shiel
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
 import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS } from '../types'
+import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
+import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import LicenseSettings from '../components/LicenseSettings'
@@ -44,6 +46,27 @@ const blankResume = (): ResumeForm => ({
   recorded_on: '',
 })
 
+// Subjects a family opts INTO, never receives by default. Everything else
+// is the Mater Amabilis core rotation that "Full Daily Plan" has always
+// meant. The classical languages and Logic are real electives most
+// families won't run: auto-selecting them would silently add 35 minutes to
+// every new student's day and put Latin in front of a family that never
+// asked for it, which is the opposite of the opt-in promise those subjects
+// are documented with. `free_study` was already excluded for its own
+// reasons and keeps that behavior.
+const ELECTIVE_SUBJECTS: Subject[] = ['latin', 'greek', 'logic', 'free_study']
+const DEFAULT_SUBJECTS: Subject[] = SUBJECTS
+  .filter((s) => !ELECTIVE_SUBJECTS.includes(s.id))
+  .map((s) => s.id)
+
+// Logic is the app's only stage-gated subject: formal reasoning before the
+// Logic stage is the premature abstraction classical education warns
+// against, so a K-2 student is never offered the card. The backend drops
+// it independently (SessionConfig._validate_logic_stage) — this is the
+// UI's half of that gate, not the whole of it.
+const subjectsForStage = (stage: GradeStage) =>
+  SUBJECTS.filter((s) => s.id !== 'logic' || stage !== 'K-2')
+
 // A "start here" preset, not a lock — picking one fills in selected_subjects
 // and session_cap_minutes as sensible defaults; both remain freely editable
 // afterward via their own controls below. Meets a family where they are:
@@ -54,6 +77,10 @@ const blankResume = (): ResumeForm => ({
 // See models/schemas.py's CompanionMode for the backend-side rationale —
 // full_plan also changes nothing about Bede's own tutoring prompt; the
 // other two lightly reframe it (services/ai_service.py's _companion_mode_note).
+// Minutes of instruction a subject list actually asks for.
+const studyMinutesFor = (subjects: Subject[]) =>
+  subjects.reduce((acc, id) => acc + (SUBJECT_MAP[id]?.durationMin ?? 0), 0)
+
 const COMPANION_MODES: Array<{
   value: CompanionMode
   labelKey: string
@@ -62,29 +89,42 @@ const COMPANION_MODES: Array<{
   subjects: Subject[]
   sessionCapMinutes: number
 }> = [
+  // Mathematics is in EVERY preset, deliberately. It is foundational, and
+  // it is also the only subject carrying Bede's full diagnostic engine
+  // (services/diagnostic/) — a family on a lighter preset was previously
+  // getting no math and therefore no real mastery signal at all, which
+  // made "mastery-based outcome" untrue for exactly the families most
+  // likely to need the reassurance.
+  //
+  // Every cap below is DERIVED from its own subject list rather than typed
+  // in, so intent and capacity are equal by construction. Before this they
+  // were independent literals and had silently diverged: full_plan asked
+  // for 185 minutes of subjects inside a 120-minute cap.
   {
     value: 'book_companion',
     labelKey: 'parentSetup.companionModeBookCompanion',
     descriptionKey: 'parentSetup.companionModeBookCompanionDesc',
     emoji: '📖',
-    subjects: ['living_books', 'morning_time'],
-    sessionCapMinutes: 60,
+    subjects: ['living_books', 'morning_time', 'mathematics'],
+    sessionCapMinutes: capForStudyMinutes(studyMinutesFor(['living_books', 'morning_time', 'mathematics'])),
   },
   {
     value: 'guided',
     labelKey: 'parentSetup.companionModeGuided',
     descriptionKey: 'parentSetup.companionModeGuidedDesc',
     emoji: '🧭',
-    subjects: ['living_books', 'morning_time', 'language_arts', 'nature_study'],
-    sessionCapMinutes: 90,
+    subjects: ['living_books', 'morning_time', 'mathematics', 'language_arts', 'nature_study'],
+    sessionCapMinutes: capForStudyMinutes(
+      studyMinutesFor(['living_books', 'morning_time', 'mathematics', 'language_arts', 'nature_study']),
+    ),
   },
   {
     value: 'full_plan',
     labelKey: 'parentSetup.companionModeFullPlan',
     descriptionKey: 'parentSetup.companionModeFullPlanDesc',
     emoji: '🗓️',
-    subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
-    sessionCapMinutes: 120,
+    subjects: DEFAULT_SUBJECTS,
+    sessionCapMinutes: capForStudyMinutes(studyMinutesFor(DEFAULT_SUBJECTS)),
   },
 ]
 
@@ -115,6 +155,12 @@ interface StudentForm {
   eye_rest_break_minutes: number
   term_schedule: TermSchedule
   current_term: number
+  // Mastery-cycle window — how far back Progress looks when saying whether
+  // a term topic moved. travel_mode is what unlocks changing it; see
+  // models/schemas.py and utils/masteryCycle.ts for why it is a rolling
+  // window rather than a sprint.
+  travel_mode: boolean
+  mastery_cycle_days: number
   // Comma-separated per area in the form; parsed to string[] on save.
   term_topics: Record<CoreArea, string>
   // Where each interrupted subject left off — see ResumeForm above.
@@ -133,7 +179,7 @@ const blankStudent = (): StudentForm => ({
   grade_stage: '3-5',
   sex: '',
   companion_mode: 'full_plan',
-  selected_subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
+  selected_subjects: DEFAULT_SUBJECTS,
   lesson_focus: '',
   faith_emphasis: '',
   current_unit: '',
@@ -142,12 +188,17 @@ const blankStudent = (): StudentForm => ({
   curriculum_resources: '',
   voice_required: true,
   appearance_locked: false,
-  session_cap_minutes: 120,
+  // Derived from DEFAULT_SUBJECTS, not a literal — a new student's session
+  // must actually hold the plan they're given. A saved config keeps
+  // whatever the parent chose (see formFromConfig's own fallback).
+  session_cap_minutes: capForStudyMinutes(studyMinutesFor(DEFAULT_SUBJECTS)),
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
   term_schedule: 'trimester',
   current_term: 1,
+  travel_mode: false,
+  mastery_cycle_days: DEFAULT_MASTERY_CYCLE_DAYS,
   term_topics: {
     phonics_language: '', mathematics: '', reading_literature: '',
     science: '', writing_composition: '',
@@ -184,6 +235,8 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     eye_rest_break_minutes: c.eye_rest_break_minutes ?? 30,
     term_schedule: c.term_schedule ?? 'trimester',
     current_term: c.current_term ?? 1,
+    travel_mode: c.travel_mode ?? false,
+    mastery_cycle_days: c.mastery_cycle_days ?? DEFAULT_MASTERY_CYCLE_DAYS,
     term_topics: {
       ...blank.term_topics,
       ...Object.fromEntries(
@@ -302,6 +355,11 @@ export default function ParentSetup() {
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
       term_schedule: s.term_schedule,
       current_term: Math.min(s.current_term, s.term_schedule === 'trimester' ? 3 : 4),
+      travel_mode: s.travel_mode,
+      // The backend validator is the authority here (it forces the default
+      // back when travel mode is off, and clamps to 3-6 weeks when it is on);
+      // sending the form value unmodified keeps one source of truth.
+      mastery_cycle_days: s.mastery_cycle_days,
       term_mastery_topics: Object.fromEntries(
         CORE_AREAS.map(({ id }) => [
           id,
@@ -527,10 +585,22 @@ function StudentCard({
   onUpdate, onToggleSubject, onEnrolled, onRemove,
 }: StudentCardProps) {
   const { t } = useTranslation()
+  // Both the grid and the minutes total read from this, so a student moved
+  // down to K-2 after picking Logic stops showing it AND stops being
+  // billed 15 minutes for a subject the backend will drop on save.
+  const availableSubjects = subjectsForStage(student.grade_stage)
   const totalMin = student.selected_subjects.reduce((acc, s) => {
-    const info = SUBJECTS.find((x) => x.id === s)
+    const info = availableSubjects.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
   }, 0)
+  // Intent vs. capacity, reconciled in front of the parent rather than left
+  // for the timer to resolve by hard-stopping mid-subject. `totalMin` is
+  // instruction time; the cap is wall-clock and includes the mandatory break
+  // each hour, so the two are never directly comparable — see
+  // studyMinutesWithinCap in utils/gradeTimer.ts.
+  const availableStudyMin = studyMinutesWithinCap(student.session_cap_minutes)
+  const overSubscribedBy = Math.max(0, totalMin - availableStudyMin)
+  const capNeededForPlan = capForStudyMinutes(totalMin)
 
   const label = student.student_name.trim() || t('parentSetup.studentFallbackLabel', { n: index + 1 })
 
@@ -668,23 +738,47 @@ function StudentCard({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">{t('parentSetup.subjects')}</label>
-            <span className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: totalMin })}</span>
+            <span className={`text-xs ${overSubscribedBy > 0 ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
+              {t('parentSetup.minutesShort', { count: totalMin })} / {t('parentSetup.minutesShort', { count: availableStudyMin })}
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {SUBJECTS.map((s) => {
+          {overSubscribedBy > 0 && (
+            <div className="mb-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+              <p className="text-xs text-amber-800">
+                {t('parentSetup.subjectsOverCap', {
+                  over: overSubscribedBy,
+                  cap: student.session_cap_minutes,
+                  needed: capNeededForPlan,
+                })}
+              </p>
+            </div>
+          )}
+          {/* Single column, not a 2-up grid: several labels (Greek & New
+              Testament Foundations, Latin & Christian Foundations, Scripture
+              & Bible Study) don't fit a half-width card on one line, and
+              wrapping to two lines read as unpolished. Full width comfortably
+              fits every current label on one line; truncate + title remain
+              as a safety net for a future label that doesn't. The left
+              border is each subject's own color from SUBJECTS, matching
+              agnusdei.io's curriculum color binder — see that field's own
+              comment in types/index.ts. */}
+          <div className="grid grid-cols-1 gap-1.5">
+            {availableSubjects.map((s) => {
               const active = student.selected_subjects.includes(s.id)
               return (
                 <button
                   key={s.id}
                   onClick={() => onToggleSubject(s.id)}
-                  className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-left transition-all hover:scale-[1.03] active:scale-[0.97] ${
+                  style={{ borderLeftColor: s.color, borderLeftWidth: '4px' }}
+                  className={`flex items-center gap-2 rounded-xl border-2 pl-2 pr-3 py-2 text-left transition-all hover:scale-[1.02] active:scale-[0.98] min-w-0 ${
                     active ? 'border-navy-400 bg-navy-50 shadow-sm' : 'border-gray-200 bg-white opacity-50'
                   }`}
                 >
                   <s.Icon size={16} className="flex-shrink-0 text-current" />
-                  <div>
-                    <div className="text-xs font-medium text-gray-800">{s.label}</div>
-                    <div className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: s.durationMin })}</div>
+                  <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                    <span className="text-xs font-medium text-gray-800 truncate" title={s.label}>{s.label}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{t('parentSetup.minutesShort', { count: s.durationMin })}</span>
                   </div>
                 </button>
               )
@@ -912,6 +1006,52 @@ function StudentCard({
               {t('parentSetup.termTopicsHelp')}
             </p>
           </div>
+
+          {/* Travel mode — the ONLY control over the mastery-cycle window.
+              With it off there is exactly one honest window (28 actual
+              days, what the guarantee is written against), so a family that
+              doesn't travel is never asked to pick a number. Turning it on
+              is the parent saying "our weeks aren't regular", and the
+              choice appears then and only then. This changes nothing about
+              how the child is taught — it widens how far back Progress
+              looks so the same evidence has room to accumulate. */}
+          <div className="pt-3 border-t border-gray-200">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={student.travel_mode}
+                onChange={(e) => onUpdate({
+                  travel_mode: e.target.checked,
+                  // Coming home resets the window, so a parent never has to
+                  // remember what it used to be. Mirrors the backend
+                  // validator, which does the same thing authoritatively.
+                  mastery_cycle_days: e.target.checked ? student.mastery_cycle_days : DEFAULT_MASTERY_CYCLE_DAYS,
+                })}
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="text-sm font-medium text-gray-700">{t('parentSetup.travelMode')}</span>
+                <span className="block text-xs text-gray-500 mt-0.5">{t('parentSetup.travelModeHelp')}</span>
+              </span>
+            </label>
+            {student.travel_mode && (
+              <div className="mt-2 flex items-center gap-2 pl-6">
+                <label htmlFor={`cycle-${student.student_name}`} className="text-xs text-gray-600">
+                  {t('parentSetup.masteryWindowLabel')}
+                </label>
+                <select
+                  id={`cycle-${student.student_name}`}
+                  value={student.mastery_cycle_days}
+                  onChange={(e) => onUpdate({ mastery_cycle_days: Number(e.target.value) })}
+                  className="input !w-auto text-xs py-1.5"
+                >
+                  {[21, 28, 35, 42].map((d) => (
+                    <option key={d} value={d}>{t('parentSetup.weeksN', { n: d / 7 })}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Pick up where we left off — the parent tells Bede where an
@@ -1071,8 +1211,15 @@ function StudentCard({
                   <p className="text-xs text-gray-400 mt-1">{t('parentSetup.faithTraditionHint')}</p>
                 </div>
               )}
+              {/* Latin is included here but deliberately NOT in the church-tradition
+                  gate above: the subject quotes Scripture in English alongside its
+                  Vulgate text, so the translation preference applies — but its content
+                  is the shared Christian inheritance by design, so it never needs a
+                  denominational label to teach. See services/latin_catalog.py. */}
               {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')
-                || student.selected_subjects.includes('morning_time')) && (
+                || student.selected_subjects.includes('morning_time')
+                || student.selected_subjects.includes('latin')
+                || student.selected_subjects.includes('greek')) && (
                 <div>
                   <label className="label">{t('parentSetup.bibleTranslation')}</label>
                   <select

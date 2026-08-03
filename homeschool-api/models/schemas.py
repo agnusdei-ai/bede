@@ -107,6 +107,16 @@ class CompanionMode(str, Enum):
 # the parent's chosen topics (up to 3 per area per term) — see
 # SessionConfig.term_mastery_topics and services/ai_service.py's
 # _term_outcomes_note.
+#
+# Mastery-cycle window (SessionConfig.mastery_cycle_days). The default is
+# four ACTUAL weeks — calendar days, not days school happened — which is
+# also what the learner's guarantee is written against. TRAVEL_* bound the
+# range a travelling family may widen it to; a family not travelling gets
+# the default and no choice to make.
+DEFAULT_MASTERY_CYCLE_DAYS = 28
+TRAVEL_MASTERY_CYCLE_MIN_DAYS = 21   # 3 weeks
+TRAVEL_MASTERY_CYCLE_MAX_DAYS = 42   # 6 weeks
+
 CORE_AREAS = {
     "phonics_language":    "Phonics & Language",
     "mathematics":         "Math",
@@ -131,6 +141,9 @@ class Subject(str, Enum):
     art_music = "art_music"             # Composer & artist study
     saints = "saints"                   # Saints, catechism, virtue formation (Catholic-tradition module)
     scripture = "scripture"             # Bible heroes, memory verses, doctrine — denominationally-configurable
+    latin = "latin"                     # Latin rooted in the shared Christian vocabulary — see services/latin_catalog.py
+    greek = "greek"                     # Koine Greek, the New Testament's own language — see services/greek_catalog.py
+    logic = "logic"                     # Reasoning — 3-5 informal, 6-8 formal; NEVER K-2, see services/logic_catalog.py
     free_study = "free_study"           # Child-directed exploration
 
 
@@ -145,6 +158,20 @@ SUBJECT_DURATIONS = {
     Subject.art_music: 15,
     Subject.saints: 15,
     Subject.scripture: 15,
+    # Deliberately the shortest block in the curriculum. A Latin session is
+    # a handful of words met properly, not a class period — and at K-2 it
+    # is purely oral (see services/latin_catalog.py's _STAGE_METHOD), where
+    # ten minutes is already generous.
+    Subject.latin: 10,
+    # Same 10 minutes as Latin, and for the same reason — a few words or
+    # letters met properly, not a class period. A family running both gets
+    # 20 minutes of classical language a day, which is already more than
+    # most K-8 homeschool days give it.
+    Subject.greek: 10,
+    # Longer than the language blocks: a single argument judged properly
+    # needs the student to reason out loud, be wrong, and be walked back
+    # through it. That doesn't compress the way a vocabulary word does.
+    Subject.logic: 15,
     Subject.free_study: 20,
 }
 
@@ -159,6 +186,9 @@ SUBJECT_LABELS = {
     Subject.art_music: "Art & Music",
     Subject.saints: "Saints & Catechism",
     Subject.scripture: "Scripture & Bible Study",
+    Subject.latin: "Latin & Christian Foundations",
+    Subject.greek: "Greek & New Testament Foundations",
+    Subject.logic: "Logic",
     Subject.free_study: "Free Study",
 }
 
@@ -331,6 +361,29 @@ class SessionConfig(BaseModel):
     # assess_narration's term_topic fields.
     term_mastery_topics: dict[str, list[str]] = Field(default_factory=dict)
 
+    # ── Mastery cycle — how often the parent gets an honest read ──────────
+    # A term (9-12 weeks) is too coarse to answer "is this on track?", and
+    # the learner's guarantee is written in 30 days, so there was nothing
+    # between today's session summary and the whole term. This is that
+    # middle cadence.
+    #
+    # It bounds the LOOKING, never the child's work. Deliberately a ROLLING
+    # window rather than a numbered sprint with a start date: there is no
+    # boundary to hit, nothing resets, nothing rolls over, and no velocity
+    # can be computed across cycles. "In the last N days, did this move" is
+    # the only question it can answer — which is the question a parent
+    # actually has, and is safe to ask about a child in a way "did they
+    # finish on time" is not. Nothing here is ever shown to a child (see
+    # Progress.tsx, parent-only, same posture as the work ledger).
+    #
+    # 28 ACTUAL days — calendar days, not days school happened. A family
+    # that travels can't fit the usual evidence into 28 calendar days, so
+    # travel_mode unlocks a longer window (3-6 weeks) to let the same
+    # evidence accumulate. It lengthens the window; it does not pause a
+    # clock, and it does not change one thing about how the child is taught.
+    travel_mode: bool = False
+    mastery_cycle_days: int = Field(default=DEFAULT_MASTERY_CYCLE_DAYS)
+
     # ── "Meet me where I am" — resuming an interrupted lesson ─────────────
     # At most one note per subject (later duplicates win; see the validator),
     # and only for subjects actually scheduled for this student today —
@@ -351,6 +404,21 @@ class SessionConfig(BaseModel):
             if kept:
                 cleaned[area] = kept
         self.term_mastery_topics = cleaned
+
+        # Mastery-cycle window, same "clean, never reject" shape as above.
+        # Travel mode is what UNLOCKS the choice — with it off there is only
+        # one honest answer (28 actual days, what the guarantee is written
+        # against), so a stale or hand-crafted value is corrected rather
+        # than 422'd. With it on the parent picks, and we clamp to 3-6
+        # weeks: under three there isn't room for evidence to accumulate,
+        # over six it stops being a cadence and becomes the term again.
+        if not self.travel_mode:
+            self.mastery_cycle_days = DEFAULT_MASTERY_CYCLE_DAYS
+        else:
+            self.mastery_cycle_days = max(
+                TRAVEL_MASTERY_CYCLE_MIN_DAYS,
+                min(TRAVEL_MASTERY_CYCLE_MAX_DAYS, self.mastery_cycle_days),
+            )
         return self
 
     @model_validator(mode="after")
@@ -366,6 +434,37 @@ class SessionConfig(BaseModel):
             if cleaned and cleaned.lower() not in seen:
                 seen[cleaned.lower()] = cleaned
         self.curriculum_resources = list(seen.values())[:6]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_logic_stage(self):
+        """Logic is not a K-2 subject, and this is where that is actually
+        enforced rather than assumed.
+
+        Formal reasoning before the Logic stage is the premature
+        abstraction classical education specifically warns against — a
+        Grammar-stage child is gathering the world, not auditing it. The UI
+        never offers the card to a K-2 student and services/logic_catalog.py
+        renders nothing for that stage, but neither of those is a
+        server-side guarantee: a hand-rolled request, a saved config from
+        before a student's stage was corrected downward, or a future client
+        bug would all sail past them.
+
+        "Clean, never reject" — the same shape _validate_term and
+        _validate_curriculum_resources use. A parent who somehow submits
+        this gets a config without it, not a 422 they can't act on. It runs
+        BEFORE _validate_lesson_resume deliberately, so a resume note
+        attached to the dropped subject is filtered out by that validator
+        in the same pass rather than surviving as an orphan.
+
+        Dropping this can in principle leave `subjects` empty (a K-2 config
+        naming logic and nothing else). That is a state the UI cannot
+        produce and the parent can immediately fix by picking subjects —
+        strictly better than honoring a subject the child shouldn't be
+        sitting.
+        """
+        if self.grade_stage == GradeStage.foundations and Subject.logic in self.subjects:
+            self.subjects = [s for s in self.subjects if s != Subject.logic]
         return self
 
     @model_validator(mode="after")
@@ -781,14 +880,62 @@ class AgenticLoopStats(BaseModel):
     extra_round_estimated_cost_usd: float
 
 
-class RecordSkillEvidenceInput(BaseModel):
+# How a completed piece of work is scored. Three dimensions, all optional
+# and all about the WORK PRODUCT rather than about the child — that
+# distinction is the whole design (see services/diagnostic/activity.py).
+# Scoring what a student produced is ordinary assessment; scoring what a
+# student IS would be a claim this app has no standing to make.
+#
+# Every scale's floor is a real, respectable outcome. There is no "poor"
+# quality and no "slow" pace, because an attempt that failed is never
+# logged as completed work in the first place, and because a child who
+# works deliberately is not thereby working worse.
+WORK_QUALITY_LEVELS = ("adequate", "proficient", "exemplary")
+
+# Did this piece of work go beyond the task as set? This is the dimension
+# that actually surfaces initiative — a student who answered the question
+# and one who answered it and then asked a better one have produced
+# different work, and only this field can tell them apart.
+WORK_DISTINCTION_LEVELS = ("expected", "noteworthy", "original")
+
+# Observed pace. Deliberately non-pejorative at both ends: "deliberate" is
+# a description, not a deficiency, and a child is never shown any of this.
+WORK_SPEED_LEVELS = ("deliberate", "steady", "brisk")
+
+
+class WorkScoreFields(BaseModel):
+    """
+    The three optional scoring dimensions shared by every silent evidence
+    tool. Optional throughout: Bede fills them when it genuinely observed
+    enough to judge, and omits them otherwise. A missing score is honest;
+    an invented one is not.
+    """
+    quality:     Optional[Literal["adequate", "proficient", "exemplary"]] = None
+    distinction: Optional[Literal["expected", "noteworthy", "original"]] = None
+    speed:       Optional[Literal["deliberate", "steady", "brisk"]] = None
+
+
+class RecordSkillEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_skill_evidence tool's
     input (Phase 3). Never leaves the server; not part of any response body."""
     probe_id:   str = Field(..., max_length=80)
     outcome:    Literal["correct", "partial", "incorrect", "hint_dependent"]
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
-class RecordPhonicsEvidenceInput(BaseModel):
+class RecordLiteracyEvidenceInput(WorkScoreFields):
+    """Server-side validation of the silent record_literacy_evidence tool's
+    input — see services/diagnostic/literacy.py (reading and spelling,
+    grades 3-8). Never leaves the server; not part of any response body.
+    `domain` isn't validated against literacy.DOMAINS here for the same
+    reason RecordPhonicsEvidenceInput doesn't: a Literal would require
+    importing the diagnostic package into the schema module, and
+    literacy.apply_evidence already degrades an unrecognized domain to a
+    true no-op, so a hallucinated value is harmless — just unpersisted."""
+    domain:  str = Field(..., max_length=60)
+    outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+
+class RecordPhonicsEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_phonics_evidence tool's
     input — see services/diagnostic/phonics.py. Never leaves the server;
     not part of any response body. domain isn't validated against
@@ -799,7 +946,7 @@ class RecordPhonicsEvidenceInput(BaseModel):
     domain:  str = Field(..., max_length=40)
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
 
-class RecordLanguageEvidenceInput(BaseModel):
+class RecordLanguageEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_language_evidence tool's
     input — see services/diagnostic/language_exposure.py. Never leaves the
     server; not part of any response body. language isn't validated against

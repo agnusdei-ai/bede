@@ -399,6 +399,62 @@ class DiagnosticEvidenceLog(Base):
     )
 
 
+class SkillActivityLog(Base):
+    """
+    An append-only record of WORK ACTUALLY DONE — one row per completed
+    learning activity, per student, per skill.
+
+    DELIBERATELY NOT PSYCHOMETRIC, and that is the whole point of it
+    existing alongside MasteryProfile rather than inside it. MasteryProfile
+    and DiagnosticEvidenceLog hold inferred latent ability: "this child has
+    a 0.47 probability of having mastered multi-digit multiplication" — a
+    claim ABOUT THE CHILD. This table holds only what happened: "on this
+    date, in Mathematics, a multi-digit multiplication task was completed
+    unaided." A parent reads facts and draws their own conclusion; nothing
+    here classifies the child, ranks them, or estimates a trait they carry.
+
+    That distinction is what makes this table safe to read across a pod.
+    "Who has done this work" is an ordinary thing for a self-managed team
+    to know and is how one member comes to help another; "who is better at
+    this" is a ranking of children, which this project does not build (see
+    CLAUDE.md's standing constraint). A completion count can support the
+    first without ever producing the second, because it never aggregates
+    into a score.
+
+    `detail_enc` holds encrypt_json({"skill_id", "label", "assistance",
+    "subject"}) — the same derived-not-raw privacy class as
+    NarrationAssessment and DiagnosticEvidenceLog. Never the child's words,
+    never a transcript, never the task's prose.
+
+    `assistance` is the only qualitative field, and it is factual rather
+    than evaluative: unaided / with_a_hint / with_help. It records how the
+    work went, not how able the child is.
+    """
+    __tablename__ = "skill_activity_log"
+
+    # Same BigInteger-with-SQLite-variant reasoning as
+    # DiagnosticEvidenceLog above — this table is exercised by real inserts
+    # under the SQLite test engine and needs the variant to autoincrement.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    subject_area: Mapped[str] = mapped_column(String(30), index=True, nullable=False)
+    skill_id: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class SessionTranscript(Base):
     """Encrypted full session transcript saved at session end for parent review."""
     __tablename__ = "session_transcripts"

@@ -159,7 +159,100 @@ derived automatically from that grade set (never hand-maintained
 separately) and used only as a fallback when a session has a stage but no
 specific grade.
 
-### 6. Subject/stage guidance — `services/ai_service.py`
+### 6. Classical languages — `services/latin_catalog.py`, `services/greek_catalog.py`
+
+Verbatim Vulgate anchors and the six foundational terms behind
+`Subject.latin` (Fides, Spes, Caritas, Sapientia, Veritas, Ora et Labora),
+plus per-stage shared-Christian vocabulary. Same weekly calendar rotation
+as poetry. Three rules specific to this file, all of them enforced by
+`tests/test_latin_catalog.py`:
+
+- **Every Latin text must be checked against a published Vulgate edition
+  before it lands here** — a stricter bar than the rest of this doc's
+  sourcing standard, and stricter than `prayer_catalog.py` was actually
+  held to (its docstring records that its texts came from model knowledge
+  because a reference site wasn't reachable at the time). Latin is
+  inflected: a wrong ending is a wrong meaning, and neither the child nor
+  the parent is positioned to catch it. Readings here are the Clementine
+  Vulgate's; the two known edition variants are recorded in the module
+  docstring so a future editor doesn't "fix" one into the other.
+- **Nothing specific to one Christian tradition goes in.** This subject
+  exists so a family that holds none of the distinctively Catholic
+  doctrines can still teach Latin rooted in the faith; `Subject.saints` is
+  where tradition-specific content belongs. Ave Maria, Salve Regina, the
+  Sanctus, and the Confiteor are all deliberately absent and should stay
+  that way.
+- **Attribution gets stated honestly even when it's less tidy.** The
+  `ora_et_labora` entry says outright that the motto is a 19th-century
+  formulation (Maurus Wolter, 1880) rather than a phrase from St.
+  Benedict's Rule, and supplies the sentence that *is* from the Rule to
+  quote instead. Anything similar — a beloved phrase whose usual
+  attribution doesn't survive checking — gets the same treatment rather
+  than a smoothing-over.
+
+Greek adds three rules of its own, on top of all of the above:
+
+- **Never quote a passage where the manuscript traditions differ.** Greek
+  has a live and denominationally charged textual divide the Vulgate does
+  not: the Textus Receptus (behind the KJV/NKJV) against the modern
+  critical text (behind the ESV/NIV/NASB/CSB). A K-8 subject must not
+  adjudicate it. Every anchor in `greek_catalog.py` was chosen because both
+  traditions read it identically at the phrase quoted — verify that before
+  adding a new one, and if a passage has a real variant, pick a different
+  passage. Same instinct as Latin's psalm-numbering decision.
+- **Transliteration and English are mandatory, never optional.** Any Greek
+  a child sees must carry both. Latin needs no equivalent rule; its script
+  is already the child's own.
+- **Pronunciation is Erasmian and is labelled as a convention, not a
+  reconstruction.** Modern and Byzantine pronunciation are closer to the
+  living tradition, and an Orthodox or Greek-heritage child may well say
+  these words the way their own parish does. The instruction never to
+  correct them is load-bearing, not politeness.
+
+Two mappings in `services/ai_service.py` carry the wiring, and they are
+deliberately different sets:
+
+- `_CATALOG_NOTE_SUBJECTS` — every subject with its own weekly,
+  stage-filtered catalog block (Latin, Greek, Logic), mapped to its
+  renderer. All share the signature `(grade, stage, week_salt, today) -> str`.
+- `_CLASSICAL_LANGUAGE_SUBJECTS` — the subset that teaches a *language*,
+  mapped to its `language_exposure` id. This is what gates the
+  Bible-translation note and the own-language-only evidence check.
+
+`Subject.logic` is in the first and not the second, which is the whole
+reason they're two mappings rather than one. Adding a language means a row
+in both plus a catalog module; adding a non-language catalog subject means
+a row in the first only — never another branch in three functions.
+
+### 6b. Logic — `services/logic_catalog.py`
+
+Same fixed-content discipline as the language catalogs, for a sharper
+reason: a model asked to invent a syllogism will sometimes produce an
+invalid one and label it valid, and catching that error is exactly what
+the student is still learning to do. Every syllogism and fallacy example
+is fixed, worked out, and carries an explicit verdict.
+
+Three rules specific to this subject, all enforced by
+`tests/test_logic_catalog.py`:
+
+- **Nothing here renders for K-2, and the gate is real in four places** —
+  `SessionConfig._validate_logic_stage` (drops the subject),
+  `subjectsForStage` in `ParentSetup.tsx` (never offers the card),
+  `logic_note` (returns `""`), and the absent year-1/2 plans (asserted by
+  `tests/test_catalog_coverage.py`). Prompt text alone would not have been
+  a gate.
+- **Examples stay deliberately dull** — weather, animals, chores,
+  homework. An example with real stakes teaches the stakes rather than the
+  form, and a family-shaped example teaches a child to audit their
+  parents. A test scans every fallacy example for politically, religiously,
+  or family-charged material and fails on a hit.
+- **The charity guardrails are content, not decoration.** Logic serves
+  truth and never winning; Bede never coaches a child in arguing against
+  their own parents; Bede rules on no contested political, moral, or
+  religious dispute. Each guarantee travels in both the prompt block and
+  every year plan, so softening one doesn't quietly soften the feature.
+
+### 7. Subject/stage guidance — `services/ai_service.py`
 
 Not a data file — plain Python dicts that are part of the system prompt:
 

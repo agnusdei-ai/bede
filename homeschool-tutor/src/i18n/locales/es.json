@@ -45,6 +45,13 @@
     "eyeRestBreakDuration": "Este descanso dura al menos {{minutes}} minutos — aléjate de la pantalla.",
     "untilYouCanContinue": "hasta que puedas continuar",
     "breakTimeTitle": "Hora del descanso",
+    "breakSuggestionTitle": "Llevas {{minutes}} minutos trabajando, ¿quieres un descanso corto?",
+    "breakSuggestionBody": "No es obligatorio. Si vas con buen ritmo, sigue adelante: de todos modos habrá un descanso al cumplir la hora.",
+    "breakSuggestionTake": "Sí, hagamos una pausa",
+    "breakSuggestionKeepGoing": "No, gracias, sigamos",
+    "voluntaryBreakTitle": "Buena idea, tómate un momento",
+    "voluntaryBreakBody": "Aléjate un poco de la pantalla, {{name}}. Vuelve cuando estés listo.",
+    "voluntaryBreakResume": "Estoy listo para seguir aprendiendo",
     "breakTimeBody": "{{name}}, has trabajado muy duro.",
     "breakTimeInstructions": "Aléjate de la pantalla. Disfruta la naturaleza, descansa los ojos o pasa un momento tranquilo con Dios.",
     "untilNextBlock": "hasta tu próximo bloque de aprendizaje",
@@ -183,6 +190,7 @@
     "sexHelpUnnamed": "Necesario para que Bede se dirija a tu hijo con el género gramatical correcto en el idioma configurado.",
     "subjects": "Materias",
     "minutesShort": "{{count}} min",
+    "subjectsOverCap": "Estas materias piden {{over}} min más de instrucción de lo que permite la sesión de {{cap}} min de este estudiante, así que el día terminará antes de llegar a las últimas materias. Aumente la duración de la sesión a {{needed}} min para que quepa todo el plan, o quite una materia.",
     "voiceVerification": "Verificación de voz",
     "voiceVerificationOn": "El estudiante dice la frase al iniciar la sesión",
     "voiceVerificationOff": "Solo PIN — sin verificación de voz (silencio / accesibilidad)",
@@ -252,7 +260,11 @@
     "companionModeGuided": "Un poco más de estructura",
     "companionModeGuidedDesc": "Conversación basada en libros más algunas materias principales.",
     "companionModeFullPlan": "Plan diario completo",
-    "companionModeFullPlanDesc": "Bede cubre la rotación completa de materias de Mater Amabilis."
+    "companionModeFullPlanDesc": "Bede cubre la rotación completa de materias de Mater Amabilis.",
+    "travelMode": "Viajamos — nuestras semanas no siempre son regulares",
+    "travelModeHelp": "Progreso normalmente informa el avance de las últimas 4 semanas reales. Active esto si los viajes hacen que esa ventana suela ser demasiado corta para ver algo, y elija una más larga. No cambia cómo se enseña a su hijo, solo hasta dónde mira atrás la página de Progreso.",
+    "masteryWindowLabel": "Informar el avance de",
+    "weeksN": "{{n}} semanas"
   },
   "progress": {
     "advance": "Avanzar",
@@ -285,6 +297,9 @@
     "phonicsMasteryCalibration_one": "Bede aún está formando una primera idea de los fundamentos de lectura de {{name}}, basada en {{count}} observación hasta ahora — trata esto como una señal temprana, no una lectura definitiva. Se afinará mientras más trabaje {{name}} con Bede.",
     "phonicsMasteryCalibration_other": "Bede aún está formando una primera idea de los fundamentos de lectura de {{name}}, basada en {{count}} observaciones hasta ahora — trata esto como una señal temprana, no una lectura definitiva. Se afinará mientras más trabaje {{name}} con Bede.",
     "languageMasterySnapshotTitle": "Panorama de exposición a idiomas",
+    "literacyMasterySnapshotTitle": "Panorama de lectura y ortografía",
+    "noLiteracyMasteryData": "Aún no hay datos de lectura ni ortografía. Bede construye esto observando lo que la propia lectura, copia y narraciones de {{name}} ya muestran —una palabra larga que le cuesta, un homófono mal elegido, un relato que altera el orden— y no mediante ningún tipo de examen. Vuelve a revisar después de una o dos lecciones de Lengua o Libros Vivos.",
+    "literacyMasteryCalibration": "Todavía conociendo cómo lee {{name}}: {{count}} observación(es) hasta ahora. Estas áreas aparecen en el orden en que se desarrolla la lectura, así que la primera sin terminar es el lugar honesto para seguir.",
     "noLanguageMasteryData": "Aún no hay datos de exposición a idiomas. Bede a veces enseña una breve palabra o frase en otro idioma durante Historia, Santos, o Arte y Música, y luego revisa más adelante en la conversación qué se quedó grabado; vuelve a revisar después de una o dos lecciones.",
     "languageMasteryCalibration_one": "Bede aún está formando una primera idea de cómo {{name}} responde a breves momentos en otros idiomas, basada en {{count}} observación hasta ahora — trata esto como una señal temprana, no una lectura definitiva. Se afinará mientras más trabaje {{name}} con Bede.",
     "languageMasteryCalibration_other": "Bede aún está formando una primera idea de cómo {{name}} responde a breves momentos en otros idiomas, basada en {{count}} observaciones hasta ahora — trata esto como una señal temprana, no una lectura definitiva. Se afinará mientras más trabaje {{name}} con Bede.",
@@ -335,7 +350,15 @@
     "title": "Progreso",
     "noStudentsYet": "Aún no hay estudiantes configurados.",
     "goToSetup": "Ir a Configuración",
-    "failedToLoadProgress": "No se pudieron cargar los datos de progreso"
+    "failedToLoadProgress": "No se pudieron cargar los datos de progreso",
+    "cycleWindowCaption": "El avance se mide sobre {{window}}.",
+    "cycleWindowWeeks_one": "la última semana",
+    "cycleWindowWeeks_other": "las últimas {{count}} semanas",
+    "cycleWindowDays_one": "el último día",
+    "cycleWindowDays_other": "los últimos {{count}} días",
+    "cycleMoved": "avanzó",
+    "cycleQuiet_one": "{{count}} sin registros en {{window}} — revise que esté programado con suficiente frecuencia",
+    "cycleQuiet_other": "{{count}} sin registros en {{window}} — revise que estén programados con suficiente frecuencia"
   },
   "breakActivities": [
     "Mira algo a al menos 6 metros de distancia durante 20 segundos — les da a tus ojos un verdadero descanso.",
@@ -354,5 +377,58 @@
     "Piensa en una palabra que rime con \"luz\" — ¿cuántas puedes encontrar?",
     "Sal afuera o acércate a una ventana y respira lento y profundo cinco veces.",
     "Cálculo mental: si tienes 3 docenas de huevos, ¿cuántos huevos son?"
-  ]
+  ],
+  "workLedger": {
+    "title": "Lo que se ha hecho",
+    "subtitle": "El trabajo que {{name}} realmente terminó en los últimos {{days}} días, y lo que Bede observó. Un registro, no un boletín de notas.",
+    "noData": "Todavía no hay nada registrado para {{name}}. Esto se va llenando a medida que trabajan juntos.",
+    "totalCompleted": "{{count}} terminados",
+    "completedCount": "{{count}}×",
+    "unaided": "por su cuenta",
+    "withAHint": "tras una pista",
+    "withHelp": "lo resolvieron juntos",
+    "exemplary": "para mostrar de ejemplo",
+    "noteworthy": "fue más allá",
+    "original": "idea suya",
+    "brisk": "le salió con soltura",
+    "beyondTheTask": "lo llevaron más lejos",
+    "lastWorked": "última vez {{date}}",
+    "scoredCount": "Bede observó {{count}}",
+    "notYetScored": "{{count}} sin observaciones",
+    "initiativeTitle": "Dónde se nota la iniciativa",
+    "standoutIn": "Con más frecuencia en: {{skills}}",
+    "initiativeCaveat": "Esto cuenta trabajos, no a su hijo. Bede los observó; lo que significan en conjunto lo dice usted.",
+    "legendToggle": "¿Qué significan?",
+    "legend": {
+      "onTheirOwn": {
+        "term": "Por su cuenta",
+        "means": "lo lograron sin ayuda. Una pista o resolverlo juntos vale igual: dice lo que necesitó el trabajo, no de lo que es capaz su hijo."
+      },
+      "oneToShow": {
+        "term": "Para mostrar de ejemplo",
+        "means": "el trabajo quedó tan bien que serviría de ejemplo para otro niño."
+      },
+      "tookItFurther": {
+        "term": "Fue más allá",
+        "means": "pasaron de lo que se les pidió sin que nadie se lo dijera: lo conectaron con otra cosa, preguntaron qué pasaría si, o comprobaron su propia respuesta de otra manera."
+      },
+      "theirOwnIdea": {
+        "term": "Idea suya",
+        "means": "una idea, pregunta o método genuinamente propio. Bede reserva esto a propósito."
+      },
+      "cameEasily": {
+        "term": "Le salió con soltura",
+        "means": "el trabajo ya casi no les cuesta. No se trata de rapidez: Bede nunca cronometra ni apura a un niño."
+      },
+      "blank": "Bede deja todo esto en blanco cuando no vio lo suficiente para opinar, por eso la tarjeta le dice cuánto observó y cuánto no. Un espacio en blanco no es una mala nota."
+    }
+  },
+  "podRoster": {
+    "title": "Quién ha hecho este trabajo",
+    "subtitle": "Para que pueda pedirle a uno que le enseñe a otro. Organizado por destreza, nunca por niño: es una lista, no una clasificación.",
+    "noData": "Todavía no hay nada registrado en el grupo.",
+    "completedShort": "{{count}}×",
+    "workedByOne": "Esto solo lo ha hecho uno de ellos por ahora",
+    "caveat": "Un niño que no ha hecho un trabajo simplemente no aparece en él. Nadie se mide con nadie, y los niños nunca ven esto."
+  }
 }

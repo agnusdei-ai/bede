@@ -31,6 +31,7 @@ from services.diagnostic.mastery import (
     bayesian_update,
     build_summary_view,
     classify_level,
+    ensure_complete,
     new_vector,
 )
 from services.diagnostic.qmatrix import EvidenceObservation, Q_MATRIX
@@ -130,10 +131,19 @@ async def process_evidence(
             vector = new_vector(grade_band)
             vector_is_cold_start = True
         else:
-            vector = decrypt_json(
-                row.profile_enc,
-                student_aad("mastery_profiles", "profile_enc", student_name, subject_area),
-                await student_keys.get_existing(db, student_name),
+            # Both sides of a merge, and both are needed: the decrypt is
+            # AAD-bound and opens under the student's own key (v3 envelope,
+            # core/student_keys.py), and the result is backfilled against
+            # the CURRENT skill map — a vector stored before the map grew is
+            # missing the new ids, and without this they could never be
+            # probed or reported. See mastery.ensure_complete.
+            vector = ensure_complete(
+                decrypt_json(
+                    row.profile_enc,
+                    student_aad("mastery_profiles", "profile_enc", student_name, subject_area),
+                    await student_keys.get_existing(db, student_name),
+                ),
+                grade_band,
             )
     except Exception as exc:
         log.warning(
@@ -249,11 +259,17 @@ async def get_mastery_summary(db, student_name: str, subject_area: str = "mathem
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        vector = decrypt_json(
+        # Same composition as the write path above: keyed, AAD-bound
+        # decrypt, then the same backfill — minus the grade band this render
+        # path has no way to know, so missing skills fill at a neutral 0.5,
+        # which honestly says "no evidence yet".
+        vector = ensure_complete(
+            decrypt_json(
                 row.profile_enc,
                 student_aad("mastery_profiles", "profile_enc", student_name, subject_area),
                 await student_keys.get_existing(db, student_name),
             )
+        )
     except Exception as exc:
         log.warning("Mastery summary load failed for %s/%s: %s", student_name, subject_area, exc)
         return None

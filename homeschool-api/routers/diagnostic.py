@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
@@ -14,6 +14,7 @@ from services.diagnostic import get_mastery_summary
 from services.diagnostic.composition import get_composition_summary
 from services.diagnostic.phonics import get_phonics_summary
 from services.diagnostic.language_exposure import get_language_summary
+from services.diagnostic.literacy import get_literacy_summary
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
@@ -100,7 +101,78 @@ _SUMMARY_BUILDERS = {
     "composition": get_composition_summary,
     "phonics": get_phonics_summary,
     "language_exposure": get_language_summary,
+    "literacy": get_literacy_summary,
 }
+
+
+@router.get("/pod/activity")
+async def get_pod_activity(
+    students: list[str] = Query(default_factory=list),
+    since_days: int = 90,
+    subject_area: str | None = None,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    The same ledger across the parent's own students, so a pod can be run
+    as a self-managed team: per skill, WHO HAS DONE the work and how often.
+
+    Emits no ranking, no per-student total, and no student ordering — see
+    services/diagnostic/activity.pod_activity for why each of those is
+    deliberately absent. Parent-only and never surfaced to a child.
+
+    `students` is a REPEATED query parameter (students=Ada&students=Wren),
+    capped at the same 10-seat pod limit PodConfigsRequest enforces. It was
+    briefly a single comma-separated value, which was wrong: student_name
+    is free text a parent types with no character restriction, so a name
+    containing a comma split into two students who don't exist and the
+    parent silently got a roster missing that child.
+
+    DECLARED BEFORE /{student_name}/activity deliberately: FastAPI matches
+    routes in declaration order, so the parameterized path would otherwise
+    swallow this one as student_name="pod".
+    """
+    from services.diagnostic.activity import pod_activity
+
+    names = [n.strip() for n in students if n.strip()][:10]
+    if not names:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Name at least one student.",
+        )
+    return await pod_activity(db, names, min(365, max(1, since_days)), subject_area)
+
+
+@router.get("/{student_name}/activity")
+async def get_student_activity(
+    student_name: str,
+    since_days: int = 90,
+    subject_area: str | None = None,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    The work ledger: what this student has actually DONE — counts and
+    dates, never a score. Parent-only, like every other route on this
+    router.
+
+    Distinct from /summary above on purpose. That endpoint reports inferred
+    mastery ("how likely is it they can do X"); this one reports observed
+    activity ("what have they finished, and how much help did it take").
+    See services/diagnostic/activity.py for why both exist and why this one
+    deliberately emits no average, level, or percentage.
+
+    since_days is capped at 365, the same size-capped convention
+    GET /admin/audit's limit uses.
+    """
+    from services.diagnostic.activity import initiative_signal, summarize
+
+    summary = await summarize(db, student_name, min(365, max(1, since_days)), subject_area)
+    # The entrepreneurial read, alongside the raw ledger — counts of work
+    # done exemplarily, taken beyond the task, and done briskly. Never a
+    # verdict on the child; see activity.initiative_signal.
+    summary["initiative"] = initiative_signal(summary)
+    return summary
 
 
 @router.get("/{student_name}/summary", response_model=MasteryProfileSummary)

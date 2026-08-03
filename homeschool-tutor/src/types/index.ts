@@ -1,4 +1,4 @@
-import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Sparkles } from 'lucide-react'
+import { Sun, BookOpen, Calculator, Leaf, Globe, PenLine, FlaskConical, Palette, Star, BookMarked, Landmark, Columns3, Scale, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
@@ -14,6 +14,9 @@ export type Subject =
   | 'art_music'
   | 'saints'
   | 'scripture'
+  | 'latin'
+  | 'greek'
+  | 'logic'
   | 'free_study'
 
 export interface SessionConfig {
@@ -92,6 +95,16 @@ export interface SessionConfig {
   // term; mastery of these named topics is the outcome. Bede records
   // per-topic evidence via assess_narration (term_topic fields below).
   term_mastery_topics?: Partial<Record<CoreArea, string[]>>
+  // ── Mastery cycle ───────────────────────────────────────────────────────
+  // How far back Progress looks when answering "did this move recently?" —
+  // a ROLLING window, not a sprint: nothing resets, nothing rolls over, and
+  // no rate is computed across cycles. Mirrors models/schemas.py, where the
+  // reasoning lives in full. Default 28 ACTUAL (calendar) days; travel_mode
+  // is what unlocks widening it to 3-6 weeks, for a family whose weeks away
+  // don't fit the usual evidence into 28 days. Parent-facing only — a child
+  // never sees a cycle.
+  travel_mode?: boolean
+  mastery_cycle_days?: number
   // "Meet me where I am" — the parent's note about where an interrupted
   // lesson stopped, so Bede opens that subject mid-thread instead of
   // introducing it fresh (and without asking the child where they got to).
@@ -183,6 +196,14 @@ export interface SubjectInfo {
   label: string
   Icon: LucideIcon
   durationMin: number
+  // A single hex color, not a Tailwind class string — one hue per subject,
+  // used as a left-border accent (SubjectPicker, SubjectDrawer). Matches
+  // agnusdei.io's own curriculum-grid color binder exactly: 14 hues evenly
+  // spaced around the wheel (25.7° apart, S=0.380, L=0.361 — see
+  // site/assets/site.css's ".curriculum .card:nth-child" rules, the source
+  // of truth for these values), in the same subject order as the Subject
+  // enum on the backend, so a family sees the same subject in the same
+  // color whether they're reading the marketing site or using the app.
   color: string
   description: string
 }
@@ -193,7 +214,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Morning Time',
     Icon: Sun,
     durationMin: 20,
-    color: 'bg-amber-50 border-amber-200 text-amber-800',
+    color: '#7f3939',
     description: 'Bible, hymn, poetry & prayer',
   },
   {
@@ -201,7 +222,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Living Books',
     Icon: BookOpen,
     durationMin: 25,
-    color: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+    color: '#7f5739',
     description: 'Classical literature & narration',
   },
   {
@@ -209,7 +230,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Mathematics',
     Icon: Calculator,
     durationMin: 20,
-    color: 'bg-blue-50 border-blue-200 text-blue-800',
+    color: '#7f7539',
     description: 'Discovery-based mathematical thinking',
   },
   {
@@ -217,7 +238,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Nature Study',
     Icon: Leaf,
     durationMin: 20,
-    color: 'bg-green-50 border-green-200 text-green-800',
+    color: '#6b7f39',
     description: 'Observation, wonder & creation',
   },
   {
@@ -225,7 +246,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'History & Geography',
     Icon: Globe,
     durationMin: 20,
-    color: 'bg-orange-50 border-orange-200 text-orange-800',
+    color: '#4d7f39',
     description: 'Story-based history & real places',
   },
   {
@@ -233,7 +254,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Language Arts',
     Icon: PenLine,
     durationMin: 15,
-    color: 'bg-purple-50 border-purple-200 text-purple-800',
+    color: '#397f43',
     description: 'Narration, copywork & grammar',
   },
   {
@@ -241,7 +262,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Science',
     Icon: FlaskConical,
     durationMin: 20,
-    color: 'bg-teal-50 border-teal-200 text-teal-800',
+    color: '#397f61',
     description: 'Botany, zoology & earth science',
   },
   {
@@ -249,7 +270,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Art & Music',
     Icon: Palette,
     durationMin: 15,
-    color: 'bg-rose-50 border-rose-200 text-rose-800',
+    color: '#397f7f',
     description: 'Composer & artist study',
   },
   {
@@ -257,7 +278,7 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Saints & Catechism',
     Icon: Star,
     durationMin: 15,
-    color: 'bg-gold-50 border-gold-200 text-gold-700',
+    color: '#39617f',
     description: 'Saints, catechism & virtue formation',
   },
   {
@@ -265,15 +286,41 @@ export const SUBJECTS: SubjectInfo[] = [
     label: 'Scripture & Bible Study',
     Icon: BookMarked,
     durationMin: 15,
-    color: 'bg-sky-50 border-sky-200 text-sky-800',
+    color: '#39437f',
     description: 'Bible heroes, memory verses & doctrine',
+  },
+  {
+    id: 'latin',
+    label: 'Latin & Christian Foundations',
+    Icon: Landmark,
+    durationMin: 10,
+    color: '#4d397f',
+    description: 'Latin rooted in faith, hope & love',
+  },
+  {
+    id: 'greek',
+    label: 'Greek & New Testament Foundations',
+    Icon: Columns3,
+    durationMin: 10,
+    color: '#6b397f',
+    description: 'The alphabet & the New Testament’s own words',
+  },
+  {
+    // Not offered to K-2 students — see subjectsForStage in ParentSetup.tsx
+    // and SessionConfig._validate_logic_stage on the backend.
+    id: 'logic',
+    label: 'Logic',
+    Icon: Scale,
+    durationMin: 15,
+    color: '#7f3975',
+    description: 'Reasoning, argument & clear thinking',
   },
   {
     id: 'free_study',
     label: 'Free Study',
     Icon: Sparkles,
     durationMin: 20,
-    color: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    color: '#7f3957',
     description: 'Student-directed exploration',
   },
 ]
@@ -443,4 +490,81 @@ export interface AIProviderStatus {
   primary: AIProviderName | null
   override: AIProviderName | null
   forced: AIProviderName | null
+}
+
+
+// ── The work ledger ──────────────────────────────────────────────────────
+//
+// Mirrors services/diagnostic/activity.py. Deliberately carries no
+// probability, level, average, or rank: the ledger records what a student
+// DID, while the mastery summaries above record what Bede infers they can
+// do. Keeping the two shapes visibly different is part of keeping the two
+// ideas apart.
+
+export type WorkAssistance = 'unaided' | 'with_a_hint' | 'with_help'
+export type WorkQuality = 'adequate' | 'proficient' | 'exemplary'
+export type WorkDistinction = 'expected' | 'noteworthy' | 'original'
+export type WorkSpeed = 'deliberate' | 'steady' | 'brisk'
+
+export interface WorkLedgerSkill {
+  skill_id: string
+  label: string
+  subject_area: string
+  completed: number
+  unaided: number
+  with_a_hint: number
+  with_help: number
+  /** How many of `completed` carried at least one score. */
+  scored: number
+  quality: Record<WorkQuality, number>
+  distinction: Record<WorkDistinction, number>
+  speed: Record<WorkSpeed, number>
+  last_worked: string | null
+}
+
+/**
+ * Counts of work done exemplarily, taken beyond the task, and done
+ * briskly. Deliberately has no verdict, threshold, or type field — whether
+ * a child is a "learning entrepreneur" is not a call the software makes.
+ */
+export interface InitiativeSignal {
+  student_name: string
+  scored_activities: number
+  exemplary: number
+  beyond_the_task: number
+  brisk: number
+  standout_skills: Array<{
+    skill_id: string
+    label: string
+    exemplary: number
+    beyond_the_task: number
+  }>
+}
+
+export interface WorkLedger {
+  student_name: string
+  since_days: number
+  total: number
+  skills: WorkLedgerSkill[]
+  initiative: InitiativeSignal
+}
+
+/**
+ * The pod roster. Note the shape: keyed by SKILL, with the students who
+ * have worked it nested inside. A per-student shape would invite a
+ * leaderboard; this one can only answer "who has done this work".
+ */
+export interface PodWorkRoster {
+  since_days: number
+  skills: Array<{
+    skill_id: string
+    label: string
+    subject_area: string
+    worked_by: Array<{
+      student_name: string
+      completed: number
+      unaided: number
+      last_worked: string | null
+    }>
+  }>
 }

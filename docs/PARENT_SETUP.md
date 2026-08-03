@@ -299,6 +299,113 @@ said there is ever saved — no transcript, no student record. Leave
    controls. This doesn't limit *which* subjects are available to pick from,
    only what's pre-selected to start.
 
+   Note that "Full Daily Plan" means the full Mater Amabilis **core**
+   rotation. The three electives — Latin, Greek, and Logic — are never
+   pre-selected by any preset, so you always add them on purpose rather
+   than discovering them already in your child's day. (Logic additionally
+   doesn't appear at all for a K–2 student; see below.)
+
+   **Mathematics is in every preset, including the lightest one.** It is
+   foundational, and it is also the only subject carrying Bede's full
+   diagnostic engine — a plan without math gives you no real mastery signal
+   at all. You can still remove it, but no preset will ever leave it out
+   for you.
+
+### How often you get an honest read: the mastery cycle
+
+Under the term topics you'll see one checkbox: **"We travel — our weeks
+aren't always regular."** Most families never need to touch it. Here is what
+it changes, and why it exists at all.
+
+Your term topics are scored over a whole term — nine to twelve weeks. That's
+a long time to wait to find out whether something is working, and the
+learner's guarantee is written in thirty days, so the Progress page also
+reports **movement over the last four actual weeks**. Not four weeks of
+school: four weeks of calendar, whatever happened in them.
+
+Against that window each topic reads one of three ways:
+
+- **Moved** — there is real evidence your child advanced on it recently.
+- **(no mark)** — worked on, no visible movement yet. This is normal and it
+  is not a warning. Plenty of real learning looks like this for weeks.
+- **"had no notes in the last 4 weeks"** — nothing was recorded at all.
+  **This is a note about the plan, not about your child.** It almost always
+  means the subject isn't coming up often enough for that topic to surface,
+  and the fix is in your schedule rather than in anything they need to do.
+
+**What this deliberately is not.** There is no deadline attached to the
+window, no target, and nothing your child has to finish inside it. It bounds
+*how far back we look*, never how fast anyone has to be — and your child
+never sees it. Nothing resets when four weeks are up; it simply rolls, the
+way the last four weeks always does.
+
+**So what is travel mode for?** If your family is away often, four calendar
+weeks may not hold enough lessons for anything to show, and you'd see "no
+notes" for topics that are genuinely fine. Turning it on lets you widen the
+window to three, four, five, or six weeks so the same evidence has room to
+accumulate. It changes nothing whatsoever about how your child is taught —
+only how far back the Progress page looks. Turn it off when you're home and
+the window returns to four weeks on its own; you don't have to remember what
+it was.
+
+### The stated time commitment, and what it is meant to buy
+
+This is deliberate and worth reading before you commit a term to it. A
+mastery-based outcome is a claim about *consistency over time*, so the time
+has to be named rather than left to whatever fits.
+
+| Preset | Instruction | Session length | Breaks |
+|---|---|---|---|
+| Book Companion | 65 min | 75 min | 10 min |
+| A Bit More Structure | 100 min | 110 min | 10 min |
+| **Full Daily Plan** | **185 min** | **215 min** | **30 min** |
+
+Session length is wall-clock and includes the mandatory 10-minute break
+after every hour — that's why it always exceeds the instruction figure.
+Each preset's session length is now **derived from its own subject list**,
+so what you're scheduled to teach and what the day can actually hold are
+the same number by construction. (Before this they were set independently
+and had drifted: the Full Daily Plan asked for 185 minutes of subjects
+inside a 120-minute session, so roughly 75 minutes of it were never
+reachable and the day simply stopped mid-subject.)
+
+The setup page now shows both figures together — `185 min / 185 min` — and
+warns you if your subject choices exceed what your session length allows,
+telling you exactly how much longer the session would need to be.
+
+**What 185 minutes a day is intended to produce.** Run consistently, five
+days a week:
+
+- **Mathematics** — real, evidenced per-skill mastery. This is the one
+  subject where "mastery-based" is literally true rather than a manner of
+  speaking. Expect a first honest read within about a week of daily work,
+  and a meaningful picture within a term.
+- **Written composition** — a real rubric rollup from narration
+  assessment, and the fastest to calibrate of anything Bede measures.
+- **Phonics** (K–2 only) — real but opportunistic; it accumulates slowly
+  because it is woven into Language Arts rather than drilled.
+- **Latin, Greek, and other language exposure** — a *readiness* signal,
+  deliberately coarse. It tells you whether a child picks up and retains a
+  phrase, not whether they are proficient.
+- **Everything else** — history, science, nature study, art & music,
+  saints, scripture, living books, and logic — is measured the Charlotte
+  Mason way: by whether your child can narrate back what they met. That is
+  your judgment, not a number, and it is not a gap in the software.
+
+**Two honest caveats.**
+
+First, Bede's calibration thresholds are not yet tuned against real
+family outcomes — the code says so. Treat early mastery figures as
+directional rather than precise.
+
+Second, **185 minutes is a grades 6–8 figure.** Mater Amabilis is explicit
+that young children get short lessons, and a Kindergartener should not be
+sitting three hours of instruction. For K–2, shorten the day deliberately:
+pick fewer subjects, or lower the session length and let the preset warning
+tell you what won't fit. The app enforces a 4-hour structural ceiling and a
+break every hour for every child, but it will not tell you that your
+5-year-old's day is too long — that judgment stays yours.
+
    Whichever you pick, Bede is a partner in your family's teaching, not a
    replacement for it — see **[docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md)**
    for what "Socratic" actually means in practice and how to ask the same
@@ -316,6 +423,166 @@ said there is ever saved — no transcript, no student record. Leave
    family and church already teach the faith. Bede never treats either
    module as a substitute for your own pastor, priest, or church's teaching.
 
+   **Latin & Christian Foundations is a third, separate optional subject —
+   and it's for every Christian family, whatever your tradition.** It
+   teaches real Latin K–8, built around the vocabulary all Christians hold
+   in common: *Fides* (faith), *Spes* (hope), *Caritas* (love), *Sapientia*
+   (wisdom), *Veritas* (truth), and *Ora et Labora* (prayer and work) — all
+   hanging on Christ's own summary of the whole law, in the Latin of the
+   Vulgate:
+
+   > *Diliges Dominum Deum tuum ex toto corde tuo...*
+   > *Diliges proximum tuum sicut teipsum.*
+   >
+   > "Thou shalt love the Lord thy God with thy whole heart...
+   > Thou shalt love thy neighbour as thyself."
+
+   Nothing specific to one tradition is taught in this subject — no
+   devotion to the saints or to Mary, no sacramental theology, no prayers
+   for the dead, no particular church's structure or authority. A family
+   that doesn't hold those can run this subject start to finish and never
+   meet them; a family that wants them has Saints & Catechism available as
+   its own separate subject. If your child asks Bede a doctrinal question
+   that divides Christian traditions, Bede answers the *language* part if
+   there is one and sends the rest to you and your own pastor, priest, or
+   minister — same rule as every other faith content in Bede.
+
+   How much Latin your child actually does depends on their stage, and it
+   is deliberately unhurried:
+
+   - **K–2** — ear only. Your child hears a word, says it back, and learns
+     what it means in one short sentence. Nothing is written, spelled,
+     parsed, or translated, and there's no grammar at all. Two or three
+     words is a full lesson.
+   - **3–5** — words and roots. The same spoken habit, plus what the word
+     means and which English words grew out of it (*veritas* → verify,
+     verdict; *fides* → fidelity, confide). Short Latin copywork by hand
+     starts here.
+   - **6–8** — sentences. Your child meets a whole Vulgate verse, works out
+     who's doing what to whom from the word endings, and translates it into
+     their own English before comparing with a printed translation.
+
+   The lesson block is 10 minutes — the shortest in the curriculum on
+   purpose. A few words met properly beats six words drilled.
+
+   Two things worth knowing:
+
+   - **Bede never improvises Latin.** Every Latin word, phrase, and verse
+     Bede shows your child is quoted from a fixed, pre-reviewed catalog
+     checked against published Vulgate editions — never recalled from
+     memory. In an inflected language a single wrong ending changes the
+     grammar, and a child can't catch the error. If your child asks for
+     Latin Bede wasn't given, Bede says honestly that it would want to
+     check rather than guess.
+   - **Pronunciation is Ecclesiastical (Church) Latin** — the pronunciation
+     used with sung and prayed Latin, and the one most Christian-classical
+     programs teach. If your family uses a program teaching Classical
+     (restored) pronunciation, Bede will not correct your child for saying a
+     word the other way; your own program is the authority.
+
+   **Greek & New Testament Foundations is the companion subject to Latin —
+   and for some families it's the more compelling of the two.** Where the
+   Vulgate is a *translation*, Koine Greek is the language the New
+   Testament was actually written in. If reading Scripture in its own words
+   matters to your family, that's the whole argument. It's also the one
+   classical language that serves Orthodox families, who aren't served by
+   Saints & Catechism (Catholic in scope) or by Latin.
+
+   It teaches the same six virtues as Latin, in the original — **πίστις**
+   (faith), **ἐλπίς** (hope), **ἀγάπη** (love), **σοφία** (wisdom),
+   **ἀλήθεια** (truth), and **λόγος** (word, reason) — and four of them use
+   the *same anchor verse* Latin does. A child taking both subjects meets
+   one verse in two languages and can see for themselves that Latin's
+   *caritas* is translating Greek's *ἀγάπη*. That's the payoff of running
+   them together, and it's built in deliberately.
+
+   The stages differ from Latin's in one important way, because Greek has
+   its own alphabet:
+
+   - **K–2** — **the alphabet is the whole subject**, and that's a feature.
+     Two or three letters a session: their names, sounds, and shapes,
+     traced in the air or on paper. The payoff lands immediately — the word
+     *alphabet* is alpha plus beta, and Christ calls himself the first
+     letter and the last (Revelation 22:13). Concrete and delightful in a
+     way abstract vocabulary isn't at that age.
+   - **3–5** — reading and transliterating. Your child turns λόγος into
+     "logos" and back. Then the roots: a child who owns *logos* owns every
+     *-ology* word they'll ever meet.
+   - **6–8** — reading short New Testament phrases, the definite article,
+     and translating the Great Commandment from Matthew's own Greek.
+
+   Also 10 minutes, like Latin. A family running both gets 20 minutes of
+   classical language a day — already more than most K–8 homeschool days
+   give it.
+
+   Three things worth knowing:
+
+   - **Bede never shows bare Greek.** The transliteration and the English
+     always appear beside it, so a child who can't yet read the alphabet is
+     never handed a wall of letters with no way in.
+   - **Bede takes no side on Greek manuscripts.** The Textus Receptus
+     (behind the KJV) and the modern critical text (behind the ESV and NIV)
+     differ in places, and Christians differ about which to prefer. Every
+     Greek text in this subject was chosen because *both traditions read it
+     identically* — so the question never has to come up in front of your
+     child. If your student raises it, Bede says Christians differ and
+     sends them to you and your pastor.
+   - **Pronunciation is Erasmian, and Bede is honest that it's a
+     convention** — the system classical schools and Memoria Press use,
+     not a reconstruction of how Greek actually sounded. If your child says
+     these words the way your own parish or program says them (Modern or
+     Byzantine pronunciation, as an Orthodox or Greek-heritage family
+     would), Bede will not correct them.
+
+   **Logic is the second art of the trivium, taught directly — and it is
+   deliberately not offered before 3rd grade.** Clear thinking is what the
+   subject gives your child, not part of its name. Formal
+   reasoning at K–2 is exactly the premature abstraction classical
+   education warns against: a Grammar-stage child is gathering the world,
+   not auditing it. The card simply doesn't appear for a K–2 student, and
+   if one somehow reaches the server it's dropped.
+
+   - **3–5** — informal and entirely spoken. No fallacy names, no
+     syllogisms, no technical vocabulary. Just a handful of questions your
+     child learns to ask out loud: *"Is that true always, or just
+     sometimes?"* *"How do you know?"* *"Did it happen because of that, or
+     just after it?"* If your child starts asking "how do you know?"
+     unprompted, the stage has done its whole job.
+   - **6–8** — formal. Premises and conclusions, the two safe argument
+     forms and the two classic mistakes, and the named fallacies (ad
+     hominem, straw man, false dilemma, circular reasoning, and the rest).
+     The idea Bede returns to most: **valid and true are not the same
+     thing.** An argument can be built perfectly and still reach a false
+     conclusion, because a premise was false.
+
+   15 minutes — longer than the language blocks, because a single argument
+   judged properly needs your child to reason out loud, be wrong, and be
+   walked back through it.
+
+   **Three things this subject is built to protect**, and you should know
+   about them because they're the real risk of teaching a child logic:
+
+   - **Logic is for finding what's true *with* someone, never for winning
+     against them.** A child newly able to say "that's a straw man" has
+     been handed a weapon. Bede says this often and means it.
+   - **Bede will not coach your child in arguing against you.** If your
+     student starts turning these tools on your instructions or your
+     church, Bede redirects — warmly, but firmly — and points out that the
+     first person to test an argument on is yourself. A disagreement at
+     home belongs to your family, not to a logic lesson.
+   - **Bede takes no side on contested political, moral, or religious
+     disputes**, however logically the question is dressed up. It teaches
+     the *form* using deliberately dull examples (weather, animals,
+     chores) and sends the substance back to you and your own pastor,
+     priest, or minister. Your student also learns something worth
+     knowing here: naming a fallacy in someone's argument does not show
+     their conclusion is false.
+
+   Bede also never invents arguments for this subject — every syllogism and
+   fallacy example is fixed and worked out in advance. An invalid argument
+   can look perfectly sound, and catching that is precisely what your child
+   is still learning to do.
+
    Once you enable Scripture & Bible Study or Saints & Catechism, a
    **Church Tradition** field appears under that student's "session context"
    panel (the same collapsible section as Current Unit and Faith/Virtue
@@ -327,10 +594,26 @@ said there is ever saved — no transcript, no student record. Leave
    Catechism). Leave it blank and Bede simply won't assume any particular
    tradition beyond what your subject choices already signal.
 
+   One boundary on that field: Bede teaches Scripture, saints, and faith
+   content from the historic Christian faith shared across the Catholic,
+   Orthodox, and Protestant traditions. It won't adapt its own teaching to
+   a group built on a modern individual's claimed revelation alongside or
+   in place of the Bible, such as Jehovah's Witnesses or Mormonism/the
+   Book of Mormon. If you type one of those into the field, Bede simply
+   keeps teaching from that shared historic ground, the same as if you'd
+   left the field blank. It never says anything about this to your child,
+   and it is not a judgment on your family's own beliefs. It is only a
+   decision about what Bede itself teaches from.
+
    The same panel also offers a **Primary Bible Translation** dropdown
    (KJV, NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE, or
-   Douay-Rheims) whenever Morning Time, Scripture & Bible Study, or Saints
-   & Catechism is enabled. This is narrower than Church Tradition — it
+   Douay-Rheims) whenever Morning Time, Scripture & Bible Study, Saints
+   & Catechism, Latin & Christian Foundations, or Greek & New Testament
+   Foundations is enabled. (Latin and Greek are included because they show
+   the English alongside their own text; neither is included in the Church
+   Tradition field above, since their content is the shared Christian
+   inheritance and never needs a denominational label.)
+   This is narrower than Church Tradition — it
    doesn't say what your family believes, just which translation's wording
    Bede should favor when it quotes or paraphrases a Bible passage, so it
    sounds like the same Bible your child already reads at home. Leave it
@@ -460,6 +743,27 @@ spans; grades 4-8 work in the hour-long stretches between breaks. You'll see
 a countdown in the header shortly before each transition. On top of all
 this, you can still set a stricter total screen-time cap per student, with a
 longer eye-rest break, from the student's settings.
+
+**Younger children are also *offered* a break every twenty minutes — but
+never forced to take one.** A younger child's attention is shorter, but it
+isn't uniformly shorter: some six-year-olds genuinely settle into a good
+forty-minute stretch, and stopping them dead at twenty wastes the best part
+of their morning. So for grades K-3, a small banner appears at the twenty-
+and forty-minute marks asking whether they'd like a quick break. Two
+choices, one tap each:
+
+- **"Yes, let's pause"** — a full break screen with an off-screen activity
+  suggestion, which your child ends themselves when they're ready. There's
+  no countdown and no pressure.
+- **"No thanks, keep going"** — the banner disappears and doesn't come back
+  until the next mark.
+
+This is a suggestion only. **The hourly break remains mandatory for every
+grade, and nothing about these suggestions can shorten it, skip it, delay
+it, or extend a working stretch past an hour.** A child who waves off both
+suggestions simply works to the hour and then gets the same compulsory
+ten-minute break everyone else does. Grades 4-8 don't see the suggestion at
+all — the hourly rhythm already is their pacing.
 
 **A break that's never returned to logs itself out.** If nobody touches the
 tablet for 5 minutes while a break screen is showing, the session ends
@@ -766,3 +1070,255 @@ actual learning still lives on the Progress page in the next section.
   study). Other grades fall back to general guidance until more years are added.
 - **Voice check keeps failing** — try re-enrolling; background noise and phone/tablet
   mic quality affect matching more than most people expect.
+
+
+## Reading and spelling (grades 3-8)
+
+Bede measured reading only up to 2nd grade. Phonics covers decoding for
+K-2, and composition measures your child's *writing* from their narrations
+— but between them there was nothing for reading in grades 3-8, and no
+spelling measurement at any grade. A 5th grader could work with Bede for a
+year and you'd learn nothing about how they read.
+
+There is now a **Reading & Spelling** picture on the Progress page for
+grades 3-8, built from ten areas in the order reading actually develops:
+
+| | Area |
+|---|---|
+| **Word recognition** | Reading longer words · Spelling patterns & rules · Prefixes, suffixes & word roots · Homophones & tricky spellings · Reading smoothly and with expression |
+| **Understanding** | Word meanings · Retelling what the text said · Reading between the lines · How a text is built · The author's craft & purpose |
+
+**It is built by noticing, not by testing.** Bede never sets your child a
+reading test. The evidence comes from what an ordinary lesson already
+reveals — a long word they stall on, a homophone chosen wrongly in
+copywork, a narration that reorders events, an inference they reach without
+being asked. At most one observation per session, and your child is never
+told any of it is happening.
+
+**Next steps follow the order reading develops, not the lowest number.** If
+your child is still working at decoding longer words, that's what Bede
+points you to — even if a later area scores lower. A child still sounding
+out *disappointment* has no attention left over for the author's purpose,
+and pointing you at the latter first would be advice you couldn't use.
+
+**Why spelling gets its own explicit attention.** Three of the ten areas
+touch spelling directly, which is deliberate for English specifically.
+Languages with regular spelling — Finnish is the standard example, with
+close to one letter per sound — let children decode fluently within months,
+so their curricula move to comprehension almost immediately. English hides
+meaning behind spelling that pronunciation actively contradicts (*sign* →
+*signature*), so explicit work on patterns and word roots does more for an
+English-speaking child than it would for a Finnish one. More structure
+here, not less.
+
+
+## If you already use your own Latin or Greek programme
+
+Bede is the practice beside your course, never the course itself. Whenever
+you list your curriculum in **Curriculum Resources You Already Use** (in the
+session-context panel), the Latin and Greek subjects change how they behave:
+
+- **Your sequence wins.** If your child brings vocabulary, a paradigm, or a
+  phrase from their own lessons, Bede drops its own weekly term and works
+  with what they brought.
+- **Your terminology wins.** Bede will not tell your child their programme
+  teaches something in the wrong order or uses the wrong word for a form.
+  Where your course's wording differs from Bede's, Bede uses yours.
+- **Bede stops presenting its term as "the lesson."** It's offered as
+  something extra to enjoy alongside the real course, not as what your child
+  ought to be covering this week.
+- **Bede defers rather than pre-empting.** If your child asks something
+  their own course will cover later, Bede will say their teacher or book
+  will get to it rather than answering it badly first.
+
+This applies to Latin and Greek only. Mathematics, Logic and the other
+subjects relate to your curriculum resources differently — see §5.
+
+## What your child works on in mathematics, year by year
+
+The maths scope now targets what an independent or classical preparatory
+school expects, which means **grade 8 is a full Algebra I year** rather than
+the lighter grade-8 scope a conventional curriculum sets. That has knock-on
+effects earlier:
+
+| Year | Scope |
+|---|---|
+| K-1 | Counting, number bonds, skip counting, shapes, measurable attributes |
+| 2 | Addition/subtraction within 100, place value to 1,000, arrays as the bridge to multiplication, money, time |
+| 3 | Multiplication and division fluency, factors and multiples, order of operations, unit fractions, area and perimeter |
+| 4 | Multi-digit multiplication and long division, primes and factorization, mixed numbers, angles, multi-step problems |
+| 5 | All four decimal operations, multiplying **and dividing** fractions, volume, coordinate plane — **the last year of pure arithmetic** |
+| 6 | Pre-algebra begins: ratios and percent, negatives and absolute value, expressions and one/two-step equations |
+| 7 | Pre-algebra completed and **Algebra I begun**: exponent laws, multi-step equations, variables on both sides, inequalities, factoring linear expressions |
+| 8 | **Algebra I**: roots and irrationals, scientific notation, polynomials, factoring, quadratics by factoring, systems, slope-intercept form, Pythagorean theorem |
+
+If that pace doesn't suit your child, adjust their grade level rather than
+pushing — the whole point of a mastery-based approach is that the child sets
+the pace and the map stays honest about where they are.
+
+
+## The work ledger: what your child has actually done
+
+Bede keeps two different kinds of record about each student, and it's worth
+knowing which is which.
+
+The **mastery snapshots** on the Progress page are an *inference*: "how
+likely is it that this child has this skill." They're useful, and they're
+still a judgment Bede is making about your child.
+
+The **work ledger** is not a judgment at all. It records what actually
+happened: on this date, in this subject, a task in this skill was
+completed, and it took no help / a hint / real help. Counts and dates,
+nothing more. There is deliberately no score, no level, no average and no
+percentage anywhere in it, because each of those would quietly turn a
+record of work back into a verdict on the child.
+
+Two things it will not do:
+
+- **A missed attempt is never logged as work.** If your child tried
+  something and didn't get it, that belongs in the mastery picture, not in
+  a ledger of what they finished. This is a record of accomplishment, not
+  of failure.
+- **It never ranks your children against each other.** The pod view shows,
+  per skill, *who has done the work and how often* — a roster, not a
+  league table. There is no per-child total, students are listed
+  alphabetically so the order can't shift with the numbers, and a child who
+  hasn't done a piece of work simply isn't on that skill's list rather than
+  appearing at zero beside a sibling.
+
+**What it's for.** If you're running your pod as a team, this is how you
+arrange one child to help another without measuring either of them against
+the other. "Ada has finished long division fourteen times unaided; Wren is
+just starting it — ask Ada to show her" is a decision made from evidence of
+work done, and the age of either child is irrelevant to it. That's the
+whole idea: a more experienced team member trains a less experienced one,
+and what makes them more experienced is what they've actually done.
+
+Parent-facing only. Your children never see any of it, their own or each
+other's.
+
+
+### What Bede notices about the work
+
+**Bede is a guide, not the teacher.** You teach. Bede sits alongside your
+child during the lesson and afterwards tells you plainly what it saw — the
+way one adult describes a piece of work to the adult responsible for it.
+None of what follows is a grade, a level, or a judgment about whether your
+child is doing well enough. It's one observation, handed to the person who
+decides what it means.
+
+Everything Bede notes is measured against **what the task asked for** —
+never against another child, never against what a child that age "should"
+be doing, and never against how your own child did last week. That last one
+sounds like encouragement and isn't: it turns an observation into a running
+comparison your child can lose.
+
+Three things, and Bede leaves out any of them it didn't actually see.
+
+**How well the work was done**
+
+| On the card | What Bede saw |
+|---|---|
+| *(no note)* | It did what was asked, and nothing was wrong with it. Perfectly good work — it just doesn't need pointing out. |
+| *(no note)* | It did what was asked and the thinking was visible: you could follow how they got there. |
+| **One to show** | It's good enough to hand another child as the example. |
+
+**How far past the task they went** — the one to watch
+
+| On the card | What Bede saw |
+|---|---|
+| *(no note)* | They answered the question they were asked. |
+| **Went further** | They went past it without being told to: connected it to something else, asked what would happen if, or checked their own answer a second way. |
+| **Their own idea** | They brought a genuine idea, question, or method of their own. Bede keeps this rare on purpose — if it's handed out for enthusiasm, it stops meaning anything. |
+
+Correctness can't tell apart a child who answered the question from a child
+who answered it *and then asked a better one*. This is the only column that
+can, and it's where initiative actually shows up.
+
+**How much the work still costs them**
+
+| On the card | What Bede saw |
+|---|---|
+| *(no note)* | It took real effort and full attention. That's normal, and it's *good*, for work that's new to them. |
+| *(no note)* | They worked without strain. |
+| **Came easily** | It barely costs them anything now. |
+
+**This one is about effort, not speed.** Bede never times your child, never
+hurries them, and never mentions pace to them — a child who feels raced does
+worse work and enjoys it less. What's worth knowing is that a skill has
+stopped costing them everything they've got, because that's what frees up
+room for the next thing. A quick answer that skipped the thinking doesn't
+count as *came easily*; it doesn't count as good work at all.
+
+**And separately, how much help it took** — on their own, after a nudge, or
+worked through together. This describes what the *work* needed, not what
+your child is capable of. Every piece of real teaching involves help; the
+useful signal is watching how much of it a skill needs over time.
+
+Four things Bede will not do:
+
+- **It won't note what it didn't see.** Anything it didn't genuinely
+  observe is left blank, and the card tells you how much it noted and how
+  much it didn't — so a blank never quietly reads as a poor result.
+- **It won't count anything down.** You'll notice the tables above have
+  gaps: solid, ordinary, careful work simply doesn't get a note, because
+  putting "adequate" or "deliberate" on screen would read as a mark against
+  it. Nothing here has a "poor" or a "slow" at the bottom of it.
+- **It won't judge your child, only their work.** "That narration was one to
+  show" is something Bede saw. "That child is exemplary" is a claim about a
+  person, and Bede has no standing to make it.
+- **It won't average anything.** You get counts, never a mean, a grade or a
+  percentage — those turn a record of work back into a verdict.
+
+**Where you can see initiative.** Pull those three together and a pattern
+shows up: work done well, taken further than it was set, and no longer
+costing much — and which skills that happened in. There's no badge, no
+threshold, no "is/isn't" attached to it. Whether your child is a learning
+entrepreneur isn't a call Bede is competent to make. What it can do is
+notice the evidence and put it in front of you.
+
+
+### Where you'll see the ledger
+
+Two cards on the Progress page, both parent-only.
+
+**What's Been Done** — per student, for the last 90 days. Every skill they
+worked, how many times, how much help it took, and anything Bede thought
+worth pointing out. Under it, a short **Where you can see initiative**
+panel: work done well, taken further, and no longer costing much, plus the
+skills that happened in. A "what do these mean?" link on the card explains
+every phrase on it, so you never have to come back here to read it.
+
+**Nothing on this card ever counts down.** Only the notable end of each
+scale ever appears, and a count that would read zero isn't shown at all. If
+a week's work was solid but ordinary — did what was asked, at a pace that
+took real effort, all of which is perfectly good work — you'll see the work
+itself and how much of it Bede noted, and the initiative panel simply won't
+appear. It shows up when there's something in it to show you and stays away
+otherwise. A row of zeros under a heading about initiative would be a
+verdict on your child dressed up as a count, which is precisely what this
+card exists not to do.
+
+Each skill also says how much of its work Bede **noted** and how much went
+by **without notes**. That difference matters in both directions: Bede
+leaves things blank when it didn't see enough to say, so "without notes"
+must never be read as a poor result — and ordinary work that Bede *did*
+watch closely must never be mistaken for work nobody looked at.
+
+You'll notice this card looks nothing like the mastery snapshots above it.
+That's deliberate. Those show bars, because they're estimating how far
+along your child is. This shows counts, because it's recording what
+happened. Giving them the same look would blur two quite different claims.
+
+**Who's Done This Work** — only appears when you have more than one
+student. Organised **by skill**, with the children who've worked each one
+listed underneath, alphabetically. That shape is chosen on purpose: a list
+of children with numbers beside them would read as a table of who's ahead
+no matter what the numbers meant. There's no total per child anywhere, the
+order never changes with the counts, and a child who hasn't worked a skill
+simply isn't listed under it rather than appearing at zero next to a
+sibling.
+
+Use it the way you'd use any record of completed work on a team: to spot
+that one of your children has finished something another is just starting,
+and ask the first to show the second. Your children never see either card.

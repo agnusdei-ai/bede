@@ -4,14 +4,19 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
+import WorkLedger from '../components/WorkLedger'
+import PodWorkRoster from '../components/PodWorkRoster'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
-import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary } from '../types'
+import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
+import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
 import {
   fetchNarrationAssessments,
   fetchLearnerProfile,
   fetchLearnerBehaviorCheck,
   fetchMasteryProfileSummary,
   fetchStudentUsage,
+  fetchStudentActivity,
+  fetchPodActivity,
   buildLearnerProfile,
 } from '../services/api'
 
@@ -481,6 +486,19 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
     return best
   }
 
+  // The rolling mastery-cycle window (see utils/masteryCycle.ts). The status
+  // chip above answers "where is this now" and never decays; this answers
+  // the different question a parent actually asks between term reports —
+  // "did it move lately" — which the all-time high-water mark structurally
+  // cannot. Deliberately no deadline and no target attached: it bounds how
+  // far back we look, not how fast a child has to be.
+  const windowDays = config.mastery_cycle_days ?? DEFAULT_MASTERY_CYCLE_DAYS
+  const window = describeWindow(windowDays)
+  const windowLabel = t(
+    window.unit === 'week' ? 'progress.cycleWindowWeeks' : 'progress.cycleWindowDays',
+    { count: window.value },
+  )
+
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
@@ -489,6 +507,11 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
           {termWord} {config.current_term ?? 1}
         </span>
       </div>
+      {/* The window is stated plainly rather than left implicit — a parent
+          reading "moved" needs to know what it was measured against. */}
+      <p className="text-[11px] text-gray-400 -mt-2 mb-4">
+        {t('progress.cycleWindowCaption', { window: windowLabel })}
+      </p>
       <div className="space-y-4">
         {CORE_AREAS.map(({ id, label }) => {
           const areaTopics = topics[id]
@@ -496,6 +519,15 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
           const statuses = areaTopics.map((t) => ({ topic: t, status: statusFor(t) }))
           const mastered = statuses.filter((s) => s.status === 'mastered').length
           const untouched = statuses.filter((s) => s.status === 'not_started').length
+          // Topics that HAVE been started but produced nothing inside the
+          // window. Deliberately excludes never-started ones — those are
+          // already reported as "not yet started" and saying it twice would
+          // read as two problems. This is a finding about the plan (the
+          // subject isn't coming up often enough), never about the child,
+          // and the copy says so.
+          const quiet = statuses.filter(
+            (s) => s.status !== 'not_started' && readCycle(assessments, s.topic, windowDays).outcome === 'no_evidence',
+          ).length
           return (
             <div key={id}>
               <div className="flex items-center justify-between mb-1.5">
@@ -507,17 +539,37 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
                       {t('progress.notYetStarted', { count: untouched })}
                     </span>
                   )}
+                  {quiet > 0 && (
+                    <span className="ml-2 text-gray-500">
+                      {t('progress.cycleQuiet', { count: quiet, window: windowLabel })}
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="space-y-1">
-                {statuses.map(({ topic, status }) => (
-                  <div key={topic} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-600 truncate">{topic}</span>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TOPIC_STATUS_STYLE[status].cls}`}>
-                      {t(TOPIC_STATUS_STYLE[status].labelKey)}
-                    </span>
-                  </div>
-                ))}
+                {statuses.map(({ topic, status }) => {
+                  const cycle = readCycle(assessments, topic, windowDays)
+                  return (
+                    <div key={topic} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-600 truncate">{topic}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {/* Only movement earns a mark. "Held" is a normal,
+                            healthy outcome and putting a chip on it would
+                            read as a flag; "no evidence" is reported in the
+                            area summary above as a note about the plan, not
+                            beside the child's topic as if it were a score. */}
+                        {cycle.outcome === 'moved' && (
+                          <span className="text-[10px] font-medium text-sage-700">
+                            {t('progress.cycleMoved')}
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${TOPIC_STATUS_STYLE[status].cls}`}>
+                          {t(TOPIC_STATUS_STYLE[status].labelKey)}
+                        </span>
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
@@ -648,6 +700,9 @@ export default function Progress() {
   const [compositionSummary, setCompositionSummary] = useState<MasteryProfileSummary | null>(null)
   const [phonicsSummary, setPhonicsSummary] = useState<MasteryProfileSummary | null>(null)
   const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
+  const [literacySummary, setLiteracySummary] = useState<MasteryProfileSummary | null>(null)
+  const [workLedger, setWorkLedger] = useState<WorkLedgerData | null>(null)
+  const [podRoster, setPodRoster] = useState<PodWorkRosterData | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -658,6 +713,11 @@ export default function Progress() {
   // an older student rather than showing a card that can never have data.
   const activeStudentIsFoundations =
     podStudents.find((s) => s.student_name === activeStudent)?.grade_stage === 'K-2'
+  // Reading & spelling is the other half of that gate: phonics owns K-2
+  // decoding, services/diagnostic/literacy.py owns grades 3-8, and the two
+  // never overlap. Skip the fetch for a K-2 student rather than showing a
+  // card that can never have data — same reasoning as phonics above.
+  const activeStudentIsBeyondFoundations = !activeStudentIsFoundations
 
   useEffect(() => {
     if (!token || !activeStudent) return
@@ -670,6 +730,9 @@ export default function Progress() {
     setCompositionSummary(null)
     setPhonicsSummary(null)
     setLanguageSummary(null)
+    setLiteracySummary(null)
+    setWorkLedger(null)
+    setPodRoster(null)
     setUsage(null)
 
     Promise.all([
@@ -682,9 +745,19 @@ export default function Progress() {
         ? fetchMasteryProfileSummary(token, activeStudent, 'phonics')
         : Promise.resolve(null),
       fetchMasteryProfileSummary(token, activeStudent, 'language_exposure'),
+      activeStudentIsBeyondFoundations
+        ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
+        : Promise.resolve(null),
+      fetchStudentActivity(token, activeStudent),
+      // The pod roster is about the whole pod, not the active student —
+      // fetched once here rather than per-student so switching students
+      // doesn't refetch identical data.
+      podStudents.length > 1
+        ? fetchPodActivity(token, podStudents.map((s) => s.student_name))
+        : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, lang, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, lit, act, pod, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
@@ -692,13 +765,16 @@ export default function Progress() {
         setCompositionSummary(c)
         setPhonicsSummary(ph)
         setLanguageSummary(lang)
+        setLiteracySummary(lit)
+        setWorkLedger(act)
+        setPodRoster(pod)
         setUsage(u)
       })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : t('progress.failedToLoadProgress'))
       })
       .finally(() => setLoading(false))
-  }, [token, activeStudent, activeStudentIsFoundations])
+  }, [token, activeStudent, activeStudentIsFoundations, activeStudentIsBeyondFoundations])
 
   return (
     <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
@@ -792,6 +868,16 @@ export default function Progress() {
               noDataText={t('progress.noCompositionMasteryData', { name: activeStudent })}
               calibrationText={t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 })}
             />
+            {activeStudentIsBeyondFoundations && (
+              <MasterySnapshot
+                studentName={activeStudent}
+                summary={literacySummary}
+                loading={loading}
+                title={t('progress.literacyMasterySnapshotTitle')}
+                noDataText={t('progress.noLiteracyMasteryData', { name: activeStudent })}
+                calibrationText={t('progress.literacyMasteryCalibration', { name: activeStudent, count: literacySummary?.evidence_count ?? 0 })}
+              />
+            )}
             {activeStudentIsFoundations && (
               <MasterySnapshot
                 studentName={activeStudent}
@@ -810,6 +896,8 @@ export default function Progress() {
               noDataText={t('progress.noLanguageMasteryData', { name: activeStudent })}
               calibrationText={t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 })}
             />
+            <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
+            {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />

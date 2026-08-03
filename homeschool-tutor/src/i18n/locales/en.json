@@ -45,6 +45,13 @@
     "eyeRestBreakDuration": "This break is at least {{minutes}} minutes — step away from the screen.",
     "untilYouCanContinue": "until you can continue",
     "breakTimeTitle": "Break Time",
+    "breakSuggestionTitle": "You've been working {{minutes}} minutes — want a quick break?",
+    "breakSuggestionBody": "You don't have to. If you're in a good rhythm, keep going — there's a proper break at the hour either way.",
+    "breakSuggestionTake": "Yes, let's pause",
+    "breakSuggestionKeepGoing": "No thanks, keep going",
+    "voluntaryBreakTitle": "Good idea — take a moment",
+    "voluntaryBreakBody": "Step away from the screen for a bit, {{name}}. Come back whenever you're ready.",
+    "voluntaryBreakResume": "I'm ready to keep learning",
     "breakTimeBody": "{{name}}, you've been working hard.",
     "breakTimeInstructions": "Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.",
     "untilNextBlock": "until your next learning block",
@@ -183,6 +190,7 @@
     "sexHelpUnnamed": "Needed so Bede addresses your child with the correct grammatical gender in the configured language.",
     "subjects": "Subjects",
     "minutesShort": "{{count}} min",
+    "subjectsOverCap": "These subjects ask for {{over}} min more instruction than this student's {{cap}} min session allows, so the day will stop before the last subjects are reached. Raise the session length to {{needed}} min to fit the whole plan, or remove a subject.",
     "voiceVerification": "Voice verification",
     "voiceVerificationOn": "Student says passphrase at session start",
     "voiceVerificationOff": "PIN-only — no voice check (mute / accessibility)",
@@ -252,7 +260,11 @@
     "companionModeGuided": "A Bit More Structure",
     "companionModeGuidedDesc": "Book-based discussion plus a few core subjects.",
     "companionModeFullPlan": "Full Daily Plan",
-    "companionModeFullPlanDesc": "Bede covers the full Mater Amabilis subject rotation."
+    "companionModeFullPlanDesc": "Bede covers the full Mater Amabilis subject rotation.",
+    "travelMode": "We travel — our weeks aren't always regular",
+    "travelModeHelp": "Progress normally reports movement over the last 4 actual weeks. Turn this on if weeks away mean that window is often too short to see anything, and choose a longer one. It doesn't change how your child is taught, only how far back the Progress page looks.",
+    "masteryWindowLabel": "Report movement over",
+    "weeksN": "{{n}} weeks"
   },
   "progress": {
     "advance": "Advance",
@@ -285,6 +297,9 @@
     "phonicsMasteryCalibration_one": "Bede is still forming a first picture of {{name}}'s reading foundations, based on {{count}} observation so far — treat this as an early signal, not a settled read. It will sharpen the more {{name}} works with Bede.",
     "phonicsMasteryCalibration_other": "Bede is still forming a first picture of {{name}}'s reading foundations, based on {{count}} observations so far — treat this as an early signal, not a settled read. It will sharpen the more {{name}} works with Bede.",
     "languageMasterySnapshotTitle": "Language Exposure Snapshot",
+    "literacyMasterySnapshotTitle": "Reading & Spelling Snapshot",
+    "noLiteracyMasteryData": "No reading or spelling data yet. Bede builds this by noticing what {{name}}'s own reading, copywork, and narrations already show — a long word stalled on, a homophone chosen wrongly, a retelling that reorders events — rather than by setting any kind of test. Check back after a lesson or two of Language Arts or Living Books.",
+    "literacyMasteryCalibration": "Still getting to know how {{name}} reads — {{count}} observation(s) so far. These areas are listed in the order reading develops, so the earliest unfinished one is the honest place to work next.",
     "noLanguageMasteryData": "No language exposure data yet. Bede occasionally teaches a brief foreign word or phrase during History, Saints, or Art & Music, then checks back later in the conversation to see what stuck — check back after a lesson or two.",
     "languageMasteryCalibration_one": "Bede is still forming a first picture of how {{name}} responds to brief foreign-language moments, based on {{count}} observation so far — treat this as an early signal, not a settled read. It will sharpen the more {{name}} works with Bede.",
     "languageMasteryCalibration_other": "Bede is still forming a first picture of how {{name}} responds to brief foreign-language moments, based on {{count}} observations so far — treat this as an early signal, not a settled read. It will sharpen the more {{name}} works with Bede.",
@@ -335,7 +350,15 @@
     "title": "Progress",
     "noStudentsYet": "No students configured yet.",
     "goToSetup": "Go to Setup",
-    "failedToLoadProgress": "Failed to load progress data"
+    "failedToLoadProgress": "Failed to load progress data",
+    "cycleWindowCaption": "Movement shown against the last {{window}}.",
+    "cycleWindowWeeks_one": "week",
+    "cycleWindowWeeks_other": "{{count}} weeks",
+    "cycleWindowDays_one": "day",
+    "cycleWindowDays_other": "{{count}} days",
+    "cycleMoved": "moved",
+    "cycleQuiet_one": "{{count}} had no notes in the last {{window}} — check it is scheduled often enough",
+    "cycleQuiet_other": "{{count}} had no notes in the last {{window}} — check they are scheduled often enough"
   },
   "breakActivities": [
     "Look at something at least 20 feet away for 20 seconds — it gives your eyes a real rest.",
@@ -354,5 +377,58 @@
     "Think of a word that rhymes with \"light\" — how many can you find?",
     "Step outside or to a window and take five slow, deep breaths.",
     "Mental math: if you have 3 dozen eggs, how many eggs is that?"
-  ]
+  ],
+  "workLedger": {
+    "title": "What's Been Done",
+    "subtitle": "Work {{name}} has actually finished in the last {{days}} days, and what Bede noticed about it. A record, not a report card.",
+    "noData": "Nothing recorded yet for {{name}}. This fills in as you work together.",
+    "totalCompleted": "{{count}} finished",
+    "completedCount": "{{count}}×",
+    "unaided": "on their own",
+    "withAHint": "after a nudge",
+    "withHelp": "worked through together",
+    "exemplary": "one to show",
+    "noteworthy": "went further",
+    "original": "their own idea",
+    "brisk": "came easily",
+    "beyondTheTask": "took it further",
+    "lastWorked": "last done {{date}}",
+    "scoredCount": "Bede noted {{count}}",
+    "notYetScored": "{{count}} without notes",
+    "initiativeTitle": "Where you can see initiative",
+    "standoutIn": "Most often in: {{skills}}",
+    "initiativeCaveat": "These count pieces of work, not your child. Bede noticed them; what they add up to is yours to say.",
+    "legendToggle": "What do these mean?",
+    "legend": {
+      "onTheirOwn": {
+        "term": "On their own",
+        "means": "they got there without help — a nudge or working through it together is just as valid, it says what the work needed, not what your child is capable of."
+      },
+      "oneToShow": {
+        "term": "One to show",
+        "means": "the work was good enough to hand another child as the example."
+      },
+      "tookItFurther": {
+        "term": "Took it further",
+        "means": "they went past what was asked without being told to — connected it to something else, asked what would happen if, or checked their own answer a second way."
+      },
+      "theirOwnIdea": {
+        "term": "Their own idea",
+        "means": "a genuine idea, question, or method they brought themselves. Bede keeps this one rare on purpose."
+      },
+      "cameEasily": {
+        "term": "Came easily",
+        "means": "the work has stopped costing them much. Not about speed — Bede never times a child or hurries one."
+      },
+      "blank": "Bede leaves all of this blank when it didn't see enough to say, which is why the card tells you how much it noted and how much it didn't. A blank is not a low mark."
+    }
+  },
+  "podRoster": {
+    "title": "Who's Done This Work",
+    "subtitle": "So you can ask one of them to show another. Listed by skill, never by child — it's a roster, not a ranking.",
+    "noData": "Nothing recorded across the group yet.",
+    "completedShort": "{{count}}×",
+    "workedByOne": "Only one of them has done these yet",
+    "caveat": "A child who hasn't done a piece of work simply isn't listed under it. Nobody is measured against anybody else, and the children never see this."
+  }
 }

@@ -370,7 +370,28 @@ also strengthens the case for voice verification becoming a real factor:
 a genuine device identity plus a genuine biometric is a materially different
 claim than either alone.
 
-**Conformance.** Related to punch-list #8.
+**Conformance.** Still open, and deliberately not built on 2026-08-03
+alongside P8 and P10. `docs/DEVICE_IDENTITY_DESIGN.md` works the problem
+through: three options, a recommendation (revocable device records first,
+browser keypairs for the parent role second), and the four decisions that
+want an answer before code.
+
+The short version of why it stopped at a design: P8 and P10 are server-side,
+fail closed into "log in again", and cannot strand a device. P9 changes how
+every device authenticates, and its hardest question is not cryptographic
+but a recovery path — IndexedDB is evictable, so a family whose tablet
+forgets its key needs a re-onboarding flow at least as easy as the one it
+replaces, or they are locked out of their own hardware.
+
+Two things landed for other reasons that make it cheaper than it was:
+parent tokens now carry a `jti` (P8), and `core/identity.py` owns
+domain-scoped signing, so device binding is a change to one module rather
+than to every issue site.
+
+Related to punch-list #8: a genuine device identity plus a genuine biometric
+is a materially different claim than either alone, which is why voice
+verification becoming a real factor and this principle are worth sequencing
+together.
 
 *AIUC-1: Security · CISSP D5 device identity*
 

@@ -556,6 +556,17 @@ break every hour for every child, but it will not tell you that your
    Catechism). Leave it blank and Bede simply won't assume any particular
    tradition beyond what your subject choices already signal.
 
+   One boundary on that field: Bede teaches Scripture, saints, and faith
+   content from the historic Christian faith shared across the Catholic,
+   Orthodox, and Protestant traditions. It won't adapt its own teaching to
+   a group built on a modern individual's claimed revelation alongside or
+   in place of the Bible, such as Jehovah's Witnesses or Mormonism/the
+   Book of Mormon. If you type one of those into the field, Bede simply
+   keeps teaching from that shared historic ground, the same as if you'd
+   left the field blank. It never says anything about this to your child,
+   and it is not a judgment on your family's own beliefs. It is only a
+   decision about what Bede itself teaches from.
+
    The same panel also offers a **Primary Bible Translation** dropdown
    (KJV, NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE, or
    Douay-Rheims) whenever Morning Time, Scripture & Bible Study, Saints

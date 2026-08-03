@@ -153,6 +153,45 @@ list as items are closed.
 
 ## Closed gaps
 
+- **The setup wizard recommended a PIN the API refuses to boot on —
+  closed 2026-08-03.**
+  Hardening rejected `602656` as a `CHILD_PIN` at startup, which is
+  correct: it had been this repository's published example, printed in
+  `.env.example`, `setup.sh`, the setup wizard's own hint text and input
+  placeholder, `docs/PARENT_SETUP.md`, `docs/DEMO_HOSTING.md`, and the
+  error messages that told a parent what a good PIN looks like. A value
+  on GitHub is not a secret.
+
+  The rejection landed in `core/config.py` and nowhere else. The wizard
+  kept printing "e.g. 602656 is a good one" and kept accepting it,
+  because its own check was `pin_is_strong()`, which passes: the PIN is
+  well-shaped, and shape was never the problem. So a parent who followed
+  the installer's on-screen advice got an `.env` the installer called
+  valid and a container that then refused to start, reporting that their
+  PIN was "the default dev value." `setup.sh` had the identical defect on
+  the terminal path. `config.py`'s own error messages recommended
+  `602656` inside the same validator that rejected it, so following the
+  error's advice led to the other branch of the same failure.
+
+  It also broke the deployment regression suite, which drives the wizard
+  exactly as a parent would. `main` was red for five consecutive runs,
+  and every one of them was this.
+
+  The fix is structural rather than textual. Both rules now live in
+  `core/pin_policy.py`, the one module the API and the wizard already
+  share (the wizard runs in a pydantic-free container and copies just
+  that file): `pin_is_strong()` for shape, and `is_published_credential()`
+  for whether the exact value has been printed publicly. Two different
+  questions, deliberately kept apart, since a published value can be
+  perfectly well-shaped. `homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py`
+  asserts the invariant directly — **the wizard must never accept a
+  credential the API will refuse to boot on** — in both directions,
+  including submitting the form and constructing `Settings` from the
+  `.env` it produces. No interface names a concrete PIN any more: both
+  installers generate a fresh suggestion per run, which is the only kind
+  of example that stays usable. `setup.sh`'s bash copy carries the same
+  list, verified by running its generator against its own checker.
+
 - **Thirty settings never reached the container, including every value
   security keys depend on — closed 2026-08-03.**
   `docker-compose.yml`'s `api` service passes environment variables by

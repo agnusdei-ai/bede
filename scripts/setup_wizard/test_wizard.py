@@ -22,6 +22,13 @@ import pytest
 
 import wizard
 
+# Generated once per test run rather than written as a literal. The wizard
+# now refuses any PIN this repository publishes as an example, which is what
+# retired the old hardcoded 602656 here — see
+# homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py for why a
+# well-shaped PIN can still be an unusable one.
+TEST_PIN = wizard.suggest_pin()
+
 
 @pytest.fixture
 def running_wizard(tmp_path, monkeypatch):
@@ -83,7 +90,7 @@ def test_short_parent_password_rejected(running_wizard):
             "anthropic_key": "sk-ant-test",
             "db_choice": "local",
             "parent_password": "short",
-            "child_pin": "602656",
+            "child_pin": TEST_PIN,
         })
     assert exc_info.value.code == 400
     assert "8 characters" in exc_info.value.read().decode()
@@ -95,7 +102,7 @@ def test_managed_db_without_url_rejected(running_wizard):
             "anthropic_key": "sk-ant-test",
             "db_choice": "managed",
             "parent_password": "parentpass123",
-            "child_pin": "602656",
+            "child_pin": TEST_PIN,
         })
     assert exc_info.value.code == 400
     assert "connection string" in exc_info.value.read().decode()
@@ -107,7 +114,7 @@ def test_missing_license_key_rejected_without_writing_env(running_wizard):
             "anthropic_key": "sk-ant-test",
             "db_choice": "local",
             "parent_password": "parentpass123",
-            "child_pin": "602656",
+            "child_pin": TEST_PIN,
         })
     assert exc_info.value.code == 400
     assert "license key" in exc_info.value.read().decode()
@@ -119,7 +126,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
         "anthropic_key": "sk-ant-real-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     assert resp.status == 200
@@ -134,7 +141,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     assert "POSTGRES_PASSWORD=" in env
     assert "@db:5432/bede" in env
     assert "PARENT_PASSWORD=parentpass123" in env
-    assert "CHILD_PIN=602656" in env
+    assert f"CHILD_PIN={TEST_PIN}" in env
     assert "LICENSE_KEY=eyJ.test-license-key" in env
     assert "CORS_ORIGINS=https://localhost,https://192.168.1.50,http://ui:80" in env
 
@@ -148,7 +155,7 @@ def test_valid_openai_submission_writes_correct_env(running_wizard):
         "openai_key": "sk-proj-real-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     assert resp.status == 200
@@ -164,7 +171,7 @@ def test_valid_mistral_submission_writes_correct_env(running_wizard):
         "mistral_key": "real-mistral-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     env = open(wizard.ENV_PATH).read()
@@ -180,7 +187,7 @@ def test_valid_local_submission_writes_correct_env(running_wizard):
         "local_base_url": "http://gpu-box.lan:8000/v1",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     env = open(wizard.ENV_PATH).read()
@@ -197,7 +204,7 @@ def test_missing_credential_for_chosen_provider_rejected(running_wizard):
             "provider": "openai",
             "db_choice": "local",
             "parent_password": "parentpass123",
-            "child_pin": "602656",
+            "child_pin": TEST_PIN,
             "license_key": "eyJ.test-license-key",
         })
     assert exc_info.value.code == 400
@@ -211,7 +218,7 @@ def test_missing_local_server_url_rejected(running_wizard):
             "provider": "local",
             "db_choice": "local",
             "parent_password": "parentpass123",
-            "child_pin": "602656",
+            "child_pin": TEST_PIN,
             "license_key": "eyJ.test-license-key",
         })
     assert exc_info.value.code == 400
@@ -255,7 +262,7 @@ def test_valid_local_auto_submission_writes_correct_env_and_cleans_up_marker(run
         "provider": "local_auto",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     assert resp.status == 200
@@ -279,7 +286,7 @@ def test_local_auto_without_marker_rejected(running_wizard):
             "provider": "local_auto",
             "db_choice": "local",
             "parent_password": "parentpass123",
-            "child_pin": "602656",
+            "child_pin": TEST_PIN,
             "license_key": "eyJ.test-license-key",
         })
     assert exc_info.value.code == 400
@@ -296,7 +303,7 @@ def test_choosing_a_cloud_provider_still_cleans_up_a_leftover_marker(running_wiz
         "anthropic_key": "sk-ant-test",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     env = open(wizard.ENV_PATH).read()
@@ -312,7 +319,7 @@ def test_omitted_provider_field_defaults_to_anthropic(running_wizard):
         "anthropic_key": "sk-ant-default-path",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     env = open(wizard.ENV_PATH).read()
@@ -326,7 +333,7 @@ def test_valid_managed_db_submission_has_no_local_db_settings(running_wizard):
         "db_choice": "managed",
         "database_url": "postgresql://user:pass@neon.example/db",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     env = open(wizard.ENV_PATH).read()
@@ -339,14 +346,14 @@ def test_resubmission_backs_up_previous_env(running_wizard):
         "anthropic_key": "sk-ant-first",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     _post(running_wizard, {
         "anthropic_key": "sk-ant-second",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     assert os.path.exists(wizard.ENV_PATH + ".backup")
@@ -359,7 +366,7 @@ def test_shutdown_signal_fires_after_success(running_wizard):
         "anthropic_key": "sk-ant-test",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     assert wizard._shutdown_event.wait(timeout=2) is True
@@ -413,7 +420,7 @@ def test_success_page_includes_narration_but_no_mic(running_wizard):
         "anthropic_key": "sk-ant-test",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     body = resp.read().decode()
@@ -452,7 +459,7 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
         "anthropic_key": "sk-ant-test",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     main_thread.join(timeout=5)
@@ -472,7 +479,7 @@ def test_choosing_not_to_keep_mastery_writes_the_setting(running_wizard):
         "anthropic_key": "sk-ant-real-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
         "keep_mastery": "no",
     })
@@ -489,7 +496,7 @@ def test_the_default_install_writes_nothing_about_retention(running_wizard):
         "anthropic_key": "sk-ant-real-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
         "keep_mastery": "yes",
     })
@@ -505,7 +512,7 @@ def test_an_older_form_with_no_answer_keeps_todays_behaviour(running_wizard):
         "anthropic_key": "sk-ant-real-key",
         "db_choice": "local",
         "parent_password": "parentpass123",
-        "child_pin": "602656",
+        "child_pin": TEST_PIN,
         "license_key": "eyJ.test-license-key",
     })
     assert resp.status == 200
@@ -518,3 +525,49 @@ def test_the_question_is_actually_shown(running_wizard):
     assert "mastered between sessions" in body
     assert 'name="keep_mastery" value="yes"' in body
     assert 'name="keep_mastery" value="no"' in body
+
+
+# ── Published example credentials (the bug that turned main red) ─────────
+#
+# The wizard used to print "e.g. 602656 is a good one" as its own hint and
+# use it as the input's placeholder, then accept it. The API refuses to boot
+# on it, because a PIN published in this repository is not a secret. So the
+# installer recommended a value that made the parent's stack fail to start,
+# and reported the failure as their own insecure default. These pin the
+# wizard half; the agreement between the two halves is asserted in
+# homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py.
+
+def test_the_published_example_pin_is_refused(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-real-key",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": "602656",
+            "license_key": "eyJ.test-license-key",
+        })
+    assert exc_info.value.code == 400
+    assert "published example" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH), (
+        "the wizard wrote an .env the API would refuse to boot on"
+    )
+
+
+def test_the_form_recommends_a_generated_pin_not_a_published_one(running_wizard):
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert "602656" not in body
+    assert wizard.SUGGESTED_CHILD_PIN in body
+
+
+def test_the_suggested_pin_is_actually_accepted(running_wizard):
+    """A suggestion the form then rejects would be the same defect wearing a
+    different value."""
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": wizard.SUGGESTED_CHILD_PIN,
+        "license_key": "eyJ.test-license-key",
+    })
+    assert resp.status == 200
+    assert f"CHILD_PIN={wizard.SUGGESTED_CHILD_PIN}" in open(wizard.ENV_PATH).read()

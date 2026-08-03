@@ -3,7 +3,12 @@ from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import List
 
-from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
+from core.pin_policy import (
+    MIN_PIN_LENGTH,
+    PUBLISHED_EXAMPLE_PINS,
+    WEAK_PLACEHOLDER_SECRETS,
+    pin_is_strong,
+)
 
 # Placeholder RESEND_FROM_ADDRESS — example.com can never be a verified
 # sending domain in a real Resend account, so a deployment left on this
@@ -413,26 +418,24 @@ class Settings(BaseSettings):
     # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
     license_key: str = ""
 
-    _WEAK_SECRETS = {
-        "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min",
-        "change-me-parent",
-        "change-me-master-secret-32-chars-min",
-        "0000",
-    }
+    # Both sets now live in core/pin_policy.py rather than here, because the
+    # setup wizard has to enforce exactly the same rule at the moment a
+    # parent types a value, and it cannot import this module (it runs in a
+    # pydantic-free container). While these lists lived here alone, the
+    # wizard accepted the published example PIN, wrote it to .env, and the
+    # API then refused to boot on it — see that module's docstring.
+    _WEAK_SECRETS = WEAK_PLACEHOLDER_SECRETS
 
-    # Kept separate from _WEAK_SECRETS above (which is also checked against
-    # SECRET_KEY/PARENT_PASSWORD/MASTER_SECRET) rather than added to it:
+    # Kept separate from _WEAK_SECRETS (which is also checked against
+    # SECRET_KEY/PARENT_PASSWORD/MASTER_SECRET) rather than merged into it:
     # "602656" isn't inherently weak as a general secret — pin_is_strong()
-    # alone would happily accept it as a CHILD_PIN, since it's a real,
-    # non-sequential, non-repeating 6-digit PIN. It's only a liability
-    # specifically as CHILD_PIN, because it's .env.example's own sample
-    # value (and pin_policy.py's docstring example of a *strong* PIN) —
-    # published in this repo, so a hand-copied .env that never touched
-    # that line boots in production with a PIN anyone can find on GitHub.
-    # A shared set would have also rejected "602656" as a perfectly
-    # reasonable PARENT_PASSWORD/SECRET_KEY/MASTER_SECRET value, which
-    # there's no security reason to do.
-    _WEAK_CHILD_PINS = {"602656"}
+    # alone would happily accept it, since it's a real, non-sequential,
+    # non-repeating 6-digit PIN. It's a liability specifically as a PIN,
+    # because it was this repo's own published sample value. A shared set
+    # would have also rejected it as a perfectly reasonable
+    # PARENT_PASSWORD/SECRET_KEY/MASTER_SECRET, which there's no security
+    # reason to do.
+    _WEAK_CHILD_PINS = PUBLISHED_EXAMPLE_PINS
 
     # SECRET_KEY/MASTER_SECRET: matches the dev-default placeholders' own
     # "-32-chars-min" naming — SECRET_KEY signs every JWT (core/security.py),
@@ -505,20 +508,20 @@ class Settings(BaseSettings):
             problems.append(
                 f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
+                "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes"
             )
         if self.demo_pin and not pin_is_strong(self.demo_pin):
             problems.append(
                 f"DEMO_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN — "
+                "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes — "
                 "it's shared with the public, so it deserves the same bar as CHILD_PIN"
             )
         if self.sandbox_pin and not pin_is_strong(self.sandbox_pin):
             problems.append(
                 f"SANDBOX_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
+                "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes"
             )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")

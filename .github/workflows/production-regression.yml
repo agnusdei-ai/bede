@@ -59,6 +59,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Generated per run rather than hardcoded. A literal PIN committed
+      # here is published exactly like the one in .env.example was, and
+      # that value (602656) is now refused at boot for precisely that
+      # reason — which is what turned this job red for five runs. Calling
+      # the app's own suggest_pin() also proves the generator and the
+      # policy that judges it cannot drift apart.
+      - name: Generate a throwaway CHILD_PIN for this run
+        run: |
+          echo "CI_CHILD_PIN=$(python3 -c 'import sys; sys.path.insert(0, "homeschool-api"); from core.pin_policy import suggest_pin; print(suggest_pin())')" >> "$GITHUB_ENV"
       - name: Validate managed-DB mode
         run: |
           cat > .env <<EOF
@@ -66,7 +75,7 @@ jobs:
           SECRET_KEY=test
           MASTER_SECRET=test
           PARENT_PASSWORD=test
-          CHILD_PIN=602656
+          CHILD_PIN=${CI_CHILD_PIN}
           DATABASE_URL=postgresql+asyncpg://user:pass@host/db
           LICENSE_KEY=${CI_TEST_LICENSE_KEY}
           EOF
@@ -84,7 +93,7 @@ jobs:
           SECRET_KEY=test
           MASTER_SECRET=test
           PARENT_PASSWORD=test
-          CHILD_PIN=602656
+          CHILD_PIN=${CI_CHILD_PIN}
           DATABASE_URL=postgresql+asyncpg://sage:testpass@db:5432/bede
           COMPOSE_PROFILES=local-db
           POSTGRES_PASSWORD=testpass
@@ -106,7 +115,7 @@ jobs:
           SECRET_KEY=test
           MASTER_SECRET=test
           PARENT_PASSWORD=test
-          CHILD_PIN=602656
+          CHILD_PIN=${CI_CHILD_PIN}
           DATABASE_URL=postgresql+asyncpg://user:pass@host/db
           LICENSE_KEY=${CI_TEST_LICENSE_KEY}
           EOF
@@ -124,6 +133,16 @@ jobs:
     needs: compose-config-validation
     steps:
       - uses: actions/checkout@v4
+
+      # Generated per run rather than hardcoded. A literal PIN committed
+      # here is published exactly like the one in .env.example was, and
+      # that value (602656) is now refused at boot for precisely that
+      # reason — which is what turned this job red for five runs. Calling
+      # the app's own suggest_pin() also proves the generator and the
+      # policy that judges it cannot drift apart.
+      - name: Generate a throwaway CHILD_PIN for this run
+        run: |
+          echo "CI_CHILD_PIN=$(python3 -c 'import sys; sys.path.insert(0, "homeschool-api"); from core.pin_policy import suggest_pin; print(suggest_pin())')" >> "$GITHUB_ENV"
 
       - name: Build the setup wizard image
         run: docker build -t bede-setup-wizard -f scripts/setup_wizard/Dockerfile .
@@ -145,7 +164,7 @@ jobs:
             --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
             --data-urlencode "db_choice=local" \
             --data-urlencode "parent_password=cipassword123" \
-            --data-urlencode "child_pin=602656" \
+            --data-urlencode "child_pin=${CI_CHILD_PIN}" \
             --data-urlencode "license_key=${CI_TEST_LICENSE_KEY}" \
             | grep -q "All set"
 
@@ -168,7 +187,7 @@ jobs:
           grep -q '^ANTHROPIC_API_KEY=sk-ant-ci-test-key$' .env
           grep -q '^COMPOSE_PROFILES=local-db$' .env
           grep -q '^POSTGRES_PASSWORD=' .env
-          grep -q '^CHILD_PIN=602656$' .env
+          grep -q "^CHILD_PIN=${CI_CHILD_PIN}\$" .env
           grep -q "^LICENSE_KEY=${CI_TEST_LICENSE_KEY}\$" .env
           grep -q '@db:5432/bede$' .env
           [ "$(stat -c '%a' .env)" = "600" ]

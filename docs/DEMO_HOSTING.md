@@ -28,7 +28,7 @@ just push to `main` and it redeploys itself.
      separately).
    - `OPENAI_API_KEY` — for the voice feature (see `docs/VOICE_SETUP.md`).
    - `CHILD_PIN` — must satisfy `pin_is_strong()` (6+ digits, no sequential
-     run/repeated block/palindrome — e.g. `602656`, not `111111`). Unused in
+     run/repeated block/palindrome, and not one of Bede's own published example PINs). Unused in
      practice (this instance's parent/child roles aren't advertised), but
      the app still validates it at startup.
    - `DEMO_PIN` — not a credential anyone types; purely the on/off switch for

@@ -148,6 +148,30 @@ contains a wildcard (`reject_exposed_docs_and_wildcard_cors_in_production`
 — at least one AI provider is required, but never a specific one; see
 `docs/PROVIDER_ADAPTERS.md`). All four validators live in `core/config.py`.
 
+**One credential policy, three implementations, and a test that they
+agree.** `core/pin_policy.py` holds both rules: `pin_is_strong()` (shape —
+6+ digits, no sequential run, repeated block, or palindrome) and
+`is_published_credential()` (whether the exact value is one this repository
+prints as an example, `PUBLISHED_EXAMPLE_PINS`/`WEAK_PLACEHOLDER_SECRETS`).
+They are deliberately separate questions: `602656` passes every shape rule
+and is still unusable, because it was the published example everywhere —
+`.env.example`, `setup.sh`, the wizard's own hint and placeholder, two
+docs, and `config.py`'s own error messages. When the boot-time rejection
+landed in `config.py` alone, the wizard went on recommending and accepting
+it, so a parent following the installer's advice got an `.env` it called
+valid and a container that refused to start blaming them for "the default
+dev value" — and `main` went red for five consecutive
+`production-regression.yml` runs, all of them this. The policy lives in
+`pin_policy.py` because it is the one module the wizard's pydantic-free
+container already copies; `setup.sh` necessarily keeps a bash copy (as
+`demo/src/App.tsx` does in TypeScript).
+`homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py` pins the
+invariant in both directions — **the wizard must never accept a credential
+the API will refuse to boot on** — including building the `.env` the form
+produces and constructing `Settings` from it. No interface names a concrete
+PIN any longer: `suggest_pin()` generates one per run in both installers,
+since the only example that stays usable is one that was never committed.
+
 **A setting in `.env` only exists if `docker-compose.yml` names it.** The
 `api` service enumerates environment variables one at a time rather than
 using `env_file`, deliberately — the block is a reviewable statement of what

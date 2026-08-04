@@ -112,9 +112,21 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // recording indicator stayed lit while the app believed it was idle.
   const runGenRef = useRef(0)
 
-  const getStream = useCallback((constraints: MediaStreamConstraints['audio']) =>
-    navigator.mediaDevices
+  const getStream = useCallback((constraints: MediaStreamConstraints['audio']) => {
+    const requestedAt = Date.now()
+    return navigator.mediaDevices
       .getUserMedia({ audio: constraints })
+      .then((stream) => {
+        // How long getUserMedia() itself took to resolve — the piece a
+        // "missing the start of speech" report can't be diagnosed without.
+        // A cold call issued at press-time can take anywhere from ~0ms
+        // (mic already warm) to several hundred ms (first-ever permission
+        // grant, OS-level device negotiation), and every one of those
+        // milliseconds is audio the child was already speaking into a mic
+        // that wasn't listening yet.
+        logDebug(`getStream() resolved in ${Date.now() - requestedAt}ms`)
+        return stream
+      })
       .catch((err: unknown): MediaStream | null => {
         console.error('Microphone access denied', err)
         const name = err instanceof DOMException ? err.name : ''
@@ -129,7 +141,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
         onError?.(reason)
         return null
       })
-  , [onError])
+  }, [onError])
 
   const MIC_CONSTRAINTS = {
     sampleRate: 16000,

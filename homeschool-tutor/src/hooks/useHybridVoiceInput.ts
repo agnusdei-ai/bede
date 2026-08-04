@@ -480,5 +480,13 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     startHold,
     release,
     stop,
+    // Opens the mic proactively, before any press — see the recorder's own
+    // prewarm() for why a call issued synchronously AT press-time (as
+    // _start()/recorder.startRecording() already do) cannot close this gap
+    // by itself: it's already essentially as early as a cold call can be.
+    // A caller only benefits by invoking this BEFORE the child presses,
+    // e.g. as soon as it's genuinely their turn to speak.
+    prewarm: recorder.prewarm,
+    cancelPrewarm: recorder.cancelPrewarm,
   }
 }

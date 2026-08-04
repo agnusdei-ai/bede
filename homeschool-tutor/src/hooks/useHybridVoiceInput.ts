@@ -121,6 +121,21 @@ interface Options {
    * for why the silence window is deliberately longer than a dictation app's.
    */
   endpointOnSilence?: boolean
+  /**
+   * Fired when an endpointed turn ended because NOBODY SPOKE — distinct from
+   * every other way a turn can fail, and deliberately not routed through
+   * `micError`.
+   *
+   * In continuous mode silence is ordinary: the child is thinking, or has
+   * stepped away. Reporting it as "I didn't quite catch that" tells a child
+   * the microphone failed when nothing failed, and (via SocraticChat's
+   * circuit breaker) three of those in a row drop them out of Voice on mode.
+   * At the old 120s ceiling that took six minutes to happen; at the 12s
+   * no-speech timeout it would take thirty-six seconds, so shortening the
+   * timeout without this would have made an existing annoyance ten times
+   * more frequent.
+   */
+  onSilentTimeout?: () => void
 }
 
 type Mode = 'idle' | 'recording' | 'transcribing'
@@ -129,7 +144,7 @@ type Mode = 'idle' | 'recording' | 'transcribing'
 // the server. See isNetworkFailure above.
 export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard' | 'network'
 
-export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpointOnSilence = false }: Options) {
+export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpointOnSilence = false, onSilentTimeout }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
   const [interim, setInterim] = useState('')
   // Surfaces the one failure mode that used to be totally silent: a denied
@@ -163,6 +178,8 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   // Always points at the CURRENT release() so the hold-safety timer (armed
   // inside _start) can call it without a forward reference.
   const releaseRef = useRef<() => void>(() => {})
+  // Same forward-reference pattern, for the endpointing effect's silent path.
+  const stopRef = useRef<() => void>(() => {})
 
   // Pin WebKit's audio session category to match whether the mic is
   // actually capturing right now — see utils/audioSession.ts for why.
@@ -435,14 +452,28 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
         `endpointing: ending turn (${reason}) after ${Math.round(state.elapsedMs)}ms ` +
         `— ${Math.round(state.speechMs)}ms speech, ${Math.round(state.silenceMs)}ms trailing silence`,
       )
-      // release(), never stop(): the child may well have said something, and
-      // stop() would discard it. On the no-speech path release() still runs
-      // the normal finish, which returns an empty transcript the existing
-      // MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK logic already handles.
-      releaseRef.current()
+      // The two reasons take different exits, and this is the whole practical
+      // difference between a helpful endpoint and an irritating one.
+      //
+      // finished-speaking → release(): the child DID say something, so the
+      // turn must be delivered.
+      //
+      // no-speech → stop(): nothing was captured, so there is nothing to
+      // deliver and nothing went wrong. release() here would produce an empty
+      // transcript, which MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK turns into a
+      // "I didn't quite catch that" error and a tick on SocraticChat's
+      // voice-mode circuit breaker — telling a child the microphone failed
+      // when they simply hadn't spoken yet. stop() discards silently, and
+      // onSilentTimeout lets the caller decide what repeated silence means.
+      if (reason === 'finished-speaking') {
+        releaseRef.current()
+      } else {
+        stopRef.current()
+        onSilentTimeout?.()
+      }
     }, SAMPLE_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [endpointOnSilence, mode])
+  }, [endpointOnSilence, mode, onSilentTimeout])
 
   const start = useCallback(() => _start(), [_start])
   const startHold = useCallback(() => _start(), [_start])
@@ -528,6 +559,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     })()
   }, [token, recorder, clearChunkTimer, clearHoldSafety, uploadSnapshot, setMode])
   releaseRef.current = release
+  stopRef.current = stop
 
   return {
     isListening: mode === 'recording',

@@ -1764,6 +1764,29 @@ Two independent reasons end a turn, kept apart on purpose:
 Both are logged to the debug overlay with the speech/silence split, so a
 report can say *why* a turn ended rather than only that it did.
 
+**They exit differently, and that is the difference between a helpful
+endpoint and an irritating one.** `finished-speaking` calls `release()` — the
+child spoke, so the turn is delivered. `no-speech` calls `stop()` instead,
+which discards silently.
+
+Routing `no-speech` through `release()` looks harmless and is not. It produces
+an empty transcript, which `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` turns into an
+"I didn't quite catch that" bubble **and** a tick on `SocraticChat`'s
+voice-mode circuit breaker — telling a child the microphone failed when they
+had simply not spoken yet. That cascade already existed at the 120-second
+ceiling, where it took six minutes to reach three strikes. At a 12-second
+no-speech timeout it would take **thirty-six seconds**, so shortening the
+timeout without changing the exit would have made an existing annoyance ten
+times more frequent. Silence is ordinary; it is not a fault.
+
+Repeated silence still needs an answer, though, because a cheap endpoint makes
+an empty room expensive: the mic would re-arm, open a streaming session and
+tear it down five times a minute forever. After `MAX_CONSECUTIVE_SILENT_TURNS`
+(3) the app stands continuous mode down to hold-to-talk with one plain line —
+not an error — and hold-to-talk works the instant the child returns. Any real
+transcript resets the count, so pauses between thoughts never accumulate
+toward it.
+
 **`SILENCE_LEVEL` is untuned against real hardware** and says so in its own
 comment — it cannot be tuned from a sandbox with no microphone. If turns end
 too early, raise `TRAILING_SILENCE_MS` first, then lower `SILENCE_LEVEL`; if

@@ -36,6 +36,17 @@ const MAX_CONSECUTIVE_VOICE_FAILURES = 3
 // timer, this floor guarantees consecutive auto-starts are never closer
 // together than this.
 const MIN_MS_BETWEEN_AUTO_STARTS = 800
+// How many turns in a row may end with nobody speaking before continuous mode
+// stands down to hold-to-talk.
+//
+// Necessary because the endpoint is what makes silence CHEAP to detect: the
+// mic now gives up after 12s instead of 120s, so without a stop condition an
+// empty room would re-arm the mic, open a streaming session and tear it down
+// again five times a minute, indefinitely. Three is enough to be sure the
+// child has actually gone rather than paused between thoughts, and standing
+// down is the honest response — hold-to-talk still works the instant they
+// come back and press it.
+const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const { t, i18n } = useTranslation()
@@ -85,6 +96,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // never a bare timer.
   const { setMode: setVoiceMode, isContinuous } = useVoiceModePreference()
   const consecutiveVoiceFailuresRef = useRef(0)
+  const consecutiveSilentTurnsRef = useRef(0)
   const lastAutoStartRef = useRef(0)
   // send() is defined further down (after useHybridVoiceInput, which needs
   // onFinal above it) — this ref lets continuous mode's onFinal call the
@@ -154,6 +166,17 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     // the child's own finger is the endpoint, and silence detection there
     // would cut them off mid-hold. See utils/endpointing.ts.
     endpointOnSilence: isContinuous,
+    // Silence is not a failure — see the hook's own comment on why it must
+    // not route through micError. It is only worth acting on when it
+    // REPEATS, which means the child has gone rather than paused.
+    onSilentTimeout: () => {
+      consecutiveSilentTurnsRef.current += 1
+      logDebug(`continuous voice: silent turn ${consecutiveSilentTurnsRef.current}/${MAX_CONSECUTIVE_SILENT_TURNS}`)
+      if (consecutiveSilentTurnsRef.current < MAX_CONSECUTIVE_SILENT_TURNS) return
+      consecutiveSilentTurnsRef.current = 0
+      setVoiceMode('hold')
+      addToolMessage('error', `⚠️ ${t('chat.voiceModeStoodDown')}`)
+    },
     // A walkie-talkie release used to send the moment a transcript was
     // final — now it's held for review instead (see pendingVoiceTranscript
     // above): the child can see exactly what was heard and Send or Cancel
@@ -165,6 +188,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       if (isContinuous) {
         logDebug(`continuous voice onFinal — auto-sending text="${transcript}"`)
         consecutiveVoiceFailuresRef.current = 0
+        // The child is demonstrably here — a run of silent turns before this
+        // was pauses, not absence.
+        consecutiveSilentTurnsRef.current = 0
         sendRef.current(transcript)
       } else {
         setPendingVoiceTranscript(transcript)

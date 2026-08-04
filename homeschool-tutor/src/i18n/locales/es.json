@@ -114,7 +114,8 @@
     "voiceModeToggleTooltip": "Cambia entre mantener presionado y voz manos libres",
     "micContinuousListening": "Escuchando — toca para volver a mantener presionado",
     "micContinuousWaiting": "Voz activada — Bede escuchará cuando sea tu turno",
-    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras."
+    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras.",
+    "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez."
   },
   "podDashboard": {
     "noStudentsTitle": "No hay estudiantes configurados",

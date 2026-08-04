@@ -17,7 +17,7 @@ behind (see tests/diagnostic/test_mastery.py).
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from services.diagnostic.cdm import update_attribute_posteriors
+from services.diagnostic.cdm import CdmParams, update_attribute_posteriors
 from services.diagnostic.kst import fringe, propagate_prerequisites
 from services.diagnostic.qmatrix import EvidenceObservation, q_row
 from services.diagnostic.skill_map import GradeBand, all_skill_ids, get_skill
@@ -42,6 +42,50 @@ _BAND_INDEX = {band.value: index for index, band in enumerate(_BAND_ORDER)}
 # THRESHOLD today, but the two are not coupled — this one is free to
 # change at Phase 5's tuning pass without touching the demo's number.
 CALIBRATION_THRESHOLD = 5
+
+# ── Phase 5.2 tuning (see docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §15,
+# and tests/diagnostic/test_convergence.py, which is the measurement) ────────
+#
+# The response-model parameters the engine assumes about a child. Before this
+# they were `CdmParams`' own defaults (slip 0.10 / guess 0.20) and — the real
+# defect — `bayesian_update` never passed `params` at all, so the two values
+# Phase 5 exists to tune were not reachable from the code path that used them.
+# Threading `params` through is what makes them tunable; this constant is what
+# they were tuned TO.
+#
+# WHAT THE MEASUREMENT FOUND. Simulating students with a known true knowledge
+# state (test_convergence.py) and scoring the engine's own verdicts against it
+# surfaced a bias nobody had measured: accuracy is NOT uniform across children.
+# The child who knows least gets the least accurate picture — the opposite of
+# what a diagnostic is for.
+#
+#     student truly knows      false-secure @ guess 0.20    @ guess 0.25
+#     15% of the map                    9.3%                    4.9%
+#     50% of the map                    3.0%                    1.7%
+#     85% of the map                    0.8%                    0.5%
+#
+# "False-secure" is the error that actually reaches a family: the parent is
+# told their child is secure on a skill the child does not have. At 0.20 a
+# struggling child drew that verdict on nearly one skill in ten.
+#
+# The cause is structural, not a bug. `guess` is P(correct | not mastered). A
+# child who has mastered little produces far more not-mastered attempts, so
+# understating `guess` mis-credits far more of them — the bias grows precisely
+# as true mastery falls.
+#
+# WHY 0.25 AND NOT HIGHER. Raising `guess` trades coverage for caution: fewer
+# skills get any verdict at all. 0.20→0.25 removes almost half the false-secure
+# rate for ~10 points of coverage; every step past it buys much less (4.9% →
+# 4.8% → 4.5% at 0.30/0.35) for the same steady coverage loss. 0.25 is the knee.
+# Raising the "secure" cutoff instead was also measured and rejected: it cut
+# more false-secures but cost twice the coverage, and in a world messier than
+# the engine assumes it made overall accuracy WORSE for middle and advanced
+# students (85.0% → 77.5%).
+#
+# `slip` is unchanged at 0.10. Nothing in the sweep argued for moving it, and
+# it governs the opposite, far less costly error: understating a skill the
+# child does have.
+TUNED_PARAMS = CdmParams(slip=0.10, guess=0.25)
 
 # How many "next steps" the parent-facing summary offers. kst.fringe can
 # legitimately return a dozen or more candidates at once; a list that long
@@ -157,6 +201,7 @@ def bayesian_update(
     observation: EvidenceObservation,
     calibration_weight: float = 1.0,
     model: str = "dina",
+    params: "CdmParams | None" = None,
 ) -> tuple[MasteryVector, list[MasteryUpdate]]:
     """
     One evidence-driven update cycle:
@@ -180,7 +225,9 @@ def bayesian_update(
     if not required_skills:
         return dict(vector), []
 
-    cdm_posteriors = update_attribute_posteriors(vector, observation, model=model)
+    cdm_posteriors = update_attribute_posteriors(
+        vector, observation, model=model, params=params or TUNED_PARAMS,
+    )
 
     updated = dict(vector)
     updates: list[MasteryUpdate] = []

@@ -615,7 +615,10 @@ class LoginRequest(BaseModel):
     # an older client) that omits this simply gets no device tracking for
     # that login, never a rejected one. Never sent for demo_code — that
     # role is anonymous and already carries its own one-time-code identity.
-    device_id: Optional[str] = None
+    # max_length matches DeviceRecord.device_id's String(64) column exactly
+    # — without this, an oversized value would reach the DB unvalidated and
+    # fail as an unhandled DataError (500) instead of a clean 422 here.
+    device_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class DemoCodeRequest(BaseModel):

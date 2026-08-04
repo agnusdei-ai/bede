@@ -116,15 +116,23 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     # someone from getting into their own session.
     locale = req.locale if req.locale == settings.locale else "en"
 
-    # P9 device revocation (core/device_registry.py) — checked BEFORE any
-    # credential verification, so a revoked device is refused outright
-    # rather than burning a parent_lockout/child_throttle attempt on a
-    # login that was never going to succeed regardless of the password/PIN.
-    # demo_code never sends device_id (models/schemas.py's LoginRequest),
-    # so this is a no-op for that role.
-    if req.role in ("parent", "child") and req.device_id and device_registry.is_revoked(req.device_id):
+    def _reject_if_device_revoked(role: str) -> None:
+        """P9 device revocation (core/device_registry.py). Called ONLY after
+        this role's credential has already verified successfully — never
+        before. An earlier version checked this first, reasoning that it
+        would avoid burning a parent_lockout/child_throttle attempt on a
+        login that was never going to succeed anyway. That reasoning was
+        wrong: it made this endpoint a pre-authentication oracle, since a
+        caller submitting the right device_id with ANY (or no valid)
+        credential would learn whether that device is revoked without ever
+        proving they hold it. Checking only after a genuinely correct
+        password/PIN closes that — a wrong credential now always gets the
+        same "Invalid credentials" response regardless of whether the
+        device happens to be revoked, indistinguishable either way."""
+        if not req.device_id or not device_registry.is_revoked(req.device_id):
+            return
         log_event_nowait(
-            AuditEvent.DEVICE_LOGIN_BLOCKED, role=req.role, success=False,
+            AuditEvent.DEVICE_LOGIN_BLOCKED, role=role, success=False,
             detail="login refused — this device was revoked", **ctx,
         )
         raise HTTPException(
@@ -154,6 +162,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
                 )
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         await parent_lockout.record_success(db)
+        _reject_if_device_revoked("parent")
         cv = current_credentials_version()
 
         # Password alone isn't enough once a security key or TOTP app is
@@ -197,6 +206,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         child_throttle.record_success()
+        _reject_if_device_revoked("child")
         expires = timedelta(minutes=settings.child_token_expire_minutes)
     elif req.role == "demo_code":
         # No static secret to compare against — the credential is a code

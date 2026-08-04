@@ -20,6 +20,7 @@ import pytest
 import pytest_asyncio
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from starlette.requests import Request
@@ -47,6 +48,22 @@ def _reset_cache():
 
 def _fake_request() -> Request:
     return Request({"type": "http", "client": ("127.0.0.1", 12345), "headers": [(b"user-agent", b"pytest")]})
+
+
+# ── Schema-level: length bound ──────────────────────────────────────────────
+
+def test_an_oversized_device_id_is_rejected_by_the_schema():
+    """Hardening fix: device_id had no length bound before this, so a
+    value longer than DeviceRecord.device_id's String(64) column would
+    reach the database unvalidated and fail as an unhandled DataError
+    (500) instead of a clean rejection here (422 once FastAPI parses the
+    request body)."""
+    with pytest.raises(ValidationError):
+        LoginRequest(role="parent", credential="x", device_id="x" * 65)
+
+
+def test_a_device_id_at_exactly_the_bound_is_still_accepted():
+    LoginRequest(role="parent", credential="x", device_id="x" * 64)
 
 
 # ── login()-level: registration, refusal ────────────────────────────────────
@@ -110,7 +127,11 @@ async def test_a_shared_tablet_shows_whichever_role_logged_in_most_recently(db_s
 
 
 @pytest.mark.asyncio
-async def test_a_revoked_device_is_refused_at_login_before_credentials_are_even_checked(db_session):
+async def test_a_revoked_device_is_refused_after_correct_credentials_are_verified(db_session):
+    """The device check runs only once the password has already verified —
+    NOT before. See test_a_wrong_password_never_reveals_device_revocation_
+    status below for why: checking first would make this endpoint a
+    pre-authentication oracle."""
     await login(LoginRequest(role="parent", credential=settings.parent_password, device_id="dev-1"), _fake_request(), db_session)
     await device_registry.revoke(db_session, "dev-1")
 
@@ -121,16 +142,43 @@ async def test_a_revoked_device_is_refused_at_login_before_credentials_are_even_
 
 
 @pytest.mark.asyncio
-async def test_a_revoked_device_is_refused_even_with_the_wrong_password(db_session):
-    """Refused for the SAME reason (device revoked), not because the
-    credential also happened to be wrong -- proves the check runs before
-    credential verification, not as some fallback after it."""
+async def test_a_wrong_password_never_reveals_device_revocation_status(db_session):
+    """Regression test for a real pre-authentication oracle a security
+    review found: an earlier version checked device revocation BEFORE
+    verifying the password, so a caller submitting a real device_id with
+    ANY (or no valid) credential could learn whether that device was
+    revoked without ever proving they held it. A wrong password must now
+    get the ordinary "Invalid credentials" response regardless of whether
+    the device happens to be revoked -- the two cases must be
+    indistinguishable to a caller who doesn't already know the password."""
     await login(LoginRequest(role="parent", credential=settings.parent_password, device_id="dev-1"), _fake_request(), db_session)
     await device_registry.revoke(db_session, "dev-1")
 
     with pytest.raises(HTTPException) as exc_info:
         await login(LoginRequest(role="parent", credential="totally-wrong", device_id="dev-1"), _fake_request(), db_session)
-    assert "revoked" in exc_info.value.detail.lower()
+    assert "revoked" not in exc_info.value.detail.lower()
+    assert exc_info.value.detail == "Invalid credentials"
+
+    # Confirm the two failure modes are byte-for-byte identical from the
+    # caller's side -- a NON-revoked device with the same wrong password
+    # must produce the exact same response.
+    with pytest.raises(HTTPException) as exc_info_control:
+        await login(LoginRequest(role="parent", credential="totally-wrong", device_id="never-registered"), _fake_request(), db_session)
+    assert exc_info_control.value.detail == exc_info.value.detail
+    assert exc_info_control.value.status_code == exc_info.value.status_code
+
+
+@pytest.mark.asyncio
+async def test_a_wrong_pin_never_reveals_device_revocation_status_for_a_child(db_session):
+    """Same oracle, the child-role route into it."""
+    await login(LoginRequest(role="child", credential=settings.child_pin, device_id="tablet-1"), _fake_request(), db_session)
+    await device_registry.revoke(db_session, "tablet-1")
+
+    wrong_pin = "1234" if settings.child_pin != "1234" else "5678"
+    with pytest.raises(HTTPException) as exc_info:
+        await login(LoginRequest(role="child", credential=wrong_pin, device_id="tablet-1"), _fake_request(), db_session)
+    assert "revoked" not in exc_info.value.detail.lower()
+    assert exc_info.value.detail == "Invalid credentials"
 
 
 @pytest.mark.asyncio

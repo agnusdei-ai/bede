@@ -199,7 +199,7 @@ class DeviceRecord(Base):
     a device that was never reported lost. A genuine per-device keypair
     (docs/DEVICE_IDENTITY_DESIGN.md's Option A) is the deferred, harder
     follow-up for the parent role specifically — still not built, and
-    deliberately so; see that document's own "Why this stopped here".
+    deliberately so; see that document's own "Why Option A stopped here".
 
     Deliberately NOT role-scoped: one physical tablet is commonly used by
     both the parent (setting up the day) and a child (the lesson itself),
@@ -207,10 +207,13 @@ class DeviceRecord(Base):
     happens most recently, rather than the table carrying one row per
     (device, role) pair.
 
-    `revoked_by_role` mirrors AuditLog's existing "who did this" convention;
-    a device can only ever be revoked by an elevated parent
-    (`core/deps.py`'s `require_elevated_parent`), but the column stays
-    honest about that being an application-level rule, not a schema one.
+    No separate "who revoked this" column: a device can only ever be
+    revoked by an elevated parent (`core/deps.py`'s `require_elevated_parent`
+    — this is a single-tenant app, so there is exactly one identity that
+    could), and that action is already durably recorded independently of
+    this table, in the encrypted audit log (`AuditEvent.DEVICE_REVOKED`,
+    `core/audit.py`) — the same place every other security-relevant action
+    in this app is recorded, rather than duplicating a narrower copy here.
     """
     __tablename__ = "device_records"
 

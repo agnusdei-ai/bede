@@ -151,21 +151,34 @@ p.motto {
   margin: 0 0 1rem;
 }
 
+/* Left-aligned, not centred, even though .hero centres everything else.
+   Centred text is right for a display line and wrong for a paragraph: every
+   line starts and ends in a different place, so the eye has to re-find the
+   left edge on each one. This runs to six lines on a phone, where the cost
+   is worst. Matches the house style set when justified prose was reverted
+   to left-aligned for the same readability reason. The BLOCK stays centred
+   in the hero — only the text inside it is aligned. */
 p.mission {
   font-size: 1.05rem;
   line-height: 1.7;
   color: rgba(250, 246, 236, 0.85);
   margin: 0 0 2rem;
+  text-align: left;
 }
 
 /* A quiet panel on the dark ground, the same restrained translucency as
    .guarantee/.limit below — not the brighter card look .card uses
    elsewhere, since this sits directly on the band rather than as one
    card among several. */
+/* Grid, not flex-wrap, and that is the point rather than a preference.
+   Three items in a wrapping flex row do not fit the hero's 42rem at
+   desktop width, so they broke 2 + 1 and the third pillar sat centred and
+   alone on its own row — the same orphaned-block look this panel is meant
+   to avoid. A grid has no orphan row by construction: three columns, or
+   one, and nothing in between. */
 .pillars {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   margin: 0 0 2.5rem;
   padding: 1.5rem;
@@ -174,9 +187,21 @@ p.mission {
   border: 1px solid rgba(224, 184, 74, 0.3);
 }
 
+@media (max-width: 640px) {
+  .pillars {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* Same reasoning as p.mission: the heading and its two or three lines of
+   copy align to a shared left edge, so the three pillars read as a row of
+   columns rather than three separately-centred clouds. The pillars as a
+   GROUP stay centred within the panel. */
+/* No flex-basis or max-width any more — the grid above owns the sizing,
+   and a max-width here would leave uneven gaps inside equal columns. */
 .pillar {
-  flex: 1 1 12rem;
-  max-width: 14rem;
+  text-align: left;
 }
 
 .pillar h3 {
@@ -756,6 +781,13 @@ p.lede {
   text-underline-offset: 2px;
 }
 
+/* One row on a wide screen. The failure mode is what happens when it
+   wraps: each item centres on its own line, so the emojis and the text
+   after them land at four different left edges and the group reads as
+   scattered rather than as a list. Fixed below by stacking into a
+   left-aligned column whose BLOCK is still centred — `width: fit-content`
+   plus `margin-inline: auto` is what centres the group while keeping the
+   items' left edges shared, so the icons line up. */
 .notes {
   display: flex;
   flex-wrap: wrap;
@@ -763,6 +795,20 @@ p.lede {
   gap: 1.25rem 2.25rem;
   font-size: 0.88rem;
   color: rgba(250, 246, 236, 0.7);
+}
+
+/* Deliberately wider than the 640px breakpoint used elsewhere in this
+   file: these four items stop fitting on one line well before the layout
+   itself becomes "mobile", and a two-then-two wrap has the same ragged
+   problem as a four-line stack. */
+@media (max-width: 860px) {
+  .notes {
+    flex-direction: column;
+    align-items: flex-start;
+    width: fit-content;
+    margin-inline: auto;
+    gap: 0.65rem;
+  }
 }
 
 @media (max-width: 640px) {

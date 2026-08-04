@@ -9,6 +9,7 @@ from typing import Any, AsyncIterator, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from services import tool_registry
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
@@ -111,7 +112,13 @@ def _normalize_alternating_roles(messages: list[dict]) -> list[dict]:
 # appends one of these deterministically — a code-level guarantee that a
 # celebration or faith connection never leaves the child with nothing to
 # respond to, instead of hoping the model complies every time.
-_QUESTIONLESS_TOOLS = {"celebrate_discovery", "connect_to_faith"}
+#
+# Declared in services/tool_registry.py rather than here, alongside the rest
+# of what the loop below needs to know about each tool (whether it ends the
+# loop, whether its result earns another round-trip, where its result comes
+# from). Re-exported under the original name so the ~1200 lines below and the
+# tests that reach for it read exactly as before.
+_QUESTIONLESS_TOOLS = tool_registry.QUESTIONLESS_TOOLS
 
 # Two separate lists, not one shared one — a real clarity problem with the
 # old single _FALLBACK_CONTINUATION_QUESTIONS list: it was appended
@@ -3583,9 +3590,10 @@ async def stream_tutor_response(
         round_tool_results: dict[str, dict] = {}
         round_has_reactable_result = False
         hit_call_cap = False
-        # Terminal UI transition — see the check after this round's `async
-        # with` block below for why it force-ends the loop outright.
-        suggest_next_subject_fired = False
+        # A terminal UI transition fired this round (ToolSpec.terminal — see
+        # the check after this round's `async with` block below for why it
+        # force-ends the loop outright).
+        terminal_tool_fired = False
 
         async with _client.messages.stream(
             model=settings.tutor_model,
@@ -3716,7 +3724,6 @@ async def stream_tutor_response(
                                         result_payload = summary
                                     else:
                                         result_payload = {"recorded": False}
-                                    round_has_reactable_result = True
                                 elif tc["name"] == "show_visual_aid":
                                     aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
                                     if aid:
@@ -3736,11 +3743,9 @@ async def stream_tutor_response(
                                         # about. Now it can recover in the same turn
                                         # instead of leaving a dangling reference.
                                         result_payload = {"found": False, "visual_aid_id": tool_input.get("visual_aid_id")}
-                                    round_has_reactable_result = True
                                 elif tc["name"] == "suggest_next_subject":
                                     yield json.dumps({'type': 'subject_complete', 'reason': tool_input.get('reason'), 'content': tool_input.get('message', '')})
                                     ends_on_questionless_tool = None
-                                    suggest_next_subject_fired = True
                                 elif tc["name"] == "record_skill_evidence":
                                     # Fully silent — no SSE chunk at all, stricter than
                                     # assess_narration's minimal event. See
@@ -3778,9 +3783,20 @@ async def stream_tutor_response(
                                         yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
                                         ends_on_questionless_tool = (
                                             tc["name"]
-                                            if tc["name"] in _QUESTIONLESS_TOOLS and not tool_input.get("reflection_question")
+                                            if tool_registry.is_questionless(tc["name"]) and not tool_input.get("reflection_question")
                                             else None
                                         )
+
+                                # Loop control, read from the registry rather
+                                # than re-derived from tool names here. Both
+                                # default to False for a name the registry
+                                # doesn't know, so a hallucinated tool can
+                                # neither buy itself extra model round-trips
+                                # nor force the turn to end.
+                                if tool_registry.is_reactable(tc["name"]):
+                                    round_has_reactable_result = True
+                                if tool_registry.is_terminal(tc["name"]):
+                                    terminal_tool_fired = True
 
                                 round_tool_results[block_id] = result_payload
                             except json.JSONDecodeError:
@@ -3805,11 +3821,12 @@ async def stream_tutor_response(
 
         stop_reason = getattr(final_message, "stop_reason", None)
 
-        # suggest_next_subject is a terminal UI transition (the frontend
-        # navigates away from this subject) — never give the model a
-        # further round to keep reasoning about a subject it's already
-        # leaving, no matter what else fired alongside it this round.
-        if suggest_next_subject_fired or hit_call_cap or stop_reason != "tool_use" or not round_has_reactable_result:
+        # A terminal tool (ToolSpec.terminal — today only suggest_next_subject)
+        # is a UI transition the frontend is already navigating away from, so
+        # never give the model a further round to keep reasoning about a
+        # subject it's already leaving, no matter what else fired alongside it
+        # this round.
+        if terminal_tool_fired or hit_call_cap or stop_reason != "tool_use" or not round_has_reactable_result:
             if hit_call_cap:
                 log.info(
                     "Tool loop ending early for %s: per-turn call cap hit",

@@ -798,6 +798,16 @@ isn't logged out just for sitting still: a break screen is the one moment
 there's genuinely nothing left to do on-screen, so a device left unattended
 there doesn't need to stay signed in.
 
+**Either way, the screen says so.** Before the 30-minute timeout fires, a
+notice appears asking whether you're still there: touching the screen
+anywhere clears it and the full window starts over. If the session does end,
+the login screen states plainly why: *"Logged out due to inactivity"*, or a
+separate message naming the break if that's what happened. Bede is also no
+longer counted as idle while it's the one doing the work: a child listening
+to a passage read aloud, or waiting on a reply that's still arriving,
+counts as active even though nobody is touching anything. Nothing is lost
+in any of these cases; signing back in resumes the day's plan.
+
 **Morning Time includes a weekly prayer, word for word.** Once a week, Bede leads
 your child through one of the Church's own traditional prayers: the Our Father,
 the Hail Mary, and similar universally-known texts: in whichever language was

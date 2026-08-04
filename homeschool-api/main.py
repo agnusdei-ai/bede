@@ -3,9 +3,11 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from core import constitution, elevation, identity, license_state, parent_credential, provider_state
 from core.config import settings
@@ -220,8 +222,18 @@ async def lifespan(app: FastAPI):
             await parent_credential.refresh_from_db(db)
         async with AsyncSessionLocal() as db:
             await provider_state.refresh_from_db(db)
-    except RuntimeError as exc:
-        log.critical("FATAL: %s", exc)
+    # SQLAlchemyError/OSError alongside RuntimeError because the steps above
+    # are mostly DATABASE steps, and a database that cannot be reached raises
+    # neither a RuntimeError nor anything else this once caught: create_tables()
+    # surfaces asyncpg's failure as sqlalchemy.exc.OperationalError, and a DNS
+    # failure on the DB host can arrive as a bare socket.gaierror (OSError).
+    # Both escaped this handler entirely, so the one boot failure most likely
+    # to happen in production — "Postgres is unreachable" — produced an
+    # unhandled traceback out of the lifespan instead of the single, greppable
+    # "FATAL:" line this block exists to give an operator. Diagnosing a live
+    # outage on 2026-08-04 is what surfaced it.
+    except (RuntimeError, SQLAlchemyError, OSError) as exc:
+        log.critical("FATAL: %s: %s", type(exc).__name__, exc)
         sys.exit(1)
 
     _log_security_posture()
@@ -331,7 +343,47 @@ app.include_router(feedback.router)
 app.include_router(diagnostic.router)
 
 
+# Bounds the probe itself. Without a timeout, a connection that hangs rather
+# than refusing (a half-open socket, a saturated network path) would hang the
+# health check too, and the platform would read "no response" — which is the
+# right verdict, but reached by stalling a worker rather than by answering.
+_HEALTH_DB_TIMEOUT_SECONDS = 3.0
+
+
 @app.get("/health")
-async def health():
-    """Public health check — no sensitive information returned."""
-    return {"status": "ok"}
+async def health(response: Response):
+    """Readiness check — whether this instance can actually serve, not just
+    whether the process is running. No sensitive information returned.
+
+    Deliberately NOT an unconditional `{"status": "ok"}` any more. This is
+    the path `render.yaml`'s `healthCheckPath` points at, and a health check
+    that cannot fail reports a dead service as healthy. Every real endpoint
+    here needs the database — there is no in-memory fallback, see
+    core/database.py — so an instance that cannot reach Postgres cannot
+    serve a single request. The old version returned 200 anyway: the
+    platform dashboard stayed green, nothing alerted, and a live outage on
+    2026-08-04 was diagnosed for an hour with "Deployed ✓" on screen the
+    whole time, which is precisely the evidence that ruled the database out
+    early and wrongly.
+
+    The tradeoff is stated rather than hidden. Returning 503 while the
+    database is unreachable means the platform may restart this instance or
+    stop routing to it, and if the fault is at the database end a restart
+    will not fix it. That is intended. A service that can answer nothing
+    should fail visibly rather than sit green absorbing requests it can only
+    drop — the failure mode this exists to close is the silent one, and
+    trading it for a loud one is the whole point.
+    """
+    try:
+        async with asyncio.timeout(_HEALTH_DB_TIMEOUT_SECONDS):
+            async with AsyncSessionLocal() as db:
+                await db.execute(text("SELECT 1"))
+    except Exception as exc:
+        # Logged at WARNING with the exception type, because the platform
+        # only records "health check failed" — the reason (timeout vs.
+        # refused vs. auth) is the part an operator actually needs, and this
+        # is the only place it gets written down.
+        log.warning("Health check FAILED — database unreachable: %s: %s", type(exc).__name__, exc)
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "degraded", "database": "unreachable"}
+    return {"status": "ok", "database": "ok"}

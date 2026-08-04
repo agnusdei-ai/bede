@@ -34,8 +34,13 @@ databases:
     # guard, so a mismatch here (e.g. this file still saying `free` after
     # a dashboard upgrade) fails every single sync with
     # "databases[0].plan cannot downgrade database from X to Y" until
-    # corrected — exactly what happened before this comment was added.
-    plan: basic-256mb
+    # corrected — exactly what happened before this comment was added,
+    # and then AGAIN on 2026-08-04, when the dashboard read Pro-4gb while
+    # this line still said basic-256mb. The comment above was already
+    # right; what it lacked was anything that FAILS when the two drift, so
+    # it drifted again. Treat a plan change in the dashboard as a change
+    # that must be mirrored here in the same sitting.
+    plan: pro-4gb
     databaseName: bede_demo
     user: bede
 
@@ -43,7 +48,17 @@ services:
   - type: web
     name: bede-demo-api
     runtime: docker
-    plan: free
+    # Upgraded Free → Pro in the dashboard on 2026-08-04. Mirrored here the
+    # same day, and the mirroring is not cosmetic: unlike the database plan
+    # above (where Render REFUSES a downgrade and fails the sync loudly), a
+    # web service plan is applied as written. Leaving `free` here while the
+    # dashboard says Pro means the next successful Blueprint sync silently
+    # downgrades the running service back to Free — undoing the upgrade with
+    # no error anywhere. The two mismatches were also coupled: syncs were
+    # already failing on the database plan, so this one sat harmless and
+    # invisible until that was fixed, at which point it would have fired.
+    # Fixing either alone was the trap; they had to move together.
+    plan: pro
     rootDir: homeschool-api
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health

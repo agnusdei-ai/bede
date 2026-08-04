@@ -1730,6 +1730,116 @@ public API for a page to control audio session category directly, so this
 fix is iOS/iPadOS-specific; Android's own routing behavior around
 `getUserMedia` wasn't reported as broken and is left alone.
 
+## Troubleshooting: a held turn is silently discarded, and then the mic button stops working
+
+From a real trace on the public demo. The server answered a session's very
+first `events` request with **"unknown or expired session" 238 milliseconds
+after creating it**. The TTL is 180 seconds, so that is not expiry — it is the
+request landing on a different process from the one that created the session.
+`services/streaming_transcription.py` keeps sessions in memory, in one
+process, and says so in its own docstring; the same trace shows the signature
+plainly, with chunks on one session id succeeding, then 404ing, then
+succeeding again.
+
+**That root cause is server-side and no frontend change fixes it.** It needs
+the instance count pinned to one, session affinity, or a shared store. Note
+`render.yaml` carries no instance or scaling configuration at all, so that
+number lives only in the Render dashboard — the same blueprint-versus-
+dashboard drift `render.yaml`'s own plan comments were written about.
+
+Two client faults made it far worse than it needed to be, and both are fixed:
+
+**The turn was reported as finished while the child was still holding.**
+`consumeEvents` logged the error event, fell out of its loop, and ran straight
+into `setMode('idle')`. The child went on speaking for another seven seconds
+and all of it was discarded. `heldMs` at that instant was 643ms — under
+`MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` — so not even an error appeared. The
+stream ending while `mode` is still `recording` is now treated as the turn
+dying underneath the child: the recorder is stopped, the chunk timer cleared,
+and `network` surfaced (the microphone is fine; the session it was streaming
+to is gone).
+
+**Nothing tore the turn down, so the next press did nothing.** The recorder
+kept capturing and the chunk timer kept uploading. `useVoiceRecorder` refuses
+to start a second recording while one is live, so the child's next press
+reached `_start()` and never reached `startRecording()` — visible in the trace
+as an `_start() attempt=9` with no `useVoiceRecorder.startRecording()` line
+after it. Same latch-off failure the give-up path was fixed for, arriving
+through a different door.
+
+**Every successful turn also fired a second `finish` that 404'd.** `release()`
+finishes the session but leaves `sessionIdRef` populated, because the final
+`uploadSnapshot` still needs it — so the `stop()` that follows when the child
+confirms and sends finished the same session again. Harmless on its own, but a
+wasted round trip per turn, and it filled the log with 404s that made the real
+one above hard to find. A `finishRequestedRef` set synchronously at release
+now makes it exactly one finish per session; an outright cancel with no
+release still finishes properly, or the session would leak until its TTL.
+
+## Endpointing: how a continuous-mode turn ends
+
+Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.
+Continuous "Voice on" mode had none at all: `start()` behaved exactly like
+`startHold()`, nothing ever called `release()`, and the turn therefore ran to
+the 120-second `HOLD_SAFETY_TIMEOUT_MS` ceiling. A child answered in four
+seconds and the microphone stayed open for another hundred and sixteen.
+
+`homeschool-tutor/src/utils/endpointing.ts` closes that. It samples the
+recorder's existing level meter every 200ms and ends the turn on trailing
+silence.
+
+**The silence window is deliberately longer than a dictation app's, and that
+is the whole design.** General-purpose dictation endpoints after roughly
+700-1500ms. That is wrong here: this app's central activity is narration — a
+child recalling a passage aloud, from memory, in their own words. Thinking
+pauses mid-narration are not hesitation to be trimmed, they are the work.
+Cutting a child off to "helpfully" submit half a sentence is worse than any
+latency it saves, and it punishes exactly the unhurried recall the method is
+built on. `TRAILING_SILENCE_MS` is 3000ms, and a test asserts it stays clear
+of dictation territory so shortening it has to be an argument rather than a
+quiet edit.
+
+Two independent reasons end a turn, kept apart on purpose:
+
+- **`finished-speaking`** — at least `MIN_SPEECH_MS` (600ms) of speech was
+  heard, then `TRAILING_SILENCE_MS` of quiet.
+- **`no-speech`** — nothing was ever heard, so after `NO_SPEECH_TIMEOUT_MS`
+  (12s) the turn ends rather than holding the mic to the 120s ceiling. Covers
+  an auto-start that fired after the child walked away.
+
+Both are logged to the debug overlay with the speech/silence split, so a
+report can say *why* a turn ended rather than only that it did.
+
+**They exit differently, and that is the difference between a helpful
+endpoint and an irritating one.** `finished-speaking` calls `release()` — the
+child spoke, so the turn is delivered. `no-speech` calls `stop()` instead,
+which discards silently.
+
+Routing `no-speech` through `release()` looks harmless and is not. It produces
+an empty transcript, which `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` turns into an
+"I didn't quite catch that" bubble **and** a tick on `SocraticChat`'s
+voice-mode circuit breaker — telling a child the microphone failed when they
+had simply not spoken yet. That cascade already existed at the 120-second
+ceiling, where it took six minutes to reach three strikes. At a 12-second
+no-speech timeout it would take **thirty-six seconds**, so shortening the
+timeout without changing the exit would have made an existing annoyance ten
+times more frequent. Silence is ordinary; it is not a fault.
+
+Repeated silence still needs an answer, though, because a cheap endpoint makes
+an empty room expensive: the mic would re-arm, open a streaming session and
+tear it down five times a minute forever. After `MAX_CONSECUTIVE_SILENT_TURNS`
+(3) the app stands continuous mode down to hold-to-talk with one plain line —
+not an error — and hold-to-talk works the instant the child returns. Any real
+transcript resets the count, so pauses between thoughts never accumulate
+toward it.
+
+**`SILENCE_LEVEL` is untuned against real hardware** and says so in its own
+comment — it cannot be tuned from a sandbox with no microphone. If turns end
+too early, raise `TRAILING_SILENCE_MS` first, then lower `SILENCE_LEVEL`; if
+they never end, raise `SILENCE_LEVEL`. Everything stays bounded by the 120s
+safety timeout regardless, so a badly tuned threshold degrades to the old
+behaviour rather than to something worse.
+
 ## Feature: continuous "Voice on" mode (opt-in, hold-to-talk stays the default)
 
 Reported by a parent: "I don't really want to hold it down." Press-and-hold

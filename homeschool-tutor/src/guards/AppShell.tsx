@@ -2,11 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import i18n from '../i18n'
 import { useSessionStore } from '../store/sessionStore'
+import {
+  IDLE_CHECK_INTERVAL_MS, idleStatus, isSessionBusy,
+} from '../utils/idleTimeout'
 import TextSizeControl from '../components/TextSizeControl'
 import { AgnusDeiMark, BedeWordmark } from '../components/BedeMark'
 
 const VALIDATE_INTERVAL_MS = 5 * 60 * 1000   // re-validate token every 5 min
-const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000  // 30 min of no interaction → re-auth
+// The 30-minute window and what counts as activity both live in
+// utils/idleTimeout.ts now — see that file for why input events alone were
+// the wrong measure, and why the window itself is deliberately unchanged.
 
 /**
  * AppShell — zero-trust SSO gate for the entire application.
@@ -24,8 +29,15 @@ const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000  // 30 min of no interaction → re
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { token, locale, logout } = useSessionStore()
+  const { token, locale, logout, isStreaming, voiceActive } = useSessionStore()
   const [ready, setReady] = useState(false)
+  const [idleWarning, setIdleWarning] = useState(false)
+  // Read through a ref so the monitor below sees the CURRENT value without
+  // taking these as effect dependencies — they change constantly during a
+  // turn, and re-running the effect would reset the idle clock every time,
+  // which would silently disable the logout altogether.
+  const busyRef = useRef(false)
+  busyRef.current = isSessionBusy({ isStreaming, voiceActive })
   const lastActivityRef = useRef(Date.now())
   const validateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -81,15 +93,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }, VALIDATE_INTERVAL_MS)
 
     // Inactivity monitor
-    const resetActivity = () => { lastActivityRef.current = Date.now() }
+    const resetActivity = () => {
+      lastActivityRef.current = Date.now()
+      setIdleWarning((shown) => (shown ? false : shown))
+    }
     const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll']
     activityEvents.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }))
 
     inactivityTimerRef.current = setInterval(() => {
-      if (Date.now() - lastActivityRef.current > INACTIVITY_TIMEOUT_MS) {
-        forceLogout('Inactivity timeout')
+      // Being busy IS activity: a child sitting still while Bede reads a
+      // passage aloud is the most engaged they get, and produces no input
+      // events at all. Bumping here (rather than only short-circuiting the
+      // status) means the full window restarts once Bede stops, instead of
+      // resuming a countdown that ran underneath the reading.
+      if (busyRef.current) {
+        resetActivity()
+        setIdleWarning(false)
+        return
       }
-    }, 60_000)
+      const status = idleStatus({ lastActiveAt: lastActivityRef.current, now: Date.now() })
+      if (status === 'expired') forceLogout('Inactivity timeout')
+      else setIdleWarning(status === 'warning')
+    }, IDLE_CHECK_INTERVAL_MS)
 
     return () => {
       if (validateTimerRef.current) clearInterval(validateTimerRef.current)
@@ -101,6 +126,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {ready ? children : <SplashScreen />}
+      {idleWarning && (
+        // A notice, not a modal. The session has not ended and nothing is
+        // blocked — a child reading quietly should be able to ignore this,
+        // glance at it, or touch anything at all to clear it. The previous
+        // behaviour was a cold forceLogout with no warning, which mid-lesson
+        // is indistinguishable from the app crashing.
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md px-4 py-3 rounded-2xl
+                     bg-amber-50 text-amber-900 border border-amber-200 shadow-lg text-sm text-center"
+        >
+          {i18n.t('common.idleWarning')}
+        </div>
+      )}
       <TextSizeControl />
     </>
   )

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import child_throttle, elevation, parent_lockout
+from core import child_throttle, elevation, otp_throttle, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
@@ -318,7 +318,16 @@ async def elevate(
 
     methods = await mfa_service.enrolled_methods(db)
     if "totp" in methods:
+        # A wrong CODE was previously free here — only a wrong password was
+        # counted — so step-up was an unthrottled six-digit oracle for
+        # anyone already holding a session. 800-63B §5.2.2 / AC-7.
+        if await otp_throttle.check_blocked(db, otp_throttle.PURPOSE_TOTP) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many incorrect codes. Please wait a little and try again.",
+            )
         if not req.totp_code or not await mfa_service.verify_totp_login(db, req.totp_code):
+            await otp_throttle.sleep_for_failure(db, otp_throttle.PURPOSE_TOTP)
             log_event_nowait(
                 AuditEvent.ELEVATION_DENIED, role="parent", success=False,
                 detail="missing or invalid second factor", **ctx,
@@ -329,6 +338,7 @@ async def elevate(
             )
 
     await parent_lockout.record_success(db)
+    await otp_throttle.record_success(db, otp_throttle.PURPOSE_TOTP)
     expires = await elevation.grant(db, jti)
     log_event_nowait(
         AuditEvent.ELEVATION_GRANTED, role="parent", success=True,

@@ -27,6 +27,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import otp_throttle
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH
 from core.database import get_db
@@ -80,6 +81,21 @@ async def recovery_webauthn_options(db: AsyncSession = Depends(get_db)):
 async def verify(req: RecoveryVerifyRequest, request: Request, db: AsyncSession = Depends(get_db)):
     ctx = audit_from_request(request)
 
+    # NIST 800-63B §5.2.2 / 800-53 AC-7. Checked BEFORE any factor is
+    # compared, so a blocked attempt is not a guess that merely goes
+    # unreported. Delay-based rather than a lockout, because this endpoint
+    # is the emergency exit — see core/otp_throttle.py.
+    blocked_until = await otp_throttle.check_blocked(db, otp_throttle.PURPOSE_RECOVERY)
+    if blocked_until is not None:
+        await log_event(
+            AuditEvent.AUTH_FAILURE, role="parent", success=False,
+            detail="recovery attempt refused: too many consecutive failures", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many recovery attempts. Please wait a little and try again.",
+        )
+
     verified_count = 0
     factors_used = []
 
@@ -104,6 +120,10 @@ async def verify(req: RecoveryVerifyRequest, request: Request, db: AsyncSession 
             factors_used.append("webauthn")
 
     if verified_count < _REQUIRED_FACTORS:
+        # Counted and slowed regardless of how many factors matched: one
+        # correct factor out of two is exactly what a half-successful
+        # attacker has, so it must not buy a free retry.
+        await otp_throttle.sleep_for_failure(db, otp_throttle.PURPOSE_RECOVERY)
         await log_event(
             AuditEvent.AUTH_FAILURE, role="parent", success=False,
             detail=f"recovery attempt: {verified_count}/{_REQUIRED_FACTORS} factors verified ({','.join(factors_used) or 'none'})",
@@ -114,6 +134,7 @@ async def verify(req: RecoveryVerifyRequest, request: Request, db: AsyncSession 
             detail=f"Could not verify at least {_REQUIRED_FACTORS} recovery factors — please try again",
         )
 
+    await otp_throttle.record_success(db, otp_throttle.PURPOSE_RECOVERY)
     await log_event(
         AuditEvent.AUTH_SUCCESS, role="parent", success=True,
         detail=f"account recovery succeeded via {','.join(factors_used)}",

@@ -19,7 +19,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import child_credential
+from core import child_credential, otp_throttle
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
@@ -325,9 +325,25 @@ async def totp_authenticate_verify(
     pending: dict = Depends(require_mfa_pending),
 ):
     ctx = audit_from_request(request)
+    # NIST 800-63B §5.2.2 / 800-53 AC-7. Without this a six-digit code was
+    # guessable at whatever the per-IP limiter allowed, for anyone holding a
+    # parent_pending token — which the password alone produces. See
+    # core/otp_throttle.py.
+    blocked_until = await otp_throttle.check_blocked(db, otp_throttle.PURPOSE_TOTP)
+    if blocked_until is not None:
+        await log_event(
+            AuditEvent.AUTH_FAILURE, role="parent", success=False,
+            detail="totp verify refused: too many consecutive failures", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many incorrect codes. Please wait a little and try again.",
+        )
     if not await mfa_service.verify_totp_login(db, req.code):
+        await otp_throttle.sleep_for_failure(db, otp_throttle.PURPOSE_TOTP)
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="totp login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect or reused code")
+    await otp_throttle.record_success(db, otp_throttle.PURPOSE_TOTP)
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="totp login", **ctx)
     token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
     return TokenResponse(access_token=token, role="parent")

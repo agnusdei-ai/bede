@@ -160,3 +160,55 @@ async def test_default_identity_context_is_safe_for_callers_that_omit_it(audit_c
     event, kwargs = next((e, c) for e, c in audit_calls if e == AuditEvent.TOOL_INVOKED)
     assert kwargs["role"] is None
     assert kwargs["ip"] == "unknown"
+
+
+# ── The cap is a ceiling, not "whatever the constant happens to say" ──────────
+#
+# Found by mutation audit: raising _MAX_TOOL_CALLS_PER_TURN from 6 to 10,000
+# left all 2179 tests green. Every existing assertion above reads the constant
+# and then asserts against it —
+#
+#     cap = ai_service._MAX_TOOL_CALLS_PER_TURN
+#     chunks = await _run_turn([_HINT] * (cap + over_by))
+#     assert len(tool_chunks) == cap
+#
+# — which proves the code enforces whatever number is in the constant, not
+# that a bound exists at all. Set it to a million and those tests follow
+# happily, while this file goes on reading like thorough coverage of the cap.
+# That is worse than no test: it buys silence.
+#
+# The two below are deliberately written against LITERALS, never against the
+# constant, so they measure the property rather than restating the code.
+
+# The most tool calls one turn may ever be allowed to dispatch, independent of
+# how the cap is tuned. Well above any legitimate turn (six is the shipped
+# value; a rich turn uses two or three) and far below "effectively unbounded",
+# so the cap stays tunable without being disable-able by accident.
+_ABSOLUTE_TOOL_CALL_CEILING = 12
+
+
+def test_the_cap_is_within_a_sane_band():
+    """Tuning the cap is fine. Removing it by setting it enormous is not, and
+    that edit must not be able to pass review unnoticed."""
+    cap = ai_service._MAX_TOOL_CALLS_PER_TURN
+    assert 1 <= cap <= _ABSOLUTE_TOOL_CALL_CEILING, (
+        f"_MAX_TOOL_CALLS_PER_TURN is {cap}. Above {_ABSOLUTE_TOOL_CALL_CEILING} "
+        "this stops being a defense-in-depth ceiling (see CLAUDE.md's Action "
+        "Validator stage). Change it deliberately, with the reason recorded."
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cannot_dispatch_an_unbounded_number_of_tools(audit_calls):
+    """The property the cap actually exists for, asserted without reference to
+    the constant: ask for far more tool calls than any real turn would, and
+    far fewer must come out."""
+    requested = 40  # a literal on purpose — never derived from the cap
+    chunks = await _run_turn([_HINT] * requested)
+    tool_chunks = [c for c in chunks if _json.loads(c).get("type") == "tool"]
+
+    assert len(tool_chunks) < requested, "a turn asking for 40 tool calls must not get 40"
+    assert len(tool_chunks) <= _ABSOLUTE_TOOL_CALL_CEILING, (
+        f"{len(tool_chunks)} tool calls executed in one turn — the ceiling is "
+        "meant to bound this regardless of how the constant is set"
+    )

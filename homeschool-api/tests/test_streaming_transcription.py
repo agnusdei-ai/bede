@@ -259,7 +259,19 @@ async def test_finish_session_rejects_a_different_owner():
 @pytest.mark.asyncio
 async def test_events_reports_unknown_for_a_different_owner():
     session_id = st.start_session(language="en", owner="AAA111")
-    events_seen = [item async for item in st.events(session_id, owner="BBB222")]
+
+    # Bounded rather than a bare `async for`. If the ownership check above
+    # this ever stops firing, the foreign caller is handed a REAL session
+    # whose queue nothing will ever put to, so an unbounded drain blocks
+    # forever — and a hung pytest reports as an infrastructure timeout with
+    # no failing test name, which reads like flaky CI rather than a removed
+    # security check. Verified: disabling the owner check in events() made
+    # this file hang past 900s before this timeout existed. A guard is only
+    # as good as the legibility of its failure.
+    async def drain():
+        return [item async for item in st.events(session_id, owner="BBB222")]
+
+    events_seen = await asyncio.wait_for(drain(), timeout=5)
     assert events_seen == [{"type": "error", "message": "unknown or expired session"}]
     # Unlike a real "unknown session" read, this must NOT tear down the
     # session — it genuinely exists, just not for this caller.

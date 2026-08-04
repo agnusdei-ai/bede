@@ -397,3 +397,67 @@ def test_completing_mfa_still_carries_the_device_id_through(client):
             return await session.get(DeviceRecord, "dev-1")
     row = asyncio.run(_check())
     assert row is not None
+
+
+def test_a_device_revoked_mid_login_cannot_complete_its_second_factor(client):
+    """The defense-in-depth backstop, and a real race worth pinning.
+
+    For an MFA-enrolled parent, login() checks device revocation right
+    after the password verifies — which is BEFORE the parent_pending token
+    is issued, so a device already revoked at that moment never gets one.
+    This test covers the window that check cannot: the parent enters their
+    password on the tablet, and *while* they are reaching for their
+    authenticator, revokes that tablet from a different device.
+
+    Nothing in routers/auth.py or routers/mfa.py handles that — the
+    already-issued pending token is what carries the turn forward. What
+    stops it is core/deps.py's per-request check, reached via
+    require_mfa_pending -> _validate_token. That is the property this
+    pins: revocation does not depend on catching a device at login time,
+    because every subsequent request re-checks. It is also why moving
+    login()'s own check later would buy nothing — this backstop already
+    covers the outcome, so the earlier check exists purely to fail
+    clearly rather than to be the thing that actually stops it."""
+    import pyotp
+    from core import device_registry
+    from services import mfa_service
+
+    # The tablet is already a known, registered device — a family that has
+    # been using it, and only later turned MFA on. This ordering matters:
+    # login() reaches touch() only when a REAL token is issued, so a device
+    # whose very first login is an MFA one is not registered (and so not
+    # revokable) until that login completes. See routers/auth.py's touch()
+    # call site and routers/mfa.py's _issue_parent_token.
+    first_login = client.post("/auth/login", json={"role": "parent", "credential": settings.parent_password, "device_id": "dev-1"})
+    assert first_login.status_code == 200
+    assert first_login.json().get("mfa_required") is False
+
+    async def _enroll():
+        async with client.db_factory() as session:
+            secret, _ = await mfa_service.enroll_totp(session)
+            await mfa_service.confirm_totp(session, pyotp.TOTP(secret).now())
+            return secret
+
+    secret = asyncio.run(_enroll())
+
+    # Password step succeeds — the device is still trusted at this instant.
+    login_resp = client.post("/auth/login", json={"role": "parent", "credential": settings.parent_password, "device_id": "dev-1"})
+    assert login_resp.status_code == 200
+    assert login_resp.json()["mfa_required"] is True
+    pending_token = login_resp.json()["access_token"]
+
+    # ...and only now does the parent revoke it from elsewhere.
+    async def _revoke():
+        async with client.db_factory() as session:
+            return await device_registry.revoke(session, "dev-1")
+    assert asyncio.run(_revoke()) is True
+
+    # The pending token is real and correctly signed, and the TOTP code is
+    # genuine — the ONLY thing refusing this is the device revocation.
+    verify_resp = client.post(
+        "/mfa/totp/authenticate/verify",
+        json={"code": pyotp.TOTP(secret).now()},
+        headers={"Authorization": f"Bearer {pending_token}"},
+    )
+    assert verify_resp.status_code == 401
+    assert "revoked" in verify_resp.json()["detail"].lower()

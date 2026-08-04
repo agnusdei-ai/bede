@@ -136,7 +136,20 @@ def test_the_demo_backend_is_reachable_under_the_policy_that_actually_applies():
         # blob: is how the demo hands recorded microphone audio to the
         # player and the upload; without it, voice input fails the same
         # silent way the API call did.
-        assert "blob:" in directives.get("media-src", ""), "media-src must allow blob: for voice"
+        media = directives.get("media-src", "")
+        assert "blob:" in media, "media-src must allow blob: for voice"
+        # data: is the iOS audio unlock, and it is the one most likely to
+        # be dropped as "obviously unnecessary". useTextToSpeech.ts plays a
+        # tiny silent WAV as a data: URI on a user gesture, which is what
+        # blesses the shared <audio> element so Bede can speak later without
+        # one. Block it and Bede is simply mute on iPad — silently, with no
+        # error a parent could report usefully. Caught by
+        # scripts/synthetic_journey.mjs against a policy that had shipped.
+        assert "data:" in media, (
+            "media-src must allow data: — it is the iOS audio-unlock path "
+            "(useTextToSpeech.ts's SILENT_WAV_DATA_URI). Without it Bede "
+            "goes mute on iPad."
+        )
 
 
 def test_no_unsafe_inline_script_crept_back_in():

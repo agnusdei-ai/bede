@@ -369,3 +369,41 @@ async def test_partials_still_run_on_the_local_backend(monkeypatch):
     assert calls, "a local backend should still compute a live partial"
     st.finish_session(session_id)
     [_ async for _ in st.events(session_id)]
+
+
+@pytest.mark.asyncio
+async def test_a_skipped_partial_does_not_copy_the_audio_buffer(monkeypatch):
+    """Skipping the pass has to mean skipping the work that feeds it.
+
+    _wav_from_pcm16 copies the whole growing buffer — ~32KB per second of
+    audio, twice over — so building it and then discarding it would cost, at
+    a roomful of concurrent sessions, tens of megabytes of allocation churn
+    every few seconds on an instance picked for having little memory spare.
+    The first cut of this guard sat one line too late and did exactly that.
+    """
+    import services.streaming_transcription as st
+
+    wraps = []
+    real_wrap = st._wav_from_pcm16
+
+    def counting_wrap(pcm):
+        wraps.append(len(pcm))
+        return real_wrap(pcm)
+
+    async def fake_transcribe(audio, language="en"):
+        return {"text": "heard it", "language": language}
+
+    monkeypatch.setattr(st, "_wav_from_pcm16", counting_wrap)
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+    monkeypatch.setattr(st, "partial_passes_are_affordable", lambda: False)
+
+    session_id = st.start_session(language="en")
+    for _ in range(3):
+        st.push_chunk(session_id, b"\x00\x01" * 8000)
+        await asyncio.sleep(0.02)
+
+    assert wraps == [], "a skipped partial must not build the WAV it will not send"
+
+    st.finish_session(session_id)
+    [_ async for _ in st.events(session_id)]
+    assert len(wraps) == 1, "the final pass still builds exactly one snapshot"

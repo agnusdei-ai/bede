@@ -233,7 +233,7 @@ list as items are closed.
   than by reading the YAML.
 
 - **"Parent" was administrator for the whole session — mechanism built
-  2026-08-03, enforcement not yet on.**
+  2026-08-03, enforcement closed 2026-08-04.**
   One role was simultaneously the ordinary account identity — adjusting
   today's plan, sitting with a child, reading a narration — and the fully
   privileged administrative one: reading the audit log, repointing the AI
@@ -267,14 +267,24 @@ list as items are closed.
   a submitted password is a password oracle whether or not the caller
   already holds a session.
 
-  **Enforcement ships off** (`ELEVATION_ENFORCED`), so this belongs in this
-  section only as a mechanism, not yet as a closed gap. The web UI calls
-  these endpoints from ~30 raw `fetch()` sites with no interceptor and has no
-  password prompt; enforcing before that lands would give a parent an
-  unexplained error on every management action. `GET /admin/status` reports
-  which posture a deployment has, so it cannot quietly stay off and be
-  mistaken for on. Remaining work is the frontend flow, then flipping the
-  switch.
+  **Enforcement closed 2026-08-04.** `homeschool-tutor/src/components/
+  ElevationPrompt.tsx`, mounted once at the app root next to
+  `GlobalAuthInterceptor` (the existing 401-handling interceptor — same
+  technique, same reason), wraps `window.fetch` and catches the 403 an
+  unelevated call returns (`core/deps.py`'s `{elevation_required: true}`
+  marker). It prompts for the password — and a TOTP code, if enrolled,
+  fetched via `GET /mfa/status` — calls `POST /auth/elevate` itself, and
+  retries the original request exactly once on success; a cancelled or
+  failed elevation returns the original 403 unchanged, so each call site's
+  existing error handling still applies as the fallback. Concurrent
+  elevation-gated calls (e.g. a settings page loading the audit log and the
+  AI-provider status together) share one in-flight prompt rather than
+  opening two or orphaning the first request's promise. No individual call
+  site needed to change. `ELEVATION_ENFORCED` now defaults `true`
+  (`core/config.py`, `docker-compose.yml`, `.env.example`); a deployment can
+  still set it `false` to opt out (e.g. one driving the API directly with no
+  frontend). `GET /admin/status` reports the current posture either way.
+  Covered by `homeschool-tutor/src/components/ElevationPrompt.test.tsx`.
 
 - **The public demo shared one identity domain with the family
   deployment, closed 2026-08-03.** `routers/auth.py`'s `login()` issued

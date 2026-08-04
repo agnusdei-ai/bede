@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import AppShell from './guards/AppShell'
+import ElevationPrompt from './components/ElevationPrompt'
 import ErrorBoundary from './components/ErrorBoundary'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
@@ -85,6 +86,7 @@ export default function App() {
       <ErrorBoundary>
         <AppShell>
           <GlobalAuthInterceptor />
+          <ElevationPrompt />
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Login />} />

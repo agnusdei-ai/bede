@@ -194,20 +194,22 @@ read the log. `GET /admin/status` reports the same facts.
 
 | Setting | Default | What it does |
 |---|---|---|
-| `ELEVATION_ENFORCED` | `false` | Require a password step-up for management-plane actions — audit log, AI provider, MFA/recovery changes, permanent student deletion. |
+| `ELEVATION_ENFORCED` | `true` | Require a password step-up for management-plane actions — audit log, AI provider, MFA/recovery changes, permanent student deletion. |
 | `ELEVATION_TTL_MINUTES` | `10` | How long a step-up lasts, absolute from the moment of elevation. |
 | `LEGACY_TOKEN_GRACE` | `true` | Accept JWTs issued before identity domains existed. |
 | `DEMO_SECRET_KEY` | unset | Independent signing key for the public demo's identity domain. |
 
-Two of these want your attention rather than being left alone:
+One of these wants your attention rather than being left alone:
 
-**`ELEVATION_ENFORCED` ships off**, which means a parent session holds
-administrator rights for its whole 8-hour lifetime — a tablet left open on
-the kitchen table is logged in *and* administrator. The mechanism to fix
-that is built and tested; what's missing is the web UI's password prompt,
-without which turning this on gives you an unexplained error on every
-management action. Turn it on the moment that lands. If you drive the API
-directly rather than through the web UI, turn it on now.
+**`ELEVATION_ENFORCED` defaults on**, so without doing anything a parent
+opening the audit log, switching AI provider, changing a security key, or
+deleting a student sees a one-time password prompt (plus a TOTP code, if
+one is enrolled) before the action goes through — a tablet left open on the
+kitchen table is logged in but not administrator. The prompt appears once
+per `ELEVATION_TTL_MINUTES`, not on every management action. Set it to
+`false` only if you drive the API directly rather than through the web UI,
+or on an existing deployment you've upgraded and want to defer this for
+now.
 
 **`LEGACY_TOKEN_GRACE` should be turned off** after your first deploy on a
 version that has identity domains. It exists only so upgrading doesn't sign

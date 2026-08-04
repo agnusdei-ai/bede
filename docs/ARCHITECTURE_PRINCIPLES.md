@@ -292,14 +292,14 @@ in router bodies are gone. Deny-by-default replaced reject-known-bad, which
 closed a real gap in passing: `parent_recovery` previously passed
 `require_auth` and could reach any of the 17 endpoints behind it.
 
-Partial rather than conforming because the layer exists but the capabilities
-it unblocks do not: P8 (step-up), P9 (device identity), and P10 (identity
-domain split) are all still open, and audit remains coupled to enforcement
-rather than being independently verifiable.
+Partial rather than conforming because the layer exists but not every
+capability it unblocks does: P9 (device identity) is still open, and audit
+remains coupled to enforcement rather than being independently verifiable.
+P8 (step-up) and P10 (identity domain split) are both closed.
 
 *AIUC-1: Security, Accountability · CISSP D5 identity lifecycle*
 
-### P8 — Privilege is elevated per-action, not held per-session ⚠️
+### P8 — Privilege is elevated per-action, not held per-session ✅
 
 **Statement.** Administrative capability requires an explicit elevation
 distinct from being logged in.
@@ -313,15 +313,18 @@ privilege boundary to enforce even where the network could enforce one.
 **Implications.** A step-up/elevated-session concept for management-plane
 actions, scoped and time-bounded.
 
-**Conformance.** Backend complete 2026-08-03, **enforcement ships off**
-(`ELEVATION_ENFORCED`) pending the web UI's password prompt — marked partial
-rather than conforming for exactly that reason. A control that is configured
-off is off, and this document does not get to call it closed because the
-code exists. `homeschool-tutor`'s API client calls these endpoints from ~30
-separate raw `fetch()` sites with no interceptor, so enforcing before that
-flow lands would give a parent an unexplained error on every management
-action. `GET /admin/status` reports which posture a deployment has, so it
-cannot quietly stay off and be mistaken for on.
+**Conformance.** Backend complete 2026-08-03; **enforcement closed
+2026-08-04** with the addition of `homeschool-tutor/src/components/
+ElevationPrompt.tsx`, mounted once at the app root next to
+`GlobalAuthInterceptor`. It wraps `window.fetch` the same way that
+component already does for 401s — every one of the ~15 elevation-gated call
+sites gets the password (+ TOTP, where enrolled) prompt automatically, with
+the original request retried exactly once on success, and no individual
+call site needing to know elevation exists. `ELEVATION_ENFORCED` now
+defaults `true`; a deployment can still opt out (e.g. one driving the API
+directly with no frontend). `GET /admin/status` reports which posture a
+deployment has, so it cannot quietly diverge from the default and be
+mistaken for it.
 
 The mechanism itself: `core/elevation.py` grants a
 time-boxed elevation (default 10 minutes) against the session's own `jti`,

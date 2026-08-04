@@ -96,17 +96,19 @@ def _log_security_posture() -> None:
     anyone who would rather query than read logs.
 
     Warnings, not errors: every one of these has a legitimate reason to be
-    in its weaker state (the web UI can't prompt yet; the upgrade was an hour
-    ago; this is a family instance with no demo role). Refusing to boot over
-    a defensible choice is how operators learn to work around startup checks.
+    in its weaker state (a deployment driving the API directly, with no
+    frontend to prompt; the upgrade was an hour ago; this is a family
+    instance with no demo role). Refusing to boot over a defensible choice
+    is how operators learn to work around startup checks.
     """
     if settings.elevation_enforced:
         log.info("Privileged access: step-up ENFORCED (%d min)", settings.elevation_ttl_minutes)
     else:
         log.warning(
             "Privileged access: step-up NOT enforced — a parent session holds "
-            "management-plane rights for its full lifetime. Set ELEVATION_ENFORCED=true "
-            "once the web UI can prompt for a password. See docs/SECURITY.md."
+            "management-plane rights for its full lifetime. This is off by "
+            "explicit configuration (the default is enforced); set "
+            "ELEVATION_ENFORCED=true to turn it back on. See docs/SECURITY.md."
         )
 
     if settings.legacy_token_grace:

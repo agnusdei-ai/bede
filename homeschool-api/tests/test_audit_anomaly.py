@@ -87,6 +87,17 @@ def test_check_anomaly_moderation_flagged_fires_at_three_not_one():
     assert _check_anomaly(AuditEvent.MODERATION_FLAGGED, ip) == 3
 
 
+def test_check_anomaly_device_login_blocked_fires_at_three_not_one():
+    """P9 device revocation (core/device_registry.py) — same tight
+    threshold as ELEVATION_DENIED, for the same reason: reaching this at
+    all means someone is actively trying to use hardware a parent already
+    revoked, so the benign "I mistyped" explanation doesn't apply."""
+    ip = "7.7.7.7"
+    assert _check_anomaly(AuditEvent.DEVICE_LOGIN_BLOCKED, ip) is None
+    assert _check_anomaly(AuditEvent.DEVICE_LOGIN_BLOCKED, ip) is None
+    assert _check_anomaly(AuditEvent.DEVICE_LOGIN_BLOCKED, ip) == 3
+
+
 def test_check_anomaly_tool_invoked_fires_at_forty_not_one():
     """Ordinary tool use (offer_socratic_hint, celebrate_discovery, etc.)
     is frequent and expected across a multi-hour session — only a

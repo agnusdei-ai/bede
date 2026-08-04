@@ -65,6 +65,8 @@ GUARDS = {
     ('POST', '/admin/ai-provider'): 'require_elevated_parent',
     ('POST', '/admin/ai-provider/secondary'): 'require_elevated_parent',
     ('GET', '/admin/audit'): 'require_elevated_parent',
+    ('GET', '/admin/devices'): 'require_parent',
+    ('POST', '/admin/devices/{device_id}/revoke'): 'require_elevated_parent',
     ('GET', '/admin/license'): 'require_parent',
     ('POST', '/admin/license'): 'require_elevated_parent',
     ('GET', '/admin/status'): 'require_parent',

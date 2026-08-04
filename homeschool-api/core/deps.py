@@ -11,9 +11,11 @@ Every protected endpoint uses one of the guards below. Each validates:
   1. JWT signature + expiry
   2. Device fingerprint match (IP + User-Agent bound at token issuance)
   3. credentials_version, for parent/parent_pending tokens
-  4. The policy decision for the action being guarded
-  5. Session liveness, where the session is server-tracked (demo codes)
-  6. A current privileged-access elevation, for the management-plane
+  4. Device revocation, for parent/child tokens carrying a device_id claim
+     (core/device_registry.py, P9)
+  5. The policy decision for the action being guarded
+  6. Session liveness, where the session is server-tracked (demo codes)
+  7. A current privileged-access elevation, for the management-plane
      actions core/policy.py marks as requiring one (P8)
 
 Failures are always logged to the audit log before raising HTTPException.
@@ -28,7 +30,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import elevation
+from core import device_registry, elevation
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import get_db
@@ -89,6 +91,26 @@ async def _validate_token(request: Request, credentials: HTTPAuthorizationCreden
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Your password was changed — please log in again",
             )
+
+    # P9 device revocation (core/device_registry.py). Only parent/child
+    # tokens ever carry a 'device_id' claim (routers/auth.py's login()) —
+    # demo_code sessions are anonymous and were never registered. A revoked
+    # device's token stops working on its very next request, not just at
+    # its next login; that is the whole point of a revocation mechanism —
+    # see docs/DEVICE_IDENTITY_DESIGN.md.
+    device_id = payload.get("device_id")
+    if device_id and device_registry.is_revoked(device_id):
+        await log_event(
+            AuditEvent.DEVICE_LOGIN_BLOCKED,
+            role=payload.get("role"),
+            success=False,
+            detail="request rejected — this device was revoked",
+            **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This device's access was revoked — please contact the parent",
+        )
 
     return payload
 

@@ -9,6 +9,7 @@ import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
+import DeviceSettings from '../components/DeviceSettings'
 import LicenseSettings from '../components/LicenseSettings'
 import AIProviderSettings from '../components/AIProviderSettings'
 import AgenticLoopInsights from '../components/AgenticLoopInsights'
@@ -486,6 +487,7 @@ export default function ParentSetup() {
         </div>
 
         <ParentSecuritySettings token={token!} />
+        <DeviceSettings token={token!} />
         <LicenseSettings token={token!} />
         <AIProviderSettings token={token!} />
         <AgenticLoopInsights token={token!} />

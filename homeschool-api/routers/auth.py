@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import child_throttle, elevation, parent_lockout
+from core import child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
@@ -116,6 +116,22 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     # someone from getting into their own session.
     locale = req.locale if req.locale == settings.locale else "en"
 
+    # P9 device revocation (core/device_registry.py) — checked BEFORE any
+    # credential verification, so a revoked device is refused outright
+    # rather than burning a parent_lockout/child_throttle attempt on a
+    # login that was never going to succeed regardless of the password/PIN.
+    # demo_code never sends device_id (models/schemas.py's LoginRequest),
+    # so this is a no-op for that role.
+    if req.role in ("parent", "child") and req.device_id and device_registry.is_revoked(req.device_id):
+        log_event_nowait(
+            AuditEvent.DEVICE_LOGIN_BLOCKED, role=req.role, success=False,
+            detail="login refused — this device was revoked", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This device's access was revoked — please contact the parent",
+        )
+
     if req.role == "parent":
         locked_until = await parent_lockout.check_locked(db)
         if locked_until is not None:
@@ -146,13 +162,17 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # routers/mfa.py), not a real parent session.
         methods = await mfa_service.enrolled_methods(db)
         if methods:
-            # locale carries through the pending token so the FINAL token
-            # (issued by routers/mfa.py once the second factor completes)
-            # can re-embed it — the parent picked their language once, at
-            # this password step, and MFA completing a moment later
-            # shouldn't silently reset it back to English.
+            # locale (and, likewise, device_id) carries through the pending
+            # token so the FINAL token (issued by routers/mfa.py once the
+            # second factor completes) can re-embed it — the parent picked
+            # their language once, and this device was already identified,
+            # at this password step; MFA completing a moment later
+            # shouldn't silently reset either.
+            pending_payload = {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv}
+            if req.device_id:
+                pending_payload["device_id"] = req.device_id
             pending_token = create_access_token(
-                {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv},
+                pending_payload,
                 fingerprint=fp,
                 expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
             )
@@ -201,6 +221,14 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # MFA enrolled (the MFA branch above already embedded cv on its own
         # pending token and returned early).
         token_data["cv"] = cv
+    if req.role in ("parent", "child") and req.device_id:
+        # touch() only runs at the point a REAL, usable token is issued —
+        # never for the transient parent_pending token above, which isn't
+        # a completed login yet. The MFA-required parent path instead
+        # touches in routers/mfa.py's _issue_parent_token, the equivalent
+        # point once the second factor completes.
+        token_data["device_id"] = req.device_id
+        await device_registry.touch(db, req.device_id, req.role, ctx["user_agent"])
 
     # demo_code tokens skip IP+UA fingerprint binding (parent/child keep it
     # unchanged). Real bug this fixes: a demo visitor's IP legitimately

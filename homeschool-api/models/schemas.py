@@ -585,6 +585,18 @@ class ElevationResponse(BaseModel):
     ttl_seconds: int
 
 
+class DeviceInfo(BaseModel):
+    """One row from core/device_registry.py — see DeviceRecord's own
+    docstring for what this does and does not prove."""
+    device_id: str
+    first_seen_at: str
+    last_seen_at: str
+    last_role: str
+    last_user_agent: str
+    revoked: bool
+    revoked_at: Optional[str] = None
+
+
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo_code"]
     credential: str   # password for parent, PIN for child, generated code for demo_code
@@ -596,6 +608,14 @@ class LoginRequest(BaseModel):
     # core.deps.require_auth's returned payload. See services/ai_service.py's
     # _locale_directive and services/prayer_catalog.py for where it's read.
     locale: str = "en"
+    # P9 device revocation (core/device_registry.py, docs/DEVICE_IDENTITY_
+    # DESIGN.md's Option C) — a UUID the browser generates once and persists
+    # in localStorage, identifying this physical device across logins.
+    # Optional and parent/child-only: a caller driving the API directly (or
+    # an older client) that omits this simply gets no device tracking for
+    # that login, never a rejected one. Never sent for demo_code — that
+    # role is anonymous and already carries its own one-time-code identity.
+    device_id: Optional[str] = None
 
 
 class DemoCodeRequest(BaseModel):

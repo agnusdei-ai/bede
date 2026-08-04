@@ -92,6 +92,25 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // even when IT runs much later, outside any gesture — see prewarm().
   const prewarmStreamRef = useRef<MediaStream | null>(null)
   const prewarmPromiseRef = useRef<Promise<MediaStream | null> | null>(null)
+  // True from the instant startRecording() is entered until the recording is
+  // fully torn down — including the async window while getUserMedia() is
+  // still in flight, which the `isRecording` STATE below cannot cover (it
+  // only flips true once the audio graph is actually live, several hundred
+  // milliseconds later). Guarding on the state instead had two failure modes,
+  // both seen in a real debug-panel trace: two presses inside that window
+  // opened two independent audio graphs, and — far worse — a state update
+  // that never landed left `isRecording` stuck true, which made the
+  // `if (isRecording) return` guard reject every subsequent press for the
+  // rest of the session, so the mic button silently stopped working with
+  // nothing on screen explaining why.
+  const activeRef = useRef(false)
+  // Bumped by every stopRecording(). startRecording() captures it before
+  // awaiting getUserMedia() and re-checks afterwards, so a turn that ended
+  // while the mic was still opening can tear the just-granted stream down
+  // instead of building a live graph nobody is tracking. That orphaned graph
+  // was the actual cause of the stuck-`isRecording` case above: the OS
+  // recording indicator stayed lit while the app believed it was idle.
+  const runGenRef = useRef(0)
 
   const getStream = useCallback((constraints: MediaStreamConstraints['audio']) =>
     navigator.mediaDevices
@@ -162,6 +181,12 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
 
   const stopRecording = useCallback(async () => {
     logDebug('useVoiceRecorder.stopRecording()')
+    // Both SYNCHRONOUSLY and first, before anything below can await: this is
+    // what a startRecording() still waiting on getUserMedia() checks to learn
+    // its turn is already over, and what lets the very next press start a
+    // fresh recording even when this call takes the early return below.
+    runGenRef.current += 1
+    activeRef.current = false
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     if (animRef.current) cancelAnimationFrame(animRef.current)
     analyserRef.current = null
@@ -230,7 +255,9 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   }, [onComplete, onStopped])
 
   const startRecording = useCallback(async () => {
-    if (isRecording) return
+    if (activeRef.current) return
+    activeRef.current = true
+    const gen = runGenRef.current
     logDebug('useVoiceRecorder.startRecording()')
     pcmChunksRef.current = []
 
@@ -261,7 +288,23 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
       logDebug('startRecording(): prewarmed stream unavailable — retrying getUserMedia() fresh')
       stream = await getStream(MIC_CONSTRAINTS)
     }
-    if (!stream) return
+    if (!stream) {
+      // getUserMedia failed for good (onError has already fired). Release the
+      // guard so the next press is a real retry rather than a no-op — but
+      // only if this is still the current turn, since a later press may
+      // already have claimed the guard while this one was failing.
+      if (runGenRef.current === gen) activeRef.current = false
+      return
+    }
+    if (runGenRef.current !== gen) {
+      // The turn ended while the mic was still opening — stopRecording() has
+      // already run and found nothing to tear down. Building the graph now
+      // would leave the microphone live with no owner, so hand the stream
+      // straight back instead. activeRef was cleared by that stopRecording().
+      logDebug('startRecording(): cancelled while the mic was opening — releasing the stream')
+      stream.getTracks().forEach((t) => t.stop())
+      return
+    }
 
     const audioCtx = new AudioContext()
     audioCtxRef.current = audioCtx
@@ -305,7 +348,11 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
 
     // Auto-stop at maxDuration
     timeoutRef.current = setTimeout(stopRecording, maxDurationMs)
-  }, [isRecording, maxDurationMs, stopRecording, getStream, onStarted])
+    // `isRecording` is deliberately NOT a dependency any more — the guard at
+    // the top reads activeRef instead, so this callback no longer needs to be
+    // rebuilt on every recording state change (and can no longer capture a
+    // stale copy of it).
+  }, [maxDurationMs, stopRecording, getStream, onStarted])
 
   // Non-destructive: does NOT clear pcmChunksRef the way stopRecording()
   // does, since the caller (the streaming-transcription chunk-upload loop)

@@ -383,3 +383,98 @@ describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream fa
     expect(result.current.isRecording).toBe(false)
   })
 })
+
+describe('useVoiceRecorder never leaves the microphone running without an owner', () => {
+  it('releases a stream granted after the turn already ended, instead of building a graph nobody is tracking', async () => {
+    // The real failure this reproduces: startRecording() is async (it awaits
+    // getUserMedia), so a short hold can reach stopRecording() while the mic
+    // is still opening. stopRecording() then found every ref still null and
+    // took its early return — and the pending getUserMedia resolved a beat
+    // later and built a live audio graph with nothing left to stop it. The
+    // OS recording indicator stayed lit over an app that believed it was
+    // idle, and the orphaned recording then blocked every later press.
+    const fakeTrack = { stop: vi.fn() }
+    let grant: (s: MediaStream) => void = () => {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(
+      () => new Promise<MediaStream>((resolve) => { grant = resolve }),
+    )
+    const createContext = vi.spyOn(FakeAudioContext.prototype, 'createMediaStreamSource')
+
+    const { result } = renderHook(() => useVoiceRecorder({}))
+
+    let starting: Promise<void> | undefined
+    act(() => { starting = result.current.startRecording() })
+    // The child lets go before the mic finished opening.
+    await act(async () => { await result.current.stopRecording() })
+    // ...and only now does the browser hand the microphone over.
+    await act(async () => {
+      grant({ getTracks: () => [fakeTrack] } as unknown as MediaStream)
+      await starting
+    })
+
+    expect(createContext).not.toHaveBeenCalled()
+    expect(fakeTrack.stop).toHaveBeenCalledTimes(1)
+    expect(result.current.isRecording).toBe(false)
+    createContext.mockRestore()
+  })
+
+  it('accepts the next press after a turn that was cancelled mid-open', async () => {
+    // The consequence that actually reached a family: with the orphaned
+    // recording above still counted as "recording", the guard at the top of
+    // startRecording() rejected every subsequent press, so the mic button
+    // silently did nothing for the rest of the session.
+    const fakeTrack = { stop: vi.fn() }
+    const fakeStream = { getTracks: () => [fakeTrack] } as unknown as MediaStream
+    let grant: (s: MediaStream) => void = () => {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(
+      () => new Promise<MediaStream>((resolve) => { grant = resolve }),
+    )
+
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onComplete }))
+
+    let starting: Promise<void> | undefined
+    act(() => { starting = result.current.startRecording() })
+    await act(async () => { await result.current.stopRecording() })
+    await act(async () => { grant(fakeStream); await starting })
+
+    // A fresh press, with the microphone now available immediately. It has
+    // to genuinely reopen the mic — the old guard let `isRecording` stay
+    // true from the orphaned graph, which reads as "still recording" while
+    // in fact refusing to record anything the child says from here on.
+    const secondGetUserMedia = vi.fn(async () => fakeStream)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = secondGetUserMedia
+    await act(async () => { await result.current.startRecording() })
+    expect(secondGetUserMedia).toHaveBeenCalledTimes(1)
+    expect(result.current.isRecording).toBe(true)
+
+    act(() => vi.advanceTimersByTime(500))
+    await act(async () => { await result.current.stopRecording() })
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts the next press after getUserMedia failed outright', async () => {
+    // Same guard, different route in: a denied/unavailable mic must not
+    // latch the button off either — the parent fixing the permission has to
+    // be able to just press again.
+    const fakeTrack = { stop: vi.fn() }
+    const fakeStream = { getTracks: () => [fakeTrack] } as unknown as MediaStream
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
+      throw new DOMException('Denied', 'NotAllowedError')
+    })
+
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+    await act(async () => { await result.current.startRecording() })
+    expect(onError).toHaveBeenLastCalledWith('permission-denied')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => fakeStream)
+    await act(async () => { await result.current.startRecording() })
+    expect(result.current.isRecording).toBe(true)
+  })
+})

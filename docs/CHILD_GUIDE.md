@@ -34,8 +34,10 @@ You can answer me in whichever way feels easiest:
   Take all the little pauses you need, then **let go when you're done**. The
   moment you let go, I hear the whole thing. When it's your turn again, the
   microphone gives a gentle glow to remind you to press and hold. If I ever
-  say I can't hear you, it just means this tablet's microphone needs a
-  parent's okay. You can always keep going by typing instead.
+  say I can't hear you, I'll tell you which of two things happened: this
+  tablet's microphone needs a parent's okay, or we lost our connection for a
+  moment. If it's the connection, wait a breath and hold the microphone
+  again. Either way, you can always keep going by typing instead.
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and

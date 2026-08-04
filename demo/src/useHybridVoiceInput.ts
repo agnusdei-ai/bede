@@ -71,6 +71,28 @@ const MAX_RECORDING_MS = 120000
 const START_STREAM_MAX_ATTEMPTS = 2
 const START_STREAM_RETRY_DELAY_MS = 500
 
+/**
+ * Whether a rejected voice-stream request failed at the network layer (the
+ * request never reached a server at all) rather than being refused by one.
+ *
+ * fetch() rejects with a TypeError for every transport-level failure; the
+ * message differs per browser and is deliberately opaque ("Load failed" on
+ * Safari, "Failed to fetch" on Chrome, "NetworkError when attempting to
+ * fetch resource." on Firefox), so the message check is only a fallback for
+ * anything that arrives already re-wrapped. api.ts's own rejections are
+ * plain Errors with our text, so they don't match either test.
+ *
+ * The distinction is what the child actually reads: "something's wrong with
+ * the microphone" sends a family off checking browser permissions for a mic
+ * that was working perfectly, when the real answer is that the connection
+ * dropped and pressing again in a moment will work.
+ */
+function isNetworkFailure(err: unknown): boolean {
+  if (err instanceof TypeError) return true
+  const message = err instanceof Error ? err.message : String(err)
+  return /load failed|failed to fetch|network\s*(error|request failed)/i.test(message)
+}
+
 interface Options {
   token: string | null
   onFinal?: (transcript: string) => void
@@ -78,7 +100,10 @@ interface Options {
 }
 
 type Mode = 'idle' | 'recording' | 'transcribing'
-export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard'
+// 'network' is deliberately separate from 'unavailable': the microphone
+// itself is fine, the request to open a transcription session never reached
+// the server. See isNetworkFailure above.
+export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard' | 'network'
 
 export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
@@ -291,6 +316,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     if (!token) {
       logDebug('_start: no token, cannot open a streaming session')
       clearHoldSafety()
+      // Nothing will ever consume this recording — hand the microphone back
+      // rather than leaving it capturing into a buffer no one will read. See
+      // the identical call on the give-up path in beginStream's catch below.
+      recorder.stopRecording()
       setMode('idle')
       setMicError('unavailable')
       return
@@ -337,8 +366,18 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
           // genuinely can't be transcribed at all.
           clearHoldSafety()
           pendingReleaseRef.current = null
+          // Stop the microphone this turn opened. Without this the recorder
+          // kept capturing for a turn that had already been abandoned: the OS
+          // recording indicator stayed lit while the UI showed an idle mic
+          // button, and — because a still-running recorder refuses to start
+          // another one — every subsequent press did nothing at all, so a
+          // momentary connection blip turned into voice input being dead for
+          // the rest of the session. Confirmed from a real debug-panel trace
+          // (four presses after the failure, none of which reached the
+          // recorder). See docs/VOICE_SETUP.md.
+          recorder.stopRecording()
           setMode('idle')
-          setMicError('unavailable')
+          setMicError(isNetworkFailure(err) ? 'network' : 'unavailable')
         })
     }
     beginStream(START_STREAM_MAX_ATTEMPTS)

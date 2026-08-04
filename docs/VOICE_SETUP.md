@@ -1776,6 +1776,68 @@ one above hard to find. A `finishRequestedRef` set synchronously at release
 now makes it exactly one finish per session; an outright cancel with no
 release still finishes properly, or the session would leak until its TTL.
 
+## Troubleshooting: "I can't hear you" appears the instant it becomes the child's turn, before any press
+
+A parent sent two real traces from a live iOS Safari session, five minutes
+apart, both showing the same shape: `_start() attempt=11` (and climbing),
+two `getStream() rejected name=NotAllowedError` lines back to back on every
+attempt, the mic message on screen, and Bede continuing to converse normally
+via typed input in between. Not a one-off — every turn in the trace failed
+the same way.
+
+Root cause, found by reading `prewarm()`'s own call site rather than
+guessing from the log: `SocraticChat.tsx` calls `prewarm()` from a
+`useEffect` the instant `awaitingChildTurn` goes true — *before* the child
+has pressed anything, and therefore *not inside a user gesture at all*.
+`useVoiceRecorder.ts` carries its own comment on exactly why that matters:
+iOS Safari only honors `getUserMedia()` when it's initiated directly inside
+a user gesture's call stack, and rejects (or never settles) a call made from
+anywhere else. A prewarm effect is exactly "anywhere else."
+
+That alone would just make prewarm fail quietly on a strict browser — not
+itself the bug, since `startRecording()`'s own fresh-retry fallback exists
+precisely to recover from a failed prewarm. The actual defect is that
+`getStream()` called `onError` unconditionally on every rejection, with no
+way to tell "this was only the provisional prewarm attempt, a retry is
+still coming" from "this was the truly final attempt, nothing is left to
+try." So a prewarm failure and a real press-time failure were
+indistinguishable to the child: both flipped `mode` to `'idle'` and set
+`micError`, both showed the same message — including, worst of all,
+*before the child had touched the mic button*.
+
+This gap used to be covered. `startRecording()`'s own comment on the
+prewarm-fails-then-retry-succeeds case recorded that a failed prewarm
+"never even reached onError (mode was still `'native'` when it rejected, so
+the guard in useHybridVoiceInput correctly ignored it)" — a `mode !==
+'native'` check from the browser-native SpeechRecognition era. When native
+recognition was removed entirely (see the top of `useHybridVoiceInput.ts`
+and this file's own rewrite section), that guard went with it, and nothing
+replaced it. The comment describing the old protection stayed in the file
+long after the protection itself was gone.
+
+Fix: `getStream()` takes a `report` option (default `true`). `prewarm()`
+always passes `report: false` — a prewarm failure is never the final word.
+`startRecording()`'s own first attempt (reusing the prewarm promise, or a
+cold call for a caller with no separate prewarm step) is `report: false`
+too, for the identical reason: a fresh retry still follows it. Only that
+fresh retry — genuinely the last attempt, nothing left to fall back to —
+reports normally. `logDebug()` still records every rejection regardless of
+`report`, so a provisional failure remains visible in a debug trace even
+though the child never sees it.
+
+**What this fix does and does not explain about the two traces above.** It
+closes a real, provable gap: a prewarm-stage failure can no longer surface
+as though it were the turn's own outcome, and (per the regression test
+added alongside it) a turn that ultimately succeeds after a failed prewarm
+attempt no longer shows a spurious error along the way. What it can't
+settle from a log alone is whether that specific family's *in-gesture*
+retry — the one now correctly reporting — was failing because the site's
+own microphone permission was genuinely blocked on that device, or because
+even a same-tick `await` on an already-rejected prewarm promise is enough
+to cost WebKit's user-activation window before the fresh call runs. Both
+produce the identical `NotAllowedError` text on iOS Safari, and only a real
+device trace after this fix ships can distinguish them going forward.
+
 ## Endpointing: how a continuous-mode turn ends
 
 Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.

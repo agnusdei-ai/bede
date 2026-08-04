@@ -8,7 +8,7 @@ The method is mutation, not review: neuter the guard in the source, run the
 whole suite, record whether anything goes red, restore. It answers one
 question precisely — *would we notice if this stopped working?*
 
-Last run: 2026-08-04, against 2179 backend tests.
+Last run: 2026-08-04, four rounds, against 2181 backend tests.
 
 ## Why this exists
 
@@ -41,8 +41,23 @@ Both are the same shape: a guard that cannot fail in the way that matters.
 | `check_safeguarding` crisis patterns | safety | CAUGHT |
 | `_MAX_TOOL_LOOP_ROUNDS` | safety | CAUGHT |
 | `_MAX_TOOL_CALLS_PER_TURN` | safety | **UNCAUGHT → CAUGHT** |
+| Account recovery `_REQUIRED_FACTORS = 2` | security | CAUGHT |
+| Recovery refuses below the factor threshold | security | CAUGHT |
+| `require_parent` authorization | security | CAUGHT |
+| `require_real_user` rejects `demo_code` | security | CAUGHT |
+| `LicenseGate` on an unlicensed deployment | security | CAUGHT |
+| `ExfiltrationGuard` response-body key scan | security | CAUGHT |
+| Parent lockout duration | security | CAUGHT |
+| Per-IP rate limiting | security | CAUGHT |
+| SecurityHeaders CSP content | security | **UNCAUGHT → CAUGHT** |
 
-Eleven of twelve were already load-bearing and proven. Two needed work.
+**Twenty-one guards probed. Nineteen already proven. Two were not, and one
+failed illegibly.**
+
+Both failures are the same species, and it is worth naming: a test that reads
+like coverage while asserting something weaker than the property it names.
+One asserted against the constant it was testing; the other asserted a header
+was *present* rather than what it *said*.
 
 ### `_MAX_TOOL_CALLS_PER_TURN` was untested in the way that counts
 
@@ -86,18 +101,39 @@ nine seconds.
 
 **A guard is only as good as the legibility of its failure.**
 
+### The CSP was asserted by presence, not content
+
+Changing `frame-ancestors 'none'` to `frame-ancestors *` — removing
+clickjacking protection outright — left all 2181 tests green.
+
+`test_security_headers_are_present` did this:
+
+```python
+assert "Content-Security-Policy" in resp.headers
+```
+
+which `default-src *` satisfies exactly as well as the real policy. A header
+that exists and permits everything is indistinguishable from no header, except
+that it reads as covered.
+
+Not a total exposure — `X-Frame-Options: DENY` is asserted properly alongside
+it and still denies framing in browsers that honour it. But `frame-ancestors`
+is the modern control and `X-Frame-Options` is deprecated, so the CSP has to
+hold on its own.
+
+Now pinned by four content assertions: framing denied outright, the
+directives that matter confined to `'self'`, no `unsafe-eval` anywhere and
+`unsafe-inline` confined to `style-src` (Tailwind needs it), and no wildcard
+source in any directive. Two of the four fail under the original mutation.
+
 ## Not yet probed
 
 Stated rather than left to be assumed:
 
-- Rate limiting, `LicenseGate`, `SecurityHeaders`
-- `require_parent` / `require_real_user` role separation
-- Parent lockout, and recovery's "at least 2 of 3 factors" rule
-- `ExfiltrationGuard`'s response-body key-material scan (distinct from the
-  endpoint blocklist above, which was probed)
-- Encryption at rest, container hardening (`read_only`, `cap_drop`, no shell)
-  — deployment-level, not reachable from an in-process suite; these belong to
-  `docs/environment-pentests/`
+- Encryption at rest, container hardening (`read_only`, `cap_drop`, no shell),
+  TLS configuration — deployment-level, not reachable from an in-process
+  suite. These belong to `docs/environment-pentests/` and need a running
+  instance rather than a test run.
 
 One is **unprovable by test on principle**: `hmac.compare_digest` defends
 against timing analysis, and swapping it for `==` passes every functional

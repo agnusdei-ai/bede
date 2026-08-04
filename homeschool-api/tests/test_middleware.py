@@ -325,3 +325,67 @@ def test_security_headers_are_present():
     assert "Strict-Transport-Security" in resp.headers
     assert "Content-Security-Policy" in resp.headers
     assert "server" not in {k.lower() for k in resp.headers.keys()}
+
+
+# ── The CSP's CONTENT, not just its presence ─────────────────────────────────
+#
+# Found by mutation audit (docs/GUARD_AUDIT.md): changing frame-ancestors from
+# 'none' to * — removing clickjacking protection outright — left all 2181
+# tests green. test_security_headers_are_present asserts
+#
+#     assert "Content-Security-Policy" in resp.headers
+#
+# which is satisfied by `default-src *` just as happily as by the real policy.
+# Presence is not a property worth asserting on its own; a header that exists
+# and permits everything is indistinguishable from no header, except that it
+# reads as covered.
+#
+# X-Frame-Options: DENY is asserted properly above and still denies framing in
+# browsers that honour it, so the mutation was not a total exposure — but
+# frame-ancestors is the modern control and X-Frame-Options is deprecated, so
+# the CSP is the one that has to hold on its own.
+
+def _csp_directives() -> dict[str, str]:
+    client = TestClient(_headers_app())
+    csp = client.get("/ping").headers["Content-Security-Policy"]
+    out = {}
+    for part in csp.split(";"):
+        part = part.strip()
+        if not part:
+            continue
+        name, _, value = part.partition(" ")
+        out[name] = value.strip()
+    return out
+
+
+def test_csp_denies_framing_outright():
+    """The mutation that went uncaught. 'none' is the whole point: anything
+    else here permits some origin to frame a live tutoring session."""
+    assert _csp_directives().get("frame-ancestors") == "'none'"
+
+
+def test_csp_confines_the_directives_that_matter_to_self():
+    directives = _csp_directives()
+    for name in ("default-src", "script-src", "connect-src", "base-uri", "form-action"):
+        assert directives.get(name) == "'self'", (
+            f"CSP {name} is {directives.get(name)!r}, not 'self' — this is what "
+            "stops a page loading or posting somewhere it should not"
+        )
+
+
+def test_csp_never_permits_unsafe_eval_and_confines_unsafe_inline_to_styles():
+    """unsafe-inline is deliberately allowed for style-src only (Tailwind
+    needs it — see the _CSP comment). Anywhere else, and especially
+    unsafe-eval anywhere at all, is a loosening that must be deliberate."""
+    directives = _csp_directives()
+    for name, value in directives.items():
+        assert "unsafe-eval" not in value, f"CSP {name} permits unsafe-eval"
+        if name != "style-src":
+            assert "unsafe-inline" not in value, f"CSP {name} permits unsafe-inline"
+
+
+def test_csp_has_no_wildcard_source():
+    """A single '*' anywhere undoes whichever directive it appears in, which
+    is exactly how the uncaught mutation worked."""
+    for name, value in _csp_directives().items():
+        assert "*" not in value, f"CSP {name} contains a wildcard source: {value!r}"

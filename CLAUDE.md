@@ -505,11 +505,13 @@ To change which model a given adapter uses, update its `*_model` setting in
 
 For evidence that these controls can still actually FIRE — a mutation
 audit that breaks each guard and records whether anything goes red — see
-**[docs/GUARD_AUDIT.md](docs/GUARD_AUDIT.md)**. It found
-`_MAX_TOOL_CALLS_PER_TURN` could be raised from 6 to 10,000 with all 2179
-tests still green (its tests derived their expectation from the constant
-they were testing), and that removing the streaming-session owner check made
-the suite hang rather than fail. Both are fixed; the file also lists which
+**[docs/GUARD_AUDIT.md](docs/GUARD_AUDIT.md)**. Twenty-one guards
+probed, nineteen already proven. Two were not: `_MAX_TOOL_CALLS_PER_TURN`
+could be raised from 6 to 10,000 with every test still green (its tests
+derived their expectation from the constant they were testing), and the CSP
+could be changed to `frame-ancestors *` with every test still green (the
+header was asserted by presence, never by content). Removing the
+streaming-session owner check made the suite hang rather than fail. Both are fixed; the file also lists which
 guards have NOT been probed yet, and the one (`hmac.compare_digest`) that is
 unprovable by test on principle.
 

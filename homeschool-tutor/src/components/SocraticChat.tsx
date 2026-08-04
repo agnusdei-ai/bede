@@ -145,7 +145,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // 'en-US' default — a Spanish session transcribed as English produces
   // garbled transcripts regardless of how well the rest of the UI is
   // translated. Propagates through to the server's Whisper language hint.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError } = useHybridVoiceInput({
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError, prewarm, cancelPrewarm } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
     // A walkie-talkie release used to send the moment a transcript was
@@ -303,6 +303,44 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // transcribing, listening, or on break) — show a clear "press and hold to
   // talk" cue instead of auto-listening.
   const awaitingChildTurn = !isStreaming && !isSpeaking && !isListening && !isTranscribing && !breakActive
+
+  // Open the microphone BEFORE the child presses hold-to-talk, not at the
+  // press — see useVoiceRecorder.ts's own prewarm() comment for why a cold
+  // getUserMedia() call issued synchronously at press-time (holdStart ->
+  // startHold -> recorder.startRecording()) already fires as early as a
+  // press-time call can, and so cannot by itself close the gap between "the
+  // child starts talking" and "the mic is actually capturing." A real debug
+  // trace showed transcripts missing their first few words for exactly this
+  // reason. Skipped entirely in continuous "Voice on" mode — that mode's own
+  // effect above already calls start() (full recording, not just an opened
+  // stream) the instant awaitingChildTurn is true, so there's no waiting-for-
+  // a-press window here to prewarm during.
+  //
+  // prewarm()/cancelPrewarm() are read via refs rather than the effect's own
+  // dependency array: both are recreated on every render of
+  // useHybridVoiceInput (their own getStream dependency isn't referentially
+  // stable), so depending on them directly would re-run this effect's
+  // cleanup+body — reopening and reclosing the mic — on every render while
+  // still mid-turn, unlike the continuous-mode effect above (which has no
+  // cleanup to repeat).
+  const prewarmRef = useRef(prewarm)
+  const cancelPrewarmRef = useRef(cancelPrewarm)
+  useEffect(() => {
+    prewarmRef.current = prewarm
+    cancelPrewarmRef.current = cancelPrewarm
+  })
+  useEffect(() => {
+    if (isContinuous || !sttSupported || !awaitingChildTurn) return
+    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    prewarmRef.current()
+    // Cleanup fires the instant awaitingChildTurn (or one of the other
+    // guards) goes false again — either the child pressed
+    // (recorder.startRecording() has already, synchronously, claimed the
+    // prewarmed stream by the time this runs, so cancelPrewarm() here is a
+    // safe no-op) or the turn ended some other way without a press (a real
+    // prewarmed stream that genuinely needs releasing).
+    return () => cancelPrewarmRef.current()
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())

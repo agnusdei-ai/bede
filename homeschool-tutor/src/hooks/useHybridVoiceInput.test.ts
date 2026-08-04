@@ -365,6 +365,30 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
   })
 })
 
+describe('useHybridVoiceInput exposes prewarm/cancelPrewarm', () => {
+  // The hold-to-talk mic effect (SocraticChat.tsx) needs to open the
+  // microphone proactively, before any press — see useVoiceRecorder.ts's own
+  // prewarm() comment for why a call issued synchronously at press-time
+  // can't close that gap by itself. This hook must pass the recorder's own
+  // prewarm/cancelPrewarm straight through rather than only using them
+  // internally.
+  it('delegates prewarm() to the underlying recorder', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    result.current.prewarm()
+
+    expect(prewarm).toHaveBeenCalledTimes(1)
+  })
+
+  it('delegates cancelPrewarm() to the underlying recorder', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    result.current.cancelPrewarm()
+
+    expect(cancelPrewarm).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('useHybridVoiceInput stop() cancellation', () => {
   it('discards the turn immediately and never delivers a transcript even if events arrive afterward', async () => {
     const onFinal = vi.fn()

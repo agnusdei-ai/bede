@@ -354,6 +354,89 @@ including that the recorder is stopped on both give-up paths, that a stream
 granted after the turn ended is released rather than wired up, and that the
 next press after either failure genuinely reopens the microphone.
 
+**And the cause underneath all of it, on the public demo: the backend was
+being OOM-killed.** Everything above makes the client recover honestly from
+a backend that vanishes mid-lesson. It does not stop the backend vanishing.
+On `bede-demo-api` it was vanishing on a schedule, and the thing consuming
+the memory was the voice stack itself — `faster-whisper`'s `ctranslate2`
+backend imports torch (~480MB of RSS on import alone), putting the process
+at 642MB warmed against Render's 512MB free-tier cap. Because
+`services/streaming_transcription.py` keeps its sessions in memory in a
+single process, every one of those restarts destroyed every in-flight
+child's voice turn, which reaches the tablet as exactly the `Load failed`
+run above.
+
+That is why the same symptom kept coming back with a different explanation
+each time: two independent causes were producing one message, and the
+message blamed the microphone for both. The memory half is fixed by
+`TRANSCRIPTION_PROVIDER=openai` on that deployment — see the section below.
+
+## Where speech-to-text actually runs (`TRANSCRIPTION_PROVIDER`)
+
+`core/config.py`'s `transcription_provider` selects the backend behind
+`services/transcription.py`'s single `transcribe_audio()`:
+
+- **`local` (the default).** `faster-whisper` runs in the API process. This
+  is the right setting for a family, and it is not a performance
+  preference: the premise of self-hosting Bede is that a child's voice
+  never leaves the house. Every `WHISPER_*` knob applies only here. A
+  deployment that never touches this setting behaves exactly as it always
+  has.
+- **`openai`.** The recorded audio is POSTed to
+  `https://api.openai.com/v1/audio/transcriptions`
+  (`OPENAI_TRANSCRIPTION_MODEL`, default `gpt-4o-mini-transcribe`), and
+  **nothing imports `faster_whisper` at all** — which is the entire point.
+  The saving is the import that does not happen, not the inference that
+  gets moved, so both `main.py`'s warm-up and `preload()` check before
+  touching the model rather than relying on one of them.
+
+The public demo runs on `openai` (`render.yaml`) for the memory reason
+above: it already sends the whole conversation to OpenAI's chat models and
+already uses OpenAI for TTS, so local transcription there was paying 480MB
+for a privacy property that deployment does not claim. **Turning this on is
+a disclosure change** wherever a deployment publishes one — the demo's
+Privacy Notice (both languages), `docs/RETENTION_POLICY.md`,
+`docs/INFORMATION_SECURITY_POLICY.md` §5 and `docs/VENDOR_DATA_FLOW.md`
+were all updated in the same change.
+
+Misconfiguration fails at boot rather than at the first child who presses
+the mic: an unrecognized value, or `openai` with no `OPENAI_API_KEY`, both
+raise from `core/config.py`. There is deliberately no silent fallback to
+the local model on the `openai` setting, since falling back would
+reintroduce the import the setting exists to avoid.
+
+Two things this does NOT change on a local deployment: the concurrency
+semaphore (`VOICE_TRANSCRIPTION_MAX_CONCURRENCY`) still serializes local
+inference, which the OpenAI path does not need because an HTTP request
+isn't competing for the same CPU cores; and voice biometric child
+authentication (`services/voice_auth.py`) is untouched by this setting
+entirely — it is a different model, on a different path, and it is
+parent-only.
+
+### One thing the `openai` backend deliberately gives up: live partials
+
+`services/streaming_transcription.py` re-transcribes the **whole growing
+buffer** on every pass, because nothing here has an incremental mode. On
+`local` that is CPU we already own and are not otherwise using mid-hold, so
+a discarded preview is close to free and is capped by duration
+(`VOICE_PARTIAL_MAX_SECONDS`) rather than forbidden.
+
+Against a metered API the same behaviour is a real, recurring cost: at the
+client's 4-second chunk cadence a 20-second answer would become roughly
+**five billed requests, each re-uploading everything captured so far**, and
+four of the five are discarded the moment the final pass lands. So on any
+non-local backend the worker skips partial passes entirely
+(`services/transcription.py`'s `partial_passes_are_affordable()`).
+
+What the child loses is the live word-by-word settle while they are still
+talking — they still see "Transcribing…" and then their words, which is
+already exactly what happens on any hold shorter than one chunk interval.
+**The final pass is never skipped on either backend**, so what actually
+reaches Bede is identical; only the preview differs. Both halves are pinned
+by `tests/test_transcription_provider.py`, including that partials still
+run on `local` — so this cost fix can't quietly become a downgrade for
+self-hosted families.
+
 ## Troubleshooting: "Transcribing…" sits for a while after releasing the mic
 
 Reported on the public demo, same debug-panel-trace session as the

@@ -1,7 +1,32 @@
 """
-Server-side speech-to-text using faster-whisper (CTranslate2, open-source,
-runs locally). Used as a fallback when the browser's Web Speech API is
-unavailable (Firefox, offline, or low-confidence interim results).
+Server-side speech-to-text. Two backends behind one `transcribe_audio()`,
+selected by settings.transcription_provider (see that setting's own comment
+in core/config.py):
+
+  "local"  — faster-whisper (CTranslate2, open-source) in this process. The
+             DEFAULT, and the only correct answer for a family's self-hosted
+             instance: the entire premise there is that a child's voice never
+             leaves the LAN. Everything else in this module describes this
+             path.
+  "openai" — OpenAI's transcription API. Loads no model, and — critically —
+             never imports faster_whisper at all, which is the whole reason
+             this option exists. ctranslate2 opportunistically imports torch
+             the moment torch is present in the environment, and torch costs
+             ~480MB of RSS on import alone; a process measured at 642MB
+             warmed does not fit Render's 512MB free-tier web service, and
+             bede-demo-api was being OOM-killed, taking every in-flight
+             voice session down with it (services/streaming_transcription.py
+             is in-memory and single-process). See docs/DEMO_HOSTING.md's
+             memory section and docs/VOICE_SETUP.md.
+
+The public demo is the deployment this second backend was added for, and the
+reasoning is specific to its shape rather than general: it already sends the
+whole conversation to OpenAI's chat models and already uses OpenAI for TTS,
+so transcribing locally there was paying 480MB for a privacy property that
+deployment does not claim. A family's own instance does claim it, so nothing
+changes there unless they deliberately set the option.
+
+Everything below describes the local backend.
 
 Model sizes vs speed (single inference on CPU, int8 quantization):
   tiny   ~39M params   – use for short child utterances
@@ -52,6 +77,8 @@ import io
 import logging
 import os
 import threading
+
+import httpx
 
 from core.config import settings
 
@@ -124,8 +151,46 @@ def _get_model():
 def preload() -> None:
     """Best-effort warm-up so the first child to use the mic fallback doesn't
     pay the model-load latency. Blocking — run in an executor (see main.py's
-    startup warm-up task)."""
+    startup warm-up task).
+
+    A no-op unless the local backend is actually selected. This guard is not
+    just tidiness: preload() is the one call that reliably imports
+    faster_whisper at startup, and on the "openai" backend that import is
+    precisely the ~480MB this module's docstring exists to avoid. main.py
+    also checks before calling — both, because either one alone would make
+    the saving depend on a single call site staying correct."""
+    if not uses_local_model():
+        return
     _get_model()
+
+
+def uses_local_model() -> bool:
+    """Whether speech-to-text runs in this process. Callers use this to
+    decide whether loading/warming a local model is worth doing at all —
+    see main.py's _warm_voice_models."""
+    return settings.transcription_provider == "local"
+
+
+def partial_passes_are_affordable() -> bool:
+    """Whether it is worth transcribing a hold BEFORE the child lets go, just
+    to show them a live preview of what was heard.
+
+    Locally: yes. The pass costs CPU cycles on a machine we already own and
+    are not otherwise using mid-hold, so a discarded partial is close to
+    free — services/streaming_transcription.py caps them by duration rather
+    than forbidding them.
+
+    Against a metered API: no. Every pass re-transcribes the WHOLE growing
+    buffer (nothing here has an incremental mode), so a 20-second answer at
+    the client's 4s chunk cadence becomes roughly five billed requests, each
+    re-uploading everything captured so far — and four of the five are
+    thrown away the moment the final pass lands. That is several times the
+    cost and the egress of the one pass that actually reaches Bede, spent on
+    a preview. The child still sees "Transcribing…" and then their words;
+    what they lose is only the live word-by-word settle, which is exactly
+    what already happens today on any hold shorter than one chunk interval.
+    """
+    return uses_local_model()
 
 
 def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
@@ -188,11 +253,118 @@ def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
         return {"text": "", "error": str(e), "language": language}
 
 
+# ── OpenAI transcription backend ─────────────────────────────────────────────
+# Same shape as services/voice_synthesis.py's OpenAI TTS call, deliberately:
+# one pooled client rather than a fresh handshake per utterance, a short
+# timeout, and one retry for transient failures only. The failure cost here is
+# higher than TTS's, though — a failed TTS call costs one line of spoken
+# narration, a failed transcription costs the child's entire answer, which
+# they then have to say again.
+_OPENAI_TRANSCRIPTION_URL = "https://api.openai.com/v1/audio/transcriptions"
+# A child's utterance is seconds long, so a request that hasn't come back in
+# 30s is not going to be useful even if it eventually arrives — the child is
+# already looking at a stuck "Transcribing…".
+_OPENAI_REQUEST_TIMEOUT_SECONDS = 30.0
+_OPENAI_MAX_ATTEMPTS = 2
+_OPENAI_RETRY_BACKOFF_SECONDS = (0.5,)
+# 429 and 5xx can succeed on a second try; 4xx (bad key, malformed audio)
+# cannot, so retrying them only makes the child wait longer to be told.
+_OPENAI_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+_openai_http_client: httpx.AsyncClient | None = None
+
+
+def _get_openai_http_client() -> httpx.AsyncClient:
+    global _openai_http_client
+    if _openai_http_client is None:
+        _openai_http_client = httpx.AsyncClient(
+            timeout=_OPENAI_REQUEST_TIMEOUT_SECONDS,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+    return _openai_http_client
+
+
+async def aclose_http_client() -> None:
+    """Called from main.py's lifespan shutdown, alongside voice_synthesis's
+    own — closes the pooled connections cleanly instead of leaving them for
+    the OS to reclaim. Safe to call when the local backend is in use and no
+    client was ever created."""
+    global _openai_http_client
+    if _openai_http_client is not None:
+        await _openai_http_client.aclose()
+        _openai_http_client = None
+
+
+async def _transcribe_openai(audio_bytes: bytes, language: str) -> dict:
+    """Returns the same {text, language} shape the local backend does, with
+    an added "error" key on failure — callers (routers/voice.py's
+    /transcribe, services/streaming_transcription.py's worker) already treat
+    an empty text as "nothing was heard" and must not need to know which
+    backend produced it."""
+    if not settings.openai_api_key:
+        # core/config.py's reject_unusable_transcription_provider makes this
+        # unreachable through normal startup; kept so a directly-constructed
+        # Settings in a test or script degrades rather than raising here.
+        return {"text": "", "error": "OpenAI transcription not configured", "language": language}
+
+    client = _get_openai_http_client()
+    for attempt in range(_OPENAI_MAX_ATTEMPTS):
+        try:
+            resp = await client.post(
+                _OPENAI_TRANSCRIPTION_URL,
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                # The frontend records 16kHz mono WAV (see the demo's and
+                # homeschool-tutor's useVoiceRecorder.ts), and the streaming
+                # worker assembles the same — so the filename is just the
+                # container hint the multipart API wants, not a real file.
+                files={"file": ("speech.wav", audio_bytes, "audio/wav")},
+                data={
+                    "model": settings.openai_transcription_model,
+                    # Same hint the local backend passes to faster-whisper: a
+                    # Spanish session transcribed as English comes back
+                    # garbled regardless of which engine did it.
+                    "language": language,
+                },
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            return {"text": (body.get("text") or "").strip(), "language": language}
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code not in _OPENAI_RETRYABLE_STATUS_CODES:
+                logger.warning(
+                    "OpenAI transcription failed with a non-retryable status: %s",
+                    exc.response.status_code,
+                )
+                return {"text": "", "error": f"Transcription failed ({exc.response.status_code})", "language": language}
+            logger.warning(
+                "OpenAI transcription failed with status %s (attempt %d/%d)",
+                exc.response.status_code, attempt + 1, _OPENAI_MAX_ATTEMPTS,
+            )
+        except Exception:
+            logger.warning(
+                "OpenAI transcription request failed (attempt %d/%d)",
+                attempt + 1, _OPENAI_MAX_ATTEMPTS, exc_info=True,
+            )
+        if attempt < _OPENAI_MAX_ATTEMPTS - 1:
+            await asyncio.sleep(_OPENAI_RETRY_BACKOFF_SECONDS[attempt])
+    logger.error("OpenAI transcription failed after %d attempts", _OPENAI_MAX_ATTEMPTS)
+    return {"text": "", "error": "Transcription unavailable", "language": language}
+
+
 async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> dict:
     """
-    Transcribe audio bytes to text using faster-whisper.
-    Returns {text, language, segments}.
+    Transcribe audio bytes to text using whichever backend this deployment
+    selected (settings.transcription_provider — see the module docstring).
+    Returns {text, language}, plus "error" when something went wrong.
     """
+    if not uses_local_model():
+        # No semaphore and no executor: the concurrency limit below exists
+        # because faster-whisper's CTranslate2 backend is internally
+        # multi-threaded and concurrent local passes thrash the same cores.
+        # An HTTP request has neither problem — serializing these would just
+        # make two children wait for each other for no reason. The pooled
+        # client's own max_connections is the cap that does apply.
+        return await _transcribe_openai(audio_bytes, language)
     loop = asyncio.get_running_loop()
     async with _get_inference_semaphore():
         return await loop.run_in_executor(None, _transcribe_sync, audio_bytes, language)

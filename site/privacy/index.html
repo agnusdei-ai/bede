@@ -183,18 +183,13 @@
         <tr><th>Service</th><th>What reaches it</th><th>Purpose</th></tr>
         <tr>
           <td>OpenAI</td>
-          <td>The conversation text, to generate Bede's replies, and Bede's reply text, to synthesize its spoken voice if you use audio</td>
+          <td>The conversation text, to generate Bede's replies; Bede's reply text, to synthesize its spoken voice if you use audio; and your microphone audio, if you use the mic, to transcribe it into text</td>
           <td>Primary AI tutoring &amp; voice provider for this demo</td>
         </tr>
         <tr>
           <td>Mistral, or Claude (Anthropic)</td>
           <td>The conversation text, only if OpenAI is briefly unavailable</td>
           <td>Automatic backup AI provider. Mistral by default, though which one is configurable: Claude is used instead if it's been set as the backup (see the Privacy Notice).</td>
-        </tr>
-        <tr>
-          <td>Our own server (not a third party)</td>
-          <td>Your microphone audio, if you use the mic, to transcribe it into text</td>
-          <td>Speech-to-text, processed for that turn only, never stored</td>
         </tr>
         <tr>
           <td>Resend</td>

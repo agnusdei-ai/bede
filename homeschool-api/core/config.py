@@ -36,6 +36,13 @@ SUPPORTED_LOCALES = {
     "es": "Spanish (Español)",
 }
 
+# Which speech-to-text backends services/transcription.py knows how to route
+# to. See Settings.transcription_provider's own comment for what picking one
+# actually means for a deployment (it is a privacy and memory decision, not a
+# tuning knob) and Settings.reject_unusable_transcription_provider for why a
+# value outside this set fails at boot rather than at the first mic press.
+TRANSCRIPTION_PROVIDERS = {"local", "openai"}
+
 
 class Settings(BaseSettings):
     # ── AI models ──────────────────────────────────────────────────────────────
@@ -316,6 +323,35 @@ class Settings(BaseSettings):
     # Tune these per deployment. MFCC scores run ~0.05 lower than resemblyzer.
     voice_threshold_high: float = 0.82    # auto-pass
     voice_threshold_medium: float = 0.68  # parent override available
+
+    # ── Speech-to-text backend (services/transcription.py) ───────────────────
+    # "local" runs faster-whisper in this process — the default, and the only
+    # correct answer for a family's self-hosted instance, where the entire
+    # point is that a child's voice never leaves the LAN. "openai" sends the
+    # audio to OpenAI's transcription API instead.
+    #
+    # This is NOT a speed or accuracy knob, it is a deployment-shape one, and
+    # it exists because of a measured memory failure. faster-whisper's
+    # ctranslate2 backend opportunistically imports torch the moment torch is
+    # present in the environment, and torch costs ~480MB of RSS on import
+    # alone — measured at 642MB warmed against Render's 512MB free-tier web
+    # service cap, which OOM-killed bede-demo-api and took every in-flight
+    # voice session down with it (see docs/DEMO_HOSTING.md's memory section
+    # and docs/VOICE_SETUP.md). On "openai" nothing here ever imports
+    # faster_whisper, so torch never loads and that entire cost disappears.
+    #
+    # The public demo already sends the conversation to OpenAI and already
+    # uses OpenAI for TTS, so on THAT deployment local transcription was
+    # buying a privacy property the deployment does not claim. A self-hosted
+    # family's instance does claim it, which is why the default stays "local"
+    # and a deployment has to opt in by name. Switching this is a disclosure
+    # change wherever the deployment publishes one — see
+    # docs/VENDOR_DATA_FLOW.md.
+    transcription_provider: str = "local"
+    # Which OpenAI transcription model to use when transcription_provider is
+    # "openai". gpt-4o-mini-transcribe is the cheap, fast one and is more than
+    # adequate for short child utterances; whisper-1 is the older endpoint.
+    openai_transcription_model: str = "gpt-4o-mini-transcribe"
 
     # ── Speech-to-text concurrency (services/transcription.py) ───────────────
     # faster-whisper's CPU inference is itself internally multi-threaded
@@ -605,6 +641,31 @@ class Settings(BaseSettings):
                 "Production mode is enabled but API docs are not disabled — set "
                 "DISABLE_API_DOCS=true (otherwise /docs, /redoc, and /openapi.json "
                 "are publicly reachable, exposing the full internal API schema)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def reject_unusable_transcription_provider(self) -> "Settings":
+        """Fail fast on a transcription backend that cannot possibly work,
+        rather than booting clean and failing on the first child who presses
+        the mic. Two ways to get this wrong: a typo in the value (which would
+        otherwise silently fall through to whichever branch the code checks
+        last), and naming "openai" with no OPENAI_API_KEY set. The second is
+        the one that matters — the whole reason to select this backend is
+        that the local model is deliberately never loaded on that deployment,
+        so there is nothing left to fall back to, and a silent fallback would
+        reintroduce the ~480MB import this setting exists to avoid. Checked
+        regardless of production mode, since a broken mic is exactly as
+        broken on a dev instance."""
+        if self.transcription_provider not in TRANSCRIPTION_PROVIDERS:
+            raise ValueError(
+                f"TRANSCRIPTION_PROVIDER must be one of {sorted(TRANSCRIPTION_PROVIDERS)} "
+                f"(got {self.transcription_provider!r})"
+            )
+        if self.transcription_provider == "openai" and not self.openai_api_key:
+            raise ValueError(
+                "TRANSCRIPTION_PROVIDER=openai requires OPENAI_API_KEY — there is no local "
+                "model loaded on this setting to fall back to (see docs/VOICE_SETUP.md)"
             )
         return self
 

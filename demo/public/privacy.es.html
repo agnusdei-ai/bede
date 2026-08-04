@@ -47,8 +47,8 @@
   <strong>En resumen:</strong> nunca almacenamos la conversación en sí. Sí almacenamos, brevemente,
   el nombre/grado que proporciones de manera opcional y señales estructurales anonimizadas sobre
   cómo se desarrolló la sesión (qué herramientas se usaron, cuántos turnos, qué materias) — nunca
-  lo que realmente se dijo. Si usas el micrófono, tu audio se transcribe a texto solo para ese
-  turno y no se almacena. Los comentarios son completamente opcionales, y nunca le pedimos a un
+  lo que realmente se dijo. Si usas el micrófono, tu audio se envía a OpenAI para transcribirlo
+  a texto solo para ese turno, y no lo almacenamos nosotros ni ellos. Los comentarios son completamente opcionales, y nunca le pedimos a un
   niño su propio correo electrónico.
 </div>
 
@@ -69,8 +69,8 @@
   </tr>
   <tr>
     <td>Tu voz, si usas el micrófono <em>(opcional)</em></td>
-    <td>Se transcribe a texto en nuestro propio servidor para que Bede pueda responder a lo que dijiste; la voz hablada de Bede se genera con el servicio de texto a voz de OpenAI</td>
-    <td><strong>Nunca almacenada.</strong> Se procesa solo para ese turno y luego se descarta.</td>
+    <td>Se envía al servicio de transcripción de OpenAI para convertirla en texto, de modo que Bede pueda responder a lo que dijiste; la voz hablada de Bede se genera con el servicio de texto a voz de OpenAI</td>
+    <td><strong>Nunca almacenada</strong>, ni por nosotros ni por OpenAI. Pasa por nuestro servidor hacia OpenAI solo para ese turno y luego se descarta. OpenAI la procesa como nuestro proveedor de servicios y no la utiliza para entrenar sus modelos.</td>
   </tr>
   <tr>
     <td>Señales anonimizadas de patrones de interacción — qué herramientas de enseñanza se activaron, número de turnos, qué materias se visitaron/completaron</td>
@@ -123,9 +123,10 @@
     para que Bede pueda generar sus respuestas de tutoría. Nunca almacenada por nosotros y nunca
     utilizada por ninguno de estos proveedores para entrenar sus modelos, según sus propios
     términos.</li>
-  <li><strong>Tu voz, si usas el micrófono</strong> <em>(opcional)</em> — el audio se envía a
-    nuestro propio servidor para transcribirlo a texto, y no se almacena más allá de ese turno. La
-    voz hablada de Bede se genera como audio con el servicio de texto a voz de OpenAI.</li>
+  <li><strong>Tu voz, si usas el micrófono</strong> <em>(opcional)</em> — el audio pasa por
+    nuestro servidor hacia el servicio de transcripción de OpenAI para convertirlo en texto, y no
+    se almacena más allá de ese turno ni por nosotros ni por OpenAI. La voz hablada de Bede se
+    genera como audio con el servicio de texto a voz de OpenAI.</li>
   <li><strong>Señales anonimizadas de patrones de interacción</strong> (qué herramientas de
     enseñanza se usaron, cuántos turnos, qué materias) — vinculadas de forma criptográfica para
     que no puedan rastrearse hasta tu hijo o hija, y que nunca incluyen lo que realmente se
@@ -153,7 +154,7 @@
   <li>Generar las respuestas de tutoría de Bede y su voz hablada (a través de OpenAI, con un
     respaldo configurado — Mistral por defecto, o Claude/Anthropic en su lugar — solo para
     respuestas de texto, si OpenAI no está disponible brevemente).</li>
-  <li>Transcribir el audio de tu micrófono a texto, en nuestro propio servidor, para que Bede
+  <li>Transcribir el audio de tu micrófono a texto, a través de OpenAI, para que Bede
     pueda responder a él.</li>
   <li>Entender, de forma agregada y anonimizada, qué patrones de enseñanza funcionan bien, para
     poder mejorar a Bede.</li>

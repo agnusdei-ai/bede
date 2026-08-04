@@ -10,7 +10,7 @@ satisfy the amended FTC COPPA Rule's requirement for a written information
 security program covering personal information the operator itself collects
 and controls, naming who is responsible for it.
 
-Last reviewed: 2026-08-03.
+Last reviewed: 2026-08-04.
 
 ## 1. Scope
 
@@ -55,7 +55,7 @@ protected while it exists.
 | Demo session identity (name, grade) | `demo_code_sessions` table, Postgres (`bede-demo-db` on Render) | **Plaintext, by design** (see `homeschool-api/core/database.py`'s `DemoCodeSession` docstring) — treated as a self-chosen demo alias, not a real identity, and bounded by a 6-hour retention window (§4) rather than encryption. This is a deliberate, documented tradeoff, not an oversight. |
 | Current-unit note (optional) | `demo_code_unit_notes` table | Plaintext, same reasoning as above; sanitized against injection at write and render time. |
 | Church tradition note (optional) | `demo_code_faith_notes` table | Plaintext, same reasoning as above. This is the one field the demo's own Privacy Notice calls out as a sensitive category needing extra care — the control here is the short, fixed retention window (§4), not encryption. If this policy's risk tolerance changes, encrypting this column is the concrete next step (see §8). |
-| The conversation itself, and any voice audio | Never written to any database | Exists only in transit / in-process memory for the duration of one turn, then discarded. There is no row to protect because none is created. |
+| The conversation itself, and any voice audio | Never written to any database | Exists only in transit / in-process memory for the duration of one turn, then discarded. There is no row to protect because none is created. Voice audio additionally transits to OpenAI for transcription (§5) and is not stored there either. |
 | Anonymized interaction-pattern signals | `demo_interaction_signals` table | Encrypted at rest (`encrypt_json`, AES-256-GCM, same primitive as the main product's `MasteryProfile`), keyed by an HMAC-SHA256 hash of the session code rather than the code itself. |
 | Diagnostic-preview rate-limit records | `diagnostic_preview_uses` table | Holds an HMAC-SHA256 hash of the visitor's IP, not the IP itself — chosen specifically because this table moved a value that used to live only in an ephemeral in-memory dict onto durable storage (see that table's own docstring in `core/database.py`). |
 | Feedback message + optional reply email | Not persisted to any database | Exists only as one outbound email via Resend, then is gone from anything this company operates. |
@@ -85,12 +85,22 @@ exists in the codebase but isn't configured for this deployment.
 
 | Vendor | What it receives | Purpose |
 |---|---|---|
-| OpenAI | Conversation text (primary AI provider); Bede's reply text (text-to-speech) | Generate and voice Bede's tutoring responses |
+| OpenAI | Conversation text (primary AI provider); Bede's reply text (text-to-speech); **microphone audio, when a visitor uses voice input** (speech-to-text) | Generate and voice Bede's tutoring responses, and turn a visitor's speech into text |
 | Mistral | Conversation text, only on automatic failover if OpenAI errors — **default backup** | Backup AI provider, live circuit-breaker failover |
 | Anthropic (Claude) | Conversation text, only on automatic failover if OpenAI errors — **only if configured as the backup instead of Mistral** (`ANTHROPIC_API_KEY` set AND selected via `core/provider_state.py`'s secondary override) | Alternate backup AI provider, same mechanism as Mistral |
 | Resend | Feedback message + optional reply email | Deliver the feedback form to the operator's own inbox |
 | Render | All of the above, as the host running `bede-demo-api` and its Postgres database | Infrastructure hosting |
 | Cloudflare | Static site/demo asset delivery | Infrastructure hosting (no personal information reaches this layer — it serves static files only) |
+
+Microphone audio was added to OpenAI's row on 2026-08-04. Before that date
+this deployment transcribed voice input in its own backend process
+(faster-whisper) and no audio left our infrastructure. It now goes to
+OpenAI's transcription API (`TRANSCRIPTION_PROVIDER=openai` in
+`render.yaml`) because the local model could not fit the host's memory
+limit — `ctranslate2` imports torch at ~480MB of RSS, which OOM-killed
+`bede-demo-api` repeatedly. Scoped to this public demo only: a family's
+self-hosted instance still transcribes locally, and `core/config.py`'s
+default is unchanged. See `docs/RETENTION_POLICY.md`'s changelog.
 
 The backup slot is genuinely configurable, not a hardcoded claim: `render.yaml`'s
 `BEDE_ADAPTER_ORDER=openai,mistral,anthropic` lists all three as candidates,

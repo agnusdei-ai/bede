@@ -367,23 +367,48 @@ itself the moment it's installed in the environment, regardless of whether
 "exceeded its memory limit" alert fired for `bede-demo-api`, triggering an
 automatic restart that made the demo briefly unreachable.
 
-`main.py`'s `_warm_voice_models()` now skips preloading `resemblyzer`
-entirely on a demo deployment (`settings.is_demo_deployment`) — voice
-biometric auth (`/voice/enroll`, `/voice/verify`, `/voice/override`) is
-parent-only and structurally unreachable by the demo's `demo_code` role
-either way, so preloading it was pure waste on this deployment shape. Be
-clear-eyed about what this buys, though: measured directly, it only trims
-~30MB of live RSS. The dominant cost (torch, ~480MB) loads regardless,
-because the demo genuinely does need faster-whisper for its own STT
-fallback, and `ctranslate2` pulls torch in the moment it's present in the
-environment — this fix doesn't eliminate that.
+**First attempt (partial).** `main.py`'s `_warm_voice_models()` skips
+preloading `resemblyzer` on a demo deployment
+(`settings.is_demo_deployment`) — voice biometric auth (`/voice/enroll`,
+`/voice/verify`, `/voice/override`) is parent-only and structurally
+unreachable by the demo's `demo_code` role either way, so preloading it was
+pure waste on this deployment shape. Measured directly, that alone only
+trimmed ~30MB of live RSS. The dominant cost (torch, ~480MB) still loaded,
+because faster-whisper was still being loaded for the demo's own STT and
+`ctranslate2` pulls torch in the moment it's present in the environment.
 
-If OOM restarts recur, the real fix is more RAM, not just no-spin-down:
-confirm current specs on Render's pricing page before upgrading — the
-Starter plan historically matches the free plan's RAM (it buys no
-spin-down, not more memory), so eliminating this specific failure mode
-needs whichever tier actually raises the memory allocation, not just the
-next plan up.
+**The actual fix (2026-08-04): stop loading a local Whisper model on this
+deployment at all.** `TRANSCRIPTION_PROVIDER=openai` (`render.yaml`, see
+`core/config.py`) routes speech-to-text to OpenAI's transcription API, and
+nothing on that path imports `faster_whisper` — so `ctranslate2` never
+runs, torch never imports, and the ~480MB simply is not paid. Both
+`main.py`'s warm-up and `services/transcription.py`'s `preload()` check
+before touching the model, deliberately twice, so the saving never depends
+on one call site staying correct.
+
+Why this is the right trade **for the demo specifically and nowhere else**:
+this deployment already sends the whole conversation to OpenAI's chat
+models and already uses OpenAI for TTS, so transcribing locally was buying
+a privacy property it does not claim. A family's self-hosted instance does
+claim it — a child's voice staying on their own LAN is the entire premise
+— so `core/config.py`'s default stays `local` and a deployment has to opt
+in by name. It is also a disclosure change: `demo/public/privacy.html` and
+`privacy.es.html`, `docs/RETENTION_POLICY.md`, and
+`docs/INFORMATION_SECURITY_POLICY.md` §5 were all updated in the same
+change, since a new category of a visitor's data now reaches a third party.
+
+**Why this mattered beyond uptime.** `services/streaming_transcription.py`
+keeps its sessions in memory in a single process, so each OOM restart
+destroyed every in-flight child's voice turn. From the tablet that arrives
+as `startVoiceStream failed: Load failed` and a mic that appears broken —
+so the memory limit was showing up in bug reports as a voice bug, and
+being chased as one. See `docs/VOICE_SETUP.md`.
+
+If OOM restarts recur even so, the remaining fix is more RAM, not just
+no-spin-down: confirm current specs on Render's pricing page before
+upgrading — the Starter plan historically matches the free plan's RAM (it
+buys no spin-down, not more memory), so that would need whichever tier
+actually raises the memory allocation, not just the next plan up.
 
 ## Expecting a crowd? (public events, ~100 simultaneous users)
 

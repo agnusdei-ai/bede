@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import AsyncIterator, Optional
 
 from core.config import settings
-from services.transcription import transcribe_audio
+from services.transcription import partial_passes_are_affordable, transcribe_audio
 
 log = logging.getLogger(__name__)
 
@@ -167,6 +167,18 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
         audio_snapshot = _wav_from_pcm16(bytes(session.pcm)) if session.pcm else session.audio
         is_finished = session.finished
         text = ""
+        if audio_snapshot and not is_finished and not partial_passes_are_affordable():
+            # A metered transcription backend bills per pass and re-uploads
+            # the whole growing buffer each time, so a preview that is
+            # discarded the moment the final pass lands is not worth several
+            # extra billed requests per turn — see that helper's own comment.
+            # The FINAL pass is untouched, here as below: what actually
+            # reaches Bede never depends on this.
+            log.debug(
+                "streaming_transcription: session=%s skipping partial (metered backend)",
+                session_id,
+            )
+            continue
         # faster-whisper has no incremental mode, so EVERY pass re-transcribes
         # the whole buffer from the start. Across a long hold that is O(N^2)
         # decode work — a 40-second answer costs roughly 220 seconds of audio

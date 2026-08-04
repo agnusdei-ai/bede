@@ -170,6 +170,28 @@ services:
       # section for verification steps and how to turn it back off.
       - key: LOCALE
         value: es
+      # Speech-to-text runs at OpenAI on THIS deployment, not in this
+      # process. Not a quality or speed decision — a memory one, and the
+      # direct fix for a real, repeated failure: faster-whisper's
+      # ctranslate2 backend imports torch (~480MB of RSS on import alone)
+      # whenever torch is present, which put this service at 642MB warmed
+      # against the free plan's 512MB cap. Render OOM-killed it, and because
+      # services/streaming_transcription.py keeps its sessions in memory in
+      # a single process, every restart destroyed every child's in-flight
+      # voice turn — surfacing in the browser as `startVoiceStream failed:
+      # Load failed` and a mic that appeared broken. On this setting nothing
+      # imports faster_whisper at all, so torch never loads.
+      #
+      # Deliberately NOT the default in core/config.py, and never right for
+      # a family's self-hosted instance: local transcription is exactly what
+      # keeps a child's voice on their own LAN. This demo already sends the
+      # whole conversation to OpenAI's chat models and already uses OpenAI
+      # for TTS, so it was paying that 480MB for a privacy property it does
+      # not claim. Disclosed in demo/public/privacy.html (both languages),
+      # docs/RETENTION_POLICY.md and docs/VENDOR_DATA_FLOW.md — keep those
+      # in step with this value.
+      - key: TRANSCRIPTION_PROVIDER
+        value: openai
       # A browser's CORS Origin header is always scheme://host[:port] with
       # NO path — even though the demo itself is served from
       # https://agnusdei-ai.github.io/bede/, the Origin it sends is just

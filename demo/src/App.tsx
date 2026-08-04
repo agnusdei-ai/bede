@@ -28,6 +28,9 @@ const HandwritingCanvas = lazy(() => import('./HandwritingCanvas'))
 import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
+import {
+  IDLE_CHECK_INTERVAL_MS, idleStatus, isIdleLogoutEnabled, isSessionBusy, normalizeIdleMinutes,
+} from './idleLogout'
 import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
 import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
@@ -799,6 +802,17 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // conditional early return before it, so it's safe to gate the whole
   // effect on sessionPaused directly).
   const lastBreakActivityRef = useRef(Date.now())
+  // onSessionInvalid is read through a ref rather than declared as a
+  // dependency. It arrives as an inline arrow from the parent, so its
+  // identity changes on every parent render — and with it in the dep array,
+  // each of those renders tore this effect down and rebuilt it, resetting
+  // lastBreakActivityRef and starting the five minutes over. Nothing renders
+  // the parent on a timer today, so this has not been firing wrongly, but it
+  // made the timeout quietly dependent on the parent staying still. The
+  // general idle logout below cannot afford that at all on a ten-minute
+  // window, and the same reasoning applies here.
+  const onBreakSessionInvalidRef = useRef(onSessionInvalid)
+  onBreakSessionInvalidRef.current = onSessionInvalid
   useEffect(() => {
     if (!sessionPaused) return
     lastBreakActivityRef.current = Date.now()
@@ -807,14 +821,14 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
     events.forEach((e) => window.addEventListener(e, resetBreakActivity, { passive: true }))
     const id = setInterval(() => {
       if (Date.now() - lastBreakActivityRef.current > BREAK_INACTIVITY_LOGOUT_MS) {
-        onSessionInvalid?.()
+        onBreakSessionInvalidRef.current?.()
       }
     }, 15000)
     return () => {
       events.forEach((e) => window.removeEventListener(e, resetBreakActivity))
       clearInterval(id)
     }
-  }, [sessionPaused, onSessionInvalid])
+  }, [sessionPaused])
 
   const [subject, setSubject] = useState<Subject>(() =>
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
@@ -922,6 +936,64 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // tail on each tick instead of replacing the whole line, matching how
   // Claude/Gemini's voice UIs settle words in progressively.
   const transcriptWords = useTranscriptWords(interim)
+
+  // ── General idle logout ───────────────────────────────────────────────────
+  // Distinct from the break/concluded logout above, which only runs while
+  // nothing is meant to be happening. This one covers the case that had no
+  // cover at all: a visitor who simply walks away mid-lesson, leaving their
+  // session open on a shared or kiosk device until the code expires hours
+  // later.
+  //
+  // What "idle" means here is the whole design — see idleLogout.ts. A child
+  // sitting perfectly still while Bede reads a passage is the MOST engaged
+  // they get, and produces no taps and no keystrokes for minutes at a time,
+  // so the clock is held whenever the session is doing something on their
+  // behalf (streaming, speaking, listening, transcribing) as well as on real
+  // interaction.
+  const idleMinutes = normalizeIdleMinutes(parentControls.idleLogoutMinutes)
+  const [idleWarning, setIdleWarning] = useState(false)
+  // Everything volatile is read through a ref rather than declared as a
+  // dependency. With `onSessionInvalid` in the dep array (as the break effect
+  // above does it) any parent re-render tears this effect down and rebuilds
+  // it, resetting lastActiveAt — which on a ten-minute timer means a single
+  // re-render every nine minutes would keep the session alive forever.
+  const idleBusyRef = useRef(false)
+  idleBusyRef.current = isSessionBusy({ isStreaming, isSpeaking, isListening, isTranscribing })
+  const onSessionInvalidRef = useRef(onSessionInvalid)
+  onSessionInvalidRef.current = onSessionInvalid
+  const lastActiveAtRef = useRef(Date.now())
+
+  useEffect(() => {
+    if (!isIdleLogoutEnabled(idleMinutes)) {
+      setIdleWarning(false)
+      return
+    }
+    const markActive = () => {
+      lastActiveAtRef.current = Date.now()
+      setIdleWarning((shown) => (shown ? false : shown))
+    }
+    markActive() // a fresh setting starts a fresh window, never an instant logout
+    const events = ['pointerdown', 'keydown', 'touchstart']
+    events.forEach((e) => window.addEventListener(e, markActive, { passive: true }))
+    const id = setInterval(() => {
+      // Being busy counts as activity, so the clock never advances during a
+      // reading. Bumping here (rather than only returning 'active' from
+      // idleStatus) means the full window starts again once Bede stops.
+      if (idleBusyRef.current) {
+        markActive()
+        return
+      }
+      const status = idleStatus({
+        lastActiveAt: lastActiveAtRef.current, now: Date.now(), minutes: idleMinutes,
+      })
+      if (status === 'expired') onSessionInvalidRef.current?.()
+      else setIdleWarning(status === 'warning')
+    }, IDLE_CHECK_INTERVAL_MS)
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, markActive))
+      clearInterval(id)
+    }
+  }, [idleMinutes])
 
   // ── Press-and-hold (walkie-talkie) mic — the ONE control for voice input ──
   // A single button: press and hold to talk, release to send. No mode
@@ -1442,6 +1514,20 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             </div>
           </div>
         )}
+        {idleWarning && (
+          // Deliberately a soft, in-conversation notice rather than a modal:
+          // the one case neither activity signal can see is a child reading
+          // silently with narration muted, and interrupting them with a
+          // blocking dialog would be worse than the problem. Any tap anywhere
+          // clears it, since the same listener that dismisses this is what
+          // resets the idle clock.
+          <div className="flex justify-center" role="status" aria-live="polite">
+            <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-amber-50 text-amber-900 italic border border-amber-200">
+              {t('parentControls.idleWarning')}
+            </div>
+          </div>
+        )}
+
         {isTranscribing && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 flex items-center gap-2">

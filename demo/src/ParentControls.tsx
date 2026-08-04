@@ -4,6 +4,9 @@ import { Settings } from 'lucide-react'
 import {
   DEFAULT_SESSION_CAP_MINUTES, MIN_SESSION_CAP_MINUTES, MAX_SESSION_CAP_MINUTES,
 } from './gradeTimer'
+import {
+  DEFAULT_IDLE_LOGOUT_MINUTES, IDLE_LOGOUT_CHOICES, normalizeIdleMinutes,
+} from './idleLogout'
 
 /**
  * The demo's stand-in for the full app's parent-only settings (ParentSetup
@@ -15,6 +18,9 @@ import {
  *     session concludes automatically, with a mandatory 10-minute break
  *     after each hour regardless (see gradeTimer.ts).
  *   - Lock chat appearance: hides the theme/bubble picker.
+ *   - Log out when idle: ends the session after a stretch with no activity,
+ *     where "activity" includes Bede speaking or streaming (see
+ *     idleLogout.ts — a child listening to a long reading is not idle).
  * Persisted to sessionStorage like the demo's other session-scoped state
  * (name, grade) — gone when the tab closes.
  */
@@ -22,28 +28,36 @@ import {
 export interface DemoParentControls {
   sessionCapMinutes: number
   appearanceLocked: boolean
+  idleLogoutMinutes: number
 }
 
 const CAP_KEY = 'bede-demo-session-cap'
 const LOCK_KEY = 'bede-demo-appearance-locked'
+const IDLE_KEY = 'bede-demo-idle-logout'
 
 export function readDemoParentControls(): DemoParentControls {
   let cap = DEFAULT_SESSION_CAP_MINUTES
   let locked = false
+  let idle = DEFAULT_IDLE_LOGOUT_MINUTES
   try {
     const rawCap = Number(sessionStorage.getItem(CAP_KEY))
     if (rawCap >= MIN_SESSION_CAP_MINUTES && rawCap <= MAX_SESSION_CAP_MINUTES) cap = rawCap
     locked = sessionStorage.getItem(LOCK_KEY) === '1'
+    // normalizeIdleMinutes handles the unset (null) case itself — see its own
+    // comment for why coercing that with Number() first would silently turn
+    // "never opened this menu" into "never log out".
+    idle = normalizeIdleMinutes(sessionStorage.getItem(IDLE_KEY))
   } catch {
     // sessionStorage unavailable — defaults stand.
   }
-  return { sessionCapMinutes: cap, appearanceLocked: locked }
+  return { sessionCapMinutes: cap, appearanceLocked: locked, idleLogoutMinutes: idle }
 }
 
 export function saveDemoParentControls(c: DemoParentControls) {
   try {
     sessionStorage.setItem(CAP_KEY, String(c.sessionCapMinutes))
     sessionStorage.setItem(LOCK_KEY, c.appearanceLocked ? '1' : '0')
+    sessionStorage.setItem(IDLE_KEY, String(normalizeIdleMinutes(c.idleLogoutMinutes)))
   } catch {
     // Best-effort — a failed save just means the settings reset next visit.
   }
@@ -113,6 +127,32 @@ export default function ParentControlsMenu({ controls, onChange }: {
                 className="w-full text-sm border border-sage-300 rounded-lg px-2 py-1.5 bg-white text-right"
               />
               <p className="text-[10px] text-gray-400 mt-0.5 text-center">{t('parentControls.minutes')}</p>
+            </div>
+          </div>
+
+          {/* Idle logout. A fixed set of choices rather than a number input
+              (unlike session length above): the useful range is narrow, and a
+              hand-typed 1 or 2 would fight ordinary narration. */}
+          <div className="flex items-center justify-between gap-3 pt-2 border-t border-parchment-200">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-700">{t('parentControls.idleLogout')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {t('parentControls.idleLogoutDesc')}
+              </p>
+            </div>
+            <div className="w-24 flex-shrink-0">
+              <select
+                value={normalizeIdleMinutes(controls.idleLogoutMinutes)}
+                onChange={(e) => update({ idleLogoutMinutes: normalizeIdleMinutes(e.target.value) })}
+                aria-label={t('parentControls.idleLogout')}
+                className="w-full text-sm border border-sage-300 rounded-lg px-2 py-1.5 bg-white"
+              >
+                {IDLE_LOGOUT_CHOICES.map((m) => (
+                  <option key={m} value={m}>
+                    {m === 0 ? t('parentControls.idleNever') : t('parentControls.idleMinutes', { count: m })}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

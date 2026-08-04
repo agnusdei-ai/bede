@@ -119,7 +119,12 @@
     "lockAppearance": "Lock chat appearance",
     "lockedDesc": "The learner cannot change the theme or bubble color.",
     "unlockedDesc": "The learner may change the theme and bubble color.",
-    "passwordNote": "In the full app, the parent password protects these settings."
+    "passwordNote": "In the full app, the parent password protects these settings.",
+    "idleLogout": "Log out when idle",
+    "idleLogoutDesc": "Ends the session after a quiet stretch. Listening to Bede read still counts as being here.",
+    "idleNever": "Never",
+    "idleMinutes": "{{count}} min",
+    "idleWarning": "Still there? I'll pause our lesson in a moment — tap anywhere to keep going."
   },
   "themePicker": {
     "backgroundTheme": "Background theme",

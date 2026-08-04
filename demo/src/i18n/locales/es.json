@@ -119,7 +119,12 @@
     "lockAppearance": "Bloquear apariencia del chat",
     "lockedDesc": "El estudiante no puede cambiar el tema ni el color de las burbujas.",
     "unlockedDesc": "El estudiante puede cambiar el tema y el color de las burbujas.",
-    "passwordNote": "En la aplicación completa, la contraseña de los padres protege esta configuración."
+    "passwordNote": "En la aplicación completa, la contraseña de los padres protege esta configuración.",
+    "idleLogout": "Cerrar sesión por inactividad",
+    "idleLogoutDesc": "Termina la sesión tras un rato de silencio. Escuchar a Bede leer sigue contando como estar presente.",
+    "idleNever": "Nunca",
+    "idleMinutes": "{{count}} min",
+    "idleWarning": "¿Sigues ahí? Pausaré nuestra lección en un momento — toca en cualquier lugar para continuar."
   },
   "themePicker": {
     "backgroundTheme": "Tema de fondo",

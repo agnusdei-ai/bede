@@ -76,6 +76,46 @@ Left out because they need a real family's own deployment: voice-biometric
 login, encrypted persistent storage, multi-student pods, and progress
 tracking.
 
+## Parent controls, and when a session ends by itself
+
+The gear icon in the chat header opens the demo's stand-in for the full app's
+parent settings (there is no parent login here). Three settings, all held in
+`sessionStorage` and gone when the tab closes:
+
+- **Session length** — the hard stop, with a mandatory ten-minute break after
+  each hour (`gradeTimer.ts`).
+- **Log out when idle** — never, 5, 10, 20 or 30 minutes. **Default 10.**
+- **Lock chat appearance** — hides the theme and bubble-colour pickers.
+
+The idle logout deserves its own note, because what counts as "idle" is the
+entire design (`src/idleLogout.ts`).
+
+A timer that resets only on taps and keystrokes would be actively wrong for
+this app. The most engaged a child ever is — sitting perfectly still while
+Bede reads a passage aloud — produces no input at all for minutes at a time,
+and ending the session for "inactivity" partway through would be the app
+punishing them for paying attention. So the clock is held whenever the
+session is doing something on the learner's behalf: Bede streaming a reply,
+Bede speaking, the mic listening, a transcript being made. Only genuine
+silence advances it.
+
+That is also why the default is 10 minutes rather than the 5 the break timer
+uses. The break timer runs when nothing is meant to be happening at all; this
+one has to leave room for a long, quiet stretch of real reading.
+
+One case neither signal can see is a child reading silently with narration
+muted, so a soft in-conversation notice appears a minute before the session
+would end — any tap clears it and restarts the window. It is deliberately not
+a modal: interrupting a reader with a blocking dialog would be worse than the
+problem it solves.
+
+Two auto-logouts now exist and they do different jobs. The five-minute
+break/concluded one covers a child who wandered off while nothing was
+scheduled to happen; this one covers a visitor who walked away mid-lesson and
+left their session open on a shared or kiosk device. The stricter of the two
+wins whenever both apply. A parent who is sitting beside their child on a
+private device can set the idle logout to Never.
+
 ## "Why families choose Bede" panel
 
 `CodeScreen` (in `src/App.tsx`) renders a compact three-item panel below the

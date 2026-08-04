@@ -56,7 +56,17 @@ async def get_totp_config(db: AsyncSession) -> ParentTotpConfig | None:
 
 async def enrolled_methods(db: AsyncSession) -> list[str]:
     """Which second factors are actually usable right now — an unconfirmed
-    TOTP enrollment-in-progress doesn't count."""
+    TOTP enrollment-in-progress doesn't count.
+
+    Order is meaningful and "webauthn" is deliberately first: it is what the
+    login screen offers before anything else. A device-native biometric
+    (Face ID, Touch ID, Windows Hello) never sends the biometric anywhere,
+    is hardware-backed, is phishing-resistant because the signature is bound
+    to the origin, and carries presentation-attack detection from the
+    platform. A TOTP code has none of those properties — it is a shared
+    secret typed into a box, and it is here as the fallback for a device
+    with no biometric sensor, not as an equal alternative.
+    """
     methods = []
     result = await db.execute(select(ParentSecurityKey.id).limit(1))
     if result.first() is not None:
@@ -105,8 +115,22 @@ async def build_registration_options(db: AsyncSession) -> str:
         user_display_name="Parent",
         exclude_credentials=exclude,
         authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.DISCOURAGED,
-            user_verification=UserVerificationRequirement.PREFERRED,
+            # PREFERRED, not DISCOURAGED: discoverable credentials are what
+            # make Face ID / Touch ID / Windows Hello work as a passkey
+            # rather than as a bare security key.
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            # REQUIRED, not PREFERRED, and this is the load-bearing line.
+            # PREFERRED lets the authenticator skip the biometric entirely,
+            # which reduces the credential to possession — a signature from
+            # a device that may or may not have checked who is holding it.
+            # REQUIRED makes it a multi-factor cryptographic device under
+            # 800-63B: something you have (the device key, hardware-backed
+            # and non-exportable) plus something you are (the on-device
+            # biometric), with presentation-attack detection supplied by the
+            # platform rather than by us. That is the property our own voice
+            # biometric cannot offer, and the reason device-native
+            # biometrics are the primary factor and TOTP the fallback.
+            user_verification=UserVerificationRequirement.REQUIRED,
         ),
     )
     from core.mfa_challenge import set_register_challenge
@@ -124,6 +148,10 @@ async def verify_and_store_registration(db: AsyncSession, credential_json: str, 
         expected_challenge=challenge,
         expected_rp_id=settings.webauthn_rp_id,
         expected_origin=settings.webauthn_origin,
+        # Without this, py_webauthn does not inspect the UV flag at all and
+        # a credential enrolled "with Face ID" could have been created
+        # without it. Asking in the options is a request; this is the check.
+        require_user_verification=True,
     )
     record = {
         "credential_id": bytes_to_base64url(verification.credential_id),
@@ -160,7 +188,9 @@ async def build_authentication_options(db: AsyncSession) -> str | None:
     options = webauthn.generate_authentication_options(
         rp_id=settings.webauthn_rp_id,
         allow_credentials=allow,
-        user_verification=UserVerificationRequirement.PREFERRED,
+        # Asking is only half of it — the server also has to CHECK the flag
+        # came back set. See require_user_verification below.
+        user_verification=UserVerificationRequirement.REQUIRED,
     )
     from core.mfa_challenge import set_authenticate_challenge
     set_authenticate_challenge(options.challenge)
@@ -197,6 +227,10 @@ async def verify_authentication(db: AsyncSession, credential_json: str) -> bool:
             expected_origin=settings.webauthn_origin,
             credential_public_key=base64url_to_bytes(target_cred["public_key"]),
             credential_current_sign_count=target_cred["sign_count"],
+            # The enforcement point. Every login through this path is now
+            # proof the device verified its holder, not merely that the
+            # device was present.
+            require_user_verification=True,
         )
     except Exception:
         return False

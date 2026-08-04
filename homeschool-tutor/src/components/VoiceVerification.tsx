@@ -36,7 +36,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
     if (res.verified) onVerified(res)
   }, [token, studentName, onVerified])
 
-  const { isRecording, level, startRecording, stopRecording } = useVoiceRecorder({
+  const { level, startRecording, stopRecording } = useVoiceRecorder({
     maxDurationMs: 8000,
     onComplete: handleRecordingComplete,
   })

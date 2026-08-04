@@ -32,7 +32,7 @@ import math
 
 from services.diagnostic.kst import fringe
 from services.diagnostic.qmatrix import probes_for_skill
-from services.diagnostic.skill_map import get_skill, skills_in_band
+from services.diagnostic.skill_map import get_skill
 
 
 def _entropy(probability: float) -> float:

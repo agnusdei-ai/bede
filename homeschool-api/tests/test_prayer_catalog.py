@@ -242,3 +242,138 @@ async def test_session_position_note_never_leaves_bede_to_compose_its_own_prayer
     note = _session_position_note(config, Subject.morning_time, today=date(2026, 7, 15))
     assert "<daily_prayer moment=\"opening\">" in note
     assert "<daily_prayer moment=\"closing\">" in note
+
+
+# ── Moment retagging + pool growth ───────────────────────────────────────────
+#
+# Before this pass, three prayers were tagged opening-only and five
+# closing-only — mechanically correct (the code always picked SOME entry
+# tagged for the moment) but too small a pool for a real school week: a
+# child heard the identical opening prayer up to 4 times in a 10-day sprint.
+# See services/prayer_catalog.py's own docstring on _DAILY_COLLECTION for
+# the honest-character reasoning behind which prayers moved.
+
+# Prayers whose actual content/liturgical shape ties them to one specific
+# end of the day — these must NEVER gain the other moment, however tempting
+# it is to keep growing the pool, or the retagging stops being honest.
+_GENUINELY_OPENING_ONLY = {"Come, Holy Spirit", "Prayer Before Study"}
+_GENUINELY_CLOSING_ONLY = {"The Blessing (Numbers 6:24-26)", "Now I Lay Me Down to Sleep",
+                           "The Grace (2 Corinthians 13:14)"}
+
+# Prayers general enough in content to honestly serve either end of the
+# day — these must carry BOTH moments, not just one, or the pool shrinks
+# back toward the problem this pass fixed.
+_GENUINELY_EITHER_MOMENT = {"Prayer of St. Francis", "Glory Be (Doxology)", "The Doxology",
+                            "The Serenity Prayer", "Let Nothing Disturb You (St. Teresa's Bookmark)"}
+
+
+async def test_genuinely_single_moment_prayers_were_not_widened():
+    by_title = {e["title"]: e for e in _DAILY_COLLECTION}
+    for title in _GENUINELY_OPENING_ONLY:
+        assert by_title[title]["moments"] == {"opening"}, title
+    for title in _GENUINELY_CLOSING_ONLY:
+        assert by_title[title]["moments"] == {"closing"}, title
+
+
+async def test_genuinely_general_prayers_serve_both_moments():
+    by_title = {e["title"]: e for e in _DAILY_COLLECTION}
+    for title in _GENUINELY_EITHER_MOMENT:
+        assert by_title[title]["moments"] == {"opening", "closing"}, title
+
+
+async def test_every_daily_prayer_is_accounted_for_in_exactly_one_honesty_bucket():
+    # A future addition that isn't sorted into one of the three buckets above
+    # is a future addition nobody actually reasoned about — this catches
+    # that omission rather than letting a new entry pass silently.
+    titles = {e["title"] for e in _DAILY_COLLECTION}
+    accounted = _GENUINELY_OPENING_ONLY | _GENUINELY_CLOSING_ONLY | _GENUINELY_EITHER_MOMENT
+    assert titles == accounted
+
+
+async def test_daily_pool_did_not_shrink_back_down():
+    # Regression floor, not a target — the fix here was measured (3->7
+    # opening, 5->8 closing); this only guards against silently losing it.
+    opening = sum(1 for e in _DAILY_COLLECTION if "opening" in e["moments"])
+    closing = sum(1 for e in _DAILY_COLLECTION if "closing" in e["moments"])
+    assert opening >= 6, opening
+    assert closing >= 6, closing
+
+
+async def test_a_ten_day_sprint_does_not_repeat_the_same_prayer_more_than_twice():
+    """The actual complaint this pass answers: a family running an
+    intense, near-daily 2-week sprint should not hear the identical
+    opening or closing prayer three or more times in that stretch.
+    Simulates a real 10-school-day run (Mon-Fri x2) the same way the
+    investigation that led to this fix did, rather than asserting an
+    abstract pool-size number."""
+    from collections import Counter
+    from datetime import timedelta
+
+    start = date(2026, 8, 3)  # a Monday
+    school_days = [start + timedelta(days=d) for d in range(14) if (start + timedelta(days=d)).weekday() < 5]
+    assert len(school_days) == 10
+
+    for moment in ("opening", "closing"):
+        titles = [daily_prayer_for(moment, today=d)["title"] for d in school_days]
+        most_repeated = max(Counter(titles).values())
+        assert most_repeated <= 2, (moment, most_repeated, titles)
+
+
+# ── The two prayers added in this pass ───────────────────────────────────────
+
+async def test_st_teresas_bookmark_is_present_and_well_formed():
+    by_title = {e["title"]: e for e in _DAILY_COLLECTION}
+    entry = by_title["Let Nothing Disturb You (St. Teresa's Bookmark)"]
+    assert "Let nothing disturb you" in entry["text_en"]
+    assert "God alone suffices" in entry["text_en"]
+    assert "Nada te turbe" in entry["text_es"]
+    assert "solo Dios basta" in entry["text_es"]
+    assert entry["tradition"] == "catholic"
+
+
+async def test_the_grace_2_corinthians_is_present_and_well_formed():
+    by_title = {e["title"]: e for e in _DAILY_COLLECTION}
+    entry = by_title["The Grace (2 Corinthians 13:14)"]
+    assert "grace of the Lord Jesus Christ" in entry["text_en"]
+    assert "fellowship of the Holy Spirit" in entry["text_en"]
+    assert "gracia del Señor Jesucristo" in entry["text_es"]
+    assert entry["tradition"] == "christian"
+    # A benediction that closes a letter has no business opening a lesson.
+    assert entry["moments"] == {"closing"}
+
+
+# ── Corrections found by cross-checking against real published sources ──────
+#
+# Regression guards for real drift this pass found and fixed — see
+# services/prayer_catalog.py's module docstring for the sourcing and the
+# full account of each. Pinned so a future edit can't silently reintroduce
+# any of them.
+
+async def test_grace_after_meals_uses_the_real_archaic_verb_forms():
+    entry = next(e for e in _COLLECTION if e["title"] == "Grace After Meals")
+    assert "livest and reignest" in entry["text_en"]
+    assert "lives and reigns" not in entry["text_en"]
+
+
+async def test_morning_offering_carries_its_real_intercessions_not_a_flat_ending():
+    entry = next(e for e in _COLLECTION if e["title"] == "Morning Offering")
+    assert "salvation of souls" in entry["text_en"]
+    assert "reparation for sin" in entry["text_en"]
+    assert "reunion of all Christians" in entry["text_en"]
+    assert "Holy Father" in entry["text_en"]
+    assert "salvación de las almas" in entry["text_es"]
+
+
+async def test_prayer_before_study_carries_the_double_darkness_and_eloquence_clauses():
+    entry = next(e for e in _DAILY_COLLECTION if e["title"] == "Prayer Before Study")
+    assert "double darkness" in entry["text_en"]
+    assert "thoroughness and charm" in entry["text_en"]
+    assert "doble oscuridad" in entry["text_es"]
+
+
+async def test_spanish_prayer_of_st_francis_carries_its_own_traditions_full_clause_set():
+    entry = next(e for e in _DAILY_COLLECTION if e["title"] == "Prayer of St. Francis")
+    assert "discordia" in entry["text_es"]
+    assert "unión" in entry["text_es"]
+    assert "error" in entry["text_es"]
+    assert "verdad" in entry["text_es"]

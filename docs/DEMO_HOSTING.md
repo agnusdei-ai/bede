@@ -367,23 +367,48 @@ itself the moment it's installed in the environment, regardless of whether
 "exceeded its memory limit" alert fired for `bede-demo-api`, triggering an
 automatic restart that made the demo briefly unreachable.
 
-`main.py`'s `_warm_voice_models()` now skips preloading `resemblyzer`
-entirely on a demo deployment (`settings.is_demo_deployment`) — voice
-biometric auth (`/voice/enroll`, `/voice/verify`, `/voice/override`) is
-parent-only and structurally unreachable by the demo's `demo_code` role
-either way, so preloading it was pure waste on this deployment shape. Be
-clear-eyed about what this buys, though: measured directly, it only trims
-~30MB of live RSS. The dominant cost (torch, ~480MB) loads regardless,
-because the demo genuinely does need faster-whisper for its own STT
-fallback, and `ctranslate2` pulls torch in the moment it's present in the
-environment — this fix doesn't eliminate that.
+**First attempt (partial).** `main.py`'s `_warm_voice_models()` skips
+preloading `resemblyzer` on a demo deployment
+(`settings.is_demo_deployment`) — voice biometric auth (`/voice/enroll`,
+`/voice/verify`, `/voice/override`) is parent-only and structurally
+unreachable by the demo's `demo_code` role either way, so preloading it was
+pure waste on this deployment shape. Measured directly, that alone only
+trimmed ~30MB of live RSS. The dominant cost (torch, ~480MB) still loaded,
+because faster-whisper was still being loaded for the demo's own STT and
+`ctranslate2` pulls torch in the moment it's present in the environment.
 
-If OOM restarts recur, the real fix is more RAM, not just no-spin-down:
-confirm current specs on Render's pricing page before upgrading — the
-Starter plan historically matches the free plan's RAM (it buys no
-spin-down, not more memory), so eliminating this specific failure mode
-needs whichever tier actually raises the memory allocation, not just the
-next plan up.
+**The actual fix (2026-08-04): stop loading a local Whisper model on this
+deployment at all.** `TRANSCRIPTION_PROVIDER=openai` (`render.yaml`, see
+`core/config.py`) routes speech-to-text to OpenAI's transcription API, and
+nothing on that path imports `faster_whisper` — so `ctranslate2` never
+runs, torch never imports, and the ~480MB simply is not paid. Both
+`main.py`'s warm-up and `services/transcription.py`'s `preload()` check
+before touching the model, deliberately twice, so the saving never depends
+on one call site staying correct.
+
+Why this is the right trade **for the demo specifically and nowhere else**:
+this deployment already sends the whole conversation to OpenAI's chat
+models and already uses OpenAI for TTS, so transcribing locally was buying
+a privacy property it does not claim. A family's self-hosted instance does
+claim it — a child's voice staying on their own LAN is the entire premise
+— so `core/config.py`'s default stays `local` and a deployment has to opt
+in by name. It is also a disclosure change: `demo/public/privacy.html` and
+`privacy.es.html`, `docs/RETENTION_POLICY.md`, and
+`docs/INFORMATION_SECURITY_POLICY.md` §5 were all updated in the same
+change, since a new category of a visitor's data now reaches a third party.
+
+**Why this mattered beyond uptime.** `services/streaming_transcription.py`
+keeps its sessions in memory in a single process, so each OOM restart
+destroyed every in-flight child's voice turn. From the tablet that arrives
+as `startVoiceStream failed: Load failed` and a mic that appears broken —
+so the memory limit was showing up in bug reports as a voice bug, and
+being chased as one. See `docs/VOICE_SETUP.md`.
+
+If OOM restarts recur even so, the remaining fix is more RAM, not just
+no-spin-down: confirm current specs on Render's pricing page before
+upgrading — the Starter plan historically matches the free plan's RAM (it
+buys no spin-down, not more memory), so that would need whichever tier
+actually raises the memory allocation, not just the next plan up.
 
 ## Expecting a crowd? (public events, ~100 simultaneous users)
 
@@ -405,11 +430,65 @@ backend is the part to prepare:
    large room, `RATE_LIMIT_API_PER_MINUTE`) as environment variables on
    `bede-demo-api` and let it restart; no code change involved. Or have
    attendees use cellular data.
-3. **Anthropic rate limits are the real concurrency ceiling** for chat:
-   each active conversation is a streaming request against your API key's
-   tier. Check your organization's limits before the event; the demo
-   persists nothing, so the backend itself (async FastAPI, SSE) is not
-   the bottleneck.
+3. **Your AI provider's rate limits are the real concurrency ceiling**
+   for chat: each active conversation is a streaming request against your
+   API key's tier. For this deployment that is OpenAI first, with the
+   configured backup behind it (`BEDE_ADAPTER_ORDER` in `render.yaml` —
+   not Anthropic unless you have selected it, see
+   docs/PROVIDER_ADAPTERS.md). Check your organization's limits before the
+   event; the demo persists nothing, so the backend itself (async FastAPI,
+   SSE) is not the bottleneck.
+
+### What simultaneous microphone users actually cost
+
+Worth its own note, because the intuition ("20 kids talking at once = 20
+transcriptions at once") is wrong in a way that matters.
+
+**They do not overlap the way they appear to.** With
+`TRANSCRIPTION_PROVIDER=openai`, live partial passes are skipped entirely
+(see `services/transcription.py`'s `partial_passes_are_affordable`), so a
+session makes exactly **one** transcription request, at the moment the
+child releases the mic. While twenty children are holding the button, the
+server is only appending uploaded bytes to a buffer. The requests fire as
+each child finishes, and children do not release in lockstep.
+
+**Even if they did**, `services/transcription.py`'s pooled client caps this
+process at 10 concurrent requests to OpenAI (`max_connections`), and an
+eleventh **waits for a free connection rather than failing** — bounded by
+the 30-second request timeout. Twenty simultaneous releases means ten go
+out and ten wait roughly one extra request's worth of time.
+
+**Memory per session** is 16kHz 16-bit mono PCM: ~32KB per second of audio
+held. A typical 10-second answer is ~320KB; the 120-second safety cap
+(`HOLD_SAFETY_TIMEOUT_MS`) is ~3.8MB. Twenty concurrent sessions is
+therefore ~6MB realistically and ~77MB in the pathological case where every
+one of them runs to the cap. That is comfortable against the headroom this
+deployment now has — and was **not** comfortable before, when torch was
+consuming it (see the memory section above). Skipping partials also removes
+the per-tick buffer copy that used to accompany them, so the growing buffer
+is now wrapped into a WAV once per turn rather than once every four
+seconds per session.
+
+**The ceiling you will actually hit first is the per-IP rate limit**, and
+only in one specific situation. `RATE_LIMIT_VOICE_PER_MINUTE` (default 20)
+governs *starting* a stream and `RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE`
+(default 120) governs the chunk/finish/events traffic of an already-started
+one — both **per IP address**. Twenty visitors on their own phones and home
+networks are twenty different IPs and nowhere near either. Twenty visitors
+sharing one venue's Wi-Fi are **one** IP: their first turn alone consumes
+the entire 20/minute start budget, and their chunk traffic runs at roughly
+80/minute against the 120 ceiling. For a shared-network event, raise both
+from Render's dashboard alongside the auth limits in point 2 — same
+mechanism, no code change.
+
+**On a self-hosted family instance the answer is different**, because
+`local` transcription is CPU-bound and `VOICE_TRANSCRIPTION_MAX_CONCURRENCY`
+defaults to 1: simultaneous holds queue and each pass re-transcribes the
+whole buffer, which is the compounding stall documented in
+docs/VOICE_SETUP.md's transcription-delay section. That default is right for
+one family at one kitchen table; a co-op running many tablets at once should
+raise it on hardware with real cores to spare, or accept that voice turns
+serialize.
 
 ## Staying up to date
 

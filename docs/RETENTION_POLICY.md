@@ -17,7 +17,7 @@ the commitment and `docs/DATA_RETENTION.md` (plus the code it cites) is
 how to verify it's being kept.
 
 Responsible individual: see `docs/INFORMATION_SECURITY_POLICY.md` §2.
-Last reviewed: 2026-08-03.
+Last reviewed: 2026-08-04.
 
 ## Scope
 
@@ -37,7 +37,7 @@ to that data and sets no retention policy over it.
 | Current-unit note — optional | Let Bede anchor that one session on what the family is already learning, instead of only its own bundled curriculum | 6 hours from creation, or immediately on logout | Same mechanism as above |
 | Church-tradition note — optional | Frame that one session's Scripture/Saints content consistently with the family's own tradition, instead of assuming one | 6 hours from creation, or immediately on logout | Same mechanism as above |
 | The conversation itself | Generate that turn's response | **Never stored.** Exists only in transit and in-process memory for the duration of one turn | Nothing to delete — no row is ever created |
-| Voice audio, if the microphone is used | Transcribe speech to text for that turn; synthesize Bede's spoken reply | **Never stored.** Processed for the live turn only | Nothing to delete — no row is ever created |
+| Voice audio, if the microphone is used | Transcribe speech to text for that turn (sent to OpenAI, see below); synthesize Bede's spoken reply | **Never stored**, by us or by OpenAI. Passes through our server for the live turn only | Nothing to delete — no row is ever created |
 | Anonymized interaction-pattern signals (which tools fired, turn counts, subjects visited) | Understand, in aggregate, which teaching patterns work well | 30 days from creation | **Automatic background purge**, run every few hours for the life of the backend process (`main.py`'s periodic purge task calling `services/interaction_signals.purge_old_signals()`) |
 | Diagnostic-preview rate-limit record (hashed visitor IP) | Prevent abuse of a public preview feature | Rolling 30-day window | Read-time filtering plus opportunistic cleanup (`core/diagnostic_preview_quota.py`) |
 | Feedback message + optional reply email | Read and, if requested, reply to the feedback | **Never persisted to any database.** Exists only as one outbound email via Resend to the operator's own inbox | Nothing to delete — no row is ever created |
@@ -84,6 +84,29 @@ Any future change to which AI vendor is primary OR secondary must update
 this policy, `docs/INFORMATION_SECURITY_POLICY.md` §5, and the public
 notice in the same change — that is the actual commitment this section
 records, not just the one 2026-08-03 fix.
+
+**2026-08-04 — microphone audio now goes to OpenAI, not only to our own
+server.** Until this date the demo transcribed voice input in its own
+backend process (faster-whisper), and this policy and the public notice
+both said so. That backend now sends the audio to OpenAI's transcription
+API instead (`TRANSCRIPTION_PROVIDER=openai` in `render.yaml`), so a new
+category of a visitor's data reaches a third party and both documents have
+been updated to say so plainly rather than leaving the old wording to go
+quietly stale.
+
+The reason is a memory failure rather than a preference: faster-whisper's
+`ctranslate2` backend imports torch (~480MB of RSS on import alone)
+whenever torch is present, which put `bede-demo-api` at 642MB against the
+free plan's 512MB cap and got it OOM-killed repeatedly, taking every
+in-flight child's voice turn down with it. This is scoped to the public
+demo only. A family's self-hosted instance keeps transcribing locally —
+that is the entire point there, and `core/config.py`'s default is
+unchanged, so a family has to opt in by name to change it.
+
+Note what this does and does not change about retention: the audio is
+still never stored, by us or by OpenAI, which processes it as our service
+provider for that one turn and does not use it to train its models. What
+changed is **who processes it**, not **how long anyone keeps it**.
 
 ## Review schedule
 

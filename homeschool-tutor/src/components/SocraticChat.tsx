@@ -181,8 +181,22 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     const micErrorKey =
       micError === 'permission-denied' ? 'chat.micPermissionDenied'
       : micError === 'no-speech-heard' ? 'chat.micNoSpeechHeard'
+      : micError === 'network' ? 'chat.micNetworkUnavailable'
       : 'chat.micUnavailable'
-    addToolMessage('error', `⚠️ ${t(micErrorKey)}`)
+    const content = `⚠️ ${t(micErrorKey)}`
+    // Whatever is wrong with the mic is usually still wrong on the next
+    // press, so an unguarded addToolMessage stacks the same warning card
+    // again and again — a real trace had a dropped connection produce one
+    // identical card per attempt, burying the lesson under its own error
+    // message. Only an IMMEDIATE repeat is suppressed: once Bede or the
+    // child has said anything since, the same warning is new information
+    // again rather than a duplicate. Read live from the store (not the
+    // `displayMessages` closure) so it reflects anything this same render
+    // pass added, and skipping the always-present empty streaming slot.
+    const lastSaid = [...useSessionStore.getState().displayMessages]
+      .reverse()
+      .find((m) => m.id !== 'streaming-response' || m.content)
+    if (lastSaid?.content !== content) addToolMessage('error', content)
     clearMicError()
     if (!isContinuous) return
     consecutiveVoiceFailuresRef.current += 1

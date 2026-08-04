@@ -259,7 +259,7 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
     }
   })
 
-  it('surfaces unavailable only after every retry attempt is exhausted', async () => {
+  it('surfaces an error only after every retry attempt is exhausted', async () => {
     vi.useFakeTimers()
     startVoiceStream.mockRejectedValue(new Error('Load failed'))
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
@@ -272,8 +272,93 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
       })
 
       expect(startVoiceStream).toHaveBeenCalledTimes(2)
-      expect(result.current.micError).toBe('unavailable')
+      expect(result.current.micError).toBeTruthy()
       expect(result.current.isListening).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('hands the microphone back when it gives up on opening a session', async () => {
+    // The bug this pins: the give-up path returned to idle without stopping
+    // the recorder this turn had already started. The mic kept capturing for
+    // an abandoned turn — the OS recording indicator stayed lit over an
+    // idle-looking button — and, because a still-running recorder refuses to
+    // start another one, every later press did nothing at all. A momentary
+    // connection blip therefore killed voice input for the rest of the
+    // session. Taken from a real debug-panel trace: four presses after the
+    // failure, none of which reached the recorder.
+    vi.useFakeTimers()
+    startVoiceStream.mockRejectedValue(new Error('Load failed'))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    try {
+      await act(async () => {
+        result.current.startHold()
+        await vi.advanceTimersByTimeAsync(0)
+        await vi.advanceTimersByTimeAsync(500)
+      })
+
+      expect(startRecording).toHaveBeenCalledTimes(1)
+      expect(stopRecording).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('hands the microphone back when there is no token to open a session with', async () => {
+    // Same leak, the other route into it — this path never even tries the
+    // network, so it must not leave the mic capturing either.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: null }))
+
+    await act(async () => {
+      result.current.startHold()
+      await flush()
+    })
+
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    expect(stopRecording).toHaveBeenCalledTimes(1)
+  })
+
+  it('blames the connection, not the microphone, when the request never reached a server', async () => {
+    // fetch() rejects with a TypeError for every transport-level failure
+    // ("Load failed" on Safari, "Failed to fetch" on Chrome). The mic is
+    // working perfectly in that case, so telling a family "something's wrong
+    // with the microphone" sends them off checking browser permissions for a
+    // problem that is really just a dropped connection.
+    vi.useFakeTimers()
+    startVoiceStream.mockRejectedValue(new TypeError('Load failed'))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    try {
+      await act(async () => {
+        result.current.startHold()
+        await vi.advanceTimersByTimeAsync(0)
+        await vi.advanceTimersByTimeAsync(500)
+      })
+
+      expect(result.current.micError).toBe('network')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('still reports an unavailable mic when the SERVER refused the session', async () => {
+    // The complement of the case above: api.ts rejects with a plain Error
+    // carrying our own text when a response really did come back and was not
+    // ok. That is not a connection problem, so it must not claim to be one.
+    vi.useFakeTimers()
+    startVoiceStream.mockRejectedValue(new Error('Could not start voice streaming'))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    try {
+      await act(async () => {
+        result.current.startHold()
+        await vi.advanceTimersByTimeAsync(0)
+        await vi.advanceTimersByTimeAsync(500)
+      })
+
+      expect(result.current.micError).toBe('unavailable')
     } finally {
       vi.useRealTimers()
     }

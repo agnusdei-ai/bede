@@ -63,11 +63,12 @@ that vendor's own privacy policy and terms yourself — this document
 describes what Bede sends, not what any given vendor does with it
 afterward.
 
-## OpenAI — optional, two independent features
+## OpenAI — optional, three independent features
 
-Both are gated behind `OPENAI_API_KEY`; leaving it unset disables both,
-and each is independently a real network call vs. a purely local one —
-worth not conflating:
+All three are gated behind `OPENAI_API_KEY`; leaving it unset disables
+all of them. They are worth not conflating, because one of them is a
+real network call in every configuration, one never is, and one depends
+on a setting:
 
 - **Text-to-speech (`services/voice_synthesis.py`), a real API call.**
   When configured, **Bede's own spoken lines** (not the child's messages)
@@ -75,12 +76,31 @@ worth not conflating:
   `gpt-4o-mini-tts` by default, configurable voice/instructions) to
   synthesize the audio the child hears. Nothing the child said is ever
   part of this payload.
-- **Voice enrollment transcription (`services/transcription.py`), NOT a
-  network call.** Despite the name, this uses the open-source
+- **Speech-to-text (`services/transcription.py`) — local by default, a
+  real API call only if you ask for it.** This is what turns a child's
+  microphone audio into the text Bede answers. On the default
+  (`TRANSCRIPTION_PROVIDER=local`) it uses the open-source
   `faster-whisper` package (Whisper model weights, CTranslate2 runtime)
-  running locally on your own server — no audio, and no data at all,
-  leaves your machine for this feature. It shares a vendor name with the
-  item above but not a data-flow path.
+  running on your own server: **no audio, and no data at all, leaves your
+  machine.** That default is the right one for a self-hosted family and
+  is what a `make setup` install gets.
+
+  Setting `TRANSCRIPTION_PROVIDER=openai` changes that materially: the
+  recorded audio is POSTed to
+  `https://api.openai.com/v1/audio/transcriptions` (model
+  `gpt-4o-mini-transcribe` by default) and the child's voice therefore
+  leaves your network. It exists because `ctranslate2` imports torch
+  (~480MB of RSS on import alone) whenever torch is present, which is
+  more memory than a small cloud instance has — see
+  `docs/DEMO_HOSTING.md`'s memory section. **The public demo at
+  agnusdei.io runs on this setting** (`render.yaml`), which is why its
+  Privacy Notice names OpenAI for voice; a deployment that already sends
+  the whole conversation to a cloud model is not buying privacy from
+  transcribing locally. A family's own instance is not on this setting
+  unless they set it by name.
+- **Chat completions (`services/adapters/openai_compatible_adapter.py`),
+  a real API call when OpenAI is in the adapter order.** Covered under
+  "the AI provider" above rather than repeated here.
 
 ## Resend — optional, transactional email only
 

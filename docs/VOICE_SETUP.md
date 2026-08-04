@@ -252,7 +252,8 @@ bad connectivity, since nothing about the failure was self-healing.
 Fix: `useHybridVoiceInput.ts`'s `_start()` (both `homeschool-tutor` and the
 demo — the two files are kept as intentional mirrors of each other) now
 retries `startVoiceStream()` once, after a short `START_STREAM_RETRY_DELAY_MS`
-(500ms) delay, before surfacing `unavailable` — the same "one quick retry
+(500ms) delay, before surfacing an error at all (`network` now rather than
+`unavailable` — see the follow-up section below) — the same "one quick retry
 before giving up" reasoning `services/voice_synthesis.py`'s OpenAI TTS call
 already applies on the backend side for the identical class of transient
 failure. `pushVoiceStreamChunk`/`finishVoiceStream` deliberately keep their
@@ -266,6 +267,175 @@ shows two failed `startVoiceStream` attempts in a row for the same hold
 (not just one), that's a real, sustained connectivity problem on that
 device/network, not something a client-side retry can paper over — check
 whether the server itself is reachable at all from that device.
+
+## Troubleshooting: after a run of `Load failed`, the mic button stops doing anything at all — and the phone still shows the recording indicator
+
+The follow-up to the section above, from a second real debug-panel trace on
+the public demo. The connection blip itself was genuine and the retry above
+worked as designed, but the trace showed three separate problems the moment
+the retry was exhausted — and the third is why "the connection dropped for
+20 seconds" turned into "voice input is dead for the rest of the lesson."
+
+The tell, in the trace itself:
+
+```
+[225067ms] _start() attempt=7
+[225068ms] useVoiceRecorder.startRecording()
+[225152ms] startVoiceStream failed: Load failed (attemptsLeft=1)
+[225841ms] startVoiceStream failed: Load failed (attemptsLeft=0)
+[235865ms] _start() attempt=8            ← no startRecording() line
+[243038ms] _start() attempt=9            ← no startRecording() line
+[246383ms] _start() attempt=10           ← no startRecording() line
+```
+
+Attempt 7 logged `useVoiceRecorder.startRecording()`; attempts 8, 9 and 10
+did not. Every press after the first failure was reaching `_start()` and
+then never reaching the recorder at all.
+
+**1. The give-up path never handed the microphone back.** `_start()` starts
+the recorder immediately (the audio has to be captured from the instant of
+the press) and opens the streaming session over the network afterwards.
+When that session could not be opened, `_start()` cleared its timers and
+set the mode to `idle` — but never called `recorder.stopRecording()`. The
+microphone stayed live, capturing into a buffer for a turn that had already
+been abandoned. On iOS that is visible: the orange recording dot stays lit
+over an app whose mic button looks idle. The `!token` branch had the same
+omission. Both now stop the recorder.
+
+**2. That orphaned recording then blocked every later press.**
+`useVoiceRecorder.startRecording()` refuses to start a second recording
+while one is already running — correct in itself, and exactly what made the
+first problem permanent instead of momentary. With a recording nobody would
+ever stop, the guard rejected every subsequent press silently: the child
+held the button, spoke, released, and nothing whatsoever happened. That is
+the missing `startRecording()` line in the trace above.
+
+The same guard had a second way in, independent of any network failure.
+`startRecording()` is asynchronous — it awaits `getUserMedia()` — so a
+short hold can reach `stopRecording()` while the microphone is still
+opening. `stopRecording()` then found every ref still null and took its
+early return, and the pending `getUserMedia()` resolved a moment later and
+built a live audio graph with nothing left that could stop it: the same
+orphaned-recording state, arrived at from an ordinary quick tap on a slow
+connection. `useVoiceRecorder.ts` now carries a generation counter that
+`stopRecording()` bumps and `startRecording()` re-checks after the await,
+so a stream granted after its turn ended is handed straight back instead of
+being wired up. Its "am I already recording" guard also reads a ref set
+synchronously at the top of `startRecording()` rather than the React
+`isRecording` state, which only flips true once the graph is live — the
+state could not cover the window where the problem actually happened, and
+a state update that never landed used to latch the button off for good.
+
+**3. The message blamed the microphone for a network problem.** All of the
+above surfaced as *"I can't hear you right now — something's wrong with the
+microphone"*, which sends a family off checking browser permissions for a
+microphone that was working perfectly. `MicError` now has a `network`
+value, chosen when the rejection came from the transport layer rather than
+from a server (`fetch()` rejects with a `TypeError` for every transport
+failure — `"Load failed"` on Safari, `"Failed to fetch"` on Chrome,
+`"NetworkError…"` on Firefox), and it reads *"we lost the connection for a
+moment. Try holding the mic again, or type your answer instead."* A real
+non-2xx response from the server still reports `unavailable` as before.
+Both strings are localized in `en.json` and `es.json` for both apps.
+
+**Also fixed alongside: the same warning stacking up.** Whatever is wrong
+with the mic is usually still wrong on the next press, so each attempt
+appended another identical warning to the conversation — the reported
+screenshot showed the lesson buried under repeats of the same bubble.
+`SocraticChat.tsx` and the demo's `App.tsx` now skip an error that is
+already the most recent thing on screen. Only an *immediate* repeat is
+suppressed: once Bede or the child has said anything since, the same
+warning is new information again rather than a duplicate.
+
+All of it is mirrored across `homeschool-tutor` and `demo` (the voice hooks
+are intentional mirrors of each other), and pinned by tests in
+`useVoiceRecorder.test.ts` and `useHybridVoiceInput.test.ts` in both apps —
+including that the recorder is stopped on both give-up paths, that a stream
+granted after the turn ended is released rather than wired up, and that the
+next press after either failure genuinely reopens the microphone.
+
+**And the cause underneath all of it, on the public demo: the backend was
+being OOM-killed.** Everything above makes the client recover honestly from
+a backend that vanishes mid-lesson. It does not stop the backend vanishing.
+On `bede-demo-api` it was vanishing on a schedule, and the thing consuming
+the memory was the voice stack itself — `faster-whisper`'s `ctranslate2`
+backend imports torch (~480MB of RSS on import alone), putting the process
+at 642MB warmed against Render's 512MB free-tier cap. Because
+`services/streaming_transcription.py` keeps its sessions in memory in a
+single process, every one of those restarts destroyed every in-flight
+child's voice turn, which reaches the tablet as exactly the `Load failed`
+run above.
+
+That is why the same symptom kept coming back with a different explanation
+each time: two independent causes were producing one message, and the
+message blamed the microphone for both. The memory half is fixed by
+`TRANSCRIPTION_PROVIDER=openai` on that deployment — see the section below.
+
+## Where speech-to-text actually runs (`TRANSCRIPTION_PROVIDER`)
+
+`core/config.py`'s `transcription_provider` selects the backend behind
+`services/transcription.py`'s single `transcribe_audio()`:
+
+- **`local` (the default).** `faster-whisper` runs in the API process. This
+  is the right setting for a family, and it is not a performance
+  preference: the premise of self-hosting Bede is that a child's voice
+  never leaves the house. Every `WHISPER_*` knob applies only here. A
+  deployment that never touches this setting behaves exactly as it always
+  has.
+- **`openai`.** The recorded audio is POSTed to
+  `https://api.openai.com/v1/audio/transcriptions`
+  (`OPENAI_TRANSCRIPTION_MODEL`, default `gpt-4o-mini-transcribe`), and
+  **nothing imports `faster_whisper` at all** — which is the entire point.
+  The saving is the import that does not happen, not the inference that
+  gets moved, so both `main.py`'s warm-up and `preload()` check before
+  touching the model rather than relying on one of them.
+
+The public demo runs on `openai` (`render.yaml`) for the memory reason
+above: it already sends the whole conversation to OpenAI's chat models and
+already uses OpenAI for TTS, so local transcription there was paying 480MB
+for a privacy property that deployment does not claim. **Turning this on is
+a disclosure change** wherever a deployment publishes one — the demo's
+Privacy Notice (both languages), `docs/RETENTION_POLICY.md`,
+`docs/INFORMATION_SECURITY_POLICY.md` §5 and `docs/VENDOR_DATA_FLOW.md`
+were all updated in the same change.
+
+Misconfiguration fails at boot rather than at the first child who presses
+the mic: an unrecognized value, or `openai` with no `OPENAI_API_KEY`, both
+raise from `core/config.py`. There is deliberately no silent fallback to
+the local model on the `openai` setting, since falling back would
+reintroduce the import the setting exists to avoid.
+
+Two things this does NOT change on a local deployment: the concurrency
+semaphore (`VOICE_TRANSCRIPTION_MAX_CONCURRENCY`) still serializes local
+inference, which the OpenAI path does not need because an HTTP request
+isn't competing for the same CPU cores; and voice biometric child
+authentication (`services/voice_auth.py`) is untouched by this setting
+entirely — it is a different model, on a different path, and it is
+parent-only.
+
+### One thing the `openai` backend deliberately gives up: live partials
+
+`services/streaming_transcription.py` re-transcribes the **whole growing
+buffer** on every pass, because nothing here has an incremental mode. On
+`local` that is CPU we already own and are not otherwise using mid-hold, so
+a discarded preview is close to free and is capped by duration
+(`VOICE_PARTIAL_MAX_SECONDS`) rather than forbidden.
+
+Against a metered API the same behaviour is a real, recurring cost: at the
+client's 4-second chunk cadence a 20-second answer would become roughly
+**five billed requests, each re-uploading everything captured so far**, and
+four of the five are discarded the moment the final pass lands. So on any
+non-local backend the worker skips partial passes entirely
+(`services/transcription.py`'s `partial_passes_are_affordable()`).
+
+What the child loses is the live word-by-word settle while they are still
+talking — they still see "Transcribing…" and then their words, which is
+already exactly what happens on any hold shorter than one chunk interval.
+**The final pass is never skipped on either backend**, so what actually
+reaches Bede is identical; only the preview differs. Both halves are pinned
+by `tests/test_transcription_provider.py`, including that partials still
+run on `local` — so this cost fix can't quietly become a downgrade for
+self-hosted families.
 
 ## Troubleshooting: "Transcribing…" sits for a while after releasing the mic
 

@@ -899,8 +899,20 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
     const micErrorKey =
       micError === 'permission-denied' ? 'chatScreen.micPermissionDenied'
       : micError === 'no-speech-heard' ? 'chatScreen.micNoSpeechHeard'
+      : micError === 'network' ? 'chatScreen.micNetworkUnavailable'
       : 'chatScreen.micUnavailable'
-    setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t(micErrorKey)}` }])
+    const content = `⚠️ ${t(micErrorKey)}`
+    setMessages((prev) => {
+      // Whatever is wrong with the mic is usually still wrong on the next
+      // press, so an unguarded append stacks the same warning again and
+      // again — a real trace had a dropped connection produce one identical
+      // bubble per attempt, burying the conversation under its own error
+      // message. Only suppress an immediate repeat: once Bede or the child
+      // has said anything since, the same warning is new information again
+      // rather than a duplicate.
+      if (prev[prev.length - 1]?.content === content) return prev
+      return [...prev, { id: `err-${Date.now()}`, role: 'system', content }]
+    })
     clearMicError()
   }, [micError, clearMicError, t])
 

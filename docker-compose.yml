@@ -158,6 +158,13 @@ services:
       # "Transcribing…" takes too long, so they have to actually work.
       # VOICE_THRESHOLD_* govern speaker verification: above HIGH passes,
       # between MEDIUM and HIGH asks a parent, below MEDIUM fails.
+      # TRANSCRIPTION_PROVIDER picks WHERE speech-to-text runs: "local"
+      # (faster-whisper in-process, the default, and the only correct
+      # answer for a family whose whole point is that a child's voice
+      # never leaves the LAN) or "openai". The WHISPER_* knobs below
+      # only do anything on "local".
+      - TRANSCRIPTION_PROVIDER=${TRANSCRIPTION_PROVIDER:-local}
+      - OPENAI_TRANSCRIPTION_MODEL=${OPENAI_TRANSCRIPTION_MODEL:-gpt-4o-mini-transcribe}
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
       - WHISPER_BEAM_SIZE=${WHISPER_BEAM_SIZE:-1}
       - WHISPER_VAD_FILTER=${WHISPER_VAD_FILTER:-false}

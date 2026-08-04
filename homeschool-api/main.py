@@ -31,27 +31,34 @@ async def _warm_voice_models():
     package/model isn't installed, and all of them stay lazy anyway — this
     task just fires them early, off the event loop, without delaying boot.
 
-    Resemblyzer speaker verification is skipped entirely on a demo
-    deployment (settings.is_demo_deployment): core/deps.py's require_parent
-    and require_real_user both reject the "demo_code" role outright, and
-    /voice/enroll, /voice/verify, and /voice/override are the ONLY callers
-    of services/voice_auth.py's encoder — so on this deployment shape the
-    model is structurally unreachable by any request that can ever occur,
-    and preloading it is pure waste on principle.
+    Two skips here, and together they are what keeps torch out of this
+    process entirely — which is the only thing that actually moves the
+    memory number.
 
-    Don't overestimate what this alone saves, though: measured directly,
-    skipping it only trims ~30MB of live RSS (642MB vs 674MB, both fully
-    warmed). The dominant memory cost — PyTorch, ~480MB just to import —
-    loads regardless, because ctranslate2 (services/transcription.py's
-    faster-whisper backend, which the demo DOES need for its STT fallback)
-    opportunistically imports torch itself whenever it's installed in the
-    environment, and torch is a hard dependency of resemblyzer either way.
-    So this process still sits close to Render's free-tier 512MB web-service
-    memory limit even with this skip in place — see docs/DEMO_HOSTING.md
-    for the actual mitigation (a larger Render plan) for a real "exceeded
-    its memory limit" OOM incident on bede-demo-api. A family's self-hosted
-    instance never sets DEMO_PIN, so this leaves real voice biometric child
-    authentication completely untouched there.
+    Resemblyzer speaker verification is skipped on a demo deployment
+    (settings.is_demo_deployment): core/deps.py's require_parent and
+    require_real_user both reject the "demo_code" role outright, and
+    /voice/enroll, /voice/verify, and /voice/override are the ONLY callers
+    of services/voice_auth.py's encoder — so on that deployment shape the
+    model is structurally unreachable by any request that can ever occur.
+
+    Whisper is skipped whenever speech-to-text isn't running in this process
+    at all (services/transcription.py's uses_local_model — see
+    settings.transcription_provider). That skip is the load-bearing one.
+    Measured directly, skipping resemblyzer ALONE only trimmed ~30MB of live
+    RSS (642MB vs 674MB, both fully warmed): the dominant cost is PyTorch at
+    ~480MB just to import, and ctranslate2 (faster-whisper's backend) pulls
+    torch in itself whenever torch is present in the environment, so as long
+    as the local Whisper model was still being loaded, torch loaded too and
+    the process stayed over Render's free-tier 512MB web-service limit. It
+    was OOM-killed there for real (see docs/DEMO_HOSTING.md's memory
+    section), and because services/streaming_transcription.py holds its
+    sessions in memory in a single process, every restart took every
+    in-flight child's voice turn down with it.
+
+    A family's self-hosted instance sets neither DEMO_PIN nor
+    TRANSCRIPTION_PROVIDER, so both models still preload exactly as before
+    and real voice biometric child authentication is untouched.
     """
     from services import transcription, voice_auth, voice_synthesis
 
@@ -59,7 +66,13 @@ async def _warm_voice_models():
     try:
         if not settings.is_demo_deployment:
             await loop.run_in_executor(None, voice_auth.preload)
-        await loop.run_in_executor(None, transcription.preload)
+        if transcription.uses_local_model():
+            await loop.run_in_executor(None, transcription.preload)
+        else:
+            log.info(
+                "Speech-to-text runs on the '%s' backend — skipping the local Whisper warm-up",
+                settings.transcription_provider,
+            )
         await voice_synthesis.preload()
         log.info("Voice model warm-up finished")
     except Exception:
@@ -233,8 +246,9 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
     log.info("Database connections closed")
 
-    from services import email_service, voice_synthesis
+    from services import email_service, transcription, voice_synthesis
     await voice_synthesis.aclose_http_client()
+    await transcription.aclose_http_client()
     await email_service.aclose_http_client()
     log.info("Pooled HTTP clients closed")
 

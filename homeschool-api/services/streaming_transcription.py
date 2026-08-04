@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import AsyncIterator, Optional
 
 from core.config import settings
-from services.transcription import transcribe_audio
+from services.transcription import partial_passes_are_affordable, transcribe_audio
 
 log = logging.getLogger(__name__)
 
@@ -161,11 +161,34 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
     while True:
         await session.new_audio.wait()
         session.new_audio.clear()
+        is_finished = session.finished
+        if not is_finished and not partial_passes_are_affordable():
+            # A metered transcription backend bills per pass and re-uploads
+            # the whole growing buffer each time, so a preview that is
+            # discarded the moment the final pass lands is not worth several
+            # extra billed requests per turn — see that helper's own comment.
+            #
+            # Checked BEFORE building the snapshot below, deliberately.
+            # _wav_from_pcm16(bytes(session.pcm)) copies the entire growing
+            # buffer — at 16kHz 16-bit that is ~32KB per second of audio,
+            # twice over (the bytes() copy and the WAV it wraps), on every
+            # chunk tick. Doing that and then discarding it would cost, at a
+            # roomful of concurrent sessions, tens of megabytes of pure
+            # allocation churn every few seconds on an instance chosen for
+            # having little memory to spare. Skipping the pass has to mean
+            # skipping the work that feeds it, not just the request.
+            #
+            # The FINAL pass is untouched, here as below: what actually
+            # reaches Bede never depends on this.
+            log.debug(
+                "streaming_transcription: session=%s skipping partial (metered backend)",
+                session_id,
+            )
+            continue
         # Whichever protocol this session's client is speaking. The delta
         # path is preferred when there is any PCM at all; a session only ever
         # uses one, since the client does not mix them.
         audio_snapshot = _wav_from_pcm16(bytes(session.pcm)) if session.pcm else session.audio
-        is_finished = session.finished
         text = ""
         # faster-whisper has no incremental mode, so EVERY pass re-transcribes
         # the whole buffer from the start. Across a long hold that is O(N^2)

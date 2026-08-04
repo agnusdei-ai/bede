@@ -47,8 +47,8 @@
   <strong>In short:</strong> we never store the conversation itself. We do store, briefly,
   the name/grade you optionally provide and anonymized structural signals about how the
   session went (which tools were used, how many turns, which subjects) — never what was
-  actually said. If you use the microphone, your audio is transcribed to text for that
-  turn only and is not stored. Feedback is entirely optional, and we never ask a child
+  actually said. If you use the microphone, your audio is sent to OpenAI to be transcribed
+  into text for that turn only, and is not stored by us or by them. Feedback is entirely optional, and we never ask a child
   for their own email address.
 </div>
 
@@ -69,8 +69,8 @@
   </tr>
   <tr>
     <td>Your voice, if you use the microphone <em>(optional)</em></td>
-    <td>Transcribed to text on our own server so Bede can respond to what you said; Bede's own spoken reply is synthesized by OpenAI's text-to-speech service</td>
-    <td><strong>Never stored.</strong> Processed only for the live turn, then discarded.</td>
+    <td>Sent to OpenAI's transcription service to be turned into text so Bede can respond to what you said; Bede's own spoken reply is synthesized by OpenAI's text-to-speech service</td>
+    <td><strong>Never stored</strong>, by us or by OpenAI. It passes through our server to OpenAI for the live turn and is then discarded. OpenAI processes it as our service provider and does not use it to train its models.</td>
   </tr>
   <tr>
     <td>Anonymized interaction-pattern signals — which tutoring tools fired, turn counts, which subjects were visited/completed</td>
@@ -138,9 +138,10 @@
     by default, or Claude (Anthropic) if we've configured that as the backup instead — so Bede
     can generate its tutoring responses. Never stored by us and never used by any of these
     providers to train their models, per their own terms.</li>
-  <li><strong>Your voice, if you use the microphone</strong> <em>(optional)</em> — the audio is
-    sent to our own server to transcribe it into text, and is not stored beyond that one turn.
-    Bede's own spoken reply is generated as audio by OpenAI's text-to-speech service.</li>
+  <li><strong>Your voice, if you use the microphone</strong> <em>(optional)</em> — the audio
+    passes through our server to OpenAI's transcription service to be turned into text, and is
+    not stored beyond that one turn by us or by OpenAI. Bede's own spoken reply is generated as
+    audio by OpenAI's text-to-speech service.</li>
   <li><strong>Anonymized interaction-pattern signals</strong> (which teaching tools were used, how
     many turns, which subjects) — cryptographically keyed so it cannot be traced back to your
     child, and never includes anything that was actually said.</li>
@@ -167,7 +168,7 @@
   <li>Generate Bede's tutoring responses and spoken voice (via OpenAI, with a configured backup
     — Mistral by default, or Claude/Anthropic instead — for text responses only, if OpenAI is
     briefly unavailable).</li>
-  <li>Transcribe your microphone audio into text, on our own server, so Bede can respond to it.</li>
+  <li>Transcribe your microphone audio into text, via OpenAI, so Bede can respond to it.</li>
   <li>Understand, in aggregate and anonymized form, which teaching patterns work well, so we
     can improve Bede.</li>
   <li>Reply to a parent or guardian who has asked us to.</li>

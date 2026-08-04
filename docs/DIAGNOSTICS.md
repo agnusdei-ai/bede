@@ -69,10 +69,26 @@ product, so the buffer is built to be safe to photograph:
   request to `/pod/configs?student=Emma` records `/pod/configs`. Pinned by
   test.
 - **Headers and bodies are never recorded** — so no `Authorization`
-  token, no lesson text, no narration, no child's message.
+  token, no narration, and **nothing the child said or typed**.
 - Nothing is transmitted anywhere. The buffer lives in memory in that one
   tab and dies with it. It is not sent to a server, not persisted, and not
   included in feedback submissions.
+
+**One exception, stated precisely rather than glossed.** The pre-existing
+voice tracing in `useTextToSpeech.ts` records a 42-character preview of
+**Bede's own generated speech** — `TTS speak() gen=3 text="Now, what do you
+notice about…"` — so it can tell two utterances apart and spot the same one
+spoken twice. That is lesson content, and it is Bede's half of the
+conversation, never the child's. It predates the diagnostics described here
+and is unchanged by them.
+
+It matters because `__bedeDebugEntries()` adds a *new way to reach* that
+buffer (the on-screen overlay already displayed it). The exposure is not
+wider — same data, same tab, same origin, and the CSP permits only
+first-party scripts — but "screenshot this and send it to us" may include a
+line of what Bede was saying. Worth knowing before you give that
+instruction to a family, and worth re-checking if anyone ever adds the
+child's transcript to a log line.
 
 If you extend this, keep that property. The moment the buffer can contain a
 credential or a child's words, "screenshot it and email it to support"

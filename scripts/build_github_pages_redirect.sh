@@ -4,12 +4,16 @@ set -euo pipefail
 # GitHub Pages now serves as a redirect only, not a live copy of the site —
 # the canonical build (site/ + demo) is Cloudflare's own deployment, at
 # https://agnusdei.ai/ (the same `bede` Worker also answers on
-# https://bede.agnusdei.workers.dev/ and, for now, https://agnusdei.io/ —
-# see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io" section for
-# the decision to redirect .io traffic to .ai at the Cloudflare zone level).
-# Keeping the old GitHub Pages URL alive as a redirect means any link
-# already shared or bookmarked still lands somewhere real, without this
-# repo having to keep two independently live copies from drifting apart.
+# https://bede.agnusdei.workers.dev/ and, deliberately, https://agnusdei.io/
+# too — both domains stay genuinely live rather than one redirecting to the
+# other, so a domain-specific outage on `.ai` doesn't take `.io` down with
+# it; see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io" section
+# for the full reasoning). `.ai` is picked here purely as the intended
+# long-term brand domain to forward old links to, independent of that
+# decision. Keeping the old GitHub Pages URL alive as a redirect means any
+# link already shared or bookmarked still lands somewhere real, without
+# this repo having to keep two independently live copies from drifting
+# apart.
 #
 # IMPORTANT: this repo's project-page URL is permanently
 # https://agnusdei-ai.github.io/bede/ (GitHub derives the path from the repo

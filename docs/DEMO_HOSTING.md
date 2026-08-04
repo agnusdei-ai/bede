@@ -327,40 +327,54 @@ Both domains now answer on the identical Worker, build, and (once
 `site/_headers` ships) security-header policy — TLS on `agnusdei.ai`
 confirmed working.
 
-**Decision (2026-08-04): `agnusdei.ai` is the canonical domain.**
-`agnusdei.io` was always the interim beta stand-in while `.ai`'s transfer
-was mid-flight (see above); now that `.ai` is live, `.io` redirects to it
-rather than the two staying live in parallel. This is a **Cloudflare
-zone-level "Redirect Rule" on the `agnusdei.io` zone**, not something a
-`_headers`/`_redirects` file in this repo can express — both domains
-answer the same Worker, and a static redirects file has no way to match on
-*hostname*, only on path, so the rule has to live in Cloudflare's own
-routing layer for the `.io` zone specifically:
+**Decision (2026-08-04, revised): both domains stay live — no redirect.**
+An earlier version of this section decided to redirect `agnusdei.io` to
+`agnusdei.ai` via a Cloudflare zone-level Redirect Rule. That's been
+reversed, deliberately, on the same day, before the rule was ever created:
+both domains currently sit on the **same** `bede` Worker (one origin, two
+hostnames), and a 301 redirect from `.io` would have made `.io` stop
+serving its own content entirely — every visitor forwarded straight to
+`.ai`. That's fine for SEO but it quietly destroys the one thing having a
+second live domain was actually buying: **if `agnusdei.ai` alone becomes
+unreachable** (its zone breaks, its cert lapses, it gets suspended,
+anything scoped to that specific domain rather than the shared Worker),
+a redirect sends every visitor *into* that failure instead of around it.
+Keeping `.io` genuinely, independently live is what preserves it as a real
+fallback rather than a decorative one.
 
-1. Cloudflare dashboard → the `agnusdei.io` zone → **Rules → Redirect
-   Rules → Create rule**.
-2. Match: `Hostname` equals `agnusdei.io` OR `www.agnusdei.io` (two
-   values, or two separate rules).
-3. Then: **Dynamic redirect**, target URL
-   `concat("https://agnusdei.ai", http.request.uri.path)` (preserves the
-   path — `agnusdei.io/bede/` lands on `agnusdei.ai/bede/`, not just the
-   home page), status code **301** (permanent — this is the long-term
-   canonical domain, not a temporary one), preserve query string on.
-4. Once confirmed working end to end (a visit to `agnusdei.io/bede/`
-   lands on `agnusdei.ai/bede/` with the demo working), the following can
-   be trimmed — not urgent, since an inert unused entry is harmless, but
-   worth doing once the redirect's been live a while and nothing depends
-   on the old origin any more:
-   - `render.yaml`'s `CORS_ORIGINS` — `.io`'s entries become unreachable
-     (no page can ever load *from* `.io` and make a same-page fetch with
-     `Origin: https://agnusdei.io` once the redirect fires before any
-     content renders), but leave them in until the redirect's been
-     observed live for a while, per this file's own existing entry.
-   - `site/privacy/index.html`'s disclosure copy, which named `.io`
-     explicitly as *the* domain — already updated to `agnusdei.ai` to
-     match this decision.
-5. `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` now points at
-   `https://agnusdei.ai/bede/` — already updated.
+`agnusdei.ai` is still the intended long-term brand domain — that part of
+the original decision stands — so instead of a redirect, each static page
+gets a `<link rel="canonical" href="https://agnusdei.ai/...">` tag pointing
+search engines at `.ai` as the authoritative URL, while `.io` keeps
+resolving and serving the identical build. This is the standard fix for
+the mild duplicate-content SEO cost of two live domains, with none of a
+redirect's downside.
+
+**Stated future direction, not yet built:** the real gap this leaves open
+is that both domains still share **one Worker** — an attack or failure
+that takes out the Worker itself (a compromised deploy, a compromised
+Cloudflare account, the project being "completely whacked") takes both
+domains down together regardless of the DNS-level independence above. The
+architecture this decision is deliberately leaving room for is a **second,
+fully independent Worker** — its own deployment, potentially its own
+Cloudflare account for real blast-radius isolation — with `agnusdei.io`
+repointed to serve *from* it instead of merely resolving alongside it, so
+a compromise of one Worker doesn't take the other's domain with it. That
+is real engineering effort (a duplicate build/deploy pipeline, keeping two
+Workers' content in sync or accepting them diverging) and is out of scope
+for now — not something this repo builds today, just the reason "keep
+both domains genuinely live" was chosen over "redirect one into the
+other": a redirect would have made that future move impossible without
+first undoing it, since a domain that only forwards elsewhere has nothing
+of its own left to repoint.
+
+`render.yaml`'s `CORS_ORIGINS` needs no change under this decision —
+both `.io` and `.ai` entries stay live and reachable, exactly as already
+listed. `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` stays
+pointed at `https://agnusdei.ai/bede/`, matching the canonical-brand
+choice above (the GitHub Pages stub only needs to pick *a* working URL to
+forward old links to, and `.ai` is it) — this is independent of whether
+`.io` also stays live, so it needs no further change either.
 
 ## Cold starts (free plan)
 

@@ -211,14 +211,17 @@ services:
       # domain while agnusdei.ai's transfer was mid-flight and its registrar
       # had DNS/nameserver controls locked for the duration. That transfer
       # has since cleared (2026-08-04): agnusdei.ai is now attached to the
-      # same Worker and is the decided canonical domain going forward, with
-      # a Cloudflare zone-level Redirect Rule sending agnusdei.io traffic to
-      # it (see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io"
-      # section for the exact rule). .io's entries here are left in for now
-      # rather than trimmed immediately — once the redirect's been observed
-      # live for a while, drop .io/www.io along with the
-      # agnusdei-ai.github.io and workers.dev fallbacks, to keep this list
-      # minimal again.
+      # same Worker too, and is the intended long-term brand domain (each
+      # page carries a <link rel="canonical"> pointing at it), but a
+      # redirect from .io was deliberately NOT set up — both domains stay
+      # genuinely live on purpose, so a domain-specific failure on .ai
+      # (its zone, its cert, anything scoped to that one hostname) doesn't
+      # take .io down with it, and so .io keeps somewhere real to actually
+      # point AT if it's ever repointed to a second, independent Worker
+      # for true redundancy against the current single-Worker shared fate
+      # (see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io"
+      # section for the full reasoning). Both domains' CORS entries here
+      # stay live and needed, not a cleanup candidate.
       - key: CORS_ORIGINS
         value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://agnusdei.io,https://www.agnusdei.io,https://bede.ai,https://www.bede.ai,https://bede.agnusdei.workers.dev
       - key: DISABLE_API_DOCS

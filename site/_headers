@@ -1,0 +1,42 @@
+# Security headers for the whole agnusdei.io deployment (site/ at the
+# root, the demo under /bede/ — see scripts/build_pages_site.sh). Read by
+# Cloudflare's Workers Static Assets the same way it reads a Pages
+# project's _headers file: https://developers.cloudflare.com/workers/static-assets/headers/
+#
+# Mirrors, as closely as a static file allows, the header set the actual
+# product already enforces at two layers — homeschool-api/core/middleware.py's
+# SecurityHeadersMiddleware and homeschool-tutor/nginx.conf — so the public
+# marketing/demo surface isn't held to a lower bar than the self-hosted app
+# itself. See docs/SECURITY.md.
+#
+# Rule precedence: Cloudflare applies the MOST SPECIFIC matching path's
+# value for a given header name, so /bede/*'s block below overrides the
+# general /* block for the two headers where the demo genuinely needs a
+# different policy (microphone access, and its own API origin) — every
+# other header applies identically everywhere.
+#
+# Deliberately does NOT set Cache-Control (unlike the two reference
+# implementations above, which both send no-store — correct for dynamic,
+# per-request API/app responses). This is static, publicly-cacheable
+# marketing/demo content with no per-visitor data in the response body,
+# so an explicit no-store here would only make the site slower to no
+# security benefit; Cloudflare's own default asset caching applies.
+
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), geolocation=(), payment=(), usb=(), microphone=()
+  X-Permitted-Cross-Domain-Policies: none
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'self'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
+
+# The interactive demo needs two exceptions the plain marketing pages
+# don't: microphone access (press-and-hold voice input), and permission to
+# reach its own backend on Render. That backend's exact subdomain is set
+# per-deployment by the VITE_DEMO_API_BASE build variable (see
+# docs/DEMO_HOSTING.md), not a fixed value this repo can pin — scoped to
+# https://*.onrender.com rather than opened up broadly.
+/bede/*
+  Permissions-Policy: camera=(), geolocation=(), payment=(), usb=(), microphone=(self)
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.onrender.com; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'self';

@@ -11,6 +11,7 @@ import AccountRecovery from '../components/AccountRecovery'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
 import type { VerifyResult } from '../services/voiceApi'
 import { safeReturnTo } from '../utils/safeRedirect'
+import { LOGOUT_NOTICE_KEYS, takeLogoutNotice, type LogoutReason } from '../utils/logoutNotice'
 
 type Phase = 'login' | 'voice-verify' | 'parent-mfa' | 'account-recovery'
 
@@ -37,6 +38,18 @@ export default function Login() {
 
   useEffect(() => {
     fetchAvailableLocales().then(setAvailableLocales)
+  }, [])
+
+  // Consumed in an effect rather than a useState initializer on purpose:
+  // StrictMode double-invokes render (and therefore lazy initializers) in
+  // development, which would take the notice on the first pass and get null
+  // on the second — the message would vanish in dev and work in production,
+  // the worst way for this to be wrong. An effect double-runs too, but the
+  // `if (reason)` guard makes the second run a no-op instead of a clear.
+  const [logoutNotice, setLogoutNotice] = useState<LogoutReason | null>(null)
+  useEffect(() => {
+    const reason = takeLogoutNotice()
+    if (reason) setLogoutNotice(reason)
   }, [])
 
   const chooseLocale = (code: string) => {
@@ -236,6 +249,20 @@ export default function Login() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Why you're looking at this screen, when nobody asked to be.
+            Placed ABOVE the form and styled amber rather than red: it's an
+            explanation of something already finished, not a complaint about
+            the credential they haven't typed yet. The red box further down
+            is for that, and the two must never be mistaken for each other. */}
+        {logoutNotice && (
+          <div
+            role="status"
+            className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5"
+          >
+            {t(LOGOUT_NOTICE_KEYS[logoutNotice])}
           </div>
         )}
 

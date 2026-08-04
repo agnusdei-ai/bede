@@ -114,7 +114,8 @@
     "voiceModeToggleTooltip": "Cambia entre mantener presionado y voz manos libres",
     "micContinuousListening": "Escuchando — toca para volver a mantener presionado",
     "micContinuousWaiting": "Voz activada — Bede escuchará cuando sea tu turno",
-    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras."
+    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras.",
+    "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez."
   },
   "podDashboard": {
     "noStudentsTitle": "No hay estudiantes configurados",
@@ -431,5 +432,11 @@
     "completedShort": "{{count}}×",
     "workedByOne": "Esto solo lo ha hecho uno de ellos por ahora",
     "caveat": "Un niño que no ha hecho un trabajo simplemente no aparece en él. Nadie se mide con nadie, y los niños nunca ven esto."
+  },
+  "common": {
+    "idleWarning": "¿Sigues ahí? Tu sesión se cerrará pronto si no ocurre nada — toca la pantalla para continuar.",
+    "loggedOutInactivity": "Cerramos la sesión por inactividad. No se perdió nada — vuelve a entrar para continuar donde lo dejaste.",
+    "loggedOutBreakInactivity": "Cerramos la sesión durante tu descanso. Lo hacemos a propósito, para mayor seguridad mientras estás lejos — vuelve a entrar cuando quieras.",
+    "loggedOutSessionExpired": "Tu sesión terminó, así que tendrás que volver a entrar."
   }
 }

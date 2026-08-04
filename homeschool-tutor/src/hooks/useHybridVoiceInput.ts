@@ -4,6 +4,9 @@ import { useVoiceRecorder } from './useVoiceRecorder'
 import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents } from '../services/voiceApi'
 import { logDebug } from './debugBus'
 import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../utils/audioSession'
+import {
+  SAMPLE_INTERVAL_MS, advanceEndpointState, endReason, initialEndpointState,
+} from '../utils/endpointing'
 
 /**
  * Voice input for the chat mic button. Server-side streaming transcription
@@ -28,10 +31,18 @@ import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../util
  * by this app's own opt-in, off-by-default continuous "Voice on" mode — see
  * SocraticChat.tsx's auto-start effect and useVoiceModePreference.ts) now
  * behaves like startHold() and needs an explicit release() the same way —
- * continuous mode's own call site never calls one, so a turn there will run
- * for the full HOLD_SAFETY_TIMEOUT_MS ceiling (120s) before auto-finishing
- * rather than ending snappily when the child stops talking. See
- * docs/VOICE_SETUP.md for the follow-up this needs.
+ * continuous mode's own call site never calls one, so a turn there used to
+ * run for the full HOLD_SAFETY_TIMEOUT_MS ceiling (120s) before auto-
+ * finishing rather than ending when the child stopped talking.
+ *
+ * That follow-up is now BUILT. Pass `endpointOnSilence` — continuous mode
+ * does — and the turn ends on trailing silence instead. utils/endpointing.ts
+ * holds the decision logic and the reasoning behind a silence window
+ * deliberately longer than a dictation app's: narration pauses are the work,
+ * not hesitation to be trimmed. hold-to-talk still does NOT pass it, because
+ * there the child's own release IS the endpoint and second-guessing a held
+ * button would cut them off mid-hold. The 120s ceiling remains underneath as
+ * the backstop it always was. See docs/VOICE_SETUP.md.
  */
 
 // How often, while a turn is open, to upload the growing audio buffer for a
@@ -98,6 +109,33 @@ interface Options {
   token: string | null
   onFinal?: (transcript: string) => void
   language?: string
+  /**
+   * End the turn on trailing silence instead of waiting for an explicit
+   * release(). Opt-in, and only continuous "Voice on" mode passes it —
+   * hold-to-talk must never endpoint itself, because there the child's own
+   * finger already says when they are done and second-guessing that would
+   * cut them off mid-hold.
+   *
+   * This is the KNOWN GAP in this file's header comment, now closed for the
+   * one caller that had no other way to end a turn. See utils/endpointing.ts
+   * for why the silence window is deliberately longer than a dictation app's.
+   */
+  endpointOnSilence?: boolean
+  /**
+   * Fired when an endpointed turn ended because NOBODY SPOKE — distinct from
+   * every other way a turn can fail, and deliberately not routed through
+   * `micError`.
+   *
+   * In continuous mode silence is ordinary: the child is thinking, or has
+   * stepped away. Reporting it as "I didn't quite catch that" tells a child
+   * the microphone failed when nothing failed, and (via SocraticChat's
+   * circuit breaker) three of those in a row drop them out of Voice on mode.
+   * At the old 120s ceiling that took six minutes to happen; at the 12s
+   * no-speech timeout it would take thirty-six seconds, so shortening the
+   * timeout without this would have made an existing annoyance ten times
+   * more frequent.
+   */
+  onSilentTimeout?: () => void
 }
 
 type Mode = 'idle' | 'recording' | 'transcribing'
@@ -106,7 +144,7 @@ type Mode = 'idle' | 'recording' | 'transcribing'
 // the server. See isNetworkFailure above.
 export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard' | 'network'
 
-export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
+export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpointOnSilence = false, onSilentTimeout }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
   const [interim, setInterim] = useState('')
   // Surfaces the one failure mode that used to be totally silent: a denied
@@ -140,6 +178,18 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   // Always points at the CURRENT release() so the hold-safety timer (armed
   // inside _start) can call it without a forward reference.
   const releaseRef = useRef<() => void>(() => {})
+  // Same forward-reference pattern, for the endpointing effect's silent path.
+  const stopRef = useRef<() => void>(() => {})
+  // Whether this turn has already asked the server to finish its session.
+  // release() finishes the session but leaves sessionIdRef populated (the
+  // final uploadSnapshot still needs it), so the stop() that follows when the
+  // child confirms and sends would finish the SAME session a second time —
+  // a guaranteed 404 on every single successful turn, visible throughout a
+  // real trace. Harmless in itself, but it is a wasted round trip per turn
+  // and it fills the debug log with 404s that make a REAL one hard to spot,
+  // which is exactly what happened while diagnosing the lost-session bug
+  // above. Synchronous, so a fast confirm cannot race it.
+  const finishRequestedRef = useRef(false)
 
   // Pin WebKit's audio session category to match whether the mic is
   // actually capturing right now — see utils/audioSession.ts for why.
@@ -245,6 +295,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
   const consumeEvents = useCallback(async (sessionId: string, attempt: number) => {
     if (!token) return
     let finalText = ''
+    let streamErrored = false
     try {
       for await (const event of streamVoiceEvents(token, sessionId)) {
         if (attemptRef.current !== attempt) return
@@ -255,15 +306,52 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
           setInterim(event.text)
         } else if (event.type === 'error') {
           logDebug(`voice stream event error: ${event.message}`)
+          streamErrored = true
         }
       }
     } catch (err) {
       logDebug(`voice event stream failed: ${err instanceof Error ? err.message : String(err)}`)
+      streamErrored = true
     }
     if (attemptRef.current !== attempt) return
     clearHoldSafety()
     const text = finalText.trim()
     const heldMs = Date.now() - holdStartedAtRef.current
+
+    // The stream ending while the child is STILL HOLDING is not a finished
+    // turn — it is the turn dying underneath them, and it must not be
+    // reported as completion.
+    //
+    // From a real trace: the server answered this session's very first
+    // events request with "unknown or expired session" 238ms after creating
+    // it (the demo's in-memory sessions do not survive a request landing on
+    // a second instance — see CLAUDE.md's own note on streaming_transcription
+    // and docs/VOICE_SETUP.md). This block then fell straight through to
+    // setMode('idle') while the child went on speaking for another SEVEN
+    // SECONDS. All of it was discarded, and heldMs at that instant was 643ms
+    // — under MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK — so not even an error was
+    // shown.
+    //
+    // Worse, nothing tore the turn down: the recorder kept capturing and the
+    // chunk timer kept uploading. useVoiceRecorder refuses to start a second
+    // recording while one is live, so the child's NEXT press reached _start()
+    // and never reached startRecording() at all. That is the same latch-off
+    // failure #372 fixed on the give-up path, arriving through a different
+    // door.
+    if (modeRef.current === 'recording') {
+      logDebug(`voice stream ended while still recording after ${heldMs}ms (errored=${streamErrored}) — tearing the turn down`)
+      clearChunkTimer()
+      recorder.stopRecording()
+      setMode('idle')
+      // 'network' rather than 'unavailable': the microphone is fine, the
+      // session it was streaming to is gone. Saying "something's wrong with
+      // the microphone" would send a family checking permissions for a
+      // problem that is not theirs — the same misattribution this hook's
+      // 'network' value was added for.
+      setMicError('network')
+      return
+    }
+
     setMode('idle')
     const processingMs = releasedAtRef.current ? Date.now() - releasedAtRef.current : null
     if (text) {
@@ -282,7 +370,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       logDebug(`voice stream produced nothing after a ${heldMs}ms turn — surfacing to the user`)
       setMicError('no-speech-heard')
     }
-  }, [token, onFinal, clearHoldSafety, setMode])
+  }, [token, onFinal, clearHoldSafety, clearChunkTimer, recorder, setMode])
 
   // Shared entry point for both start() and startHold() — functionally
   // identical now (see the KNOWN GAP note above for why start()'s own
@@ -292,6 +380,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     const attempt = ++attemptRef.current
     // Fresh turn: nothing from a previous one may ride along.
     pendingPartsRef.current = []
+    finishRequestedRef.current = false
     logDebug(`_start() attempt=${attempt}`)
     holdStartedAtRef.current = Date.now()
     sessionIdRef.current = null
@@ -340,6 +429,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
             // turn now rather than starting a chunk timer for a recorder
             // that has already stopped.
             pendingReleaseRef.current = null
+            finishRequestedRef.current = true
             ;(async () => {
               await uploadSnapshot(attempt, pending.blob)
               try {
@@ -384,6 +474,57 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     beginStream(START_STREAM_MAX_ATTEMPTS)
   }, [token, language, recorder, consumeEvents, uploadSnapshot, clearHoldSafety, setMode])
 
+  // ── Endpointing: end the turn when the child stops talking ───────────────
+  // Only runs when the caller asked for it (continuous "Voice on" mode).
+  // Hold-to-talk is untouched — there, release() is the endpoint, and a
+  // silence detector second-guessing a held button would cut a child off
+  // mid-hold.
+  //
+  // Reads the recorder's existing level meter rather than adding a second
+  // analyser: the audio graph is already computing it for the level
+  // visualisation, so this costs one sample read every SAMPLE_INTERVAL_MS
+  // and no extra DSP. All the actual decisions live in utils/endpointing.ts,
+  // which is pure and directly tested — this effect only samples and acts.
+  const levelRef = useRef(0)
+  levelRef.current = recorder.level
+  useEffect(() => {
+    if (!endpointOnSilence || mode !== 'recording') return
+    let state = initialEndpointState()
+    const id = setInterval(() => {
+      state = advanceEndpointState(state, {
+        level: levelRef.current,
+        deltaMs: SAMPLE_INTERVAL_MS,
+      })
+      const reason = endReason(state)
+      if (!reason) return
+      clearInterval(id)
+      logDebug(
+        `endpointing: ending turn (${reason}) after ${Math.round(state.elapsedMs)}ms ` +
+        `— ${Math.round(state.speechMs)}ms speech, ${Math.round(state.silenceMs)}ms trailing silence`,
+      )
+      // The two reasons take different exits, and this is the whole practical
+      // difference between a helpful endpoint and an irritating one.
+      //
+      // finished-speaking → release(): the child DID say something, so the
+      // turn must be delivered.
+      //
+      // no-speech → stop(): nothing was captured, so there is nothing to
+      // deliver and nothing went wrong. release() here would produce an empty
+      // transcript, which MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK turns into a
+      // "I didn't quite catch that" error and a tick on SocraticChat's
+      // voice-mode circuit breaker — telling a child the microphone failed
+      // when they simply hadn't spoken yet. stop() discards silently, and
+      // onSilentTimeout lets the caller decide what repeated silence means.
+      if (reason === 'finished-speaking') {
+        releaseRef.current()
+      } else {
+        stopRef.current()
+        onSilentTimeout?.()
+      }
+    }, SAMPLE_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [endpointOnSilence, mode, onSilentTimeout])
+
   const start = useCallback(() => _start(), [_start])
   const startHold = useCallback(() => _start(), [_start])
 
@@ -397,7 +538,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     if (modeRef.current === 'recording') recorder.stopRecording()
     const sessionId = sessionIdRef.current
     sessionIdRef.current = null
-    if (token && sessionId) finishVoiceStream(token, sessionId).catch(() => {})
+    // Only if release() hasn't already finished it — see finishRequestedRef.
+    if (token && sessionId && !finishRequestedRef.current) {
+      finishVoiceStream(token, sessionId).catch(() => {})
+    }
     setInterim('')
     setMode('idle')
   }, [token, recorder, clearHoldSafety, clearChunkTimer, setMode])
@@ -455,6 +599,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
       pendingReleaseRef.current = { attempt, blob: finalWavBlob }
       return
     }
+    finishRequestedRef.current = true
     ;(async () => {
       await uploadSnapshot(attempt, finalWavBlob)
       try {
@@ -468,6 +613,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     })()
   }, [token, recorder, clearChunkTimer, clearHoldSafety, uploadSnapshot, setMode])
   releaseRef.current = release
+  stopRef.current = stop
 
   return {
     isListening: mode === 'recording',

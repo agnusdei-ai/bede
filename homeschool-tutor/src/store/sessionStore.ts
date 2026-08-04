@@ -72,6 +72,12 @@ interface SessionState {
   subjectStart: number
   displayMessages: DisplayMessage[]
   isStreaming: boolean
+  // Bede speaking aloud, or the mic capturing/transcribing. Lives in the
+  // store only so AppShell — which sits above the router and cannot see
+  // SocraticChat's local state — can tell "listening to a passage" apart
+  // from "abandoned tab" when deciding whether to log the session out.
+  // See utils/idleTimeout.ts.
+  voiceActive: boolean
   // Identifies this sitting for the duration of the session. Only used
   // when the deployment keeps no mastery profile between sessions, where
   // it keys the in-memory estimate — see the backend's
@@ -104,6 +110,7 @@ interface SessionState {
   nextSubject: () => void
   endSession: () => void
   setStreaming: (v: boolean) => void
+  setVoiceActive: (v: boolean) => void
 }
 
 let msgIdCounter = 0
@@ -192,6 +199,7 @@ export const useSessionStore = create<SessionState>()(
   subjectStart: 0,
   displayMessages: [],
   isStreaming: false,
+  voiceActive: false,
   sessionId: null,
   sessionStartedAt: null,
   subjectStartedAt: null,
@@ -351,6 +359,7 @@ export const useSessionStore = create<SessionState>()(
   },
 
       setStreaming: (v) => set({ isStreaming: v }),
+      setVoiceActive: (v) => set({ voiceActive: v }),
     }),
     {
       name: 'agnus-dei-session',

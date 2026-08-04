@@ -41,7 +41,9 @@ You can answer me in whichever way feels easiest:
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and
-  when you're done I'll hear you and answer. Tap the microphone anytime to
+  when you stop, I'll wait a few seconds and then answer. Take your time in
+  the middle — thinking pauses are part of narrating, and I won't cut in
+  just because you went quiet for a moment. Tap the microphone anytime to
   go back to press-and-hold instead.
 - **Tap the pencil** ✏️ to draw or write your answer by hand. I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
@@ -166,7 +168,9 @@ There's no rush and no wrong way to think out loud.
   suggest something each time. When the break ends, we pick up right where we
   left off. If you're away for too long during a break (more than 5 minutes)
   I'll sign you out for safekeeping, just log back in with your PIN when
-  you're ready to continue.
+  you're ready to continue. When that happens the screen will tell you it's
+  what I did and why, so you never have to wonder whether something broke.
+  It didn't. Nothing you were working on is lost.
 - If you're one of my younger learners, I'll also **ask** you every twenty
   minutes whether you'd like a quick break. Notice that word: *ask*. You can
   say "no thanks, keep going" and we'll carry right on, and I won't be the least

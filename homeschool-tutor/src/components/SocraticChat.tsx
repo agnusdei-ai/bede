@@ -114,7 +114,6 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     timeOfDay,
     localDate,
     sessionId,
-    startAssistantStream,
     addUserMessage,
     appendAssistantChunk,
     addToolMessage,

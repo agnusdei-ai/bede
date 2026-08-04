@@ -27,7 +27,7 @@ produce something ai_service.py consumes identically, dispatching on the same
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 
 class AdapterUsage:

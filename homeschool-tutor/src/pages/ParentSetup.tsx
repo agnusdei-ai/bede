@@ -499,7 +499,6 @@ export default function ParentSetup() {
               student={student}
               total={students.length}
               isEnrolled={isEnrolled(student.student_name.trim())}
-              token={token!}
               requireSex={requireSex}
               onUpdate={(patch) => update(i, patch)}
               onToggleSubject={(id) => toggleSubject(i, id)}
@@ -572,7 +571,6 @@ interface StudentCardProps {
   student: StudentForm
   total: number
   isEnrolled: boolean
-  token: string
   requireSex: boolean
   onUpdate: (patch: Partial<StudentForm>) => void
   onToggleSubject: (id: Subject) => void
@@ -581,7 +579,7 @@ interface StudentCardProps {
 }
 
 function StudentCard({
-  index, student, total, isEnrolled, token, requireSex,
+  index, student, total, isEnrolled, requireSex,
   onUpdate, onToggleSubject, onEnrolled, onRemove,
 }: StudentCardProps) {
   const { t } = useTranslation()
@@ -1291,15 +1289,6 @@ function StudentCard({
           onClose={() => onUpdate({ showEnrollment: false })}
         />
       )}
-    </div>
-  )
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white rounded-xl border border-navy-100 shadow-sm p-5">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">{title}</h2>
-      {children}
     </div>
   )
 }

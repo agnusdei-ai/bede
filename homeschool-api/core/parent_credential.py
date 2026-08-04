@@ -43,7 +43,6 @@ bumping replica instantly.
 """
 import hmac
 import threading
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

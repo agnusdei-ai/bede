@@ -7,7 +7,7 @@ from sse_starlette.sse import EventSourceResponse
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import get_db
 from core.demo_code_session import get_personalization
-from core.deps import require_auth, require_demo_preview, require_parent
+from core.deps import require_demo_preview, require_parent
 from core.diagnostic_preview_quota import has_quota, record_use
 from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
 from services.diagnostic import get_mastery_summary

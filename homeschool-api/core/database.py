@@ -12,7 +12,6 @@ Startup sequence (main.py lifespan):
 from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 
-from fastapi import Depends
 from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.ext.asyncio import (
     AsyncSession,

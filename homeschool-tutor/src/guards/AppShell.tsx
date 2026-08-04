@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router'
+import { useNavigate } from 'react-router'
 import i18n from '../i18n'
 import { useSessionStore } from '../store/sessionStore'
 import {
@@ -29,7 +29,6 @@ const VALIDATE_INTERVAL_MS = 5 * 60 * 1000   // re-validate token every 5 min
  */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
-  const location = useLocation()
   const { token, locale, logout, isStreaming, voiceActive } = useSessionStore()
   const [ready, setReady] = useState(false)
   const [idleWarning, setIdleWarning] = useState(false)
@@ -81,8 +80,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const isLoginPage = location.pathname === '/'
-
     if (!token) {
       setReady(true)  // allow login page to render (RequireAuth handles redirect)
       return

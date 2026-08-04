@@ -1,0 +1,53 @@
+/**
+ * One place that turns a 401 from anywhere in the app into a clean logout.
+ *
+ * Same technique as ElevationPrompt.tsx (which does this for 403s): wrap
+ * window.fetch once at the root, so no individual call site has to know
+ * that a rejected token means "start over at the login screen."
+ *
+ * Lived inside App.tsx until it grew a rule worth testing — see the token
+ * check below, which is the difference between explaining a real session
+ * expiry and telling a parent something false about why their password
+ * didn't work.
+ */
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router'
+
+import { useSessionStore } from '../store/sessionStore'
+import { setLogoutNotice } from '../utils/logoutNotice'
+
+export default function GlobalAuthInterceptor() {
+  const navigate = useNavigate()
+  const logout = useSessionStore((s) => s.logout)
+
+  useEffect(() => {
+    const originalFetch = window.fetch.bind(window)
+
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args)
+      if (response.status === 401) {
+        const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
+        if (url.startsWith('/api/') || url.includes(window.location.host)) {
+          // Only claim a session EXPIRED if there was one. A wrong password
+          // at the login screen is a 401 too, and it lands here — without
+          // this check it would put "your session expired" on screen next to
+          // the real "incorrect password", telling the parent a second,
+          // false thing about why their login didn't work. Read through
+          // getState() rather than a subscribed value: this closure is built
+          // once, when the effect runs, and a subscribed token would be the
+          // value from that moment rather than from the moment of the 401.
+          if (useSessionStore.getState().token) setLogoutNotice('session-expired')
+          logout()
+          navigate('/', { replace: true })
+        }
+      }
+      return response
+    }
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [logout, navigate])
+
+  return null
+}

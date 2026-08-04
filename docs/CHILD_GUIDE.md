@@ -168,7 +168,9 @@ There's no rush and no wrong way to think out loud.
   suggest something each time. When the break ends, we pick up right where we
   left off. If you're away for too long during a break (more than 5 minutes)
   I'll sign you out for safekeeping, just log back in with your PIN when
-  you're ready to continue.
+  you're ready to continue. When that happens the screen will tell you it's
+  what I did and why, so you never have to wonder whether something broke.
+  It didn't. Nothing you were working on is lost.
 - If you're one of my younger learners, I'll also **ask** you every twenty
   minutes whether you'd like a quick break. Notice that word: *ask*. You can
   say "no thanks, keep going" and we'll carry right on, and I won't be the least

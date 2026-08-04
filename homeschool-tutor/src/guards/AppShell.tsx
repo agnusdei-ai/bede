@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore'
 import {
   IDLE_CHECK_INTERVAL_MS, idleStatus, isSessionBusy,
 } from '../utils/idleTimeout'
+import { setLogoutNotice, type LogoutReason } from '../utils/logoutNotice'
 import TextSizeControl from '../components/TextSizeControl'
 import { AgnusDeiMark, BedeWordmark } from '../components/BedeMark'
 
@@ -50,8 +51,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (locale && i18n.language !== locale) i18n.changeLanguage(locale)
   }, [locale])
 
-  const forceLogout = (reason = 'Session expired') => {
-    console.warn('[AppShell] Forced logout:', reason)
+  // `notice` is what the person will actually read on the login screen;
+  // `detail` is only for the console. They are separate arguments because
+  // the console wording is a developer's and has never been shown to anyone
+  // — "Token rejected by server" is not an explanation a parent can act on.
+  const forceLogout = (notice: LogoutReason, detail: string) => {
+    console.warn('[AppShell] Forced logout:', detail)
+    setLogoutNotice(notice)
     logout()
     setReady(false)
     navigate('/', { replace: true })
@@ -64,7 +70,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         credentials: 'same-origin',
       })
       if (!res.ok) {
-        forceLogout('Token rejected by server')
+        forceLogout('session-expired', 'Token rejected by server')
         return false
       }
       return true
@@ -112,7 +118,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return
       }
       const status = idleStatus({ lastActiveAt: lastActivityRef.current, now: Date.now() })
-      if (status === 'expired') forceLogout('Inactivity timeout')
+      if (status === 'expired') forceLogout('inactivity', 'Inactivity timeout')
       else setIdleWarning(status === 'warning')
     }, IDLE_CHECK_INTERVAL_MS)
 

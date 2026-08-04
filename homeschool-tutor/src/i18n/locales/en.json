@@ -434,6 +434,9 @@
     "caveat": "A child who hasn't done a piece of work simply isn't listed under it. Nobody is measured against anybody else, and the children never see this."
   },
   "common": {
-    "idleWarning": "Still there? Your session will close soon if nothing happens — touch the screen to keep going."
+    "idleWarning": "Still there? Your session will close soon if nothing happens — touch the screen to keep going.",
+    "loggedOutInactivity": "Logged out due to inactivity. Nothing was lost — sign back in to pick up where you left off.",
+    "loggedOutBreakInactivity": "Logged out during your break. That's on purpose, to keep things safe while you're away — sign back in whenever you're ready.",
+    "loggedOutSessionExpired": "Your session ended, so you'll need to sign in again."
   }
 }

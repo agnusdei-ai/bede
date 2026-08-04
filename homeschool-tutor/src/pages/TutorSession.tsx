@@ -20,6 +20,7 @@ import {
 } from '../utils/gradeTimer'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import { pickBreakActivity } from '../utils/breakActivities'
+import { setLogoutNotice } from '../utils/logoutNotice'
 import { Coffee, Eye, Footprints } from 'lucide-react'
 
 // A break screen tells the child to step away from the device — if nobody
@@ -145,6 +146,12 @@ export default function TutorSession() {
     events.forEach((e) => window.addEventListener(e, resetBreakActivity, { passive: true }))
     const id = setInterval(() => {
       if (isOnBreakRef.current && Date.now() - lastBreakActivityRef.current > BREAK_INACTIVITY_LOGOUT_MS) {
+        // Say so on the login screen. This one is the most confusing of the
+        // automated logouts to be on the receiving end of: the child walked
+        // away from a break they were TOLD to take, and came back to a login
+        // screen. docs/CHILD_GUIDE.md already promises them this rule in
+        // words; the notice is that promise kept at the moment it applies.
+        setLogoutNotice('break-inactivity')
         logout()
         navigate('/', { replace: true })
       }

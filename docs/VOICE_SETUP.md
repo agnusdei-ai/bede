@@ -1730,6 +1730,52 @@ public API for a page to control audio session category directly, so this
 fix is iOS/iPadOS-specific; Android's own routing behavior around
 `getUserMedia` wasn't reported as broken and is left alone.
 
+## Troubleshooting: a held turn is silently discarded, and then the mic button stops working
+
+From a real trace on the public demo. The server answered a session's very
+first `events` request with **"unknown or expired session" 238 milliseconds
+after creating it**. The TTL is 180 seconds, so that is not expiry — it is the
+request landing on a different process from the one that created the session.
+`services/streaming_transcription.py` keeps sessions in memory, in one
+process, and says so in its own docstring; the same trace shows the signature
+plainly, with chunks on one session id succeeding, then 404ing, then
+succeeding again.
+
+**That root cause is server-side and no frontend change fixes it.** It needs
+the instance count pinned to one, session affinity, or a shared store. Note
+`render.yaml` carries no instance or scaling configuration at all, so that
+number lives only in the Render dashboard — the same blueprint-versus-
+dashboard drift `render.yaml`'s own plan comments were written about.
+
+Two client faults made it far worse than it needed to be, and both are fixed:
+
+**The turn was reported as finished while the child was still holding.**
+`consumeEvents` logged the error event, fell out of its loop, and ran straight
+into `setMode('idle')`. The child went on speaking for another seven seconds
+and all of it was discarded. `heldMs` at that instant was 643ms — under
+`MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` — so not even an error appeared. The
+stream ending while `mode` is still `recording` is now treated as the turn
+dying underneath the child: the recorder is stopped, the chunk timer cleared,
+and `network` surfaced (the microphone is fine; the session it was streaming
+to is gone).
+
+**Nothing tore the turn down, so the next press did nothing.** The recorder
+kept capturing and the chunk timer kept uploading. `useVoiceRecorder` refuses
+to start a second recording while one is live, so the child's next press
+reached `_start()` and never reached `startRecording()` — visible in the trace
+as an `_start() attempt=9` with no `useVoiceRecorder.startRecording()` line
+after it. Same latch-off failure the give-up path was fixed for, arriving
+through a different door.
+
+**Every successful turn also fired a second `finish` that 404'd.** `release()`
+finishes the session but leaves `sessionIdRef` populated, because the final
+`uploadSnapshot` still needs it — so the `stop()` that follows when the child
+confirms and sends finished the same session again. Harmless on its own, but a
+wasted round trip per turn, and it filled the log with 404s that made the real
+one above hard to find. A `finishRequestedRef` set synchronously at release
+now makes it exactly one finish per session; an outright cancel with no
+release still finishes properly, or the session would leak until its TTL.
+
 ## Endpointing: how a continuous-mode turn ends
 
 Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.

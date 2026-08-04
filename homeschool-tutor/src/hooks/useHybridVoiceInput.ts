@@ -180,6 +180,16 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   const releaseRef = useRef<() => void>(() => {})
   // Same forward-reference pattern, for the endpointing effect's silent path.
   const stopRef = useRef<() => void>(() => {})
+  // Whether this turn has already asked the server to finish its session.
+  // release() finishes the session but leaves sessionIdRef populated (the
+  // final uploadSnapshot still needs it), so the stop() that follows when the
+  // child confirms and sends would finish the SAME session a second time —
+  // a guaranteed 404 on every single successful turn, visible throughout a
+  // real trace. Harmless in itself, but it is a wasted round trip per turn
+  // and it fills the debug log with 404s that make a REAL one hard to spot,
+  // which is exactly what happened while diagnosing the lost-session bug
+  // above. Synchronous, so a fast confirm cannot race it.
+  const finishRequestedRef = useRef(false)
 
   // Pin WebKit's audio session category to match whether the mic is
   // actually capturing right now — see utils/audioSession.ts for why.
@@ -285,6 +295,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   const consumeEvents = useCallback(async (sessionId: string, attempt: number) => {
     if (!token) return
     let finalText = ''
+    let streamErrored = false
     try {
       for await (const event of streamVoiceEvents(token, sessionId)) {
         if (attemptRef.current !== attempt) return
@@ -295,15 +306,52 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
           setInterim(event.text)
         } else if (event.type === 'error') {
           logDebug(`voice stream event error: ${event.message}`)
+          streamErrored = true
         }
       }
     } catch (err) {
       logDebug(`voice event stream failed: ${err instanceof Error ? err.message : String(err)}`)
+      streamErrored = true
     }
     if (attemptRef.current !== attempt) return
     clearHoldSafety()
     const text = finalText.trim()
     const heldMs = Date.now() - holdStartedAtRef.current
+
+    // The stream ending while the child is STILL HOLDING is not a finished
+    // turn — it is the turn dying underneath them, and it must not be
+    // reported as completion.
+    //
+    // From a real trace: the server answered this session's very first
+    // events request with "unknown or expired session" 238ms after creating
+    // it (the demo's in-memory sessions do not survive a request landing on
+    // a second instance — see CLAUDE.md's own note on streaming_transcription
+    // and docs/VOICE_SETUP.md). This block then fell straight through to
+    // setMode('idle') while the child went on speaking for another SEVEN
+    // SECONDS. All of it was discarded, and heldMs at that instant was 643ms
+    // — under MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK — so not even an error was
+    // shown.
+    //
+    // Worse, nothing tore the turn down: the recorder kept capturing and the
+    // chunk timer kept uploading. useVoiceRecorder refuses to start a second
+    // recording while one is live, so the child's NEXT press reached _start()
+    // and never reached startRecording() at all. That is the same latch-off
+    // failure #372 fixed on the give-up path, arriving through a different
+    // door.
+    if (modeRef.current === 'recording') {
+      logDebug(`voice stream ended while still recording after ${heldMs}ms (errored=${streamErrored}) — tearing the turn down`)
+      clearChunkTimer()
+      recorder.stopRecording()
+      setMode('idle')
+      // 'network' rather than 'unavailable': the microphone is fine, the
+      // session it was streaming to is gone. Saying "something's wrong with
+      // the microphone" would send a family checking permissions for a
+      // problem that is not theirs — the same misattribution this hook's
+      // 'network' value was added for.
+      setMicError('network')
+      return
+    }
+
     setMode('idle')
     const processingMs = releasedAtRef.current ? Date.now() - releasedAtRef.current : null
     if (text) {
@@ -322,7 +370,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
       logDebug(`voice stream produced nothing after a ${heldMs}ms turn — surfacing to the user`)
       setMicError('no-speech-heard')
     }
-  }, [token, onFinal, clearHoldSafety, setMode])
+  }, [token, onFinal, clearHoldSafety, clearChunkTimer, recorder, setMode])
 
   // Shared entry point for both start() and startHold() — functionally
   // identical now (see the KNOWN GAP note above for why start()'s own
@@ -332,6 +380,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     const attempt = ++attemptRef.current
     // Fresh turn: nothing from a previous one may ride along.
     pendingPartsRef.current = []
+    finishRequestedRef.current = false
     logDebug(`_start() attempt=${attempt}`)
     holdStartedAtRef.current = Date.now()
     sessionIdRef.current = null
@@ -380,6 +429,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
             // turn now rather than starting a chunk timer for a recorder
             // that has already stopped.
             pendingReleaseRef.current = null
+            finishRequestedRef.current = true
             ;(async () => {
               await uploadSnapshot(attempt, pending.blob)
               try {
@@ -488,7 +538,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     if (modeRef.current === 'recording') recorder.stopRecording()
     const sessionId = sessionIdRef.current
     sessionIdRef.current = null
-    if (token && sessionId) finishVoiceStream(token, sessionId).catch(() => {})
+    // Only if release() hasn't already finished it — see finishRequestedRef.
+    if (token && sessionId && !finishRequestedRef.current) {
+      finishVoiceStream(token, sessionId).catch(() => {})
+    }
     setInterim('')
     setMode('idle')
   }, [token, recorder, clearHoldSafety, clearChunkTimer, setMode])
@@ -546,6 +599,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
       pendingReleaseRef.current = { attempt, blob: finalWavBlob }
       return
     }
+    finishRequestedRef.current = true
     ;(async () => {
       await uploadSnapshot(attempt, finalWavBlob)
       try {

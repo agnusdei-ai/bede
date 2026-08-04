@@ -193,6 +193,11 @@ should be.
 ## One more thing
 
 You don't need to remember any passwords except your PIN and your voice phrase.
+And if you ever forget your PIN, that's all right. It happens, and it isn't
+something you can break. Ask a parent, and they can set you a new one in a
+minute. You won't lose your place in anything, and nothing you've done goes
+away.
+
 Anything else, like changing your lessons or looking at your progress, is
 something a parent handles. That's not a secret from you; it's just not part of
 your job. Your job is just to show up curious. I'll take it from there.

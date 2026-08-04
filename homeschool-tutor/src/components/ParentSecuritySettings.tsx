@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { ChevronDown, ChevronUp, KeyRound, Loader2, Lock, ShieldCheck, Smartphone, Trash2 } from 'lucide-react'
 import {
   fetchMfaStatus, webauthnRegisterOptions, webauthnRegisterVerify, deleteSecurityKey,
-  enrollTotp, confirmTotp, disableTotp, changePassword,
+  enrollTotp, confirmTotp, disableTotp, changePassword, changeChildPin,
   enrollRecoveryPin, disableRecoveryPin, enrollRecoveryCode, disableRecoveryCode,
   type MfaStatus,
 } from '../services/api'
@@ -39,6 +39,14 @@ export default function ParentSecuritySettings({ token }: Props) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+
+  // Child PIN. Nothing here is ever pre-filled and no PIN is suggested —
+  // the child has to remember it, so the parent picks (see
+  // homeschool-api/core/pin_policy.py's suggest_pin docstring).
+  const [changingChildPin, setChangingChildPin] = useState(false)
+  const [childPin, setChildPin] = useState('')
+  const [childPinConfirm, setChildPinConfirm] = useState('')
+  const [childPinSaved, setChildPinSaved] = useState(false)
 
   // Recovery secret — PIN (favored, memorable) or code (alternative,
   // longer/machine-generated); mutually exclusive, see services/
@@ -155,6 +163,31 @@ export default function ParentSecuritySettings({ token }: Props) {
       navigate('/', { replace: true })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not change password')
+      setBusy(false)
+    }
+  }
+
+  const handleChangeChildPin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (childPin !== childPinConfirm) {
+      setError('The PINs do not match')
+      return
+    }
+    setBusy(true)
+    try {
+      await changeChildPin(token, childPin)
+      // Deliberately no logout here, unlike the password form above: this
+      // change applies at the child's next login and ends no session, so
+      // signing anyone out would contradict what the screen promises.
+      setChildPin('')
+      setChildPinConfirm('')
+      setChangingChildPin(false)
+      setChildPinSaved(true)
+      await load()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not change the PIN')
+    } finally {
       setBusy(false)
     }
   }
@@ -464,6 +497,82 @@ export default function ParentSecuritySettings({ token }: Props) {
                 </button>
                 <button onClick={handleEnrollRecoveryCode} disabled={busy} className="text-xs text-gray-400 hover:text-gray-600 underline block">
                   or generate a recovery code instead
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Child PIN — the one credential a child types, and the one a
+              family is most likely to forget now that no installer hands
+              them a value. Before this, changing it meant editing .env on
+              the server and restarting. */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Lock size={13} /> Student PIN
+            </h3>
+            {changingChildPin ? (
+              <form onSubmit={handleChangeChildPin} className="space-y-2">
+                <p className="text-xs text-gray-500">
+                  Six or more digits. Not counting up or down, not a repeated block,
+                  and not the same forwards and backwards. Pick something your child
+                  can remember without writing it down.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  value={childPin}
+                  onChange={(e) => setChildPin(e.target.value)}
+                  placeholder="New student PIN"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  value={childPinConfirm}
+                  onChange={(e) => setChildPinConfirm(e.target.value)}
+                  placeholder="Confirm the PIN"
+                  className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                />
+                <p className="text-xs text-gray-400">
+                  Takes effect the next time a child logs in. Anyone in a lesson right
+                  now can carry on uninterrupted.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={busy || !childPin || !childPinConfirm}
+                    className="flex-1 py-2 bg-navy-500 text-white rounded-lg text-sm font-medium hover:bg-navy-600 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    {busy ? <Loader2 size={14} className="animate-spin" /> : null} Set PIN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setChangingChildPin(false); setChildPin(''); setChildPinConfirm('') }}
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-1">
+                {childPinSaved && (
+                  <p className="text-xs text-green-700">
+                    Saved. Your child will use the new PIN at their next login.
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  {status?.child_pin_overridden
+                    ? 'Changed since setup.'
+                    : 'Still the PIN chosen during setup.'}{' '}
+                  Forgotten it? Set a new one — you do not need the old one.
+                </p>
+                <button onClick={() => { setChangingChildPin(true); setChildPinSaved(false) }} className="text-xs text-navy-600 hover:text-navy-800 underline">
+                  Change student PIN
                 </button>
               </div>
             )}

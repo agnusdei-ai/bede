@@ -93,6 +93,15 @@ GUARDS = {
     ('GET', '/diagnostic/{student_name}/summary'): 'require_parent',
     ('POST', '/feedback'): 'require_auth',
     ('GET', '/feedback/enabled'): 'PUBLIC',
+    # require_elevated_parent, not require_parent like change-password just
+    # above, and the difference is deliberate. change-password re-verifies
+    # the CURRENT password inline, which is its own step-up. This endpoint
+    # asks for no current PIN at all — the case it exists for is a
+    # forgotten one — so a step-up is the only thing standing between an
+    # unattended parent session and a changed child credential. It is also
+    # a credential change, which is what the other elevated rows in this
+    # block have in common.
+    ('POST', '/mfa/change-child-pin'): 'require_elevated_parent',
     ('POST', '/mfa/change-password'): 'require_parent',
     ('DELETE', '/mfa/recovery-code'): 'require_elevated_parent',
     ('POST', '/mfa/recovery-code/enroll'): 'require_elevated_parent',

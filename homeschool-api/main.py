@@ -7,7 +7,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core import constitution, elevation, identity, license_state, parent_credential, provider_state
+from core import (
+    child_credential,
+    constitution,
+    elevation,
+    identity,
+    license_state,
+    parent_credential,
+    provider_state,
+)
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -205,6 +213,10 @@ async def lifespan(app: FastAPI):
         )
         async with AsyncSessionLocal() as db:
             await parent_credential.refresh_from_db(db)
+            # Same reason, for the child PIN — a value set before THIS
+            # process started must be in force at the first login of the
+            # day, not only after something happens to refresh it.
+            await child_credential.refresh_from_db(db)
         async with AsyncSessionLocal() as db:
             await provider_state.refresh_from_db(db)
     except RuntimeError as exc:
@@ -223,12 +235,14 @@ async def lifespan(app: FastAPI):
     # replication — see core/parent_credential.py and
     # docs/DEPLOYMENT_TOPOLOGY.md.
     credentials_refresh_task = asyncio.create_task(parent_credential.periodic_refresh())
+    child_pin_refresh_task = asyncio.create_task(child_credential.periodic_refresh())
 
     yield
 
     warmup_task.cancel()
     purge_task.cancel()
     credentials_refresh_task.cancel()
+    child_pin_refresh_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

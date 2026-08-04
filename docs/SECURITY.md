@@ -86,7 +86,19 @@ list as items are closed.
   won't.** The recovery half of this remains correct and unchanged: the
   single-tenant design makes the parent the ultimate authority over the one
   shared child credential, so "recovery" for a child is "ask a parent to
-  change `CHILD_PIN`", a capability that already exists. What this entry
+  change `CHILD_PIN`" — a capability this entry asserted already existed
+  and which, until 2026-08-03, did not. `routers/auth.py` compared straight
+  against `settings.child_pin`; there was no override table, no endpoint
+  and no UI, so the only way to change a child's PIN was editing `.env` on
+  the server and restarting the stack. The reasoning above was sound and
+  rested on something nobody had built. It is built now
+  (`core/child_credential.py`, `POST /mfa/change-child-pin`), and it
+  matters more than it did, because the installers no longer hand every
+  family the same PIN — a parent now picks one their child can remember,
+  which makes forgetting it a realistic Monday morning. A change applies at
+  the next child login and ends no session, deliberately: a child part-way
+  through a lesson is not ejected because a parent tidied up credentials.
+  What this entry
   previously got wrong was treating that as also answering brute force —
   it doesn't. Nothing about recoverability makes a 6-digit PIN harder to
   guess, and the per-IP rate limiter keys on IP alone, which a LAN attacker

@@ -14,6 +14,7 @@ from core.database import get_db
 from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
 from core.deps import require_auth, require_parent
 from core.middleware import compute_fingerprint
+from core import child_credential
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
 from models.schemas import (
@@ -161,7 +162,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
 
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
-        if not hmac.compare_digest(req.credential, settings.child_pin):
+        if not child_credential.verify_child_pin(req.credential):
             # Escalating delay, not a lockout — see core/child_throttle.py
             # for why copying parent_lockout's fixed-threshold refusal here
             # would have closed a brute-force gap by opening an easier

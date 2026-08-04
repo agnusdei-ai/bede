@@ -122,3 +122,42 @@ def suggest_pin() -> str:
         pin = "".join(secrets.choice("0123456789") for _ in range(MIN_PIN_LENGTH))
         if pin_is_strong(pin) and not is_published_credential(pin):
             return pin
+
+
+PIN_RULES_HINT = (
+    f"{MIN_PIN_LENGTH} or more digits, and not an easily-guessable pattern: "
+    "no counting up or down (123456, 654321), no repeated block (111111, "
+    "123123, 121212), and not the same forwards and backwards (669966). "
+    "Repeated digits are fine otherwise. Pick something your child can "
+    "remember without writing it down."
+)
+
+
+def check_child_pin(pin: str) -> str:
+    """The one place the child PIN is judged. Returns an error message, or
+    an empty string when the PIN is fine.
+
+    Used by both the submit handler and the live check the form makes while
+    a parent types, so the feedback under the field and the decision to
+    accept the form can never disagree — the live check calls back into
+    this rather than reimplementing the rules in JavaScript. A fourth copy
+    of this policy (after Python, bash and TypeScript) is exactly the kind
+    of duplication that produced the 602656 defect in the first place.
+    """
+    if not pin:
+        return "Please choose a PIN for your child."
+    if not pin.isdigit():
+        return "Digits only, so it's easy for a child to type."
+    if len(pin) < MIN_PIN_LENGTH:
+        return f"A bit longer: {MIN_PIN_LENGTH} digits at least."
+    if not pin_is_strong(pin):
+        return (
+            "That's an easily-guessable pattern. Avoid counting up or down, "
+            "a repeated block, or the same digits forwards and backwards."
+        )
+    if is_published_credential(pin):
+        return (
+            "That PIN appears in Bede's own published documentation, so it's "
+            "public knowledge. Please choose your own."
+        )
+    return ""

@@ -667,6 +667,17 @@ class TotpVerifyRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=8)
 
 
+class ChangeChildPinRequest(BaseModel):
+    """A parent setting the shared child PIN from inside the app.
+
+    Deliberately does NOT ask for the current PIN. The case this exists for
+    is a forgotten one, so requiring it would refuse exactly the family who
+    needs it. The parent session is the authority — this app has one parent
+    identity, and it already owns every other credential.
+    """
+    new_pin: str = Field(..., min_length=1, max_length=32)
+
+
 class ChangePasswordRequest(BaseModel):
     """Requires a full parent session (not recovery) — a parent who's
     already logged in changing their password on purpose. See

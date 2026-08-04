@@ -19,14 +19,17 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import child_credential
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
 from core.deps import require_elevated_parent, require_mfa_pending, require_parent
 from core.middleware import compute_fingerprint
 from core.parent_credential import set_parent_password_override, verify_parent_password
+from core.pin_policy import check_child_pin
 from core.security import create_access_token
 from models.schemas import (
+    ChangeChildPinRequest,
     ChangePasswordRequest,
     RecoveryPinEnrollRequest,
     TokenResponse,
@@ -53,6 +56,10 @@ async def status_(db: AsyncSession = Depends(get_db), _: dict = Depends(require_
         # recovery factor is enrolled, if either (mutually exclusive, see
         # services/parent_recovery.py).
         "recovery_secret": await parent_recovery.recovery_secret_kind(db),
+        # Whether the child PIN in force is one changed in-app or the one
+        # chosen at setup. Never reveals either value — a settings screen
+        # needs to say which it is, and nothing more.
+        "child_pin_overridden": child_credential.has_override(),
     }
 
 
@@ -216,6 +223,52 @@ async def change_password(
     await set_parent_password_override(db, req.new_password)
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="password changed", **ctx)
     return {"success": True}
+
+
+@router.post("/change-child-pin")
+async def change_child_pin(
+    req: ChangeChildPinRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_elevated_parent),
+):
+    """Set the shared child PIN without editing .env or restarting.
+
+    This is the capability CLAUDE.md and docs/SECURITY.md both described as
+    already existing while justifying why child-role recovery needs no
+    scheme of its own. It did not exist; the argument stood on nothing. See
+    core/child_credential.py.
+
+    No current PIN is required. The case this exists for is a forgotten one,
+    so demanding the old value would turn away precisely the family it is
+    for. What is required instead is the parent session, plus a step-up
+    where this deployment enforces one — the same bar as changing any other
+    authentication factor next door in this file, and one a parent can
+    clear even when the PIN itself is what they have lost.
+
+    The PIN is judged by core/pin_policy.py's check_child_pin, the same
+    function the setup wizard's form and its live typing feedback use, so a
+    PIN accepted here is one the installer would have accepted and one the
+    API will boot on. A separate rule here would be the fifth copy of a
+    policy this codebase has already been bitten by duplicating.
+
+    Takes effect at the NEXT child login. No session is ended: a child
+    working through a lesson right now keeps going. See
+    core/child_credential.set_child_pin_override for why that differs from
+    the parent password, which deliberately kills every other session.
+    """
+    ctx = audit_from_request(request)
+    problem = check_child_pin(req.new_pin)
+    if problem:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
+
+    await child_credential.set_child_pin_override(db, req.new_pin)
+    # The PIN itself never reaches the audit log, only that it changed.
+    await log_event(
+        AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+        detail="child PIN changed", **ctx,
+    )
+    return {"success": True, "applies": "next_login"}
 
 
 # ── Completing a pending login (requires "parent_pending", not full parent) ─

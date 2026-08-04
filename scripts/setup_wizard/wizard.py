@@ -31,60 +31,24 @@ _CONTAINER_PATH = "/app/homeschool-api"
 _REPO_PATH = str(Path(__file__).resolve().parent.parent.parent / "homeschool-api")
 sys.path.insert(0, _CONTAINER_PATH if os.path.isdir(_CONTAINER_PATH) else _REPO_PATH)
 from core.pin_policy import (  # noqa: E402
-    MIN_PIN_LENGTH,
+    PIN_RULES_HINT,
+    check_child_pin,
     is_published_credential,
-    pin_is_strong,
 )
 
-# The PIN field is never pre-filled, and the form never puts a specific PIN
-# on screen — not a fixed one, not a generated one.
+# check_child_pin and PIN_RULES_HINT live in core/pin_policy.py rather than
+# here because three programs now judge a child PIN: this form, the API's
+# POST /mfa/change-child-pin, and core/config.py at boot. The whole reason
+# that module exists is that two of them once disagreed.
 #
-# The fixed example (602656) had to go because printing a credential in this
-# repository publishes it. A *generated* suggestion would have fixed that
-# and still been wrong, for a reason that has nothing to do with secrecy: a
-# child has to remember this PIN from memory, at the login screen, possibly
-# aged five. A random six-digit number is close to the worst thing to hand
-# them, and any value already sitting on screen invites a parent to accept
-# it without deciding. The parent chooses something their own child can
-# actually recall; the wizard's job is to say what makes a choice a bad one
-# and to check the answer, not to answer for them.
-PIN_RULES_HINT = (
-    f"{MIN_PIN_LENGTH} or more digits, and not an easily-guessable pattern: "
-    "no counting up or down (123456, 654321), no repeated block (111111, "
-    "123123, 121212), and not the same forwards and backwards (669966). "
-    "Repeated digits are fine otherwise. Pick something your child can "
-    "remember without writing it down."
-)
+# Note what is NOT imported: any way to produce a PIN. The field is never
+# pre-filled and the form never puts a specific PIN on screen, fixed or
+# generated. The fixed example (602656) had to go because printing a
+# credential in this repository publishes it; a generated one would have
+# fixed that and left something worse, since a child recalls this PIN from
+# memory at the login screen, possibly aged five. The parent chooses; the
+# form says what makes a choice a bad one and checks the answer.
 
-
-def check_child_pin(pin: str) -> str:
-    """The one place the child PIN is judged. Returns an error message, or
-    an empty string when the PIN is fine.
-
-    Used by both the submit handler and the live check the form makes while
-    a parent types, so the feedback under the field and the decision to
-    accept the form can never disagree — the live check calls back into
-    this rather than reimplementing the rules in JavaScript. A fourth copy
-    of this policy (after Python, bash and TypeScript) is exactly the kind
-    of duplication that produced the 602656 defect in the first place.
-    """
-    if not pin:
-        return "Please choose a PIN for your child."
-    if not pin.isdigit():
-        return "Digits only, so it's easy for a child to type."
-    if len(pin) < MIN_PIN_LENGTH:
-        return f"A bit longer: {MIN_PIN_LENGTH} digits at least."
-    if not pin_is_strong(pin):
-        return (
-            "That's an easily-guessable pattern. Avoid counting up or down, "
-            "a repeated block, or the same digits forwards and backwards."
-        )
-    if is_published_credential(pin):
-        return (
-            "That PIN appears in Bede's own published documentation, so it's "
-            "public knowledge. Please choose your own."
-        )
-    return ""
 # Deliberately NOT importing core.licensing here — real signature
 # verification needs pycryptodome, and this container stays pure-stdlib on
 # purpose (see module docstring). This form only checks the field is

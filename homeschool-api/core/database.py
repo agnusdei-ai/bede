@@ -608,6 +608,48 @@ class ParentCredentialOverride(Base):
     )
 
 
+class ChildCredentialOverride(Base):
+    """
+    Single row (key="pin") that, when present, WINS over the env CHILD_PIN —
+    the same "DB value wins over env, live, no restart" precedence
+    core/license_state.py and ParentCredentialOverride above already
+    established. See core/child_credential.py, the only module that
+    reads/writes this table.
+
+    This exists because the claim justifying it was made before it was
+    built. CLAUDE.md and docs/SECURITY.md both stated that child-role
+    recovery needed no scheme because "recovery for a child is asking a
+    parent to change CHILD_PIN, a capability that already exists" — and it
+    did not. routers/auth.py compared straight against settings.child_pin,
+    so the only way to change it was editing .env and restarting the stack:
+    precisely what a non-technical family cannot do, and precisely what the
+    graphical installer exists to spare them. The whole out-of-scope
+    argument for child recovery rested on a capability nobody had written.
+
+    hash/salt via core/credential_hash.py, matching ParentCredentialOverride
+    — a PIN is verify-only and never needs decrypting back to plaintext.
+
+    NO credentials_version, deliberately, and that is the one real
+    difference from the parent table. Changing the parent password ends
+    every other parent session immediately, which is what makes it able to
+    end a takeover. Doing the same here would eject a child from a lesson
+    in progress the moment a parent updated the PIN. A child session is a
+    lesson, not an administrative foothold, so the new PIN simply applies
+    at the next login and work already underway is left alone.
+    """
+    __tablename__ = "child_credential_override"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class ParentRecoveryCode(Base):
     """
     Single row (key="recovery") holding a high-entropy backup code, shown to

@@ -79,6 +79,9 @@ export interface MfaStatus {
   // Which shape of the "something you know" recovery factor is enrolled,
   // if either — mutually exclusive (see services/parent_recovery.py).
   recovery_secret: RecoverySecretKind
+  // Whether the child PIN in force was changed in-app or is the one chosen
+  // at setup. Never the PIN itself (core/child_credential.py).
+  child_pin_overridden: boolean
 }
 
 export async function fetchMfaStatus(token: string): Promise<MfaStatus> {
@@ -130,6 +133,13 @@ export const totpAuthVerify = async (pendingToken: string, code: string): Promis
 // counterpart to the recovery flow below):
 export async function changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
   await postJson('/mfa/change-password', token, { current_password: currentPassword, new_password: newPassword })
+}
+
+// Sets the shared child PIN without an .env edit or a restart. Applies at
+// the child's NEXT login and ends no session, so a child part-way through a
+// lesson is not interrupted — see core/child_credential.py.
+export async function changeChildPin(token: string, newPin: string): Promise<void> {
+  await postJson('/mfa/change-child-pin', token, { new_pin: newPin })
 }
 
 // Recovery PIN/code enrollment (the "something you know" leg of account

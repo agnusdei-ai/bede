@@ -216,6 +216,24 @@ Bede uses **three separate layers**, and it matters which one you tell your chil
 | **Child PIN** | Every child in the household (it's shared, not per-child) | Gets to the "child" login screen — a low-stakes shared secret, like a house key. Must be 6+ digits and not an easily-guessable pattern — no sequential run (`123456`), repeated block (`111111`, `123123`), or palindrome (`669966`); repeated digits are otherwise fine. Neither installer picks one for you, on purpose: your child has to remember it, and you know far better than Bede what they will actually recall. Nor does either print an example, since a PIN printed in Bede's own instructions would be public. The browser installer tells you straight away if the one you typed will not work. The app refuses to start in production mode with a weak one, or with any PIN published in this repository. |
 | **Voice passphrase** | Each child, for their own profile | The actual identity check — after entering the PIN, the child says *"I am ready to learn today!"* and Bede matches their voice against their enrolled profile. This is what personalizes their session, not the PIN. |
 
+### If you forget the student PIN
+
+Nothing is lost, and you do not need the old one. Log in as the parent, open
+**Security settings**, and choose **Change student PIN**. Set a new one and
+you are done.
+
+Two things worth knowing:
+
+- **It takes effect at the next login.** A child working through a lesson
+  right now is not signed out and does not lose their place.
+- **A child can never be locked out** by wrong guesses. Repeated wrong
+  entries get slower, which makes guessing at it pointless, but there is no
+  count that runs out and no state you have to clear. A child who mistypes
+  twice notices nothing at all.
+
+Changing the PIN needs your parent password, so it is not a way around the
+account. If you have lost that too, see the password recovery section above.
+
 The PIN alone does **not** grant access to a specific child's lesson plan or history:
 voice verification does. If voice check fails, the only way through is the parent
 password (never a hidden bypass), so a child can't skip their own verification

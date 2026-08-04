@@ -68,9 +68,15 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    outputs:
-      ok: ${{ steps.journey.outputs.ok }}
-      summary: ${{ steps.journey.outputs.summary }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Emulated, not real hardware — see synthetic_journey.mjs's PROFILES
+        # comment. galaxy-a10 is the 360x760 floor: a realistic school device,
+        # and the profile most likely to expose a control that is off-screen
+        # or too small to hit. fail-fast off so one device failing still
+        # reports the others.
+        device: [desktop, galaxy-a10, android-tablet]
     steps:
       - uses: actions/checkout@v4
 
@@ -88,6 +94,7 @@ jobs:
           # still runs if the repo variable was never set — a watchdog that
           # silently no-ops is worse than no watchdog.
           DEMO_URL: ${{ vars.DEMO_PUBLIC_URL || 'https://agnusdei.ai/bede/' }}
+          DEVICE_PROFILE: ${{ matrix.device }}
         run: |
           set +e
           node scripts/synthetic_journey.mjs "$DEMO_URL" > journey-report.json
@@ -97,35 +104,31 @@ jobs:
           # point is visibility, and a green run that printed nothing
           # teaches nobody anything.
           cat journey-report.json
-          if [ "$code" = "0" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
           {
-            echo "summary<<EOF"
+            echo "### Demo watchdog — ${{ matrix.device }} (emulated)"
+            echo ""
+            echo "**Result:** $([ "$code" = "0" ] && echo '✅ the demo works' || echo '❌ the demo is broken')"
+            echo ""
             node -e "process.stdout.write(require('./journey-report.json').summary || 'no summary')"
             echo ""
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-          exit 0
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Exit with the real code. `outputs:` from a matrix job is
+          # last-writer-wins across legs, so gating the repair on it would
+          # silently depend on which device happened to finish last — the
+          # job's own result is the only reliable signal.
+          exit $code
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: journey-report
+          name: journey-report-${{ matrix.device }}
           path: journey-report.json
-
-      - name: Summarise
-        if: always()
-        run: |
-          {
-            echo "### Demo watchdog"
-            echo ""
-            echo "**Result:** ${{ steps.journey.outputs.ok == 'true' && '✅ the demo works' || '❌ the demo is broken' }}"
-            echo ""
-            echo "${{ steps.journey.outputs.summary }}"
-          } >> "$GITHUB_STEP_SUMMARY"
 
   repair:
     needs: check
-    if: needs.check.outputs.ok == 'false' && (github.event_name == 'schedule' || inputs.repair)
+    # `always()` so this evaluates even though `check` failed — without it
+    # the whole point (repair on failure) never runs.
+    if: always() && needs.check.result == 'failure' && (github.event_name == 'schedule' || inputs.repair)
     runs-on: ubuntu-latest
     permissions:
       contents: write        # to push a branch — NOT to push to main
@@ -136,7 +139,11 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: journey-report
+          # Every device's report, not one — a failure on the 360px phone
+          # and a pass on desktop is a real and common shape, and the agent
+          # needs both to tell "broken" from "broken only when small".
+          pattern: journey-report-*
+          merge-multiple: false
 
       - name: Repair
         # NOTE: not verifiable from the authoring sandbox (no network to

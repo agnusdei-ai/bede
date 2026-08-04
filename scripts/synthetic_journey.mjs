@@ -35,14 +35,60 @@
  *
  * Usage:  node scripts/synthetic_journey.mjs https://agnusdei.ai/bede/
  */
-import { chromium } from 'playwright';
+import { chromium, devices } from 'playwright';
 
 const TARGET = process.argv[2] || process.env.DEMO_URL || 'https://agnusdei.ai/bede/';
 const TIMEOUT_MS = Number(process.env.JOURNEY_TIMEOUT_MS || 90_000);
 
+/**
+ * Device profiles, because "it works" is a claim about a device, not about
+ * a site. Bede is used on whatever hardware a family already owns, which
+ * skews cheap and small — a Galaxy A10 (360×760, 2GB RAM, Android 9) is a
+ * realistic school device in a way a developer's laptop is not, and it is
+ * the profile most likely to expose a layout that hides the button or a
+ * touch target too small to hit.
+ *
+ * Emulation is not the same as the real handset — it matches viewport,
+ * user agent, DPR, touch and mobile flags, but not the renderer, not the
+ * memory ceiling, and not Android WebView quirks. It catches layout and
+ * input-model failures, which is most of them. It does not let anyone
+ * claim the app was tested on an A10. Say "emulated" when reporting.
+ */
+const PROFILES = {
+  desktop: { name: 'desktop', ctx: {} },
+  'galaxy-a10': {
+    name: 'galaxy-a10 (emulated)',
+    ctx: {
+      viewport: { width: 360, height: 760 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 10; SM-A105F) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+    },
+  },
+  'android-tablet': {
+    name: 'android-tablet (emulated)',
+    ctx: {
+      viewport: { width: 800, height: 1280 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 13; SM-X200) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  },
+  ipad: { name: 'ipad (emulated)', ctx: devices['iPad (gen 7)'] },
+};
+
+const PROFILE = PROFILES[process.env.DEVICE_PROFILE || 'desktop'] || PROFILES.desktop;
+
 /** Everything the run observed. Emitted whole, pass or fail. */
 const report = {
   target: TARGET,
+  device: PROFILE.name,
   startedAt: new Date().toISOString(),
   ok: false,
   failedStep: null,
@@ -63,7 +109,8 @@ function finish(code) {
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || undefined,
 });
-const page = await browser.newPage();
+const context = await browser.newContext(PROFILE.ctx);
+const page = await context.newPage();
 
 // A CSP block is the one failure with no server-side trace at all, so it is
 // captured first-class rather than inferred from a generic console error.

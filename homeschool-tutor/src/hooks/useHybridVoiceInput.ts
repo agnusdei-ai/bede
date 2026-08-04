@@ -4,6 +4,9 @@ import { useVoiceRecorder } from './useVoiceRecorder'
 import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents } from '../services/voiceApi'
 import { logDebug } from './debugBus'
 import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../utils/audioSession'
+import {
+  SAMPLE_INTERVAL_MS, advanceEndpointState, endReason, initialEndpointState,
+} from '../utils/endpointing'
 
 /**
  * Voice input for the chat mic button. Server-side streaming transcription
@@ -28,10 +31,18 @@ import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../util
  * by this app's own opt-in, off-by-default continuous "Voice on" mode — see
  * SocraticChat.tsx's auto-start effect and useVoiceModePreference.ts) now
  * behaves like startHold() and needs an explicit release() the same way —
- * continuous mode's own call site never calls one, so a turn there will run
- * for the full HOLD_SAFETY_TIMEOUT_MS ceiling (120s) before auto-finishing
- * rather than ending snappily when the child stops talking. See
- * docs/VOICE_SETUP.md for the follow-up this needs.
+ * continuous mode's own call site never calls one, so a turn there used to
+ * run for the full HOLD_SAFETY_TIMEOUT_MS ceiling (120s) before auto-
+ * finishing rather than ending when the child stopped talking.
+ *
+ * That follow-up is now BUILT. Pass `endpointOnSilence` — continuous mode
+ * does — and the turn ends on trailing silence instead. utils/endpointing.ts
+ * holds the decision logic and the reasoning behind a silence window
+ * deliberately longer than a dictation app's: narration pauses are the work,
+ * not hesitation to be trimmed. hold-to-talk still does NOT pass it, because
+ * there the child's own release IS the endpoint and second-guessing a held
+ * button would cut them off mid-hold. The 120s ceiling remains underneath as
+ * the backstop it always was. See docs/VOICE_SETUP.md.
  */
 
 // How often, while a turn is open, to upload the growing audio buffer for a
@@ -98,6 +109,18 @@ interface Options {
   token: string | null
   onFinal?: (transcript: string) => void
   language?: string
+  /**
+   * End the turn on trailing silence instead of waiting for an explicit
+   * release(). Opt-in, and only continuous "Voice on" mode passes it —
+   * hold-to-talk must never endpoint itself, because there the child's own
+   * finger already says when they are done and second-guessing that would
+   * cut them off mid-hold.
+   *
+   * This is the KNOWN GAP in this file's header comment, now closed for the
+   * one caller that had no other way to end a turn. See utils/endpointing.ts
+   * for why the silence window is deliberately longer than a dictation app's.
+   */
+  endpointOnSilence?: boolean
 }
 
 type Mode = 'idle' | 'recording' | 'transcribing'
@@ -106,7 +129,7 @@ type Mode = 'idle' | 'recording' | 'transcribing'
 // the server. See isNetworkFailure above.
 export type MicError = 'permission-denied' | 'unavailable' | 'no-speech-heard' | 'network'
 
-export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Options) {
+export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpointOnSilence = false }: Options) {
   const [mode, _setMode] = useState<Mode>('idle')
   const [interim, setInterim] = useState('')
   // Surfaces the one failure mode that used to be totally silent: a denied
@@ -383,6 +406,43 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US' }: Opti
     }
     beginStream(START_STREAM_MAX_ATTEMPTS)
   }, [token, language, recorder, consumeEvents, uploadSnapshot, clearHoldSafety, setMode])
+
+  // ── Endpointing: end the turn when the child stops talking ───────────────
+  // Only runs when the caller asked for it (continuous "Voice on" mode).
+  // Hold-to-talk is untouched — there, release() is the endpoint, and a
+  // silence detector second-guessing a held button would cut a child off
+  // mid-hold.
+  //
+  // Reads the recorder's existing level meter rather than adding a second
+  // analyser: the audio graph is already computing it for the level
+  // visualisation, so this costs one sample read every SAMPLE_INTERVAL_MS
+  // and no extra DSP. All the actual decisions live in utils/endpointing.ts,
+  // which is pure and directly tested — this effect only samples and acts.
+  const levelRef = useRef(0)
+  levelRef.current = recorder.level
+  useEffect(() => {
+    if (!endpointOnSilence || mode !== 'recording') return
+    let state = initialEndpointState()
+    const id = setInterval(() => {
+      state = advanceEndpointState(state, {
+        level: levelRef.current,
+        deltaMs: SAMPLE_INTERVAL_MS,
+      })
+      const reason = endReason(state)
+      if (!reason) return
+      clearInterval(id)
+      logDebug(
+        `endpointing: ending turn (${reason}) after ${Math.round(state.elapsedMs)}ms ` +
+        `— ${Math.round(state.speechMs)}ms speech, ${Math.round(state.silenceMs)}ms trailing silence`,
+      )
+      // release(), never stop(): the child may well have said something, and
+      // stop() would discard it. On the no-speech path release() still runs
+      // the normal finish, which returns an empty transcript the existing
+      // MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK logic already handles.
+      releaseRef.current()
+    }, SAMPLE_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [endpointOnSilence, mode])
 
   const start = useCallback(() => _start(), [_start])
   const startHold = useCallback(() => _start(), [_start])

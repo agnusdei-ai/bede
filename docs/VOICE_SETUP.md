@@ -1730,6 +1730,47 @@ public API for a page to control audio session category directly, so this
 fix is iOS/iPadOS-specific; Android's own routing behavior around
 `getUserMedia` wasn't reported as broken and is left alone.
 
+## Endpointing: how a continuous-mode turn ends
+
+Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.
+Continuous "Voice on" mode had none at all: `start()` behaved exactly like
+`startHold()`, nothing ever called `release()`, and the turn therefore ran to
+the 120-second `HOLD_SAFETY_TIMEOUT_MS` ceiling. A child answered in four
+seconds and the microphone stayed open for another hundred and sixteen.
+
+`homeschool-tutor/src/utils/endpointing.ts` closes that. It samples the
+recorder's existing level meter every 200ms and ends the turn on trailing
+silence.
+
+**The silence window is deliberately longer than a dictation app's, and that
+is the whole design.** General-purpose dictation endpoints after roughly
+700-1500ms. That is wrong here: this app's central activity is narration — a
+child recalling a passage aloud, from memory, in their own words. Thinking
+pauses mid-narration are not hesitation to be trimmed, they are the work.
+Cutting a child off to "helpfully" submit half a sentence is worse than any
+latency it saves, and it punishes exactly the unhurried recall the method is
+built on. `TRAILING_SILENCE_MS` is 3000ms, and a test asserts it stays clear
+of dictation territory so shortening it has to be an argument rather than a
+quiet edit.
+
+Two independent reasons end a turn, kept apart on purpose:
+
+- **`finished-speaking`** — at least `MIN_SPEECH_MS` (600ms) of speech was
+  heard, then `TRAILING_SILENCE_MS` of quiet.
+- **`no-speech`** — nothing was ever heard, so after `NO_SPEECH_TIMEOUT_MS`
+  (12s) the turn ends rather than holding the mic to the 120s ceiling. Covers
+  an auto-start that fired after the child walked away.
+
+Both are logged to the debug overlay with the speech/silence split, so a
+report can say *why* a turn ended rather than only that it did.
+
+**`SILENCE_LEVEL` is untuned against real hardware** and says so in its own
+comment — it cannot be tuned from a sandbox with no microphone. If turns end
+too early, raise `TRAILING_SILENCE_MS` first, then lower `SILENCE_LEVEL`; if
+they never end, raise `SILENCE_LEVEL`. Everything stays bounded by the 120s
+safety timeout regardless, so a badly tuned threshold degrades to the old
+behaviour rather than to something worse.
+
 ## Feature: continuous "Voice on" mode (opt-in, hold-to-talk stays the default)
 
 Reported by a parent: "I don't really want to hold it down." Press-and-hold

@@ -41,7 +41,9 @@ You can answer me in whichever way feels easiest:
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and
-  when you're done I'll hear you and answer. Tap the microphone anytime to
+  when you stop, I'll wait a few seconds and then answer. Take your time in
+  the middle — thinking pauses are part of narrating, and I won't cut in
+  just because you went quiet for a moment. Tap the microphone anytime to
   go back to press-and-hold instead.
 - **Tap the pencil** ✏️ to draw or write your answer by hand. I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph

@@ -431,5 +431,8 @@
     "completedShort": "{{count}}×",
     "workedByOne": "Esto solo lo ha hecho uno de ellos por ahora",
     "caveat": "Un niño que no ha hecho un trabajo simplemente no aparece en él. Nadie se mide con nadie, y los niños nunca ven esto."
+  },
+  "common": {
+    "idleWarning": "¿Sigues ahí? Tu sesión se cerrará pronto si no ocurre nada — toca la pantalla para continuar."
   }
 }

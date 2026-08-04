@@ -132,6 +132,36 @@ export async function changePassword(token: string, currentPassword: string, new
   await postJson('/mfa/change-password', token, { current_password: currentPassword, new_password: newPassword })
 }
 
+// ── Privileged-access step-up (P8, core/elevation.py) ────────────────────
+// Management-plane actions (the audit log, licensing, the AI provider
+// switch, any auth/recovery factor change, permanent student deletion)
+// additionally require a recent elevation. ElevationPrompt.tsx is what
+// actually calls this — it intercepts the 403 those endpoints return when
+// unelevated and prompts for the password itself, so no individual call
+// site above needs to know elevation exists at all.
+export interface ElevationResult {
+  elevated: boolean
+  expiresAt: string
+  ttlSeconds: number
+}
+
+export async function elevateSession(token: string, password: string, totpCode?: string): Promise<ElevationResult> {
+  const res = await fetch(`${BASE}/auth/elevate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password, totp_code: totpCode || '' }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    // /auth/elevate's own failures are always plain-string details (wrong
+    // password, missing/invalid TOTP, no session id) — never the structured
+    // {elevation_required: true} shape the endpoints IT unlocks return.
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not confirm your password')
+  }
+  const data = await res.json()
+  return { elevated: data.elevated, expiresAt: data.expires_at, ttlSeconds: data.ttl_seconds }
+}
+
 // Recovery PIN/code enrollment (the "something you know" leg of account
 // recovery below) — mutually exclusive; enrolling one clears the other.
 

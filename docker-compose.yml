@@ -65,9 +65,12 @@ services:
       #
       # ELEVATION_ENFORCED — require a password step-up for management-plane
       # actions (audit log, AI provider, MFA/recovery changes, permanent
-      # student deletion). Ships off pending the web UI's password prompt;
-      # see docs/SECURITY.md. GET /admin/status reports which posture you have.
-      - ELEVATION_ENFORCED=${ELEVATION_ENFORCED:-false}
+      # student deletion). Defaults true — homeschool-tutor's
+      # ElevationPrompt.tsx prompts for the password/TOTP itself and retries
+      # the action, so no page needs its own handling. Set false to opt out
+      # (e.g. a deployment driving the API directly with no frontend). See
+      # docs/SECURITY.md. GET /admin/status reports which posture you have.
+      - ELEVATION_ENFORCED=${ELEVATION_ENFORCED:-true}
       - ELEVATION_TTL_MINUTES=${ELEVATION_TTL_MINUTES:-10}
       # LEGACY_TOKEN_GRACE — accept JWTs issued before identity domains
       # existed (core/identity.py). Only needed for the first deploy after

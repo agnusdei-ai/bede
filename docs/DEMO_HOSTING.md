@@ -326,14 +326,67 @@ whatever's actually live once that decision is made.
 
 Render's free web-service plan spins `bede-demo-api` down after 15 minutes
 with no inbound traffic; the next visitor eats a ~1-minute cold boot before
-Bede responds. `.github/workflows/keep-demo-warm.yml` pings `/health` every
-10 minutes during a 12:00-23:50 UTC window to keep the service warm for
-most demo traffic without it — deliberately not 24/7, since Render's free
-plan grants a shared **750 instance-hours/month across the whole
-workspace**, and keeping one service warm around the clock burns nearly all
-744 of a 31-day month's hours by itself, leaving nothing for any other free
-service in the workspace before it gets suspended for the rest of the
-month. `bede-demo-db` is no longer part of that shared pool — it runs on a
+Bede responds. A scheduled `/health` ping keeps it warm during a
+12:00-23:59 UTC window — deliberately not 24/7, since Render's free plan
+grants a shared **750 instance-hours/month across the whole workspace**, and
+keeping one service warm around the clock burns nearly all 744 of a 31-day
+month's hours by itself, leaving nothing for any other free service in the
+workspace before it gets suspended for the rest of the month.
+
+### The ping moved to Cloudflare, and why
+
+`.github/workflows/keep-demo-warm.yml` asked for every 10 minutes. GitHub
+delivers scheduled workflows best-effort and throttles frequent ones hard:
+measured over two days on this repository the actual gaps were **67 to 145
+minutes**, and on one occasion nothing ran for twelve hours. Against Render's
+15-minute idle timer that means the backend was asleep for most of the window
+it was supposed to be covering, and a visitor landing in one of those gaps got
+failed requests during the cold boot — reaching the browser as `Load failed`
+and, on the mic specifically, looking exactly like a broken microphone.
+
+`workers/keep-warm/` is a small Cloudflare Worker doing the same job on a
+cron trigger, which can be delayed by a few minutes but is not dropped for
+hours. Three decisions are worth not undoing:
+
+- **Same window, 12:00-23:59 UTC.** The reliability fix must not become a
+  cost change. Note the arithmetic moves anyway: a ping landing roughly hourly
+  woke the service for ~15 minutes at a time, so real consumption was on the
+  order of **90 hours/month**. A ping that actually works keeps it up for the
+  whole window — about **367 hours/month**. That is comfortably inside 750,
+  but it is roughly a fourfold increase, and the headroom is only real if
+  `bede-demo-api` is the *only* free service in the workspace.
+- **Every 5 minutes, not 10.** Cloudflare states cron triggers may be delayed
+  by a few minutes; 5 leaves roughly 3x margin against Render's 15-minute
+  idle timer instead of 1.5x. It costs nothing on either side — Workers' free
+  tier is 100k requests/day against ~143 invocations here, and it adds no
+  Render hours, since the service is continuously awake during the window
+  either way.
+- **A separate Worker, not the site's.** The repo-root `wrangler.jsonc`
+  deliberately has no `main` field — its own comment says a Worker with only
+  an `assets` block "deploys as pure static hosting, no compute". Adding a
+  `scheduled()` handler there would introduce a script into the deployment of
+  agnusdei.ai itself, so a mistake in a keep-alive ping could take down the
+  front door. A separate Worker's worst case is that the ping stops and the
+  backend goes back to cold-starting.
+
+**A second thing this repairs, which was not obvious.** `main.py`'s
+`_periodic_data_purge` sleeps for six hours *before* its first run. A process
+dying every fifteen minutes never reaches it, so the 30-day purge of demo
+interaction signals that `docs/RETENTION_POLICY.md` commits to had
+effectively never executed. A backend that stays up across an eleven-hour
+window completes that cycle once a day.
+
+**One-time setup, and why both are live meanwhile.** Merging cannot create a
+Cloudflare project, so the GitHub workflow stays until the Worker is
+confirmed running — deleting it first would leave no keep-warm at all. To
+deploy: `cd workers/keep-warm && npx wrangler deploy`, then set the backend
+URL (the same value as the `VITE_DEMO_API_BASE` repo variable) with
+`npx wrangler secret put DEMO_API_BASE` or via the `vars` block. Confirm a
+run in the Worker's logs, then delete `.github/workflows/keep-demo-warm.yml`
+and the `GITHUB_WORKFLOW` half of
+`homeschool-api/tests/test_keep_warm_schedule.py`. Until then that test pins
+both schedules to the same window so they cannot drift apart, and pins both
+against ever becoming 24/7. `bede-demo-db` is no longer part of that shared pool — it runs on a
 paid Basic-256mb plan (see `render.yaml`'s own comment on `databases[0].plan`
 for why), which also means it doesn't expire and need periodic recreation
 the way Render's free Postgres tier does.

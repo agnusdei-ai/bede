@@ -1,5 +1,20 @@
 name: Keep demo backend warm
 
+# BEING RETIRED — superseded by workers/keep-warm/ (a Cloudflare cron
+# trigger). GitHub delivers scheduled workflows best-effort and throttles
+# frequent ones hard: measured on this repository the real gaps between runs
+# were 67-145 minutes against the 10 requested below, and once nothing ran
+# for twelve hours. Render sleeps a free service after 15 minutes idle, so
+# this has been leaving the backend asleep for most of the window it is
+# supposed to cover.
+#
+# Still here because merging cannot create the Cloudflare project — deleting
+# this first would leave no keep-warm at all. Once that Worker is confirmed
+# running, delete this file and the GITHUB_WORKFLOW half of
+# homeschool-api/tests/test_keep_warm_schedule.py, which currently pins both
+# schedules to the same window so they cannot drift apart. See
+# docs/DEMO_HOSTING.md's "The ping moved to Cloudflare, and why".
+
 # Render's free web-service plan (render.yaml) spins the container down
 # after 15 minutes with no inbound traffic, and the next visitor eats a
 # ~1-minute cold boot (import the full dependency set, run

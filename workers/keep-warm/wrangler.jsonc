@@ -1,0 +1,55 @@
+{
+  // A SEPARATE, dedicated Cloudflare Worker whose only job is to ping
+  // bede-demo-api's /health on a schedule, so Render's free tier does not
+  // spin it down between visitors.
+  //
+  // Deliberately NOT added to the repo-root wrangler.jsonc, which serves
+  // agnusdei.ai itself. That config has no `main` field on purpose — its own
+  // comment says so: "a Worker with only an `assets` block and no script
+  // deploys as pure static hosting, no compute." Adding a scheduled()
+  // handler there would mean introducing a script into the deployment of the
+  // marketing site AND the demo, so a mistake in a keep-alive ping could
+  // take down the front door. Here, the worst case is that the ping stops
+  // and the backend goes back to cold-starting — exactly the situation this
+  // replaces, and nothing a visitor to agnusdei.ai would ever notice.
+  //
+  // ── Schedule ──────────────────────────────────────────────────────────
+  // Every 5 minutes, 12:00-23:55 UTC. Two deliberate choices:
+  //
+  // 1. The WINDOW is unchanged from the GitHub Actions workflow this
+  //    replaces (.github/workflows/keep-demo-warm.yml) and must stay that
+  //    way. Render's free plan grants 750 instance-hours per MONTH across
+  //    the whole workspace, and a 31-day month is 744 hours — so a keep-warm
+  //    that actually worked around the clock would burn the entire
+  //    allowance and get the service suspended for the rest of the month.
+  //    That is strictly worse than cold starts. See docs/DEMO_HOSTING.md.
+  //
+  // 2. The CADENCE is 5 minutes rather than the workflow's 10. Render sleeps
+  //    after 15 minutes idle, and Cloudflare states cron triggers may be
+  //    delayed by a few minutes; 5 leaves roughly a 3x margin against that
+  //    jitter instead of 1.5x. It costs nothing on either side — Workers'
+  //    free tier is 100k requests/day against ~143 invocations here, and it
+  //    adds no Render instance-hours at all, since the service is already
+  //    continuously awake during the window either way.
+  "name": "bede-keep-warm",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "triggers": {
+    "crons": ["*/5 12-23 * * *"]
+  },
+  "vars": {
+    // The demo backend's base URL — the same value as the repo's
+    // VITE_DEMO_API_BASE variable, e.g.
+    // "https://bede-demo-api-xxxx.onrender.com". Not a secret (it is baked
+    // into the public demo bundle already), so it lives here rather than in
+    // `wrangler secret`. Left empty on purpose: an unconfigured Worker logs
+    // and does nothing rather than pinging some wrong host, mirroring how
+    // the GitHub workflow handles an unset variable.
+    "DEMO_API_BASE": ""
+  },
+  "observability": {
+    // Without this, a silently failing ping looks identical to a working
+    // one — the whole failure mode this Worker exists to fix.
+    "enabled": true
+  }
+}

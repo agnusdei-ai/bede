@@ -85,7 +85,22 @@ function toApiMessage(m: DisplayMessage): ChatMessage | null {
 // working with the English default for those, while CodeScreen's own call
 // site passes t to translate both the network-error message and its fallback.
 function friendlyErrorMessage(err: unknown, fallback: string, t?: TFunction): string {
+  // Record the real error BEFORE substituting a friendly one. This function
+  // deliberately replaces a precise signal with a reassuring guess, which is
+  // right for a child on a tablet and actively harmful for whoever has to
+  // diagnose it: on 2026-08-04 a CSP misconfiguration surfaced here as "it
+  // may be waking up after being idle", the original TypeError was dropped
+  // on the floor, and the resulting hunt cost hours. The friendly text
+  // below is unchanged — this only stops the truth being discarded on the
+  // way to it. See diagnostics.ts.
+  const e = err as Error
+  logDebug(`error→friendly ${e?.name ?? typeof err}: ${e?.message ?? String(err)}`)
   if (err instanceof TypeError) {
+    // A bare TypeError from fetch means no response was received at all —
+    // CSP block, CORS rejection, DNS failure, or genuinely offline. The
+    // wording below guesses "idle backend" because that was the common
+    // case on Render's free tier; it is a guess, not a diagnosis, and the
+    // CSP/fetch lines in the debug panel are what distinguish them.
     return t ? t('common.networkError') : "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
   }
   return err instanceof Error ? err.message : fallback

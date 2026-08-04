@@ -206,17 +206,19 @@ services:
       # Cloudflare Worker's own default preview domain, needed until a
       # candidate domain's nameservers are pointed at Cloudflare.
       #
-      # agnusdei.io is live on the same Worker (Custom Domain, nameservers
-      # on Cloudflare) as of the 2026-07 beta launch — agnusdei.ai's
-      # transfer was mid-flight at the same time and its registrar had its
-      # DNS/nameserver controls locked for the duration, so .io became the
-      # interim beta domain rather than waiting on .ai. Once .ai's transfer
-      # clears and it's attached to the Worker too, decide whether both stay
-      # live (add a canonical link tag to avoid duplicate-content SEO) or
-      # .io gets a redirect rule to .ai — either way, drop whichever
-      # candidate domain doesn't end up in use, and drop the
-      # agnusdei-ai.github.io and workers.dev fallbacks once the custom
-      # domain(s) are confirmed working, to keep this list minimal again.
+      # agnusdei.io was live on the same Worker (Custom Domain, nameservers
+      # on Cloudflare) as of the 2026-07 beta launch, as the interim beta
+      # domain while agnusdei.ai's transfer was mid-flight and its registrar
+      # had DNS/nameserver controls locked for the duration. That transfer
+      # has since cleared (2026-08-04): agnusdei.ai is now attached to the
+      # same Worker and is the decided canonical domain going forward, with
+      # a Cloudflare zone-level Redirect Rule sending agnusdei.io traffic to
+      # it (see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io"
+      # section for the exact rule). .io's entries here are left in for now
+      # rather than trimmed immediately — once the redirect's been observed
+      # live for a while, drop .io/www.io along with the
+      # agnusdei-ai.github.io and workers.dev fallbacks, to keep this list
+      # minimal again.
       - key: CORS_ORIGINS
         value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://agnusdei.io,https://www.agnusdei.io,https://bede.ai,https://www.bede.ai,https://bede.agnusdei.workers.dev
       - key: DISABLE_API_DOCS

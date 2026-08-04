@@ -388,9 +388,28 @@ workspace**, and keeping one service warm around the clock burns nearly all
 744 of a 31-day month's hours by itself, leaving nothing for any other free
 service in the workspace before it gets suspended for the rest of the
 month. `bede-demo-db` is no longer part of that shared pool — it runs on a
-paid Basic-256mb plan (see `render.yaml`'s own comment on `databases[0].plan`
-for why), which also means it doesn't expire and need periodic recreation
-the way Render's free Postgres tier does.
+paid plan (Pro-4gb as of 2026-08-04; see `render.yaml`'s own comment on
+`databases[0].plan` for why the file and the dashboard must agree), which
+also means it doesn't expire and need periodic recreation the way Render's
+free Postgres tier does.
+
+**As of 2026-08-04 `bede-demo-api` itself is on Render's Pro plan**, so the
+spin-down this whole section describes no longer applies to it: there is no
+15-minute idle shutdown and no shared free-hours cap. The keep-alive
+workflow is now belt-and-braces rather than load-bearing. Two consequences
+worth knowing, because both bit during the outage that day:
+
+- **"It may be waking up after being idle" is no longer a safe assumption.**
+  That is what the demo tells a visitor on any connection-level failure
+  (`friendlyErrorMessage` in `demo/src/App.tsx`), and on the free plan it
+  was usually true. On Pro it is usually *false* — a request that fails now
+  is far more likely to be a real fault than a cold start, so treat that
+  message as a symptom to investigate rather than as an explanation.
+- **Keep `render.yaml`'s `services[0].plan` in step with the dashboard.**
+  Unlike the database plan, Render applies a web-service plan exactly as
+  written, so a stale `free` there silently downgrades a running Pro
+  instance on the next successful Blueprint sync. See that key's own
+  comment.
 
 It starts working automatically once `VITE_DEMO_API_BASE` (see below) is
 set — no separate setup. If demo traffic falls outside 12:00-23:50 UTC,
@@ -407,6 +426,46 @@ consent notice and typing a name. And if "Generate my code" still runs
 long, the form says plainly that Bede is waking up rather than leaving an
 unexplained spinner. Neither replaces the keep-alive above — they just
 soften the one cold start it doesn't cover.
+
+## The health check, and what "Deployed ✓" does and doesn't mean
+
+`render.yaml`'s `healthCheckPath` points at `/health`, and **that endpoint
+verifies the database, not just the process.** It runs a `SELECT 1` behind a
+3-second timeout and returns:
+
+- `200 {"status": "ok", "database": "ok"}` — this instance can serve.
+- `503 {"status": "degraded", "database": "unreachable"}` — it cannot.
+
+This is deliberately a *readiness* check rather than a liveness one, and it
+is a change from the original, which returned `{"status": "ok"}`
+unconditionally. That version could not fail. Every real endpoint in this
+API needs Postgres — there is no in-memory fallback, by design (see
+`core/database.py`) — so an instance that cannot reach the database cannot
+answer a single request, yet it passed its own health check, stayed marked
+healthy, kept receiving traffic, and never alerted.
+
+That is not hypothetical. On 2026-08-04 the demo was down for over an hour
+while the Render dashboard read **Deployed ✓** the entire time, and the
+green badge actively misled the investigation: it was taken as evidence the
+database was fine, which is exactly what it was not. The lesson is the
+general one — *a check that cannot fail is indistinguishable from a check
+that passes.*
+
+**The tradeoff, stated plainly:** while the database is unreachable, Render
+sees a failing health check and may restart the instance or stop routing to
+it, and if the fault is at the database end a restart will not fix it. That
+is intended. A service that can answer nothing should fail loudly rather
+than sit green absorbing requests it can only drop.
+
+**When triaging, read the logs, not the badge.** A failed probe writes
+`Health check FAILED — database unreachable: <ExceptionType>: <detail>` —
+the exception type is the part that distinguishes a DNS failure from a
+refused connection from an auth error, and Render's own UI records only
+that the check failed. Startup failures now log a single greppable
+`FATAL: <ExceptionType>: <detail>` line too; previously a database that was
+unreachable *at boot* escaped `main.py`'s error handling entirely (it
+catches `RuntimeError`, but SQLAlchemy raises `OperationalError`) and
+produced an unhandled traceback instead of that line.
 
 ## Memory limits (free plan)
 

@@ -1,7 +1,8 @@
-# Security headers for the whole agnusdei.io deployment (site/ at the
-# root, the demo under /bede/ — see scripts/build_pages_site.sh). Read by
-# Cloudflare's Workers Static Assets the same way it reads a Pages
-# project's _headers file: https://developers.cloudflare.com/workers/static-assets/headers/
+# Security headers for the whole agnusdei.ai / agnusdei.io deployment (site/
+# at the root, the demo under /bede/ — see scripts/build_pages_site.sh). Read
+# by Cloudflare's Workers Static Assets the same way it reads a Pages
+# project's _headers file:
+# https://developers.cloudflare.com/workers/static-assets/headers/
 #
 # Mirrors, as closely as a static file allows, the header set the actual
 # product already enforces at two layers — homeschool-api/core/middleware.py's
@@ -9,34 +10,60 @@
 # marketing/demo surface isn't held to a lower bar than the self-hosted app
 # itself. See docs/SECURITY.md.
 #
-# Rule precedence: Cloudflare applies the MOST SPECIFIC matching path's
-# value for a given header name, so /bede/*'s block below overrides the
-# general /* block for the two headers where the demo genuinely needs a
-# different policy (microphone access, and its own API origin) — every
-# other header applies identically everywhere.
+# ── ONE rule, deliberately. Do not re-split this by path. ─────────────────
 #
-# Deliberately does NOT set Cache-Control (unlike the two reference
-# implementations above, which both send no-store — correct for dynamic,
-# per-request API/app responses). This is static, publicly-cacheable
-# marketing/demo content with no per-visitor data in the response body,
-# so an explicit no-store here would only make the site slower to no
-# security benefit; Cloudflare's own default asset caching applies.
+# The first version of this file had a general `/*` block plus a narrower
+# `/bede/*` block that "overrode" connect-src, media-src, worker-src and
+# Permissions-Policy so the demo could reach its Render backend and use the
+# microphone. That design is unsound, and it took the demo down.
+#
+# Both patterns match a request for `/bede/`, and when more than one CSP is
+# delivered the browser enforces EVERY policy — a resource must be allowed
+# by ALL of them. The effective policy is therefore the INTERSECTION, not
+# the most specific match:
+#
+#     /*        connect-src 'self'
+#     /bede/*   connect-src 'self' https://*.onrender.com
+#     effective connect-src 'self'          ← the backend is blocked
+#
+# So the narrower block could never widen anything; it could only ever be
+# ignored or make things stricter. The demo's fetch to
+# bede-demo-api.onrender.com was refused in the browser and never sent —
+# no request reached the server at all, which is exactly how it presented:
+# Render's logs showed only /health probes, and the demo surfaced its
+# generic "Could not reach the server" (that message fires on a bare
+# TypeError, which is what a CSP-blocked fetch produces).
+#
+# Whether Cloudflare actually emits both headers or collapses them to the
+# most specific one is a platform detail this repo cannot verify from CI
+# (the deployment isn't reachable from the sandbox, and the local harness
+# that "verified" the old file simply assumed the answer). A single policy
+# is correct under BOTH behaviours, so it does not depend on knowing.
+#
+# The cost is that the static marketing pages carry the demo's slightly
+# wider allowances. That cost is close to zero: those pages make no network
+# requests, open no sockets, and use no microphone, so the extra permissions
+# are unreachable there. Correctness beats a tightening that only applies to
+# pages with nothing to tighten.
+#
+# If a genuinely path-specific policy is ever needed, it cannot come from
+# this file — it needs a real Worker script setting headers per-route.
 
 /*
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
-  Permissions-Policy: camera=(), geolocation=(), payment=(), usb=(), microphone=()
   X-Permitted-Cross-Domain-Policies: none
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'self'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
-
-# The interactive demo needs two exceptions the plain marketing pages
-# don't: microphone access (press-and-hold voice input), and permission to
-# reach its own backend on Render. That backend's exact subdomain is set
-# per-deployment by the VITE_DEMO_API_BASE build variable (see
-# docs/DEMO_HOSTING.md), not a fixed value this repo can pin — scoped to
-# https://*.onrender.com rather than opened up broadly.
-/bede/*
+  # microphone=(self): the demo's press-and-hold voice input. Granting it
+  # here does not enable anything on its own — the browser still requires an
+  # explicit user permission prompt, and only /bede/ ever asks.
   Permissions-Policy: camera=(), geolocation=(), payment=(), usb=(), microphone=(self)
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.onrender.com; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
+  # connect-src: 'self' for the pages themselves, plus the demo's backend.
+  # That backend's exact subdomain is set per-deployment by the
+  # VITE_DEMO_API_BASE build variable (see docs/DEMO_HOSTING.md), not a fixed
+  # value this repo can pin — hence the *.onrender.com scope rather than
+  # opening connect-src up broadly.
+  # media-src/worker-src blob:: the demo records audio into blob URLs.
+  # frame-src youtube-nocookie: the home page's click-to-play video.
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.onrender.com; media-src 'self' blob:; worker-src 'self' blob:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';

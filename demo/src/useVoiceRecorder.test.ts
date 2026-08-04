@@ -245,6 +245,39 @@ describe('useVoiceRecorder mic prewarming (iOS Safari user-gesture requirement)'
   })
 })
 
+describe('useVoiceRecorder getStream() success-path timing', () => {
+  // The failure path already logged which getUserMedia() rejection occurred
+  // — the success path had no timing signal at all, so a "missing the start
+  // of speech" report had no way to show how long getUserMedia() itself took
+  // to resolve before the audio graph actually went live.
+  it('logs how long getUserMedia() took to resolve on success', async () => {
+    const { getDebugEntries, clearDebugEntries } = await import('./debugBus')
+    clearDebugEntries()
+    const { result } = renderHook(() => useVoiceRecorder({}))
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    const messages = getDebugEntries().map((e) => e.message)
+    expect(messages.some((m) => /getStream\(\) resolved in \d+ms/.test(m))).toBe(true)
+  })
+
+  it('logs the same timing signal for a prewarm() call, not just a cold startRecording()', async () => {
+    const { getDebugEntries, clearDebugEntries } = await import('./debugBus')
+    clearDebugEntries()
+    const { result } = renderHook(() => useVoiceRecorder({}))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    await act(async () => {})
+
+    const messages = getDebugEntries().map((e) => e.message)
+    expect(messages.some((m) => /getStream\(\) resolved in \d+ms/.test(m))).toBe(true)
+  })
+})
+
 describe('useVoiceRecorder getUserMedia failure reporting', () => {
   // Mirror of homeschool-tutor/src/hooks/useVoiceRecorder.test.ts's same
   // block — see that file's comment for the full rationale. Regression

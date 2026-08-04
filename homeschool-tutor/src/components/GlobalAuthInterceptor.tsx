@@ -16,6 +16,32 @@ import { useNavigate } from 'react-router'
 import { useSessionStore } from '../store/sessionStore'
 import { setLogoutNotice } from '../utils/logoutNotice'
 
+/**
+ * Endpoints whose 401 means "that credential was wrong", NOT "your session
+ * is over" — the distinction this whole component turns on.
+ *
+ * Every one of these VERIFIES a freshly-typed secret against a session
+ * that is still perfectly valid. Treating their 401 as an expiry ends a
+ * live session over a typo and then explains it with something false.
+ *
+ * /auth/elevate is the one that bites hardest, and it is invisible without
+ * testing the two root fetch wrappers together: ElevationPrompt calls
+ * elevateSession() from inside its own modal, so that request travels this
+ * same wrapper. A parent mistyping their password in a step-up prompt was
+ * logged out of the app entirely and told their session had expired. See
+ * interceptorComposition.test.tsx.
+ *
+ * The MFA verify pair is the same shape one step earlier: a wrong TOTP
+ * code or a failed security-key ceremony must leave the parent_pending
+ * token intact so ParentMfaVerification can say "try again" and mean it,
+ * rather than silently discarding the token its retry depends on.
+ */
+const CREDENTIAL_CHECK_PATHS = [
+  '/auth/elevate',
+  '/mfa/totp/authenticate/verify',
+  '/mfa/webauthn/authenticate/verify',
+]
+
 export default function GlobalAuthInterceptor() {
   const navigate = useNavigate()
   const logout = useSessionStore((s) => s.logout)
@@ -27,7 +53,8 @@ export default function GlobalAuthInterceptor() {
       const response = await originalFetch(...args)
       if (response.status === 401) {
         const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
-        if (url.startsWith('/api/') || url.includes(window.location.host)) {
+        const isCredentialCheck = CREDENTIAL_CHECK_PATHS.some((p) => url.includes(p))
+        if (!isCredentialCheck && (url.startsWith('/api/') || url.includes(window.location.host))) {
           // Only claim a session EXPIRED if there was one. A wrong password
           // at the login screen is a 401 too, and it lands here — without
           // this check it would put "your session expired" on screen next to

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import child_throttle, elevation, parent_lockout
+from core import child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
@@ -116,6 +116,30 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     # someone from getting into their own session.
     locale = req.locale if req.locale == settings.locale else "en"
 
+    def _reject_if_device_revoked(role: str) -> None:
+        """P9 device revocation (core/device_registry.py). Called ONLY after
+        this role's credential has already verified successfully — never
+        before. An earlier version checked this first, reasoning that it
+        would avoid burning a parent_lockout/child_throttle attempt on a
+        login that was never going to succeed anyway. That reasoning was
+        wrong: it made this endpoint a pre-authentication oracle, since a
+        caller submitting the right device_id with ANY (or no valid)
+        credential would learn whether that device is revoked without ever
+        proving they hold it. Checking only after a genuinely correct
+        password/PIN closes that — a wrong credential now always gets the
+        same "Invalid credentials" response regardless of whether the
+        device happens to be revoked, indistinguishable either way."""
+        if not req.device_id or not device_registry.is_revoked(req.device_id):
+            return
+        log_event_nowait(
+            AuditEvent.DEVICE_LOGIN_BLOCKED, role=role, success=False,
+            detail="login refused — this device was revoked", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This device's access was revoked — please contact the parent",
+        )
+
     if req.role == "parent":
         locked_until = await parent_lockout.check_locked(db)
         if locked_until is not None:
@@ -138,6 +162,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
                 )
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         await parent_lockout.record_success(db)
+        _reject_if_device_revoked("parent")
         cv = current_credentials_version()
 
         # Password alone isn't enough once a security key or TOTP app is
@@ -146,13 +171,17 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # routers/mfa.py), not a real parent session.
         methods = await mfa_service.enrolled_methods(db)
         if methods:
-            # locale carries through the pending token so the FINAL token
-            # (issued by routers/mfa.py once the second factor completes)
-            # can re-embed it — the parent picked their language once, at
-            # this password step, and MFA completing a moment later
-            # shouldn't silently reset it back to English.
+            # locale (and, likewise, device_id) carries through the pending
+            # token so the FINAL token (issued by routers/mfa.py once the
+            # second factor completes) can re-embed it — the parent picked
+            # their language once, and this device was already identified,
+            # at this password step; MFA completing a moment later
+            # shouldn't silently reset either.
+            pending_payload = {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv}
+            if req.device_id:
+                pending_payload["device_id"] = req.device_id
             pending_token = create_access_token(
-                {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv},
+                pending_payload,
                 fingerprint=fp,
                 expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
             )
@@ -177,6 +206,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         child_throttle.record_success()
+        _reject_if_device_revoked("child")
         expires = timedelta(minutes=settings.child_token_expire_minutes)
     elif req.role == "demo_code":
         # No static secret to compare against — the credential is a code
@@ -201,6 +231,14 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # MFA enrolled (the MFA branch above already embedded cv on its own
         # pending token and returned early).
         token_data["cv"] = cv
+    if req.role in ("parent", "child") and req.device_id:
+        # touch() only runs at the point a REAL, usable token is issued —
+        # never for the transient parent_pending token above, which isn't
+        # a completed login yet. The MFA-required parent path instead
+        # touches in routers/mfa.py's _issue_parent_token, the equivalent
+        # point once the second factor completes.
+        token_data["device_id"] = req.device_id
+        await device_registry.touch(db, req.device_id, req.role, ctx["user_agent"])
 
     # demo_code tokens skip IP+UA fingerprint binding (parent/child keep it
     # unchanged). Real bug this fixes: a demo visitor's IP legitimately

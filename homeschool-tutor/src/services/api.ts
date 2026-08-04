@@ -1,6 +1,7 @@
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
+import { getOrCreateDeviceId } from '../utils/deviceId'
 
 const BASE = '/api'
 
@@ -48,10 +49,19 @@ export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
 }
 
 export async function login(role: 'parent' | 'child', credential: string, locale?: string): Promise<LoginResult> {
+  // P9 device revocation (core/device_registry.py) — identifies this
+  // physical device so a parent can later revoke it (see fetchDevices/
+  // revokeDevice below) if it's lost or compromised. null when
+  // localStorage is unavailable (getOrCreateDeviceId's own fallback);
+  // JSON.stringify drops a null-valued key entirely, so an omitted
+  // device_id here is indistinguishable from an older client that never
+  // sent one — LoginRequest.device_id is optional server-side for exactly
+  // that reason.
+  const deviceId = getOrCreateDeviceId()
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(locale ? { role, credential, locale } : { role, credential }),
+    body: JSON.stringify({ role, credential, ...(locale ? { locale } : {}), ...(deviceId ? { device_id: deviceId } : {}) }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -160,6 +170,45 @@ export async function elevateSession(token: string, password: string, totpCode?:
   }
   const data = await res.json()
   return { elevated: data.elevated, expiresAt: data.expires_at, ttlSeconds: data.ttl_seconds }
+}
+
+// ── P9 device revocation (core/device_registry.py) ────────────────────────
+// "Revoke that lost tablet" — the visible device list
+// docs/DEVICE_IDENTITY_DESIGN.md calls "the feature families actually ask
+// for". See utils/deviceId.ts for what device_id is and is not (a
+// revocation mechanism, not a cryptographic identity).
+
+export interface DeviceInfo {
+  device_id: string
+  first_seen_at: string
+  last_seen_at: string
+  last_role: string
+  last_user_agent: string
+  revoked: boolean
+  revoked_at: string | null
+}
+
+export async function fetchDevices(token: string): Promise<DeviceInfo[]> {
+  const res = await fetch(`${BASE}/admin/devices`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to load devices')
+  return res.json()
+}
+
+// require_elevated_parent server-side (P8) — revoking a device is exactly
+// the class of consequential, hard-to-undo-by-retrying action step-up
+// exists for. ElevationPrompt.tsx (App.tsx) handles the 403 this can
+// return the same way it handles every other elevation-gated call; this
+// function needs no awareness of that itself.
+export async function revokeDevice(token: string, deviceId: string): Promise<DeviceInfo> {
+  const res = await fetch(`${BASE}/admin/devices/${encodeURIComponent(deviceId)}/revoke`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Failed to revoke device')
+  }
+  return res.json()
 }
 
 // Recovery PIN/code enrollment (the "something you know" leg of account

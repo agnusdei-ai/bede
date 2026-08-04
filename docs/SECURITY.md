@@ -286,6 +286,81 @@ list as items are closed.
   frontend). `GET /admin/status` reports the current posture either way.
   Covered by `homeschool-tutor/src/components/ElevationPrompt.test.tsx`.
 
+- **A lost or stolen tablet could not be individually revoked — Option C
+  closed 2026-08-04.** The JWT's `SHA-256(IP | User-Agent)` fingerprint
+  (P10) binds a token to the device that requested it, but binding is not
+  identity: nothing recorded which physical devices a family's tokens had
+  ever been issued to, so the only way to lock out one compromised or
+  missing tablet was to rotate `PARENT_PASSWORD`/`CHILD_PIN` for
+  everyone. `docs/DEVICE_IDENTITY_DESIGN.md` records the fuller design
+  space (Options A/B/C) and recommends C first — this is that build, not
+  the browser-keypair Option A the design doc still lists as open.
+
+  `core/device_registry.py` follows the exact "DB-backed fact, cached
+  in-process, refreshed periodically" shape `core/parent_credential.py`
+  already established for `credentials_version`: a new `DeviceRecord`
+  table (`core/database.py`) holds one row per device (`device_id`,
+  first/last seen, last role, last user-agent, `revoked`), the in-process
+  cache is a plain `set` of revoked ids refreshed every 10 seconds
+  (`periodic_refresh()`, started from `main.py`'s lifespan) so a check on
+  the hot request path is a sync membership test, never a DB round trip.
+  `device_id` is a client-generated, opaque, non-secret UUID
+  (`homeschool-tutor/src/utils/deviceId.ts`, `localStorage`-backed so it
+  survives a browser restart) sent on login and folded into the issued
+  JWT — it identifies hardware, not a person, and proves nothing on its
+  own.
+
+  Two enforcement points, deliberately different in shape. `routers/
+  auth.py`'s `login()` rejects a revoked device, but only **after** the
+  submitted credential has already verified — `_reject_if_device_revoked()`
+  is called after `parent_lockout.record_success()`/`child_throttle.
+  record_success()`, never before. An earlier draft checked revocation
+  first, which would have made `/auth/login` a **pre-authentication
+  oracle**: an attacker could learn whether a specific `device_id` was
+  revoked without ever presenting a valid password, simply by watching
+  which of two 401 messages came back. `test_a_wrong_password_never_
+  reveals_device_revocation_status` pins byte-identical 401 detail text
+  for a wrong password against a revoked device versus a never-registered
+  one. `core/deps.py`'s `_validate_token` is the second, independent
+  enforcement point: every authenticated request re-checks the `device_id`
+  embedded in its own token, so a token issued before revocation is
+  rejected on its very next use, not just at its next login.
+
+  **One narrow, accepted residual, not closed and not silently left
+  open.** A parent enrolled in MFA who logs in from a revoked device gets
+  a `parent_pending` token (password correct, second factor still
+  outstanding) — `login()`'s own revocation check does not run again on
+  the follow-up `/mfa/*/verify` call, so in principle that call's own 401
+  could be read as confirming the device is known-revoked rather than
+  merely "wrong TOTP code." This is a strictly weaker oracle than the one
+  closed above (it requires the *correct password* first, where the
+  closed one required nothing), and closing it structurally cannot be
+  done for free: `require_mfa_pending` routes through the same
+  `_validate_token` that already carries the per-request device check, so
+  the pending token itself is already checked on arrival at the MFA
+  endpoint — the only way to check *earlier* would be inside `login()`
+  before issuing the pending token, which buys nothing `_validate_token`
+  doesn't already provide and would burn a real TOTP attempt for no
+  additional security. Left open on purpose, pinned by
+  `test_a_device_revoked_mid_login_cannot_complete_its_second_factor`
+  (verified via negative control — the guard was temporarily disabled,
+  confirmed the test fails, then restored) so the reasoning stays testable
+  rather than just asserted here.
+
+  Parent-facing surface: `GET /admin/devices` (`require_parent`) and
+  `POST /admin/devices/{device_id}/revoke` (`require_elevated_parent` —
+  revoking a device is exactly the kind of destructive, session-affecting
+  action P8's step-up exists for) back `homeschool-tutor/src/components/
+  DeviceSettings.tsx`, a collapsible card on the parent setup page listing
+  every known device with a "This device" badge and a confirmation prompt
+  before revoking the device the parent is currently using. Every
+  revocation is audit-logged (`AuditEvent.DEVICE_REVOKED`); a blocked
+  login or blocked request from a revoked device logs
+  `AuditEvent.DEVICE_LOGIN_BLOCKED`, wired into the E009 anomaly watch at
+  the same tight 3-in-10-minutes threshold as `ELEVATION_DENIED` — reaching
+  this at all means someone is actively using hardware a parent already
+  revoked, so there's no benign "I mistyped" explanation to wait out.
+
 - **The public demo shared one identity domain with the family
   deployment, closed 2026-08-03.** `routers/auth.py`'s `login()` issued
   `parent`, `child`, and `demo_code` tokens from one function, in one

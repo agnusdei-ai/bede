@@ -293,7 +293,8 @@ closed a real gap in passing: `parent_recovery` previously passed
 `require_auth` and could reach any of the 17 endpoints behind it.
 
 Partial rather than conforming because the layer exists but not every
-capability it unblocks does: P9 (device identity) is still open, and audit
+capability it unblocks does: P9 (device identity) is now revocable
+(Option C) but not yet cryptographic (Option A remains open), and audit
 remains coupled to enforcement rather than being independently verifiable.
 P8 (step-up) and P10 (identity domain split) are both closed.
 
@@ -367,7 +368,7 @@ removed. Removing a single guard fails six tests in that file.
 
 *AIUC-1: Security · CISSP D5 privileged account management*
 
-### P9 — Every device has a cryptographic identity that can be individually revoked ❌
+### P9 — Every device has a cryptographic identity that can be individually revoked ⚠️
 
 **Statement.** Paired devices hold their own keypair, issued at onboarding;
 sessions bind to that key, and a single device can be deprovisioned without
@@ -383,23 +384,48 @@ also strengthens the case for voice verification becoming a real factor:
 a genuine device identity plus a genuine biometric is a materially different
 claim than either alone.
 
-**Conformance.** Still open, and deliberately not built on 2026-08-03
-alongside P8 and P10. `docs/DEVICE_IDENTITY_DESIGN.md` works the problem
-through: three options, a recommendation (revocable device records first,
-browser keypairs for the parent role second), and the four decisions that
-want an answer before code.
+**Conformance.** Deliberately built in two increments —
+`docs/DEVICE_IDENTITY_DESIGN.md` worked the problem through (three options,
+a recommendation of revocable device records first, browser keypairs for
+the parent role second) and recorded the four decisions that wanted an
+answer before code. **Option C (revocable device records) is built and
+closed, 2026-08-04.** `core/device_registry.py` mirrors the DB-backed
+fact/in-process-cache/periodic-refresh shape `core/parent_credential.py`
+established for `credentials_version`: a `DeviceRecord` table
+(`core/database.py`) holds one row per client-generated, opaque,
+non-secret `device_id`, an in-memory revoked-id set refreshes every 10
+seconds, and the id travels inside the issued JWT so both `login()` and
+`core/deps.py`'s per-request check can reject a revoked device — the
+latter closing the token independently of the former, so a token issued
+before revocation is dead on its very next use, not just at next login.
+`login()`'s check runs strictly after credential verification succeeds,
+never before, so the endpoint cannot become a pre-authentication oracle
+revealing which device ids are revoked to an unauthenticated caller.
+Parent-facing revoke UI (`GET/POST /admin/devices*`,
+`DeviceSettings.tsx`) sits behind P8's step-up elevation, since revoking a
+device is exactly the destructive, session-affecting action that
+principle exists to gate.
 
-The short version of why it stopped at a design: P8 and P10 are server-side,
-fail closed into "log in again", and cannot strand a device. P9 changes how
-every device authenticates, and its hardest question is not cryptographic
-but a recovery path — IndexedDB is evictable, so a family whose tablet
-forgets its key needs a re-onboarding flow at least as easy as the one it
-replaces, or they are locked out of their own hardware.
-
-Two things landed for other reasons that make it cheaper than it was:
-parent tokens now carry a `jti` (P8), and `core/identity.py` owns
-domain-scoped signing, so device binding is a change to one module rather
-than to every issue site.
+This closes the *revocation* half of the statement, not the
+*cryptographic* half — a `device_id` is an opaque identifier a device
+presents, not a keypair it proves possession of, so a device_id alone
+(without also holding a valid session token) authenticates nothing. That
+is why this principle is ⚠️ rather than ✅: Option C makes a lost or
+stolen tablet individually deprovisionable, which was the operationally
+urgent gap, but does not yet give a device a cryptographic identity the
+way P5's key hierarchy gives data one. **Option A (per-device browser
+keypairs) remains open**, scoped to the parent role per the design doc's
+own recommendation. The short version of why Option A stays a design
+rather than a build: P8 and P10 are server-side, fail closed into "log in
+again", and cannot strand a device; Option A changes how every device
+authenticates, and its hardest question is not cryptographic but a
+recovery path — IndexedDB is evictable, so a family whose tablet forgets
+its key needs a re-onboarding flow at least as easy as the one it
+replaces, or they are locked out of their own hardware. Two things landed
+for other reasons that make Option A cheaper than it was: parent tokens
+now carry a `jti` (P8), and `core/identity.py` owns domain-scoped
+signing, so device binding is a change to one module rather than to every
+issue site.
 
 Related to punch-list #8: a genuine device identity plus a genuine biometric
 is a materially different claim than either alone, which is why voice

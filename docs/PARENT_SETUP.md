@@ -1018,7 +1018,32 @@ Setting up a second provider in the first place is a one-time, technical
 step (see `docs/PROVIDER_ADAPTERS.md`). This card only lets you choose
 among providers that are already set up, it doesn't add a new one.
 
-## 11. Agentic loop insights (a technical card, safe to skip)
+## 11. Managing devices
+
+Every tablet or computer that has ever logged in as a parent or a child
+leaves a trace — not what was said or done, just "this device exists and
+was last seen on this date." Log in with the parent password, open
+**Setup**, and find the **Devices** card. It lists every device that's
+logged in, with the one you're using right now marked "This device."
+
+If a tablet is lost, stolen, or you're retiring an old one, tap
+**Revoke** next to it. That device stops working immediately — the next
+time anyone tries to use it, whether they're mid-login or already sitting
+in a lesson, they're told plainly that the device's access was revoked
+and to see the parent. Nothing about any other device changes: revoking
+one tablet never logs out the rest of the family. If you ever revoke the
+device you're using yourself, Bede asks you to confirm first, since
+that one logs *you* out too.
+
+You don't need to do anything here for this to work in the background —
+revoking is the only action this card offers, and only matters when a
+specific piece of hardware actually needs to be cut off. Revoking a
+device is treated the same as the other sensitive actions on this page
+(changing a password, switching AI providers, viewing the audit log): if
+you haven't recently re-entered your password this session, Bede will
+ask for it again before the revoke goes through.
+
+## 12. Agentic loop insights (a technical card, safe to skip)
 
 Bede occasionally needs a second, internal reply from the AI model within
 the same turn: for example, if it tries to show a picture-study image
@@ -1041,7 +1066,7 @@ This card is meant for anyone curious about how Bede works under the hood,
 not something you need to check regularly: everything about your child's
 actual learning still lives on the Progress page in the next section.
 
-## 12. Checking in afterward
+## 13. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and
   Bede's sense of how that child learns best: available from the very first session

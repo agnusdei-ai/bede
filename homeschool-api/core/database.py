@@ -173,6 +173,74 @@ class PrivilegedElevation(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
 
 
+class DeviceRecord(Base):
+    """P9 (docs/ARCHITECTURE_PRINCIPLES.md), Option C from
+    docs/DEVICE_IDENTITY_DESIGN.md — a REVOCATION mechanism, deliberately not
+    a cryptographic identity. `device_id` is a UUID the browser generates
+    once and persists in localStorage (not sessionStorage — it must survive
+    a closed tab/browser restart, since it identifies the physical device
+    rather than one login), sent at `POST /auth/login` and embedded as a
+    JWT claim from then on.
+
+    THE PROPERTY THIS BUYS: "revoke that lost tablet" becomes real. Before
+    this, the only levers were changing PARENT_PASSWORD or CHILD_PIN, both
+    of which sign out the WHOLE family. core/deps.py's per-request check
+    against core/device_registry.py's cached revoked set means a revoked
+    device stops working on its very next request, not just at its next
+    login — the same "next-request, not immediate" trade
+    core/parent_credential.py's credentials_version already makes, for the
+    same multi-replica-staleness reason (see that module's docstring).
+
+    THE PROPERTY THIS DOES NOT BUY: `device_id` is client-asserted, not
+    cryptographically proven — an attacker who steals a token gets its
+    device_id too, so this defends against a KNOWN-lost device (a parent
+    revoking the tablet they know is missing), not an attacker impersonating
+    a device that was never reported lost. A genuine per-device keypair
+    (docs/DEVICE_IDENTITY_DESIGN.md's Option A) is the deferred, harder
+    follow-up for the parent role specifically — still not built, and
+    deliberately so; see that document's own "Why Option A stopped here".
+
+    Deliberately NOT role-scoped: one physical tablet is commonly used by
+    both the parent (setting up the day) and a child (the lesson itself),
+    so `last_role`/`last_seen_at` are simply overwritten by whichever login
+    happens most recently, rather than the table carrying one row per
+    (device, role) pair.
+
+    No separate "who revoked this" column: a device can only ever be
+    revoked by an elevated parent (`core/deps.py`'s `require_elevated_parent`
+    — this is a single-tenant app, so there is exactly one identity that
+    could), and that action is already durably recorded independently of
+    this table, in the encrypted audit log (`AuditEvent.DEVICE_REVOKED`,
+    `core/audit.py`) — the same place every other security-relevant action
+    in this app is recorded, rather than duplicating a narrower copy here.
+    """
+    __tablename__ = "device_records"
+
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+    # 'parent' | 'child' — whichever role most recently logged in from this
+    # device. Not encrypted: no more sensitive than AuditLog's own role
+    # column, and this table exists specifically to be listed back to the
+    # parent in plain form.
+    last_role: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Truncated — this is a display label ("Safari on iPad"), not a forensic
+    # record; AuditLog is where a full audit trail already lives.
+    last_user_agent: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    revoked: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class VoiceProfile(Base):
     """One encrypted embedding row per enrolled student."""
     __tablename__ = "voice_profiles"

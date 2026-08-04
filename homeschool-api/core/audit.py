@@ -69,6 +69,12 @@ class AuditEvent:
     ELEVATION_GRANTED        = "elevation.granted"
     ELEVATION_DENIED         = "elevation.denied"
     ELEVATION_DROPPED        = "elevation.dropped"
+    # P9 device revocation (core/device_registry.py). DEVICE_LOGIN_BLOCKED
+    # covers both a blocked login attempt AND a per-request rejection of an
+    # already-issued token — either way, someone is trying to use a device
+    # a parent has explicitly revoked.
+    DEVICE_REVOKED           = "device.revoked"
+    DEVICE_LOGIN_BLOCKED     = "device.login_blocked"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -116,6 +122,13 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # since jailbreak_intent/social_engineering specifically never block a
     # turn on their own and would otherwise generate no other alert signal.
     AuditEvent.ADVERSARIAL_DETECTED: (3, 600),
+    # A device a parent explicitly revoked (P9, core/device_registry.py)
+    # trying repeatedly to log in or continue an already-issued session is
+    # exactly the pattern a parent wants to know about — same tight
+    # threshold as ELEVATION_DENIED, for the same reason: reaching this at
+    # all means someone is actively trying to use hardware that was already
+    # reported lost or compromised.
+    AuditEvent.DEVICE_LOGIN_BLOCKED: (3, 600),
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
 

@@ -221,7 +221,7 @@ domain serves the identical build directly — no redirect needed between
 `bede.agnusdei.workers.dev` and `agnusdei.ai`, since Cloudflare's Custom
 Domains feature lets one Worker answer on both hostnames at once.
 
-**Why Cloudflare Pages and not a GitHub Pages custom domain** (the
+**Why a Cloudflare Worker and not a GitHub Pages custom domain** (the
 originally-planned approach): a first attempt at exactly this apex/subpath
 split on GitHub Pages caused a real near-outage. **GitHub Pages
 auto-detects a `CNAME` file anywhere in the published artifact and silently
@@ -231,10 +231,11 @@ artifact quietly pointed the whole deployment at that domain, and since DNS
 was never pointed at GitHub Pages for it, the result wasn't "shows the
 wrong page," it was the site becoming unreachable entirely — on top of a
 *second*, independent bug in the same attempt (the demo itself moving to a
-doubled `/bede/bede/` path). Cloudflare Pages has no equivalent
-auto-detection footgun: a custom domain is attached explicitly, in the
-dashboard or via API, never inferred from a file in the build output. The
-old `site/CNAME` file has been removed from the repo entirely rather than
+doubled `/bede/bede/` path). A Cloudflare Worker's Custom Domains have no
+equivalent auto-detection footgun: a custom domain is attached explicitly,
+in the dashboard (Workers & Pages → `bede` → Settings → Domains & Routes)
+or via API, never inferred from a file in the build output. The old
+`site/CNAME` file has been removed from the repo entirely rather than
 carried forward inert — Cloudflare doesn't read it, and leaving a
 GitHub-Pages-specific trigger file lying around after deliberately moving
 away from GitHub Pages custom domains is exactly the kind of thing that
@@ -246,7 +247,10 @@ shell script rather than logic duplicated per platform, so it runs
 identically whether GitHub Actions invokes it (`deploy-demo.yml`),
 Cloudflare invokes it, or you run it locally to preview.
 
-**One-time Cloudflare Pages setup:**
+**One-time Cloudflare Worker custom domain setup** (there is no separate
+Cloudflare Pages project involved — a domain is attached directly to the
+existing, already-Git-connected `bede` Worker described in "Wiring the demo
+frontend to it" above, the same way `agnusdei.io` already was):
 
 1. Create a Cloudflare account if you don't have one, and add `agnusdei.ai`
    as a site (**Add a site** → enter the domain). Cloudflare will show you
@@ -254,45 +258,45 @@ Cloudflare invokes it, or you run it locally to preview.
    only you can do (registrar access, not something scriptable from here).
    DNS propagation after the nameserver change can take anywhere from
    minutes to about 24 hours.
-2. **Workers & Pages → Create → Pages → Connect to Git**, select
-   `agnusdei-ai/bede`. Configure the build:
-   - **Build command**: `bash scripts/build_pages_site.sh`
-   - **Build output directory**: `publish`
-   - **Root directory**: `/` (repo root — the script itself `cd`s into
-     `demo/` as needed)
-3. **Environment variables** (Pages project → Settings → Environment
-   variables): add `VITE_DEMO_API_BASE` = your Render backend URL (no
-   trailing slash) — same value the old GitHub Actions `vars.VITE_DEMO_API_BASE`
-   held. Vite bakes this in at build time, so it must be set here, not just
-   on the backend.
-4. **Custom domains** (Pages project → Custom domains): add `agnusdei.ai`
-   (and `www.agnusdei.ai` if you want that to resolve too — Cloudflare
-   offers a one-click redirect rule for it). Cloudflare issues and manages
-   the TLS certificate automatically once the domain's nameservers are
-   actually pointed at Cloudflare from step 1.
-5. **While you're already touching DNS for this domain**, add Resend's
+2. **Workers & Pages → `bede` → Settings → Domains & Routes → Add → Custom
+   Domain**, enter `agnusdei.ai` (and `www.agnusdei.ai` if you want that to
+   resolve too — Cloudflare offers a one-click redirect rule for it).
+   Cloudflare issues and manages the TLS certificate automatically once the
+   domain's nameservers are actually pointed at Cloudflare from step 1. No
+   new build configuration is needed — it's the same Worker, same Git
+   integration, same `bash scripts/build_pages_site.sh` build already
+   wired up for `agnusdei.io`, just answering on one more hostname.
+3. `VITE_DEMO_API_BASE` needs no new step either — it's the build-time
+   variable set once on the `bede` Worker's own Build → Variables and
+   secrets (see "Wiring the demo frontend to it" above), and applies to
+   every hostname the Worker answers on, `agnusdei.ai` included.
+4. **While you're already touching DNS for this domain**, add Resend's
    domain-verification records (TXT/DKIM, from Resend's dashboard → your
    domain → DNS records) for `agnusdei.ai` too, if you haven't — this is
    what `RESEND_FROM_ADDRESS` needs to actually be able to send mail (see
    "Wiring the demo frontend to it" above and `services/email_service.py`'s
    `email_configured()`), and doing it in the same DNS session avoids a
    second round of propagation waiting later.
-6. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists
+5. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists
    `agnusdei.ai` and `bede.ai` (plus `www` variants) ahead of time, so this
    needs no backend redeploy. Trim it back to just whichever domain is
    actually in use once settled, and drop the `agnusdei-ai.github.io`
    fallback once the custom domain is confirmed working end to end.
-7. **Confirm** — open `agnusdei.ai` (the home page) and `agnusdei.ai/bede/`
+6. **Confirm** — open `agnusdei.ai` (the home page) and `agnusdei.ai/bede/`
    (the demo), generate a code, and confirm the chat works. A CORS mismatch
    here shows up as every `/tutor/chat` request silently failing in the
-   browser console, not a visible error banner.
-8. GitHub Pages doesn't need retiring the way an earlier version of this
+   browser console, not a visible error banner. TLS on a freshly-attached
+   Custom Domain can take a few minutes to provision — a certificate error
+   right after attaching isn't necessarily a misconfiguration, give it a
+   short while before troubleshooting further.
+7. GitHub Pages doesn't need retiring the way an earlier version of this
    plan assumed — it's already just a redirect to
    `bede.agnusdei.workers.dev/bede/` (see "GitHub Pages now redirects"
-   above), not a second live copy. Once `agnusdei.ai` is confirmed working,
-   update `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` to point at
-   `agnusdei.ai/bede/` instead, so the old GitHub Pages link forwards to the
-   final domain rather than the workers.dev one.
+   above), not a second live copy. Once `agnusdei.ai` is confirmed working
+   and a canonical domain is decided (see "Interim beta domain: agnusdei.io"
+   below), update `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` to
+   point at that domain instead, so the old GitHub Pages link forwards to
+   the final domain rather than the workers.dev one.
 
 ## Interim beta domain: agnusdei.io
 
@@ -300,8 +304,8 @@ At beta launch (2026-07), `agnusdei.ai`'s domain transfer was mid-flight,
 and most registrars (plus ICANN's post-transfer lock) freeze nameserver
 changes at the losing registrar for the duration — so the steps above
 couldn't be run against `.ai` yet. `agnusdei.io`, not being mid-transfer,
-went through the identical one-time Cloudflare Pages setup instead and is
-the live beta domain today:
+went through the identical one-time Cloudflare Worker custom domain setup
+instead and became the live beta domain:
 
 - Cloudflare zone added for `agnusdei.io`, nameservers switched at the
   registrar (GoDaddy), DNSSEC confirmed off first (leaving it on during an
@@ -313,14 +317,22 @@ the live beta domain today:
   that file's own comment on the full list and why unused entries are left
   in rather than trimmed early).
 
-**When `agnusdei.ai`'s transfer clears**, run the "One-time Cloudflare
-Pages setup" steps above for it too (same Worker, so no rebuild). At that
-point decide: keep both domains live (add a `<link rel="canonical">` to
-whichever is the intended long-term brand domain — serving identical
-content on two live domains without one is a mild SEO duplicate-content
-hit), or add a Cloudflare redirect rule sending `agnusdei.io` traffic to
-`agnusdei.ai`. Either way, update `CORS_ORIGINS` and this doc to match
-whatever's actually live once that decision is made.
+**Update (2026-08-04):** `agnusdei.ai`'s transfer has cleared. Its
+nameservers are now pointed at Cloudflare and it's been attached as a
+Custom Domain on the same `bede` Worker, the same way `agnusdei.io` was —
+not a separate Cloudflare Pages project (see "One-time Cloudflare Worker
+custom domain setup" above, which previously described the wrong,
+superseded Pages-based process and has since been corrected to match).
+Both domains now answer on the identical Worker, build, and (once
+`site/_headers` ships) security-header policy. Still open, and a decision
+only the domain owner can make, not something this codebase can decide on
+its own: whether to keep **both** domains live long-term (in which case add
+a `<link rel="canonical">` to whichever is the intended long-term brand
+domain — serving identical content on two live domains with no canonical
+tag is a mild SEO duplicate-content hit) or add a Cloudflare redirect rule
+sending `agnusdei.io` traffic to `agnusdei.ai`. Once that's decided, update
+`CORS_ORIGINS`, `scripts/build_github_pages_redirect.sh`'s `DEMO_URL`, and
+this doc to match whatever's actually live.
 
 ## Cold starts (free plan)
 

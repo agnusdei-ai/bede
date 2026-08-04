@@ -50,8 +50,9 @@ Both are the same shape: a guard that cannot fail in the way that matters.
 | Parent lockout duration | security | CAUGHT |
 | Per-IP rate limiting | security | CAUGHT |
 | SecurityHeaders CSP content | security | **UNCAUGHT → CAUGHT** |
+| `site/_headers` CSP + Permissions-Policy | security | **UNTESTED → CAUGHT** |
 
-**Twenty-one guards probed. Nineteen already proven. Two were not, and one
+**Twenty-two guards probed. Nineteen already proven. Three were not, and one
 failed illegibly.**
 
 Both failures are the same species, and it is worth naming: a test that reads
@@ -125,6 +126,35 @@ Now pinned by four content assertions: framing denied outright, the
 directives that matter confined to `'self'`, no `unsafe-eval` anywhere and
 `unsafe-inline` confined to `style-src` (Tailwind needs it), and no wildcard
 source in any directive. Two of the four fail under the original mutation.
+
+### The site's CSP had no test at all
+
+`site/_headers` landed on main (#375) one day after the audit above found the
+API's CSP was asserted by presence rather than content. It carries the whole
+public deployment's headers — marketing pages at the root, the demo under
+`/bede/` — and nothing tested it.
+
+Its own comment makes a stronger claim than most: that it "mirrors, as closely
+as a static file allows" the header set enforced by
+`homeschool-api/core/middleware.py` and `homeschool-tutor/nginx.conf`. That is
+one security posture in three copies, with nothing checking they agree.
+
+A static file cannot be mutation-probed the way running code can, so
+`tests/test_site_headers.py` asserts its content directly, and the assertions
+were then verified against four hand-applied loosenings:
+
+| Loosening | Assertions that failed |
+|---|---|
+| `frame-ancestors 'none'` → `*` | 5 |
+| `connect-src 'self' https://*.onrender.com` → `*` | 1 |
+| `script-src` gains `'unsafe-inline'` | 4 |
+| `microphone=()` → `microphone=(self)` on the marketing pages | 1 |
+
+The one legitimate wildcard (`https://*.onrender.com`, because the demo's
+backend subdomain is set per-deployment and cannot be pinned here) is named in
+an allowlist with its reason, so a *second* wildcard fails rather than blending
+in. The mirror claim is checked too: the site's `frame-ancestors` must equal
+the API's, so relaxing one without the other fails.
 
 ## Not yet probed
 

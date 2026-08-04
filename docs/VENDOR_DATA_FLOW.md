@@ -93,7 +93,7 @@ on a setting:
   (~480MB of RSS on import alone) whenever torch is present, which is
   more memory than a small cloud instance has — see
   `docs/DEMO_HOSTING.md`'s memory section. **The public demo at
-  agnusdei.io runs on this setting** (`render.yaml`), which is why its
+  agnusdei.ai runs on this setting** (`render.yaml`), which is why its
   Privacy Notice names OpenAI for voice; a deployment that already sends
   the whole conversation to a cloud model is not buying privacy from
   transcribing locally. A family's own instance is not on this setting

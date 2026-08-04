@@ -1,4 +1,4 @@
-# Security headers for the whole agnusdei.io deployment (site/ at the
+# Security headers for the whole agnusdei.ai deployment (site/ at the
 # root, the demo under /bede/ — see scripts/build_pages_site.sh). Read by
 # Cloudflare's Workers Static Assets the same way it reads a Pages
 # project's _headers file: https://developers.cloudflare.com/workers/static-assets/headers/

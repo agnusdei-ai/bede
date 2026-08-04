@@ -541,7 +541,7 @@ correlated release-to-release.
 is now a redirect stub to `/privacy/`, matching
 `scripts/build_github_pages_redirect.sh`'s existing meta-refresh + JS +
 plain-link pattern, so an already-shared or bookmarked `/trackers/` link
-still lands somewhere real):** answers, for `agnusdei.io` itself (the marketing site
+still lands somewhere real):** answers, for `agnusdei.ai` itself (the marketing site
 and the public demo it hosts under `/bede/`) rather than the self-hosted
 product, what actually sets a cookie, what uses browser storage, and what
 third-party origin is contacted — a code-audited inventory, not a

@@ -426,18 +426,26 @@ run in the Worker's logs, then delete `.github/workflows/keep-demo-warm.yml`
 and the `GITHUB_WORKFLOW` half of
 `homeschool-api/tests/test_keep_warm_schedule.py`. Until then that test pins
 both schedules to the same window so they cannot drift apart, and pins both
-against ever becoming 24/7. `bede-demo-db` is no longer part of that shared pool — it runs on a
+against ever becoming 24/7.
+
+`bede-demo-db` is not part of that shared instance-hour pool — it runs on a
 paid Basic-256mb plan (see `render.yaml`'s own comment on `databases[0].plan`
 for why), which also means it doesn't expire and need periodic recreation
 the way Render's free Postgres tier does.
 
-It starts working automatically once `VITE_DEMO_API_BASE` (see below) is
-set — no separate setup. If demo traffic falls outside 12:00-23:50 UTC,
-widen the hour range in that workflow's cron expression. If you want true
-24/7 zero-cold-start coverage instead, skip the keep-alive workflow
-entirely and upgrade `bede-demo-api` to Render's paid Starter plan (~$7/mo)
-in the dashboard — it isn't subject to spin-down or the shared free-hours
-cap at all.
+The ping needs the backend's URL — the `DEMO_API_BASE` var on the Worker,
+the same value as the `VITE_DEMO_API_BASE` repo variable the demo bundle is
+built with. If demo traffic falls outside the covered hours, widen the hour
+range in `workers/keep-warm/wrangler.jsonc`'s cron **and** in
+`.github/workflows/keep-demo-warm.yml` while both are live — they are pinned
+to the same window by `homeschool-api/tests/test_keep_warm_schedule.py`, and
+that test also refuses any widening to 24/7, since the free tier's monthly
+allowance is smaller than a month. Read the arithmetic in its failure message
+before overriding it.
+
+If you want true 24/7 zero-cold-start coverage instead, retire the keep-alive
+entirely and upgrade `bede-demo-api` off the free plan — it is then not
+subject to spin-down or the shared free-hours cap at all.
 
 The demo page also helps itself: the moment it loads, it fires a
 fire-and-forget ping to `/health` (`warmDemoBackend` in `demo/src/api.ts`),

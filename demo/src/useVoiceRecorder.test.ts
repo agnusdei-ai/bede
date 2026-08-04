@@ -374,8 +374,11 @@ describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream fa
       result.current.prewarm()
     })
     // Flush the failed prewarm attempt before the fallback ever asks for it.
+    // It must stay silent — see the second describe block below for why a
+    // second, later regression made this assertion just as load-bearing as
+    // the retry-succeeds behavior this test was originally written for.
     await act(async () => {})
-    expect(onError).toHaveBeenCalledWith('unavailable')
+    expect(onError).not.toHaveBeenCalled()
 
     await act(async () => {
       await result.current.startRecording()
@@ -383,6 +386,9 @@ describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream fa
 
     expect(getUserMedia).toHaveBeenCalledTimes(2)
     expect(result.current.isRecording).toBe(true)
+    // The turn succeeded end to end — nothing about the failed prewarm
+    // attempt underneath it should ever have reached the child.
+    expect(onError).not.toHaveBeenCalled()
 
     act(() => vi.advanceTimersByTime(500))
     await act(async () => {
@@ -411,9 +417,72 @@ describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream fa
     })
 
     expect(getUserMedia).toHaveBeenCalledTimes(2)
-    expect(onError).toHaveBeenCalledTimes(2)
-    expect(onError).toHaveBeenLastCalledWith('unavailable')
+    // Exactly ONE report, not two: prewarm's own failure (report: false) and
+    // startRecording()'s reuse of that same settled, already-null promise
+    // (no second getUserMedia() call at all — see the `pending` line in
+    // startRecording()) never call onError. Only the fresh retry — the
+    // truly final attempt, with nothing left to fall back to — does.
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith('unavailable')
     expect(result.current.isRecording).toBe(false)
+  })
+})
+
+describe('a provisional getUserMedia() failure never reaches the child', () => {
+  // The regression this session actually found: prewarm() is called from a
+  // useEffect with no user gesture behind it at all (SocraticChat.tsx, the
+  // instant it becomes the child's turn) — not just from mic contention with
+  // a now-removed native SpeechRecognition path. On a browser enforcing the
+  // gesture requirement, THAT call can fail on every single turn before the
+  // child has touched anything. Before this fix, its failure and a real,
+  // final press-time failure were indistinguishable: both called onError,
+  // both showed "I can't hear you" — including, intermittently, on turns
+  // where the child's own press then went on to succeed. See
+  // useVoiceRecorder.ts's own comment on prewarm() for the full account.
+  it('prewarm() alone never calls onError, no matter how it fails', async () => {
+    const getUserMedia = vi.fn(async () => {
+      throw new DOMException('blocked', 'NotAllowedError')
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
+
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    await act(async () => {})
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('a real press after a failed prewarm still reports its OWN failure', async () => {
+    // The other half of the guarantee: silencing prewarm must not silence
+    // an actual turn failure. A child who presses, and whose press itself
+    // cannot reach the mic, still needs to be told.
+    const getUserMedia = vi.fn(async () => {
+      throw new DOMException('blocked', 'NotAllowedError')
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
+
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+
+    act(() => {
+      result.current.prewarm()
+    })
+    await act(async () => {})
+    expect(onError).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await result.current.startRecording()
+    })
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith('permission-denied')
   })
 })
 

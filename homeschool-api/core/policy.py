@@ -52,6 +52,7 @@ _DOMAIN_FOR_ROLE = {
     "parent": DOMAIN_FAMILY,
     "parent_pending": DOMAIN_FAMILY,
     "parent_recovery": DOMAIN_FAMILY,
+    "parent_enrolling": DOMAIN_FAMILY,
     "child": DOMAIN_FAMILY,
     "demo_code": DOMAIN_DEMO,
 }
@@ -78,6 +79,17 @@ _TRANSIENT_ROLES = {
         "recovery.reset_password",
         403,
         "No account recovery is in progress",
+    ),
+    # Issued when the password is correct but NO second factor is enrolled
+    # yet. MFA is mandatory (IA-2(1), 800-63B AAL2), so this cannot be a
+    # full parent session — but a brand-new deployment has to be able to
+    # enrol one, and a locked-out family would be the alternative. This
+    # role can do exactly that and nothing else: it cannot read a
+    # narration, change a plan, or reach the management plane.
+    "parent_enrolling": (
+        "mfa.enroll",
+        401,
+        "Set up your authenticator app to finish signing in",
     ),
 }
 
@@ -163,6 +175,7 @@ _POLICY: dict[str, frozenset[str]] = {
     # Transient-flow completion. Listed so the table is exhaustive; the
     # transient-role check above handles these before the table is consulted.
     "mfa.complete": frozenset({"parent_pending"}),
+    "mfa.enroll": frozenset({"parent_enrolling"}),
     "recovery.reset_password": frozenset({"parent_recovery"}),
 }
 

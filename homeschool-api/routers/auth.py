@@ -146,6 +146,30 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # be used to complete that second factor (see core/deps.py,
         # routers/mfa.py), not a real parent session.
         methods = await mfa_service.enrolled_methods(db)
+        if not methods:
+            # MFA is mandatory (IA-2(1); 800-63B AAL2 needs two DISTINCT
+            # factor types, and a password is only one). A deployment with
+            # nothing enrolled cannot be handed a parent session, so it is
+            # handed the one thing it needs instead: a token that can enrol
+            # a factor and do nothing else (core/policy.py's
+            # "parent_enrolling"). Refusing outright would lock a family
+            # out of the app they just installed; a full session would make
+            # the requirement optional in practice, which is what this
+            # replaces.
+            enrolling = create_access_token(
+                {"sub": "parent", "role": "parent_enrolling", "locale": locale, "cv": cv},
+                fingerprint=fp,
+                expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
+            )
+            await parent_lockout.record_success(db)
+            log_event_nowait(
+                AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+                detail="password ok, second factor not yet enrolled", **ctx,
+            )
+            return TokenResponse(
+                access_token=enrolling, role="parent_enrolling",
+                mfa_required=True, mfa_methods=[],
+            )
         if methods:
             # locale carries through the pending token so the FINAL token
             # (issued by routers/mfa.py once the second factor completes)

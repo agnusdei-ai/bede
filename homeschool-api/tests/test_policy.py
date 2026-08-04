@@ -21,7 +21,8 @@ from core.policy import (
     known_actions,
 )
 
-ALL_ROLES = ["parent", "child", "demo_code", "parent_pending", "parent_recovery"]
+ALL_ROLES = ["parent", "child", "demo_code", "parent_pending", "parent_recovery",
+             "parent_enrolling"]
 
 
 def _subject(role: str, code: str | None = None) -> Subject:
@@ -43,6 +44,11 @@ EXPECTED: dict[str, set[str]] = {
     "sandbox.demo_preview":      {"demo_code"},
     "diagnostic.demo_preview":   {"demo_code"},
     "mfa.complete":              {"parent_pending"},
+    # Bootstrap only: the password verified but no second factor exists
+    # yet. MFA is mandatory, so this role reaches enrolment and nothing
+    # else — notably NOT "parent", which would let an unattended session
+    # add an attacker's authenticator without a step-up.
+    "mfa.enroll":                {"parent_enrolling"},
     "recovery.reset_password":   {"parent_recovery"},
 }
 

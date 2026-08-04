@@ -39,7 +39,10 @@ def _fake_request() -> Request:
 
 async def test_correct_password_succeeds_and_embeds_cv(db_session):
     resp = await login(LoginRequest(role="parent", credential=settings.parent_password), _fake_request(), db_session)
-    assert resp.role == "parent"
+    # MFA is mandatory: a correct password with nothing enrolled yields the
+    # bootstrap enrolment token, not a session. This file is about the
+    # LOCKOUT, so what matters is that the password was accepted.
+    assert resp.role == "parent_enrolling"
     payload = decode_token(resp.access_token)
     assert payload["cv"] == 0  # no override ever set — cache starts at 0
 
@@ -67,7 +70,10 @@ async def test_successful_login_clears_prior_failures(db_session):
             await login(LoginRequest(role="parent", credential="wrong"), _fake_request(), db_session)
 
     resp = await login(LoginRequest(role="parent", credential=settings.parent_password), _fake_request(), db_session)
-    assert resp.role == "parent"
+    # MFA is mandatory: a correct password with nothing enrolled yields the
+    # bootstrap enrolment token, not a session. This file is about the
+    # LOCKOUT, so what matters is that the password was accepted.
+    assert resp.role == "parent_enrolling"
 
     # Locked-out threshold now needs a fresh full count, not just 1 more.
     for _ in range(parent_lockout.FAILURE_THRESHOLD - 1):
@@ -84,7 +90,10 @@ async def test_password_override_wins_over_env_at_login(db_session):
     assert exc_info.value.status_code == 401
 
     resp = await login(LoginRequest(role="parent", credential="a-new-strong-password"), _fake_request(), db_session)
-    assert resp.role == "parent"
+    # MFA is mandatory: a correct password with nothing enrolled yields the
+    # bootstrap enrolment token, not a session. This file is about the
+    # LOCKOUT, so what matters is that the password was accepted.
+    assert resp.role == "parent_enrolling"
 
 
 async def test_child_and_demo_roles_are_unaffected_by_parent_lockout(db_session):

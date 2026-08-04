@@ -105,6 +105,12 @@ async def test_login_ignores_an_unrecognized_locale_code(db_session, monkeypatch
 
 
 async def test_parent_login_without_mfa_embeds_locale(db_session, monkeypatch):
+    """MFA is mandatory now, so a deployment with nothing enrolled gets a
+    "parent_enrolling" token rather than a parent session. The locale still
+    has to ride on it: the parent picked their language at this screen, and
+    finishing enrolment a moment later must not silently reset it to
+    English — the same reason parent_pending carries the claim.
+    """
     monkeypatch.setattr(settings, "locale", "es")
     monkeypatch.setattr(settings, "parent_password", "correct horse battery staple")
 
@@ -114,5 +120,5 @@ async def test_parent_login_without_mfa_embeds_locale(db_session, monkeypatch):
         db=db_session,
     )
     payload = decode_token(resp.access_token)
-    assert payload["role"] == "parent"
+    assert payload["role"] == "parent_enrolling"
     assert payload["locale"] == "es"

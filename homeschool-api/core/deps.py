@@ -178,6 +178,41 @@ async def require_mfa_pending(
     return await _authorize(request, payload, "mfa.complete")
 
 
+async def require_parent_enrolling(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Validate JWT + fingerprint for the transient "parent_enrolling" role.
+
+    Issued when the password verified but no second factor exists yet. MFA
+    is mandatory, so this is deliberately not a parent session — it can
+    reach the enrolment endpoints and nothing else (core/policy.py's
+    _TRANSIENT_ROLES). Without it, enforcing MFA on a fresh install would
+    lock the family out of the app they just installed.
+    """
+    payload = await _validate_token(request, credentials)
+    return await _authorize(request, payload, "mfa.enroll")
+
+
+async def require_parent_or_enrolling(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Either a settled parent with a step-up (adding or replacing a factor
+    on purpose) or a parent partway through first-time enrolment.
+
+    Two callers, one endpoint, because the ceremony is identical and
+    duplicating the routes would mean two places to keep in step. The
+    weaker role is accepted ONLY for its one action; everything else about
+    it stays refused.
+    """
+    payload = await _validate_token(request, credentials)
+    if payload.get("role") == "parent_enrolling":
+        return await _authorize(request, payload, "mfa.enroll")
+    return await _require_elevated_parent_payload(request, payload, db)
+
+
 async def require_parent_recovery(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
@@ -237,6 +272,15 @@ async def require_elevated_parent(
     for the password rather than showing "not authorized" to the one person
     who is."""
     payload = await _validate_token(request, credentials)
+    return await _require_elevated_parent_payload(request, payload, db)
+
+
+async def _require_elevated_parent_payload(
+    request: Request, payload: dict, db: AsyncSession,
+) -> dict:
+    """The body of require_elevated_parent, split out so
+    require_parent_or_enrolling can apply the identical check to an
+    already-validated token rather than keeping a second copy of it."""
     await _authorize(request, payload, "admin.privileged")
 
     # See settings.elevation_enforced for why this can be off, and why that

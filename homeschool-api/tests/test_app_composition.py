@@ -110,8 +110,15 @@ GUARDS = {
     ('GET', '/mfa/status'): 'require_parent',
     ('DELETE', '/mfa/totp'): 'require_elevated_parent',
     ('POST', '/mfa/totp/authenticate/verify'): 'require_mfa_pending',
-    ('POST', '/mfa/totp/confirm'): 'require_elevated_parent',
-    ('POST', '/mfa/totp/enroll'): 'require_elevated_parent',
+    # require_parent_or_enrolling, not require_elevated_parent, and the
+    # widening is deliberate and narrow. MFA is mandatory, so a brand-new
+    # deployment has to be able to enrol its FIRST factor from a token that
+    # is not yet a session — otherwise enforcing it would lock a family out
+    # of the app they just installed. The bootstrap role reaches these two
+    # routes and nothing else (core/policy.py's "parent_enrolling"), and a
+    # settled parent still needs a step-up here exactly as before.
+    ('POST', '/mfa/totp/confirm'): 'require_parent_or_enrolling',
+    ('POST', '/mfa/totp/enroll'): 'require_parent_or_enrolling',
     ('POST', '/mfa/webauthn/authenticate/options'): 'require_mfa_pending',
     ('POST', '/mfa/webauthn/authenticate/verify'): 'require_mfa_pending',
     ('POST', '/mfa/webauthn/register/options'): 'require_elevated_parent',

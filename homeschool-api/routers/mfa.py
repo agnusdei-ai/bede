@@ -23,7 +23,12 @@ from core import child_credential, otp_throttle
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
-from core.deps import require_elevated_parent, require_mfa_pending, require_parent
+from core.deps import (
+    require_elevated_parent,
+    require_mfa_pending,
+    require_parent,
+    require_parent_or_enrolling,
+)
 from core.middleware import compute_fingerprint
 from core.parent_credential import set_parent_password_override, verify_parent_password
 from core.pin_policy import check_child_pin
@@ -97,7 +102,7 @@ async def webauthn_delete(key_id: int, db: AsyncSession = Depends(get_db), _: di
 
 
 @router.post("/totp/enroll")
-async def totp_enroll(db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
+async def totp_enroll(db: AsyncSession = Depends(get_db), _: dict = Depends(require_parent_or_enrolling)):
     """Generates a new secret — the plaintext secret and otpauth:// URI are
     only ever returned from this one call; only the encrypted form is stored."""
     secret, uri = await mfa_service.enroll_totp(db)
@@ -109,11 +114,20 @@ async def totp_confirm(
     req: TotpConfirmRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_elevated_parent),
+    claims: dict = Depends(require_parent_or_enrolling),
 ):
     if not await mfa_service.confirm_totp(db, req.code):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect code — check your authenticator app and try again")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="totp enrolled", **audit_from_request(request))
+
+    # A first-time enroller has just proved both factors in one sitting:
+    # the password (to get this token) and now a code from the app. Making
+    # them log in again would be ceremony without security, and the surest
+    # way to teach a family that the second factor is an obstacle. A parent
+    # who was already signed in gets no new token — they never lost one.
+    if claims.get("role") == "parent_enrolling":
+        token = _issue_parent_token(request, claims.get("locale", "en"), claims.get("cv"))
+        return {"success": True, "access_token": token, "role": "parent"}
     return {"success": True}
 
 

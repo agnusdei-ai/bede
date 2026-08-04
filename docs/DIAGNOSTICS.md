@@ -104,6 +104,47 @@ deliberately a single rule covering all paths; see its own comment, and
 `homeschool-api/tests/test_site_headers.py`, which fails if a path ever
 becomes matched by two blocks setting the same header again.
 
+## The watchdog loop (unattended)
+
+`.github/workflows/demo-watchdog.yml` runs `scripts/synthetic_journey.mjs`
+every 30 minutes against the live demo. It drives a real Chromium through
+the real first journey — load `/bede/`, accept consent, click "Generate my
+code" — and reads back the diagnostics buffer above.
+
+**Why a browser and not another `curl /health`.** `keep-demo-warm.yml`
+already curls `/health` every 10 minutes and reported healthy right through
+the 2026-08-04 outage. It could not have caught it: curl does not evaluate
+CSP, does not send an `Origin` header, and does not enforce CORS, and the
+failure lived entirely in those layers. This is the only check here that
+fails for the same reason a visitor would.
+
+On failure the report is handed to an agent driven by
+`.github/agent-prompts/demo-repair.md` — a versioned, reviewable file
+rather than a string in YAML, because it is the part of an unattended loop
+most worth reading in a diff.
+
+**What the loop may and may not do.** This is a deliberate departure from
+the convention every other workflow here follows (`contents: read`,
+`workflow_dispatch` only — see `adversarial-probe.yml`'s reasoning), and it
+is bounded:
+
+| | |
+|---|---|
+| **May edit** | `site/_headers`, `homeschool-tutor/nginx.conf`, the check script itself |
+| **May never edit** | the constitution; auth/encryption/identity/policy code; moderation and safeguarding; **any test**; the workflow or the prompt |
+| **May never** | merge — it opens a PR and stops; the `site/`/`demo/` sign-off rule is not suspended for automation |
+| **May never** | open more than one PR per run |
+
+A failing test is a finding to report, never an obstacle to remove. If a fix
+would require touching the forbidden list, the agent stops and reports —
+that is a correct outcome. An unattended agent with commit rights over
+child-safety code is precisely the insider-compromise surface this product
+exists to defend against.
+
+**It reports even when it changes nothing**, including what it could not
+verify from CI, and opens an issue (not a code workaround) when the cause
+lives in Render, Cloudflare, or DNS rather than the repository.
+
 ## Related
 
 - **Voice-specific tracing** — `docs/VOICE_SETUP.md` covers the mic/TTS

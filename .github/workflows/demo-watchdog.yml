@@ -1,0 +1,152 @@
+name: Demo watchdog
+
+# Drives the public demo's real first user journey in a real browser, and
+# on failure hands the evidence to an agent that proposes a repair.
+#
+# WHY THIS EXISTS
+#
+# On 2026-08-04 the demo was unusable for hours while every existing signal
+# said healthy: Render showed "Deployed ✓" (its health check could not
+# fail), and keep-demo-warm.yml's `curl /health` returned 200 throughout.
+# Neither could have caught it. curl is not a browser — it does not
+# evaluate Content-Security-Policy, does not send an Origin header, and
+# does not enforce CORS, and the failure lived entirely in those layers.
+# The demo was fine by every measurement being taken and completely broken
+# for every visitor.
+#
+# This workflow measures the thing that actually matters: can someone use
+# the demo. It is the only check in this repository that fails for the same
+# reason a visitor would.
+#
+# ── A DELIBERATE DEPARTURE, STATED PLAINLY ────────────────────────────────
+#
+# Every other workflow here is `permissions: contents: read`, and
+# adversarial-probe.yml argues at length for `workflow_dispatch` only:
+# "a human deliberately decides ... it never fires unattended". This one is
+# scheduled AND writes. That inversion was requested explicitly by the
+# repository owner, and is bounded rather than open:
+#
+#   * The agent CANNOT MERGE. It opens a pull request and stops. The
+#     site/demo human sign-off rule is not suspended for automation.
+#   * The agent's writable surface is an allowlist of deployment-header
+#     files (.github/agent-prompts/demo-repair.md). The constitution,
+#     auth/encryption, moderation and safeguarding code, every test, and
+#     this workflow itself are explicitly off-limits. An unattended agent
+#     with commit rights over child-safety code is precisely the insider-
+#     compromise surface this product is supposed to defend against, and
+#     no amount of convenience justifies it.
+#   * `pull-requests: write` + `contents: write` are the minimum for
+#     "open a PR on a branch". It cannot push to main: that requires
+#     branch protection to remain in place, which is enforced on the
+#     GitHub side, not here.
+#
+# If those bounds ever need widening, widen them in a reviewed diff — not
+# by loosening the prompt.
+
+on:
+  schedule:
+    # Every 30 minutes. Frequent enough that an outage is caught in one
+    # school period rather than one school day; infrequent enough that a
+    # flapping backend does not open a PR every few minutes.
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      repair:
+        description: 'Attempt an automated repair if the check fails'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never two watchdogs at once — two agents repairing the same outage
+  # would race and open duplicate PRs.
+  group: demo-watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.journey.outputs.ok }}
+      summary: ${{ steps.journey.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright (chromium only)
+        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+
+      - name: Run the synthetic journey
+        id: journey
+        env:
+          # The live demo. Falls back to the canonical domain so the check
+          # still runs if the repo variable was never set — a watchdog that
+          # silently no-ops is worse than no watchdog.
+          DEMO_URL: ${{ vars.DEMO_PUBLIC_URL || 'https://agnusdei.ai/bede/' }}
+        run: |
+          set +e
+          node scripts/synthetic_journey.mjs "$DEMO_URL" > journey-report.json
+          code=$?
+          set -e
+          # Always surface the report in the job log, pass or fail — the
+          # point is visibility, and a green run that printed nothing
+          # teaches nobody anything.
+          cat journey-report.json
+          if [ "$code" = "0" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+          {
+            echo "summary<<EOF"
+            node -e "process.stdout.write(require('./journey-report.json').summary || 'no summary')"
+            echo ""
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journey-report
+          path: journey-report.json
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Demo watchdog"
+            echo ""
+            echo "**Result:** ${{ steps.journey.outputs.ok == 'true' && '✅ the demo works' || '❌ the demo is broken' }}"
+            echo ""
+            echo "${{ steps.journey.outputs.summary }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  repair:
+    needs: check
+    if: needs.check.outputs.ok == 'false' && (github.event_name == 'schedule' || inputs.repair)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # to push a branch — NOT to push to main
+      pull-requests: write   # to open the PR
+      issues: write          # to report a cause that lives outside the repo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: journey-report
+
+      - name: Repair
+        # NOTE: not verifiable from the authoring sandbox (no network to
+        # GitHub's action registry). If this action name or version is
+        # wrong the job fails loudly at startup rather than silently
+        # skipping — confirm on the first real run.
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.WATCHDOG_API_KEY }}
+          # A dedicated key, never shared with adversarial-probe.yml or any
+          # deployment — so its spend is attributable and it can be revoked
+          # on its own. Same reasoning that file already documents.
+          prompt_file: .github/agent-prompts/demo-repair.md

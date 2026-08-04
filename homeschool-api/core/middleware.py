@@ -233,7 +233,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "img-src 'self' data:; "
         "font-src 'self'; "
         "connect-src 'self'; "
-        "media-src 'self' blob:; "               # audio playback
+        # blob: for recorded audio; data: for useTextToSpeech.ts's silent-WAV
+        # iOS audio unlock — without data: Bede goes mute on iPad.
+        "media-src 'self' blob: data:; "
         "worker-src 'self' blob:; "
         "frame-ancestors 'none'; "
         "form-action 'self'; "

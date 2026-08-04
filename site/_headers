@@ -64,6 +64,13 @@
   # VITE_DEMO_API_BASE build variable (see docs/DEMO_HOSTING.md), not a fixed
   # value this repo can pin — hence the *.onrender.com scope rather than
   # opening connect-src up broadly.
-  # media-src/worker-src blob:: the demo records audio into blob URLs.
+  # media-src blob: — recorded audio is handed around as blob URLs.
+  # media-src data: — NOT optional and easy to lose: useTextToSpeech.ts
+  # plays a tiny silent WAV as a data: URI on a user gesture to unlock
+  # audio playback for the rest of the session. That is the whole iOS
+  # audio-unlock mechanism; block it and Bede goes mute on iPad, which is
+  # the primary device this product runs on. Caught by
+  # scripts/synthetic_journey.mjs on its first real run, against a policy
+  # that had already shipped.
   # frame-src youtube-nocookie: the home page's click-to-play video.
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.onrender.com; media-src 'self' blob:; worker-src 'self' blob:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.onrender.com; media-src 'self' blob: data:; worker-src 'self' blob:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';

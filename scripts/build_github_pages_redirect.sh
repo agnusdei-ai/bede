@@ -3,8 +3,10 @@ set -euo pipefail
 
 # GitHub Pages now serves as a redirect only, not a live copy of the site —
 # the canonical build (site/ + demo) is Cloudflare's own deployment, at
-# https://bede.agnusdei.workers.dev/ (and, once agnusdei.ai's nameservers are
-# pointed at Cloudflare, that same Worker under the custom domain instead).
+# https://agnusdei.ai/ (the same `bede` Worker also answers on
+# https://bede.agnusdei.workers.dev/ and, for now, https://agnusdei.io/ —
+# see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io" section for
+# the decision to redirect .io traffic to .ai at the Cloudflare zone level).
 # Keeping the old GitHub Pages URL alive as a redirect means any link
 # already shared or bookmarked still lands somewhere real, without this
 # repo having to keep two independently live copies from drifting apart.
@@ -35,7 +37,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-DEMO_URL="https://bede.agnusdei.workers.dev/bede/"
+DEMO_URL="https://agnusdei.ai/bede/"
 
 echo "Assembling publish/ (a single redirect stub) ..."
 rm -rf publish

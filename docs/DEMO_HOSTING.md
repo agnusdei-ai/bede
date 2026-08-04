@@ -324,15 +324,43 @@ not a separate Cloudflare Pages project (see "One-time Cloudflare Worker
 custom domain setup" above, which previously described the wrong,
 superseded Pages-based process and has since been corrected to match).
 Both domains now answer on the identical Worker, build, and (once
-`site/_headers` ships) security-header policy. Still open, and a decision
-only the domain owner can make, not something this codebase can decide on
-its own: whether to keep **both** domains live long-term (in which case add
-a `<link rel="canonical">` to whichever is the intended long-term brand
-domain — serving identical content on two live domains with no canonical
-tag is a mild SEO duplicate-content hit) or add a Cloudflare redirect rule
-sending `agnusdei.io` traffic to `agnusdei.ai`. Once that's decided, update
-`CORS_ORIGINS`, `scripts/build_github_pages_redirect.sh`'s `DEMO_URL`, and
-this doc to match whatever's actually live.
+`site/_headers` ships) security-header policy — TLS on `agnusdei.ai`
+confirmed working.
+
+**Decision (2026-08-04): `agnusdei.ai` is the canonical domain.**
+`agnusdei.io` was always the interim beta stand-in while `.ai`'s transfer
+was mid-flight (see above); now that `.ai` is live, `.io` redirects to it
+rather than the two staying live in parallel. This is a **Cloudflare
+zone-level "Redirect Rule" on the `agnusdei.io` zone**, not something a
+`_headers`/`_redirects` file in this repo can express — both domains
+answer the same Worker, and a static redirects file has no way to match on
+*hostname*, only on path, so the rule has to live in Cloudflare's own
+routing layer for the `.io` zone specifically:
+
+1. Cloudflare dashboard → the `agnusdei.io` zone → **Rules → Redirect
+   Rules → Create rule**.
+2. Match: `Hostname` equals `agnusdei.io` OR `www.agnusdei.io` (two
+   values, or two separate rules).
+3. Then: **Dynamic redirect**, target URL
+   `concat("https://agnusdei.ai", http.request.uri.path)` (preserves the
+   path — `agnusdei.io/bede/` lands on `agnusdei.ai/bede/`, not just the
+   home page), status code **301** (permanent — this is the long-term
+   canonical domain, not a temporary one), preserve query string on.
+4. Once confirmed working end to end (a visit to `agnusdei.io/bede/`
+   lands on `agnusdei.ai/bede/` with the demo working), the following can
+   be trimmed — not urgent, since an inert unused entry is harmless, but
+   worth doing once the redirect's been live a while and nothing depends
+   on the old origin any more:
+   - `render.yaml`'s `CORS_ORIGINS` — `.io`'s entries become unreachable
+     (no page can ever load *from* `.io` and make a same-page fetch with
+     `Origin: https://agnusdei.io` once the redirect fires before any
+     content renders), but leave them in until the redirect's been
+     observed live for a while, per this file's own existing entry.
+   - `site/privacy/index.html`'s disclosure copy, which named `.io`
+     explicitly as *the* domain — already updated to `agnusdei.ai` to
+     match this decision.
+5. `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` now points at
+   `https://agnusdei.ai/bede/` — already updated.
 
 ## Cold starts (free plan)
 

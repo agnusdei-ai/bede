@@ -258,7 +258,13 @@ describe('HandwritingCanvas page persistence', () => {
         const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
         render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} />)
 
-        fireEvent.click(screen.getByTitle('Save this drawing to your device'))
+        // By accessible name rather than by `title`. The toolbar's controls
+        // moved off `title` (hover-only, so unreachable on the tablet this
+        // app actually runs on) onto IconButton, which reveals the same
+        // string on hover, focus, and touch. Querying the name is the more
+        // durable assertion anyway — it is what a user or a screen reader
+        // actually perceives, not which attribute happens to carry it.
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }))
         expect(revokeObjectURL).not.toHaveBeenCalled()
 
         // Nowhere near revoked a few seconds in - a slow connection needs
@@ -274,4 +280,19 @@ describe('HandwritingCanvas page persistence', () => {
       }
     })
   })
+
+  it('gives every toolbar control an accessible name', () => {
+    // The regression this exists for: IconButton's `textual` prop suppresses
+    // aria-label so that a button's own visible text stays its accessible
+    // name. Set it on a control that renders an ICON (or a styled dot, as the
+    // brush sizes do) and the button ends up with no name at all — worse than
+    // the hover-only `title` this replaced, and invisible without a test,
+    // since nothing renders differently.
+    render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    for (const button of screen.getAllByRole('button')) {
+      const name = button.getAttribute('aria-label') || button.textContent?.trim()
+      expect(name, `unnamed control: ${button.outerHTML.slice(0, 120)}`).toBeTruthy()
+    }
+  })
+
 })

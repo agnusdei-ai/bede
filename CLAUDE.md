@@ -573,6 +573,44 @@ own pydantic model, and was verified to FAIL when that bug is
 reintroduced. The general rule: a fake looser than the real thing is not a
 test, it's a second place for the bug to hide.
 
+**Session planner — the one planning decision Bede is competent to make
+(`services/lesson_planner.py`, `GET /diagnostic/{student}/plan`):** before
+this, Bede had no planner at all — the "plan" was the parent's subject list
+plus fixed `SUBJECT_DURATIONS`, and its only sequencing authority was
+`suggest_next_subject`. Mastery data shaped questions *within* mathematics
+(`get_next_probe_hint`) but nothing ever looked across the day. **It orders;
+it never chooses.** `plan_session` returns a permutation of the parent's own
+subjects — never one added, dropped, or shortened — which is the
+constitution's `authority_order` (the parent is the child's primary
+educator), not a conservative implementation choice;
+`test_plan_is_always_a_permutation_of_the_parents_subjects` pins it. A pure
+function with no I/O, following `services/policy_engine.py`'s precedent.
+**Faith-formation subjects (`morning_time`/`scripture`/`saints`) are
+ANCHORED to the parent-given position**, not merely excluded from promotion:
+the first cut only skipped promoting them, and a Scripture block still slid
+to the END of a day whenever the ordinary subjects around it went stale — no
+number was ever computed about the child's spiritual life, and the timetable
+said something about it regardless, which is precisely what the
+never-measure-faith rule exists to prevent. Position is now held against
+movement in **either** direction (`_place_anchor`, and when a slot is
+contested it prefers to stay later, since moving a faith subject *forward*
+is the direction that reads as Bede pushing it). `latin`/`greek` are
+deliberately NOT anchored — they are language subjects that draw on
+Christian texts, and ordering them by recency says nothing about a child's
+spiritual life. What *does* drive the order: Morning Time opens the day
+(Mater Amabilis convention), then a parent's own `lesson_resume` note (an
+explicit instruction outranks any convention of Bede's), then cognitively
+demanding subjects while attention is freshest, then subjects whose
+`LessonBookmark` is stale (>= 14 days, the same threshold `_bookmark_note`
+uses for its own "a while back" phrasing), with `free_study` closing.
+**Every reason is a fact about the PLAN or about ordinary pedagogy, never
+about the child** — the same distinction the mastery cycle draws when it
+reports missing evidence as a finding about the schedule; a test scans every
+reason string for judgment words. **Advisory and parent-only**: the endpoint
+reports an ordering and does not apply one, and a child never sees it — "Bede
+put maths first because you haven't done it in a while" is something about
+themselves that Bede has no standing to say.
+
 **MCP client — Bede consulting a parent's own MCP servers
 (`services/mcp_client.py`, `docs/MCP.md`):** the inbound counterpart to the
 server above, and the only path in the system by which content that did not

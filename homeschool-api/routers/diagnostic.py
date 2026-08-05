@@ -175,6 +175,88 @@ async def get_student_activity(
     return summary
 
 
+@router.get("/{student_name}/plan")
+async def get_session_plan(
+    student_name: str,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    How Bede would order today's subjects, and why.
+
+    Parent-only, like every other route on this router, and deliberately so:
+    a child shown "Bede put maths first because you haven't done it in a
+    while" has been told something about themselves that Bede has no
+    standing to say.
+
+    ADVISORY. This endpoint reports an ordering; it does not apply one. The
+    plan is always a permutation of the subjects the parent already chose —
+    never a subject added, dropped, or shortened — and every entry carries a
+    plain-language reason, so the ordering is explained rather than imposed.
+    See services/lesson_planner.py for the constitutional limits on what
+    this may decide, in particular why faith-formation subjects never move
+    on evidence.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from core.database import LessonBookmark, StudentConfig
+    from core.encryption import decrypt_json
+    from models.schemas import SessionConfig, Subject
+    # Imported rather than re-derived: the AAD must match byte-for-byte what
+    # routers/pod.py encrypted with, and a second copy of that expression is
+    # a silent decryption failure waiting to happen.
+    from routers.pod import _config_aad
+    from services.lesson_planner import (
+        PlanningSignals,
+        plan_session,
+        stale_subjects_from_bookmarks,
+    )
+
+    row = await db.get(StudentConfig, student_name)
+    if row is None:
+        raise HTTPException(status_code=404, detail="No configuration for that student.")
+    config = SessionConfig(**decrypt_json(row.config_enc, _config_aad(student_name)))
+
+    now = datetime.now(timezone.utc)
+    ages: dict[Subject, float | None] = {subject: None for subject in config.subjects}
+    bookmarks = (
+        await db.execute(
+            select(LessonBookmark).where(LessonBookmark.student_name == student_name)
+        )
+    ).scalars().all()
+    for bookmark in bookmarks:
+        try:
+            subject = Subject(bookmark.subject)
+        except ValueError:
+            # A bookmark for a subject that no longer exists in the enum is
+            # simply not a signal — never a reason to fail the request.
+            continue
+        if subject in ages:
+            updated = bookmark.updated_at
+            if updated.tzinfo is None:
+                updated = updated.replace(tzinfo=timezone.utc)
+            ages[subject] = (now - updated).total_seconds() / 86400
+
+    plan = plan_session(
+        PlanningSignals(
+            subjects=list(config.subjects),
+            grade_stage=config.grade_stage,
+            resume_subjects={entry.subject for entry in (config.lesson_resume or [])},
+            stale_subjects=stale_subjects_from_bookmarks(ages),
+        )
+    )
+    return {
+        "student_name": student_name,
+        "advisory": True,
+        "subjects": [
+            {"subject": entry.subject.value, "reason": entry.reason}
+            for entry in plan.subjects
+        ],
+    }
+
+
 @router.get("/{student_name}/summary", response_model=MasteryProfileSummary)
 async def get_student_mastery_summary(
     student_name: str,

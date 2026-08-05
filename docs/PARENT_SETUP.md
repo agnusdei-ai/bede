@@ -1066,6 +1066,39 @@ This card is meant for anyone curious about how Bede works under the hood,
 not something you need to check regularly: everything about your child's
 actual learning still lives on the Progress page in the next section.
 
+## 12a. How Bede would order the day (a suggestion, not a change)
+
+Bede can suggest an order for the subjects you have already chosen, and tell
+you why it picked that order. It is a suggestion only: your Progress page can
+show it, and nothing about your child's session changes unless you rearrange
+the list yourself.
+
+The rules it uses are deliberately dull, and all of them are about the
+schedule rather than about your child:
+
+- Morning Time opens the day.
+- Anything you left a "pick this up here" note on comes next — your own
+  instruction outranks any preference of Bede's.
+- Subjects that ask for sustained attention (maths, Latin, Greek, logic,
+  language arts) sit earlier, while the day is fresh.
+- Anything that hasn't come up in a couple of weeks gets nudged forward
+  before it drifts further.
+- Child-directed free study closes the day.
+
+**Bede never adds a subject, removes one, or shortens one.** What is in your
+child's day is your decision, and the planner only ever reorders the list you
+built.
+
+**Scripture, Saints, and Morning Time keep the position you gave them.** Bede
+will not move a faith subject because of anything it has observed. Deciding
+that your child "needs more Scripture this week" is not a judgment Bede is
+willing to make, and quietly rescheduling it would be that judgment wearing a
+timetable.
+
+You will not see any reason that says your child is behind, weak, or slow,
+because none of the reasons are about your child at all. And your child never
+sees this page.
+
 ## 12b. Asking about progress from somewhere else (optional, technical)
 
 If you already use an AI assistant — Claude Desktop, Claude Code, or anything

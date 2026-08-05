@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 
 /**
@@ -47,10 +47,28 @@ import type { CSSProperties, ReactNode } from 'react'
  * inside those rows would be clipped vertically — it would simply not appear.
  * Measuring the trigger and positioning against the viewport avoids that
  * entirely, at the cost of recalculating on show, which is once per reveal.
+ *
+ * Fixed positioning brings two obligations, and the first cut of this
+ * component met neither:
+ *
+ * - **Clamp to the viewport.** Centring the label under its control puts it
+ *   off the edge of the screen for anything near the toolbar's end — the Done
+ *   button, the last paper swatch — and `whitespace-nowrap` means it cannot
+ *   wrap its way back on. That is worst on a narrow phone, which is precisely
+ *   where this feature is most needed, so the label is measured and pulled
+ *   back inside {@link TOOLTIP_VIEWPORT_MARGIN} of either edge.
+ * - **Dismiss on scroll.** Coordinates captured at reveal time go stale the
+ *   moment anything moves, and both toolbar rows are `overflow-x-auto`.
+ *   Scrolling the toolbar with a label up would strand it beside nothing.
+ *   Listening in the capture phase is what catches that inner scroll, since
+ *   scroll events on an element do not bubble to window.
  */
 
 /** How long the label stays up after a touch activation. */
 export const TOUCH_HINT_MS = 1600
+
+/** Closest the label may sit to either edge of the screen. */
+export const TOOLTIP_VIEWPORT_MARGIN = 8
 
 interface IconButtonProps {
   /**
@@ -108,7 +126,11 @@ export default function IconButton({
   // Set on pointerdown, read on click: a click event does not carry
   // pointerType, and we only want the timed reveal for touch.
   const lastPointerWasTouch = useRef(false)
-  const [tip, setTip] = useState<{ top: number; left: number } | null>(null)
+  const tipRef = useRef<HTMLSpanElement>(null)
+  // `centerX` is where the label WANTS to be (under its control); `left` is
+  // where it ends up once measured and clamped into the viewport.
+  const [tip, setTip] = useState<{ top: number; centerX: number } | null>(null)
+  const [left, setLeft] = useState<number | null>(null)
 
   const clearHideTimer = useCallback(() => {
     if (hideTimer.current) {
@@ -124,13 +146,41 @@ export default function IconButton({
     // Below the control, horizontally centred. Below rather than above because
     // these toolbars sit at the top of the screen, where there is nothing above
     // them to render into.
-    setTip({ top: rect.bottom + 6, left: rect.left + rect.width / 2 })
+    setTip({ top: rect.bottom + 6, centerX: rect.left + rect.width / 2 })
   }, [])
 
   const hide = useCallback(() => {
     clearHideTimer()
     setTip(null)
   }, [clearHideTimer])
+
+  // Measure, then pull the label back inside the viewport. Runs before paint,
+  // and the label stays transparent until it has a clamped position, so it is
+  // never briefly visible in the wrong place.
+  useLayoutEffect(() => {
+    if (!tip) {
+      setLeft(null)
+      return
+    }
+    const element = tipRef.current
+    if (!element) return
+    const width = element.offsetWidth
+    const margin = TOOLTIP_VIEWPORT_MARGIN
+    const furthestLeft = Math.max(margin, window.innerWidth - width - margin)
+    setLeft(Math.min(Math.max(margin, tip.centerX - width / 2), furthestLeft))
+  }, [tip])
+
+  // Any movement invalidates a position captured at reveal time. Capture
+  // phase, because a scroll inside the toolbar row does not bubble to window.
+  useEffect(() => {
+    if (!tip) return
+    window.addEventListener('scroll', hide, true)
+    window.addEventListener('resize', hide)
+    return () => {
+      window.removeEventListener('scroll', hide, true)
+      window.removeEventListener('resize', hide)
+    }
+  }, [tip, hide])
 
   // A tooltip that outlives its trigger would be stranded on screen with
   // nothing to dismiss it — the canvas unmounts whenever the child returns to
@@ -181,8 +231,11 @@ export default function IconButton({
           // Presentational only — the accessible name is already on the
           // button, so a screen reader must not read this a second time.
           aria-hidden="true"
-          style={{ top: tip.top, left: tip.left }}
-          className="fixed z-[60] -translate-x-1/2 pointer-events-none whitespace-nowrap rounded-md bg-gray-900/90 px-2 py-1 text-xs font-medium text-white shadow-lg"
+          ref={tipRef}
+          style={{ top: tip.top, left: left ?? tip.centerX }}
+          className={`fixed z-[60] pointer-events-none whitespace-nowrap rounded-md bg-gray-900/90 px-2 py-1 text-xs font-medium text-white shadow-lg ${
+            left === null ? 'opacity-0' : ''
+          }`}
         >
           {label}
         </span>

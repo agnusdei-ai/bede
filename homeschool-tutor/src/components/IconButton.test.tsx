@@ -166,4 +166,78 @@ describe('IconButton', () => {
     act(() => { vi.advanceTimersByTime(TOUCH_HINT_MS + 50) })
     expect(screen.queryByRole('tooltip', { hidden: true })).toBeNull()
   })
+
+  // ── Staying on screen ──────────────────────────────────────────────────
+  //
+  // The label is positioned `fixed`, which brings two obligations the first
+  // version of this component did not meet. Both show up worst on a narrow
+  // phone — exactly where an icon-only toolbar needs explaining most.
+
+  describe('positioning', () => {
+    const LABEL_WIDTH = 160
+
+    function stubGeometry(buttonLeft: number, viewportWidth = 400) {
+      // jsdom lays nothing out: offsetWidth is 0 and every rect is empty.
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+        configurable: true,
+        get() { return this.getAttribute('role') === 'tooltip' ? LABEL_WIDTH : 40 },
+      })
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        left: buttonLeft, right: buttonLeft + 40, top: 0, bottom: 40,
+        width: 40, height: 40, x: buttonLeft, y: 0, toJSON: () => ({}),
+      } as DOMRect)
+      vi.stubGlobal('innerWidth', viewportWidth)
+    }
+
+    function leftOf(tooltip: HTMLElement) {
+      return parseFloat(tooltip.style.left)
+    }
+
+    it('pulls the label back when its control sits at the right edge', () => {
+      // Centred under a control at x=380 on a 400px screen, a 160px label
+      // would run to 480 — eighty pixels off the side of the phone.
+      stubGeometry(380)
+      const { button } = renderButton()
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      const tooltip = screen.getByRole('tooltip', { hidden: true })
+      expect(leftOf(tooltip) + LABEL_WIDTH).toBeLessThanOrEqual(400)
+    })
+
+    it('pulls the label back when its control sits at the left edge', () => {
+      stubGeometry(0)
+      const { button } = renderButton()
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      expect(leftOf(screen.getByRole('tooltip', { hidden: true }))).toBeGreaterThanOrEqual(0)
+    })
+
+    it('leaves a centred label alone when there is room', () => {
+      stubGeometry(200, 800)
+      const { button } = renderButton()
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      // Centre of the control (220) minus half the label (80).
+      expect(leftOf(screen.getByRole('tooltip', { hidden: true }))).toBeCloseTo(140, 0)
+    })
+
+    it('dismisses the label when anything scrolls', () => {
+      // Both toolbar rows are overflow-x-auto, so a position captured at
+      // reveal time goes stale and would strand the label beside nothing.
+      // Capture phase: a scroll inside an element does not bubble to window.
+      stubGeometry(100)
+      const { button } = renderButton()
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeNull()
+
+      fireEvent.scroll(document.body)
+      expect(screen.queryByRole('tooltip', { hidden: true })).toBeNull()
+    })
+
+    it('dismisses the label when the window resizes', () => {
+      stubGeometry(100)
+      const { button } = renderButton()
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      fireEvent(window, new Event('resize'))
+      expect(screen.queryByRole('tooltip', { hidden: true })).toBeNull()
+    })
+  })
+
 })

@@ -42,6 +42,18 @@ skill, not by student, with no per-student totals — and the tool's own
 description tells the reading assistant not to construct one. See "The
 refusals travel with the data" below.
 
+**You can revoke it.** The MCP server registers itself as a device on login,
+so it appears in Bede's device settings alongside your tablets and can be
+revoked there like any of them. Revoking it stops both its outstanding token
+and its next login attempt. This matters: the process holds your parent
+password and can read every child's progress, so it should be as cuttable as
+a lost tablet. Sending a device id is optional at Bede's API — a caller that
+omits it can never be revoked, which is exactly why this one doesn't omit it.
+
+It identifies itself by hostname, so one entry appears per machine you run it
+on. If you run it on two machines that report the same hostname, set
+`BEDE_MCP_DEVICE_ID` to any distinct string to tell them apart.
+
 ---
 
 ## Setting it up
@@ -177,7 +189,14 @@ it lands.
   SDK's 1.x decorator API, passed every logic test, and could not start at
   all: a unit test of the tool layer cannot see a transport that never comes
   up.
-- CI runs both files (`.github/workflows/test.yml`, `mcp-server-tests`).
+- `scripts/mcp_server/e2e_check.py` — run by hand, not in CI (it imports from
+  `homeschool-api`). Speaks real MCP stdio to `server.py` against a stub Bede
+  whose login endpoint validates with the API's **own** `LoginRequest` model.
+  That strictness is the point: the first cut of `bede_tools.py` sent
+  `password` where the API requires `credential`, and both the unit tests and
+  an earlier, permissive version of this check accepted it. A fake looser than
+  the real thing is a second place for the bug to hide.
+- CI runs the two test files (`.github/workflows/test.yml`, `mcp-server-tests`).
 
 The MCP SDK is pinned in `scripts/mcp_server/requirements.txt`, deliberately
 apart from `homeschool-api/requirements.txt`, so the API image never carries a

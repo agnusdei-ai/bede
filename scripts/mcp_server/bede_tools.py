@@ -53,6 +53,8 @@ clear, actionable error rather than a hang or a confusing 401 — see
 from __future__ import annotations
 
 import os
+import socket
+import uuid
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -60,6 +62,40 @@ import httpx
 # Bede binds every JWT to the User-Agent it was issued to, so this has to be
 # both fixed and sent on the login request as well as on every call after it.
 USER_AGENT = "bede-mcp-server/1.0"
+
+# Namespace for deriving this install's device_id. Any fixed UUID works; this
+# one is arbitrary and never changes.
+_DEVICE_NAMESPACE = uuid.UUID("6f9b1f1e-1f9a-4f1e-9c3a-1b0d5a7c2e41")
+
+
+def device_id(env: Optional[Dict[str, str]] = None) -> str:
+    """A stable device_id for this MCP install, so a parent can SEE and
+    REVOKE it from Bede's device settings.
+
+    Sending one is optional at the API (`LoginRequest.device_id`), and
+    omitting it works — a token with no device_id claim is simply never
+    treated as revoked. That is exactly why it must not be omitted here.
+    This process holds a parent password and reads every child's progress;
+    it is precisely the kind of access a parent should be able to cut off
+    from the UI, and a component that silently sits outside the revocation
+    mechanism is worse than one that never had access.
+
+    Derived from the hostname rather than generated and persisted to a file:
+    stable across restarts with nothing to write, and stable is the only
+    property that matters here. `device_id` is client-asserted rather than
+    cryptographically proven in Option C anyway (see core/device_registry.py),
+    so unguessability buys nothing. BEDE_MCP_DEVICE_ID overrides it for a
+    parent running this on two machines that report the same hostname.
+    """
+    env = env if env is not None else dict(os.environ)
+    override = env.get("BEDE_MCP_DEVICE_ID", "").strip()
+    if override:
+        return override[:64]
+    try:
+        host = socket.gethostname() or "unknown-host"
+    except Exception:  # pragma: no cover - gethostname failing is exotic
+        host = "unknown-host"
+    return str(uuid.uuid5(_DEVICE_NAMESPACE, f"bede-mcp:{host}"))
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
@@ -95,6 +131,7 @@ class BedeClient:
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self._password = password
+        self._device_id = device_id()
         self._token: Optional[str] = None
         self._client = client or httpx.AsyncClient(
             timeout=timeout, headers={"User-Agent": USER_AGENT}
@@ -134,7 +171,17 @@ class BedeClient:
         try:
             response = await self._client.post(
                 f"{self.base_url}/auth/login",
-                json={"role": "parent", "password": self._password},
+                # `credential`, not `password` — LoginRequest names one field
+                # for all three roles (password for parent, PIN for child,
+                # code for demo). Sending the wrong key is a 422, not a 401,
+                # so it reads as a malformed request rather than a bad
+                # secret; test_login_sends_the_field_names_the_api_requires
+                # pins the real name.
+                json={
+                    "role": "parent",
+                    "credential": self._password,
+                    "device_id": self._device_id,
+                },
             )
         except httpx.HTTPError as exc:
             raise BedeAuthError(f"Could not reach Bede at {self.base_url}: {exc}") from exc
@@ -148,6 +195,16 @@ class BedeClient:
                 "Bede refused the login. If the parent account is locked out after "
                 "repeated failures, wait for the lockout to expire (15 minutes) "
                 "before retrying."
+            )
+        if response.status_code == 422:
+            # A schema mismatch between this client and the deployment's API,
+            # not a credential problem. Telling a parent to check a password
+            # that is already correct sends them to change something they did
+            # not need to touch.
+            raise BedeAuthError(
+                "Bede rejected the login request as malformed (422). This MCP "
+                "server and your Bede version disagree about the login format — "
+                f"check for an update. Details: {response.text[:200]}"
             )
         if response.status_code != 200:
             raise BedeAuthError(

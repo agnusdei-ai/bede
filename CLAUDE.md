@@ -554,12 +554,24 @@ the model actually reads**, with tests pinning that it is still there.
 `test_no_tool_exposes_anything_about_faith_engagement` makes adding a
 spiritual-engagement metric fail a test rather than pass a review.
 Parent MFA is an accepted hard stop (no browser, so no ceremony) reported
-as an actionable message, never worked around. Split into a
-dependency-free tool layer (`bede_tools.py`, unit-tested) and a thin
-transport (`server.py`), so `mcp` stays out of the API image and its
-pip-audit gate — with `test_server.py` covering the seam between them,
-which exists because the first cut was written against the SDK's 1.x
-decorator API, passed all 18 logic tests, and could not start at all.
+as an actionable message, never worked around. **Registers itself as a
+device** (`LoginRequest.device_id`, P9) so a parent can revoke it from
+device settings like any tablet — sending one is optional at the API, and
+a caller that omits it can never be revoked, which is precisely why this
+one doesn't: the process holds a parent password and reads every child's
+progress. Split into a dependency-free tool layer (`bede_tools.py`,
+unit-tested) and a thin transport (`server.py`), so `mcp` stays out of the
+API image and its pip-audit gate — with `test_server.py` covering the seam
+between them and `e2e_check.py` (run by hand) covering the wire contract.
+Both exist because of defects a green unit suite missed: the first cut of
+`server.py` was written against the SDK's 1.x decorator API and could not
+start at all, and `bede_tools.py` sent `password` where `LoginRequest`
+requires `credential` — a guaranteed 422 against a real deployment, which
+survived because the unit tests stubbed the transport and the e2e stub
+accepted any JSON body. `e2e_check.py`'s stub now validates with the API's
+own pydantic model, and was verified to FAIL when that bug is
+reintroduced. The general rule: a fake looser than the real thing is not a
+test, it's a second place for the bug to hide.
 
 ## Security Constraints
 

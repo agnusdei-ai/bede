@@ -21,6 +21,7 @@ from bede_tools import (
     USER_AGENT,
     BedeAuthError,
     BedeClient,
+    device_id,
     dispatch,
 )
 
@@ -154,6 +155,86 @@ async def test_a_401_triggers_exactly_one_re_login_then_gives_up():
 
     assert len(logins) == 2  # initial + one retry
     assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_login_sends_the_field_names_the_api_requires():
+    """models.schemas.LoginRequest names ONE field for all three roles —
+    `credential` (password for parent, PIN for child, code for demo) — not
+    `password`.
+
+    The first cut of this module sent `password`, which the real API would
+    have rejected as a 422 on the very first call. Nothing caught it: the
+    unit tests stubbed the transport, and the end-to-end stub accepted any
+    JSON body. This asserts the wire contract explicitly, since a permissive
+    fake is exactly what let a wrong field name pass twice.
+    """
+    bodies = []
+
+    def handler(request):
+        if request.url.path == "/auth/login":
+            bodies.append(json.loads(request.content))
+            return json_response(LOGIN_OK)
+        return json_response([])
+
+    client = make_client(handler, password="hunter2")
+    await client.list_students()
+
+    assert len(bodies) == 1
+    body = bodies[0]
+    assert body["role"] == "parent"
+    assert body["credential"] == "hunter2"
+    assert "password" not in body
+
+
+@pytest.mark.asyncio
+async def test_login_registers_a_device_so_it_can_be_revoked():
+    """This process holds a parent password and can read every child's
+    progress. Sending a device_id is optional at the API — and omitting it
+    means a token that can never be revoked, because core/deps.py treats a
+    missing device_id claim as nothing-to-revoke.
+
+    So it must be sent: a parent has to be able to cut this off from Bede's
+    device settings like any other device.
+    """
+    bodies = []
+
+    def handler(request):
+        if request.url.path == "/auth/login":
+            bodies.append(json.loads(request.content))
+            return json_response(LOGIN_OK)
+        return json_response([])
+
+    client = make_client(handler)
+    await client.list_students()
+    assert bodies[0].get("device_id")
+
+
+def test_device_id_is_stable_across_instances():
+    """Stable, or every restart registers a new device and the parent's
+    device list fills with entries they cannot tell apart."""
+    assert device_id() == device_id()
+
+
+def test_device_id_respects_an_override_and_fits_the_column():
+    """DeviceRecord.device_id is String(64); LoginRequest enforces that with
+    max_length, so an oversized override would be a 422 rather than silent
+    truncation server-side."""
+    assert device_id({"BEDE_MCP_DEVICE_ID": "my-laptop"}) == "my-laptop"
+    assert len(device_id({"BEDE_MCP_DEVICE_ID": "x" * 200})) == 64
+    assert len(device_id({})) <= 64
+
+
+@pytest.mark.asyncio
+async def test_a_422_is_reported_as_a_version_mismatch_not_a_bad_password():
+    """A schema disagreement and a wrong secret need different remedies."""
+
+    def handler(request):
+        return httpx.Response(422, json={"detail": "field required"})
+
+    client = make_client(handler)
+    with pytest.raises(BedeAuthError, match="malformed"):
+        await client.list_students()
 
 
 @pytest.mark.asyncio

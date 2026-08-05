@@ -264,4 +264,48 @@ describe('demo HandwritingCanvas page persistence', () => {
     fireEvent.click(screen.getByRole('button', { name: /hoja nueva/i }))
     expect(screen.getByText(/¿empezamos una hoja nueva\?/i)).toBeTruthy()
   })
+
+  describe('saving a drawing to the device', () => {
+    // jsdom's HTMLCanvasElement has no toBlob at all - handleSaveToDevice
+    // falls back to toDataURL without it, which is why this needs its own
+    // stub rather than relying on the beforeEach one.
+    function stubToBlob() {
+      vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
+        this: HTMLCanvasElement,
+        callback: BlobCallback,
+      ) {
+        callback(new Blob(['x'], { type: 'image/png' }))
+      })
+    }
+
+    it('does not revoke the object URL right away, so a slow mobile download is not cut off', () => {
+      // Safari/iOS has a documented history of treating a Blob's object URL
+      // as already gone if it is revoked while the download is still being
+      // read from it. This is exactly the class of thing that cannot be
+      // verified against a real device in this sandbox, so the test pins
+      // the defensive choice (a long delay) rather than the browser
+      // behavior it is defending against.
+      vi.useFakeTimers()
+      try {
+        stubToBlob()
+        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
+        const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+        render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} />)
+
+        fireEvent.click(screen.getByTitle('Save this drawing to your device'))
+        expect(revokeObjectURL).not.toHaveBeenCalled()
+
+        // Nowhere near revoked a few seconds in - a slow connection needs
+        // more than an instant, and a plain setTimeout(...,0) would have
+        // already fired by here.
+        act(() => { vi.advanceTimersByTime(5_000) })
+        expect(revokeObjectURL).not.toHaveBeenCalled()
+
+        act(() => { vi.advanceTimersByTime(60_000) })
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
 })

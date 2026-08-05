@@ -60,6 +60,21 @@ You can answer me in whichever way feels easiest:
     above where your finger actually is, on purpose. That way your finger
     isn't covering up the line while you draw it, just like how a marker
     doesn't hide what you're writing.
+  - **Your page waits for you.** If you go back to talk with me in the middle
+    of drawing, your page is still there when you come back: the same lines,
+    the same paper, the same colors. You don't have to finish in one go, and
+    you don't have to send it to me before you switch. It stays for as long as
+    today's lesson lasts. Sending me a drawing doesn't clear it either, so
+    you can keep adding to the same page afterwards. When you're finished
+    with a page and want a clean sheet, tap **New page**. I'll ask you
+    first, because once a page is put away I can't get it back.
+  - **Keeping a drawing for good.** Tap **Save** any time and the drawing goes
+    onto your own tablet or computer, like a photo, so you can keep it or show
+    somebody later. (Tap **Print** instead if you want it on real paper.)
+  - Once in a while a page gets so big and full that I can't hold onto it any
+    more. If that happens I'll tell you right away, while your drawing is
+    still on the screen, so you can save it first and then start a fresh page.
+    Nothing disappears without me telling you.
 
 There's also a little **palette** 🎨 at the top of the chat. Tap it to choose the
 look of our room: the background behind us, and the color of your own speech

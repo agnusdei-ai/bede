@@ -31,6 +31,8 @@ const PARENT_SETUP = readFileSync(
 const QUOTED_IN_DOCS: ReadonlyArray<{ what: string; label: string }> = [
   { what: 'travel-mode checkbox', label: en.parentSetup.travelMode },
   { what: 'mastery window label', label: en.parentSetup.masteryWindowLabel },
+  { what: 'writing pad new-page button', label: en.canvas.newPage },
+  { what: 'writing pad save-to-device button', label: en.canvas.save },
 ]
 
 describe('UI labels quoted in the parent guide', () => {

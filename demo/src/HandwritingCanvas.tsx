@@ -49,6 +49,26 @@ interface HandwritingCanvasProps {
   persistKey?: string
 }
 
+// True-to-scale printing and saving: the canvas's internal drawing
+// resolution is pinned to US Letter at 96 CSS px/inch, regardless of the
+// on-screen viewport's size or shape. Before this existed, the backing
+// store was sized to canvas.offsetWidth/Height - whatever CSS pixels the
+// flex layout happened to give it - so a visitor on a narrow phone got a
+// correspondingly low-resolution save/print, and the SAME drawing produced
+// a different-resolution PNG depending on how big their browser window
+// happened to be. Pinning the backing resolution here, letterboxing the
+// on-screen display to the same 8.5:11 aspect ratio (see the paperBox
+// sizing effect below), and forcing @page to portrait Letter with no
+// stretch in the print stylesheet makes on-screen drawing, the saved PNG,
+// and the printed page all the same shape at the same scale, matching the
+// app's own canvas (`homeschool-tutor/src/components/HandwritingCanvas.tsx`).
+const PRINT_DPI = 96
+const PAGE_WIDTH_IN = 8.5
+const PAGE_HEIGHT_IN = 11
+const PAGE_ASPECT = PAGE_WIDTH_IN / PAGE_HEIGHT_IN
+const CANVAS_WIDTH = PAGE_WIDTH_IN * PRINT_DPI // 816
+const CANVAS_HEIGHT = PAGE_HEIGHT_IN * PRINT_DPI // 1056
+
 const PARCHMENT_BG = '#faf8f0'
 
 // Paper colors — construction-paper pastels a child would pull from the
@@ -74,6 +94,11 @@ const GRAPH_LINE_COLOR = '#c9d6e8'
 const COMPOSITION_RULE_COLOR = '#a9c3dc'
 const COMPOSITION_MIDLINE_COLOR = '#c7d8ea'
 
+// Every spacing/margin constant below is measured in the same fixed page
+// pixels as CANVAS_WIDTH/HEIGHT above (96 per inch) — unchanged numbers
+// from before the fixed page space existed, now interpreted against a
+// page that is always the same physical size rather than however much of
+// the browser window happened to be available.
 const GRAPH_SPACING = 24
 // Dot-grid paper: same pitch as the graph grid so work translates between
 // the two, but only the intersections are marked — dots guide without
@@ -356,6 +381,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   const [paperColor, setPaperColor] = useState<string>(() => safeColor(restored?.paperColor, PARCHMENT_BG))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  // The neutral backdrop the paper sits in on screen — measured to letterbox
+  // the paper (see the effect below) so the paper itself always keeps the
+  // real page's 8.5:11 aspect ratio, whatever shape the browser window is.
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [paperBox, setPaperBox] = useState<{ width: number; height: number }>({
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+  })
   const isDrawingRef = useRef(false)
   const currentStrokeRef = useRef<Point[]>([])
   const strokesRef = useRef<Stroke[]>(
@@ -388,28 +421,6 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // page still be here when I come back": it goes false the first time a
   // write is refused and stays false until a fresh page is started, so the
   // notice the visitor is shown and what is actually stored never disagree.
-  // The CSS-pixel space strokesRef's coordinates are currently interpreted
-  // in, re-measured whenever the canvas is actually on screen.
-  //
-  // Re-measured rather than fixed at mount because a resize or a rotation
-  // re-sizes this canvas's backing store and replays raw coordinates into
-  // it (see the resize handler below), so after one every stroke - old and
-  // new - lives in the NEW space; storing a stale mount-time size would
-  // make the next restore rescale a page that needed no rescaling, and
-  // shrink it again on every rotate-and-reopen cycle.
-  //
-  // Remembered rather than read on demand because React detaches refs
-  // before running unmount cleanups, so the flush that matters most - the
-  // visitor pressing Done - has no element left to measure.
-  const spaceRef = useRef<{ w: number; h: number } | null>(null)
-  const measureSpace = useCallback((): { w: number; h: number } | null => {
-    const canvas = canvasRef.current
-    const w = canvas?.offsetWidth
-    const h = canvas?.offsetHeight
-    if (w && h) spaceRef.current = { w, h }
-    return spaceRef.current
-  }, [])
-
   const [refusal, setRefusal] = useState<CanvasRefusal>(null)
   const [confirmingNewPage, setConfirmingNewPage] = useState(false)
   const [nearlyFull, setNearlyFull] = useState(false)
@@ -437,15 +448,13 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     // publicly, in site/privacy/index.html - stays literally true instead
     // of being followed by an empty page written on the way out.
     if (!strokesRef.current.length && !wroteRef.current) return
-    const space = measureSpace()
-    if (!space) return
     // isEraser is optional on the in-memory stroke and required in storage:
     // "absent" and "false" mean the same thing to this canvas, and picking
     // one of them at the boundary keeps the stored shape unambiguous.
     const strokes = strokesRef.current.map((stroke) => ({ ...stroke, isEraser: !!stroke.isEraser }))
     const result = savePage(
       persistKey,
-      { strokes, paperStyle, paperColor, space },
+      { strokes, paperStyle, paperColor },
       { dropStoredOnRefusal: !options.final },
     )
     if (result.ok) {
@@ -463,7 +472,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     keepingRef.current = false
     setNearlyFull(false)
     setRefusal(result.reason === 'over-budget' ? 'page-full' : 'storage-unavailable')
-  }, [persistKey, paperStyle, paperColor, measureSpace])
+  }, [persistKey, paperStyle, paperColor])
 
   // Held in a ref so the unmount flush below calls the CURRENT writePage
   // without re-registering (and therefore re-running) its cleanup whenever
@@ -508,16 +517,42 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     schedulePersist()
   }, [paperStyle, paperColor, schedulePersist])
 
+  // Fits the largest 8.5:11 box into the available backdrop — the same
+  // letterbox math a photo viewer uses — so the on-screen drawing area is
+  // always shaped like the real sheet of paper that comes out of a save or
+  // a print, whatever shape the browser window itself is.
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const fit = () => {
+      const availW = wrapper.clientWidth
+      const availH = wrapper.clientHeight
+      let width = availW
+      let height = width / PAGE_ASPECT
+      if (height > availH) {
+        height = availH
+        width = height * PAGE_ASPECT
+      }
+      setPaperBox({ width, height })
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(wrapper)
+    return () => observer.disconnect()
+  }, [])
+
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const dpr = window.devicePixelRatio || 1
     dprRef.current = dpr
-    canvas.width = canvas.offsetWidth * dpr
-    canvas.height = canvas.offsetHeight * dpr
+    // The backing store is always the fixed physical page resolution, not
+    // the on-screen display size — see CANVAS_WIDTH/HEIGHT's comment above.
+    canvas.width = CANVAS_WIDTH * dpr
+    canvas.height = CANVAS_HEIGHT * dpr
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
-    drawPaper(ctx, canvas.offsetWidth, canvas.offsetHeight, paperStyle, paperColor, ruling)
+    drawPaper(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, paperStyle, paperColor, ruling)
   }, [paperStyle, paperColor, ruling])
 
   // Redraw all strokes from scratch onto the canvas
@@ -560,44 +595,6 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     }
   }, [paperStyle, paperColor, ruling])
 
-  // Declared BEFORE the paint effect below so it runs first: a restored page
-  // was drawn in whatever CSS-pixel space that window happened to give the
-  // canvas, and this one may be a different shape (a rotated tablet, a
-  // resized browser). Scaling by the SMALLER of the two ratios keeps the
-  // drawing's proportions and guarantees it still fits, rather than
-  // stretching handwriting or pushing part of it off the page. Runs once;
-  // after this, strokesRef is in this window's space and stays there.
-  const rescaledRef = useRef(false)
-  useEffect(() => {
-    if (rescaledRef.current) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const w = canvas.offsetWidth
-    const h = canvas.offsetHeight
-    // Not yet laid out. Deliberately leaves rescaledRef false so a later
-    // run can still do this: marking it done here would strand the page at
-    // the wrong scale permanently, with no way back.
-    if (!w || !h) return
-    rescaledRef.current = true
-    spaceRef.current = { w, h }
-
-    const from = restored?.space
-    if (!from || !strokesRef.current.length) return
-    const scale = Math.min(w / from.w, h / from.h)
-    if (Math.abs(scale - 1) < 0.001) return
-    for (const stroke of strokesRef.current) {
-      stroke.width *= scale
-      for (const point of stroke.points) {
-        point.x *= scale
-        point.y *= scale
-      }
-    }
-    // Deps mirror the paint effect below rather than being mount-only, so a
-    // canvas that had no size on the first pass gets another chance instead
-    // of being stuck unrescaled forever. rescaledRef makes every run after
-    // the successful one a no-op.
-  }, [restored, initCanvas, redrawAll])
-
   useEffect(() => {
     initCanvas()
     // Switching paper mid-drawing repaints the ruling underneath and replays
@@ -610,12 +607,18 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // for a Surface Pen, Apple Pencil, a finger, or a mouse, since the
   // Pointer Events API (not separate mouse/touch handlers) unifies all of
   // them, pressure included where the hardware reports it.
+  // The displayed box (rect) can be smaller than the fixed CANVAS_WIDTH/HEIGHT
+  // drawing space (it's letterboxed to fit the screen — see paperBox above),
+  // so pointer position is rescaled into that drawing space rather than used
+  // as raw display pixels. This is also what makes the coordinate space
+  // independent of window size: the same physical spot on the page always
+  // maps to the same stored (x, y), whatever size the browser happens to be.
   const getPos = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width),
+      y: (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height),
       pressure: e.pressure,
     }
   }
@@ -812,33 +815,24 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     window.print()
   }
 
-  // Handle window resize
+  // The backing store is now a fixed physical resolution (CANVAS_WIDTH x
+  // CANVAS_HEIGHT), not tied to the on-screen display size, so an ordinary
+  // window resize just reflows the letterboxed paperBox CSS size — the
+  // browser scales the same raster to fit, same as an <img>, with no redraw
+  // needed. Only a devicePixelRatio change (e.g. dragging the window to a
+  // monitor with different pixel density) needs the backing store rebuilt
+  // at the new dpr, so re-init and replay strokes just for that case.
   useEffect(() => {
     const handleResize = () => {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      // The strokes are about to be replayed into a differently sized
-      // canvas, so this is the space they are now expressed in.
-      measureSpace()
-      // Save existing image
-      const tmpCanvas = document.createElement('canvas')
-      tmpCanvas.width = canvas.width
-      tmpCanvas.height = canvas.height
-      tmpCanvas.getContext('2d')!.drawImage(canvas, 0, 0)
-
+      const dpr = window.devicePixelRatio || 1
+      if (dpr === dprRef.current) return
       initCanvas()
-
-      // Restore image
-      const ctx = canvas.getContext('2d')!
-      const dpr = dprRef.current
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.drawImage(tmpCanvas, 0, 0, canvas.width, canvas.height)
-      ctx.scale(dpr, dpr)
+      redrawAll()
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [initCanvas, measureSpace])
+  }, [initCanvas, redrawAll])
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-parchment-50">
@@ -1028,99 +1022,131 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         </div>
       </div>
 
-      {/* Canvas container — id'd so the print stylesheet below can isolate
-          just the paper itself (background + ruling + strokes), not the
-          toolbar, when handlePrint() triggers window.print(). */}
-      <div ref={containerRef} id={PRINT_AREA_ID} className="flex-1 relative">
-        {/* The one place this canvas ever speaks to the visitor in words:
-            what is about to happen to their page. Nothing here blocks
-            drawing, and the drawing stays saveable while they decide. The
-            two "not being kept" notices carry no dismiss - the state they
-            describe is still true after any amount of tapping, and only
-            starting a fresh page ends it.
+      {/* The one place this canvas ever speaks to the visitor in words: what
+          is about to happen to their page. Deliberately a bar above the
+          paper rather than a dialog over it - nothing here blocks drawing,
+          and the drawing stays fully in view (and fully saveable) while
+          they decide. The two "not being kept" notices carry no dismiss:
+          the state they describe is still true after any amount of tapping,
+          and only starting a fresh page ends it.
 
-            It OVERLAYS the top of the paper rather than sitting above it in
-            the flex column, which matters here and not in the app: this
-            canvas sizes its backing store to whatever the element occupies
-            and only re-measures on a window resize, so a bar that changed
-            the box height would leave the bitmap taller than its display
-            box and land every new stroke above the stylus. (The app-side
-            canvas maps pointer coordinates through a fixed page space and
-            watches its wrapper with a ResizeObserver, so the same markup is
-            harmless there.) Found in review of this port. */}
-        {notice && (
-          <div className="absolute top-0 left-0 right-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 bg-amber-50 border-b border-amber-200 shadow-sm print:hidden">
-            <p className="text-sm text-amber-900 flex-1 min-w-[12rem]">
-              {notice === 'page-full' && t('canvas.pageFull')}
-              {notice === 'storage-unavailable' && t('canvas.storageUnavailable')}
-              {notice === 'confirm-new-page' && t('canvas.confirmNewPage')}
-            </p>
-            <div className="flex items-center gap-2 flex-shrink-0">
+          Plain flex siblings, not an overlay on the paper: an earlier
+          version of this port drew them as an overlay because the canvas
+          used to size its backing store to whatever box it was given, so a
+          bar appearing on its own would shrink that box out from under an
+          already-fixed-resolution bitmap and land new strokes above the
+          stylus. Now that the backing store is the fixed CANVAS_WIDTH x
+          CANVAS_HEIGHT page above and getPos rescales through the
+          canvas's own bounding rect, a notice changing how much vertical
+          space is left for the paper just reflows the letterboxed display
+          size (see the paperBox effect above) - pointer mapping is
+          unaffected, so the overlay workaround is no longer needed and
+          would only be dead weight to carry forward. */}
+      {notice && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+          <p className="text-sm text-amber-900 flex-1 min-w-[12rem]">
+            {notice === 'page-full' && t('canvas.pageFull')}
+            {notice === 'storage-unavailable' && t('canvas.storageUnavailable')}
+            {notice === 'confirm-new-page' && t('canvas.confirmNewPage')}
+          </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleSaveToDevice}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 transition-colors text-sm font-medium min-h-[44px]"
+            >
+              <Download size={16} />
+              <span>{notice === 'confirm-new-page' ? t('canvas.saveFirst') : t('canvas.saveToDevice')}</span>
+            </button>
+            <button
+              onClick={startNewPage}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-500 text-white hover:bg-navy-600 transition-colors text-sm font-medium min-h-[44px]"
+            >
+              <FilePlus2 size={16} />
+              <span>{t('canvas.startFresh')}</span>
+            </button>
+            {notice === 'confirm-new-page' && (
               <button
-                onClick={handleSaveToDevice}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 transition-colors text-sm font-medium min-h-[44px]"
+                onClick={() => setConfirmingNewPage(false)}
+                className="px-3 py-2 rounded-lg text-amber-900 hover:bg-amber-100 transition-colors text-sm min-h-[44px]"
               >
-                <Download size={16} />
-                <span>{notice === 'confirm-new-page' ? t('canvas.saveFirst') : t('canvas.saveToDevice')}</span>
+                {t('canvas.neverMind')}
               </button>
-              <button
-                onClick={startNewPage}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-500 text-white hover:bg-navy-600 transition-colors text-sm font-medium min-h-[44px]"
-              >
-                <FilePlus2 size={16} />
-                <span>{t('canvas.startFresh')}</span>
-              </button>
-              {notice === 'confirm-new-page' && (
-                <button
-                  onClick={() => setConfirmingNewPage(false)}
-                  className="px-3 py-2 rounded-lg text-amber-900 hover:bg-amber-100 transition-colors text-sm min-h-[44px]"
-                >
-                  {t('canvas.neverMind')}
-                </button>
-              )}
-            </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Quiet heads-up well before anything is at risk - a line of text, no
-            buttons, nothing to answer. */}
-        {!notice && nearlyFull && (
-          <div className="absolute top-0 left-0 right-0 z-10 px-4 py-1.5 bg-amber-50 border-b border-amber-200 shadow-sm print:hidden">
-            <p className="text-xs text-amber-800">{t('canvas.nearlyFull')}</p>
-          </div>
-        )}
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{
-            touchAction: 'none',
-            cursor: 'crosshair',
-            // Chrome/Edge/Firefox all default print rendering to omit
-            // background colors/light strokes to save ink — this asks them
-            // not to, though the user's own "background graphics" print
-            // option (off by default in most browsers) still wins if set.
-            printColorAdjust: 'exact',
-            WebkitPrintColorAdjust: 'exact',
-          } as React.CSSProperties}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerLeave}
-        />
+      {/* Quiet heads-up well before anything is at risk - a line of text, no
+          buttons, nothing to answer. */}
+      {!notice && nearlyFull && (
+        <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+          <p className="text-xs text-amber-800">{t('canvas.nearlyFull')}</p>
+        </div>
+      )}
+
+      {/* Backdrop — letterboxes the paper (see the paperBox-fitting effect
+          above) so it always keeps a real letter page's 8.5:11 shape,
+          whatever shape the browser window itself is. */}
+      <div ref={wrapperRef} className="flex-1 relative flex items-center justify-center overflow-hidden bg-parchment-200/40">
+        {/* The paper itself — id'd so the print stylesheet below can isolate
+            just this (background + ruling + strokes), not the toolbar or
+            backdrop, when handlePrint() triggers window.print(). Sized to
+            paperBox on screen (a scaled-down view of the fixed physical
+            drawing resolution — see CANVAS_WIDTH/HEIGHT) but always an
+            exact 8.5in x 11in at print time (below) and always the same
+            physical pixel count when saved, so what's drawn on screen is
+            what prints and what saves, true to scale regardless of window
+            size — closing the gap where a phone visitor's saved keepsake
+            used to come out as a small, blurry image. */}
+        <div
+          ref={containerRef}
+          id={PRINT_AREA_ID}
+          className="relative bg-white shadow-md"
+          style={{ width: paperBox.width, height: paperBox.height }}
+        >
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              touchAction: 'none',
+              cursor: 'crosshair',
+              // Chrome/Edge/Firefox all default print rendering to omit
+              // background colors/light strokes to save ink — this asks them
+              // not to, though the user's own "background graphics" print
+              // option (off by default in most browsers) still wins if set.
+              printColorAdjust: 'exact',
+              WebkitPrintColorAdjust: 'exact',
+            } as React.CSSProperties}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerLeave}
+          />
+        </div>
       </div>
 
       {/* Scoped to this component's own overlay — isolates the paper
           (#handwriting-print-area) as the only thing that prints, hiding
-          the toolbar and everything else on the page behind it. */}
+          the toolbar and backdrop behind it. Forces portrait Letter with
+          zero page margin and sizes the paper to the physical page exactly
+          (no percentage-based stretch-to-fill) so it always prints at the
+          same true scale and orientation as a real ruled sheet, regardless
+          of the on-screen window's shape. */}
       <style>{`
         @media print {
+          @page { size: letter portrait; margin: 0; }
           body * { visibility: hidden !important; }
           #${PRINT_AREA_ID}, #${PRINT_AREA_ID} * { visibility: visible !important; }
           #${PRINT_AREA_ID} {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
+            /* !important: React's inline style={} (setting paperBox's
+               on-screen letterboxed px size) otherwise wins the cascade
+               over this stylesheet and the page would print at whatever
+               size it happened to be on screen instead of true 8.5x11in. */
+            position: fixed !important;
+            inset: 0 !important;
+            width: ${PAGE_WIDTH_IN}in !important;
+            height: ${PAGE_HEIGHT_IN}in !important;
+            box-shadow: none !important;
           }
         }
       `}</style>

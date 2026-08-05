@@ -1,9 +1,7 @@
 /**
  * Mirrors homeschool-tutor/src/utils/canvasPersistence.test.ts, with the
- * cases this copy needs that the app's does not: a demo stroke carries
- * `isEraser` rather than a tool name, and a demo page records the CSS-pixel
- * space it was drawn in (the app draws into a fixed page space, so it has
- * no such field).
+ * one case this copy needs that the app's does not: a demo stroke carries
+ * `isEraser` rather than a tool name.
  *
  * The properties under test are the two that would cost a visitor real
  * work: a page that comes back WRONG (truncated, half-restored, or from
@@ -37,13 +35,7 @@ function stroke(points: number, overrides: Partial<PersistedStroke> = {}): Persi
 }
 
 function page(overrides: Partial<PersistedPage> = {}): PersistedPage {
-  return {
-    strokes: [stroke(3)],
-    paperStyle: 'graph',
-    paperColor: '#faf8f0',
-    space: { w: 800, h: 600 },
-    ...overrides,
-  }
+  return { strokes: [stroke(3)], paperStyle: 'graph', paperColor: '#faf8f0', ...overrides }
 }
 
 /** A page whose serialized size lands in [min, max]. */
@@ -87,14 +79,6 @@ describe('demo canvas page persistence', () => {
     expect(restored?.strokes[0].isEraser).toBe(false)
     expect(restored?.strokes[1].isEraser).toBe(true)
     expect(restored?.strokes[0].points).toHaveLength(3)
-  })
-
-  it('records the space the strokes were drawn in', () => {
-    // Without this the next window's restore has no way to know whether
-    // these coordinates belong to a phone or a desktop, and would replay a
-    // drawing in the wrong place at the wrong size.
-    savePage('ABC123', page({ space: { w: 1024, h: 768 } }))
-    expect(loadPage('ABC123')?.space).toEqual({ w: 1024, h: 768 })
   })
 
   it('rounds coordinates without moving them anywhere a visitor could see', () => {
@@ -190,15 +174,11 @@ describe('demo canvas page persistence', () => {
       expect(loadPage('ABC123')).toBeNull()
     })
 
-    const valid = { v: 1, strokes: [], paperStyle: 'graph', paperColor: '#fff', space: { w: 800, h: 600 } }
+    const valid = { v: 2, strokes: [], paperStyle: 'graph', paperColor: '#fff' }
     it.each([
       ['a page from a future version', { ...valid, v: 99 }],
+      ['a page from the old, pre-fixed-page-space shape (v1)', { ...valid, v: 1 }],
       ['a missing stroke list', { ...valid, strokes: undefined }],
-      ['a missing space', { ...valid, space: undefined }],
-      // A zero would make the restore rescale divide by zero and put every
-      // stroke at NaN: an invisible page, with no explanation for it.
-      ['a zero-width space', { ...valid, space: { w: 0, h: 600 } }],
-      ['a negative space', { ...valid, space: { w: -800, h: 600 } }],
       ['a stroke with no point array', { ...valid, strokes: [{ width: 1, color: '#000', isEraser: false }] }],
       ['a stroke with no eraser flag', { ...valid, strokes: [{ width: 1, color: '#000', pts: [] }] }],
       ['a point array truncated mid-point', { ...valid, strokes: [{ width: 1, color: '#000', isEraser: false, pts: [1, 2, 0.5, 3, 4] }] }],

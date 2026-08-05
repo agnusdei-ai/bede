@@ -24,9 +24,9 @@ If you are using a mouse instead of your finger, just rest the arrow on a
 button and its name will appear.
 
 So you can explore. Press things and see — that is how you find out what
-they are, and nothing there can spoil your drawing. If you ever change
-something you did not mean to, the arrow curving backwards is Undo, and it
-puts things back.
+they are. If you change something you did not mean to, the arrow curving
+backwards is Undo, and it puts things back. The only button that clears your
+whole page will ask you first, so you cannot lose your work by accident.
 
 ## Getting started
 

@@ -147,11 +147,6 @@ describe('IconButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('renders a visible label alongside the icon when given one', () => {
-    renderButton({ visibleLabel: <span>Undo</span> })
-    expect(screen.getByText('Undo')).toBeTruthy()
-  })
-
   it('leaves no tooltip behind when it unmounts mid-reveal', () => {
     // The canvas unmounts whenever the child returns to the chat. A tooltip
     // that outlived its trigger would be stranded with nothing to dismiss it.

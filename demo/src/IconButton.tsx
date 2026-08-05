@@ -110,12 +110,6 @@ interface IconButtonProps {
    * used only for the tooltip.
    */
   textual?: boolean
-  /**
-   * Optional visible text beside the icon. Callers pass their own responsive
-   * classes; the tooltip works the same either way, which matters because the
-   * action buttons show their text on a tablet and hide it on a phone.
-   */
-  visibleLabel?: ReactNode
 }
 
 export default function IconButton({
@@ -127,7 +121,6 @@ export default function IconButton({
   disabled = false,
   pressed,
   textual = false,
-  visibleLabel,
 }: IconButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -231,7 +224,6 @@ export default function IconButton({
         style={style}
       >
         {children}
-        {visibleLabel}
       </button>
       {tip && (
         <span

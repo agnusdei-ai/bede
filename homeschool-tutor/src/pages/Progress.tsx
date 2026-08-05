@@ -141,9 +141,8 @@ function MasteryBar({ probability, level }: { probability: number; level: Master
 // translated strings so this component carries no i18n-key knowledge of
 // its own.
 function MasterySnapshot({
-  studentName, summary, loading, title, noDataText, calibrationText,
+  summary, loading, title, noDataText, calibrationText,
 }: {
-  studentName: string
   summary: MasteryProfileSummary | null
   loading: boolean
   title: string
@@ -853,7 +852,6 @@ export default function Progress() {
               assessments={assessments}
             />
             <MasterySnapshot
-              studentName={activeStudent}
               summary={masterySummary}
               loading={loading}
               title={t('progress.mathMasterySnapshotTitle')}
@@ -861,7 +859,6 @@ export default function Progress() {
               calibrationText={t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 })}
             />
             <MasterySnapshot
-              studentName={activeStudent}
               summary={compositionSummary}
               loading={loading}
               title={t('progress.compositionMasterySnapshotTitle')}
@@ -870,7 +867,6 @@ export default function Progress() {
             />
             {activeStudentIsBeyondFoundations && (
               <MasterySnapshot
-                studentName={activeStudent}
                 summary={literacySummary}
                 loading={loading}
                 title={t('progress.literacyMasterySnapshotTitle')}
@@ -880,7 +876,6 @@ export default function Progress() {
             )}
             {activeStudentIsFoundations && (
               <MasterySnapshot
-                studentName={activeStudent}
                 summary={phonicsSummary}
                 loading={loading}
                 title={t('progress.phonicsMasterySnapshotTitle')}
@@ -889,7 +884,6 @@ export default function Progress() {
               />
             )}
             <MasterySnapshot
-              studentName={activeStudent}
               summary={languageSummary}
               loading={loading}
               title={t('progress.languageMasterySnapshotTitle')}

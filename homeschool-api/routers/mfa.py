@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
+from core import device_registry
 from core.deps import require_elevated_parent, require_mfa_pending, require_parent
 from core.middleware import compute_fingerprint
 from core.parent_credential import set_parent_password_override, verify_parent_password
@@ -220,19 +221,27 @@ async def change_password(
 
 # ── Completing a pending login (requires "parent_pending", not full parent) ─
 
-def _issue_parent_token(request: Request, locale: str = "en", cv: int | None = None) -> str:
-    """locale comes from the pending token's own claim (see routers/auth.py's
-    login()) — the parent picked their language at the password step, and
-    completing MFA a moment later shouldn't silently reset it to English.
-    cv likewise carries through from the pending token (core/deps.py's
-    credentials_version check) rather than being re-read here — the pending
-    token was only issued because it already matched at the password step
-    a moment earlier."""
+async def _issue_parent_token(
+    db: AsyncSession, request: Request, locale: str = "en", cv: int | None = None, device_id: str | None = None,
+) -> str:
+    """locale/cv/device_id all come from the pending token's own claims
+    (see routers/auth.py's login()) — the parent picked their language,
+    already matched the current password, and this device was already
+    identified at the password step; completing MFA a moment later
+    shouldn't silently reset any of them.
+
+    touch()'s the device registry here (P9, core/device_registry.py) rather
+    than in auth.py's login() — this is the point a REAL, usable parent
+    token is actually issued for the MFA-required path, matching the
+    equivalent point in login() for the no-MFA-enrolled path."""
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
     payload = {"sub": "parent", "role": "parent", "locale": locale}
     if cv is not None:
         payload["cv"] = cv
+    if device_id:
+        payload["device_id"] = device_id
+        await device_registry.touch(db, device_id, "parent", ctx["user_agent"])
     return create_access_token(
         payload,
         fingerprint=fp,
@@ -260,7 +269,7 @@ async def webauthn_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="webauthn login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Security key verification failed")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="webauthn login", **ctx)
-    token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
+    token = await _issue_parent_token(db, request, pending.get("locale", "en"), pending.get("cv"), pending.get("device_id"))
     return TokenResponse(access_token=token, role="parent")
 
 
@@ -276,5 +285,5 @@ async def totp_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="totp login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect or reused code")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="totp login", **ctx)
-    token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
+    token = await _issue_parent_token(db, request, pending.get("locale", "en"), pending.get("cv"), pending.get("device_id"))
     return TokenResponse(access_token=token, role="parent")

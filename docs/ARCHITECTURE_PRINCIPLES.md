@@ -292,14 +292,15 @@ in router bodies are gone. Deny-by-default replaced reject-known-bad, which
 closed a real gap in passing: `parent_recovery` previously passed
 `require_auth` and could reach any of the 17 endpoints behind it.
 
-Partial rather than conforming because the layer exists but the capabilities
-it unblocks do not: P8 (step-up), P9 (device identity), and P10 (identity
-domain split) are all still open, and audit remains coupled to enforcement
-rather than being independently verifiable.
+Partial rather than conforming because the layer exists but not every
+capability it unblocks does: P9 (device identity) is now revocable
+(Option C) but not yet cryptographic (Option A remains open), and audit
+remains coupled to enforcement rather than being independently verifiable.
+P8 (step-up) and P10 (identity domain split) are both closed.
 
 *AIUC-1: Security, Accountability · CISSP D5 identity lifecycle*
 
-### P8 — Privilege is elevated per-action, not held per-session ⚠️
+### P8 — Privilege is elevated per-action, not held per-session ✅
 
 **Statement.** Administrative capability requires an explicit elevation
 distinct from being logged in.
@@ -313,15 +314,18 @@ privilege boundary to enforce even where the network could enforce one.
 **Implications.** A step-up/elevated-session concept for management-plane
 actions, scoped and time-bounded.
 
-**Conformance.** Backend complete 2026-08-03, **enforcement ships off**
-(`ELEVATION_ENFORCED`) pending the web UI's password prompt — marked partial
-rather than conforming for exactly that reason. A control that is configured
-off is off, and this document does not get to call it closed because the
-code exists. `homeschool-tutor`'s API client calls these endpoints from ~30
-separate raw `fetch()` sites with no interceptor, so enforcing before that
-flow lands would give a parent an unexplained error on every management
-action. `GET /admin/status` reports which posture a deployment has, so it
-cannot quietly stay off and be mistaken for on.
+**Conformance.** Backend complete 2026-08-03; **enforcement closed
+2026-08-04** with the addition of `homeschool-tutor/src/components/
+ElevationPrompt.tsx`, mounted once at the app root next to
+`GlobalAuthInterceptor`. It wraps `window.fetch` the same way that
+component already does for 401s — every one of the ~15 elevation-gated call
+sites gets the password (+ TOTP, where enrolled) prompt automatically, with
+the original request retried exactly once on success, and no individual
+call site needing to know elevation exists. `ELEVATION_ENFORCED` now
+defaults `true`; a deployment can still opt out (e.g. one driving the API
+directly with no frontend). `GET /admin/status` reports which posture a
+deployment has, so it cannot quietly diverge from the default and be
+mistaken for it.
 
 The mechanism itself: `core/elevation.py` grants a
 time-boxed elevation (default 10 minutes) against the session's own `jti`,
@@ -364,7 +368,7 @@ removed. Removing a single guard fails six tests in that file.
 
 *AIUC-1: Security · CISSP D5 privileged account management*
 
-### P9 — Every device has a cryptographic identity that can be individually revoked ❌
+### P9 — Every device has a cryptographic identity that can be individually revoked ⚠️
 
 **Statement.** Paired devices hold their own keypair, issued at onboarding;
 sessions bind to that key, and a single device can be deprovisioned without
@@ -380,23 +384,48 @@ also strengthens the case for voice verification becoming a real factor:
 a genuine device identity plus a genuine biometric is a materially different
 claim than either alone.
 
-**Conformance.** Still open, and deliberately not built on 2026-08-03
-alongside P8 and P10. `docs/DEVICE_IDENTITY_DESIGN.md` works the problem
-through: three options, a recommendation (revocable device records first,
-browser keypairs for the parent role second), and the four decisions that
-want an answer before code.
+**Conformance.** Deliberately built in two increments —
+`docs/DEVICE_IDENTITY_DESIGN.md` worked the problem through (three options,
+a recommendation of revocable device records first, browser keypairs for
+the parent role second) and recorded the four decisions that wanted an
+answer before code. **Option C (revocable device records) is built and
+closed, 2026-08-04.** `core/device_registry.py` mirrors the DB-backed
+fact/in-process-cache/periodic-refresh shape `core/parent_credential.py`
+established for `credentials_version`: a `DeviceRecord` table
+(`core/database.py`) holds one row per client-generated, opaque,
+non-secret `device_id`, an in-memory revoked-id set refreshes every 10
+seconds, and the id travels inside the issued JWT so both `login()` and
+`core/deps.py`'s per-request check can reject a revoked device — the
+latter closing the token independently of the former, so a token issued
+before revocation is dead on its very next use, not just at next login.
+`login()`'s check runs strictly after credential verification succeeds,
+never before, so the endpoint cannot become a pre-authentication oracle
+revealing which device ids are revoked to an unauthenticated caller.
+Parent-facing revoke UI (`GET/POST /admin/devices*`,
+`DeviceSettings.tsx`) sits behind P8's step-up elevation, since revoking a
+device is exactly the destructive, session-affecting action that
+principle exists to gate.
 
-The short version of why it stopped at a design: P8 and P10 are server-side,
-fail closed into "log in again", and cannot strand a device. P9 changes how
-every device authenticates, and its hardest question is not cryptographic
-but a recovery path — IndexedDB is evictable, so a family whose tablet
-forgets its key needs a re-onboarding flow at least as easy as the one it
-replaces, or they are locked out of their own hardware.
-
-Two things landed for other reasons that make it cheaper than it was:
-parent tokens now carry a `jti` (P8), and `core/identity.py` owns
-domain-scoped signing, so device binding is a change to one module rather
-than to every issue site.
+This closes the *revocation* half of the statement, not the
+*cryptographic* half — a `device_id` is an opaque identifier a device
+presents, not a keypair it proves possession of, so a device_id alone
+(without also holding a valid session token) authenticates nothing. That
+is why this principle is ⚠️ rather than ✅: Option C makes a lost or
+stolen tablet individually deprovisionable, which was the operationally
+urgent gap, but does not yet give a device a cryptographic identity the
+way P5's key hierarchy gives data one. **Option A (per-device browser
+keypairs) remains open**, scoped to the parent role per the design doc's
+own recommendation. The short version of why Option A stays a design
+rather than a build: P8 and P10 are server-side, fail closed into "log in
+again", and cannot strand a device; Option A changes how every device
+authenticates, and its hardest question is not cryptographic but a
+recovery path — IndexedDB is evictable, so a family whose tablet forgets
+its key needs a re-onboarding flow at least as easy as the one it
+replaces, or they are locked out of their own hardware. Two things landed
+for other reasons that make Option A cheaper than it was: parent tokens
+now carry a `jti` (P8), and `core/identity.py` owns domain-scoped
+signing, so device binding is a change to one module rather than to every
+issue site.
 
 Related to punch-list #8: a genuine device identity plus a genuine biometric
 is a materially different claim than either alone, which is why voice

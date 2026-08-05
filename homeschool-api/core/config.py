@@ -215,19 +215,22 @@ class Settings(BaseSettings):
     elevation_ttl_minutes: int = 10
     # Whether the elevation is actually ENFORCED on the management plane.
     #
-    # Defaults OFF, and that is a deliberate, temporary state rather than a
-    # judgement that the control isn't worth having. The backend half is
-    # complete and tested; the frontend half is not. homeschool-tutor's API
-    # client calls these endpoints from ~30 separate raw fetch() sites with
-    # no interceptor, so until it grows a password prompt and a retry, a
-    # parent opening Parent Setup would get an unexplained error on every
-    # management action.
-    #
-    # Turn this on the moment that flow lands — or now, for a deployment
-    # driving the API directly. With it off, require_elevated_parent behaves
-    # exactly like require_parent, and GET /admin/status reports the state so
-    # it can't quietly stay off and be mistaken for on.
-    elevation_enforced: bool = False
+    # Defaults ON as of 2026-08-04. It shipped OFF for a deliberate, temporary
+    # reason — the backend half was complete and tested, but homeschool-
+    # tutor's API client called these endpoints from ~30 separate raw
+    # fetch() sites with no interceptor, so a parent opening Parent Setup
+    # would have gotten an unexplained error on every management action.
+    # ElevationPrompt.tsx (mounted once at the app root, next to
+    # GlobalAuthInterceptor) closes that gap: it wraps window.fetch, catches
+    # the 403 an unelevated call returns, prompts for the password (+ TOTP if
+    # enrolled), and retries the original request once — no individual call
+    # site needs to know elevation exists. With it on, an operator upgrading
+    # an existing self-hosted deployment sees one new prompt the first time
+    # they open the audit log or a similar management action, then nothing
+    # again for elevation_ttl_minutes. Set this false to opt back out — e.g.
+    # a deployment driving the API directly with no frontend at all. GET
+    # /admin/status reports the current posture either way.
+    elevation_enforced: bool = True
     algorithm: str = "HS256"
     # Parent sessions: up to 8h (full school day). Child: 4h (single session).
     access_token_expire_minutes: int = 480

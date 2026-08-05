@@ -14,15 +14,37 @@ same wording, across virtually every English- and Spanish-language Catholic
 missal, catechism, and parish in living memory (the Sign of the Cross, the
 Our Father, the Hail Mary, and similarly universal texts) — chosen
 specifically because their wording has effectively no live variation to get
-wrong, unlike a poem's translation. That said: these were transcribed from
-this app's own training-time knowledge, not cross-checked against a live
-published source the way poetry_catalog.py's entries were (this sandbox's
-network policy blocks fetching USCCB.org, Wikipedia, and similar reference
-sites at build time — see the PR that added this file for the specific
-attempt). Treat every entry, and especially the Spanish text, as a first
-pass worth a native-speaker/parish review before a real family relies on
-it — the same "translation quality bar" docs/LOCALIZATION.md already asks
-of every other localized string in this app.
+wrong, unlike a poem's translation.
+
+Cross-checked against real published sources in a later pass (direct
+WebFetch to USCCB.org, EWTN, Loyola Press, and similar reference sites
+still 403s in this sandbox — the same block the module's original
+docstring recorded — but WebSearch itself works, and returns quoted text
+directly from those sites' own pages; verification here means the same
+phrase confirmed across multiple independent snippets, not one page taken
+on faith). That pass found and fixed real drift, not just gave the
+training-time text a clean bill of health: Grace After Meals had quietly
+modernized "who livest and reignest, world without end" down to "who
+lives and reigns forever"; the Morning Offering and Prayer Before Study
+had each lost real clauses somewhere along the way (the Morning Offering's
+own intercessions, Aquinas's "double darkness... obscurity of sin and
+ignorance" line); and the Spanish Prayer of St. Francis was missing two
+clauses ("donde haya discordia, unión; donde haya error, verdad") that the
+Spanish-speaking Church's own standard text of this prayer carries but the
+short English form doesn't — restored on the strength of independent
+Spanish-language sourcing, not back-translated from English. Two prayers
+were checked and found to already be correct despite looking suspicious at
+first glance: the Memorare's "in thy mercy" (a real, independently
+attested variant, not a drift from "in thy clemency") and the Serenity
+Prayer's popular wording (deliberately not Niebuhr's own 1930s original —
+the attribution already says "wide ecumenical Christian use" rather than
+claiming his exact words). Every other entry matched a real source with no
+correction needed. Treat this as one solid verification pass, not a
+closed question — a native-speaker/parish review remains worthwhile before
+a family leans on this catalog the way docs/LOCALIZATION.md already asks
+of every other localized string in this app, and nothing here has been
+checked against a second, independent Spanish-language reviewer the way
+the English was checked against multiple English sources.
 
 The Spanish text is the culturally standard prayer as prayed in the
 Spanish-speaking Church, not a literal translation of the English —
@@ -55,11 +77,26 @@ Catholic devotional prayers and prayers in wider ecumenical Christian use
 (the Doxology, the Serenity Prayer, the Numbers 6:24-26 blessing, "Now I
 Lay Me Down to Sleep") — all doctrinally uncontroversial, Trinitarian
 where applicable, and none requiring Bede to adjudicate a denominational
-question to use. Same transcription caveat as _COLLECTION above: treat
-every entry (English and especially the Spanish renderings, several of
-which are this session's own translation rather than a cross-checked
-published source) as a first pass worth a parish/native-speaker review
-before a family relies on it.
+question to use. Cross-checked the same way _COLLECTION above was; see
+that docstring for what verification here actually means and its limits.
+
+`moments` is honest about which prayers genuinely belong to only one end
+of the day and which don't, rather than defaulting every entry to a
+single slot for tidiness. A prayer literally named "before study," a
+bedtime-specific rhyme, and a benediction whose whole grammatical shape is
+a send-off (both closing entries below) stay single-moment because that's
+what they actually are. A general prayer for peace, a doxology of praise,
+or "let nothing disturb you" has no morning- or evening-specific content
+at all, so it honestly serves either — those carry {"opening", "closing"}.
+This split was itself a real fix: before it, three prayers in the opening
+pool were the family's entire rotation for the moment that opens EVERY
+session day, so the identical prayer recurred up to 4 times in a 10-day
+sprint. Retagging by honest character plus two further, independently
+sourced additions (St. Teresa's Bookmark, general enough for either
+moment; 2 Corinthians 13:14, a real closing-only benediction) brought that
+down to no more than 2 repeats in the same 10-day window — see
+tests/test_prayer_catalog.py's own sprint-simulation test, which pins
+this rather than trusting it to stay true as entries change.
 """
 from datetime import date
 
@@ -126,21 +163,28 @@ _COLLECTION = [
         ),
     ),
     _entry(
-        "Grace After Meals", "Traditional", {"K", "1", "2", "3", "4", "5", "6", "7", "8"}, (
-            "We give Thee thanks for all Thy benefits, almighty God, who lives and reigns forever. Amen."
+        "Grace After Meals", "Traditional (Baltimore Catechism form)", {"K", "1", "2", "3", "4", "5", "6", "7", "8"}, (
+            "We give Thee thanks for all Thy benefits, O almighty God, who livest and reignest, "
+            "world without end. Amen."
         ), (
             "Te damos gracias, Dios omnipotente, por todos tus beneficios, "
             "que vives y reinas por los siglos de los siglos. Amén."
         ),
     ),
     _entry(
-        "Morning Offering", "Traditional (Apostleship of Prayer form)", {"2", "3", "4", "5", "6", "7", "8"}, (
+        "Morning Offering", "Traditional (Apostleship of Prayer / Pope's Worldwide Prayer Network form)",
+        {"2", "3", "4", "5", "6", "7", "8"}, (
             "O Jesus, through the Immaculate Heart of Mary, I offer You my prayers, works, joys, "
-            "and sufferings of this day, in union with the Holy Sacrifice of the Mass throughout the world. Amen."
+            "and sufferings of this day, for all the intentions of Your Sacred Heart: the salvation "
+            "of souls, reparation for sin, and the reunion of all Christians, in union with the Holy "
+            "Sacrifice of the Mass throughout the world, and in particular for the intentions of our "
+            "Holy Father this month. Amen."
         ), (
-            "Oh Jesús, por el Corazón Inmaculado de María, te ofrezco mis oraciones, trabajos, "
-            "alegrías y sufrimientos de este día, en unión con el Santo Sacrificio de la Misa "
-            "en todo el mundo. Amén."
+            "Oh Jesús, por el Inmaculado Corazón de María, te ofrezco mis oraciones, trabajos, "
+            "alegrías y sufrimientos de este día, por todas las intenciones de tu Sagrado Corazón: "
+            "la salvación de las almas, la reparación de los pecados y la reunión de todos los "
+            "cristianos, en unión con el Santo Sacrificio de la Misa en todo el mundo, y en particular "
+            "por las intenciones del Santo Padre este mes. Amén."
         ),
     ),
     _entry(
@@ -211,21 +255,25 @@ _DAILY_COLLECTION = [
         "Prayer Before Study", "Traditional (attrib. St. Thomas Aquinas)", "catholic", {"opening"},
         (
             "Creator of all things, true source of light and wisdom, origin of all being, "
-            "graciously let a ray of your light penetrate the darkness of my understanding. Give me "
-            "a sharp sense of understanding, a retentive memory, and the ability to grasp things "
-            "correctly and fundamentally. Point out the beginning, direct the progress, and help in "
-            "the completion. I ask this through Christ our Lord. Amen."
+            "graciously let a ray of your light penetrate the darkness of my understanding. Take from "
+            "me the double darkness in which I have been born, an obscurity of sin and ignorance. Give "
+            "me a sharp sense of understanding, a retentive memory, and the ability to grasp things "
+            "correctly and fundamentally. Grant me the talent of being exact in my explanations and "
+            "the ability to express myself with thoroughness and charm. Point out the beginning, "
+            "direct the progress, and help in the completion. I ask this through Christ our Lord. Amen."
         ),
         (
             "Creador de todas las cosas, verdadera fuente de luz y sabiduría, origen de todo ser: "
-            "te suplico que hagas penetrar un rayo de tu luz en la oscuridad de mi entendimiento. "
-            "Dame agudeza para entender, capacidad para retener, y método y facilidad para "
-            "aprender. Señala el comienzo, dirige el progreso y ayuda a la conclusión. Te lo pido "
-            "por Cristo, nuestro Señor. Amén."
+            "te suplico que hagas penetrar un rayo de tu luz en la oscuridad de mi entendimiento, "
+            "apartando de mí la doble oscuridad en que he nacido: el pecado y la ignorancia. Dame "
+            "agudeza para entender, capacidad para retener, método y facilidad para aprender, "
+            "sutileza para interpretar, y gracia copiosa para hablar. Señala el comienzo, dirige el "
+            "progreso y ayuda a la conclusión. Te lo pido por Cristo, nuestro Señor. Amén."
         ),
     ),
     _daily_entry(
-        "Prayer of St. Francis", "Traditional (long attributed to St. Francis of Assisi)", "catholic", {"closing"},
+        "Prayer of St. Francis", "Traditional (long attributed to St. Francis of Assisi)", "catholic",
+        {"opening", "closing"},
         (
             "Lord, make me an instrument of your peace. Where there is hatred, let me sow love; "
             "where there is injury, pardon; where there is doubt, faith; where there is despair, "
@@ -233,12 +281,13 @@ _DAILY_COLLECTION = [
         ),
         (
             "Señor, hazme un instrumento de tu paz. Donde haya odio, que yo ponga amor; donde haya "
-            "ofensa, perdón; donde haya duda, fe; donde haya desesperación, esperanza; donde haya "
-            "oscuridad, luz; donde haya tristeza, alegría. Amén."
+            "ofensa, perdón; donde haya discordia, unión; donde haya error, verdad; donde haya duda, "
+            "fe; donde haya desesperación, esperanza; donde haya oscuridad, luz; donde haya "
+            "tristeza, alegría. Amén."
         ),
     ),
     _daily_entry(
-        "Glory Be (Doxology)", "Traditional", "catholic", {"closing"},
+        "Glory Be (Doxology)", "Traditional", "catholic", {"opening", "closing"},
         (
             "Glory be to the Father, and to the Son, and to the Holy Spirit, as it was in the "
             "beginning, is now, and ever shall be, world without end. Amen."
@@ -249,7 +298,8 @@ _DAILY_COLLECTION = [
         ),
     ),
     _daily_entry(
-        "The Doxology", "Thomas Ken, 1674 (traditional Protestant hymn verse)", "christian", {"closing"},
+        "The Doxology", "Thomas Ken, 1674 (traditional Protestant hymn verse)", "christian",
+        {"opening", "closing"},
         (
             "Praise God, from whom all blessings flow; praise Him, all creatures here below; "
             "praise Him above, ye heavenly host; praise Father, Son, and Holy Ghost. Amen."
@@ -262,7 +312,7 @@ _DAILY_COLLECTION = [
     ),
     _daily_entry(
         "The Serenity Prayer", "Reinhold Niebuhr, c. 1930s (traditional, wide ecumenical Christian use)",
-        "christian", {"opening"},
+        "christian", {"opening", "closing"},
         (
             "God, grant me the serenity to accept the things I cannot change, courage to change the "
             "things I can, and wisdom to know the difference."
@@ -294,6 +344,43 @@ _DAILY_COLLECTION = [
         (
             "Ahora que me acuesto a dormir, pido al Señor que cuide mi alma. Si muero antes de "
             "despertar, pido al Señor que lleve mi alma. Amén."
+        ),
+    ),
+    _daily_entry(
+        # "St. Teresa's Bookmark" — found written in her own breviary after her
+        # death in 1582; the short form below (not the longer poem it's drawn
+        # from) is the independently, universally attested standalone prayer
+        # card/bookmark text. General in character rather than tied to either
+        # end of the day, so — like Prayer of St. Francis, Glory Be, and The
+        # Doxology above — it honestly belongs in both pools.
+        "Let Nothing Disturb You (St. Teresa's Bookmark)", "St. Teresa of Ávila, d. 1582", "catholic",
+        {"opening", "closing"},
+        (
+            "Let nothing disturb you, let nothing frighten you. All things are passing away: "
+            "God never changes. Patience obtains all things. Whoever has God lacks nothing; "
+            "God alone suffices."
+        ),
+        (
+            "Nada te turbe, nada te espante. Todo se pasa, Dios no se muda. La paciencia todo lo "
+            "alcanza. Quien a Dios tiene nada le falta: solo Dios basta."
+        ),
+    ),
+    _daily_entry(
+        # 2 Corinthians 13:14 — Paul's own closing benediction to the church at
+        # Corinth, the only one of his letter-ending blessings to name all
+        # three Persons of the Trinity. A send-off blessing by its very
+        # nature (it closes a LETTER), so unlike the general-purpose prayers
+        # above, this one stays closing-only on the same reasoning as The
+        # Blessing (Numbers 6:24-26) just above it.
+        "The Grace (2 Corinthians 13:14)", "Scripture, traditional English liturgical rendering",
+        "christian", {"closing"},
+        (
+            "The grace of the Lord Jesus Christ, and the love of God, and the fellowship of the "
+            "Holy Spirit, be with you all. Amen."
+        ),
+        (
+            "La gracia del Señor Jesucristo, el amor de Dios y la comunión del Espíritu Santo "
+            "sean con todos ustedes. Amén."
         ),
     ),
 ]

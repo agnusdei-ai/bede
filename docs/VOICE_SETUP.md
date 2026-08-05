@@ -1730,6 +1730,178 @@ public API for a page to control audio session category directly, so this
 fix is iOS/iPadOS-specific; Android's own routing behavior around
 `getUserMedia` wasn't reported as broken and is left alone.
 
+## Troubleshooting: a held turn is silently discarded, and then the mic button stops working
+
+From a real trace on the public demo. The server answered a session's very
+first `events` request with **"unknown or expired session" 238 milliseconds
+after creating it**. The TTL is 180 seconds, so that is not expiry — it is the
+request landing on a different process from the one that created the session.
+`services/streaming_transcription.py` keeps sessions in memory, in one
+process, and says so in its own docstring; the same trace shows the signature
+plainly, with chunks on one session id succeeding, then 404ing, then
+succeeding again.
+
+**That root cause is server-side and no frontend change fixes it.** It needs
+the instance count pinned to one, session affinity, or a shared store. Note
+`render.yaml` carries no instance or scaling configuration at all, so that
+number lives only in the Render dashboard — the same blueprint-versus-
+dashboard drift `render.yaml`'s own plan comments were written about.
+
+Two client faults made it far worse than it needed to be, and both are fixed:
+
+**The turn was reported as finished while the child was still holding.**
+`consumeEvents` logged the error event, fell out of its loop, and ran straight
+into `setMode('idle')`. The child went on speaking for another seven seconds
+and all of it was discarded. `heldMs` at that instant was 643ms — under
+`MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` — so not even an error appeared. The
+stream ending while `mode` is still `recording` is now treated as the turn
+dying underneath the child: the recorder is stopped, the chunk timer cleared,
+and `network` surfaced (the microphone is fine; the session it was streaming
+to is gone).
+
+**Nothing tore the turn down, so the next press did nothing.** The recorder
+kept capturing and the chunk timer kept uploading. `useVoiceRecorder` refuses
+to start a second recording while one is live, so the child's next press
+reached `_start()` and never reached `startRecording()` — visible in the trace
+as an `_start() attempt=9` with no `useVoiceRecorder.startRecording()` line
+after it. Same latch-off failure the give-up path was fixed for, arriving
+through a different door.
+
+**Every successful turn also fired a second `finish` that 404'd.** `release()`
+finishes the session but leaves `sessionIdRef` populated, because the final
+`uploadSnapshot` still needs it — so the `stop()` that follows when the child
+confirms and sends finished the same session again. Harmless on its own, but a
+wasted round trip per turn, and it filled the log with 404s that made the real
+one above hard to find. A `finishRequestedRef` set synchronously at release
+now makes it exactly one finish per session; an outright cancel with no
+release still finishes properly, or the session would leak until its TTL.
+
+## Troubleshooting: "I can't hear you" appears the instant it becomes the child's turn, before any press
+
+A parent sent two real traces from a live iOS Safari session, five minutes
+apart, both showing the same shape: `_start() attempt=11` (and climbing),
+two `getStream() rejected name=NotAllowedError` lines back to back on every
+attempt, the mic message on screen, and Bede continuing to converse normally
+via typed input in between. Not a one-off — every turn in the trace failed
+the same way.
+
+Root cause, found by reading `prewarm()`'s own call site rather than
+guessing from the log: `SocraticChat.tsx` calls `prewarm()` from a
+`useEffect` the instant `awaitingChildTurn` goes true — *before* the child
+has pressed anything, and therefore *not inside a user gesture at all*.
+`useVoiceRecorder.ts` carries its own comment on exactly why that matters:
+iOS Safari only honors `getUserMedia()` when it's initiated directly inside
+a user gesture's call stack, and rejects (or never settles) a call made from
+anywhere else. A prewarm effect is exactly "anywhere else."
+
+That alone would just make prewarm fail quietly on a strict browser — not
+itself the bug, since `startRecording()`'s own fresh-retry fallback exists
+precisely to recover from a failed prewarm. The actual defect is that
+`getStream()` called `onError` unconditionally on every rejection, with no
+way to tell "this was only the provisional prewarm attempt, a retry is
+still coming" from "this was the truly final attempt, nothing is left to
+try." So a prewarm failure and a real press-time failure were
+indistinguishable to the child: both flipped `mode` to `'idle'` and set
+`micError`, both showed the same message — including, worst of all,
+*before the child had touched the mic button*.
+
+This gap used to be covered. `startRecording()`'s own comment on the
+prewarm-fails-then-retry-succeeds case recorded that a failed prewarm
+"never even reached onError (mode was still `'native'` when it rejected, so
+the guard in useHybridVoiceInput correctly ignored it)" — a `mode !==
+'native'` check from the browser-native SpeechRecognition era. When native
+recognition was removed entirely (see the top of `useHybridVoiceInput.ts`
+and this file's own rewrite section), that guard went with it, and nothing
+replaced it. The comment describing the old protection stayed in the file
+long after the protection itself was gone.
+
+Fix: `getStream()` takes a `report` option (default `true`). `prewarm()`
+always passes `report: false` — a prewarm failure is never the final word.
+`startRecording()`'s own first attempt (reusing the prewarm promise, or a
+cold call for a caller with no separate prewarm step) is `report: false`
+too, for the identical reason: a fresh retry still follows it. Only that
+fresh retry — genuinely the last attempt, nothing left to fall back to —
+reports normally. `logDebug()` still records every rejection regardless of
+`report`, so a provisional failure remains visible in a debug trace even
+though the child never sees it.
+
+**What this fix does and does not explain about the two traces above.** It
+closes a real, provable gap: a prewarm-stage failure can no longer surface
+as though it were the turn's own outcome, and (per the regression test
+added alongside it) a turn that ultimately succeeds after a failed prewarm
+attempt no longer shows a spurious error along the way. What it can't
+settle from a log alone is whether that specific family's *in-gesture*
+retry — the one now correctly reporting — was failing because the site's
+own microphone permission was genuinely blocked on that device, or because
+even a same-tick `await` on an already-rejected prewarm promise is enough
+to cost WebKit's user-activation window before the fresh call runs. Both
+produce the identical `NotAllowedError` text on iOS Safari, and only a real
+device trace after this fix ships can distinguish them going forward.
+
+## Endpointing: how a continuous-mode turn ends
+
+Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.
+Continuous "Voice on" mode had none at all: `start()` behaved exactly like
+`startHold()`, nothing ever called `release()`, and the turn therefore ran to
+the 120-second `HOLD_SAFETY_TIMEOUT_MS` ceiling. A child answered in four
+seconds and the microphone stayed open for another hundred and sixteen.
+
+`homeschool-tutor/src/utils/endpointing.ts` closes that. It samples the
+recorder's existing level meter every 200ms and ends the turn on trailing
+silence.
+
+**The silence window is deliberately longer than a dictation app's, and that
+is the whole design.** General-purpose dictation endpoints after roughly
+700-1500ms. That is wrong here: this app's central activity is narration — a
+child recalling a passage aloud, from memory, in their own words. Thinking
+pauses mid-narration are not hesitation to be trimmed, they are the work.
+Cutting a child off to "helpfully" submit half a sentence is worse than any
+latency it saves, and it punishes exactly the unhurried recall the method is
+built on. `TRAILING_SILENCE_MS` is 3000ms, and a test asserts it stays clear
+of dictation territory so shortening it has to be an argument rather than a
+quiet edit.
+
+Two independent reasons end a turn, kept apart on purpose:
+
+- **`finished-speaking`** — at least `MIN_SPEECH_MS` (600ms) of speech was
+  heard, then `TRAILING_SILENCE_MS` of quiet.
+- **`no-speech`** — nothing was ever heard, so after `NO_SPEECH_TIMEOUT_MS`
+  (12s) the turn ends rather than holding the mic to the 120s ceiling. Covers
+  an auto-start that fired after the child walked away.
+
+Both are logged to the debug overlay with the speech/silence split, so a
+report can say *why* a turn ended rather than only that it did.
+
+**They exit differently, and that is the difference between a helpful
+endpoint and an irritating one.** `finished-speaking` calls `release()` — the
+child spoke, so the turn is delivered. `no-speech` calls `stop()` instead,
+which discards silently.
+
+Routing `no-speech` through `release()` looks harmless and is not. It produces
+an empty transcript, which `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` turns into an
+"I didn't quite catch that" bubble **and** a tick on `SocraticChat`'s
+voice-mode circuit breaker — telling a child the microphone failed when they
+had simply not spoken yet. That cascade already existed at the 120-second
+ceiling, where it took six minutes to reach three strikes. At a 12-second
+no-speech timeout it would take **thirty-six seconds**, so shortening the
+timeout without changing the exit would have made an existing annoyance ten
+times more frequent. Silence is ordinary; it is not a fault.
+
+Repeated silence still needs an answer, though, because a cheap endpoint makes
+an empty room expensive: the mic would re-arm, open a streaming session and
+tear it down five times a minute forever. After `MAX_CONSECUTIVE_SILENT_TURNS`
+(3) the app stands continuous mode down to hold-to-talk with one plain line —
+not an error — and hold-to-talk works the instant the child returns. Any real
+transcript resets the count, so pauses between thoughts never accumulate
+toward it.
+
+**`SILENCE_LEVEL` is untuned against real hardware** and says so in its own
+comment — it cannot be tuned from a sandbox with no microphone. If turns end
+too early, raise `TRAILING_SILENCE_MS` first, then lower `SILENCE_LEVEL`; if
+they never end, raise `SILENCE_LEVEL`. Everything stays bounded by the 120s
+safety timeout regardless, so a badly tuned threshold degrades to the old
+behaviour rather than to something worse.
+
 ## Feature: continuous "Voice on" mode (opt-in, hold-to-talk stays the default)
 
 Reported by a parent: "I don't really want to hold it down." Press-and-hold

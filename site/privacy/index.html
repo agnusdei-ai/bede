@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Privacy &amp; Data Disclosure &mdash; Agnus Dei Technologies</title>
   <meta name="description" content="What agnusdei.ai actually collects: every cookie, every piece of browser storage, and every third party contacted, on the marketing site and the interactive demo alike." />
+  <link rel="canonical" href="https://agnusdei.ai/privacy/" />
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <link rel="stylesheet" href="/assets/site.css" />
 </head>
@@ -22,7 +23,7 @@
           A plain accounting of what this domain actually does: every
           cookie, every piece of browser storage, and every outside
           service contacted, with no rounding up. Last reviewed
-          2026-08-03.
+          2026-08-05.
         </p>
       </div>
     </section>
@@ -140,6 +141,13 @@
           <td>Strictly necessary</td>
           <td>The in-progress chat, kept only in the browser tab so a reload does not lose it. Never written to our servers.</td>
           <td>Tab close / logout</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-canvas-v2:&lt;code&gt;</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>The drawing in progress on the writing pad, so switching back to the chat and returning does not lose it. Kept only in the browser tab, capped at 2&nbsp;MB, and never written to our servers. Cleared by the &ldquo;New page&rdquo; button and on logout.</td>
+          <td>Tab close / logout / New page</td>
         </tr>
         <tr>
           <td><code>bede-chat-theme</code></td>

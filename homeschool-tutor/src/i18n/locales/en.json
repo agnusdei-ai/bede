@@ -114,7 +114,71 @@
     "voiceModeToggleTooltip": "Switch between press-and-hold and hands-free voice",
     "micContinuousListening": "Listening — tap to switch back to hold-to-talk",
     "micContinuousWaiting": "Voice on — Bede will listen when it's your turn",
-    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime."
+    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime.",
+    "voiceModeStoodDown": "I'll stop listening for now — press and hold the microphone whenever you're ready to talk again."
+  },
+  "canvas": {
+    "cancel": "Cancel",
+    "undo": "Undo",
+    "undoTitle": "Undo last stroke",
+    "redo": "Redo",
+    "newPage": "New page",
+    "newPageTitle": "Put this page away and start a fresh one",
+    "save": "Save",
+    "saveTitle": "Save this drawing to your device",
+    "print": "Print",
+    "printTitle": "Print this paper",
+    "done": "Done",
+    "doneTitle": "Send drawing",
+    "paperHeading": "Paper",
+    "paperTitle": "{{name}} paper",
+    "paperStyle": {
+      "composition": "Composition",
+      "graph": "Graph",
+      "dots": "Dots",
+      "staff": "Staff",
+      "journal": "Journal",
+      "blank": "Blank"
+    },
+    "tool": {
+      "pen": "Pen, solid ink",
+      "pencil": "Pencil, lighter and graphite toned",
+      "eraser": "Eraser"
+    },
+    "brush": {
+      "thin": "Thin brush",
+      "medium": "Medium brush",
+      "thick": "Thick brush"
+    },
+    "ink": {
+      "ink": "Ink",
+      "black": "Black",
+      "red": "Red",
+      "orange": "Orange",
+      "gold": "Gold",
+      "green": "Green",
+      "sky": "Sky",
+      "purple": "Purple",
+      "brown": "Brown"
+    },
+    "paperColor": {
+      "parchment": "Parchment",
+      "white": "White",
+      "sunshine": "Sunshine",
+      "rose": "Rose",
+      "sage": "Sage",
+      "sky": "Sky",
+      "slate": "Slate"
+    },
+    "moreColors": "More colors",
+    "nearlyFull": "This page is nearly full. You can save it to your device any time.",
+    "pageFull": "This page has grown too big for me to keep. It will be gone when you go back to me, so save it to your device first if you want to keep it, then start a fresh page.",
+    "storageUnavailable": "I can't keep this page on this device. It will be gone when you go back to me, so save it to your device first if you want to keep it.",
+    "confirmNewPage": "Start a fresh page? This one will be gone.",
+    "saveToDevice": "Save to my device",
+    "saveFirst": "Save it first",
+    "startFresh": "Start a fresh page",
+    "neverMind": "Never mind"
   },
   "podDashboard": {
     "noStudentsTitle": "No Students Configured",
@@ -431,5 +495,11 @@
     "completedShort": "{{count}}×",
     "workedByOne": "Only one of them has done these yet",
     "caveat": "A child who hasn't done a piece of work simply isn't listed under it. Nobody is measured against anybody else, and the children never see this."
+  },
+  "common": {
+    "idleWarning": "Still there? Your session will close soon if nothing happens — touch the screen to keep going.",
+    "loggedOutInactivity": "Logged out due to inactivity. Nothing was lost — sign back in to pick up where you left off.",
+    "loggedOutBreakInactivity": "Logged out during your break. That's on purpose, to keep things safe while you're away — sign back in whenever you're ready.",
+    "loggedOutSessionExpired": "Your session ended, so you'll need to sign in again."
   }
 }

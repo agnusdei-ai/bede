@@ -365,6 +365,30 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
   })
 })
 
+describe('useHybridVoiceInput exposes prewarm/cancelPrewarm', () => {
+  // The hold-to-talk mic effect (SocraticChat.tsx) needs to open the
+  // microphone proactively, before any press — see useVoiceRecorder.ts's own
+  // prewarm() comment for why a call issued synchronously at press-time
+  // can't close that gap by itself. This hook must pass the recorder's own
+  // prewarm/cancelPrewarm straight through rather than only using them
+  // internally.
+  it('delegates prewarm() to the underlying recorder', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    result.current.prewarm()
+
+    expect(prewarm).toHaveBeenCalledTimes(1)
+  })
+
+  it('delegates cancelPrewarm() to the underlying recorder', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    result.current.cancelPrewarm()
+
+    expect(cancelPrewarm).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('useHybridVoiceInput stop() cancellation', () => {
   it('discards the turn immediately and never delivers a transcript even if events arrive afterward', async () => {
     const onFinal = vi.fn()
@@ -877,5 +901,135 @@ describe('release() arriving before the streaming session opens', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+
+// ── A session that dies underneath a live hold ───────────────────────────────
+//
+// From a real production trace: the server answered a session's very first
+// events request with "unknown or expired session" 238ms after creating it,
+// because the demo's in-memory sessions do not survive a request landing on a
+// second instance. The turn then fell through to setMode('idle') while the
+// child kept speaking for another seven seconds, and nothing tore the turn
+// down — so the recorder stayed live and the child's NEXT press could not
+// start a recording at all.
+
+describe('useHybridVoiceInput when the stream dies mid-hold', () => {
+  it('does not report a turn as finished while the child is still holding', async () => {
+    const onFinal = vi.fn()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    startVoiceStream.mockResolvedValue('sess-doomed')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush() })
+
+    // The server disowns the session while the child is still speaking.
+    await act(async () => {
+      eq.push({ type: 'error', message: 'unknown or expired session' })
+      eq.push({ type: 'done' })
+      await flush()
+    })
+
+    expect(onFinal).not.toHaveBeenCalled()
+    expect(result.current.isListening).toBe(false)
+  })
+
+  it('hands the microphone back, so the next press can actually record', async () => {
+    // The consequence that reached a child: useVoiceRecorder refuses to start
+    // a second recording while one is live, so a turn left un-torn-down makes
+    // every later press a no-op.
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    startVoiceStream.mockResolvedValue('sess-doomed')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      eq.push({ type: 'error', message: 'unknown or expired session' })
+      eq.push({ type: 'done' })
+      await flush()
+    })
+
+    expect(stopRecording).toHaveBeenCalled()
+  })
+
+  it('blames the connection, not the microphone', async () => {
+    // The session is gone; the mic is fine. Telling a family "something's
+    // wrong with the microphone" sends them checking permissions for a
+    // problem that is not theirs.
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    startVoiceStream.mockResolvedValue('sess-doomed')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => {
+      eq.push({ type: 'error', message: 'unknown or expired session' })
+      eq.push({ type: 'done' })
+      await flush()
+    })
+
+    expect(result.current.micError).toBe('network')
+  })
+
+  it('still delivers normally when the stream ends AFTER the child released', async () => {
+    // Guards against "fixing" the above by treating every stream end as a
+    // failure — the ordinary path must be untouched.
+    const onFinal = vi.fn()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    startVoiceStream.mockResolvedValue('sess-ok')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { result.current.release(); await flush() })
+    await act(async () => {
+      eq.push({ type: 'final', text: 'the whole answer' })
+      eq.push({ type: 'done' })
+      await flush()
+    })
+
+    expect(onFinal).toHaveBeenCalledWith('the whole answer')
+    expect(result.current.micError).toBe(null)
+  })
+})
+
+describe('useHybridVoiceInput finishes a session exactly once', () => {
+  it('does not finish again when the caller stops after a release', async () => {
+    // Every successful turn used to fire a second finish that 404'd:
+    // release() finishes the session but leaves sessionIdRef populated, and
+    // the stop() that follows when the child confirms and sends finished the
+    // same session again.
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    startVoiceStream.mockResolvedValue('sess-once')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { result.current.release(); await flush() })
+
+    const afterRelease = finishVoiceStream.mock.calls.length
+    expect(afterRelease).toBe(1)
+
+    await act(async () => { result.current.stop(); await flush() })
+    expect(finishVoiceStream.mock.calls.length).toBe(afterRelease)
+  })
+
+  it('still finishes when the caller cancels a turn outright', async () => {
+    // stop() without a release is a real cancel and MUST tell the server, or
+    // the session leaks until its TTL sweep.
+    streamVoiceEvents.mockImplementation(() => pendingForever())
+    startVoiceStream.mockResolvedValue('sess-cancel')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    const before = finishVoiceStream.mock.calls.length
+    await act(async () => { result.current.stop(); await flush() })
+
+    expect(finishVoiceStream.mock.calls.length).toBe(before + 1)
   })
 })

@@ -29,6 +29,7 @@ import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
 import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
+import { clearPage as clearCanvasPage } from './canvasPersistence'
 import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
@@ -894,7 +895,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // 'en-US' default — a Spanish session transcribed as English produces
   // garbled transcripts regardless of how well the rest of the UI is
   // translated. Propagates through to the server's Whisper language hint.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError } =
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError, prewarm, cancelPrewarm } =
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
@@ -1016,6 +1017,41 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
 
   const awaitingChildTurn =
     !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
+
+  // Open the microphone BEFORE the child presses, not at the press — see
+  // useVoiceRecorder.ts's own prewarm() comment for why a cold getUserMedia()
+  // call issued synchronously at press-time (holdStart -> startHold ->
+  // recorder.startRecording()) already fires as early as a press-time call
+  // can, and so cannot by itself close the gap between "the child starts
+  // talking" and "the mic is actually capturing." A real debug trace showed
+  // transcripts missing their first few words for exactly this reason.
+  //
+  // awaitingChildTurn is the existing "it is genuinely their turn to speak"
+  // signal, so prewarming as soon as it becomes true buys back however long
+  // getUserMedia() itself takes (anywhere from ~0ms to several hundred ms)
+  // before the child ever touches the button. prewarm()/cancelPrewarm() are
+  // read via refs rather than the effect's own dependency array: both are
+  // recreated on every render of useHybridVoiceInput (their own getStream
+  // dependency isn't referentially stable), so depending on them directly
+  // would re-run this effect — and reopen the mic — on every render while
+  // still mid-turn.
+  const prewarmRef = useRef(prewarm)
+  const cancelPrewarmRef = useRef(cancelPrewarm)
+  useEffect(() => {
+    prewarmRef.current = prewarm
+    cancelPrewarmRef.current = cancelPrewarm
+  })
+  useEffect(() => {
+    if (!sttSupported || !awaitingChildTurn) return
+    prewarmRef.current()
+    // Cleanup fires the instant awaitingChildTurn goes false again — either
+    // the child pressed (recorder.startRecording() has already, synchronously,
+    // claimed the prewarmed stream by the time this runs, so cancelPrewarm()
+    // here is a safe no-op) or Bede started speaking/streaming again without
+    // the child ever pressing (a real prewarmed stream that genuinely needs
+    // releasing).
+    return () => cancelPrewarmRef.current()
+  }, [sttSupported, awaitingChildTurn])
 
   // The live interim transcript, the "transcribing…" indicator, and the
   // voice-review confirm/cancel card (below) are all rendered inside the
@@ -1555,6 +1591,13 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             onCancel={() => setShowCanvas(false)}
             subject={subject}
             gradeStage={demoGradeStage()}
+            // Whose page this is, for as long as this demo session lasts.
+            // The canvas unmounts every time the visitor goes back to the
+            // chat, so without this the drawing would go with it (see
+            // canvasPersistence.ts). Same session code the chat history
+            // above is already kept under, and like it, kept in this tab
+            // only - nothing here reaches the server.
+            persistKey={code}
           />
         </Suspense>
       )}
@@ -2516,6 +2559,11 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   const handleLogout = () => {
     logout(token) // fire-and-forget — invalidates server-side immediately
     clearChatState(code)
+    // The drawing goes at the same moment the conversation does. Logging
+    // out is the visitor saying they are finished; leaving their page
+    // behind for the next person on a shared device would contradict both
+    // that and the chat state cleared on the line above.
+    clearCanvasPage(code)
     onLogout()
   }
 

@@ -9,7 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.demo_code_session import record_message as demo_code_record_message
-from core.deps import require_auth, require_demo_preview, require_parent
+from core.deps import require_demo_preview, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services.ai_service import check_safeguarding, SAFEGUARDING_RESPONSE, stream_sandbox_response

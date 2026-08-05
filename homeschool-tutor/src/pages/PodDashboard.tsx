@@ -262,7 +262,6 @@ function StudentPodCard({
   onRequestDelete: () => void
 }) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
 
   const sessionUrl = `${window.location.origin}/session?student=${encodeURIComponent(student.student_name)}`

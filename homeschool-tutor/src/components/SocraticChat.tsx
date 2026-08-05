@@ -36,6 +36,17 @@ const MAX_CONSECUTIVE_VOICE_FAILURES = 3
 // timer, this floor guarantees consecutive auto-starts are never closer
 // together than this.
 const MIN_MS_BETWEEN_AUTO_STARTS = 800
+// How many turns in a row may end with nobody speaking before continuous mode
+// stands down to hold-to-talk.
+//
+// Necessary because the endpoint is what makes silence CHEAP to detect: the
+// mic now gives up after 12s instead of 120s, so without a stop condition an
+// empty room would re-arm the mic, open a streaming session and tear it down
+// again five times a minute, indefinitely. Three is enough to be sure the
+// child has actually gone rather than paused between thoughts, and standing
+// down is the honest response — hold-to-talk still works the instant they
+// come back and press it.
+const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
 export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
   const { t, i18n } = useTranslation()
@@ -85,6 +96,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // never a bare timer.
   const { setMode: setVoiceMode, isContinuous } = useVoiceModePreference()
   const consecutiveVoiceFailuresRef = useRef(0)
+  const consecutiveSilentTurnsRef = useRef(0)
   const lastAutoStartRef = useRef(0)
   // send() is defined further down (after useHybridVoiceInput, which needs
   // onFinal above it) — this ref lets continuous mode's onFinal call the
@@ -94,6 +106,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
   const {
     token,
+    role,
     sessionConfig,
     currentSubject,
     subjectStart,
@@ -102,13 +115,13 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     timeOfDay,
     localDate,
     sessionId,
-    startAssistantStream,
     addUserMessage,
     appendAssistantChunk,
     addToolMessage,
     addVisualAidMessage,
     finalizeAssistantMessage,
     setStreaming,
+    setVoiceActive,
     nextSubject,
     setSessionConfig,
   } = useSessionStore()
@@ -145,9 +158,25 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // 'en-US' default — a Spanish session transcribed as English produces
   // garbled transcripts regardless of how well the rest of the UI is
   // translated. Propagates through to the server's Whisper language hint.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError } = useHybridVoiceInput({
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError, prewarm, cancelPrewarm } = useHybridVoiceInput({
     token,
     language: i18n.language === 'es' ? 'es-MX' : 'en-US',
+    // Continuous mode has no explicit release — this is what ends its turns.
+    // Deliberately tied to isContinuous rather than always on: in hold-to-talk
+    // the child's own finger is the endpoint, and silence detection there
+    // would cut them off mid-hold. See utils/endpointing.ts.
+    endpointOnSilence: isContinuous,
+    // Silence is not a failure — see the hook's own comment on why it must
+    // not route through micError. It is only worth acting on when it
+    // REPEATS, which means the child has gone rather than paused.
+    onSilentTimeout: () => {
+      consecutiveSilentTurnsRef.current += 1
+      logDebug(`continuous voice: silent turn ${consecutiveSilentTurnsRef.current}/${MAX_CONSECUTIVE_SILENT_TURNS}`)
+      if (consecutiveSilentTurnsRef.current < MAX_CONSECUTIVE_SILENT_TURNS) return
+      consecutiveSilentTurnsRef.current = 0
+      setVoiceMode('hold')
+      addToolMessage('error', `⚠️ ${t('chat.voiceModeStoodDown')}`)
+    },
     // A walkie-talkie release used to send the moment a transcript was
     // final — now it's held for review instead (see pendingVoiceTranscript
     // above): the child can see exactly what was heard and Send or Cancel
@@ -159,6 +188,9 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       if (isContinuous) {
         logDebug(`continuous voice onFinal — auto-sending text="${transcript}"`)
         consecutiveVoiceFailuresRef.current = 0
+        // The child is demonstrably here — a run of silent turns before this
+        // was pauses, not absence.
+        consecutiveSilentTurnsRef.current = 0
         sendRef.current(transcript)
       } else {
         setPendingVoiceTranscript(transcript)
@@ -206,6 +238,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       addToolMessage('error', `⚠️ ${t('chat.voiceModeFallbackMessage')}`)
     }
   }, [micError, clearMicError, addToolMessage, t, isContinuous, setVoiceMode])
+
+  // Publish the voice half of "is this session busy" to the store, so
+  // AppShell's inactivity logout can tell a child listening to a passage
+  // apart from an abandoned tab. It already sees isStreaming; these three
+  // live only here. See utils/idleTimeout.ts for why that distinction
+  // matters enough to thread a flag upward for.
+  useEffect(() => {
+    setVoiceActive(isSpeaking || isListening || isTranscribing)
+  }, [isSpeaking, isListening, isTranscribing, setVoiceActive])
+  // Never leave the flag stuck true if this component unmounts mid-turn —
+  // a latched "busy" would disable the inactivity logout for the rest of
+  // the session, which is the failure mode that matters here.
+  useEffect(() => () => setVoiceActive(false), [setVoiceActive])
 
   // Word-level diff of the live interim transcript, called unconditionally
   // (rules of hooks) even though it's only rendered while isListening &&
@@ -303,6 +348,44 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // transcribing, listening, or on break) — show a clear "press and hold to
   // talk" cue instead of auto-listening.
   const awaitingChildTurn = !isStreaming && !isSpeaking && !isListening && !isTranscribing && !breakActive
+
+  // Open the microphone BEFORE the child presses hold-to-talk, not at the
+  // press — see useVoiceRecorder.ts's own prewarm() comment for why a cold
+  // getUserMedia() call issued synchronously at press-time (holdStart ->
+  // startHold -> recorder.startRecording()) already fires as early as a
+  // press-time call can, and so cannot by itself close the gap between "the
+  // child starts talking" and "the mic is actually capturing." A real debug
+  // trace showed transcripts missing their first few words for exactly this
+  // reason. Skipped entirely in continuous "Voice on" mode — that mode's own
+  // effect above already calls start() (full recording, not just an opened
+  // stream) the instant awaitingChildTurn is true, so there's no waiting-for-
+  // a-press window here to prewarm during.
+  //
+  // prewarm()/cancelPrewarm() are read via refs rather than the effect's own
+  // dependency array: both are recreated on every render of
+  // useHybridVoiceInput (their own getStream dependency isn't referentially
+  // stable), so depending on them directly would re-run this effect's
+  // cleanup+body — reopening and reclosing the mic — on every render while
+  // still mid-turn, unlike the continuous-mode effect above (which has no
+  // cleanup to repeat).
+  const prewarmRef = useRef(prewarm)
+  const cancelPrewarmRef = useRef(cancelPrewarm)
+  useEffect(() => {
+    prewarmRef.current = prewarm
+    cancelPrewarmRef.current = cancelPrewarm
+  })
+  useEffect(() => {
+    if (isContinuous || !sttSupported || !awaitingChildTurn) return
+    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    prewarmRef.current()
+    // Cleanup fires the instant awaitingChildTurn (or one of the other
+    // guards) goes false again — either the child pressed
+    // (recorder.startRecording() has already, synchronously, claimed the
+    // prewarmed stream by the time this runs, so cancelPrewarm() here is a
+    // safe no-op) or the turn ended some other way without a press (a real
+    // prewarmed stream that genuinely needs releasing).
+    return () => cancelPrewarmRef.current()
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -906,7 +989,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
       {/* Handwriting overlay */}
       {showCanvas && (
-        <HandwritingCanvas onSubmit={handleDrawingSubmit} onCancel={handleDrawingCancel} subject={currentSubject} gradeStage={gradeStage} />
+        <HandwritingCanvas
+          onSubmit={handleDrawingSubmit}
+          onCancel={handleDrawingCancel}
+          subject={currentSubject}
+          gradeStage={gradeStage}
+          // Whose page this is, for as long as this session lasts. The
+          // canvas unmounts every time the child goes back to the chat, so
+          // without this the work would go with it (see
+          // utils/canvasPersistence.ts). Student name where there is one,
+          // role otherwise: both are stable for the session, and neither
+          // reaches the server.
+          persistKey={sessionConfig?.student_name || role || 'session'}
+        />
       )}
     </div>
   )

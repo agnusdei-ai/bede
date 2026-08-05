@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field
 from core.audit import AuditEvent, audit_from_request, log_event, read_audit_log
 from core.api_usage import get_loop_stats, get_usage_summary
 from core.config import settings
-from core.database import LicenseConfig, get_db
-from core import elevation, identity
+from core.database import DeviceRecord, LicenseConfig, get_db
+from core import device_registry, elevation, identity
 from core.deps import require_elevated_parent, require_parent
 from core import license_state, licensing, provider_state
-from models.schemas import AgenticLoopStats, UsageSummary
+from models.schemas import AgenticLoopStats, DeviceInfo, UsageSummary
 from services.adapters import router as adapter_router
 from services.voice_auth import list_profiles
 
@@ -283,6 +283,7 @@ async def system_status(
     usage = await get_usage_summary(db)
 
     license_status = _license_status_payload()
+    devices = await device_registry.list_devices(db)
 
     return {
         "voice_profiles_enrolled": len(profiles),
@@ -302,6 +303,13 @@ async def system_status(
             "step_up_enforced": settings.elevation_enforced,
             "elevation_ttl_minutes": settings.elevation_ttl_minutes,
             "sessions_elevated_now": await elevation.active_count(db),
+        },
+        # P9 device revocation (Option C) — a quick "is anything revoked at
+        # all" glance without opening the full device list. GET /admin/devices
+        # is the actual list.
+        "devices": {
+            "total": len(devices),
+            "revoked": sum(1 for d in devices if d.revoked),
         },
         "demo_identity_domain_key": (
             "independent" if identity.demo_key_is_independent() else "derived from SECRET_KEY"
@@ -341,3 +349,56 @@ async def agentic_loop_stats(
     safe_days = min(max(days, 1), 90)
     stats = await get_loop_stats(db, safe_days)
     return AgenticLoopStats(**stats)
+
+
+def _device_payload(row) -> DeviceInfo:
+    return DeviceInfo(
+        device_id=row.device_id,
+        first_seen_at=row.first_seen_at.isoformat(),
+        last_seen_at=row.last_seen_at.isoformat(),
+        last_role=row.last_role,
+        last_user_agent=row.last_user_agent,
+        revoked=row.revoked,
+        revoked_at=row.revoked_at.isoformat() if row.revoked_at else None,
+    )
+
+
+@router.get("/devices", response_model=list[DeviceInfo])
+async def list_devices(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+) -> list[DeviceInfo]:
+    """P9 device revocation (Option C, docs/DEVICE_IDENTITY_DESIGN.md) — the
+    visible device list the design doc calls "the feature families
+    actually ask for". Read-only (require_parent, not elevated) — seeing
+    which devices have logged in is not itself a management-plane action;
+    revoking one is (see POST /devices/{device_id}/revoke below)."""
+    rows = await device_registry.list_devices(db)
+    return [_device_payload(r) for r in rows]
+
+
+@router.post("/devices/{device_id}/revoke", response_model=DeviceInfo)
+async def revoke_device(
+    device_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    # Elevation-guarded (P8) — revoking a device ends its access instantly
+    # on its next request (core/deps.py) and blocks its next login, the
+    # same class of consequential, hard-to-undo-by-retrying action as every
+    # other require_elevated_parent endpoint in this file.
+    _: dict = Depends(require_elevated_parent),
+):
+    """Marks a device revoked — see core/device_registry.py's revoke() and
+    DeviceRecord's own docstring for exactly what this does and does not
+    prove. 404s on an unknown device_id rather than reporting success, so
+    a typo'd id doesn't look like it worked."""
+    row_existed = await device_registry.revoke(db, device_id)
+    if not row_existed:
+        raise HTTPException(status_code=404, detail="No such device")
+    await log_event(
+        AuditEvent.DEVICE_REVOKED,
+        role="parent",
+        detail=f"device_id={device_id}",
+        **audit_from_request(request),
+    )
+    return _device_payload(await db.get(DeviceRecord, device_id))

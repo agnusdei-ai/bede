@@ -112,9 +112,34 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // recording indicator stayed lit while the app believed it was idle.
   const runGenRef = useRef(0)
 
-  const getStream = useCallback((constraints: MediaStreamConstraints['audio']) =>
-    navigator.mediaDevices
+  // `report: false` marks a call whose failure is NOT the final word — a
+  // fallback is still coming, so surfacing onError here would tell the
+  // child their turn failed before it's actually been decided. This is
+  // what used to be native SpeechRecognition's own job: startRecording()'s
+  // own comment below records that a prewarm failure "never even reached
+  // onError (mode was still 'native' when it rejected, so the guard in
+  // useHybridVoiceInput correctly ignored it)" — that guard existed only
+  // because native mode was still active to gate it, and it left with
+  // native SpeechRecognition's removal. This flag is that guard's direct
+  // replacement, now owned by the one place that actually knows whether a
+  // given getStream() call is provisional or final: the caller.
+  const getStream = useCallback((
+    constraints: MediaStreamConstraints['audio'], { report = true }: { report?: boolean } = {},
+  ) => {
+    const requestedAt = Date.now()
+    return navigator.mediaDevices
       .getUserMedia({ audio: constraints })
+      .then((stream) => {
+        // How long getUserMedia() itself took to resolve — the piece a
+        // "missing the start of speech" report can't be diagnosed without.
+        // A cold call issued at press-time can take anywhere from ~0ms
+        // (mic already warm) to several hundred ms (first-ever permission
+        // grant, OS-level device negotiation), and every one of those
+        // milliseconds is audio the child was already speaking into a mic
+        // that wasn't listening yet.
+        logDebug(`getStream() resolved in ${Date.now() - requestedAt}ms`)
+        return stream
+      })
       .catch((err: unknown): MediaStream | null => {
         console.error('Microphone access denied', err)
         const name = err instanceof DOMException ? err.name : ''
@@ -124,12 +149,14 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
         // is the one line that reveals WHICH getUserMedia failure occurred
         // (NotReadableError/device-in-use vs. NotFoundError vs. genuine
         // permission denial), which the reason classification below throws away.
-        logDebug(`getStream() rejected name=${name || 'unknown'} message=${err instanceof Error ? err.message : String(err)}`)
+        // Logged regardless of `report`, so a provisional failure still
+        // shows up in a debug trace even though the child never sees it.
+        logDebug(`getStream() rejected name=${name || 'unknown'} message=${err instanceof Error ? err.message : String(err)} report=${report}`)
         const reason: MicErrorReason = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? 'permission-denied' : 'unavailable'
-        onError?.(reason)
+        if (report) onError?.(reason)
         return null
       })
-  , [onError])
+  }, [onError])
 
   const MIC_CONSTRAINTS = {
     sampleRate: 16000,
@@ -154,9 +181,22 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // below then reuses whatever this resolves to (or falls back to a fresh,
   // synchronous call itself, for callers that invoke it directly from a
   // press handler with no separate prewarm step).
+  //
+  // SocraticChat.tsx's own prewarm call site is itself NOT inside a user
+  // gesture — it fires from a useEffect the instant it becomes the child's
+  // turn, specifically so the mic is already warm by the time a press
+  // happens (see that file's own comment). On a browser enforcing the
+  // gesture requirement above, THIS call can therefore fail on every single
+  // turn, before the child has touched anything. That is fine — it is
+  // exactly the race startRecording()'s own fresh-retry fallback below
+  // already exists to cover — but only if this failure never reaches the
+  // child as though it were a real one. `report: false` is what keeps it
+  // silent: a failed prewarm is not a failed turn, it is a warm-up that
+  // didn't take, and the child has not pressed anything yet for there to
+  // be a turn to fail.
   const prewarm = useCallback(() => {
     if (prewarmPromiseRef.current) return prewarmPromiseRef.current
-    const p = getStream(MIC_CONSTRAINTS).then((stream) => {
+    const p = getStream(MIC_CONSTRAINTS, { report: false }).then((stream) => {
       prewarmStreamRef.current = stream
       return stream
     })
@@ -267,7 +307,12 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     // startRecording() directly from their own press handler (still inside
     // a gesture at that point, so a cold call here is still safe) — see
     // prewarm() above for why a cold call from anywhere else is not.
-    const pending = prewarmPromiseRef.current ?? getStream(MIC_CONSTRAINTS)
+    //
+    // `report: false` here too: this may be the FIRST of two attempts (see
+    // the fresh retry below), so a failure here is not yet the final word
+    // either — same reasoning as prewarm()'s own silent call, just one step
+    // later in the same fallback chain.
+    const pending = prewarmPromiseRef.current ?? getStream(MIC_CONSTRAINTS, { report: false })
     prewarmPromiseRef.current = null
     let stream = prewarmStreamRef.current ?? (await pending)
     prewarmStreamRef.current = null
@@ -286,6 +331,9 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
       // silently gave up on that same stale, already-failed promise instead
       // of trying again — turning a one-off race into a hard failure.
       logDebug('startRecording(): prewarmed stream unavailable — retrying getUserMedia() fresh')
+      // This IS the final attempt — no further fallback follows — so it
+      // reports normally (report defaults to true). A rejection here is a
+      // real turn failure and the child should be told.
       stream = await getStream(MIC_CONSTRAINTS)
     }
     if (!stream) {

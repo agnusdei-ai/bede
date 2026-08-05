@@ -1,13 +1,56 @@
 # Device identity (P9) — design for review
 
-**Status: not built.** This is a proposal, written up rather than
-implemented because building it unilaterally would have been the wrong call.
-See "Why this stopped here" at the end.
+**Status: Option C built and closed (2026-08-04). Option A still not
+built** — this document's own recommendation ("C first, then A for the
+parent role only") was followed, and this is the built, honest half of
+it. See "What's built" below for exactly what shipped and where, and "Why
+Option A stopped here" (renamed from the original "Why this stopped
+here") for why the harder decision remains reserved rather than
+unilaterally made.
 
 P8 (step-up elevation) and P10 (identity domain separation) were completed
 on 2026-08-03. P9 is the third of that group and the only one that changes
-how every device authenticates — which is exactly why it wants a decision
-before code.
+how every device authenticates — which is exactly why Option A specifically
+still wants a decision before code, even though Option C did not.
+
+## What's built (Option C, closed 2026-08-04)
+
+`core/device_registry.py` implements exactly Option C as designed below —
+a revocation mechanism, not a cryptographic identity. The four "open
+decisions for review" this document originally posed all resolved cleanly
+FOR OPTION C specifically, in ways that carry no lockout risk (the property
+that made Option A's equivalent decisions genuinely reserved):
+
+1. **Where does onboarding live?** Nowhere separate — a device is
+   registered automatically on its first successful login
+   (`routers/auth.py`'s `login()`, `routers/mfa.py`'s `_issue_parent_token`
+   for the MFA-completion path), since Option C needs no WebCrypto ceremony
+   the way Option A would. This sidesteps the `scripts/trust_service/`
+   question entirely.
+2. **What is the recovery path when a device forgets its key?** There is no
+   key to forget. `device_id` is a plain UUID
+   (`homeschool-tutor/src/utils/deviceId.ts`) persisted in `localStorage`;
+   if it's lost, the next login simply registers a fresh device — genuinely
+   self-healing, which is what makes Option C's lockout risk zero where
+   Option A's is real.
+3. **Does the child role get device identity at all?** Yes — both
+   `parent` and `child` roles register and can be revoked
+   (`DeviceRecord.last_role`); `demo_code` is excluded (anonymous, already
+   has its own one-time-code identity). One physical tablet used by both a
+   parent and a child is one row, not one per role — see `DeviceRecord`'s
+   own docstring.
+4. **Immediate or next-request revocation?** Next-request, matching
+   `credentials_version`'s own precedent exactly — a revoked device's
+   already-issued token is rejected on its very next authenticated request
+   (`core/deps.py`), not just at its next login attempt, bounded by the
+   same `_REFRESH_INTERVAL_SECONDS` multi-replica staleness window
+   `core/parent_credential.py` already established.
+
+Parent-facing surface: `GET/POST /admin/devices*`
+(`routers/admin.py`, list is `require_parent`, revoke is
+`require_elevated_parent` — P8), and `DeviceSettings.tsx`
+(`homeschool-tutor/src/components/`) — the visible device list + Revoke
+button this document called "the feature families actually ask for."
 
 ## The gap, precisely
 
@@ -130,6 +173,12 @@ window on the order of seconds and stating it — the same pattern
 
 ## Open decisions for review
 
+**Resolved for Option C** (see "What's built" above) — each numbered
+question below is kept in its original form for the historical record of
+what was actually weighed, but the answer that shipped is the short version
+already given above. **Still open for Option A**, which is why Option A
+remains a reserved decision rather than something this pass built.
+
 1. **Where does onboarding live?** `scripts/trust_service/` is a standalone
    stdlib HTTP server on plain :80 with no database access, deliberately —
    it exists to solve the untrusted-certificate chicken-and-egg. It is
@@ -161,7 +210,7 @@ verification's job, and it is still advisory-only (punch-list #8). A device
 identity plus a real biometric is a materially different claim than either
 alone, which is why P9's own text points at #8.
 
-## Why this stopped here
+## Why Option A stopped here
 
 The instruction covering this work was to make practical decisions
 autonomously and reserve the mission-critical ones. A change to how every
@@ -169,4 +218,9 @@ device authenticates, whose failure mode is a family locked out of their own
 tablet, and whose central open question is a UX recovery path rather than a
 cryptographic one, is on the reserved side of that line. P8 and P10 were
 not: both are server-side, both fail closed into "log in again", and
-neither can strand a device.
+neither can strand a device. Option C, built and closed above, was not on
+the reserved side either, for the identical reason: its own recovery path
+is "log in again and a fresh device registers itself" — self-healing, no
+family ever locked out of hardware they own. Option A is the one that still
+needs a founder decision before code, exactly because it cannot make that
+same claim.

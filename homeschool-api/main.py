@@ -9,7 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from core import constitution, elevation, identity, license_state, parent_credential, provider_state
+from core import constitution, device_registry, elevation, identity, license_state, parent_credential, provider_state
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -96,17 +96,19 @@ def _log_security_posture() -> None:
     anyone who would rather query than read logs.
 
     Warnings, not errors: every one of these has a legitimate reason to be
-    in its weaker state (the web UI can't prompt yet; the upgrade was an hour
-    ago; this is a family instance with no demo role). Refusing to boot over
-    a defensible choice is how operators learn to work around startup checks.
+    in its weaker state (a deployment driving the API directly, with no
+    frontend to prompt; the upgrade was an hour ago; this is a family
+    instance with no demo role). Refusing to boot over a defensible choice
+    is how operators learn to work around startup checks.
     """
     if settings.elevation_enforced:
         log.info("Privileged access: step-up ENFORCED (%d min)", settings.elevation_ttl_minutes)
     else:
         log.warning(
             "Privileged access: step-up NOT enforced — a parent session holds "
-            "management-plane rights for its full lifetime. Set ELEVATION_ENFORCED=true "
-            "once the web UI can prompt for a password. See docs/SECURITY.md."
+            "management-plane rights for its full lifetime. This is off by "
+            "explicit configuration (the default is enforced); set "
+            "ELEVATION_ENFORCED=true to turn it back on. See docs/SECURITY.md."
         )
 
     if settings.legacy_token_grace:
@@ -197,9 +199,20 @@ async def lifespan(app: FastAPI):
           cache from the DB — same precedent again, applied to WHICH
           configured adapter serves as primary (services/adapters/router.py
           consults this cache on every tutoring turn).
+      5c. Sync core/device_registry.py's in-process revoked-device cache
+          from the DB (P9) — core/deps.py checks this on every
+          parent/child request carrying a device_id claim.
       6. Kick off the voice-model warm-up in the background (non-blocking).
       7. Start the periodic data-retention purge loop (non-blocking) — see
          docs/DATA_RETENTION.md.
+      7b. Start the periodic credentials_version and device-revocation
+          cache refresh loops (non-blocking) — bounds multi-replica
+          staleness for each; see core/parent_credential.py's docstring
+          for the full argument. (provider_state has no periodic loop —
+          it only ever changes via an explicit parent action, so a
+          startup sync is sufficient; credentials_version and device
+          revocation both change via a path a *different* session
+          — an attacker's stolen one — needs to stop trusting quickly.)
     Shutdown:
       8. Dispose the database connection pool cleanly.
       9. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
@@ -222,6 +235,8 @@ async def lifespan(app: FastAPI):
             await parent_credential.refresh_from_db(db)
         async with AsyncSessionLocal() as db:
             await provider_state.refresh_from_db(db)
+        async with AsyncSessionLocal() as db:
+            await device_registry.refresh_from_db(db)
     # SQLAlchemyError/OSError alongside RuntimeError because the steps above
     # are mostly DATABASE steps, and a database that cannot be reached raises
     # neither a RuntimeError nor anything else this once caught: create_tables()
@@ -248,12 +263,17 @@ async def lifespan(app: FastAPI):
     # replication — see core/parent_credential.py and
     # docs/DEPLOYMENT_TOPOLOGY.md.
     credentials_refresh_task = asyncio.create_task(parent_credential.periodic_refresh())
+    # Same multi-replica-staleness bound as credentials_refresh_task above,
+    # applied to P9's revoked-device set (core/device_registry.py) instead
+    # of credentials_version.
+    device_refresh_task = asyncio.create_task(device_registry.periodic_refresh())
 
     yield
 
     warmup_task.cancel()
     purge_task.cancel()
     credentials_refresh_task.cancel()
+    device_refresh_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

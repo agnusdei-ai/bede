@@ -41,7 +41,9 @@ You can answer me in whichever way feels easiest:
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and
-  when you're done I'll hear you and answer. Tap the microphone anytime to
+  when you stop, I'll wait a few seconds and then answer. Take your time in
+  the middle — thinking pauses are part of narrating, and I won't cut in
+  just because you went quiet for a moment. Tap the microphone anytime to
   go back to press-and-hold instead.
 - **Tap the pencil** ✏️ to draw or write your answer by hand. I can look at your
   drawing directly. You can pick your paper, too: lined paper for writing, graph
@@ -58,6 +60,21 @@ You can answer me in whichever way feels easiest:
     above where your finger actually is, on purpose. That way your finger
     isn't covering up the line while you draw it, just like how a marker
     doesn't hide what you're writing.
+  - **Your page waits for you.** If you go back to talk with me in the middle
+    of drawing, your page is still there when you come back: the same lines,
+    the same paper, the same colors. You don't have to finish in one go, and
+    you don't have to send it to me before you switch. It stays for as long as
+    today's lesson lasts. Sending me a drawing doesn't clear it either, so
+    you can keep adding to the same page afterwards. When you're finished
+    with a page and want a clean sheet, tap **New page**. I'll ask you
+    first, because once a page is put away I can't get it back.
+  - **Keeping a drawing for good.** Tap **Save** any time and the drawing goes
+    onto your own tablet or computer, like a photo, so you can keep it or show
+    somebody later. (Tap **Print** instead if you want it on real paper.)
+  - Once in a while a page gets so big and full that I can't hold onto it any
+    more. If that happens I'll tell you right away, while your drawing is
+    still on the screen, so you can save it first and then start a fresh page.
+    Nothing disappears without me telling you.
 
 There's also a little **palette** 🎨 at the top of the chat. Tap it to choose the
 look of our room: the background behind us, and the color of your own speech
@@ -166,7 +183,9 @@ There's no rush and no wrong way to think out loud.
   suggest something each time. When the break ends, we pick up right where we
   left off. If you're away for too long during a break (more than 5 minutes)
   I'll sign you out for safekeeping, just log back in with your PIN when
-  you're ready to continue.
+  you're ready to continue. When that happens the screen will tell you it's
+  what I did and why, so you never have to wonder whether something broke.
+  It didn't. Nothing you were working on is lost.
 - If you're one of my younger learners, I'll also **ask** you every twenty
   minutes whether you'd like a quick break. Notice that word: *ask*. You can
   say "no thanks, keep going" and we'll carry right on, and I won't be the least

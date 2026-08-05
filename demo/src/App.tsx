@@ -29,6 +29,7 @@ import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
 import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
+import { clearPage as clearCanvasPage } from './canvasPersistence'
 import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
@@ -1590,6 +1591,13 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             onCancel={() => setShowCanvas(false)}
             subject={subject}
             gradeStage={demoGradeStage()}
+            // Whose page this is, for as long as this demo session lasts.
+            // The canvas unmounts every time the visitor goes back to the
+            // chat, so without this the drawing would go with it (see
+            // canvasPersistence.ts). Same session code the chat history
+            // above is already kept under, and like it, kept in this tab
+            // only - nothing here reaches the server.
+            persistKey={code}
           />
         </Suspense>
       )}
@@ -2551,6 +2559,11 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   const handleLogout = () => {
     logout(token) // fire-and-forget — invalidates server-side immediately
     clearChatState(code)
+    // The drawing goes at the same moment the conversation does. Logging
+    // out is the visitor saying they are finished; leaving their page
+    // behind for the next person on a shared device would contradict both
+    // that and the chat state cleared on the line above.
+    clearCanvasPage(code)
     onLogout()
   }
 

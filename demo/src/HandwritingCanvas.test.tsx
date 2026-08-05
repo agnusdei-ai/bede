@@ -6,7 +6,7 @@
  * since this canvas's coordinates are on-screen pixels rather than the
  * app's fixed page space.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from './i18n'
@@ -79,15 +79,37 @@ describe('demo HandwritingCanvas page persistence', () => {
   })
 
   it('keeps the page when the visitor leaves for the chat', () => {
-    const { unmount } = render(
-      <HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" subject="mathematics" />,
-    )
-    expect(window.sessionStorage.getItem(canvasStorageKey('ABC123'))).toBeNull()
+    savePage('ABC123', storedPage())
+    const { unmount } = render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" />)
 
     unmount()
     const kept = loadPage('ABC123')
-    expect(kept?.paperStyle).toBe('graph')
+    expect(kept?.strokes).toHaveLength(1)
+    expect(kept?.paperStyle).toBe('staff')
+    // Recorded from the canvas as it is now, not from whatever the page was
+    // drawn at, so the next restore rescales from the right starting point.
     expect(kept?.space).toEqual(SPACE)
+  })
+
+  it('writes nothing at all for a page that was never drawn on', () => {
+    // "New page clears the stored drawing" is a promise made publicly, on
+    // site/privacy/index.html. An empty page written on the way out would
+    // put the key straight back and make that wording untrue.
+    const { unmount } = render(
+      <HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" subject="mathematics" />,
+    )
+    unmount()
+    expect(window.sessionStorage.getItem(canvasStorageKey('ABC123'))).toBeNull()
+  })
+
+  it('leaves nothing behind after a fresh page, even on the way out', () => {
+    savePage('ABC123', storedPage())
+    const { unmount } = render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /new page/i }))
+    fireEvent.click(screen.getByRole('button', { name: /start a fresh page/i }))
+    unmount()
+    expect(window.sessionStorage.getItem(canvasStorageKey('ABC123'))).toBeNull()
   })
 
   it('keeps nothing at all without a session code', () => {
@@ -169,6 +191,69 @@ describe('demo HandwritingCanvas page persistence', () => {
     render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" />)
     fireEvent.click(screen.getByRole('button', { name: /new page/i }))
     expect(screen.queryByText(/this one will be gone/i)).toBeNull()
+  })
+
+  describe('when a page cannot be kept', () => {
+    // Both cases need the debounced save to actually run, so these drive
+    // the timers rather than waiting on them.
+    function renderWithRefusedWrites() {
+      savePage('ABC123', storedPage())
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('QuotaExceededError')
+      })
+      const rendered = render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" />)
+      act(() => { vi.advanceTimersByTime(1_000) })
+      return rendered
+    }
+
+    beforeEach(() => { vi.useFakeTimers() })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('says so, in words, rather than failing quietly', () => {
+      renderWithRefusedWrites()
+      expect(screen.getByText(/can't keep this page on this device/i)).toBeTruthy()
+    })
+
+    it('brings the warning back when the visitor answers "Never mind"', () => {
+      // The bug this pins: the refusal and the "start fresh?" question used
+      // to share one piece of state, so dismissing the question also
+      // dismissed the warning - leaving the visitor with an empty bar, no
+      // saving happening, and no way to find that out.
+      renderWithRefusedWrites()
+      fireEvent.click(screen.getByRole('button', { name: /new page/i }))
+      expect(screen.getByText(/start a fresh page\? this one will be gone/i)).toBeTruthy()
+
+      fireEvent.click(screen.getByText('Never mind'))
+      expect(screen.getByText(/can't keep this page on this device/i)).toBeTruthy()
+    })
+
+    it('stops warning once a fresh page is started', () => {
+      renderWithRefusedWrites()
+      fireEvent.click(screen.getByRole('button', { name: /new page/i }))
+      fireEvent.click(screen.getByRole('button', { name: /start a fresh page/i }))
+      expect(screen.queryByText(/can't keep this page/i)).toBeNull()
+    })
+  })
+
+  it('saves during continuous drawing instead of deferring it forever', () => {
+    // Every change restarts the 600ms debounce, so without a ceiling a
+    // visitor who never pauses is never saved - and never warned about the
+    // budget either, since the warning comes from a save.
+    vi.useFakeTimers()
+    try {
+      savePage('ABC123', storedPage())
+      render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" />)
+      const setItem = vi.spyOn(Storage.prototype, 'setItem')
+
+      // Ten changes, 400ms apart: never a 600ms gap, four seconds of work.
+      for (let i = 0; i < 10; i++) {
+        fireEvent.click(screen.getAllByRole('button', { name: /paper$/i })[i % 2])
+        act(() => { vi.advanceTimersByTime(400) })
+      }
+      expect(setItem).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('tells a Spanish-speaking visitor the same things in Spanish', async () => {

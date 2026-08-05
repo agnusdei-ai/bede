@@ -94,8 +94,9 @@ export type SaveResult =
   // 'unavailable': the browser refused the write (quota, private mode, a
   // locked-down webview). Different causes, same consequence for the child -
   // this page will not be waiting when they come back - so both are reported
-  // rather than swallowed, and the stored copy is dropped either way so what
-  // is kept never disagrees with what they were told.
+  // rather than swallowed, and (unless the caller opts out - see SaveOptions)
+  // the stored copy is dropped either way, so what is kept never disagrees
+  // with what the child was told.
   | { ok: false; reason: 'over-budget' | 'unavailable'; bytes: number }
 
 export function canvasStorageKey(identity: string): string {
@@ -241,16 +242,32 @@ export function pruneOtherPages(identity: string): void {
   }
 }
 
-export function savePage(identity: string, page: PersistedPage): SaveResult {
+export interface SaveOptions {
+  /**
+   * Whether a refusal should also drop whatever is already stored.
+   *
+   * True (the default) is what an ordinary save wants: the child is about
+   * to be TOLD this page is not being kept, and an older, smaller version
+   * reappearing later would make that message a lie in the confusing
+   * direction.
+   *
+   * The unmount flush passes false, because on that path there is no
+   * longer any UI to tell them with - the component is going away. Dropping
+   * the stored page there would silently destroy work that was safely
+   * stored minutes ago, with nothing on screen to explain it. Keeping the
+   * last good copy is the lesser of the two, and the only one that does not
+   * punish someone for pressing Done at the wrong moment.
+   */
+  dropStoredOnRefusal?: boolean
+}
+
+export function savePage(identity: string, page: PersistedPage, options: SaveOptions = {}): SaveResult {
+  const { dropStoredOnRefusal = true } = options
   const json = serializePage(page)
   const bytes = byteLength(json)
 
   if (bytes > CANVAS_BUDGET_BYTES) {
-    // Deliberately drop the stored copy rather than leaving an older,
-    // smaller snapshot behind: the child is about to be told this page is
-    // not being kept, and a partial page reappearing later would make that
-    // message a lie in the confusing direction.
-    clearPage(identity)
+    if (dropStoredOnRefusal) clearPage(identity)
     return { ok: false, reason: 'over-budget', bytes }
   }
 
@@ -259,7 +276,7 @@ export function savePage(identity: string, page: PersistedPage): SaveResult {
   try {
     store.setItem(canvasStorageKey(identity), json)
   } catch {
-    clearPage(identity)
+    if (dropStoredOnRefusal) clearPage(identity)
     return { ok: false, reason: 'unavailable', bytes }
   }
   return { ok: true, bytes, nearlyFull: bytes >= CANVAS_BUDGET_BYTES * CANVAS_WARN_RATIO }

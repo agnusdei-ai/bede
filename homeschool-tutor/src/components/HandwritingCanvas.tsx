@@ -382,10 +382,24 @@ const TOUCH_FINGER_CLEARANCE = 0.35 * PRINT_DPI
 // long drawing isn't re-serialized on every single stroke.
 const PERSIST_DEBOUNCE_MS = 600
 
-// What the notice bar above the paper is currently saying. Only ever one
-// thing at a time - a page cannot be both too big to keep and awaiting a
-// "start fresh?" answer, since starting fresh resolves the first.
-type CanvasNotice = 'page-full' | 'storage-unavailable' | 'confirm-new-page' | null
+// Why this page is not being kept. Set when a write is refused, cleared
+// only by starting a fresh page - it describes a state that stays true
+// however much the child taps, so it is not dismissible.
+type CanvasRefusal = 'page-full' | 'storage-unavailable' | null
+
+// What the bar above the paper is showing. The "start fresh?" question is
+// tracked SEPARATELY from the refusal above, and merely covers it while it
+// is open: folding both into one value let "Never mind" clear a refusal
+// the child still needed to see, leaving them silently unsaved with an
+// empty bar. Found in review of the demo port; fixed in both copies.
+type CanvasNotice = CanvasRefusal | 'confirm-new-page'
+
+// How long a save may be deferred by continuous drawing before it happens
+// anyway. Without a ceiling, every stroke restarts the debounce, so a
+// child drawing without pausing writes NOTHING - and a page that is never
+// written is also a page whose budget is never checked, so the "this is
+// getting full" warning would arrive only once it was too late.
+const PERSIST_MAX_WAIT_MS = 3_000
 
 const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
@@ -474,23 +488,52 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // this page still be here when I come back" - it goes false the first time
   // a write is refused and stays false until a fresh page is started, so the
   // notice the child is shown and what is actually stored never disagree.
-  const [notice, setNotice] = useState<CanvasNotice>(null)
+  const [refusal, setRefusal] = useState<CanvasRefusal>(null)
+  const [confirmingNewPage, setConfirmingNewPage] = useState(false)
   const [nearlyFull, setNearlyFull] = useState(false)
+  // The question, while it is open, covers the refusal underneath it; the
+  // refusal comes back if they answer "Never mind".
+  const notice: CanvasNotice = confirmingNewPage ? 'confirm-new-page' : refusal
   const keepingRef = useRef(true)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // When the oldest un-saved change happened, for PERSIST_MAX_WAIT_MS.
+  const pendingSinceRef = useRef<number | null>(null)
+  // Whether anything has actually been written for this page yet. Keeps an
+  // empty page from being written after a fresh start: "New page clears the
+  // stored drawing" has to stay literally true, and it is a promise made
+  // publicly in the demo's case (site/privacy/index.html).
+  const wroteRef = useRef(false)
 
-  const writePage = useCallback(() => {
+  // `final` marks the unmount flush: the component is going away, so there
+  // is no longer any way to tell the child a refusal happened - which is
+  // exactly why a refusal there must not also delete the page they safely
+  // stored minutes ago (see canvasPersistence's SaveOptions).
+  const writePage = useCallback((options: { final?: boolean } = {}) => {
     if (!persistKey || !keepingRef.current) return
-    const result = savePage(persistKey, { strokes: strokesRef.current, paperStyle, paperColor })
+    // Nothing drawn and nothing written yet: leave storage untouched, so
+    // "New page clears the stored drawing" stays literally true instead of
+    // being followed by an empty page written on the way out.
+    if (!strokesRef.current.length && !wroteRef.current) return
+    const result = savePage(
+      persistKey,
+      { strokes: strokesRef.current, paperStyle, paperColor },
+      { dropStoredOnRefusal: !options.final },
+    )
     if (result.ok) {
+      wroteRef.current = true
       setNearlyFull(result.nearlyFull)
+      return
+    }
+    if (options.final) {
+      // Nobody left to tell. Deliberately does NOT set keepingRef false:
+      // this instance is over, and the next mount starts clean.
       return
     }
     // Stop trying: every further attempt would fail the same way, and the
     // child has been told once. Only starting a fresh page clears this.
     keepingRef.current = false
     setNearlyFull(false)
-    setNotice(result.reason === 'over-budget' ? 'page-full' : 'storage-unavailable')
+    setRefusal(result.reason === 'over-budget' ? 'page-full' : 'storage-unavailable')
   }, [persistKey, paperStyle, paperColor])
 
   // Held in a ref so the unmount flush below can call the CURRENT writePage
@@ -501,9 +544,21 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
 
   const schedulePersist = useCallback(() => {
     if (!persistKey) return
+    const now = Date.now()
+    if (pendingSinceRef.current === null) pendingSinceRef.current = now
+    // Drawing without pausing must not defer the write forever - see
+    // PERSIST_MAX_WAIT_MS.
+    if (now - pendingSinceRef.current >= PERSIST_MAX_WAIT_MS) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+      pendingSinceRef.current = null
+      writePageRef.current()
+      return
+    }
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null
+      pendingSinceRef.current = null
       writePageRef.current()
     }, PERSIST_DEBOUNCE_MS)
   }, [persistKey])
@@ -514,7 +569,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      writePageRef.current()
+      writePageRef.current({ final: true })
     }
   }, [])
 
@@ -754,12 +809,15 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     redoStackRef.current = []
     setRedoCount(0)
     keepingRef.current = true
+    wroteRef.current = false
     setNearlyFull(false)
-    setNotice(null)
+    setRefusal(null)
+    setConfirmingNewPage(false)
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
     }
+    pendingSinceRef.current = null
     if (persistKey) clearPage(persistKey)
     const canvas = canvasRef.current
     if (!canvas) return
@@ -779,7 +837,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       startNewPage()
       return
     }
-    setNotice('confirm-new-page')
+    setConfirmingNewPage(true)
   }
 
   // Client-side only, exactly like handlePrint below: the already-rendered
@@ -1075,7 +1133,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             </button>
             {notice === 'confirm-new-page' && (
               <button
-                onClick={() => setNotice(null)}
+                onClick={() => setConfirmingNewPage(false)}
                 className="px-3 py-2 rounded-lg text-amber-900 hover:bg-amber-100 transition-colors text-sm min-h-[44px]"
               >
                 {t('canvas.neverMind')}

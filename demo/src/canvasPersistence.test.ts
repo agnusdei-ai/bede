@@ -163,6 +163,17 @@ describe('demo canvas page persistence', () => {
       expect(loadPage('ABC123')).toBeNull()
     })
 
+    it('can refuse WITHOUT dropping the stored page, which is what the final flush needs', () => {
+      // On the unmount flush there is no UI left to tell the visitor a
+      // refusal happened, so dropping the page they safely stored minutes
+      // ago would be a silent, unexplained loss. The last good copy stays.
+      expect(savePage('ABC123', page()).ok).toBe(true)
+      const before = loadPage('ABC123')
+      const result = savePage('ABC123', pageOverBudget(), { dropStoredOnRefusal: false })
+      expect(result.ok).toBe(false)
+      expect(loadPage('ABC123')).toEqual(before)
+    })
+
     it('reports a browser that refuses the write instead of pretending it worked', () => {
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new Error('QuotaExceededError')

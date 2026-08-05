@@ -270,7 +270,32 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
             if item.get("type") == "done":
                 break
     finally:
-        _sessions.pop(session_id, None)
+        _discard(session_id)
+
+
+def _discard(session_id: str) -> None:
+    """Drop a session AND stop the worker that belongs to it.
+
+    Popping the dict alone is not enough, and that was a real leak. A worker
+    parked on `new_audio.wait()` is referenced by the event loop and holds
+    `session` as an argument, so removing the dict entry collects nothing:
+    the task waits forever and the whole PCM buffer stays reachable through
+    it. At 16kHz 16-bit that is ~32KB per second of audio pinned per
+    abandoned turn, for the life of the process.
+
+    The completion path was always fine — `_worker_loop` returns after
+    queuing `done`. What leaked was every session that ended any OTHER way:
+    a consumer disconnecting mid-turn (a child navigating away, a tablet
+    dropping the SSE connection — routine even on good WiFi) and anything
+    the sweeper reclaimed. Reported from the demo as voice becoming
+    unreliable after roughly ten turns.
+    """
+    session = _sessions.pop(session_id, None)
+    if session is None:
+        return
+    worker = session.worker
+    if worker is not None and not worker.done():
+        worker.cancel()
 
 
 def _ensure_sweeper() -> None:
@@ -289,4 +314,5 @@ async def _sweep_loop() -> None:
         stale_ids = [sid for sid, s in _sessions.items() if now - s.last_touched > _SESSION_TTL_SECONDS]
         for sid in stale_ids:
             log.warning("streaming_transcription: sweeping abandoned session %s", sid)
-            _sessions.pop(sid, None)
+            # Via _discard, not a bare pop: the worker has to go with it.
+            _discard(sid)

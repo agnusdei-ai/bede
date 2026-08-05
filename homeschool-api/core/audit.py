@@ -63,6 +63,13 @@ class AuditEvent:
     TOOL_CALL_SUPPRESSED     = "tool.call_suppressed"
     ADVERSARIAL_DETECTED     = "adversarial.detected"
     AGENTIC_LOOP_CAPPED      = "agentic.loop_capped"
+    # An external MCP tool ran (services/mcp_client.py). Distinct from
+    # TOOL_INVOKED on purpose: this is the ONLY event in the system marking a
+    # moment when content from outside this process entered model context, and
+    # collapsing it into ordinary tool use would make that indistinguishable
+    # from Bede consulting its own catalog. Parent sandbox only — never a
+    # child's session — so any occurrence at all is worth being able to find.
+    EXTERNAL_TOOL_INVOKED    = "tool.external_invoked"
     # P8 privileged access. ELEVATION_GRANTED is the one a parent should be
     # able to scan for: it marks every window in which someone held
     # management-plane rights on this deployment.
@@ -110,6 +117,13 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # sit well above that while still catching a scripted abuse pattern
     # or a jailbroken model stuck calling tools in a loop across turns.
     AuditEvent.TOOL_INVOKED: (40, 600),
+    # Far tighter than TOOL_INVOKED's 40. External MCP tools are parent-
+    # sandbox-only, capped at 4 per turn, and reach outside this process for
+    # their content — so a sustained run of them is either a parent working
+    # hard in the sandbox or something using that path to pull external text
+    # into Bede repeatedly, and the second is worth surfacing early. 12 in 10
+    # minutes sits above a real exploratory session without hiding a pattern.
+    AuditEvent.EXTERNAL_TOOL_INVOKED: (12, 600),
     # A single trip of stream_tutor_response's own per-turn tool-call cap
     # (see _MAX_TOOL_CALLS_PER_TURN) is already anomalous by construction —
     # one legitimate turn has never needed this many tool calls — so it

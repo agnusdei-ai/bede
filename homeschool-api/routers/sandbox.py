@@ -12,6 +12,7 @@ from core.demo_code_session import record_message as demo_code_record_message
 from core.deps import require_demo_preview, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
+from services import mcp_client
 from services.ai_service import check_safeguarding, SAFEGUARDING_RESPONSE, stream_sandbox_response
 
 log = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ _ERROR_MESSAGE = "Something went wrong on my end. Could you try sending that aga
 @router.post("/chat")
 async def chat(
     req: SandboxChatRequest,
+    request: Request,
     _: dict = Depends(require_parent),
 ):
     """
@@ -46,11 +48,27 @@ async def chat(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect sandbox PIN")
 
     async def event_generator():
+        # External MCP tools (services/mcp_client.py) are reachable HERE and
+        # only here: a real parent session that has also presented
+        # SANDBOX_PIN. The demo preview below shares stream_sandbox_response
+        # but must never share this — see that function's docstring and
+        # tests/test_mcp_sandbox_boundary.py.
+        external_tools, external_clients = [], {}
+        if mcp_client.is_configured(settings):
+            try:
+                external_tools, external_clients = await mcp_client.load_external_tools(settings)
+            except Exception:
+                # An unreachable or misconfigured MCP server must not cost the
+                # parent their answer — the sandbox works without it.
+                log.warning("Could not load external MCP tools", exc_info=True)
         try:
             async for chunk in with_stall_timeout(stream_sandbox_response(
                 conversation_history=req.conversation_history,
                 message=req.message,
                 custom_instructions=req.custom_instructions,
+                external_tools=external_tools,
+                external_clients=external_clients,
+                audit_context=audit_from_request(request),
             )):
                 yield chunk
         except asyncio.TimeoutError:
@@ -61,6 +79,12 @@ async def chat(
             log.exception("Sandbox stream failed mid-turn")
             yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
             yield json.dumps({'type': 'done'})
+        finally:
+            for server_client in external_clients.values():
+                try:
+                    await server_client.aclose()
+                except Exception:
+                    log.debug("Closing an MCP client failed", exc_info=True)
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")
 

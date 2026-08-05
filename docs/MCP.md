@@ -1,15 +1,19 @@
 # Bede and MCP (Model Context Protocol)
 
 MCP is an open standard for connecting AI assistants to tools and data. Bede
-uses it in exactly one direction today: **Bede's own progress data can be read
-by an assistant you already use.**
+uses it in two directions, and they are set up separately:
 
-If you have Claude Desktop, Claude Code, or any other MCP-capable assistant,
-you can point it at your Bede and ask "how is Ada doing in math?" without
-opening the parent dashboard. That is the whole feature.
+1. **Bede's progress data, read by an assistant you already use.** Point
+   Claude Desktop, Claude Code, or any MCP-capable assistant at your Bede and
+   ask "how is Ada doing in math?" without opening the parent dashboard. Most
+   of this page is about this direction.
+2. **Your own MCP servers, consulted by Bede** — a book library, a file
+   server — while you work in the parent sandbox ("Ask Bede"). Never in a
+   child's lesson. See "The other direction" near the end.
 
-This is off unless you set it up. Nothing in the Bede stack changes, and
-nothing new listens on your network.
+Both are off unless you set them up, and each can be used without the other.
+Direction 1 adds nothing listening on your network. Direction 2 lets Bede make
+outbound calls to servers you name, and nothing else.
 
 ---
 
@@ -168,11 +172,72 @@ same REST endpoints your browser already uses. No new port, no new endpoint,
 no new way in.
 
 **Can Bede use MCP servers of my own — my book library, my own files?**
-Not yet, and when it can it will be in the parent sandbox ("Ask Bede") only,
-never in a child's lesson. Content from outside Bede is not something to put
-in front of a child without a real boundary around it, and building that
-boundary is separate work with its own rules. This page will link to it when
-it lands.
+Yes, in the parent sandbox ("Ask Bede") only, never in a child's lesson. See
+the next section.
+
+---
+
+## The other direction: Bede consulting your MCP servers
+
+Bede can also connect *out* to MCP servers you run, so that while you are
+working in "Ask Bede" it can consult your own book library or file server.
+
+This is off by default, and turning it on takes both variables:
+
+```
+MCP_EXTERNAL_ENABLED=true
+MCP_EXTERNAL_SERVERS=[{"name":"books","url":"http://192.168.1.20:9000/mcp"}]
+```
+
+Each server needs a name (letters, numbers, dashes, underscores) and an
+http(s) URL the Bede container can reach. Bede speaks the Streamable HTTP
+transport; it never launches a program on your server for this.
+
+### Where it can and cannot be used
+
+**Only in your own sandbox.** Not in any child's tutoring session, and not in
+the public demo preview — which shares the same underlying code path, so this
+is worth being precise about. Three separate things keep it there:
+
+1. A child's tutoring session is only ever given Bede's own internal tools.
+   External tools are not in that list, so the tutor cannot call one even if
+   a server is connected.
+2. The sandbox receives external tools as something the caller passes in, and
+   the default is none.
+3. The demo route never passes them, and there is a test that fails if it
+   ever starts to.
+
+That is more redundancy than it sounds like it needs. It is there because the
+thing being prevented — a child, or an anonymous visitor, reading text an
+outsider wrote in Bede's voice — is the sort of failure you only find out
+about afterwards.
+
+### What Bede does to a result before reading it
+
+In order: credential-shaped text is redacted, prompt-injection phrasing is
+stripped, the result is truncated if it is very long, and what remains is
+wrapped in a label telling Bede it is information from outside to consider
+and report, never instructions to follow.
+
+That last part is guidance to a model rather than a guarantee, and it is
+worth being honest about the difference. A determined attacker who controls
+one of your MCP servers can write persuasive text. What makes that survivable
+is the confinement above: the person reading it is you, in a sandbox that
+saves nothing, not your child mid-lesson.
+
+Every external call is written to the audit log as its own event, separate
+from ordinary tool use, so you can see exactly when outside content entered a
+conversation. Repeated use in a short window raises the same kind of alert
+other unusual activity does.
+
+**A tool from one of your servers cannot impersonate one of Bede's.** External
+tools are renamed `mcp__<server>__<tool>`, so a server advertising something
+called `assess_narration` gets `mcp__books__assess_narration` and cannot be
+confused for the real thing.
+
+**Bede offers your server nothing in return.** It connects declaring no
+capabilities — in particular not sampling, which would let your MCP server ask
+Bede's own model for completions and spend your API budget.
 
 ---
 

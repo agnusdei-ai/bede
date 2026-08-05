@@ -573,6 +573,46 @@ own pydantic model, and was verified to FAIL when that bug is
 reintroduced. The general rule: a fake looser than the real thing is not a
 test, it's a second place for the bug to hide.
 
+**MCP client — Bede consulting a parent's own MCP servers
+(`services/mcp_client.py`, `docs/MCP.md`):** the inbound counterpart to the
+server above, and the only path in the system by which content that did not
+originate inside this process reaches model context. That single fact
+governs the whole design. **Confined to the parent sandbox** by three
+independent mechanisms, not one setting: `TUTOR_TOOLS` holds only
+`trust="internal"` specs so the tutor loop cannot dispatch an external tool;
+`stream_sandbox_response` takes `external_tools` as an argument defaulting to
+none rather than reading settings itself; and `/sandbox/demo-chat` — which
+any anonymous visitor with a demo code can reach, and which shares that same
+function with the parent's `/sandbox/chat` — never passes it.
+`tests/test_mcp_sandbox_boundary.py` pins all three, the last one as a
+source-level assertion that the demo call site does not mention these
+arguments at all. The redundancy is deliberate: the failure being prevented
+(a child, or a stranger, reading attacker-authored text in Bede's voice) is
+one you learn about afterwards. **Off by default**, and requires BOTH
+`MCP_EXTERNAL_ENABLED` and a non-empty `MCP_EXTERNAL_SERVERS`, so half-arming
+it does nothing. Every result is `_redact_credentials`'d, run through the same
+`_INJECTION_PATTERN` applied to parent-supplied `SessionConfig` fields,
+truncated to `MAX_RESULT_CHARS`, and wrapped in an
+`<untrusted_external_content>` envelope — guidance rather than a guarantee,
+which is exactly why the structural confinement above carries the real
+weight. Tools are namespaced `mcp__<server>__<tool>`, making collision with
+an internal tool impossible rather than checked-for. The client declares
+**no capabilities** at initialize, notably not `sampling`, which would let a
+remote server ask Bede's own model for completions and spend a family's
+tokens. `AuditEvent.EXTERNAL_TOOL_INVOKED` is its own event rather than
+folded into `TOOL_INVOKED`, since "outside content entered model context" must
+stay distinguishable from Bede consulting its own catalog; its anomaly
+threshold (12/10min) is far tighter than `TOOL_INVOKED`'s 40. A hand-rolled
+JSON-RPC client over httpx rather than the `mcp` SDK, keeping that dependency
+out of the API image and its pip-audit gate — with
+`homeschool-api/scripts/mcp_client_e2e_check.py` (run by hand) validating it
+against a REAL SDK-built MCP server over a real socket, because unit tests
+against a stub this repo wrote can only confirm the client agrees with our own
+reading of the spec. Bede never spawns a subprocess for this: the API
+container runs `read_only` with `cap_drop: ALL`, so an outbound HTTP call to
+an address the parent named is a far smaller change to the deployment's
+threat model than launching local commands.
+
 ## Security Constraints
 
 For the audit-facing view of this section — AIUC-1/SOC 2 control mapping,

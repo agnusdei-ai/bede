@@ -4296,52 +4296,191 @@ def _build_sandbox_prompt(custom_instructions: str) -> str:
     return f"{preamble}\n\n{_SANDBOX_SYSTEM_PROMPT}"
 
 
+#: How many model round-trips one sandbox turn may take when external MCP
+#: tools are in play. Independent of the tutor loop's own
+#: _MAX_TOOL_LOOP_ROUNDS — this is a different loop, in a different function,
+#: reachable only by the parent, and it is bounded for the ordinary reason
+#: (a model can otherwise call tools indefinitely), not for a child-safety
+#: one.
+_MAX_SANDBOX_TOOL_ROUNDS = 3
+
+
 async def stream_sandbox_response(
     conversation_history: List[ChatMessage],
     message: str,
     custom_instructions: str,
+    external_tools: Optional[List[Any]] = None,
+    external_clients: Optional[dict] = None,
+    audit_context: Optional[dict] = None,
 ) -> AsyncIterator[str]:
-    """Direct-answer streaming chat for the parent sandbox — no tools, no
-    subject/grade context, no database access. Same SSE text-chunk format as
-    stream_tutor_response so the frontend can reuse the same consumer logic."""
+    """Direct-answer streaming chat for the parent sandbox — no subject/grade
+    context, no database access. Same SSE text-chunk format as
+    stream_tutor_response so the frontend can reuse the same consumer logic.
+
+    EXTERNAL TOOLS ARE OPT-IN, PER CALL, AND DEFAULT TO NONE. That default is
+    load-bearing rather than tidy: this function serves BOTH the parent's own
+    /sandbox/chat (parent session + SANDBOX_PIN) and /sandbox/demo-chat, which
+    any anonymous visitor holding a demo code can reach. Only the former ever
+    passes `external_tools`. A change that hoisted these into the function
+    body — reading settings here instead of taking them as an argument — would
+    silently hand every public demo visitor the ability to pull external
+    content through Bede. See tests/test_mcp_sandbox_boundary.py, which
+    asserts the demo route cannot.
+
+    Passing no external tools yields byte-for-byte the previous behavior: one
+    model call, no tools block, no loop.
+    """
     messages = [{"role": m.role, "content": m.content} for m in conversation_history]
     messages.append({"role": "user", "content": message})
     messages = _normalize_alternating_roles(messages)[-_HISTORY_WINDOW:]
 
-    async with _client.messages.stream(
-        model=settings.tutor_model,
-        max_tokens=800,  # more room than the tutor's 500 — direct answers, not tight Socratic turns
-        system=_build_sandbox_prompt(custom_instructions),
-        messages=messages,
-    ) as stream:
-        async for event in stream:
-            if event.type == "content_block_delta" and event.delta.type == "text_delta":
-                yield json.dumps({'type': 'text', 'content': event.delta.text})
+    from services import mcp_client
 
-        final_message = None
-        try:
-            final_message = await stream.get_final_message()
-            usage = final_message.usage
-            from core.api_usage import record_usage
-            await record_usage(
-                student_name=None,  # sandbox has no student context — household total only
-                model=settings.tutor_model,
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
-                cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
-                cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
-            )
-        except Exception:
-            log.warning("Failed to capture usage for a sandbox turn", exc_info=True)
+    tools_block = [t.to_anthropic() for t in (external_tools or [])]
+    external_by_name = {t.namespaced_name: t for t in (external_tools or [])}
+    external_calls_made = 0
+    final_message = None
 
-        # Same fallback as stream_tutor_response — see that function's
-        # comment for the live-probe finding this closes (Claude's own
-        # stop_reason="refusal" can end a turn with zero content blocks).
-        _final_content = getattr(final_message, "content", None)  # None (missing attr) means "unknown, skip"
-        if final_message is not None and _final_content is not None and len(_final_content) == 0:
-            yield json.dumps({
-                'type': 'text',
-                'content': "I'm not able to help with that one — try rephrasing it, or ask something else.",
-            })
+    for round_num in range(_MAX_SANDBOX_TOOL_ROUNDS if tools_block else 1):
+        round_tool_results: dict[str, str] = {}
+        stream_kwargs: dict[str, Any] = {
+            "model": settings.tutor_model,
+            # more room than the tutor's 500 — direct answers, not tight Socratic turns
+            "max_tokens": 800,
+            "system": _build_sandbox_prompt(custom_instructions),
+            "messages": messages,
+        }
+        if tools_block:
+            stream_kwargs["tools"] = tools_block
 
-        yield json.dumps({'type': 'done'})
+        async with _client.messages.stream(**stream_kwargs) as stream:
+            tool_calls_buffer: dict[str, dict] = {}
+
+            async for event in stream:
+                if event.type == "content_block_start":
+                    block = event.content_block
+                    if getattr(block, "type", None) == "tool_use":
+                        tool_calls_buffer[block.id] = {"name": block.name, "input_str": ""}
+                elif event.type == "content_block_delta":
+                    if event.delta.type == "text_delta":
+                        yield json.dumps({'type': 'text', 'content': event.delta.text})
+                    elif event.delta.type == "input_json_delta" and tool_calls_buffer:
+                        block_id = list(tool_calls_buffer)[-1]
+                        tool_calls_buffer[block_id]["input_str"] += event.delta.partial_json
+                elif event.type == "content_block_stop":
+                    for block_id, tc in list(tool_calls_buffer.items()):
+                        if not tc["input_str"]:
+                            continue
+                        try:
+                            tool_input = json.loads(tc["input_str"])
+                        except json.JSONDecodeError:
+                            tool_calls_buffer.pop(block_id, None)
+                            continue
+
+                        parts = mcp_client.split_namespaced(tc["name"])
+                        if parts is None or tc["name"] not in external_by_name:
+                            # Not an external tool this turn advertised. The
+                            # sandbox has no internal tools of its own, so
+                            # there is nothing else this could legitimately
+                            # be — drop it rather than guessing.
+                            round_tool_results[block_id] = "That tool is not available."
+                            tool_calls_buffer.pop(block_id, None)
+                            continue
+
+                        server_name, tool_name = parts
+                        if external_calls_made >= mcp_client.MAX_EXTERNAL_CALLS_PER_TURN:
+                            round_tool_results[block_id] = (
+                                "No more external lookups are available this turn."
+                            )
+                            tool_calls_buffer.pop(block_id, None)
+                            continue
+                        external_calls_made += 1
+
+                        yield json.dumps({
+                            'type': 'external_tool',
+                            'server': server_name,
+                            'tool': tool_name,
+                        })
+                        log_event_nowait(
+                            AuditEvent.EXTERNAL_TOOL_INVOKED,
+                            role="parent",
+                            detail=f"server={server_name} tool={tool_name}",
+                            **(audit_context or {}),
+                        )
+
+                        server_client = (external_clients or {}).get(server_name)
+                        if server_client is None:
+                            round_tool_results[block_id] = "That server is not connected."
+                            tool_calls_buffer.pop(block_id, None)
+                            continue
+                        try:
+                            raw = await server_client.call_tool(tool_name, tool_input)
+                        except Exception:
+                            log.warning(
+                                "External MCP tool %s/%s failed", server_name, tool_name,
+                                exc_info=True,
+                            )
+                            round_tool_results[block_id] = (
+                                "That external tool could not be reached."
+                            )
+                            tool_calls_buffer.pop(block_id, None)
+                            continue
+
+                        # Redact, strip injection phrasing, bound the length,
+                        # and label it as untrusted — see services/mcp_client.py.
+                        round_tool_results[block_id] = mcp_client.envelope(
+                            server_name, tool_name, mcp_client.sanitize_external_text(raw)
+                        )
+                        tool_calls_buffer.pop(block_id, None)
+
+            try:
+                final_message = await stream.get_final_message()
+                usage = final_message.usage
+                from core.api_usage import record_usage
+                await record_usage(
+                    student_name=None,  # sandbox has no student context — household total only
+                    model=settings.tutor_model,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+                    cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+                )
+            except Exception:
+                log.warning("Failed to capture usage for a sandbox turn", exc_info=True)
+
+        stop_reason = getattr(final_message, "stop_reason", None)
+        if not round_tool_results or stop_reason != "tool_use":
+            break
+        if round_num == _MAX_SANDBOX_TOOL_ROUNDS - 1:
+            break
+
+        assistant_blocks = [
+            b for b in (
+                _content_block_to_dict(block)
+                for block in getattr(final_message, "content", []) or []
+            ) if b is not None
+        ]
+        if not assistant_blocks:
+            break
+        messages = messages + [
+            {"role": "assistant", "content": assistant_blocks},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "tool_result", "tool_use_id": block_id, "content": text}
+                    for block_id, text in round_tool_results.items()
+                ],
+            },
+        ]
+
+    # Same fallback as stream_tutor_response — see that function's
+    # comment for the live-probe finding this closes (Claude's own
+    # stop_reason="refusal" can end a turn with zero content blocks).
+    _final_content = getattr(final_message, "content", None)  # None (missing attr) means "unknown, skip"
+    if final_message is not None and _final_content is not None and len(_final_content) == 0:
+        yield json.dumps({
+            'type': 'text',
+            'content': "I'm not able to help with that one — try rephrasing it, or ask something else.",
+        })
+
+    yield json.dumps({'type': 'done'})

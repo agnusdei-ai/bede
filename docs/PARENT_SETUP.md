@@ -1066,6 +1066,25 @@ This card is meant for anyone curious about how Bede works under the hood,
 not something you need to check regularly: everything about your child's
 actual learning still lives on the Progress page in the next section.
 
+## 12b. Asking about progress from somewhere else (optional, technical)
+
+If you already use an AI assistant — Claude Desktop, Claude Code, or anything
+else that supports MCP — you can let it read your own family's progress data,
+so you can ask "how is Ada doing in math?" wherever you already work instead of
+opening this dashboard.
+
+It can only read, never change anything, and it cannot reach a child's
+tutoring session. It registers itself as a device, so you can revoke it from
+your device settings exactly like a tablet you'd lost.
+
+The same feature works the other way too: Bede can consult MCP servers you run
+(your own book library, say) while you are testing ideas in "Ask Bede" — never
+during a child's lesson.
+
+Both are off until you set them up, and neither changes anything about how
+Bede tutors. Setup instructions and the full reasoning are in
+[docs/MCP.md](MCP.md).
+
 ## 13. Checking in afterward
 
 - **Progress page** (from the Pod Dashboard): narration scores, concept coverage, and

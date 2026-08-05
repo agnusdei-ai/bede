@@ -48,6 +48,68 @@
     "sendMessage": "Send",
     "removeDrawing": "Remove drawing"
   },
+  "canvas": {
+    "cancel": "Cancel",
+    "undo": "Undo",
+    "undoTitle": "Undo last stroke",
+    "redo": "Redo",
+    "newPage": "New page",
+    "newPageTitle": "Put this page away and start a fresh one",
+    "save": "Save",
+    "saveTitle": "Save this drawing to your device",
+    "print": "Print",
+    "printTitle": "Print this paper",
+    "done": "Done",
+    "doneTitle": "Send drawing",
+    "paperHeading": "Paper",
+    "paperTitle": "{{name}} paper",
+    "paperStyle": {
+      "composition": "Composition",
+      "graph": "Graph",
+      "dots": "Dots",
+      "staff": "Staff",
+      "journal": "Journal",
+      "blank": "Blank"
+    },
+    "tool": {
+      "pen": "Pen",
+      "eraser": "Eraser"
+    },
+    "brush": {
+      "thin": "Thin brush",
+      "medium": "Medium brush",
+      "thick": "Thick brush"
+    },
+    "ink": {
+      "ink": "Ink",
+      "black": "Black",
+      "red": "Red",
+      "orange": "Orange",
+      "gold": "Gold",
+      "green": "Green",
+      "sky": "Sky",
+      "purple": "Purple",
+      "brown": "Brown"
+    },
+    "paperColor": {
+      "parchment": "Parchment",
+      "white": "White",
+      "sunshine": "Sunshine",
+      "rose": "Rose",
+      "sage": "Sage",
+      "sky": "Sky",
+      "slate": "Slate"
+    },
+    "moreColors": "More colors",
+    "nearlyFull": "This page is nearly full. You can save it to your device any time.",
+    "pageFull": "This page has grown too big for me to keep. It will be gone when you go back to me, so save it to your device first if you want to keep it, then start a fresh page.",
+    "storageUnavailable": "I can't keep this page on this device. It will be gone when you go back to me, so save it to your device first if you want to keep it.",
+    "confirmNewPage": "Start a fresh page? This one will be gone.",
+    "saveToDevice": "Save to my device",
+    "saveFirst": "Save it first",
+    "startFresh": "Start a fresh page",
+    "neverMind": "Never mind"
+  },
   "header": {
     "askBede": "Ask Bede",
     "askBedeTooltip": "Preview the parent-only direct-answer sandbox",

@@ -92,6 +92,11 @@ GUARDS = {
     ('GET', '/diagnostic/pod/activity'): 'require_parent',
     ('GET', '/diagnostic/summary'): '_require_diagnostic_quota',
     ('GET', '/diagnostic/{student_name}/activity'): 'require_parent',
+    # Parent-only, and deliberately not merely by convention: the plan's
+    # reasons say things like "this hasn't come up in a while", which is a
+    # statement about the schedule that a CHILD would read as a statement
+    # about themselves. See services/lesson_planner.py.
+    ('GET', '/diagnostic/{student_name}/plan'): 'require_parent',
     ('GET', '/diagnostic/{student_name}/summary'): 'require_parent',
     ('POST', '/feedback'): 'require_auth',
     ('GET', '/feedback/enabled'): 'PUBLIC',

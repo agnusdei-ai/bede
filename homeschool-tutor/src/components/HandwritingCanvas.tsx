@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { X, Undo2, Redo2, FilePlus2, Check, PenTool, Pencil, Eraser, Printer, Download } from 'lucide-react'
 import type { Subject } from '../types'
 import { clearPage, loadPage, pruneOtherPages, savePage } from '../utils/canvasPersistence'
+import IconButton from './IconButton'
 
 interface Point {
   x: number
@@ -930,56 +931,62 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
 
         {/* Right actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
+          <IconButton
+            textual
             onClick={handleUndo}
             disabled={strokeCount === 0}
-            title={t('canvas.undoTitle')}
+            label={t('canvas.undoTitle')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Undo2 size={16} />
             <span className="hidden sm:inline">{t('canvas.undo')}</span>
-          </button>
-          <button
+          </IconButton>
+          <IconButton
+            textual
             onClick={handleRedo}
             disabled={redoCount === 0}
-            title={t('canvas.redo')}
+            label={t('canvas.redo')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Redo2 size={16} />
             <span className="hidden sm:inline">{t('canvas.redo')}</span>
-          </button>
-          <button
+          </IconButton>
+          <IconButton
+            textual
             onClick={handleNewPage}
-            title={t('canvas.newPageTitle')}
+            label={t('canvas.newPageTitle')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <FilePlus2 size={16} />
             <span className="hidden sm:inline">{t('canvas.newPage')}</span>
-          </button>
-          <button
+          </IconButton>
+          <IconButton
+            textual
             onClick={handleSaveToDevice}
-            title={t('canvas.saveTitle')}
+            label={t('canvas.saveTitle')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Download size={16} />
             <span className="hidden sm:inline">{t('canvas.save')}</span>
-          </button>
-          <button
+          </IconButton>
+          <IconButton
+            textual
             onClick={handlePrint}
-            title={t('canvas.printTitle')}
+            label={t('canvas.printTitle')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Printer size={16} />
             <span className="hidden sm:inline">{t('canvas.print')}</span>
-          </button>
-          <button
+          </IconButton>
+          <IconButton
+            textual
             onClick={handleDone}
-            title={t('canvas.doneTitle')}
+            label={t('canvas.doneTitle')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-navy-500 text-white hover:bg-navy-600 transition-colors font-medium text-sm min-h-[44px]"
           >
             <Check size={16} />
             <span>{t('canvas.done')}</span>
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -995,17 +1002,20 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       <div className="flex items-center gap-1 px-4 py-1.5 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
         <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1">
           {PAPER_ORDER.map((style) => (
-            <button
+            <IconButton
               key={style}
+              // Renders its own name as bare text, so that stays the
+              // accessible name and `label` is only the tooltip.
+              textual
               onClick={() => setPaperStyle(style)}
-              aria-pressed={paperStyle === style}
-              title={t('canvas.paperTitle', { name: t(`canvas.paperStyle.${style}`) })}
+              pressed={paperStyle === style}
+              label={t('canvas.paperTitle', { name: t(`canvas.paperStyle.${style}`) })}
               className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
                 paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {t(`canvas.paperStyle.${style}`)}
-            </button>
+            </IconButton>
           ))}
         </div>
       </div>
@@ -1016,58 +1026,58 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
         {/* Pen / pencil / eraser */}
         <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
-          <button
+          <IconButton
             onClick={() => setTool('pen')}
-            title={t('canvas.tool.pen')}
-            aria-pressed={tool === 'pen'}
+            label={t('canvas.tool.pen')}
+            pressed={tool === 'pen'}
             className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <PenTool size={16} />
-          </button>
-          <button
+          </IconButton>
+          <IconButton
             onClick={() => setTool('pencil')}
-            title={t('canvas.tool.pencil')}
-            aria-pressed={tool === 'pencil'}
+            label={t('canvas.tool.pencil')}
+            pressed={tool === 'pencil'}
             className={`p-2 rounded-md transition-colors ${tool === 'pencil' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Pencil size={16} />
-          </button>
-          <button
+          </IconButton>
+          <IconButton
             onClick={() => setTool('eraser')}
-            title={t('canvas.tool.eraser')}
-            aria-pressed={tool === 'eraser'}
+            label={t('canvas.tool.eraser')}
+            pressed={tool === 'eraser'}
             className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Eraser size={16} />
-          </button>
+          </IconButton>
         </div>
 
         {/* Brush size */}
         <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
           {(Object.keys(SIZE_PRESETS) as SizePreset[]).map((preset) => (
-            <button
+            <IconButton
               key={preset}
               onClick={() => setSizePreset(preset)}
-              title={t(`canvas.brush.${preset}`)}
-              aria-pressed={sizePreset === preset}
+              label={t(`canvas.brush.${preset}`)}
+              pressed={sizePreset === preset}
               className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${sizePreset === preset ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}
             >
               <span
                 className="rounded-full bg-navy-700"
                 style={{ width: SIZE_PRESETS[preset].dot, height: SIZE_PRESETS[preset].dot }}
               />
-            </button>
+            </IconButton>
           ))}
         </div>
 
         {/* Color palette */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {PALETTE.map((swatch) => (
-            <button
+            <IconButton
               key={swatch.value}
               onClick={() => { setColor(swatch.value); switchToInkTool() }}
-              title={t(`canvas.ink.${swatch.id}`)}
-              aria-pressed={tool !== 'eraser' && color === swatch.value}
+              label={t(`canvas.ink.${swatch.id}`)}
+              pressed={tool !== 'eraser' && color === swatch.value}
               className={`w-7 h-7 rounded-full border-2 transition-transform flex-shrink-0 ${
                 tool !== 'eraser' && color === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
               }`}
@@ -1097,11 +1107,11 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         <div className="flex items-center gap-1.5 flex-shrink-0 pl-3 border-l border-parchment-200">
           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('canvas.paperHeading')}</span>
           {PAPER_COLORS.map((swatch) => (
-            <button
+            <IconButton
               key={swatch.value}
               onClick={() => setPaperColor(swatch.value)}
-              title={t('canvas.paperTitle', { name: t(`canvas.paperColor.${swatch.id}`) })}
-              aria-pressed={paperColor === swatch.value}
+              label={t('canvas.paperTitle', { name: t(`canvas.paperColor.${swatch.id}`) })}
+              pressed={paperColor === swatch.value}
               className={`w-7 h-7 rounded-md border-2 transition-transform flex-shrink-0 ${
                 paperColor === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
               }`}

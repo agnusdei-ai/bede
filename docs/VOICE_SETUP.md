@@ -42,6 +42,49 @@ not a local model to benchmark offline.
 Leave `OPENAI_API_KEY` unset to skip cloud voice entirely — the browser's own
 speech takes over automatically, with no other changes needed.
 
+## "It stopped hearing me after a while" — a leaked worker per abandoned turn
+
+Reported from the demo: voice became unreliable "after 20 minutes and about
+10 turns", on a stable WiFi connection. Degradation proportional to TURNS
+rather than to network conditions is the useful part of that report — it
+points at something accumulating per turn rather than at connectivity.
+
+**What was wrong.** Every voice turn starts one worker task
+(`services/streaming_transcription.py`'s `_worker_loop`) which owns that
+session's transcription. On the normal path it returns as soon as it has
+queued the final `done`, and that path was always correct.
+
+What leaked was every session that ended any OTHER way. `events()`'s
+`finally` and the periodic sweeper both dropped the session from `_sessions`
+with a bare `pop`, and neither stopped the worker. A worker parked on
+`new_audio.wait()` is held by the event loop and holds its session as an
+argument, so removing the dict entry collects nothing: the task waits
+forever and the session's whole PCM buffer stays reachable through it. At
+16kHz 16-bit that is roughly 32KB per second of audio pinned per abandoned
+turn, for the life of the process.
+
+Sessions end that way routinely on a tablet — a child navigating back to the
+chat mid-turn, pressing the mic again before the previous turn finished, or
+the browser dropping the SSE connection, which happens on good WiFi too.
+
+**Why it shows up as "it can't hear me".** The demo runs on a 512MB
+instance, single-process, with every streaming session held in memory. Extra
+retained buffers push it toward the memory ceiling, and an OOM restart
+destroys every in-flight voice session at once — which reaches the tablet as
+`startVoiceStream failed`, indistinguishable from a broken microphone.
+
+**The fix.** `_discard(session_id)` pops the session *and* cancels its
+worker, and both call sites use it. `tests/test_streaming_transcription.py`
+pins it, including a ten-turn test alternating completed and abandoned turns
+— the mix a real sitting produces. Verified to fail without the fix, with
+five of ten workers leaked.
+
+**Honest scope.** This is one real leak whose shape matches the report. It
+has not been reproduced against the live demo, so it should not be treated
+as a confirmed sole cause: a session that ends cleanly never leaked, so a
+family whose turns all complete normally would have seen none of this.
+
+
 ## Applying this to a running deployment
 
 The commands above (`.env` edits) only take effect on a machine that's

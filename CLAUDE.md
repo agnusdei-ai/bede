@@ -393,7 +393,7 @@ This is what makes a pod workable as a self-managed team without ranking childre
 
 **Mathematics is in every `COMPANION_MODES` preset**, deliberately: it's foundational, and it's the only subject carrying the full `services/diagnostic/` engine, so a family on `book_companion`/`guided` previously got no mastery signal at all — which made "mastery-based outcome" untrue for exactly the families most likely to need it. Still removable by hand; just never omitted by a preset.
 
-**Frontend tests DO run** — `npm test` (`vitest run`), 187 passing. Earlier text in this file claiming "no test runner configured" was stale.
+**Frontend tests DO run** — `npm test` (`vitest run`), 405 passing in `homeschool-tutor/` and 195 in `demo/`. Earlier text in this file claiming "no test runner configured" was stale.
 
 **Real Parent Setup.** `ParentSetup.tsx`'s optional "session context" panel (`StudentForm.faith_tradition`, alongside `current_unit`/`faith_emphasis`/`lesson_focus`) gains a **Church Tradition** field, shown only once that student has `scripture` or `saints` enabled — a family not using either faith module never sees it, and enabling one already narrows which module the label refines the framing for. Saved/loaded through `handleSavePod`/`formFromConfig` exactly like the sibling context fields; sanitized the same way every other free-text parent field is, at prompt-build time (`_faith_tradition_note` above), not at save time.
 
@@ -437,6 +437,7 @@ components/
   VoiceVerification.tsx  Child voice passphrase check at session start
   VoiceEnrollment.tsx   Parent-triggered enrollment flow
   ThemePicker.tsx    Chat-header palette: background theme + reader's bubble color (hidden in child sessions when SessionConfig.appearance_locked)
+  IconButton.tsx     The toolbar control that says what it is — ON TOUCH. Every icon-only control in `HandwritingCanvas.tsx` carried a `title` and nothing else, and `title` needs HOVER: on the tablet this app actually runs on, the one affordance explaining what any of those buttons did was unreachable. On a phone it was worse — the action buttons hide their text below the `sm` breakpoint, so Undo/Redo/New page/Save/Print went unlabelled too. There were also zero `aria-label`s in either canvas. One `label` string becomes BOTH the accessible name and the tooltip (so the two cannot disagree), revealed on hover (mouse), focus (keyboard), and **for `TOUCH_HINT_MS` after a touch activation** — deliberately not a long-press, which is a gesture a child has to already know and which would compete with drawing here. Showing the label on the tap that already happened means every press quietly names what it just did, so the toolbar is learned by using it rather than from a manual; the tap still performs its action, always. Positioned `fixed` rather than absolute because both toolbar rows are `overflow-x-auto`, and a computed `overflow-x: auto` forces `overflow-y: auto`, which would clip an absolutely-positioned tooltip out of existence. Fixed positioning brings two obligations the first cut met neither of, both worst on a narrow phone — exactly where an icon-only toolbar most needs explaining: the label is **clamped into the viewport** (centring it under a control near the toolbar's end put it off the side of the screen, and `whitespace-nowrap` means it cannot wrap its way back on), and it is **dismissed on scroll/resize** (coordinates captured at reveal time go stale the moment anything moves, and those `overflow-x-auto` rows scroll — the listener is capture-phase, since a scroll inside an element does not bubble to window). Both are pinned by tests verified to fail when the clamping is removed. **`textual` is the prop to understand before touching this**: `aria-label` OVERRIDES an element's text content in the accessible-name calculation, so applying it unconditionally renamed every button that already had a good visible name ("New page" began announcing as "Start a new page") and broke WCAG's label-in-name expectation — caught by the existing canvas tests. Set `textual` and the visible text stays the name. The inverse is the sharper trap and shipped briefly during this work: set `textual` on a control that renders an ICON (or a styled dot, as the brush sizes do) and the button ends up with **no accessible name at all**, worse than the `title` it replaced and invisible without a test since nothing renders differently. `HandwritingCanvas.test.tsx`'s "gives every toolbar control an accessible name" pins it in both copies, and was verified to fail when the regression is reintroduced. Mirrored to `demo/src/IconButton.tsx` (same reasoning as `demo/src/holdGesture.ts`).
   HandwritingCanvas.tsx  The full-screen drawing/writing surface `invite_handwriting` opens (see that tool's own entry above) — paper style (composition/graph/dots/staff/journal/blank, grade-scaled ruling), paper color, true-to-scale US-Letter print. Three tools: Pen (solid ink, full opacity), Pencil (same palette, tinted 35% toward graphite gray and drawn at `PENCIL_OPACITY` 0.6 so it reads visibly softer/lighter than Pen — not just a differently-named button), and Eraser (paints the current paper color, so recoloring the paper never leaves a stale-colored erased patch — see `toolRenderColor`). Undo/Redo/Clear operate on the full stroke history (`strokesRef`), each storing its own `tool` and raw (untinted) `color` so redraws and the live pointer handlers can never disagree about rendering. `getPos()` applies `TOUCH_FINGER_CLEARANCE` (a fixed offset in the canvas's physical-page coordinate space, not CSS px) to lift the drawn point above the actual contact point ONLY for `e.pointerType === 'touch'` — a finger's contact area covers the exact spot a stylus's precise tip marks, so without this a child drawing with a finger can't see the line appear as they draw it. Stylus (`pointerType === 'pen'`) and mouse get no offset, since their contact point already is the precise mark. Undo/Redo/**New page** replaced the old unconfirmed Clear: with the page now outliving the component (see `utils/canvasPersistence.ts` below), clearing destroys something that would otherwise have survived the session, so it asks first and offers a save. **Save** is a second client-side-only export alongside Print (an `<a download>` over a blob of the same already-rendered bitmap — no endpoint, nothing leaves the device, so `ExfiltrationGuard` is untouched by it), and it is what makes the 2 MB refusal a fair thing to say to a child rather than a silent loss. The whole component is localized (`canvas.*` in both locale files) as of that change; it was plain English before.
 store/
   sessionStore.ts    Zustand store (persisted to sessionStorage — auth fields only)
@@ -505,6 +506,190 @@ adapter has its own model setting in `core/config.py`:
 To change which model a given adapter uses, update its `*_model` setting in
 `core/config.py`; to change which adapter wins, update `BEDE_ADAPTER_ORDER`
 (or `render.yaml`'s copy of it for the demo).
+
+**Tool registry — what each agentic tool IS, declared rather than implied:**
+`services/tool_registry.py` holds a frozen `ToolSpec` per tool
+(`reactable`/`terminal`/`silent`/`questionless`/`trust`), and
+`stream_tutor_response`'s loop reads it instead of re-deriving the same
+facts from `tc["name"] == "..."` comparisons buried ~1200 lines from the
+tool's own schema. Before this, three things were true and none was
+visible: a tool added to `TUTOR_TOOLS` with no matching branch fell
+through to `_process_tool_use`, returned `""`, and emitted nothing
+(silent); no test could check the set for completeness; and where a
+tool's result CAME FROM was written down nowhere, because there had only
+ever been one answer. `trust` is that last one made explicit — CLAUDE.md
+already stated the invariant the tool_result loop rests on (fixed,
+server-computed data, never anything sourced from outside this process)
+and it had no representation in code.
+`tests/test_tool_registry.py::test_every_tutor_tool_is_internal` fails if
+it stops holding. This is what lets an external-trust tool exist elsewhere
+in the process while remaining **structurally** incapable of reaching a
+child: `TUTOR_TOOLS` contains only internal specs, so the tutor loop
+cannot dispatch an external tool even if one is registered. Every
+predicate defaults False for an unrecognized name, so a hallucinated tool
+can neither buy itself extra model round-trips nor force a turn to end.
+
+**MCP server — Bede's parent data, readable by an assistant the parent
+already uses (`scripts/mcp_server/`, `docs/MCP.md`):** answers "can I ask
+about my kids' progress from where I already work instead of opening the
+parent dashboard." Deliberately the *server* direction first, and
+deliberately **not** mounted in the FastAPI app: an MCP endpoint inside
+the API would add a new authenticated network surface to the very process
+that serves children, whereas a stdio server launched by the parent's own
+MCP host adds none — no new port, no new endpoint, and it reaches Bede
+through the same authenticated REST endpoints the parent UI already uses.
+Data flows OUT, so there is no injection surface into a child's context
+at all, which is what makes this the highest value-per-unit-risk piece of
+MCP work available here. Six read-only tools (roster, mastery summary,
+work ledger, pod roster, narration history, learner profile), all
+annotated `read_only_hint` in the protocol itself. Read-only-ness is
+structural rather than promised: `bede_tools.py`'s only request helper is
+GET-only, and `test_every_tool_issues_only_get_requests` asserts it by
+watching real traffic rather than reading the source. **The refusals
+travel with the data** — the pod roster is not a ranking, an unscored
+activity is a blank and not a low mark, a cold-start mastery estimate is
+provisional, `processing_style` is not a psychometric claim — and since a
+consuming model can reintroduce a ranking the data doesn't contain just
+by summing, each refusal is written into the `TOOL_SCHEMAS` **description
+the model actually reads**, with tests pinning that it is still there.
+`test_no_tool_exposes_anything_about_faith_engagement` makes adding a
+spiritual-engagement metric fail a test rather than pass a review.
+Parent MFA is an accepted hard stop (no browser, so no ceremony) reported
+as an actionable message, never worked around. **Registers itself as a
+device** (`LoginRequest.device_id`, P9) so a parent can revoke it from
+device settings like any tablet — sending one is optional at the API, and
+a caller that omits it can never be revoked, which is precisely why this
+one doesn't: the process holds a parent password and reads every child's
+progress. Split into a dependency-free tool layer (`bede_tools.py`,
+unit-tested) and a thin transport (`server.py`), so `mcp` stays out of the
+API image and its pip-audit gate — with `test_server.py` covering the seam
+between them and `e2e_check.py` (run by hand) covering the wire contract.
+Both exist because of defects a green unit suite missed: the first cut of
+`server.py` was written against the SDK's 1.x decorator API and could not
+start at all, and `bede_tools.py` sent `password` where `LoginRequest`
+requires `credential` — a guaranteed 422 against a real deployment, which
+survived because the unit tests stubbed the transport and the e2e stub
+accepted any JSON body. `e2e_check.py`'s stub now validates with the API's
+own pydantic model, and was verified to FAIL when that bug is
+reintroduced. The general rule: a fake looser than the real thing is not a
+test, it's a second place for the bug to hide.
+
+**Content curation gate — growing the library without diluting mastery
+(`services/content_curation.py`, `scripts/curate_content.py`,
+`docs/CONTENT_CONTRIBUTING.md`):** that doc already stated how content is
+added (never store copyrighted text, cite a primary source, match the
+schema) but could not enforce any of it — every rule was a paragraph a
+reviewer had to remember, on a repo whose own standing workflow says a
+decision is finished only when the code says the same thing. `curate()`
+turns the mechanical parts into a gate and adds the constitutional checks:
+verbatim text needs a cited primary source and must be public domain; known
+misattributions are flagged (seeded from the real `ora_et_labora` finding —
+it appears nowhere in St. Benedict's Rule; warn rather than block, since it
+may be quoted precisely to correct it, which is what `latin_catalog.py`
+does); living books must declare `anti_twaddle`; Logic content may not
+target K-2 (the fifth route into that gate, now closed too); proposed
+activities are scanned against `_physical_safety_guardrails()`' hazard list,
+which constrains Bede's OWN words and so says nothing about material handed
+to it; `scripture`/`latin`/`greek` must stay usable by any Christian
+tradition while `saints` may carry Catholic-distinctive material by design;
+and **any field resembling a faith-engagement metric is refused outright** —
+a content field is as good a place to introduce one as a database column.
+
+**The mastery-linkage rule is the one that makes a growing library safe.**
+Every candidate must declare which existing diagnostic skills it exercises,
+validated live against `services/diagnostic/`'s own vocabularies
+(`skill_map`/`phonics`/`literacy`/`composition`/`language_exposure`), or set
+`exercises_no_tracked_skill=True` to say plainly that it exercises none — an
+empty list alone is refused, being indistinguishable from a field nobody
+filled in (the same instinct as refusing to let a blank score look like a low
+one). **Content may not invent a skill id**: `MasteryProfile` stores those
+ids as the only link to a family's accumulated history and there is no
+`ALTER TABLE` path, so growing a map is a deliberate, separately-reviewed,
+strictly-additive change, never a side effect of adding a poem. Without this,
+a freely-growing library and a standing diagnostic drift apart and the
+symptom a parent sees is their child appearing to fail at material Bede never
+taught — the exact drift `tests/diagnostic/test_prep_school_scope.py` exists
+to prevent. `CurationVerdict.accepted` deliberately means "nothing mechanical
+is wrong", never "this belongs in a child's year"; a human still reviews
+that, and both the module and the CLI say so.
+
+**Session planner — the one planning decision Bede is competent to make
+(`services/lesson_planner.py`, `GET /diagnostic/{student}/plan`):** before
+this, Bede had no planner at all — the "plan" was the parent's subject list
+plus fixed `SUBJECT_DURATIONS`, and its only sequencing authority was
+`suggest_next_subject`. Mastery data shaped questions *within* mathematics
+(`get_next_probe_hint`) but nothing ever looked across the day. **It orders;
+it never chooses.** `plan_session` returns a permutation of the parent's own
+subjects — never one added, dropped, or shortened — which is the
+constitution's `authority_order` (the parent is the child's primary
+educator), not a conservative implementation choice;
+`test_plan_is_always_a_permutation_of_the_parents_subjects` pins it. A pure
+function with no I/O, following `services/policy_engine.py`'s precedent.
+**Faith-formation subjects (`morning_time`/`scripture`/`saints`) are
+ANCHORED to the parent-given position**, not merely excluded from promotion:
+the first cut only skipped promoting them, and a Scripture block still slid
+to the END of a day whenever the ordinary subjects around it went stale — no
+number was ever computed about the child's spiritual life, and the timetable
+said something about it regardless, which is precisely what the
+never-measure-faith rule exists to prevent. Position is now held against
+movement in **either** direction (`_place_anchor`, and when a slot is
+contested it prefers to stay later, since moving a faith subject *forward*
+is the direction that reads as Bede pushing it). `latin`/`greek` are
+deliberately NOT anchored — they are language subjects that draw on
+Christian texts, and ordering them by recency says nothing about a child's
+spiritual life. What *does* drive the order: Morning Time opens the day
+(Mater Amabilis convention), then a parent's own `lesson_resume` note (an
+explicit instruction outranks any convention of Bede's), then cognitively
+demanding subjects while attention is freshest, then subjects whose
+`LessonBookmark` is stale (>= 14 days, the same threshold `_bookmark_note`
+uses for its own "a while back" phrasing), with `free_study` closing.
+**Every reason is a fact about the PLAN or about ordinary pedagogy, never
+about the child** — the same distinction the mastery cycle draws when it
+reports missing evidence as a finding about the schedule; a test scans every
+reason string for judgment words. **Advisory and parent-only**: the endpoint
+reports an ordering and does not apply one, and a child never sees it — "Bede
+put maths first because you haven't done it in a while" is something about
+themselves that Bede has no standing to say.
+
+**MCP client — Bede consulting a parent's own MCP servers
+(`services/mcp_client.py`, `docs/MCP.md`):** the inbound counterpart to the
+server above, and the only path in the system by which content that did not
+originate inside this process reaches model context. That single fact
+governs the whole design. **Confined to the parent sandbox** by three
+independent mechanisms, not one setting: `TUTOR_TOOLS` holds only
+`trust="internal"` specs so the tutor loop cannot dispatch an external tool;
+`stream_sandbox_response` takes `external_tools` as an argument defaulting to
+none rather than reading settings itself; and `/sandbox/demo-chat` — which
+any anonymous visitor with a demo code can reach, and which shares that same
+function with the parent's `/sandbox/chat` — never passes it.
+`tests/test_mcp_sandbox_boundary.py` pins all three, the last one as a
+source-level assertion that the demo call site does not mention these
+arguments at all. The redundancy is deliberate: the failure being prevented
+(a child, or a stranger, reading attacker-authored text in Bede's voice) is
+one you learn about afterwards. **Off by default**, and requires BOTH
+`MCP_EXTERNAL_ENABLED` and a non-empty `MCP_EXTERNAL_SERVERS`, so half-arming
+it does nothing. Every result is `_redact_credentials`'d, run through the same
+`_INJECTION_PATTERN` applied to parent-supplied `SessionConfig` fields,
+truncated to `MAX_RESULT_CHARS`, and wrapped in an
+`<untrusted_external_content>` envelope — guidance rather than a guarantee,
+which is exactly why the structural confinement above carries the real
+weight. Tools are namespaced `mcp__<server>__<tool>`, making collision with
+an internal tool impossible rather than checked-for. The client declares
+**no capabilities** at initialize, notably not `sampling`, which would let a
+remote server ask Bede's own model for completions and spend a family's
+tokens. `AuditEvent.EXTERNAL_TOOL_INVOKED` is its own event rather than
+folded into `TOOL_INVOKED`, since "outside content entered model context" must
+stay distinguishable from Bede consulting its own catalog; its anomaly
+threshold (12/10min) is far tighter than `TOOL_INVOKED`'s 40. A hand-rolled
+JSON-RPC client over httpx rather than the `mcp` SDK, keeping that dependency
+out of the API image and its pip-audit gate — with
+`homeschool-api/scripts/mcp_client_e2e_check.py` (run by hand) validating it
+against a REAL SDK-built MCP server over a real socket, because unit tests
+against a stub this repo wrote can only confirm the client agrees with our own
+reading of the spec. Bede never spawns a subprocess for this: the API
+container runs `read_only` with `cap_drop: ALL`, so an outbound HTTP call to
+an address the parent named is a far smaller change to the deployment's
+threat model than launching local commands.
 
 ## Security Constraints
 

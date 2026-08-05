@@ -190,6 +190,13 @@ services:
       # is the whole point of the setting, and for one day it did not.
       - RETAIN_MASTERY_PROFILES=${RETAIN_MASTERY_PROFILES:-true}
       - DIAGNOSTIC_EVIDENCE_LOG_ENABLED=${DIAGNOSTIC_EVIDENCE_LOG_ENABLED:-true}
+      # External MCP servers for the parent sandbox (docs/MCP.md). Off by
+      # default and deliberately requiring BOTH variables: this is the only
+      # route by which content from outside this process reaches model
+      # context, and it is confined to the parent's own "Ask Bede" sandbox.
+      - MCP_EXTERNAL_ENABLED=${MCP_EXTERNAL_ENABLED:-false}
+      - MCP_EXTERNAL_SERVERS=${MCP_EXTERNAL_SERVERS:-}
+      - MCP_EXTERNAL_TIMEOUT_SECONDS=${MCP_EXTERNAL_TIMEOUT_SECONDS:-10.0}
       # Public-demo only. Irrelevant to a family instance (no demo role is
       # ever reachable without DEMO_PIN); listed so every documented variable
       # behaves the same way everywhere rather than some being silently

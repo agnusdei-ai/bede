@@ -263,6 +263,64 @@ Not a data file — plain Python dicts that are part of the system prompt:
 These are prose, not structured data — editing them is a normal code PR,
 same review bar as anything else in that file.
 
+## The curation gate — run it before you open the PR
+
+Everything in this document used to be a paragraph a reviewer had to
+remember. `homeschool-api/services/content_curation.py` now enforces the
+mechanical parts of it:
+
+```bash
+python homeschool-api/scripts/curate_content.py my-submission.json
+```
+
+It exits non-zero if anything is blocked, so it drops into a pre-commit hook
+or a CI step for a content PR.
+
+What it checks, and where each rule comes from:
+
+| Rule | Comes from |
+|---|---|
+| Verbatim text must cite a primary source | the sourcing standard above; the constitution's "never fabricate certainty" |
+| Verbatim text must be public domain | the one hard rule above |
+| Known misattributions are flagged | a real finding — see `ora_et_labora` in `services/latin_catalog.py` |
+| Living books must declare `anti_twaddle` | the catalog schema; Charlotte Mason |
+| Logic content may not target K-2 | the stage gate enforced in four other places |
+| Activities may not involve hazards | `_physical_safety_guardrails()` |
+| `scripture`/`latin`/`greek` stay tradition-neutral | those subjects' own inclusivity guarantees |
+| No faith-engagement metric, in any field | the constitution's faith rule |
+| Declared skills must already exist | see below |
+| Ids must be unique within the batch | `tests/test_catalog_data_integrity.py` checks this after commit; this catches it before |
+
+**Passing is not the same as being good content.** The gate catches what a
+rule can catch. Whether a book is worth a child's year is a judgment it
+cannot make, and a human still reviews that.
+
+### Saying what your content teaches
+
+Every candidate must declare which existing diagnostic skills it exercises,
+or state explicitly that it exercises none:
+
+```json
+{ "skills": ["oa.multiplication_facts"] }
+{ "exercises_no_tracked_skill": true }
+```
+
+An empty `skills` list on its own is refused, because it is
+indistinguishable from a field nobody filled in.
+
+This is what lets the library grow without the diagnostic drifting away from
+it. If content is added freely while the skill maps stand still, Bede ends up
+teaching one thing and measuring another — and what a parent actually sees is
+their child appearing to fail at material Bede never taught. That is not
+hypothetical: it is the drift `tests/diagnostic/test_prep_school_scope.py`
+was written for, when the maths scope and the year plans had come apart.
+
+**Content may not invent a skill id.** `MasteryProfile` stores
+`encrypt_json({skill_id: probability})`, and this codebase has no
+`ALTER TABLE` path, so those ids are the only link to a family's accumulated
+history. Growing a skill map is a deliberate, separately reviewed change with
+its own strictly-additive discipline — never a side effect of adding a poem.
+
 ## Adding something — the checklist
 
 1. Confirm which bucket you're in (metadata-only vs. verbatim-public-domain)

@@ -297,6 +297,30 @@ class Settings(BaseSettings):
     # narration assessments, no session records, no audit-logged content.
     sandbox_pin: str = ""
 
+    # ── External MCP servers, for the parent sandbox ONLY ─────────────────────
+    # Lets a parent connect their own MCP servers (a book library, a file
+    # server) so Bede can consult them while the parent is testing ideas in
+    # "Ask Bede". OFF by default and deliberately hard to turn on by accident:
+    # BOTH the flag and a non-empty server list are required.
+    #
+    # This is the only place in Bede where content from outside this process
+    # can reach model context, which is why it is confined to the parent
+    # sandbox and can never reach a child's tutoring session. That confinement
+    # is structural, not a setting: TUTOR_TOOLS contains only internal-trust
+    # tools (services/tool_registry.py), and stream_sandbox_response takes
+    # external tools as an explicit per-call argument that only the
+    # parent-authenticated route passes. See services/mcp_client.py and
+    # docs/MCP.md.
+    mcp_external_enabled: bool = False
+    # JSON list of {"name": "...", "url": "..."} — an MCP server speaking the
+    # Streamable HTTP transport, reachable from the API container. Bede never
+    # spawns a subprocess for this: the API container runs read_only with
+    # cap_drop ALL, and launching arbitrary local commands from it would be a
+    # far larger change to the deployment's threat model than an outbound HTTP
+    # call to an address the parent named.
+    mcp_external_servers: str = ""
+    mcp_external_timeout_seconds: float = 10.0
+
     # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
     # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
     # as DEMO_PIN) — a family only needs to set these if they want to enroll a

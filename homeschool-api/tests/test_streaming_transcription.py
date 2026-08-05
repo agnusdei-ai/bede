@@ -406,3 +406,107 @@ async def test_partials_still_run_under_the_cap(monkeypatch):
     item = await asyncio.wait_for(gen.__anext__(), timeout=2)
     await gen.aclose()
     assert item == {"type": "partial", "text": "heard you"}
+
+
+# ── Worker-task lifetime ────────────────────────────────────────────────
+#
+# Reported from the demo: "voice reliability after a few turns... it couldn't
+# hear me after 20 minutes and about 10 turns", on a stable WiFi network.
+# Degradation proportional to TURNS rather than to network conditions points
+# at something accumulating per turn, and this is it.
+
+
+@pytest.mark.asyncio
+async def test_the_worker_task_does_not_outlive_its_session(monkeypatch):
+    """Every turn starts a worker task. If it never returns, every turn leaks
+    one task AND the entire PCM buffer it holds a reference to — popping the
+    session from _sessions does not collect it, because the task's own frame
+    keeps the session object alive."""
+
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "hello", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    session_id = st.start_session(language="en")
+    session = st._sessions[session_id]
+    st.push_chunk(session_id, b"audio")
+    st.finish_session(session_id)
+
+    async for item in st.events(session_id):
+        if item["type"] == "done":
+            break
+
+    # Let the worker settle after the 'done' it just queued.
+    await asyncio.sleep(0)
+    assert session.worker is not None
+    assert session.worker.done(), (
+        "worker task is still running after the session ended — it and the "
+        "audio buffer it holds are leaked for the life of the process"
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_abandoned_sessions_worker_is_stopped_too(monkeypatch):
+    """The consumer disconnecting early is the ordinary case on a tablet — a
+    child navigates away mid-turn. events() already drops the session from the
+    dict there; the task has to go with it."""
+
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "hello", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    session_id = st.start_session(language="en")
+    session = st._sessions[session_id]
+    st.push_chunk(session_id, b"audio")
+
+    # aclose(), not a bare `break`. Breaking out of an `async for` does not
+    # close an async generator — its finally block runs only at GC, which is
+    # not deterministic. sse_starlette closes the iterator when the client
+    # disconnects, so aclose() is what actually models a dropped connection.
+    stream = st.events(session_id)
+    async for item in stream:
+        break
+    await stream.aclose()
+
+    await asyncio.sleep(0)
+    assert session.worker.done() or session.worker.cancelled(), (
+        "worker task survived a consumer that disconnected"
+    )
+
+
+@pytest.mark.asyncio
+async def test_many_turns_leave_nothing_running(monkeypatch):
+    """The reported shape, directly: ten turns in a row must leave ten
+    finished tasks, not ten parked ones."""
+
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "hello", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    workers = []
+    for turn in range(10):
+        session_id = st.start_session(language="en")
+        workers.append(st._sessions[session_id].worker)
+        st.push_chunk(session_id, b"audio")
+
+        # Alternate the two ways a turn really ends. Only the completed half
+        # ever worked; the abandoned half is what leaked, and a session mix
+        # is what a twenty-minute sitting actually looks like.
+        if turn % 2 == 0:
+            st.finish_session(session_id)
+            async for item in st.events(session_id):
+                if item["type"] == "done":
+                    break
+        else:
+            stream = st.events(session_id)
+            async for item in stream:
+                break
+            await stream.aclose()
+
+    await asyncio.sleep(0)
+    still_running = [w for w in workers if not (w.done() or w.cancelled())]
+    assert not still_running, f"{len(still_running)} of 10 worker tasks leaked"
+    assert st._sessions == {}

@@ -10,6 +10,24 @@ see [docs/SOCRATIC_METHOD.md](SOCRATIC_METHOD.md).*
 
 Hi! I'm **Bede**. I'll be your tutor while you learn today.
 
+## The little buttons on your writing page
+
+When you open your writing page there is a row of small buttons along the
+top — a pen, a pencil, an eraser, some colours, and a few more.
+
+You do not have to remember what any of them do. **Tap one and it will tell
+you its name** for a moment, right underneath it, while it does the thing.
+Tap the pencil and you will see "Pencil". Tap a colour and it will tell you
+which colour you just picked.
+
+If you are using a mouse instead of your finger, just rest the arrow on a
+button and its name will appear.
+
+So you can explore. Press things and see — that is how you find out what
+they are. If you change something you did not mean to, the arrow curving
+backwards is Undo, and it puts things back. The only button that clears your
+whole page will ask you first, so you cannot lose your work by accident.
+
 ## Getting started
 
 1. Open Bede on your tablet. If your family uses Bede in more than one language, you'll

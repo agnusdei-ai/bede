@@ -5,8 +5,7 @@
  * `holdGesture.ts` and `gradeTimer.ts` are: the demo is a separate Vite app
  * with its own bundle and its own, deliberately smaller, canvas.
  *
- * Three differences from the app's copy, all of them because this is the
- * demo:
+ * Two differences from the app's copy, both because this is the demo:
  *
  * 1. **Keyed by the demo session code**, matching `bede-demo-chat-<code>`
  *    in `App.tsx`. A demo visitor has no student identity, and the code is
@@ -14,10 +13,25 @@
  * 2. **A smaller stroke shape** - this canvas has pen and eraser, no
  *    pencil, so a stroke carries `isEraser` rather than a tool name. It is
  *    stored as written; nothing here tries to anticipate the app's shape.
- * 3. **Every key it writes is listed publicly.** `site/privacy/index.html`
- *    enumerates every piece of browser storage this domain uses, by name.
- *    Adding a key here without adding a row there would make that page
- *    wrong, which is the one thing it exists not to be.
+ *
+ * A third difference existed briefly and is now gone: this module used to
+ * carry a `space` field (the CSS-pixel size a page was drawn in), because
+ * the demo canvas sized its backing store to whatever the element occupied
+ * and needed to rescale a restored page into a differently-shaped window.
+ * Now that `HandwritingCanvas.tsx` draws into the same fixed 816x1056
+ * physical page space the app's does (closing the "saved PNG is at
+ * on-screen resolution" gap), coordinates mean the same physical spot on
+ * the page regardless of what window they were drawn in, so there is
+ * nothing left to record or rescale - CANVAS_STORAGE_VERSION bumped to 2
+ * for the dropped field, same "abandon rather than migrate" policy as
+ * always (see below).
+ *
+ * Every key this module writes is listed publicly, on
+ * `site/privacy/index.html`, which enumerates every piece of browser
+ * storage this domain uses, by name. Adding a key here without adding a
+ * row there would make that page wrong, which is the one thing it exists
+ * not to be - `privacyInventory.test.ts` checks this rather than trusting
+ * memory.
  *
  * What does NOT differ is the part that matters: this is sessionStorage on
  * the visitor's own device. Nothing here is sent to the server, and the
@@ -36,8 +50,10 @@ export const CANVAS_BUDGET_BYTES = 2 * 1024 * 1024
 export const CANVAS_WARN_RATIO = 0.8
 
 // Bumping this abandons every page stored under the old shape rather than
-// migrating it - a half-restored drawing is worse than a fresh page.
-export const CANVAS_STORAGE_VERSION = 1
+// migrating it - a half-restored drawing is worse than a fresh page. (Bumped
+// 1 -> 2 when the `space` field below was dropped - see the module
+// docstring.)
+export const CANVAS_STORAGE_VERSION = 2
 const KEY_PREFIX = `bede-demo-canvas-v${CANVAS_STORAGE_VERSION}:`
 
 // Coordinates are rounded before storage. A tenth of a CSS pixel is below
@@ -63,14 +79,6 @@ export interface PersistedPage {
   strokes: PersistedStroke[]
   paperStyle: string
   paperColor: string
-  // The on-screen size, in CSS pixels, that these stroke coordinates are
-  // expressed in. The app's canvas draws into a FIXED 816x1056 page space
-  // (PR #402), so its copy of this module needs no such field; this one
-  // still sizes its backing store to whatever the canvas element happens
-  // to occupy, so a page restored into a differently-shaped window would
-  // land in the wrong place without it. HandwritingCanvas rescales on
-  // restore rather than discarding the page or replaying it crooked.
-  space: { w: number; h: number }
 }
 
 export interface StoredPage extends PersistedPage {
@@ -125,7 +133,6 @@ export function serializePage(page: PersistedPage): string {
     savedAt: Date.now(),
     paperStyle: page.paperStyle,
     paperColor: page.paperColor,
-    space: { w: round(page.space.w, COORD_DECIMALS), h: round(page.space.h, COORD_DECIMALS) },
     strokes: page.strokes.map((stroke) => {
       const pts: number[] = []
       for (const p of stroke.points) {
@@ -155,13 +162,6 @@ export function parsePage(raw: string | null): StoredPage | null {
   if (page.v !== CANVAS_STORAGE_VERSION) return null
   if (typeof page.paperStyle !== 'string' || typeof page.paperColor !== 'string') return null
   if (!Array.isArray(page.strokes)) return null
-  const space = page.space as { w?: unknown; h?: unknown } | undefined
-  if (typeof space !== 'object' || space === null) return null
-  const { w, h } = space
-  // A zero or negative space would make the restore rescale divide by zero
-  // and put every stroke at NaN, i.e. an invisible page with no explanation.
-  if (typeof w !== 'number' || !Number.isFinite(w) || w <= 0) return null
-  if (typeof h !== 'number' || !Number.isFinite(h) || h <= 0) return null
 
   const strokes: PersistedStroke[] = []
   for (const candidate of page.strokes) {
@@ -188,7 +188,6 @@ export function parsePage(raw: string | null): StoredPage | null {
     savedAt: typeof page.savedAt === 'number' ? page.savedAt : 0,
     paperStyle: page.paperStyle,
     paperColor: page.paperColor,
-    space: { w, h },
     strokes,
   }
 }

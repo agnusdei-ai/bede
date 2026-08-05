@@ -499,6 +499,61 @@ To change which model a given adapter uses, update its `*_model` setting in
 `core/config.py`; to change which adapter wins, update `BEDE_ADAPTER_ORDER`
 (or `render.yaml`'s copy of it for the demo).
 
+**Tool registry — what each agentic tool IS, declared rather than implied:**
+`services/tool_registry.py` holds a frozen `ToolSpec` per tool
+(`reactable`/`terminal`/`silent`/`questionless`/`trust`), and
+`stream_tutor_response`'s loop reads it instead of re-deriving the same
+facts from `tc["name"] == "..."` comparisons buried ~1200 lines from the
+tool's own schema. Before this, three things were true and none was
+visible: a tool added to `TUTOR_TOOLS` with no matching branch fell
+through to `_process_tool_use`, returned `""`, and emitted nothing
+(silent); no test could check the set for completeness; and where a
+tool's result CAME FROM was written down nowhere, because there had only
+ever been one answer. `trust` is that last one made explicit — CLAUDE.md
+already stated the invariant the tool_result loop rests on (fixed,
+server-computed data, never anything sourced from outside this process)
+and it had no representation in code.
+`tests/test_tool_registry.py::test_every_tutor_tool_is_internal` fails if
+it stops holding. This is what lets an external-trust tool exist elsewhere
+in the process while remaining **structurally** incapable of reaching a
+child: `TUTOR_TOOLS` contains only internal specs, so the tutor loop
+cannot dispatch an external tool even if one is registered. Every
+predicate defaults False for an unrecognized name, so a hallucinated tool
+can neither buy itself extra model round-trips nor force a turn to end.
+
+**MCP server — Bede's parent data, readable by an assistant the parent
+already uses (`scripts/mcp_server/`, `docs/MCP.md`):** answers "can I ask
+about my kids' progress from where I already work instead of opening the
+parent dashboard." Deliberately the *server* direction first, and
+deliberately **not** mounted in the FastAPI app: an MCP endpoint inside
+the API would add a new authenticated network surface to the very process
+that serves children, whereas a stdio server launched by the parent's own
+MCP host adds none — no new port, no new endpoint, and it reaches Bede
+through the same authenticated REST endpoints the parent UI already uses.
+Data flows OUT, so there is no injection surface into a child's context
+at all, which is what makes this the highest value-per-unit-risk piece of
+MCP work available here. Six read-only tools (roster, mastery summary,
+work ledger, pod roster, narration history, learner profile), all
+annotated `read_only_hint` in the protocol itself. Read-only-ness is
+structural rather than promised: `bede_tools.py`'s only request helper is
+GET-only, and `test_every_tool_issues_only_get_requests` asserts it by
+watching real traffic rather than reading the source. **The refusals
+travel with the data** — the pod roster is not a ranking, an unscored
+activity is a blank and not a low mark, a cold-start mastery estimate is
+provisional, `processing_style` is not a psychometric claim — and since a
+consuming model can reintroduce a ranking the data doesn't contain just
+by summing, each refusal is written into the `TOOL_SCHEMAS` **description
+the model actually reads**, with tests pinning that it is still there.
+`test_no_tool_exposes_anything_about_faith_engagement` makes adding a
+spiritual-engagement metric fail a test rather than pass a review.
+Parent MFA is an accepted hard stop (no browser, so no ceremony) reported
+as an actionable message, never worked around. Split into a
+dependency-free tool layer (`bede_tools.py`, unit-tested) and a thin
+transport (`server.py`), so `mcp` stays out of the API image and its
+pip-audit gate — with `test_server.py` covering the seam between them,
+which exists because the first cut was written against the SDK's 1.x
+decorator API, passed all 18 logic tests, and could not start at all.
+
 ## Security Constraints
 
 For the audit-facing view of this section — AIUC-1/SOC 2 control mapping,

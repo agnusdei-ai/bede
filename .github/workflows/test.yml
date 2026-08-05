@@ -20,6 +20,7 @@ on:
       - 'homeschool-api/**'
       - 'scripts/setup_wizard/**'
       - 'scripts/trust_service/**'
+      - 'scripts/mcp_server/**'
       - '.github/workflows/test.yml'
   pull_request:
   workflow_dispatch:
@@ -51,7 +52,7 @@ jobs:
             exit 0
           fi
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|\.github/workflows/test\.yml)'; then
+               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|\.github/workflows/test\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -148,3 +149,23 @@ jobs:
       - name: Run tests
         working-directory: scripts/trust_service
         run: python -m pytest test_trust_service.py -v
+
+  mcp-server-tests:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    # scripts/mcp_server/ runs on a PARENT's own machine, not in the Bede
+    # container, so it has its own requirements file and the API image never
+    # grows an MCP dependency. Same shape as the wizard/trust-service jobs
+    # above.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: scripts/mcp_server
+        run: pip install -r requirements.txt pytest pytest-asyncio
+      - name: Run tests
+        working-directory: scripts/mcp_server
+        run: python -m pytest test_bede_tools.py test_server.py -v

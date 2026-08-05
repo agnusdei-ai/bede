@@ -393,7 +393,7 @@ This is what makes a pod workable as a self-managed team without ranking childre
 
 **Mathematics is in every `COMPANION_MODES` preset**, deliberately: it's foundational, and it's the only subject carrying the full `services/diagnostic/` engine, so a family on `book_companion`/`guided` previously got no mastery signal at all — which made "mastery-based outcome" untrue for exactly the families most likely to need it. Still removable by hand; just never omitted by a preset.
 
-**Frontend tests DO run** — `npm test` (`vitest run`), 406 passing in `homeschool-tutor/` and 196 in `demo/`. Earlier text in this file claiming "no test runner configured" was stale.
+**Frontend tests DO run** — `npm test` (`vitest run`), 405 passing in `homeschool-tutor/` and 195 in `demo/`. Earlier text in this file claiming "no test runner configured" was stale.
 
 **Real Parent Setup.** `ParentSetup.tsx`'s optional "session context" panel (`StudentForm.faith_tradition`, alongside `current_unit`/`faith_emphasis`/`lesson_focus`) gains a **Church Tradition** field, shown only once that student has `scripture` or `saints` enabled — a family not using either faith module never sees it, and enabling one already narrows which module the label refines the framing for. Saved/loaded through `handleSavePod`/`formFromConfig` exactly like the sibling context fields; sanitized the same way every other free-text parent field is, at prompt-build time (`_faith_tradition_note` above), not at save time.
 

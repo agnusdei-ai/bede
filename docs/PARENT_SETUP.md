@@ -1380,3 +1380,50 @@ sibling.
 Use it the way you'd use any record of completed work on a team: to spot
 that one of your children has finished something another is just starting,
 and ask the first to show the second. Your children never see either card.
+
+## The writing pad: drawings, and where they go
+
+When Bede invites your child to write or draw by hand, a full-screen
+writing pad opens over the chat: a real sheet of letter paper (composition,
+graph, dots, staff, nature journal, or blank), ruled to your child's grade,
+with a pen, a pencil, and an eraser. Nothing here needs setting up, and
+there is no parent control to configure. What is worth knowing is where the
+work goes.
+
+**A page waits while your child talks to Bede.** Going back to the
+conversation and returning to the pad finds the same drawing, the same
+paper, the same colors. Your child does not have to finish in one sitting,
+and does not have to send a half-finished drawing to Bede just to keep it.
+This lasts for as long as the tablet stays signed in to that session: it
+survives switching to the chat and back, and a page refresh. It does not
+survive signing out, closing the tab, or a different device. Sending a
+drawing to Bede does not clear the pad either: the page stays exactly as it
+is until your child starts a new one, so they can carry on with the same
+piece of work or add to it.
+
+**Nothing about this reaches the server.** The page is held by the browser
+on your child's own tablet, in the storage that browsers throw away when the
+tab closes. It is not sent to Bede's server, not written to your database,
+and not part of anything you would delete from the Pod Dashboard. The one
+exception is the same one as before: a drawing your child deliberately
+*sends* to Bede, with the **Done** button, travels as part of that message
+exactly as it always did.
+
+**A fresh page is your child's own decision.** The **New page** button puts
+the current page away and gives them a clean sheet. Bede asks first when
+there is work on the page, and offers to save it before it goes. Nothing
+else clears a page: no timer, no rule, no hidden limit they can't see.
+
+**Keeping a drawing.** **Save** downloads it to the tablet as an ordinary
+image, like a photo. **Print** puts it on real paper at true size. Both
+happen entirely on the device; neither sends anything anywhere.
+
+**There is one limit, and your child is told about it.** A single page can
+hold about 2 MB of drawing, which is on the order of twenty minutes of
+unbroken scribbling: far more than a normal lesson produces, and small
+enough that it can never fill up the tablet. Past about four-fifths of that,
+a quiet line appears saying the page is nearly full. If a page does pass the
+limit, Bede says so plainly, in words, while the drawing is still on the
+screen: this page can't be kept, save it to your device if you want it, then
+start a fresh page. The drawing is never taken away mid-sentence, and it is
+never silently truncated into half a picture.

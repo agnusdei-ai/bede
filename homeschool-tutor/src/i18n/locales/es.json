@@ -117,6 +117,69 @@
     "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras.",
     "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez."
   },
+  "canvas": {
+    "cancel": "Cancelar",
+    "undo": "Deshacer",
+    "undoTitle": "Deshacer el último trazo",
+    "redo": "Rehacer",
+    "newPage": "Hoja nueva",
+    "newPageTitle": "Deja esta hoja y empieza una nueva",
+    "save": "Guardar",
+    "saveTitle": "Guarda este dibujo en tu dispositivo",
+    "print": "Imprimir",
+    "printTitle": "Imprimir esta hoja",
+    "done": "Listo",
+    "doneTitle": "Enviar el dibujo",
+    "paperHeading": "Papel",
+    "paperTitle": "Papel {{name}}",
+    "paperStyle": {
+      "composition": "Renglones",
+      "graph": "Cuadrícula",
+      "dots": "Puntos",
+      "staff": "Pentagrama",
+      "journal": "Diario",
+      "blank": "En blanco"
+    },
+    "tool": {
+      "pen": "Pluma, tinta sólida",
+      "pencil": "Lápiz, más suave y grisáceo",
+      "eraser": "Borrador"
+    },
+    "brush": {
+      "thin": "Trazo fino",
+      "medium": "Trazo mediano",
+      "thick": "Trazo grueso"
+    },
+    "ink": {
+      "ink": "Tinta",
+      "black": "Negro",
+      "red": "Rojo",
+      "orange": "Naranja",
+      "gold": "Dorado",
+      "green": "Verde",
+      "sky": "Celeste",
+      "purple": "Morado",
+      "brown": "Café"
+    },
+    "paperColor": {
+      "parchment": "Pergamino",
+      "white": "Blanco",
+      "sunshine": "Amarillo sol",
+      "rose": "Rosa",
+      "sage": "Verde salvia",
+      "sky": "Celeste",
+      "slate": "Pizarra"
+    },
+    "moreColors": "Más colores",
+    "nearlyFull": "Esta hoja ya casi se llena. Puedes guardarla en tu dispositivo cuando quieras.",
+    "pageFull": "Esta hoja creció demasiado y ya no puedo conservarla. Se perderá cuando regreses conmigo, así que guárdala en tu dispositivo si quieres conservarla, y luego empieza una hoja nueva.",
+    "storageUnavailable": "No puedo conservar esta hoja en este dispositivo. Se perderá cuando regreses conmigo, así que guárdala en tu dispositivo si quieres conservarla.",
+    "confirmNewPage": "¿Empezamos una hoja nueva? Esta se perderá.",
+    "saveToDevice": "Guardar en mi dispositivo",
+    "saveFirst": "Guardarla primero",
+    "startFresh": "Empezar una hoja nueva",
+    "neverMind": "Mejor no"
+  },
   "podDashboard": {
     "noStudentsTitle": "No hay estudiantes configurados",
     "noStudentsBody": "Primero configura el grupo de hoy.",

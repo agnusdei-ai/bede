@@ -1,6 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { X, Undo2, Redo2, Trash2, Check, PenTool, Pencil, Eraser, Printer } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { X, Undo2, Redo2, FilePlus2, Check, PenTool, Pencil, Eraser, Printer, Download } from 'lucide-react'
 import type { Subject } from '../types'
+import { clearPage, loadPage, pruneOtherPages, savePage } from '../utils/canvasPersistence'
 
 interface Point {
   x: number
@@ -41,6 +43,14 @@ interface HandwritingCanvasProps {
   // college-style rule with no midline. Unknown/absent falls back to the
   // 3-5 ruling, which is what this canvas always drew before.
   gradeStage?: string
+  // Who this page belongs to for the rest of this session - a student name
+  // for a child session, the role for a parent one. Given it, the page
+  // (strokes, paper style, paper color) is kept in sessionStorage so
+  // switching back to Bede and returning finds the work still there; see
+  // utils/canvasPersistence.ts for the budget and what happens at it.
+  // Omitted, this component behaves exactly as it always did: the page
+  // exists only while it is mounted.
+  persistKey?: string
 }
 
 // True-to-scale printing: the canvas's internal drawing resolution is
@@ -70,13 +80,13 @@ const PARCHMENT_BG = '#faf8f0'
 // craft drawer, plus Slate: the classical schoolroom chalkboard (rulings
 // lighten automatically on dark paper; pick a light ink to write on it).
 const PAPER_COLORS = [
-  { name: 'Parchment', value: PARCHMENT_BG },
-  { name: 'White', value: '#ffffff' },
-  { name: 'Sunshine', value: '#fdf3cf' },
-  { name: 'Rose', value: '#fbe4e4' },
-  { name: 'Sage', value: '#e4efe4' },
-  { name: 'Sky', value: '#e0ecf9' },
-  { name: 'Slate', value: '#2e3a44' },
+  { id: 'parchment', value: PARCHMENT_BG },
+  { id: 'white', value: '#ffffff' },
+  { id: 'sunshine', value: '#fdf3cf' },
+  { id: 'rose', value: '#fbe4e4' },
+  { id: 'sage', value: '#e4efe4' },
+  { id: 'sky', value: '#e0ecf9' },
+  { id: 'slate', value: '#2e3a44' },
 ] as const
 
 // Perceived-luminance check so rulings stay visible on dark paper.
@@ -152,14 +162,6 @@ function paperStyleFor(subject?: Subject): PaperStyle {
   return 'composition'
 }
 
-const PAPER_LABEL: Record<PaperStyle, string> = {
-  composition: 'Composition',
-  graph: 'Graph',
-  dots: 'Dots',
-  staff: 'Staff',
-  journal: 'Journal',
-  blank: 'Blank',
-}
 const PAPER_ORDER: PaperStyle[] = ['composition', 'graph', 'dots', 'staff', 'journal', 'blank']
 
 // Fills the page background and its ruling — called any time the canvas is
@@ -295,14 +297,16 @@ function drawPaper(
   drawRuledLines(ctx, width, 0, height, ruling, ruleColor, midColor)
 }
 
-// The only exportable surface in this app — a deliberate, narrow exception
-// to having no export/download functionality anywhere else (see
-// core/middleware.py's ExfiltrationGuard on the backend, which blocks any
-// endpoint path containing /export, /download, /dump, /backup, /debug and
-// strips Content-Disposition: attachment from every response). This is
-// entirely client-side: it prints the already-rendered canvas bitmap
-// via the browser's own print dialog, with no new backend endpoint and
-// nothing sent anywhere, so it never touches that boundary at all.
+// This canvas is the only exportable surface in this app — a deliberate,
+// narrow exception to having no export/download functionality anywhere else
+// (see core/middleware.py's ExfiltrationGuard on the backend, which blocks
+// any endpoint path containing /export, /download, /dump, /backup, /debug
+// and strips Content-Disposition: attachment from every response). Two ways
+// out, both the same shape: Print (here) and Save to the device
+// (handleSaveToDevice below). Both are entirely client-side, working from
+// the already-rendered canvas bitmap through the browser's own print dialog
+// or its own download, with no new backend endpoint and nothing sent
+// anywhere, so neither touches that boundary at all.
 const PRINT_AREA_ID = 'handwriting-print-area'
 
 // A compact MS-Paint/Preview-style swatch row rather than a full color wheel —
@@ -310,15 +314,15 @@ const PRINT_AREA_ID = 'handwriting-print-area'
 // overwhelming a touch toolbar. First entry is the historical default ink
 // color this canvas always used, kept as the default selection.
 const PALETTE = [
-  { name: 'Ink', value: '#1b3a6b' },
-  { name: 'Black', value: '#1a1a1a' },
-  { name: 'Red', value: '#c0392b' },
-  { name: 'Orange', value: '#d9791b' },
-  { name: 'Gold', value: '#c9971e' },
-  { name: 'Green', value: '#2f7d4f' },
-  { name: 'Sky', value: '#2f7fc0' },
-  { name: 'Purple', value: '#7a4fa3' },
-  { name: 'Brown', value: '#7a5230' },
+  { id: 'ink', value: '#1b3a6b' },
+  { id: 'black', value: '#1a1a1a' },
+  { id: 'red', value: '#c0392b' },
+  { id: 'orange', value: '#d9791b' },
+  { id: 'gold', value: '#c9971e' },
+  { id: 'green', value: '#2f7d4f' },
+  { id: 'sky', value: '#2f7fc0' },
+  { id: 'purple', value: '#7a4fa3' },
+  { id: 'brown', value: '#7a5230' },
 ] as const
 
 type SizePreset = 'thin' | 'medium' | 'thick'
@@ -372,12 +376,57 @@ function toolOpacity(tool: Tool): number {
 // paper is scaled down to fit the device.
 const TOUCH_FINGER_CLEARANCE = 0.35 * PRINT_DPI
 
-export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeStage }: HandwritingCanvasProps) {
-  const [paperStyle, setPaperStyle] = useState<PaperStyle>(() => paperStyleFor(subject))
+// How long the page sits still before it is written to sessionStorage.
+// Deliberately short: the moment that actually matters is the child leaving
+// for Bede, which flushes on unmount regardless, and this only exists so a
+// long drawing isn't re-serialized on every single stroke.
+const PERSIST_DEBOUNCE_MS = 600
+
+// What the notice bar above the paper is currently saying. Only ever one
+// thing at a time - a page cannot be both too big to keep and awaiting a
+// "start fresh?" answer, since starting fresh resolves the first.
+type CanvasNotice = 'page-full' | 'storage-unavailable' | 'confirm-new-page' | null
+
+const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
+
+// A page comes back from sessionStorage, which a curious child (or a broken
+// write) can leave in any state at all. canvasPersistence.parsePage already
+// rejects anything structurally wrong; this is the narrower question of
+// whether the VALUES are ones this component still recognizes, since an
+// unknown paper style or a non-color string would otherwise reach the draw
+// loop and silently render nothing at all.
+function safePaperStyle(value: string | undefined, fallback: PaperStyle): PaperStyle {
+  return PAPER_ORDER.includes(value as PaperStyle) ? (value as PaperStyle) : fallback
+}
+function safeColor(value: string | undefined, fallback: string): string {
+  return value && HEX_COLOR.test(value) ? value : fallback
+}
+
+function downloadFilename(now: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
+  // Deliberately no student name: this lands in a shared Downloads folder
+  // on whatever device the child is using, and the drawing is the point.
+  return `bede-drawing-${stamp}.png`
+}
+
+export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeStage, persistKey }: HandwritingCanvasProps) {
+  const { t } = useTranslation()
+  // Read once, on mount. Pruning here (rather than on write) means a device
+  // a parent uses for several children never accumulates more than the one
+  // page the budget is stated for.
+  const [restored] = useState(() => {
+    if (!persistKey) return null
+    pruneOtherPages(persistKey)
+    return loadPage(persistKey)
+  })
+  const [paperStyle, setPaperStyle] = useState<PaperStyle>(() =>
+    safePaperStyle(restored?.paperStyle, paperStyleFor(subject)),
+  )
   const ruling = RULING_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_RULING
   const gridSpacing = GRID_SPACING_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_GRID_SPACING
   const staff = STAFF_BY_STAGE[gradeStage ?? ''] ?? DEFAULT_STAFF
-  const [paperColor, setPaperColor] = useState<string>(PARCHMENT_BG)
+  const [paperColor, setPaperColor] = useState<string>(() => safeColor(restored?.paperColor, PARCHMENT_BG))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   // The neutral backdrop the paper sits in on screen — measured to letterbox
@@ -390,11 +439,18 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   })
   const isDrawingRef = useRef(false)
   const currentStrokeRef = useRef<Point[]>([])
-  const strokesRef = useRef<Stroke[]>([])
+  const strokesRef = useRef<Stroke[]>(
+    (restored?.strokes ?? []).map((s) => ({
+      points: s.points,
+      width: s.width,
+      color: safeColor(s.color, PALETTE[0].value),
+      tool: s.tool,
+    })),
+  )
   const dprRef = useRef(window.devicePixelRatio || 1)
 
   // Force re-render when strokes change so undo button updates
-  const [strokeCount, setStrokeCount] = useState(0)
+  const [strokeCount, setStrokeCount] = useState(strokesRef.current.length)
   // Undone strokes, waiting for Redo. A NEW stroke invalidates the stack
   // (classic paint-app behavior) — you can't redo on top of a divergence.
   const redoStackRef = useRef<Stroke[]>([])
@@ -411,7 +467,62 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // Picking a color while on Eraser should switch back to drawing — but
   // picking a color while on Pencil should stay on Pencil (a child using
   // colored pencil shouldn't get bumped to Pen just for choosing a color).
-  const switchToInkTool = () => setTool((t) => (t === 'eraser' ? 'pen' : t))
+  const switchToInkTool = () => setTool((prev) => (prev === 'eraser' ? 'pen' : prev))
+
+  // ── Keeping the page across a trip back to Bede ───────────────────────────
+  // See utils/canvasPersistence.ts. `keeping` is the honest answer to "will
+  // this page still be here when I come back" - it goes false the first time
+  // a write is refused and stays false until a fresh page is started, so the
+  // notice the child is shown and what is actually stored never disagree.
+  const [notice, setNotice] = useState<CanvasNotice>(null)
+  const [nearlyFull, setNearlyFull] = useState(false)
+  const keepingRef = useRef(true)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const writePage = useCallback(() => {
+    if (!persistKey || !keepingRef.current) return
+    const result = savePage(persistKey, { strokes: strokesRef.current, paperStyle, paperColor })
+    if (result.ok) {
+      setNearlyFull(result.nearlyFull)
+      return
+    }
+    // Stop trying: every further attempt would fail the same way, and the
+    // child has been told once. Only starting a fresh page clears this.
+    keepingRef.current = false
+    setNearlyFull(false)
+    setNotice(result.reason === 'over-budget' ? 'page-full' : 'storage-unavailable')
+  }, [persistKey, paperStyle, paperColor])
+
+  // Held in a ref so the unmount flush below can call the CURRENT writePage
+  // without re-registering (and therefore re-running) its cleanup every time
+  // the paper style or color changes.
+  const writePageRef = useRef(writePage)
+  useEffect(() => { writePageRef.current = writePage })
+
+  const schedulePersist = useCallback(() => {
+    if (!persistKey) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null
+      writePageRef.current()
+    }, PERSIST_DEBOUNCE_MS)
+  }, [persistKey])
+
+  // The moment the whole feature exists for: the child pressed Cancel or
+  // Done and this component is going away. Flush synchronously rather than
+  // waiting out the debounce, which would never fire.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      writePageRef.current()
+    }
+  }, [])
+
+  // Paper style and color are part of the page too - a child who set up
+  // slate graph paper should find slate graph paper, not just their strokes.
+  useEffect(() => {
+    schedulePersist()
+  }, [paperStyle, paperColor, schedulePersist])
 
   // Fits the largest 8.5:11 box into the available backdrop — the same
   // letterbox math a photo viewer uses — so the on-screen drawing area is
@@ -600,6 +711,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       setStrokeCount(strokesRef.current.length)
       redoStackRef.current = []
       setRedoCount(0)
+      schedulePersist()
     }
     currentStrokeRef.current = []
   }
@@ -618,22 +730,37 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     setRedoCount(redoStackRef.current.length)
     setStrokeCount(strokesRef.current.length)
     redrawAll()
+    schedulePersist()
   }
 
   const handleRedo = () => {
-    const restored = redoStackRef.current.pop()
-    if (!restored) return
-    strokesRef.current.push(restored)
+    const redone = redoStackRef.current.pop()
+    if (!redone) return
+    strokesRef.current.push(redone)
     setRedoCount(redoStackRef.current.length)
     setStrokeCount(strokesRef.current.length)
     redrawAll()
+    schedulePersist()
   }
 
-  const handleClear = () => {
+  // A clean sheet, on purpose. This is the child's own control over how long
+  // a page lasts: the page is kept for as long as they want it and goes when
+  // they say so, rather than on a timer or a rule they can't see. The stored
+  // copy goes with it - a page they chose to put away must not reappear the
+  // next time they open the canvas.
+  const startNewPage = () => {
     strokesRef.current = []
     setStrokeCount(0)
     redoStackRef.current = []
     setRedoCount(0)
+    keepingRef.current = true
+    setNearlyFull(false)
+    setNotice(null)
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    if (persistKey) clearPage(persistKey)
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
@@ -643,15 +770,58 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
     drawPaper(ctx, canvas.width / dpr, canvas.height / dpr, paperStyle, paperColor, ruling, gridSpacing, staff)
   }
 
+  // Ask first when there is work on the page. Before the page persisted at
+  // all, clearing only threw away what was on screen in front of the child;
+  // now it throws away something that would otherwise have survived the rest
+  // of the session, which is worth one question.
+  const handleNewPage = () => {
+    if (strokeCount === 0) {
+      startNewPage()
+      return
+    }
+    setNotice('confirm-new-page')
+  }
+
+  // Client-side only, exactly like handlePrint below: the already-rendered
+  // bitmap goes straight to the child's own device through the browser's own
+  // download, with no endpoint, no request, and nothing leaving the tablet.
+  // This is what makes "your page is too big to keep" a fair thing to say -
+  // the child is told while the drawing is still in front of them and still
+  // theirs to keep.
+  const handleSaveToDevice = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const filename = downloadFilename(new Date())
+    const trigger = (href: string, revoke?: () => void) => {
+      const link = document.createElement('a')
+      link.href = href
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      revoke?.()
+    }
+    if (typeof canvas.toBlob === 'function') {
+      canvas.toBlob((blob) => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        trigger(url, () => setTimeout(() => URL.revokeObjectURL(url), 0))
+      }, 'image/png')
+      return
+    }
+    trigger(canvas.toDataURL('image/png'))
+  }
+
   const handleDone = () => {
     const canvas = canvasRef.current
     if (!canvas) return
     onSubmit(canvas.toDataURL('image/png'))
   }
 
-  // The only exportable/printable surface in this app (see PRINT_AREA_ID's
-  // own comment above) — purely client-side, the browser's native print
-  // dialog against the already-rendered canvas bitmap wrapped in
+  // One of this canvas's two ways out, alongside handleSaveToDevice above
+  // (see PRINT_AREA_ID's own comment for why both are fine) — purely
+  // client-side, the browser's native print dialog against the
+  // already-rendered canvas bitmap wrapped in
   // #handwriting-print-area below. Works on blank paper too (no strokes
   // required), so a parent/child can print composition or graph paper on
   // its own, not only paper they've already drawn on.
@@ -688,7 +858,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors flex-shrink-0"
         >
           <X size={18} />
-          <span className="text-sm font-medium">Cancel</span>
+          <span className="text-sm font-medium">{t('canvas.cancel')}</span>
         </button>
 
         {/* Right actions */}
@@ -696,45 +866,52 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           <button
             onClick={handleUndo}
             disabled={strokeCount === 0}
-            title="Undo last stroke"
+            title={t('canvas.undoTitle')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Undo2 size={16} />
-            <span className="hidden sm:inline">Undo</span>
+            <span className="hidden sm:inline">{t('canvas.undo')}</span>
           </button>
           <button
             onClick={handleRedo}
             disabled={redoCount === 0}
-            title="Redo"
+            title={t('canvas.redo')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Redo2 size={16} />
-            <span className="hidden sm:inline">Redo</span>
+            <span className="hidden sm:inline">{t('canvas.redo')}</span>
           </button>
           <button
-            onClick={handleClear}
-            disabled={strokeCount === 0}
-            title="Clear all"
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
+            onClick={handleNewPage}
+            title={t('canvas.newPageTitle')}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
-            <Trash2 size={16} />
-            <span className="hidden sm:inline">Clear</span>
+            <FilePlus2 size={16} />
+            <span className="hidden sm:inline">{t('canvas.newPage')}</span>
+          </button>
+          <button
+            onClick={handleSaveToDevice}
+            title={t('canvas.saveTitle')}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+          >
+            <Download size={16} />
+            <span className="hidden sm:inline">{t('canvas.save')}</span>
           </button>
           <button
             onClick={handlePrint}
-            title={`Print this ${PAPER_LABEL[paperStyle].toLowerCase()} paper`}
+            title={t('canvas.printTitle')}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Printer size={16} />
-            <span className="hidden sm:inline">Print</span>
+            <span className="hidden sm:inline">{t('canvas.print')}</span>
           </button>
           <button
             onClick={handleDone}
-            title="Send drawing"
+            title={t('canvas.doneTitle')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-navy-500 text-white hover:bg-navy-600 transition-colors font-medium text-sm min-h-[44px]"
           >
             <Check size={16} />
-            <span>Done</span>
+            <span>{t('canvas.done')}</span>
           </button>
         </div>
       </div>
@@ -755,12 +932,12 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
               key={style}
               onClick={() => setPaperStyle(style)}
               aria-pressed={paperStyle === style}
-              title={`${PAPER_LABEL[style]} paper`}
+              title={t('canvas.paperTitle', { name: t(`canvas.paperStyle.${style}`) })}
               className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
                 paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              {PAPER_LABEL[style]}
+              {t(`canvas.paperStyle.${style}`)}
             </button>
           ))}
         </div>
@@ -774,7 +951,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
           <button
             onClick={() => setTool('pen')}
-            title="Pen — solid ink"
+            title={t('canvas.tool.pen')}
             aria-pressed={tool === 'pen'}
             className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
@@ -782,7 +959,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           </button>
           <button
             onClick={() => setTool('pencil')}
-            title="Pencil — lighter, graphite-toned"
+            title={t('canvas.tool.pencil')}
             aria-pressed={tool === 'pencil'}
             className={`p-2 rounded-md transition-colors ${tool === 'pencil' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
@@ -790,7 +967,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           </button>
           <button
             onClick={() => setTool('eraser')}
-            title="Eraser"
+            title={t('canvas.tool.eraser')}
             aria-pressed={tool === 'eraser'}
             className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
@@ -804,7 +981,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             <button
               key={preset}
               onClick={() => setSizePreset(preset)}
-              title={`${preset[0].toUpperCase()}${preset.slice(1)} brush`}
+              title={t(`canvas.brush.${preset}`)}
               aria-pressed={sizePreset === preset}
               className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${sizePreset === preset ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}
             >
@@ -822,7 +999,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             <button
               key={swatch.value}
               onClick={() => { setColor(swatch.value); switchToInkTool() }}
-              title={swatch.name}
+              title={t(`canvas.ink.${swatch.id}`)}
               aria-pressed={tool !== 'eraser' && color === swatch.value}
               className={`w-7 h-7 rounded-full border-2 transition-transform flex-shrink-0 ${
                 tool !== 'eraser' && color === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
@@ -835,7 +1012,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
               gives a system color picker on every platform this app targets
               (including Surface Pro/iPad browsers) with no extra dependency. */}
           <label
-            title="More colors"
+            title={t('canvas.moreColors')}
             className="w-7 h-7 rounded-full border-2 border-white shadow-sm flex-shrink-0 cursor-pointer overflow-hidden relative"
             style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}
           >
@@ -851,12 +1028,12 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         {/* Paper color — construction paper + slate chalkboard. Square
             swatches so they read as PAPER, distinct from the round ink dots. */}
         <div className="flex items-center gap-1.5 flex-shrink-0 pl-3 border-l border-parchment-200">
-          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Paper</span>
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('canvas.paperHeading')}</span>
           {PAPER_COLORS.map((swatch) => (
             <button
               key={swatch.value}
               onClick={() => setPaperColor(swatch.value)}
-              title={`${swatch.name} paper`}
+              title={t('canvas.paperTitle', { name: t(`canvas.paperColor.${swatch.id}`) })}
               aria-pressed={paperColor === swatch.value}
               className={`w-7 h-7 rounded-md border-2 transition-transform flex-shrink-0 ${
                 paperColor === swatch.value ? 'border-navy-500 scale-110' : 'border-white shadow-sm'
@@ -866,6 +1043,55 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           ))}
         </div>
       </div>
+
+      {/* The one place this canvas ever speaks to the child in words: what is
+          about to happen to their page. Deliberately a bar above the paper
+          rather than a dialog over it - nothing here blocks drawing, and the
+          drawing stays fully in view (and fully saveable) while they decide.
+          The two "not being kept" notices carry no dismiss: the state they
+          describe is still true after any amount of tapping, and only
+          starting a fresh page ends it. */}
+      {notice && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+          <p className="text-sm text-amber-900 flex-1 min-w-[12rem]">
+            {notice === 'page-full' && t('canvas.pageFull')}
+            {notice === 'storage-unavailable' && t('canvas.storageUnavailable')}
+            {notice === 'confirm-new-page' && t('canvas.confirmNewPage')}
+          </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleSaveToDevice}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 transition-colors text-sm font-medium min-h-[44px]"
+            >
+              <Download size={16} />
+              <span>{notice === 'confirm-new-page' ? t('canvas.saveFirst') : t('canvas.saveToDevice')}</span>
+            </button>
+            <button
+              onClick={startNewPage}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-500 text-white hover:bg-navy-600 transition-colors text-sm font-medium min-h-[44px]"
+            >
+              <FilePlus2 size={16} />
+              <span>{t('canvas.startFresh')}</span>
+            </button>
+            {notice === 'confirm-new-page' && (
+              <button
+                onClick={() => setNotice(null)}
+                className="px-3 py-2 rounded-lg text-amber-900 hover:bg-amber-100 transition-colors text-sm min-h-[44px]"
+              >
+                {t('canvas.neverMind')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Quiet heads-up well before anything is at risk - a line of text, no
+          buttons, nothing to answer. */}
+      {!notice && nearlyFull && (
+        <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+          <p className="text-xs text-amber-800">{t('canvas.nearlyFull')}</p>
+        </div>
+      )}
 
       {/* Backdrop — letterboxes the paper (see the paperBox-fitting effect
           above) so it always keeps a real letter page's 8.5:11 shape,

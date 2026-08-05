@@ -76,6 +76,28 @@ promise and a guarantee:
 - **The audit log is deliberately excluded** (see below), so a deletion
   does not erase the security record of what happened on this deployment.
 
+### One thing that is never in the database at all: the writing pad
+
+Since the drawing canvas started keeping a child's page across a switch
+back to the chat, there has been a piece of a child's work that outlives
+the moment it was made, so it is worth saying exactly where it lives.
+
+The page (the strokes, the paper style, the paper color) is held in the
+browser's own `sessionStorage`, on the child's own tablet, under a key
+scoped to that student. Nothing is sent to the API, nothing is written to
+any table above, and there is nothing here for `DELETE
+/pod/configs/{student}` to remove. The browser discards it when the tab
+closes or the session ends; the child can discard it sooner with **New
+page**, and the app itself discards it the moment a page grows past its
+2 MB ceiling (telling the child first, so they can save it to the device
+if they want to keep it). It is capped at one page per session on a
+device, so a family tablet used by several children never accumulates
+pages behind anyone's back.
+
+A drawing the child deliberately **sends** to Bede is a different thing
+and unchanged by any of this: it travels with that message and is retained
+exactly as the rest of that conversation is.
+
 ## The public demo's data
 
 The demo (`docs/DEMO_HOSTING.md`) is deliberately built to hold as little

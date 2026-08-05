@@ -106,6 +106,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
   const {
     token,
+    role,
     sessionConfig,
     currentSubject,
     subjectStart,
@@ -988,7 +989,19 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
 
       {/* Handwriting overlay */}
       {showCanvas && (
-        <HandwritingCanvas onSubmit={handleDrawingSubmit} onCancel={handleDrawingCancel} subject={currentSubject} gradeStage={gradeStage} />
+        <HandwritingCanvas
+          onSubmit={handleDrawingSubmit}
+          onCancel={handleDrawingCancel}
+          subject={currentSubject}
+          gradeStage={gradeStage}
+          // Whose page this is, for as long as this session lasts. The
+          // canvas unmounts every time the child goes back to the chat, so
+          // without this the work would go with it (see
+          // utils/canvasPersistence.ts). Student name where there is one,
+          // role otherwise: both are stable for the session, and neither
+          // reaches the server.
+          persistKey={sessionConfig?.student_name || role || 'session'}
+        />
       )}
     </div>
   )

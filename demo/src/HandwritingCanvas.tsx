@@ -349,6 +349,15 @@ function safeColor(value: string | undefined, fallback: string): string {
   return value && HEX_COLOR.test(value) ? value : fallback
 }
 
+// Safari/iOS has a documented history of treating a Blob's object URL as
+// already gone if it is revoked while the download is still being read from
+// it - a plain setTimeout(...,0) only defers to the next tick, nowhere near
+// long enough for a slow mobile connection to finish. A one-off PNG is at
+// most a few hundred KB, so holding the URL alive longer costs nothing; not
+// being able to verify the real failure window on an actual device here is
+// exactly why this errs long rather than clever.
+const SAVE_URL_REVOKE_DELAY_MS = 60_000
+
 function downloadFilename(now: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
@@ -783,7 +792,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       canvas.toBlob((blob) => {
         if (!blob) return
         const url = URL.createObjectURL(blob)
-        trigger(url, () => setTimeout(() => URL.revokeObjectURL(url), 0))
+        trigger(url, () => setTimeout(() => URL.revokeObjectURL(url), SAVE_URL_REVOKE_DELAY_MS))
       }, 'image/png')
       return
     }

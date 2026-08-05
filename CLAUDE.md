@@ -573,6 +573,45 @@ own pydantic model, and was verified to FAIL when that bug is
 reintroduced. The general rule: a fake looser than the real thing is not a
 test, it's a second place for the bug to hide.
 
+**Content curation gate — growing the library without diluting mastery
+(`services/content_curation.py`, `scripts/curate_content.py`,
+`docs/CONTENT_CONTRIBUTING.md`):** that doc already stated how content is
+added (never store copyrighted text, cite a primary source, match the
+schema) but could not enforce any of it — every rule was a paragraph a
+reviewer had to remember, on a repo whose own standing workflow says a
+decision is finished only when the code says the same thing. `curate()`
+turns the mechanical parts into a gate and adds the constitutional checks:
+verbatim text needs a cited primary source and must be public domain; known
+misattributions are flagged (seeded from the real `ora_et_labora` finding —
+it appears nowhere in St. Benedict's Rule; warn rather than block, since it
+may be quoted precisely to correct it, which is what `latin_catalog.py`
+does); living books must declare `anti_twaddle`; Logic content may not
+target K-2 (the fifth route into that gate, now closed too); proposed
+activities are scanned against `_physical_safety_guardrails()`' hazard list,
+which constrains Bede's OWN words and so says nothing about material handed
+to it; `scripture`/`latin`/`greek` must stay usable by any Christian
+tradition while `saints` may carry Catholic-distinctive material by design;
+and **any field resembling a faith-engagement metric is refused outright** —
+a content field is as good a place to introduce one as a database column.
+
+**The mastery-linkage rule is the one that makes a growing library safe.**
+Every candidate must declare which existing diagnostic skills it exercises,
+validated live against `services/diagnostic/`'s own vocabularies
+(`skill_map`/`phonics`/`literacy`/`composition`/`language_exposure`), or set
+`exercises_no_tracked_skill=True` to say plainly that it exercises none — an
+empty list alone is refused, being indistinguishable from a field nobody
+filled in (the same instinct as refusing to let a blank score look like a low
+one). **Content may not invent a skill id**: `MasteryProfile` stores those
+ids as the only link to a family's accumulated history and there is no
+`ALTER TABLE` path, so growing a map is a deliberate, separately-reviewed,
+strictly-additive change, never a side effect of adding a poem. Without this,
+a freely-growing library and a standing diagnostic drift apart and the
+symptom a parent sees is their child appearing to fail at material Bede never
+taught — the exact drift `tests/diagnostic/test_prep_school_scope.py` exists
+to prevent. `CurationVerdict.accepted` deliberately means "nothing mechanical
+is wrong", never "this belongs in a child's year"; a human still reviews
+that, and both the module and the CLI say so.
+
 **Session planner — the one planning decision Bede is competent to make
 (`services/lesson_planner.py`, `GET /diagnostic/{student}/plan`):** before
 this, Bede had no planner at all — the "plan" was the parent's subject list

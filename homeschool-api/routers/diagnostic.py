@@ -61,6 +61,54 @@ async def _require_diagnostic_quota(request: Request, auth: dict = Depends(requi
     return auth
 
 
+@router.get("/demo/activity")
+async def get_demo_activity(
+    auth: dict = Depends(require_demo_preview),
+) -> dict:
+    """
+    The work ledger for the current demo session — what this visitor has
+    actually finished, in the same shape and with the same refusals as a
+    real family's GET /{student_name}/activity above.
+
+    Guarded by require_demo_preview (core/policy.py's
+    "diagnostic.demo_preview" action), so it is reachable with the demo
+    token and never by parent/child.
+
+    NOT quota-gated, unlike /summary. That endpoint's quota exists because
+    a mastery estimate is the demo's expensive, easily-scraped asset; this
+    one is a plain aggregation over what this very visitor did minutes ago
+    in this very session, costs nothing to compute, and is worthless to
+    anyone but them. Making them spend a preview use to see their own work
+    would be charging for the receipt.
+
+    404 with the same "nothing yet" contract the sibling endpoint uses, so
+    the frontend can show a keep-going state rather than an empty card.
+
+    WHY THE DEMO HAS THIS WHEN IT HAS NO MASTERY HISTORY. The ledger
+    records events, not an estimate, so its first entry is as true as its
+    two-hundredth — there is no calibration to clear and therefore nothing
+    about a fifteen-minute session that makes showing it dishonest. It
+    reads from the demo code's own TTL'd encrypted blob
+    (core/database.py's DemoCodeActivityLog), deleted on logout and gone
+    within 6 hours regardless; never SkillActivityLog, which is a real
+    family's permanent record.
+    """
+    from services.diagnostic_demo import get_activity_summary_demo
+
+    code = auth.get("code", "")
+    student_name, _grade = await get_personalization(code)
+    summary = await get_activity_summary_demo(code, student_name or "Guest")
+    if summary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "No completed work recorded in this demo session yet. This fills in as "
+                "you work through a lesson together."
+            ),
+        )
+    return summary
+
+
 @router.get("/summary", response_model=MasteryProfileSummary)
 async def get_diagnostic_summary(
     request: Request,

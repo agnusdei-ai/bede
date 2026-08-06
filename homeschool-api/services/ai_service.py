@@ -3076,6 +3076,24 @@ def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> st
     return f"\nWhere this subject left off ({when}): {note}"
 
 
+def _work_label(subject_area: str, skill_id: str) -> str:
+    """The human-readable name for a skill id, from whichever engine owns
+    that subject area — so the ledger reads in the parent's language rather
+    than in ids. Shared by the real and demo write paths so the two can't
+    label the same work differently."""
+    if subject_area == "mathematics":
+        from services.diagnostic.skill_map import get_skill
+        skill = get_skill(skill_id)
+        return skill.label if skill else skill_id
+    if subject_area == "literacy":
+        return _LITERACY_DOMAIN_LABELS.get(skill_id, skill_id)
+    if subject_area == "phonics":
+        return _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
+    if subject_area == "language_exposure":
+        return _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
+    return skill_id
+
+
 async def _record_work_done(
     db: Optional["AsyncSession"],
     student_name: str,
@@ -3104,26 +3122,53 @@ async def _record_work_done(
     try:
         from services.diagnostic.activity import record_activity
 
-        label = skill_id
-        if subject_area == "mathematics":
-            from services.diagnostic.skill_map import get_skill
-            skill = get_skill(skill_id)
-            label = skill.label if skill else skill_id
-        elif subject_area == "literacy":
-            label = _LITERACY_DOMAIN_LABELS.get(skill_id, skill_id)
-        elif subject_area == "phonics":
-            label = _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
-        elif subject_area == "language_exposure":
-            label = _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
-
         await record_activity(
-            db, student_name, subject_area, skill_id, label, outcome,
+            db, student_name, subject_area, skill_id,
+            _work_label(subject_area, skill_id), outcome,
             quality=getattr(ev, "quality", None),
             distinction=getattr(ev, "distinction", None),
             speed=getattr(ev, "speed", None),
         )
     except Exception as exc:
         log.warning("Work-ledger write failed for %s/%s: %s", student_name, skill_id, exc)
+
+
+
+async def _record_work_done_demo(
+    demo_code: Optional[str],
+    subject_area: str,
+    skill_id: str,
+    outcome: str,
+    ev=None,
+) -> None:
+    """
+    The public demo's counterpart to _record_work_done above.
+
+    The demo has no persistent per-student history, which is why it gets no
+    mastery engine for phonics, literacy or language exposure — a
+    calibrated read needs sessions it doesn't have. THE LEDGER IS DIFFERENT
+    IN EXACTLY THE WAY THAT MATTERS HERE: it records events, so the first
+    entry is as true as the two hundredth. There is nothing to calibrate,
+    so there is nothing about a short session that makes it dishonest —
+    which is precisely why a visitor can be shown the real card.
+
+    Writes to the demo code's own TTL'd, encrypted blob
+    (services/diagnostic_demo.py), never SkillActivityLog. Best-effort;
+    never raises.
+    """
+    if demo_code is None:
+        return
+    try:
+        from services.diagnostic_demo import record_work_done_demo
+
+        await record_work_done_demo(
+            demo_code, subject_area, skill_id, _work_label(subject_area, skill_id), outcome,
+            quality=getattr(ev, "quality", None),
+            distinction=getattr(ev, "distinction", None),
+            speed=getattr(ev, "speed", None),
+        )
+    except Exception as exc:
+        log.warning("Demo work-ledger write failed for %s: %s", skill_id, exc)
 
 
 async def _record_skill_evidence(
@@ -3152,10 +3197,15 @@ async def _record_skill_evidence(
 
         ev = RecordSkillEvidenceInput(**tool_input)  # validate/clamp
 
+        skill_id = ev.probe_id.removeprefix("probe.")
         if demo_code is not None:
             from services.diagnostic_demo import record_skill_evidence_demo
             await record_skill_evidence_demo(
                 demo_code, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
+            )
+            # The demo's own ephemeral ledger — see _record_work_done_demo.
+            await _record_work_done_demo(
+                demo_code, "mathematics", skill_id, ev.outcome, ev,
             )
         elif not settings.retain_mastery_profiles:
             # Deployment-wide privacy posture: run the same diagnostic, hold
@@ -3175,8 +3225,7 @@ async def _record_skill_evidence(
                 )
             if db is not None:
                 await _record_work_done(
-                    db, config.student_name, "mathematics",
-                    ev.probe_id.removeprefix("probe."), ev.outcome, ev,
+                    db, config.student_name, "mathematics", skill_id, ev.outcome, ev,
                 )
         elif db is not None:
             from services.diagnostic import process_evidence
@@ -3188,8 +3237,7 @@ async def _record_skill_evidence(
             # update — the two answer different questions and both are
             # wanted. See services/diagnostic/activity.py.
             await _record_work_done(
-                db, config.student_name, "mathematics",
-                ev.probe_id.removeprefix("probe."), ev.outcome, ev,
+                db, config.student_name, "mathematics", skill_id, ev.outcome, ev,
             )
     except Exception as exc:
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
@@ -3302,6 +3350,7 @@ over time, never a verdict delivered to the child.
 
 async def _record_literacy_evidence(
     db: Optional["AsyncSession"],
+    demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
@@ -3318,7 +3367,7 @@ async def _record_literacy_evidence(
     for its own K-2 gate. The stage gate matters especially here: a K-2
     session must fall through to phonics.py, never to this engine.
     """
-    if db is None:
+    if db is None and demo_code is None:
         return
     if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
         return
@@ -3327,14 +3376,21 @@ async def _record_literacy_evidence(
         from services.diagnostic.literacy import process_evidence as _process_literacy
 
         ev = RecordLiteracyEvidenceInput(**tool_input)  # validate/clamp
-        await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
-        await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
+        # The mastery engine needs sessions the demo doesn't have, so it
+        # stays real-sessions-only. The LEDGER needs none — it records
+        # events, not an estimate — so a demo visitor gets the real card.
+        if db is not None:
+            await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
+            await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "literacy", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_phonics_evidence(
     db: Optional["AsyncSession"],
+    demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
@@ -3352,21 +3408,30 @@ async def _record_phonics_evidence(
     like _record_skill_evidence, which this mirrors: a diagnostic hiccup
     must never break the child's tutoring turn.
     """
-    if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations or db is None:
+    if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations:
+        return
+    if db is None and demo_code is None:
         return
     try:
         from models.schemas import RecordPhonicsEvidenceInput
         from services.diagnostic.phonics import process_evidence as _process_phonics
 
         ev = RecordPhonicsEvidenceInput(**tool_input)  # validate/clamp
-        await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
-        await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
+        # The mastery engine needs sessions the demo doesn't have, so it
+        # stays real-sessions-only. The LEDGER needs none — it records
+        # events, not an estimate — so a demo visitor gets the real card.
+        if db is not None:
+            await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
+            await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "phonics", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_language_evidence(
     db: Optional["AsyncSession"],
+    demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
@@ -3396,7 +3461,7 @@ async def _record_language_evidence(
     subjects keep their existing behavior, where any of the six is
     legitimately in play.
     """
-    if db is None:
+    if db is None and demo_code is None:
         return
     if subject not in _CLASSICAL_LANGUAGE_SUBJECTS and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return
@@ -3411,8 +3476,14 @@ async def _record_language_evidence(
         own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject)
         if own_language and ev.language != own_language:
             return
-        await _process_language(db, config.student_name, ev.language, ev.outcome)
-        await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
+        # The mastery engine needs sessions the demo doesn't have, so it
+        # stays real-sessions-only. The LEDGER needs none — it records
+        # events, not an estimate — so a demo visitor gets the real card.
+        if db is not None:
+            await _process_language(db, config.student_name, ev.language, ev.outcome)
+            await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "language_exposure", ev.language, ev.outcome, ev)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3755,15 +3826,15 @@ async def stream_tutor_response(
                                 elif tc["name"] == "record_phonics_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_phonics_evidence's own docstring.
-                                    await _record_phonics_evidence(db, config, subject, tool_input)
+                                    await _record_phonics_evidence(db, demo_code, config, subject, tool_input)
                                 elif tc["name"] == "record_literacy_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_literacy_evidence's own docstring.
-                                    await _record_literacy_evidence(db, config, subject, tool_input)
+                                    await _record_literacy_evidence(db, demo_code, config, subject, tool_input)
                                 elif tc["name"] == "record_language_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.
-                                    await _record_language_evidence(db, config, subject, tool_input)
+                                    await _record_language_evidence(db, demo_code, config, subject, tool_input)
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,

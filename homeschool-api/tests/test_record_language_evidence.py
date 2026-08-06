@@ -58,8 +58,8 @@ def test_record_language_evidence_tool_is_registered_with_the_right_schema():
 @pytest.mark.asyncio
 async def test_returns_none_under_every_condition_proving_no_sse_chunk_is_possible():
     tool_input = {"language": "latin", "outcome": "correct"}
-    assert await _record_language_evidence(None, _config(), Subject.history, tool_input) is None
-    assert await _record_language_evidence(None, _config(), Subject.history, {"outcome": "bad"}) is None
+    assert await _record_language_evidence(None, None, _config(), Subject.history, tool_input) is None
+    assert await _record_language_evidence(None, None, _config(), Subject.history, {"outcome": "bad"}) is None
 
 
 @pytest.mark.asyncio
@@ -68,7 +68,7 @@ async def test_wrong_subject_never_reaches_the_backend(db_session, monkeypatch):
     monkeypatch.setattr("services.diagnostic.language_exposure.process_evidence", mock_process_evidence)
 
     await _record_language_evidence(
-        db_session, _config(), Subject.mathematics,
+        db_session, None, _config(), Subject.mathematics,
         {"language": "latin", "outcome": "correct"},
     )
 
@@ -83,7 +83,7 @@ async def test_wrong_subject_never_reaches_the_backend(db_session, monkeypatch):
 @pytest.mark.parametrize("subject", [Subject.history, Subject.saints, Subject.art_music])
 async def test_every_gated_subject_reaches_the_backend(db_session, subject):
     await _record_language_evidence(
-        db_session, _config(student_name="Multi"), subject,
+        db_session, None, _config(student_name="Multi"), subject,
         {"language": "latin", "outcome": "correct"},
     )
     row = (await db_session.execute(
@@ -100,7 +100,7 @@ async def test_every_grade_stage_reaches_the_backend(db_session, stage):
     """Unlike phonics (K-2 only), language exposure applies to every grade
     stage — confirming no stage-based gate accidentally crept in."""
     await _record_language_evidence(
-        db_session, _config(student_name="AllStages", grade_stage=stage), Subject.history,
+        db_session, None, _config(student_name="AllStages", grade_stage=stage), Subject.history,
         {"language": "latin", "outcome": "correct"},
     )
     row = (await db_session.execute(
@@ -116,7 +116,7 @@ async def test_db_none_writes_nothing():
     """No demo backend exists for language exposure (unlike math's
     record_skill_evidence) — db=None is the true no-op default."""
     await _record_language_evidence(
-        None, _config(), Subject.history,
+        None, None, _config(), Subject.history,
         {"language": "latin", "outcome": "correct"},
     )  # no exception raised is the assertion
 
@@ -124,7 +124,7 @@ async def test_db_none_writes_nothing():
 @pytest.mark.asyncio
 async def test_malformed_tool_input_is_logged_and_swallowed_not_raised(db_session):
     await _record_language_evidence(
-        db_session, _config(), Subject.history,
+        db_session, None, _config(), Subject.history,
         {"language": "latin", "outcome": "definitely-not-valid"},
     )  # no exception raised is the assertion
 
@@ -141,7 +141,7 @@ async def test_a_hallucinated_but_well_formed_language_is_a_safe_no_op(db_sessio
     validation cleanly and only becomes a no-op two layers deeper, in
     language_exposure.apply_evidence()."""
     await _record_language_evidence(
-        db_session, _config(), Subject.history,
+        db_session, None, _config(), Subject.history,
         {"language": "a_plausible_but_made_up_language", "outcome": "correct"},
     )
 
@@ -154,7 +154,7 @@ async def test_a_hallucinated_but_well_formed_language_is_a_safe_no_op(db_sessio
 @pytest.mark.asyncio
 async def test_valid_language_evidence_genuinely_persists_end_to_end_via_db(db_session):
     await _record_language_evidence(
-        db_session, _config(student_name="Grace"), Subject.saints,
+        db_session, None, _config(student_name="Grace"), Subject.saints,
         {"language": "spanish", "outcome": "correct"},
     )
 
@@ -172,11 +172,11 @@ async def test_second_valid_call_accumulates_on_the_same_row_across_subjects(db_
     """A History check-in and a later Art & Music check-in for the same
     student both accumulate onto one language_exposure row."""
     await _record_language_evidence(
-        db_session, _config(student_name="Noah"), Subject.history,
+        db_session, None, _config(student_name="Noah"), Subject.history,
         {"language": "latin", "outcome": "correct"},
     )
     await _record_language_evidence(
-        db_session, _config(student_name="Noah"), Subject.art_music,
+        db_session, None, _config(student_name="Noah"), Subject.art_music,
         {"language": "italian", "outcome": "partial"},
     )
 
@@ -204,7 +204,7 @@ async def test_second_valid_call_accumulates_on_the_same_row_across_subjects(db_
 ])
 async def test_classical_subject_records_its_own_language(db_session, subject, language):
     await _record_language_evidence(
-        db_session, _config(student_name=f"Own{language}"), subject,
+        db_session, None, _config(student_name=f"Own{language}"), subject,
         {"language": language, "outcome": "correct"},
     )
     row = (await db_session.execute(
@@ -233,7 +233,7 @@ async def test_classical_subjects_do_not_claim_each_others_language(
     monkeypatch.setattr("services.diagnostic.language_exposure.process_evidence", mock_process_evidence)
 
     await _record_language_evidence(
-        db_session, _config(student_name="CrossTalk"), subject,
+        db_session, None, _config(student_name="CrossTalk"), subject,
         {"language": wrong_language, "outcome": "correct"},
     )
 
@@ -243,7 +243,7 @@ async def test_classical_subjects_do_not_claim_each_others_language(
 @pytest.mark.asyncio
 async def test_latin_subject_records_latin_evidence(db_session):
     await _record_language_evidence(
-        db_session, _config(student_name="Cato"), Subject.latin,
+        db_session, None, _config(student_name="Cato"), Subject.latin,
         {"language": "latin", "outcome": "correct"},
     )
     row = (await db_session.execute(
@@ -262,7 +262,7 @@ async def test_latin_subject_refuses_evidence_for_any_other_language(db_session,
     monkeypatch.setattr("services.diagnostic.language_exposure.process_evidence", mock_process_evidence)
 
     await _record_language_evidence(
-        db_session, _config(student_name="Cato"), Subject.latin,
+        db_session, None, _config(student_name="Cato"), Subject.latin,
         {"language": language, "outcome": "correct"},
     )
 
@@ -281,7 +281,7 @@ async def test_opportunistic_subjects_keep_accepting_every_language(db_session):
     Italian evidence.
     """
     await _record_language_evidence(
-        db_session, _config(student_name="Vivaldi"), Subject.art_music,
+        db_session, None, _config(student_name="Vivaldi"), Subject.art_music,
         {"language": "italian", "outcome": "correct"},
     )
     row = (await db_session.execute(

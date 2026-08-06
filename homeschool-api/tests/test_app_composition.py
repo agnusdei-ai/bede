@@ -90,6 +90,13 @@ GUARDS = {
     ('GET', '/catalog/{year}/books'): 'require_real_user',
     ('GET', '/catalog/{year}/books/{subject}'): 'require_real_user',
     ('POST', '/diagnostic/chat'): '_require_diagnostic_quota',
+    # The demo's own work ledger. require_demo_preview, NOT
+    # _require_diagnostic_quota like /diagnostic/summary beside it: the
+    # quota protects a mastery estimate, which is the demo's expensive
+    # asset. This aggregates what the visitor themselves completed minutes
+    # ago and is worthless to anyone else, so spending a preview use on it
+    # would be charging for the receipt.
+    ('GET', '/diagnostic/demo/activity'): 'require_demo_preview',
     ('GET', '/diagnostic/pod/activity'): 'require_parent',
     ('GET', '/diagnostic/summary'): '_require_diagnostic_quota',
     ('GET', '/diagnostic/{student_name}/activity'): 'require_parent',

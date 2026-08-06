@@ -61,6 +61,11 @@
     <td>Up to 6 hours, or immediately if you log out. Never added to a permanent record.</td>
   </tr>
   <tr>
+    <td>A record of the work finished during this session</td>
+    <td>Shows you what your learner actually completed &mdash; which skill, how much help it took, and what Bede noticed about the work. Never what was said.</td>
+    <td>Up to 6 hours, or immediately if you log out. Never added to a permanent record.</td>
+  </tr>
+  <tr>
     <td>The conversation itself</td>
     <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with our configured backup provider instead &mdash; Mistral by default, or Claude (Anthropic) if we've configured that as the backup instead.</td>
     <td><strong>Never stored by us, under any circumstance.</strong> It exists on our side only for the
@@ -133,6 +138,13 @@
     pressure to fill it in. If you do provide it, it is used for this one session's framing and
     nothing else — never to categorize, segment, target, or profile your family, and never shared
     with anyone.</li>
+  <li><strong>A record of the work finished during the session</strong> &mdash; which skill was
+    worked, how much help it took, and what Bede noticed about the work itself (for example that a
+    narration was one to show, or that a step went further than what was asked). This is shown back
+    to you on screen during the session so you can see what your learner actually did. It never
+    includes anything that was said, it is kept for the same at-most-6-hours window as the fields
+    above, and it is deleted immediately if you log out. It is never built into a persistent
+    profile, and it is never a grade, a score, or a judgment about your child.</li>
   <li><strong>The conversation itself</strong>, transmitted in real time to our AI providers,
     OpenAI (primary) and, only if OpenAI is briefly unavailable, our configured backup — Mistral
     by default, or Claude (Anthropic) if we've configured that as the backup instead — so Bede

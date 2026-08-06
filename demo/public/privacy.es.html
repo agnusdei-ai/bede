@@ -61,6 +61,11 @@
     <td>Hasta 6 horas, o de inmediato si cierras sesión. Nunca se agrega a un registro permanente.</td>
   </tr>
   <tr>
+    <td>Un registro del trabajo terminado durante esta sesión</td>
+    <td>Le muestra lo que su estudiante realmente completó: qué destreza, cuánta ayuda necesitó y qué observó Bede sobre el trabajo. Nunca lo que se dijo.</td>
+    <td>Hasta 6 horas, o de inmediato si cierra la sesión. Nunca se añade a un registro permanente.</td>
+  </tr>
+  <tr>
     <td>La conversación en sí</td>
     <td>Se envía en tiempo real a OpenAI, nuestro proveedor principal de IA para esta demo, para que Bede pueda generar sus respuestas. Si OpenAI no está disponible brevemente, el mismo turno se reintenta automáticamente con nuestro proveedor de respaldo configurado &mdash; Mistral por defecto, o Claude (Anthropic) si hemos configurado ese como respaldo en su lugar.</td>
     <td><strong>Nunca almacenada por nosotros, bajo ninguna circunstancia.</strong> Existe de nuestro lado
@@ -117,6 +122,13 @@
   <li><strong>Nombre y nivel de grado</strong> <em>(opcional)</em> — usado únicamente para
     personalizar la sesión en curso, se conserva por un máximo de 6 horas, y nunca se incorpora
     a un perfil persistente.</li>
+  <li><strong>Un registro del trabajo terminado durante la sesión</strong>: qué destreza se
+    trabajó, cuánta ayuda necesitó y qué observó Bede sobre el trabajo en sí (por ejemplo, que una
+    narración quedó para mostrar de ejemplo, o que un paso fue más allá de lo que se pedía). Se le
+    muestra en pantalla durante la sesión para que vea lo que su estudiante realmente hizo. Nunca
+    incluye nada de lo que se dijo, se guarda durante el mismo plazo de un máximo de 6 horas que
+    los campos anteriores y se borra de inmediato si cierra la sesión. Nunca se convierte en un
+    perfil permanente, y nunca es una nota, una puntuación ni un juicio sobre su hijo.</li>
   <li><strong>La conversación en sí</strong>, transmitida en tiempo real a nuestros proveedores de
     IA, OpenAI (principal) y, solo si OpenAI no está disponible brevemente, nuestro respaldo
     configurado — Mistral por defecto, o Claude (Anthropic) si hemos configurado ese en su lugar —

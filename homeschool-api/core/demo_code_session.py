@@ -27,10 +27,13 @@ parameter threaded in from the caller, so no signature anywhere upstream
 (require_auth included) needs to grow a database dependency just for this.
 """
 
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, select, update
+
+log = logging.getLogger(__name__)
 
 # Hygiene only, not a security boundary: forgets codes nobody ever redeemed
 # (or finished using) so this table can't grow forever from abandoned visits.
@@ -71,7 +74,10 @@ async def generate_code(
     DemoCodeUnitNote table, not on this row — see that model's own
     docstring for why. faith_tradition (also pre-sanitized) is stored the
     same way, in DemoCodeFaithNote — see that model's own docstring."""
-    from core.database import AsyncSessionLocal, DemoCodeFaithNote, DemoCodeSession, DemoCodeUnitNote
+    from core.database import (
+        AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeSession,
+        DemoCodeUnitNote,
+    )
 
     async with AsyncSessionLocal() as db:
         # Opportunistic cleanup of long-abandoned codes — same lazy
@@ -80,6 +86,7 @@ async def generate_code(
         await db.execute(delete(DemoCodeSession).where(DemoCodeSession.created_at < _cutoff()))
         await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.created_at < _cutoff()))
         await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.created_at < _cutoff()))
+        await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.created_at < _cutoff()))
 
         count = (await db.execute(select(func.count()).select_from(DemoCodeSession))).scalar_one()
         if count >= _MAX_ACTIVE_CODES:
@@ -151,6 +158,77 @@ async def get_faith_tradition(code: str) -> str | None:
             )
         )
         return result.scalar_one_or_none()
+
+
+# A demo session produces a few dozen completed activities at most. The cap
+# is a bound on the encrypted blob's size, not a product decision — a demo
+# visitor will never approach it, and if one somehow did, dropping the
+# OLDEST entry keeps the card showing what they just did.
+_MAX_DEMO_ACTIVITIES = 200
+
+
+async def append_activity(code: str, entry: dict) -> None:
+    """Append one completed-activity record to this code's own ephemeral
+    work ledger (core/database.py's DemoCodeActivityLog — never
+    SkillActivityLog, which is a real family's permanent record).
+
+    Read-modify-write on a single encrypted blob rather than a row per
+    activity; see that model's docstring for why. Best-effort like every
+    other diagnostic write in this codebase: a failure here is swallowed,
+    never raised, so a ledger hiccup can't break the visitor's turn."""
+    from core.database import AsyncSessionLocal, DemoCodeActivityLog
+    from core.encryption import aad_for, decrypt_json, encrypt_json
+
+    # Bound to table/column/code, exactly as the sibling mastery_vector_enc
+    # below is. One DATA_KEY covers every column in every table, so without
+    # this an attacker with database write access could copy one visitor's
+    # ledger into another visitor's row and it would decrypt cleanly. `code`
+    # is the primary key and never changes for the life of the row, which is
+    # what aad_for requires of a row_key.
+    aad = aad_for("demo_code_activity_logs", "activities_enc", code)
+    try:
+        async with AsyncSessionLocal() as db:
+            row = await db.get(DemoCodeActivityLog, code)
+            if row is None:
+                db.add(DemoCodeActivityLog(code=code, activities_enc=encrypt_json([entry], aad)))
+            else:
+                try:
+                    existing = decrypt_json(row.activities_enc, aad)
+                except Exception:
+                    existing = []
+                if not isinstance(existing, list):
+                    existing = []
+                existing.append(entry)
+                row.activities_enc = encrypt_json(existing[-_MAX_DEMO_ACTIVITIES:], aad)
+            await db.commit()
+    except Exception as exc:
+        log.warning("Demo activity append failed for %s: %s", code, exc)
+
+
+async def get_activities(code: str) -> list[dict]:
+    """This code's own completed-activity records, oldest first. Empty for
+    an unknown, evicted, or expired code — the same read-time cutoff filter
+    every other accessor in this module applies, so an expired session's
+    ledger is unreachable even before the eviction sweep removes it."""
+    from core.database import AsyncSessionLocal, DemoCodeActivityLog
+    from core.encryption import aad_for, decrypt_json
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(DemoCodeActivityLog.activities_enc).where(
+                    DemoCodeActivityLog.code == code,
+                    DemoCodeActivityLog.created_at >= _cutoff(),
+                )
+            )
+            blob = result.scalar_one_or_none()
+        if blob is None:
+            return []
+        entries = decrypt_json(blob, aad_for("demo_code_activity_logs", "activities_enc", code))
+        return entries if isinstance(entries, list) else []
+    except Exception as exc:
+        log.warning("Demo activity read failed for %s: %s", code, exc)
+        return []
 
 
 async def get_mastery_vector(code: str) -> dict | None:
@@ -266,15 +344,19 @@ async def end_session(code: str) -> None:
     """Explicit logout — deletes the code immediately so a copied/leaked
     token stops working right away instead of riding out its remaining
     expiry, and frees its _MAX_ACTIVE_CODES slot. Safe to call with an
-    unknown code (no-op). Also deletes this code's DemoCodeUnitNote and
-    DemoCodeFaithNote rows, if any, so a note never outlives the session it
-    was set for."""
-    from core.database import AsyncSessionLocal, DemoCodeFaithNote, DemoCodeSession, DemoCodeUnitNote
+    unknown code (no-op). Also deletes this code's DemoCodeUnitNote,
+    DemoCodeFaithNote and DemoCodeActivityLog rows, if any, so nothing set
+    or recorded during the session outlives it."""
+    from core.database import (
+        AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeSession,
+        DemoCodeUnitNote,
+    )
 
     async with AsyncSessionLocal() as db:
         await db.execute(delete(DemoCodeSession).where(DemoCodeSession.code == code))
         await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.code == code))
         await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.code == code))
+        await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.code == code))
         await db.commit()
 
 

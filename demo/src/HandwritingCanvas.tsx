@@ -57,9 +57,11 @@ interface HandwritingCanvasProps {
 // flex layout happened to give it - so a visitor on a narrow phone got a
 // correspondingly low-resolution save/print, and the SAME drawing produced
 // a different-resolution PNG depending on how big their browser window
-// happened to be. Pinning the backing resolution here, letterboxing the
-// on-screen display to the same 8.5:11 aspect ratio (see the paperBox
-// sizing effect below), and forcing @page to portrait Letter with no
+// happened to be. Pinning the backing resolution here, sizing the on-screen
+// display to always keep the same 8.5:11 aspect ratio (see the paperBox
+// sizing effect below — letterboxed in portrait, filled-and-scrolled in
+// landscape, but never stretched off that ratio in either), and forcing
+// @page to portrait Letter with no
 // stretch in the print stylesheet makes on-screen drawing, the saved PNG,
 // and the printed page all the same shape at the same scale, matching the
 // app's own canvas (`homeschool-tutor/src/components/HandwritingCanvas.tsx`).
@@ -530,9 +532,23 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       const availH = wrapper.clientHeight
       let width = availW
       let height = width / PAGE_ASPECT
-      if (height > availH) {
-        height = availH
-        width = height * PAGE_ASPECT
+      // Landscape-shaped backdrop: cover fully (fill height, scroll for the
+      // rest) — an 8.5:11 page is always narrower than a landscape window's
+      // own shape, so this never overflows width. Portrait-shaped backdrop:
+      // still "contain" (shrink to fit both dimensions) — an 8.5:11 page is
+      // proportionally WIDER than a narrow phone screen, so covering fully
+      // there would overflow sideways instead, which is worse than the small
+      // gap contain leaves.
+      if (availW > availH) {
+        if (height < availH) {
+          height = availH
+          width = height * PAGE_ASPECT
+        }
+      } else {
+        if (height > availH) {
+          height = availH
+          width = height * PAGE_ASPECT
+        }
       }
       setPaperBox({ width, height })
     }
@@ -1105,10 +1121,13 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         </div>
       )}
 
-      {/* Backdrop — letterboxes the paper (see the paperBox-fitting effect
-          above) so it always keeps a real letter page's 8.5:11 shape,
-          whatever shape the browser window itself is. */}
-      <div ref={wrapperRef} className="flex-1 relative flex items-center justify-center overflow-hidden bg-parchment-200/40">
+      {/* Backdrop — sizes the paper (see the paperBox-fitting effect above)
+          so it always keeps a real letter page's 8.5:11 shape, whatever
+          shape the browser window itself is: letterboxed in portrait, or
+          filling the backdrop edge-to-edge and scrolling in landscape.
+          overflow-auto (not -hidden) is what makes that scroll reachable
+          when the page is taller than the visible strip. */}
+      <div ref={wrapperRef} className="flex-1 relative flex items-center justify-center overflow-auto bg-parchment-200/40">
         {/* The paper itself — id'd so the print stylesheet below can isolate
             just this (background + ruling + strokes), not the toolbar or
             backdrop, when handlePrint() triggers window.print(). Sized to
@@ -1122,7 +1141,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         <div
           ref={containerRef}
           id={PRINT_AREA_ID}
-          className="relative bg-white shadow-md"
+          className="relative bg-white shadow-md flex-shrink-0"
           style={{ width: paperBox.width, height: paperBox.height }}
         >
           <canvas

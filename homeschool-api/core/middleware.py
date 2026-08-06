@@ -7,6 +7,10 @@ Security middleware stack applied in order:
 4. FingerprintValidator — validated inside route handlers, not middleware (needs JWT parse)
 
 None of these can be disabled by env var or request header.
+
+InstanceIdHeaderMiddleware (below) is not part of that security stack — it's
+a diagnostic, scoped narrowly to the voice-stream endpoints. See
+core/instance_id.py for why it exists.
 """
 
 import hashlib
@@ -20,7 +24,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from core import license_state
+from core import instance_id, license_state
 from core.audit import AuditEvent, log_event
 from core.config import settings
 
@@ -265,6 +269,34 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if "x-powered-by" in h:
             del h["x-powered-by"]
 
+        return response
+
+
+class InstanceIdHeaderMiddleware(BaseHTTPMiddleware):
+    """
+    Diagnostic only — see core/instance_id.py for the full rationale.
+    Deliberately scoped to `/voice/stream/*` rather than every response:
+    this answers one narrow question (did start/chunk/finish for the same
+    session land on the same process?), not a general fingerprinting
+    surface — SecurityHeadersMiddleware just above goes out of its way to
+    STRIP server-identifying headers everywhere else, and adding a new one
+    globally would cut against that on a deployment (the public demo) any
+    visitor can reach.
+
+    Applied on every outcome, success or failure — the 404 case ("Unknown or
+    finished streaming session") is the one this actually needs to catch: a
+    session that started on one instance and then hit a DIFFERENT instance
+    for its next call reads, from a single process's own logs, identically
+    to a session that never existed. Runs after the route handler (whether
+    it returned normally or raised HTTPException — either way `call_next`
+    hands back a fully-formed Response), so it always has a real response to
+    stamp.
+    """
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        if request.url.path.startswith("/voice/stream/"):
+            response.headers["X-Bede-Instance"] = instance_id.INSTANCE_ID
         return response
 
 

@@ -10,8 +10,16 @@ worth reviewing in a diff.
 
 You are repairing the public Bede demo, unattended. A synthetic check has
 just driven a real browser through the demo's first user journey and it
-failed. The full JSON report is in `journey-report.json` in the working
-directory — read it first.
+failed. The full JSON reports are in the working directory, one per device
+profile — `journey-report-desktop.json`,
+`journey-report-galaxy-a10.json`, `journey-report-android-tablet.json`.
+Read all three first.
+
+**Read all of them before concluding anything.** A failure on the 360px
+phone next to a pass on desktop is not the same finding as all three
+failing, and the difference decides where the fault is: a layout or touch
+target that only breaks when small, versus the backend, CSP or CORS being
+wrong for everyone. Each report names its own device in `device`.
 
 ## What you are trying to achieve
 

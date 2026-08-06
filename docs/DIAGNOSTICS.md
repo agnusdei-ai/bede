@@ -124,9 +124,40 @@ becomes matched by two blocks setting the same header again.
 
 `.github/workflows/demo-watchdog.yml` runs `scripts/synthetic_journey.mjs`
 every 30 minutes against the live demo, across desktop and two emulated
-Android viewports. It drives a real Chromium through the real first
-journey — load `/bede/`, accept consent, click "Generate my code" — and
-reads back the diagnostics buffer above.
+Android viewports — all three in one job, sequentially, because the
+journey takes seconds per device and the Playwright install dominates.
+It drives a real Chromium through the real first journey — load `/bede/`,
+accept consent, click "Generate my code" — and reads back the diagnostics
+buffer above.
+
+### When the watchdog is red and the demo is fine
+
+Check this before investigating the demo. On 2026-08-06 the workflow
+reported failure for four hours while the demo was healthy: GitHub's
+hosted runner pool never assigned a runner, so the jobs sat queued for
+one to two hours each and were then cancelled having never started. In
+the notification email that is indistinguishable from a real outage. On
+the run itself it is unmistakable:
+
+| Runner starvation | A real demo outage |
+|---|---|
+| Job conclusion `cancelled` | Job conclusion `failure` |
+| `runner_id` 0, `runner_name` empty | A real runner is named |
+| **No logs at all** — no step ever ran | A failing step, with the report printed |
+| Ragged queue times (1h4m, 1h9m, 2h4m) | ~45 seconds |
+| Another workflow cancelled in the same window | Only this one is affected |
+
+That last row is the quickest tell: on 2026-08-06 `keep-demo-warm.yml`,
+whose entire job is one `curl`, was cancelled the same way at 17:43. No
+change to this repository could have caused that.
+
+Nothing here can fix GitHub capacity. What the workflow does about it is
+avoid making it worse — one runner request per tick rather than three, a
+real `timeout-minutes` on both jobs, and a `check` that is superseded by
+the next tick instead of wedging behind a run that never started. The
+repair agent is correctly unaffected either way: its gate requires
+`needs.check.result == 'failure'`, and a starved job is `cancelled`, so
+it stays skipped. Never widen that to `!= 'success'`.
 
 **Why a browser and not another `curl /health`.** `keep-demo-warm.yml`
 already curls `/health` every 10 minutes and reported healthy right

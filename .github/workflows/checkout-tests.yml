@@ -1,0 +1,37 @@
+name: Checkout service tests
+
+# The license checkout + automated distribution Worker (checkout/) is a
+# separate Node/TypeScript project from the rest of this repo — its own
+# workflow rather than folding into test.yml (Python-only) or
+# production-regression.yml (Docker-only).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'checkout/**'
+      - '.github/workflows/checkout-tests.yml'
+  pull_request:
+    paths:
+      - 'checkout/**'
+      - '.github/workflows/checkout-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  checkout-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: checkout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Run tests
+        run: npm test
+      - name: Confirm the Worker actually bundles (wrangler dry-run)
+        run: npx wrangler deploy --dry-run

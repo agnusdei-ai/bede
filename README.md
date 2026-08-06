@@ -21,6 +21,7 @@ voice biometrics authenticate children at session start.
 | Understand and join in the Socratic method myself | [docs/SOCRATIC_METHOD.md](docs/SOCRATIC_METHOD.md) — what Bede actually does, and how to ask the same kind of question yourself |
 | Set up Bede's spoken voice | [docs/VOICE_SETUP.md](docs/VOICE_SETUP.md) — OpenAI TTS (`gpt-4o-mini-tts`) |
 | Host the public demo | [docs/DEMO_HOSTING.md](docs/DEMO_HOSTING.md) — a Render Blueprint is included |
+| Sell licenses (checkout, trials, distribution) | [docs/CHECKOUT_SETUP.md](docs/CHECKOUT_SETUP.md) — a Cloudflare Worker you own, Helcim-driven, no third-party licensing SaaS |
 | Work on the codebase itself | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — local dev for each app, project layout |
 | Understand the architecture in depth | [CLAUDE.md](CLAUDE.md) — request flow, prompt structure, streaming state machine |
 | Check security/compliance posture, or prep for an audit or pentest | [docs/SECURITY.md](docs/SECURITY.md) (detailed gap log), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) (adversary classes and explicit non-goals), and [docs/PENTEST_AIUC1_READINESS.md](docs/PENTEST_AIUC1_READINESS.md) (executive status + prioritized punch list) |

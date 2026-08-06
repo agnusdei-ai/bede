@@ -51,6 +51,12 @@
           <p>To be careful about what we are claiming: these are long-standing findings about how people learn, and a tradition with a very long track record. They are not a study of Bede. We have said elsewhere on this page that we do not have one yet.</p>
         </details>
         <details>
+          <summary>Does my child type, or can they just talk and write it out?</summary>
+          <p>Mostly neither, on purpose. A child presses and holds a button to speak an answer, or switches on "Voice on" mode so Bede listens for them to finish and responds without another tap. Typing a full sentence is a separate skill from having the thought, and Bede is built to test for the second one.</p>
+          <p>For narration, math work, or a nature sketch, the tablet opens a full page to write or draw on by hand: pencil, pen, and eraser, ruled to match the work, sized like a real sheet. It is deliberately not a text box.</p>
+          <p>At the start of a session Bede also checks each child's voice against a short phrase they recorded once, so a six-year-old is not stuck typing a PIN to get started. That's for convenience, not security &mdash; a parent can always step in and override it.</p>
+        </details>
+        <details>
           <summary>Why so much emphasis on discipline and attention?</summary>
           <p>Because everything above depends on it, and none of it survives a divided mind. Retrieval is effortful by design. A child who is half-present cannot do it, and a lesson delivered to a wandering attention has not happened, however long it lasted. This is why lessons here are short (fifteen to twenty-five minutes a subject) rather than long. Full attention for twenty minutes beats partial attention for an hour, and it is kinder besides.</p>
           <p>The older tradition treats attention as a habit to be formed rather than a trait a child either has or lacks, and formed the way any habit is: in small, repeated, unexciting doses, protected by the adults around the child. That is what the pledge in our guarantee is really for. It is not hostility to entertainment. It is that consolidation happens <em>after</em> the lesson, in the quiet, and a mind returned to a fast screen every evening never gets that hour.</p>
@@ -139,6 +145,12 @@
         <p>In your own database, on a machine in your own house. Voice profiles, student plans, transcripts, and assessments are AES-256-GCM encrypted at rest, so the database itself never holds plaintext. You also get narration history, mastery snapshots, session summaries, and an encrypted audit log: a real record for a real school year.</p>
         <p>That is your choice, and it is a real one. Point Bede at a language model running on your own machine and no lesson text leaves at all. Choose a cloud provider instead and the lesson text goes to that provider. You can see which one is active and switch it from the parent screen, mid-day, without touching a config file or restarting anything.</p>
         <p>Yes. One type-to-confirm button removes everything belonging to a student: transcripts, narrations, mastery, voice profile, the lot. Not archived. Gone.</p>
+      </details>
+      <details>
+        <summary>How is the parent account itself protected?</summary>
+        <p>The same way we would want ours protected. A password is required to sign in as the parent, and you can add a security key or an authenticator app as a second factor whenever you want one. If you ever lose access, recovery requires two of three separate proofs, not one, so a single leaked secret can't let someone else in on its own.</p>
+        <p>Sensitive actions &mdash; viewing the audit log, changing the AI provider, deleting a student's data outright &mdash; ask for your password again in the moment, even mid-session. Being logged in for the morning is not the same thing as being able to do anything on the account, and Bede treats the two differently by default.</p>
+        <p>If a tablet is lost, stolen, or just retired, you can revoke that one device from the parent screen. It stops working immediately. Every other device in the house keeps going.</p>
       </details>
         <details>
           <summary>What happens if my child says something worrying?</summary>

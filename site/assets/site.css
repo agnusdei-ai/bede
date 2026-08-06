@@ -798,9 +798,9 @@ p.lede {
 }
 
 /* Deliberately wider than the 640px breakpoint used elsewhere in this
-   file: these four items stop fitting on one line well before the layout
-   itself becomes "mobile", and a two-then-two wrap has the same ragged
-   problem as a four-line stack. */
+   file: these items stop fitting on one line well before the layout
+   itself becomes "mobile", and a ragged multi-line wrap has the same
+   problem a single column stack avoids. */
 @media (max-width: 860px) {
   .notes {
     flex-direction: column;

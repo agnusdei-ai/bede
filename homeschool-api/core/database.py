@@ -890,6 +890,53 @@ class DemoCodeFaithNote(Base):
     )
 
 
+class DemoCodeActivityLog(Base):
+    """
+    The public demo's own work ledger — what the visitor actually finished
+    during this one demo session.
+
+    DELIBERATELY NOT SkillActivityLog, and the difference is the whole
+    point. That table is a permanent, per-student record a family builds
+    over months; this one lives exactly as long as the demo code does and
+    is gone the moment it expires or the visitor logs out. A demo visitor
+    is anonymous and their `student_name` is whatever they typed at the
+    code screen, so it is not isolated from a real family's — writing them
+    into the same table would be both a broken promise and a collision.
+
+    WHY THIS IS COMPATIBLE WITH "your conversation is never stored". What
+    is kept here is derived and structural, in exactly the category the
+    consent screen already carves out: which skill was worked, how much
+    help it took, and what Bede noticed about the work. Never the child's
+    words, never a transcript, never the task's prose — the same
+    derived-not-raw class as DemoCodeSession.mastery_vector_enc beside it,
+    encrypted for the same reason and evicted on the same schedule.
+
+    ONE ROW PER CODE, not one per activity: `activities_enc` holds an
+    encrypted JSON list, appended to under read-modify-write. A demo
+    session produces a few dozen entries at most, so the simpler shape
+    wins — and it keeps eviction to a single DELETE alongside
+    DemoCodeUnitNote/DemoCodeFaithNote rather than a range scan.
+    core/demo_code_session.py caps the list length.
+
+    Standalone table for the same reason as those two siblings: startup
+    only ever runs CREATE TABLE IF NOT EXISTS (no ALTER TABLE path), so a
+    new table is the only way to ship this to an already-running
+    deployment. Same TTL/eviction convention as well — no expiry column,
+    core/demo_code_session.py filters on created_at at read time and
+    deletes past the same cutoff.
+    """
+    __tablename__ = "demo_code_activity_logs"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    activities_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
 class DiagnosticPreviewUse(Base):
     """
     Postgres-backed replacement for core/diagnostic_preview_quota.py's old

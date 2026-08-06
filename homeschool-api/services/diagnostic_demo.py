@@ -94,3 +94,94 @@ async def get_mastery_summary_demo(code: str, student_name: str, subject_area: s
 def _now_iso() -> str:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+# ── The demo's own work ledger ──────────────────────────────────────────
+#
+# Same relationship to services/diagnostic/activity.py that
+# record_skill_evidence_demo above has to services.diagnostic: identical
+# COMPUTATION, completely different storage. What the visitor sees has to
+# be the real card — a demo that shows something the product doesn't do is
+# worse than no demo — but what it reads from is one TTL'd, encrypted blob
+# scoped to this demo code, deleted on logout and gone within 6 hours
+# regardless. Never SkillActivityLog, which is a real family's permanent
+# per-student record; a demo visitor's `student_name` is whatever they
+# typed at the code screen and is not isolated from a real family's.
+#
+# WHY THE LEDGER WORKS IN THE DEMO WHEN THE MASTERY VECTOR BARELY DOES.
+# The ledger records events, so entry one is as true as entry two hundred —
+# there is no estimate waiting to converge and no calibration threshold to
+# clear. That is exactly why it is the honest thing to show a visitor in a
+# fifteen-minute session, and it is the same reason it is the instrument a
+# real family can trust in their first two weeks.
+
+async def record_work_done_demo(
+    code: str,
+    subject_area: str,
+    skill_id: str,
+    label: str,
+    outcome: str,
+    quality: str | None = None,
+    distinction: str | None = None,
+    speed: str | None = None,
+) -> None:
+    """Demo-scoped equivalent of services.diagnostic.activity.record_activity.
+
+    Applies the same `incorrect writes no row` refusal by reusing that
+    module's own assistance_for_outcome — a missed attempt is not completed
+    work in the demo either, and the demo must not be the place that quietly
+    turns this into a record of failures. Never raises."""
+    from services.diagnostic.activity import assistance_for_outcome
+    from models.schemas import (
+        WORK_DISTINCTION_LEVELS, WORK_QUALITY_LEVELS, WORK_SPEED_LEVELS,
+    )
+
+    assistance = assistance_for_outcome(outcome)
+    if assistance is None:
+        return
+
+    from core.demo_code_session import append_activity
+
+    await append_activity(code, {
+        "skill_id": skill_id,
+        "label": label,
+        "assistance": assistance,
+        "subject_area": subject_area,
+        "quality": quality if quality in WORK_QUALITY_LEVELS else None,
+        "distinction": distinction if distinction in WORK_DISTINCTION_LEVELS else None,
+        "speed": speed if speed in WORK_SPEED_LEVELS else None,
+        # Recorded per entry rather than derived from the row's own
+        # created_at, since one row holds the whole session's list.
+        "at": _now_iso(),
+    })
+
+
+async def get_activity_summary_demo(code: str, student_name: str) -> dict | None:
+    """The work ledger for this demo session, or None when nothing has been
+    completed yet (so the frontend can show a "keep going" state rather than
+    an empty card).
+
+    Runs services.diagnostic.activity.summarize_records — the SAME
+    aggregation the real Progress page uses, not a second implementation —
+    so every refusal that function makes holds here too: no average, no
+    level, no percentage. initiative_signal is likewise the real one."""
+    from services.diagnostic.activity import initiative_signal, summarize_records
+    from core.demo_code_session import get_activities
+
+    entries = await get_activities(code)
+    if not entries:
+        return None
+
+    records = [
+        (e.get("skill_id") or "", e.get("subject_area") or "", e, e.get("at") or "")
+        for e in entries
+        if e.get("skill_id")
+    ]
+    if not records:
+        return None
+
+    # since_days is the demo code's own 6-hour lifetime, not a window the
+    # visitor picks — there is nothing older than this session to include.
+    summary = summarize_records(records, student_name, since_days=1)
+    summary["initiative"] = initiative_signal(summary)
+    return summary

@@ -661,6 +661,57 @@ async function diagnosticQuotaError(res: Response): Promise<DiagnosticPreviewQuo
   )
 }
 
+/** One completed activity, aggregated per skill — the same shape the real
+ *  app's Progress page renders (homeschool-api's
+ *  services/diagnostic/activity.summarize_records builds both). */
+export interface DemoWorkLedgerSkill {
+  skill_id: string
+  label: string
+  subject_area: string
+  completed: number
+  unaided: number
+  with_a_hint: number
+  with_help: number
+  scored: number
+  quality: { adequate: number; proficient: number; exemplary: number }
+  distinction: { expected: number; noteworthy: number; original: number }
+  speed: { deliberate: number; steady: number; brisk: number }
+  last_worked: string | null
+}
+
+export interface DemoWorkLedger {
+  student_name: string
+  since_days: number
+  total: number
+  skills: DemoWorkLedgerSkill[]
+  initiative: {
+    scored_activities: number
+    exemplary: number
+    beyond_the_task: number
+    brisk: number
+    standout_skills: { skill_id: string; label: string }[]
+  }
+}
+
+/**
+ * What this demo session has actually finished so far.
+ *
+ * Deliberately NOT quota-gated the way fetchDiagnosticSummary above is —
+ * see routers/diagnostic.py's get_demo_activity. This reads the visitor's
+ * own work from minutes ago; charging a preview use for it would be
+ * charging for the receipt. 404 (nothing completed yet) returns null so
+ * the caller renders nothing rather than an empty card.
+ */
+export async function fetchDemoActivity(token: string): Promise<DemoWorkLedger | null> {
+  const res = await fetch(`${apiBase()}/diagnostic/demo/activity`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 404) return null
+  if (res.status === 401) throw new TrialSessionEndedError('This demo session has ended.')
+  if (!res.ok) return null
+  return res.json()
+}
+
 export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {
   const res = await fetch(`${apiBase()}/diagnostic/summary`, {
     headers: { Authorization: `Bearer ${token}` },

@@ -1,15 +1,16 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2 } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
-  fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales,
+  fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales, fetchDemoActivity,
   TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
   type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
+  type DemoWorkLedger,
 } from './api'
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
@@ -610,6 +611,143 @@ interface ChatScreenProps {
   sessionStartedAt: number
 }
 
+// The demo's work ledger — what this visitor has actually finished in this
+// sitting. The REAL card (homeschool-tutor's WorkLedger.tsx) is a full
+// Progress-page panel; this is its compact sibling, because a demo is a
+// chat screen and not a dashboard. Same data, same refusals, same words.
+//
+// WHY THE DEMO GETS THIS WHEN IT GETS NO MASTERY HISTORY. The ledger
+// records events, not an estimate, so its first entry is as true as its
+// two-hundredth — nothing about a fifteen-minute session makes showing it
+// dishonest, which is exactly the property that makes it the honest thing
+// to show a visitor. Reads from the demo code's own TTL'd blob
+// (homeschool-api's DemoCodeActivityLog), deleted on logout and gone
+// within 6 hours regardless.
+//
+// A DISCLOSURE, NOT AN INLINE LIST, for the same reason ContinuingMasteryCard
+// below is one — and this card had the worse version of that problem. Its
+// list grows with every distinct skill worked, which is unbounded and
+// climbs for as long as the visitor keeps going; an inline version would
+// eat the chat exactly the way thirteen subject rows did on a 390x844
+// phone. The closed state is one constant-height row that advertises the
+// count; the open state floats over the chat and scrolls, so there is no
+// row cap and nothing is hidden.
+//
+// Every rule the real card follows holds here: no bars, no percentages,
+// nothing averaged; only the notable end of each scale earns a note, and a
+// note that would read zero is not rendered at all, because the floors are
+// real outcomes rather than deficiencies.
+function DemoWorkLedgerCard({ ledger }: { ledger: DemoWorkLedger | null }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  // Same Escape-closes-and-restores-focus contract as the sibling card, so
+  // a keyboard user is never stranded inside either panel.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const empty = !ledger || ledger.total === 0
+  useEffect(() => {
+    if (empty) setOpen(false)
+  }, [empty])
+
+  if (!ledger || ledger.total === 0) return null
+
+  const s = ledger.initiative
+  const initiative = s.exemplary + s.beyond_the_task + s.brisk
+
+  return (
+    <div className="mt-2 relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="demo-work-ledger-panel"
+        className="w-full flex items-center gap-1.5 border-l-[3px] border-sage-400 bg-sage-50/70 hover:bg-sage-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400"
+      >
+        <CheckCircle2 size={13} className="text-sage-600 flex-shrink-0" aria-hidden="true" />
+        <span className="font-display font-bold text-gray-800">{t('workLedger.heading')}</span>
+        <span className="text-gray-600 truncate">{t('workLedger.totalFinished', { count: ledger.total })}</span>
+        {open
+          ? <ChevronUp size={14} className="text-sage-600 flex-shrink-0 ml-auto" aria-hidden="true" />
+          : <ChevronDown size={14} className="text-sage-600 flex-shrink-0 ml-auto" aria-hidden="true" />}
+      </button>
+
+      {open && (
+        <>
+          {/* Dismiss-on-tap-outside, same plain fixed sibling the other
+              card uses — no capture-phase ordering to reason about, and it
+              cannot fire on the tap that opened the panel. */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            id="demo-work-ledger-panel"
+            className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-sage-200 rounded-xl shadow-xl px-3 py-2.5 max-h-[50vh] overflow-y-auto animate-fade-in"
+          >
+            <ul className="flex flex-col gap-2">
+              {ledger.skills.map((skill) => {
+                const notes = [
+                  skill.quality.exemplary > 0 && t('workLedger.oneToShow', { count: skill.quality.exemplary }),
+                  skill.distinction.noteworthy > 0 && t('workLedger.wentFurther', { count: skill.distinction.noteworthy }),
+                  skill.distinction.original > 0 && t('workLedger.theirOwnIdea', { count: skill.distinction.original }),
+                  skill.speed.brisk > 0 && t('workLedger.cameEasily', { count: skill.speed.brisk }),
+                ].filter(Boolean) as string[]
+                return (
+                  <li key={skill.skill_id} className="text-xs leading-snug">
+                    <div className="flex items-baseline gap-2">
+                      {/* min-w-0 for the same reason as the sibling card:
+                          a flex child won't shrink below its longest word
+                          otherwise, and these labels are full sentences. */}
+                      <span className="font-semibold text-gray-700 flex-1 min-w-0">{skill.label}</span>
+                      <span className="text-gray-500 tabular-nums flex-shrink-0">
+                        {t('workLedger.times', { count: skill.completed })}
+                      </span>
+                    </div>
+                    <div className="text-gray-500">
+                      {[
+                        skill.unaided > 0 && t('workLedger.onTheirOwn', { count: skill.unaided }),
+                        skill.with_a_hint > 0 && t('workLedger.afterANudge', { count: skill.with_a_hint }),
+                        skill.with_help > 0 && t('workLedger.together', { count: skill.with_help }),
+                      ].filter(Boolean).join(' · ')}
+                      {notes.length > 0 && <span className="text-sage-700"> · {notes.join(' · ')}</span>}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            {/* Only ever reports a presence. A row of zeros under a heading
+                about initiative would be a verdict on the child, which a
+                caveat underneath does not undo — see WorkLedger.tsx. */}
+            {initiative > 0 && (
+              <p className="mt-2 text-xs text-sage-800 leading-snug">
+                {t('workLedger.initiative', {
+                  notes: [
+                    s.exemplary > 0 && t('workLedger.oneToShow', { count: s.exemplary }),
+                    s.beyond_the_task > 0 && t('workLedger.tookItFurther', { count: s.beyond_the_task }),
+                    s.brisk > 0 && t('workLedger.cameEasily', { count: s.brisk }),
+                  ].filter(Boolean).join(' · '),
+                })}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-gray-500 leading-snug">{t('workLedger.caveat')}</p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+
 // Surfaces lesson continuity in the demo — see CLAUDE.md's "Continuing
 // Mastery (demo)" section. Two things it can show, either independently:
 // (1) the parent-provided currentUnit note (an "outside the built-in
@@ -848,6 +986,11 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // acceptable gap, matching openerFired's own not-fully-restored posture
   // just above; messages here also aren't tagged with which subject they
   // belong to, so there'd be nothing reliable to rebuild it from anyway.
+  // The demo's own work ledger, refreshed after each completed turn — the
+  // silent recording tools emit no SSE chunk (deliberately: a child must
+  // not see them fire), so there is nothing to react to in the stream and
+  // a re-read afterwards is the only way to know one landed.
+  const [workLedger, setWorkLedger] = useState<DemoWorkLedger | null>(null)
   const [subjectLastExchange, setSubjectLastExchange] = useState<
     Partial<Record<Subject, { childText?: string; bedeText: string; updatedAt: number }>>
   >({})
@@ -1158,6 +1301,10 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
       // subject, including the silent [START]/[CONTINUE] sentinels (in
       // which case childText stays unset and the card just shows Bede's
       // side) — a real turn always has SOME reply text once we reach here.
+      // Best-effort and deliberately unawaited-for-correctness: a ledger
+      // that lags one turn is fine, a turn that fails because the ledger
+      // did is not.
+      fetchDemoActivity(token).then(setWorkLedger).catch(() => {})
       const bedeReply = (fullText || turnText).trim()
       if (bedeReply) {
         setSubjectLastExchange((prev) => ({
@@ -1430,6 +1577,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
           subjectLastExchange={subjectLastExchange}
           onResume={setSubject}
         />
+        <DemoWorkLedgerCard ledger={workLedger} />
       </header>
 
       {/* Chat body + input share one relative wrapper so the mandatory

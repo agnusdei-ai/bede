@@ -232,10 +232,26 @@
     "betaNotice": "Esta es una beta pública — por favor lee esto primero.",
     "bullet1": "<strong>Tu conversación nunca se guarda.</strong> Nada de lo que tú o tu estudiante digan se guarda, jamás.",
     "bullet2": "<strong>Se pueden revisar patrones anonimizados</strong> — qué técnicas de enseñanza se usaron, nunca lo que se dijo — para ayudarnos a mejorar a Bede.",
+    "bullet2Ledger": "<strong>Lo que su estudiante termina se le muestra durante la sesión</strong>: qué destreza trabajó, cuánta ayuda necesitó y qué observó Bede sobre el trabajo. Nunca lo que se dijo. Como todo lo demás aquí, se guarda solo para esta sesión y se borra al cerrarla.",
     "bullet3": "<strong>Lo que nos digas en la siguiente pantalla personaliza esta sesión</strong> — el nombre, el grado, lo que ya estén aprendiendo en casa y (si decides compartirla) la tradición religiosa de tu familia. Todos los campos son opcionales. Todo se conserva hasta 6 horas (antes si cierras sesión), y luego se elimina automáticamente. Nunca forma parte de un registro permanente.",
     "bullet3Faith": "<strong>La tradición religiosa es opcional y se trata con especial cuidado.</strong> Se usa únicamente para que Bede presente las lecciones de Sagrada Escritura y de los santos de forma coherente con tu propia tradición, en lugar de suponer una — nunca para clasificar ni crear un perfil de tu familia. Si lo dejas en blanco, la demo funciona exactamente igual.",
     "bullet4": "<strong>Los comentarios son opcionales.</strong> Los padres o tutores pueden dejar un correo electrónico para dar seguimiento — nunca le pedimos a un niño el suyo.",
     "readPrivacyNotice": "Lee el Aviso de Privacidad completo, incluyendo nuestro aviso parental de COPPA",
     "agree": "Entiendo y acepto — comencemos"
+  },
+  "workLedger": {
+    "heading": "Lo que se ha hecho",
+    "totalFinished": "{{count}} terminados",
+    "times": "{{count}}×",
+    "onTheirOwn": "{{count}} por su cuenta",
+    "afterANudge": "{{count}} tras una pista",
+    "together": "{{count}} lo resolvieron juntos",
+    "oneToShow": "{{count}} para mostrar de ejemplo",
+    "wentFurther": "{{count}} fue más allá",
+    "theirOwnIdea": "{{count}} idea suya",
+    "cameEasily": "{{count}} le salió con soltura",
+    "tookItFurther": "{{count}} lo llevaron más lejos",
+    "initiative": "Dónde se nota la iniciativa: {{notes}}.",
+    "caveat": "Esto cuenta trabajos, no a su estudiante, y solo lo que Bede realmente observó. Se guarda únicamente para esta sesión y se borra al cerrarla."
   }
 }

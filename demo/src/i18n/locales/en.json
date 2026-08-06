@@ -232,10 +232,26 @@
     "betaNotice": "This is a public beta — please read this first.",
     "bullet1": "<strong>Your conversation is never stored.</strong> Nothing you or your learner says is saved, ever.",
     "bullet2": "<strong>Anonymized patterns may be reviewed</strong> — which teaching techniques were used, never what was said — to help us improve Bede.",
+    "bullet2Ledger": "<strong>What your learner finishes is shown back to you during the session</strong> — which skill was worked, how much help it took, and what Bede noticed about the work. Never what was said. Like everything else here, it's kept only for this session and deleted when you log out.",
     "bullet3": "<strong>What you tell us on the next screen personalizes this session</strong> — name, grade, anything you're already learning at home, and (if you choose to share it) your family's church tradition. Every field is optional. All of it is kept up to 6 hours (sooner if you log out), then deleted automatically. Never part of any permanent record.",
     "bullet3Faith": "<strong>Church tradition is optional and treated with extra care.</strong> It's used only so Bede frames Scripture and Saints lessons consistently with your own tradition instead of assuming one — never to categorize or profile your family. Leave it blank and the demo works exactly the same.",
     "bullet4": "<strong>Feedback is optional.</strong> Parents/guardians may leave an email for follow-up — we never ask a child for their own.",
     "readPrivacyNotice": "Read the full Privacy Notice, including our COPPA parental notice",
     "agree": "I understand and agree — let's begin"
+  },
+  "workLedger": {
+    "heading": "What's been done",
+    "totalFinished": "{{count}} finished",
+    "times": "{{count}}×",
+    "onTheirOwn": "{{count}} on their own",
+    "afterANudge": "{{count}} after a nudge",
+    "together": "{{count}} worked through together",
+    "oneToShow": "{{count}} one to show",
+    "wentFurther": "{{count}} went further",
+    "theirOwnIdea": "{{count}} their own idea",
+    "cameEasily": "{{count}} came easily",
+    "tookItFurther": "{{count}} took it further",
+    "initiative": "Where you can see initiative: {{notes}}.",
+    "caveat": "This counts pieces of work, not your learner — and only what Bede genuinely saw. It's kept just for this session and deleted when you log out."
   }
 }

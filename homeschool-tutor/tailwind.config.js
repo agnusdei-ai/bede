@@ -3,6 +3,19 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Stock Tailwind breakpoints are all width-based. HandwritingCanvas.tsx's
+      // toolbar needs to shrink when HEIGHT is scarce (rotating a phone to
+      // landscape drops the viewport to ~350-450px tall), an orthogonal axis
+      // stock Tailwind has no breakpoint for — so a portrait-shaped Letter
+      // page, letterboxed to fit ENTIRELY inside whatever's left after three
+      // full-size toolbar rows, shrank to a small centered rectangle with the
+      // rest of a landscape-wide screen sitting empty on both sides. 500px
+      // comfortably separates "phone in landscape" (needs the compaction)
+      // from "tablet in landscape" (iPad mini's ~744px and up already has
+      // plenty of room) — see HandwritingCanvas.tsx's own `short:` classes.
+      screens: {
+        short: { raw: '(max-height: 500px)' },
+      },
       // Tailwind's default type scale, each size up 15% — applies globally to
       // every text-* utility class without touching the spacing scale.
       fontSize: {

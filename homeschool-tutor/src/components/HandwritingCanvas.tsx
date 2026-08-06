@@ -931,6 +931,19 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
 
         {/* Right actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Undo/Redo/New page/Save/Print below are `textual` IconButtons -
+              their accessible name comes from this visible <span>, not an
+              aria-label (see IconButton's own comment on why). `short:` must
+              use `sr-only`, never `hidden`/`display:none`: hidden content is
+              EXCLUDED from the accessible-name computation, so a `short:hidden`
+              label leaves the button with no name at all in landscape - a real
+              regression this shipped with once and a real live-Chromium check
+              caught (jsdom evaluates no CSS at all, so this class of bug is
+              invisible to every test in this file; verify by hand in a real
+              browser - `page.getByRole('button', { name: 'Undo' })` - if this
+              ever needs to change). `sr-only` visually collapses the label to
+              nothing (so it costs no layout height) while staying in the
+              accessible-name computation, unlike `hidden`. */}
           <IconButton
             textual
             onClick={handleUndo}
@@ -939,7 +952,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Undo2 size={16} />
-            <span className="hidden sm:inline short:hidden">{t('canvas.undo')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.undo')}</span>
           </IconButton>
           <IconButton
             textual
@@ -949,7 +962,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Redo2 size={16} />
-            <span className="hidden sm:inline short:hidden">{t('canvas.redo')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.redo')}</span>
           </IconButton>
           <IconButton
             textual
@@ -958,7 +971,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <FilePlus2 size={16} />
-            <span className="hidden sm:inline short:hidden">{t('canvas.newPage')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.newPage')}</span>
           </IconButton>
           <IconButton
             textual
@@ -967,7 +980,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Download size={16} />
-            <span className="hidden sm:inline short:hidden">{t('canvas.save')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.save')}</span>
           </IconButton>
           <IconButton
             textual
@@ -976,7 +989,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Printer size={16} />
-            <span className="hidden sm:inline short:hidden">{t('canvas.print')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.print')}</span>
           </IconButton>
           <IconButton
             textual

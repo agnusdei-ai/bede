@@ -3,6 +3,15 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Mirrors homeschool-tutor's tailwind.config.js — see that file's own
+      // comment. Stock Tailwind breakpoints are all width-based; the writing
+      // pad's toolbar needs to shrink when HEIGHT is scarce (a phone rotated
+      // to landscape), which is an orthogonal axis stock Tailwind has none
+      // for. 500px separates "phone in landscape" from "tablet in landscape"
+      // (already roomy) — see HandwritingCanvas.tsx's `short:` classes.
+      screens: {
+        short: { raw: '(max-height: 500px)' },
+      },
       // Tailwind's default type scale, each size up 15% — applies globally to
       // every text-* utility class without touching the spacing scale.
       fontSize: {

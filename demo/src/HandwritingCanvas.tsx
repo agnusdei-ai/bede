@@ -838,11 +838,11 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-parchment-50">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 px-4 py-2 bg-white shadow-sm border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 short:py-1 bg-white shadow-sm border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
         {/* Cancel */}
         <button
           onClick={onCancel}
-          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 px-3 py-2 short:px-2 short:py-1 rounded-lg transition-colors flex-shrink-0"
         >
           <X size={18} />
           <span className="text-sm font-medium">{t('canvas.cancel')}</span>
@@ -850,52 +850,65 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
 
         {/* Right actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Undo/Redo/New page/Save/Print below are `textual` IconButtons -
+              their accessible name comes from this visible <span>, not an
+              aria-label (see IconButton's own comment on why). `short:` must
+              use `sr-only`, never `hidden`/`display:none`: hidden content is
+              EXCLUDED from the accessible-name computation, so a `short:hidden`
+              label leaves the button with no name at all in landscape - a real
+              regression this shipped with once and a real live-Chromium check
+              caught (jsdom evaluates no CSS at all, so this class of bug is
+              invisible to every test in this file; verify by hand in a real
+              browser - `page.getByRole('button', { name: 'Undo' })` - if this
+              ever needs to change). `sr-only` visually collapses the label to
+              nothing (so it costs no layout height) while staying in the
+              accessible-name computation, unlike `hidden`. */}
           <IconButton
             textual
             onClick={handleUndo}
             disabled={strokeCount === 0}
             label={t('canvas.undoTitle')}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
+            className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Undo2 size={16} />
-            <span className="hidden sm:inline">{t('canvas.undo')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.undo')}</span>
           </IconButton>
           <IconButton
             textual
             onClick={handleRedo}
             disabled={redoCount === 0}
             label={t('canvas.redo')}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
+            className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors text-sm"
           >
             <Redo2 size={16} />
-            <span className="hidden sm:inline">{t('canvas.redo')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.redo')}</span>
           </IconButton>
           <IconButton
             textual
             onClick={handleNewPage}
             label={t('canvas.newPageTitle')}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+            className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <FilePlus2 size={16} />
-            <span className="hidden sm:inline">{t('canvas.newPage')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.newPage')}</span>
           </IconButton>
           <IconButton
             textual
             onClick={handleSaveToDevice}
             label={t('canvas.saveTitle')}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+            className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Download size={16} />
-            <span className="hidden sm:inline">{t('canvas.save')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.save')}</span>
           </IconButton>
           <IconButton
             textual
             onClick={handlePrint}
             label={t('canvas.printTitle')}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+            className="flex items-center gap-1 px-3 py-2 short:px-2 short:py-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           >
             <Printer size={16} />
-            <span className="hidden sm:inline">{t('canvas.print')}</span>
+            <span className="hidden sm:inline short:sr-only">{t('canvas.print')}</span>
           </IconButton>
           <IconButton
             textual
@@ -918,8 +931,8 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
           the Done button clipped off the right edge of the screen, a real
           reported bug. A full-width row has enough space for all six styles
           on most phones; overflow-x-auto is the fallback for the narrowest. */}
-      <div className="flex items-center gap-1 px-4 py-1.5 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
-        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1">
+      <div className="flex items-center gap-1 px-4 py-1.5 short:py-1 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 short:p-0.5">
           {PAPER_ORDER.map((style) => (
             <IconButton
             textual
@@ -927,7 +940,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
               onClick={() => setPaperStyle(style)}
               pressed={paperStyle === style}
               label={t('canvas.paperTitle', { name: t(`canvas.paperStyle.${style}`) })}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
+              className={`px-2.5 py-1.5 short:px-2 short:py-1 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
                 paperStyle === style ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -940,14 +953,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
       {/* Paint controls — tool, size, color. A second row keeps the primary
           Cancel/Undo/Clear/Done actions above uncluttered on a narrow
           tablet screen (Surface Pro / iPad portrait width included). */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-3 short:gap-2 px-4 py-2 short:py-1 bg-white border-b border-parchment-200 flex-shrink-0 overflow-x-auto">
         {/* Pen / eraser */}
-        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 short:p-0.5 flex-shrink-0">
           <IconButton
             onClick={() => setTool('pen')}
             label={t('canvas.tool.pen')}
             pressed={tool === 'pen'}
-            className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`p-2 short:p-1.5 rounded-md transition-colors ${tool === 'pen' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Pencil size={16} />
           </IconButton>
@@ -955,14 +968,14 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
             onClick={() => setTool('eraser')}
             label={t('canvas.tool.eraser')}
             pressed={tool === 'eraser'}
-            className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`p-2 short:p-1.5 rounded-md transition-colors ${tool === 'eraser' ? 'bg-white shadow-sm text-navy-700' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Eraser size={16} />
           </IconButton>
         </div>
 
         {/* Brush size */}
-        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 flex-shrink-0">
+        <div className="flex items-center gap-1 bg-parchment-100 rounded-lg p-1 short:p-0.5 flex-shrink-0">
           {(Object.keys(SIZE_PRESETS) as SizePreset[]).map((preset) => (
             <IconButton
               key={preset}
@@ -980,7 +993,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
         </div>
 
         {/* Color palette */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 short:gap-1 flex-shrink-0">
           {PALETTE.map((swatch) => (
             <IconButton
               key={swatch.value}
@@ -1013,7 +1026,7 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
 
         {/* Paper color — construction paper + slate chalkboard. Square
             swatches so they read as PAPER, distinct from the round ink dots. */}
-        <div className="flex items-center gap-1.5 flex-shrink-0 pl-3 border-l border-parchment-200">
+        <div className="flex items-center gap-1.5 short:gap-1 flex-shrink-0 pl-3 short:pl-2 border-l border-parchment-200">
           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('canvas.paperHeading')}</span>
           {PAPER_COLORS.map((swatch) => (
             <IconButton

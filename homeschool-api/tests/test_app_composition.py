@@ -41,6 +41,7 @@ EXPECTED_MIDDLEWARE = [
     "CORSMiddleware",
     "RateLimitMiddleware",
     "ExfiltrationGuard",
+    "InstanceIdHeaderMiddleware",
     "SecurityHeadersMiddleware",
 ]
 
@@ -204,6 +205,27 @@ def test_each_security_middleware_is_actually_mounted(name):
     import main
 
     assert name in [m.cls.__name__ for m in main.app.user_middleware]
+
+
+def test_the_instance_id_header_is_actually_exposed_cross_origin():
+    """The same lesson as test_the_middleware_stack_is_assembled_in_the_
+    expected_order, applied to a second real gap: tests/test_middleware.py
+    proves the MECHANISM (CORSMiddleware + expose_headers, wired the way
+    main.py wires them, in a throwaway app) but a throwaway app can't prove
+    main.py's OWN CORSMiddleware call actually names X-Bede-Instance —
+    remove expose_headers from main.py itself and that test keeps passing,
+    because it never reads main.py's real configuration. This one does.
+
+    Why it matters: without this, the demo's split-origin fetch()
+    (Cloudflare Pages frontend, Render backend) silently drops the header
+    before client code ever sees it — the whole diagnostic goes dark with
+    no error anywhere, on the one deployment it exists for.
+    """
+    import main
+    from fastapi.middleware.cors import CORSMiddleware
+
+    cors = next(m for m in main.app.user_middleware if m.cls is CORSMiddleware)
+    assert "X-Bede-Instance" in cors.kwargs.get("expose_headers", [])
 
 
 # ── Guard composition ───────────────────────────────────────────────────────

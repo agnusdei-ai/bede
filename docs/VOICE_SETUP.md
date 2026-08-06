@@ -145,6 +145,67 @@ a different instance mid-turn. Abandoned/orphaned sessions (a browser tab
 closed mid-hold, a dropped connection) are swept after 180 seconds of no
 activity, so nothing leaks indefinitely.
 
+**This stopped being hypothetical.** A family on the public demo sent two
+real traces, five minutes apart: a session opened successfully
+(`POST /voice/stream/start` → 200), then the very next `chunk`/`finish`
+calls against that SAME session id both 404'd ("Unknown or finished
+streaming session") — in one trace, within 3.8 seconds of the session
+opening. That is nowhere near the 180s TTL above, and no other cause in
+this codebase produces an immediate, consistent 404 on a session that just
+started. It fits cross-instance routing under autoscaling exactly. Losing
+the `finish` signal is also why the failure reads as *latency* rather than
+a clean error: the instance that actually holds the session has no way to
+know the turn ended, so its SSE stream sits open until its own stall
+timeout closes it (~15s observed), and the client's own overall-turn
+timeout is what finally gives up around 45s — see the section below for how
+to confirm this for certain the next time it's reported.
+
+### Confirming cross-instance routing from a trace, without server log access
+
+`core/instance_id.py` + `core/middleware.py`'s `InstanceIdHeaderMiddleware`
+stamp every `/voice/stream/*` response — success or 404 alike — with
+`X-Bede-Instance: <id>`, resolved once per process from Render's own
+`RENDER_INSTANCE_ID` (or a random `local-*` value when that's unset).
+`homeschool-tutor/src/hooks/diagnostics.ts` (and its `demo/` mirror) append
+`instance=<id>` to the same `← <status> <method> <url> (<ms>ms)` debug line
+already used to report this class of bug, so the very next screenshot of a
+DebugOverlay trace answers the question directly:
+
+```
+← 200 POST .../voice/stream/{id}/start   (175ms)  instance=srv-abc123-1
+← 404 POST .../voice/stream/{id}/chunk   (368ms)  instance=srv-abc123-2
+← 404 POST .../voice/stream/{id}/finish  (225ms)  instance=srv-abc123-2
+```
+
+Two different `instance=` values across the same session id is the
+confirmation — no Render dashboard or log access needed, since the browser
+trace carries the proof itself. If a future trace instead shows the SAME
+instance id on every call and still 404s, that rules out cross-instance
+routing entirely and points somewhere else (a restart recycling the
+process — `local-*` values also change on every restart, which doubles as
+a signal for that case — or a genuine client-side bug in how the session
+id is threaded through).
+
+Deliberately scoped to `/voice/stream/*` only, not stamped on every
+response: `core/middleware.py`'s `SecurityHeadersMiddleware` goes out of
+its way to STRIP server-identifying headers everywhere else, and this is a
+narrow diagnostic, not a general fingerprinting surface, on a deployment
+(the public demo) any visitor can reach. The header also has to be
+explicitly named in `CORSMiddleware`'s `expose_headers` — the demo's
+frontend and backend are different origins (Cloudflare Pages vs. Render),
+and a cross-origin `fetch()` silently drops any response header that isn't
+CORS-safelisted or explicitly exposed, with no error anywhere; that gap is
+real enough that it needed its own test reading `main.app`'s actual
+middleware configuration rather than a reconstructed replica (see
+`tests/test_app_composition.py`).
+
+**This is observation, not a fix.** It doesn't change where sessions are
+stored or how a session survives (or doesn't) landing on a different
+instance — it exists purely to turn "very likely cross-instance routing"
+into "confirmed" from the next real report, before committing to either of
+the two actual fixes: pin the deployment to one instance, or move sessions
+to a shared store (Redis).
+
 **Known gap: no real end-of-speech detection.** Hold-to-talk
 (`startHold`/`release`) is unaffected by this — the child's own release()
 already marks the end of a turn explicitly, exactly as before. But

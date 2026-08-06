@@ -13,7 +13,10 @@ from core import constitution, elevation, identity, license_state, parent_creden
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
-from core.middleware import ExfiltrationGuard, LicenseGateMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+from core.middleware import (
+    ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
@@ -287,8 +290,8 @@ app = FastAPI(
 # see the request, LAST to touch the response before it leaves the process.
 #
 # Declared here so the *last* call is GZip, making it genuinely outermost:
-#   request  →  GZip → LicenseGate → CORS → RateLimit → ExfiltrationGuard → SecurityHeaders  → routes
-#   response ←  GZip ← LicenseGate ← CORS ← RateLimit ← ExfiltrationGuard ← SecurityHeaders  ← routes
+#   request  →  GZip → LicenseGate → CORS → RateLimit → ExfiltrationGuard → SecurityHeaders → InstanceIdHeader → routes
+#   response ←  GZip ← LicenseGate ← CORS ← RateLimit ← ExfiltrationGuard ← SecurityHeaders ← InstanceIdHeader ← routes
 #
 # ExfiltrationGuard must inspect the PLAINTEXT response body — the whole
 # point of _BLOCKED_PATTERNS is scanning for leaked key material — so it has
@@ -309,6 +312,7 @@ app = FastAPI(
 # regardless of where GZip sits in the stack.
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(InstanceIdHeaderMiddleware)
 app.add_middleware(ExfiltrationGuard)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
@@ -317,6 +321,15 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+    # Without this, a cross-origin response (the demo frontend on Cloudflare
+    # Pages calling bede-demo-api.onrender.com) carries X-Bede-Instance over
+    # the wire, but fetch()'s Headers object silently drops any header not
+    # CORS-safelisted or explicitly exposed here — res.headers.get() would
+    # return null forever and InstanceIdHeaderMiddleware's whole point would
+    # be invisible to the one place meant to read it. Same-origin deployments
+    # (self-hosted behind Caddy/nginx) are unaffected either way; this only
+    # matters for the demo's split-origin setup.
+    expose_headers=["X-Bede-Instance"],
 )
 # When an unlicensed production instance is in "license required" mode,
 # only login/MFA and the license endpoints pass; everything else gets a

@@ -114,7 +114,19 @@ export function installDiagnostics(): void {
     logDebug(`→ ${method} ${url}`)
     try {
       const res = await originalFetch(input as RequestInfo, init)
-      logDebug(`← ${res.status} ${method} ${url} (${Math.round(performance.now() - started)}ms)`)
+      // Only present on /voice/stream/* (core/middleware.py's
+      // InstanceIdHeaderMiddleware) — everywhere else this is empty and the
+      // line is unchanged. Exists to answer one question directly from a
+      // screenshot: did the request that opened a streaming session and the
+      // request that pushed/finished it land on the SAME backend process?
+      // A session that failed because those two answers differ reads,
+      // without this, identically to a session that simply expired — see
+      // core/instance_id.py and docs/VOICE_SETUP.md.
+      const instance = res.headers.get('X-Bede-Instance')
+      logDebug(
+        `← ${res.status} ${method} ${url} (${Math.round(performance.now() - started)}ms)` +
+          (instance ? ` instance=${instance}` : '')
+      )
       return res
     } catch (err) {
       // The raw error, not a friendly substitute. `TypeError: Failed to

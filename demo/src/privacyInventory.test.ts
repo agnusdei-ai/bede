@@ -31,6 +31,7 @@ const DISCLOSED_KEYS: ReadonlyArray<{ what: string; key: string }> = [
   { what: 'the writing pad page', key: canvasStorageKey('&lt;code&gt;') },
   { what: 'the in-progress chat', key: 'bede-demo-chat-&lt;code&gt;' },
   { what: 'the session token', key: 'bede-demo-auth' },
+  { what: 'the press-and-hold vs. hands-free mic preference', key: 'bede-voice-mode' },
 ]
 
 describe('browser storage disclosed on the public privacy page', () => {

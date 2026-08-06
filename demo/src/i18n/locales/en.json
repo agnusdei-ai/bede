@@ -46,7 +46,12 @@
     "micNetworkUnavailable": "I can't hear you right now — we lost the connection for a moment. Try holding the mic again, or type your answer instead.",
     "micNoSpeechHeard": "I didn't quite catch that. Try holding the mic and talking a bit closer, or type your answer instead.",
     "sendMessage": "Send",
-    "removeDrawing": "Remove drawing"
+    "removeDrawing": "Remove drawing",
+    "voiceModeToggleTooltip": "Switch between press-and-hold and hands-free voice",
+    "voiceModeContinuous": "Voice on",
+    "voiceModeHold": "Hold to talk",
+    "voiceModeStoodDown": "I'll stop listening for now — press and hold the microphone whenever you're ready to talk again.",
+    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime."
   },
   "canvas": {
     "cancel": "Cancel",

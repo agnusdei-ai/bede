@@ -258,15 +258,17 @@ below), which used to rely entirely on native recognition's own autonomous
 endpointing to decide a turn was over and fire `onFinal` on its own — there
 was never an explicit `release()` call on that path. With native gone,
 `start()` now behaves exactly like `startHold()` and needs an explicit end
-signal the same way; continuous mode's call site still doesn't provide one,
-so as of this rewrite a continuous-mode turn runs for the full
-`HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before auto-finishing,
-instead of ending snappily the moment the child actually stops talking.
-This is a real, known regression for that one opt-in feature specifically —
-not something this rewrite silently papered over — and needs real
-client-side silence/voice-activity detection as a follow-up before
-continuous mode is genuinely usable again. Hold-to-talk (the default for
-every family) is fully unaffected.
+signal the same way. For a while it didn't have one, and a continuous-mode
+turn ran to the full `HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before
+auto-finishing instead of ending the moment the child stopped talking —
+a real, disclosed regression for that one opt-in feature.
+
+**That is now closed in both apps.** `endpointing.ts` supplies the missing
+end signal (see "Endpointing: how a continuous-mode turn ends" below), and
+the 120-second ceiling remains underneath purely as the backstop it always
+was. Hold-to-talk (the default for every family, and for every demo
+visitor) was unaffected throughout, and deliberately still does not
+endpoint itself.
 
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 
@@ -1761,11 +1763,11 @@ Three details worth keeping:
 `touch-none`), so scroll-gesture `pointercancel` was never part of this
 particular failure.
 
-**Not the same issue as continuous mode's missing endpointing** (see that
-feature's section below). Hold-to-talk has always had an explicit end signal
-— the child's own finger lift — and this fix is about that signal being
-delivered reliably. Continuous "Voice on" mode has no end signal at all,
-which remains open, separate work.
+**Not the same issue as continuous mode's endpointing** (see that feature's
+section below). Hold-to-talk has always had an explicit end signal — the
+child's own finger lift — and this fix is about that signal being delivered
+reliably. Continuous "Voice on" mode had no end signal at all, which was
+separate work, since closed by `endpointing.ts` in both apps.
 
 ## Troubleshooting: the live transcript while speaking is off-screen
 
@@ -1953,6 +1955,15 @@ seconds and the microphone stayed open for another hundred and sixteen.
 `homeschool-tutor/src/utils/endpointing.ts` closes that. It samples the
 recorder's existing level meter every 200ms and ends the turn on trailing
 silence.
+
+**`demo/src/endpointing.ts` is its mirror, and the demo has continuous mode
+too.** For a while it did not, and that was the wrong way round: the demo is
+what a prospective family judges the product by, so shipping it with worse
+voice behaviour than the product it is selling made Bede look slower at
+listening than it actually is. The two files are byte-identical apart from
+their header note, and `demo/src/endpointing.test.ts` imports both and
+asserts every constant matches — a silence window that drifted apart would
+mean the demo was quietly demonstrating something a family would not get.
 
 **The silence window is deliberately longer than a dictation app's, and that
 is the whole design.** General-purpose dictation endpoints after roughly

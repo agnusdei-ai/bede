@@ -46,7 +46,12 @@
     "micNetworkUnavailable": "No puedo escucharte ahora mismo — perdimos la conexión por un momento. Intenta mantener presionado el micrófono otra vez, o escribe tu respuesta.",
     "micNoSpeechHeard": "No logré escucharte bien. Intenta mantener presionado el micrófono y hablar un poco más cerca, o escribe tu respuesta.",
     "sendMessage": "Enviar",
-    "removeDrawing": "Quitar dibujo"
+    "removeDrawing": "Quitar dibujo",
+    "voiceModeToggleTooltip": "Cambia entre mantener presionado y voz manos libres",
+    "voiceModeContinuous": "Voz activada",
+    "voiceModeHold": "Mantener presionado",
+    "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez.",
+    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras."
   },
   "canvas": {
     "cancel": "Cancelar",

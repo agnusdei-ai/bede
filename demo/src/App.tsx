@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2 } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -19,6 +19,7 @@ import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import DebugOverlay from './DebugOverlay'
 import { logDebug } from './debugBus'
+import { useVoiceModePreference } from './useVoiceModePreference'
 import { createHoldHandlers } from './holdGesture'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
 // visits never open, and keeping it out of the entry bundle makes first
@@ -917,6 +918,26 @@ export function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, su
   )
 }
 
+// Continuous "Voice on" mode's circuit breaker — falls back to hold-to-talk
+// after this many consecutive mic failures rather than looping silently.
+const MAX_CONSECUTIVE_VOICE_FAILURES = 3
+// Defense-in-depth against a rapid restart loop (the exact failure class the
+// earlier "voice mode" bred by restarting on a bare timer) — even though the
+// auto-start effect is driven by state transitions, not a timer, this floor
+// guarantees consecutive auto-starts are never closer together than this.
+const MIN_MS_BETWEEN_AUTO_STARTS = 800
+// How many turns in a row may end with nobody speaking before continuous mode
+// stands down to hold-to-talk.
+//
+// Necessary because the endpoint is what makes silence CHEAP to detect: the
+// mic now gives up after 12s instead of 120s, so without a stop condition an
+// empty room would re-arm the mic, open a streaming session and tear it down
+// again five times a minute, indefinitely. Three is enough to be sure the
+// visitor has actually gone rather than paused between thoughts, and standing
+// down is the honest response — hold-to-talk still works the instant they
+// come back and press it.
+const MAX_CONSECUTIVE_SILENT_TURNS = 3
+
 function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
@@ -1038,15 +1059,62 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // 'en-US' default — a Spanish session transcribed as English produces
   // garbled transcripts regardless of how well the rest of the UI is
   // translated. Propagates through to the server's Whisper language hint.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError, prewarm, cancelPrewarm } =
+  // Continuous "Voice on" — opt-in, OFF by default for every visitor, and
+  // per-device rather than per-session (see useVoiceModePreference.ts). The
+  // restart is driven by an explicit state transition (Bede's turn actually
+  // finishing), never a bare timer — the specific difference from the
+  // earlier "voice mode" that bred recurring audio bugs.
+  const { setMode: setVoiceMode, isContinuous } = useVoiceModePreference()
+  const consecutiveVoiceFailuresRef = useRef(0)
+  const consecutiveSilentTurnsRef = useRef(0)
+  const lastAutoStartRef = useRef(0)
+  // send() is defined further down (after useHybridVoiceInput, which needs
+  // onFinal above it) — this ref lets continuous mode's onFinal call the
+  // CURRENT send() without a forward-reference error. Same pattern
+  // useHybridVoiceInput.ts itself uses for releaseRef.
+  const sendRef = useRef<(overrideMsg?: string) => void>(() => {})
+
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError, prewarm, cancelPrewarm } =
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
+      // Continuous mode has no explicit release — this is what ends its
+      // turns. Deliberately tied to isContinuous rather than always on: in
+      // hold-to-talk the visitor's own finger is the endpoint, and silence
+      // detection there would cut them off mid-hold. See endpointing.ts.
+      endpointOnSilence: isContinuous,
+      // Silence is not a failure — see the hook's own comment on why it must
+      // not route through micError. It is only worth acting on when it
+      // REPEATS, which means they have gone rather than paused.
+      onSilentTimeout: () => {
+        consecutiveSilentTurnsRef.current += 1
+        logDebug(`continuous voice: silent turn ${consecutiveSilentTurnsRef.current}/${MAX_CONSECUTIVE_SILENT_TURNS}`)
+        if (consecutiveSilentTurnsRef.current < MAX_CONSECUTIVE_SILENT_TURNS) return
+        consecutiveSilentTurnsRef.current = 0
+        setVoiceMode('hold')
+        setMessages((prev) => [...prev, {
+          id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t('chatScreen.voiceModeStoodDown')}`,
+        }])
+      },
       // A walkie-talkie release used to send the moment a transcript was
       // final — now it's held for review instead (see pendingVoiceTranscript
       // above): the child can see exactly what was heard and Send or Cancel
-      // rather than it going to Bede sight-unseen.
-      onFinal: (transcript) => setPendingVoiceTranscript(transcript),
+      // rather than it going to Bede sight-unseen. Continuous "Voice on"
+      // mode is the one exception — the whole point is hands-free, so it
+      // sends straight through (via sendRef) instead of waiting for a review
+      // tap that would defeat the purpose.
+      onFinal: (transcript) => {
+        if (isContinuous) {
+          logDebug(`continuous voice onFinal — auto-sending text="${transcript}"`)
+          consecutiveVoiceFailuresRef.current = 0
+          // They are demonstrably here — a run of silent turns before this
+          // was pauses, not absence.
+          consecutiveSilentTurnsRef.current = 0
+          sendRef.current(transcript)
+        } else {
+          setPendingVoiceTranscript(transcript)
+        }
+      },
     })
 
   // Surface the one mic failure that used to be completely silent: a denied
@@ -1073,7 +1141,21 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
       return [...prev, { id: `err-${Date.now()}`, role: 'system', content }]
     })
     clearMicError()
-  }, [micError, clearMicError, t])
+    // In continuous mode this also feeds the circuit breaker: a denied
+    // permission falls back to hold-to-talk immediately (no amount of
+    // retrying will fix a blocked permission), and
+    // MAX_CONSECUTIVE_VOICE_FAILURES other failures in a row does the same,
+    // rather than auto-restarting into the same failure indefinitely.
+    if (!isContinuous) return
+    consecutiveVoiceFailuresRef.current += 1
+    if (micError === 'permission-denied' || consecutiveVoiceFailuresRef.current >= MAX_CONSECUTIVE_VOICE_FAILURES) {
+      consecutiveVoiceFailuresRef.current = 0
+      setVoiceMode('hold')
+      setMessages((prev) => [...prev, {
+        id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t('chatScreen.voiceModeFallbackMessage')}`,
+      }])
+    }
+  }, [micError, clearMicError, t, isContinuous, setVoiceMode])
 
   // Word-level diff of the live interim transcript, called unconditionally
   // (rules of hooks) even though it's only rendered while isListening &&
@@ -1195,6 +1277,33 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
     // releasing).
     return () => cancelPrewarmRef.current()
   }, [sttSupported, awaitingChildTurn])
+
+  // Continuous "Voice on": once it is genuinely the visitor's turn (the same
+  // awaitingChildTurn signal the hold-to-talk mic's own idle styling uses),
+  // start listening on its own — no press required. Driven entirely by
+  // awaitingChildTurn's own state transitions (which already require
+  // isStreaming/isSpeaking/isListening/isTranscribing/sessionPaused to all be
+  // settled), never a bare timer — the specific difference from the earlier
+  // "voice mode" that auto-restarted on an interval and bred recurring audio
+  // bugs. MIN_MS_BETWEEN_AUTO_STARTS is defense-in-depth against a
+  // rapid-restart loop even so, and the two circuit breakers above stand the
+  // mode down rather than looping into the same failure forever.
+  //
+  // The turn ends on trailing silence (endpointOnSilence, passed above), so
+  // unlike the app before utils/endpointing.ts landed, nothing here holds the
+  // mic open to the 120s ceiling waiting for a release that never comes.
+  const startRef = useRef(start)
+  useEffect(() => { startRef.current = start })
+  useEffect(() => {
+    if (!isContinuous || !sttSupported) return
+    if (!awaitingChildTurn) return
+    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    const now = Date.now()
+    if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
+    lastAutoStartRef.current = now
+    logDebug('continuous voice mode — auto-starting listening for the visitor\'s turn')
+    startRef.current()
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
 
   // The live interim transcript, the "transcribing…" indicator, and the
   // voice-review confirm/cancel card (below) are all rendered inside the
@@ -1411,6 +1520,8 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: fullMsg }])
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
+  // Keep continuous mode's onFinal pointing at the CURRENT send().
+  sendRef.current = send
 
   // Voice review: the child presses Send on the transcript they were just
   // shown, or Cancel to discard it — nothing reaches Bede without one of
@@ -1706,6 +1817,22 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
           <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
+          {/* Hold-to-talk vs. hands-free "Voice on" — the preference lives in
+              useVoiceModePreference.ts. Defaults to hold-to-talk for every
+              visitor; tapping this only switches the PREFERENCE, never
+              starts/stops listening itself. */}
+          {sttSupported && (
+            <button
+              onClick={() => setVoiceMode(isContinuous ? 'hold' : 'continuous')}
+              title={t('chatScreen.voiceModeToggleTooltip')}
+              aria-label={isContinuous ? t('chatScreen.voiceModeContinuous') : t('chatScreen.voiceModeHold')}
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 ${
+                isContinuous ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
+              }`}
+            >
+              <Radio size={18} />
+            </button>
+          )}
           {sttSupported && (
             <button
               {...holdHandlers}

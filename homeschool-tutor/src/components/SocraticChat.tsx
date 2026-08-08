@@ -689,14 +689,12 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
   // falls back to hold-to-talk after repeated failures rather than looping
   // silently forever.
   //
-  // KNOWN GAP (see useHybridVoiceInput.ts's own top-of-file comment): this
-  // call site never calls release() — it relied on native SpeechRecognition's
-  // own autonomous end-of-speech detection to fire onFinal on its own. Now
-  // that native is gone, start() behaves like startHold() and needs an
-  // explicit end signal; without one, a continuous-mode turn runs for the
-  // full HOLD_SAFETY_TIMEOUT_MS (120s) before auto-finishing instead of
-  // ending snappily when the child stops talking. Real client-side silence/
-  // voice-activity detection is the follow-up this needs — see
+  // This call site still never calls release() — it doesn't need to. The
+  // turn ends on trailing silence instead (endpointOnSilence, passed to the
+  // hook above), so it no longer runs to the 120s HOLD_SAFETY_TIMEOUT_MS
+  // ceiling waiting for an end signal that never comes. That was this file's
+  // long-standing KNOWN GAP; utils/endpointing.ts closed it, and the 120s
+  // ceiling remains underneath purely as the backstop. See
   // docs/VOICE_SETUP.md.
   useEffect(() => {
     if (!isContinuous || !sttSupported) return

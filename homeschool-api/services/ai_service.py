@@ -3645,6 +3645,28 @@ async def stream_tutor_response(
     # loop ends (see below), so a tool call that gets a real follow-up
     # round never gets a redundant fallback question tacked on too.
     ends_on_questionless_tool: Optional[str] = None
+    # Visual aids this turn has already put on the child's screen.
+    #
+    # `_get_visual_aids_context`'s "[ALREADY SHOWN this session]" marking
+    # (tests/test_visual_aids_already_shown.py) is the equivalent guard
+    # BETWEEN turns, and it is structurally blind WITHIN one: it is
+    # computed once, from conversation history, into the cached system
+    # block — which the loop below then reuses verbatim on every round.
+    # So a picture shown in round 1 is still listed as un-shown when the
+    # model is called again in round 2, and `show_visual_aid` is reactable
+    # (tool_registry), so a SUCCESSFUL aid buys those extra rounds. That
+    # combination put the same card on screen up to _MAX_TOOL_LOOP_ROUNDS
+    # times in a single turn — reported against Art & Music during the
+    # beta, where the catalog is small enough that the model reaching for
+    # the same painting again is the likely case rather than the unlucky
+    # one.
+    #
+    # Scoped to the TURN, deliberately, and never to the session: showing
+    # a picture again in a LATER turn is legitimate picture study (look,
+    # put away, narrate, look again), so this must not become a
+    # session-wide "once only" rule. Within a single turn there is no
+    # reason to render the same picture twice.
+    shown_aid_ids: set[str] = set()
     final_message = None
 
     # Bounded tool_result loop (see _MAX_TOOL_LOOP_ROUNDS's own comment for
@@ -3797,7 +3819,41 @@ async def stream_tutor_response(
                                         result_payload = {"recorded": False}
                                 elif tc["name"] == "show_visual_aid":
                                     aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
-                                    if aid:
+                                    if aid and aid.get("id") in shown_aid_ids:
+                                        # Already on screen from an earlier round of
+                                        # THIS turn — see shown_aid_ids above. Emitting
+                                        # a second chunk would render a second,
+                                        # identical card; the child would simply see the
+                                        # same painting twice with the same caption.
+                                        #
+                                        # The call is still answered, and answered
+                                        # HONESTLY rather than by pretending it failed:
+                                        # `found` stays true (the aid is real and is
+                                        # visible to the child right now), and
+                                        # `already_shown` tells the model the thing it
+                                        # could not otherwise know. A "found: false"
+                                        # here would invite it to go hunting for a
+                                        # different id to fix a failure that never
+                                        # happened.
+                                        #
+                                        # No _increment_behavior_check either: that
+                                        # counter measures whether the visual-processing
+                                        # nudge changed Bede's behaviour, and counting
+                                        # one picture twice would inflate it for a card
+                                        # the child never received.
+                                        result_payload = {
+                                            "found": True,
+                                            "visual_aid_id": aid.get("id"),
+                                            "already_shown": True,
+                                            "note": (
+                                                "You already showed this picture earlier in this "
+                                                "same turn and it is on the child's screen now. "
+                                                "Do not show it again — talk about it instead, or "
+                                                "choose a different aid."
+                                            ),
+                                        }
+                                    elif aid:
+                                        shown_aid_ids.add(aid.get("id"))
                                         yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
                                         if processing_style == "visual":
                                             # See LearnerBehaviorCheck's docstring — only counts

@@ -513,5 +513,18 @@
     "daysAgo": "{{count}} days ago",
     "keptUp": "Keeping up with: {{subjects}}.",
     "caveat": "This is about the plan, not your child. A subject can go untaught because of the hour it's scheduled, the book, or simply a busy fortnight — you know which, and Bede doesn't."
+  },
+  "mastery": {
+    "title": "Where {{name}} Is",
+    "subtitle": "One row per area. Tap any of them for the detail.",
+    "areaMathematics": "Mathematics",
+    "areaPhonics": "Reading foundations",
+    "areaLiteracy": "Reading & spelling",
+    "areaComposition": "Writing",
+    "areaLanguage": "Language exposure",
+    "notStartedYet": "not started yet",
+    "stillGettingToKnow": "still getting to know — {{count}} so far",
+    "secureOf": "{{secure}} of {{total}} secure",
+    "nothingYet": "Nothing assessed yet for {{name}}. This fills in as you work together — the Work Completed card below is the honest picture in the meantime."
   }
 }

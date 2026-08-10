@@ -513,5 +513,18 @@
     "daysAgo": "hace {{count}} días",
     "keptUp": "Al día en: {{subjects}}.",
     "caveat": "Esto habla del plan, no de su hijo. Una materia puede quedarse sin enseñar por la hora en que está programada, por el libro o simplemente por una quincena ajetreada: usted sabe cuál, y Bede no."
+  },
+  "mastery": {
+    "title": "Dónde está {{name}}",
+    "subtitle": "Una fila por área. Toque cualquiera para ver el detalle.",
+    "areaMathematics": "Matemáticas",
+    "areaPhonics": "Bases de la lectura",
+    "areaLiteracy": "Lectura y ortografía",
+    "areaComposition": "Escritura",
+    "areaLanguage": "Contacto con otros idiomas",
+    "notStartedYet": "aún sin empezar",
+    "stillGettingToKnow": "aún conociéndole — {{count}} hasta ahora",
+    "secureOf": "{{secure}} de {{total}} dominadas",
+    "nothingYet": "Aún no se ha evaluado nada de {{name}}. Esto se irá llenando conforme trabajen juntos; mientras tanto, la tarjeta de Trabajo completado es la imagen honesta."
   }
 }

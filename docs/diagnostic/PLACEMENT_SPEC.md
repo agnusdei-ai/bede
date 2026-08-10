@@ -34,7 +34,7 @@ lesson and a parent chooses freely.
 | **D1** | **Scope: mathematics + reading/literacy.** | Maths has the full prerequisite graph; reading has the developmental sequence. Composition needs a written narration to assess at all, which turns a conversation into a battery — excluded. |
 | **D2** | **Shape: woven into the first two or three ordinary lessons.** | No session is ever "the assessment". Bede probes more densely than usual while teaching throughout. Slower to converge than a dedicated sitting, and that is the price of not having a test-shaped event in the product. |
 | **D3** | **Parent output: a narrative in the session summary; results seed the normal cards silently.** | No scorecard on day one. **Conditional on D3a.** |
-| **D3a** | **The Progress page must be unified first.** | It currently renders **five separate `MasterySnapshot` cards** plus seven more panels. Feeding placement results into twelve fragmented cards is not "seeding the picture", it is scattering it. See §10.1. |
+| **D3a** | **The Progress page must be unified first.** | ~~It currently renders five separate `MasterySnapshot` cards plus seven more panels.~~ **Done** — `MasteryOverview.tsx` replaced them with one card, a row per area. See §10.1. |
 | **D4** | **Ceiling: one subject block, 20 minutes.** | Matches `SUBJECT_DURATIONS[Subject.mathematics]`, so it fits the day the parent already planned and needs no special scheduling. |
 
 ---
@@ -238,21 +238,24 @@ knows where a child is on day three teaches better for the whole term.
 
 ## 10. Open questions
 
-### 10.1 — Blocking: the unified Progress view (D3a)
+### 10.1 — ~~Blocking: the unified Progress view (D3a)~~ RESOLVED
 
-`Progress.tsx` currently renders **five separate `MasterySnapshot` cards**
-(mathematics, composition, phonics, language exposure, literacy) plus the
-learner profile, subject coverage, the work ledger, the pod roster, usage,
-assessment history, and concept coverage. Twelve panels.
+`Progress.tsx` used to render **five separate `MasterySnapshot` cards**
+(mathematics, composition, phonics, language exposure, literacy), each with
+its own heading, evidence count, amber calibration banner and set of bars.
+A parent scrolled through five near-identical panels to assemble, in their
+head, the one picture the page should have shown them.
 
-D3 says placement results should "seed the normal cards." That is only a
-coherent statement if there is a picture to seed. **This is agreed as a
-prerequisite, and it is a real piece of work in its own right** — not a
-styling pass, but a decision about what a parent should see first, second,
-and not at all.
+`MasteryOverview.tsx` is that picture: one card, one row per area, each row
+stating where it stands in a line and opening to the detail the whole card
+used to be. D3's "seed the normal cards" is now a coherent sentence.
 
-Worth resolving before placement is built, and possibly worth doing
-regardless of placement.
+Three properties it carries, pinned by test: **no overall score** across
+areas (averaging maths against language exposure would invent a quantity
+that does not exist), **no ordering by how well the child is doing** (a list
+that reshuffles as a child improves is a ranking of their own subjects), and
+an area still **says plainly when it is not calibrated** rather than showing
+a confident-looking bar built from four observations.
 
 ### 10.2 — How dense is "denser"?
 

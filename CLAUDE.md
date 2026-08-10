@@ -743,19 +743,34 @@ Change a question there first, then in the channel.
 - **`site/survey/index.html`** (`/survey/`) and **`site/educators/index.html`**
   (`/educators/`) are the primary channel, and the only one that reaches a
   co-op leader who has never opened Bede. **`BetaSurveyModal.tsx`** is the
-  short in-app leg for parents already using it. All three declare one
-  `beta_survey` category so their answers pool; each tags its own message
-  body so the inbox can still tell them apart. **They do not all take the
-  same road there.** The in-app prompt posts to `POST /feedback` → Resend.
-  The hosted pages do too, but only once `API_BASE` is filled in at the top
-  of `feedback-form.js` — it ships `''` (the value is a per-deployment
-  Render URL this repo doesn't hold), and until then those pages hand off to
-  the visitor's own mail client instead, so the answers arrive by hand. That
-  makes the `data-category` attributes correct-but-inert for now, which is
-  the point: they are what makes flipping the switch later a one-line
-  change. `site/_headers`' `connect-src` and `site/privacy/index.html`'s
-  "contact nothing but your own browser" claim have to move with it, and
-  both the script's own comment and `docs/BETA_SURVEY.md` say so.
+  short in-app leg for parents already using it. All three post to
+  `POST /feedback` → Resend → `FEEDBACK_EMAIL` (`info@agnusdei.ai`, set in
+  `render.yaml`) under one `beta_survey` category so their answers pool;
+  each tags its own message body so the inbox can still tell them apart.
+  The hosted pages have no session, so they mint one the way a demo visitor
+  does (`POST /auth/demo-code` → `demo_code` JWT → submit) — which needed no
+  backend change at all: `agnusdei.ai` was already in `CORS_ORIGINS`, and
+  `site/_headers`' single site-wide CSP already allows
+  `connect-src https://*.onrender.com` because the demo under `/bede/`
+  needs the identical permission.
+- **The API's URL is filled in by the build, not by hand.**
+  `site/assets/api-base.js` ships empty (`window.BEDE_API_BASE = ''`) and
+  `scripts/build_pages_site.sh` overwrites it in `publish/` from
+  `VITE_DEMO_API_BASE` — the same variable `demo/src/api.ts` already
+  consumes, so the value is configured once on the Worker rather than
+  committed as a second copy someone has to keep in step. The build
+  validates it is a plain `https` origin before writing it into a script
+  served to every visitor, and trims trailing slashes so the value is
+  canonical. Unset is a supported outcome, not a failure: the forms fall
+  back to the visitor's own mail client, and the build prints which of the
+  two happened — otherwise the only symptom of a lost variable is an inbox
+  that quietly stays empty while every form still appears to work.
+  Because this makes those static pages contact the API at all,
+  `site/privacy/index.html` had to move with it: it now states that the
+  pages make no network request until a visitor presses play on the home
+  page's video or send on a form, and carries a table row for the forms.
+  That page promises a complete, code-audited inventory, so wiring this up
+  without amending it would have made a public privacy claim false.
 - **A fully-answered survey does not fit in a `mailto:` link.**
   `MAILTO_SAFE_LENGTH` (1900) was sized for the twelve-field feedback form;
   these are twice that, so overflow is an ordinary outcome here rather than

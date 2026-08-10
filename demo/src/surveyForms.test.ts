@@ -23,6 +23,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const SITE = join(__dirname, '../../site')
 const SCRIPT = readFileSync(join(SITE, 'assets/feedback-form.js'), 'utf8')
+const API_BASE_ASSET = readFileSync(join(SITE, 'assets/api-base.js'), 'utf8')
+const BUILD_SCRIPT = readFileSync(join(__dirname, '../../scripts/build_pages_site.sh'), 'utf8')
 
 const PAGES = [
   { name: 'feedback', file: 'feedback/index.html', category: 'cx', tag: '[Website feedback form]' },
@@ -36,9 +38,12 @@ const PAGES = [
  * top-level module in a <script src>, so `new Function` reproduces its
  * scope faithfully enough for what is being asserted here.
  */
-function mount(file: string) {
+function mount(file: string, apiBase = '') {
   const html = readFileSync(join(SITE, file), 'utf8')
   document.documentElement.innerHTML = html.replace(/^[\s\S]*?<body>/, '').replace(/<\/body>[\s\S]*$/, '')
+  // What assets/api-base.js does on a real page, before the form script
+  // runs — empty in the repo, filled in by the build.
+  ;(window as unknown as { BEDE_API_BASE: string }).BEDE_API_BASE = apiBase
   // eslint-disable-next-line no-new-func
   new Function(SCRIPT)()
   const form = document.querySelector('form[data-category]') as HTMLFormElement
@@ -56,9 +61,19 @@ function namedControls(form: HTMLFormElement) {
 }
 
 let assignedHref = ''
+let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   assignedHref = ''
+  // Three calls, in order: mint a demo code, exchange it for a token,
+  // post the answers.
+  fetchMock = vi.fn(async (url: string) => ({
+    ok: true,
+    status: 200,
+    json: async () =>
+      String(url).endsWith('/auth/demo-code') ? { code: 'ABC123' } : { token: 'jwt' },
+  }))
+  vi.stubGlobal('fetch', fetchMock)
   // jsdom refuses real navigation ("Not implemented: navigation"), and the
   // mailto hand-off is the path under test here, so capture it instead.
   Object.defineProperty(window, 'location', {
@@ -71,6 +86,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.documentElement.innerHTML = ''
 })
@@ -207,6 +223,92 @@ describe('a survey too long for an email link', () => {
     form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
     expect(form.dataset.mailto).toMatch(/^mailto:/)
     expect(form.querySelector('#form-overflow')).toBeNull()
+  })
+})
+
+/**
+ * The forms post to the same API and the same Resend inbox the in-app
+ * feedback does. The API's URL is a per-deployment value, so it is not
+ * written into any committed file: assets/api-base.js ships empty and
+ * scripts/build_pages_site.sh fills it in from the same
+ * VITE_DEMO_API_BASE the demo build already consumes.
+ *
+ * Both states have to work. Unset is an ordinary outcome (a local
+ * preview, a build with no variable) and must fall back rather than
+ * throw; set is the real deployment and must actually post.
+ */
+describe('where the forms send', () => {
+  it('ships api-base.js empty, so no deployment URL is committed here', () => {
+    expect(API_BASE_ASSET).toMatch(/window\.BEDE_API_BASE\s*=\s*''\s*;/)
+    expect(API_BASE_ASSET).not.toMatch(/onrender\.com/)
+  })
+
+  it.each(PAGES)('$name loads api-base.js before the form script', ({ file }) => {
+    const html = readFileSync(join(SITE, file), 'utf8')
+    const base = html.indexOf('/assets/api-base.js')
+    const script = html.indexOf('/assets/feedback-form.js')
+    expect(base, 'api-base.js is not loaded at all').toBeGreaterThan(-1)
+    expect(base).toBeLessThan(script)
+  })
+
+  it('takes the mail hand-off when no API base is configured', () => {
+    const { form } = mount('survey/index.html')
+    ;(form.querySelector('input[type="radio"]') as HTMLInputElement).checked = true
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    expect(form.dataset.mailto).toMatch(/^mailto:/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('posts to the API when one is configured, and never opens a mail client', async () => {
+    const { form } = mount('survey/index.html', 'https://bede-demo-api.onrender.com')
+    ;(form.querySelector('input[type="radio"]') as HTMLInputElement).checked = true
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]))
+    expect(urls).toEqual([
+      'https://bede-demo-api.onrender.com/auth/demo-code',
+      'https://bede-demo-api.onrender.com/auth/login',
+      'https://bede-demo-api.onrender.com/feedback',
+    ])
+
+    // The category the API files it under, which is what makes the three
+    // channels pool. Sent, not merely declared on the form.
+    const posted = JSON.parse(String(fetchMock.mock.calls[2][1].body))
+    expect(posted.category).toBe('beta_survey')
+    expect(posted.message).toContain('[Beta parent survey]')
+
+    expect(form.dataset.mailto).toBeUndefined()
+    expect(assignedHref).toBe('')
+  })
+
+  it('falls back to mail, losing nothing, when the API cannot be reached', async () => {
+    fetchMock.mockRejectedValue(new TypeError('offline'))
+    const { form, note } = mount('survey/index.html', 'https://bede-demo-api.onrender.com')
+    ;(form.querySelector('input[type="radio"]') as HTMLInputElement).checked = true
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+
+    await vi.waitFor(() => expect(form.dataset.mailto).toMatch(/^mailto:/))
+    expect(note.textContent).toMatch(/nothing you typed is lost/i)
+  })
+})
+
+/**
+ * The build is the only thing that fills the URL in, so if it stops doing
+ * so the symptom is an inbox that quietly stays empty — nothing errors,
+ * and every form still appears to work via the mail hand-off.
+ */
+describe('the build fills in the API base', () => {
+  it('writes api-base.js from the same variable the demo build uses', () => {
+    expect(BUILD_SCRIPT).toContain('VITE_DEMO_API_BASE')
+    expect(BUILD_SCRIPT).toContain('publish/assets/api-base.js')
+    expect(BUILD_SCRIPT).toContain('window.BEDE_API_BASE')
+  })
+
+  it('refuses a value that is not a plain https origin', () => {
+    // Written verbatim into a script served to every visitor, so it is
+    // validated rather than escaped and hoped for.
+    expect(BUILD_SCRIPT).toMatch(/grep -Eq .\^https:/)
   })
 })
 

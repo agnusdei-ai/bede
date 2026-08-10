@@ -22,41 +22,40 @@
 // page. See docs/BETA_SURVEY.md's "Keeping the three channels honest".
 //
 // ── Where this form sends ─────────────────────────────────────────────
-// Preferred path: the demo API's own POST /feedback, which already
-// routes to the operator's inbox through Resend. That endpoint needs a
-// token, but the demo's anonymous entry (POST /auth/demo-code) is public
-// by design, so a website visitor can get one the same way a demo
+// The same place the in-app feedback and survey do: the API's own
+// POST /feedback, which routes to the operator's inbox (FEEDBACK_EMAIL,
+// set to info@agnusdei.ai in render.yaml) through Resend. That endpoint
+// needs a token, but the demo's anonymous entry (POST /auth/demo-code) is
+// public by design, so a website visitor can get one the same way a demo
 // visitor does — mint a code, exchange it for a demo_code JWT, submit.
-// agnusdei.ai and www.agnusdei.ai (and the .io fallback domain) are all
-// already in the API's CORS_ORIGINS (render.yaml), so no backend change is
-// required for this to work.
 //
-// Paste the demo API's base URL below to turn that on — the same value
-// as the VITE_DEMO_API_BASE repo variable the demo build uses, e.g.
-// 'https://bede-demo-api-XXXX.onrender.com'. No build step; this file
-// is served as-is.
+// Two things this already relies on, neither of which needs changing to
+// turn it on: agnusdei.ai and www.agnusdei.ai (and the .io fallback
+// domain) are in the API's CORS_ORIGINS (render.yaml), and site/_headers'
+// single site-wide Content-Security-Policy already allows
+// connect-src https://*.onrender.com, since the demo under /bede/ needs
+// exactly the same permission and that file deliberately carries ONE
+// policy for the whole domain.
 //
-// Leave it '' (or if the API is unreachable, cold, or has no
-// FEEDBACK_EMAIL configured) and the form falls back to composing an
-// email in the visitor's own mail client instead, so it is never a dead
-// button either way.
+// The API's URL is NOT written here. It is a per-deployment value, so
+// assets/api-base.js supplies it: empty in this repository, and filled in
+// at build time by scripts/build_pages_site.sh from the same
+// VITE_DEMO_API_BASE the demo build consumes. One source of truth, no
+// file to hand-edit, nothing to keep in step.
 //
-// If you DO set this, two other things have to move with it. Add that
-// Render origin to site/_headers' connect-src, and correct
-// site/privacy/index.html, which currently states that the static pages
-// "contact nothing but your own browser" — true only while this is ''.
-// That page promises a complete, code-audited inventory, so turning this
-// on without amending it makes a public privacy claim false.
-// On the CSP: the site's Content-Security-Policy only
-// allows 'self' by default, and a CSP-blocked fetch here still degrades
-// gracefully to the mailto fallback (the catch block below), but the
-// visitor's answers would go out by email every time instead of the
-// faster in-app path you just turned on.
+// When it IS empty — a local preview, or a build with no variable set —
+// nothing here breaks: the form composes an email in the visitor's own
+// mail client instead, or for a long survey hands the text back to be
+// copied, so it is never a dead button.
 //
 // Lives in its own file (not an inline <script>) so the site's CSP
 // (site/_headers) can set script-src 'self' with no 'unsafe-inline'
 // exception.
-const API_BASE = '';
+// Set by assets/api-base.js, which must be loaded before this file.
+// Optional-chained rather than assumed: a page that forgets that script
+// tag falls back to the mail hand-off instead of throwing on load, which
+// would take the whole form with it.
+const API_BASE = (window.BEDE_API_BASE || '');
 const FEEDBACK_TO = 'info@agnusdei.ai';
 // mailto URLs get truncated by some mail clients past roughly 2000
 // characters, which would silently eat the end of a long answer. Warn

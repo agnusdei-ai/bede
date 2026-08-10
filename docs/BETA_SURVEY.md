@@ -13,36 +13,33 @@ three ways, and all three must agree with what is written here:
 | In-app prompt | Beta parents already using Bede | `homeschool-tutor/src/components/BetaSurveyModal.tsx` |
 | Email / in person | Either | Copy the question bank out of this file |
 
-All three land in the same operator inbox, and nothing any of them
-collects is persisted server-side beyond one outbound email. They do not
-all take the same road there, and the difference matters operationally:
+All three land in the same operator inbox by the same route: an
+authenticated `POST /feedback` → Resend → `FEEDBACK_EMAIL`, which
+`render.yaml` sets to **info@agnusdei.ai**. Nothing any of them collects
+is persisted server-side beyond that one outbound email. See
+`homeschool-api/routers/feedback.py`.
 
-- **The in-app prompt** posts to `POST /feedback` → Resend →
-  `FEEDBACK_EMAIL` (`homeschool-api/routers/feedback.py`). It has a
-  session, so this always works.
-- **The two hosted pages** can use that same endpoint, but **only once
-  `API_BASE` is filled in** at the top of `site/assets/feedback-form.js`.
-  It ships as `''`, and while it is, those pages never contact the API at
-  all: they assemble the answers and hand off to the visitor's own mail
-  client, or — for a fully-answered survey, which overflows what a
-  `mailto:` link can carry — offer the text back to be copied into an
-  email. Either way the answers reach the same inbox, by hand.
+The hosted pages have no session of their own, so they get one the way a
+demo visitor does: mint an anonymous code (`POST /auth/demo-code`, public
+by design), exchange it for a `demo_code` JWT, submit. Nothing about the
+backend had to change for that to work — `agnusdei.ai` was already in
+`CORS_ORIGINS`, and `site/_headers`' single site-wide CSP already allows
+`connect-src https://*.onrender.com` because the demo under `/bede/`
+needs exactly that permission.
 
-**If you are waiting on the Resend inbox and seeing nothing, this is
-why.** Setting `API_BASE` is a three-line change and worth doing before
-the survey goes out at any scale, since a mail-client hand-off loses
-respondents who have no mail client configured — on a phone or a shared
-machine, that is a lot of them. It is deliberately not set here because
-the value is a per-deployment Render URL this repository does not hold
-(the same `VITE_DEMO_API_BASE` the demo build uses). Two other files have
-to move with it, both noted in that script's own comment: `site/_headers`
-(the CSP's `connect-src`) and `site/privacy/index.html`, which currently
-states these pages "contact nothing but your own browser" — true only
-while `API_BASE` is `''`, and a public privacy claim once it is not.
+**The API's URL is not committed anywhere.** It is a per-deployment
+value, so `site/assets/api-base.js` ships empty and
+`scripts/build_pages_site.sh` fills it in at build time from
+`VITE_DEMO_API_BASE` — the same variable the demo build already consumes
+(`demo/src/api.ts`). Configured once, on the Worker; no file to hand-edit
+and no second copy to keep in step. The script refuses anything that is
+not a plain `https` origin rather than writing it into a page.
 
-The `data-category` attributes and the four-way category check in
-`homeschool-api/tests/test_beta_survey_category.py` are what make that
-switch safe to flip later. They are correct now and inert until then.
+**If that variable is unset** — a local preview, or a Worker without it —
+the forms fall back to the visitor's own mail client, or for a
+fully-answered survey hand the text back to be copied. The answers still
+reach the same inbox, by hand. The build says which of the two happened
+rather than leaving it to be discovered from an inbox that stays quiet.
 
 If you change a question, change it here first, then in the page or the
 component. A question that exists in one channel and not another produces
@@ -467,5 +464,16 @@ where the same question lives twice, add a check that they agree.
 - Both hosted pages and the in-app prompt post to the same endpoint with
   the same `beta_survey` category, so everything sorts into one place in
   the inbox regardless of where it was answered.
+  `homeschool-api/tests/test_beta_survey_category.py` pins that category
+  across all four files that name it — a pydantic `Literal`, two HTML
+  attributes, and a TypeScript call site — because nothing type-checks a
+  static site's markup against a `Literal`, so a typo would not fail a
+  build. It would 422 the moment a parent pressed submit.
+- `demo/src/surveyForms.test.ts` covers the delivery path itself, in both
+  states: with an API base configured it asserts the three real calls and
+  the category actually posted, and with none it asserts the mail
+  hand-off. It also checks the build script still writes the file. If
+  that ever stops happening, nothing errors and every form still appears
+  to work — the only symptom is an inbox that quietly stays empty.
 
 See CLAUDE.md's "Carry Out the Decision, Don't Just Record It".

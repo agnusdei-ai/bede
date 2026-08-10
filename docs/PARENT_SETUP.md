@@ -1,5 +1,9 @@
 # Setting Up Bede: A Guide for Parents & Tutors
 
+> **New here?** Read [MASTERY.md](MASTERY.md) first — ten minutes on what Bede
+> measures, what it deliberately refuses to, and how to tell whether it is
+> working. This guide is the field-by-field walkthrough; that one is the why.
+
 This walks through everything from "nothing installed" to "my child is having their
 first lesson," including the parts that matter for keeping it secure once you hand
 it off. No terminal or typed commands required: steps 2 and 3 below are answering

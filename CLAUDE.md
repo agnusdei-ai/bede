@@ -237,7 +237,7 @@ routers/
   voice.py           POST /voice/enroll; POST /voice/verify; POST /voice/stream/start, POST /voice/stream/{id}/chunk, POST /voice/stream/{id}/finish, GET /voice/stream/{id}/events (SSE) — server-side streaming transcription, the ONLY voice-input path for the tutor mic since browser-native SpeechRecognition was removed entirely, see services/streaming_transcription.py below and docs/VOICE_SETUP.md
   admin.py           GET /admin/status; GET /admin/audit; GET+POST /admin/license (in-app license view/renew — verified offline, stored in LicenseConfig, effective immediately); GET+POST /admin/ai-provider (in-app primary AI-provider switch) + POST /admin/ai-provider/secondary (in-app failover-provider switch, e.g. Claude vs. Mistral as backup) — see "Live AI-provider switching" below; GET /admin/agentic-loop-stats (core/api_usage.py's get_loop_stats — see "Bounded tool_result loop" below)
   narration.py       Narration assessment history + learner profile: GET/POST /narration/{student}/profile, GET /narration/{student}/assessments, GET /narration/{student}/behavior-check (parent-only processing_style-adaptation observation for TRACKABLE_STYLES — see LearnerBehaviorCheck)
-  feedback.py        GET /feedback/enabled (public, gates whether the frontend shows any feedback UI at all); POST /feedback — any authenticated role (parent, child, demo visitor), routed via `services/email_service.py` to `FEEDBACK_EMAIL` over Resend, never persisted server-side beyond that one outbound email. `FeedbackRequest.category` (`models/schemas.py`) covers ordinary in-use feedback (cx/ux/content_quality/other), the demo's own "interested in plans" lead capture (`plans`) and end-of-session survey (`beta_close`), and a real beta family's one-time setup-completion intake (`onboarding` — see `ParentSetup.tsx`/`BetaIntakeModal.tsx` above) — each gets its own email subject-line prefix (`_feedback_prefix`) so the operator's inbox stays triageable at a glance.
+  feedback.py        GET /feedback/enabled (public, gates whether the frontend shows any feedback UI at all); POST /feedback — any authenticated role (parent, child, demo visitor), routed via `services/email_service.py` to `FEEDBACK_EMAIL` over Resend, never persisted server-side beyond that one outbound email. `FeedbackRequest.category` (`models/schemas.py`) covers ordinary in-use feedback (cx/ux/content_quality/other), the demo's own "interested in plans" lead capture (`plans`) and end-of-session survey (`beta_close`), a real beta family's one-time setup-completion intake (`onboarding` — see `ParentSetup.tsx`/`BetaIntakeModal.tsx` above), and the beta period's structured survey (`beta_survey` — see "Beta surveys" below) — each gets its own email subject-line prefix (`_feedback_prefix`) so the operator's inbox stays triageable at a glance.
 services/
   ai_service.py      stream_tutor_response() + generate_session_summary(); _constitution_preamble() prepends the verified constitution to every persona/summary/profile-synthesis prompt. Its module-level `_client` is resolved through services/adapters/ (resolve_with_failover()), NOT hardcoded to Anthropic — see docs/PROVIDER_ADAPTERS.md
   adapters/          Provider-adapter layer decoupling the tutor from any single LLM vendor. base.py (Anthropic-shaped vocabulary + ChatAdapter Protocol), anthropic_adapter.py (returns a real anthropic.AsyncAnthropic), openai_compatible_adapter.py (ONE class translating Anthropic↔OpenAI /v1/chat/completions — covers OpenAI, a self-hosted vLLM/Qwen3-Coder server (or Ollama — anything speaking the same OpenAI-compatible endpoint), Mistral, any OpenAI-compatible endpoint), router.py (get_default_client() picks the first CONFIGURED adapter in BEDE_ADAPTER_ORDER — default "local,anthropic", never requires ANTHROPIC_API_KEY to boot; resolve_with_failover() is the Phase-6 failover client, and is what `services/ai_service.py`'s module-level `_client` actually resolves through; both honor core/provider_state.py's live DB override before falling through to the env order — see "Live AI-provider switching" below). Also exposes two small public helpers routers/admin.py's switcher uses: `configured_adapters()` (which adapters currently have credentials set) and `preference_order()` (the env BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER baseline). The library/self-hosted default treats a local vLLM server as primary and Anthropic as optional fallback, for the account-closure case. **The public Render demo overrides this**: `render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral,anthropic` for the `bede-demo-api` service specifically (OpenAI primary, Mistral the default fallback, Anthropic a third, optional candidate present so it's a legitimate secondary-override choice — see below — the moment `ANTHROPIC_API_KEY` is filled in, with no redeploy). Because `_client` is a `FailoverClient`, this is LIVE failover, not just a boot-time preference: if OpenAI errors (auth/rate-limit/connection failure) on a request, that request automatically retries against whichever adapter is second in the effective order (Mistral by default, or Claude if picked as secondary) before any content streams back, with a ~60s circuit-breaker cooldown on the failed provider — see docs/PROVIDER_ADAPTERS.md (merged in PR #159; live failover wired in as a follow-up; the configurable-secondary override added 2026-08-03 alongside the fixed demo Privacy Notice, see "Public tracker & data disclosure page" above).
@@ -435,6 +435,7 @@ components/
   SocraticChat.tsx   Chat UI + SSE stream consumer + Bede opener ([START] sentinel); press-and-hold mic (`useHybridVoiceInput`'s `holdStart`/`holdEnd`) shows a Confirm/Cancel review step before sending rather than sending on release, and calls `stopSpeech()` synchronously on `holdStart` so a child can barge in over Bede's TTS mid-sentence; `DebugOverlay`'s own toggle lives in `TutorSession.tsx`'s header, not here — see that entry below for why; a denied/unavailable microphone (`useHybridVoiceInput`'s `micError`) surfaces as a plain-language chat message rather than the mic button silently doing nothing — an error identical to the message already at the bottom of the chat is suppressed, since a mic that fails one press usually fails the next too and unguarded appends buried the lesson under repeats of the same bubble; the scroll-to-bottom effect reacts to the live voice-input state (`isListening`/`interim`/`isTranscribing`/`pendingVoiceTranscript`), not just new messages, so the child's own live transcript can't render below the fold with nothing bringing it into view. A `Radio`-icon pill (next to the mic) toggles `useVoiceModePreference`'s opt-in continuous "Voice on" mode — off (hold-to-talk) by default for every family. When on, a `useEffect` keyed off `awaitingChildTurn` (itself already gated on `!isStreaming && !isSpeaking && !isListening && !isTranscribing && !breakActive`) calls `start()` automatically once it's genuinely the child's turn, and `onFinal` sends the transcript straight through (via a `sendRef` forward-reference, bypassing the hold-to-talk review step, since hands-free is the whole point) instead of holding it for Confirm/Cancel. Restart is driven entirely by that state transition, never a bare timer — the specific difference from an earlier, since-removed "voice mode" that auto-restarted on an interval and bred recurring audio bugs (see `useHybridVoiceInput.ts`'s own comment on why press-and-hold replaced it); `MIN_MS_BETWEEN_AUTO_STARTS` (800ms) is defense-in-depth against a rapid-restart loop regardless. `MAX_CONSECUTIVE_VOICE_FAILURES` (3) — or a single `'permission-denied'` — falls back to hold-to-talk automatically with a chat message (`chat.voiceModeFallbackMessage`) rather than continuing to auto-restart into the same failure — see `docs/VOICE_SETUP.md`'s continuous-mode section. This `start()` call site never calls a corresponding `release()` — a known, documented gap since server-side streaming transcription replaced native SpeechRecognition (see `useHybridVoiceInput.ts`'s own KNOWN GAP comment): a continuous-mode turn now runs for the full `HOLD_SAFETY_TIMEOUT_MS` (120s) before auto-finishing rather than ending snappily when the child stops talking.
   MeetBede.tsx       One-time, skippable "Meet Bede" introduction (mic/pencil/breaks/safety, condensed from docs/CHILD_GUIDE.md) shown before a child's first-ever session on a device — see `useMeetBede.ts`. Demo is deliberately excluded: its sessions are short `demo_code` previews with no persistent per-student identity to gate "has this child seen it" against.
   BetaIntakeModal.tsx  One-time, skippable "what are you hoping Bede helps with" prompt shown from `ParentSetup.tsx` right after a family's first-ever pod save — parent-facing only, before a child is ever involved. Submits via the same `POST /feedback` pipeline as `FeedbackModal.tsx` below (`homeschool-api/routers/feedback.py`), tagged with the `onboarding` category so it reads distinctly in the operator's inbox rather than as ordinary in-use feedback (see `services/email_service.py`'s `_feedback_prefix`). Unlike `FeedbackModal.tsx`, this one IS localized (`betaIntake.*` in both locale files) — a brand-new user-facing form has no excuse to break a Spanish family's immersion the same turn this session's other fixes addressed exactly that.
+  BetaSurveyModal.tsx  The in-app leg of the beta survey (`docs/BETA_SURVEY.md`) — five questions, shown from `Progress.tsx` once that student has >= `MIN_ASSESSMENTS_BEFORE_SURVEY` (3) recorded narration assessments, gated on `GET /feedback/enabled`, and on `useBetaSurvey.ts`'s per-device state. Posts through the same `POST /feedback` pipeline under a new `beta_survey` category shared with the two hosted survey pages on the marketing site, so all three channels' answers pool into one place in the operator's inbox rather than three that have to be merged by hand; which channel a response came from is carried in the message body's own leading tag line instead. The answer VALUES it submits are the exact strings `site/survey/index.html`'s own radios carry — `BetaSurveyModal.test.tsx` reads that page and asserts it, since a reworded option here would still submit and would simply stop matching anything, invisibly. Localized like `BetaIntakeModal.tsx`, but the question labels and answer values it POSTS are always English regardless of locale: they are data for one inbox, not text for a reader, and translating them would split every question into one bucket per locale. Deliberately asks nothing about the child — a survey is not an exception to the standing never-score-a-child rule, it would just be the same metric collected by hand, and a test scans the rendered text in both locales for exactly that.
   FeedbackModal.tsx  Anytime, in-session "Share feedback with the team" button (header, gated on `GET /feedback/enabled`) — category (cx/ux/content_quality/other) + optional rating + free text + optional reply-to email, routed to `FEEDBACK_EMAIL` via Resend and never persisted server-side beyond that one outbound send (`homeschool-api/routers/feedback.py`, `services/email_service.py`). Not currently localized (plain English strings) — a pre-existing gap, unlike `BetaIntakeModal.tsx` above.
   DebugOverlay.tsx   Fixed-position, screenshot-able voice-flow debug panel (monospace, green-on-black) fed by `hooks/debugBus.ts`'s pub/sub ring buffer; Clear/Close controls
   ParentMfaVerification.tsx  Login-time second-factor completion (security key tap or TOTP code) shown when `POST /auth/login` returns `mfa_required` — full-screen, replaces `Login.tsx`'s form entirely rather than an inline step.
@@ -467,6 +468,7 @@ hooks/
   useChatTheme.ts          localStorage-backed theme/bubble preference (CHAT_THEMES, BUBBLE_COLORS; instances synced via window event)
   useVoiceModePreference.ts  localStorage-backed hold-to-talk vs. continuous "Voice on" preference (`bede-voice-mode`, per-device not per-student — deliberately doesn't follow the student to another tablet, since hands-free behavior is device-mic-sensitive), same window-event-sync pattern as `useChatTheme.ts`; consumed by `SocraticChat.tsx` — see that entry above and `docs/VOICE_SETUP.md`
   useMeetBede.ts           localStorage-backed, per-student, per-device flag (`hasSeenMeetBede`/`markSeen`) gating `MeetBede`'s one-time appearance; versioned key prefix so future content changes can force re-display
+  useBetaSurvey.ts         localStorage-backed, per-DEVICE (not per-student — the survey asks about the family, so per-student would ask one parent the same questions three times) gate on `BetaSurveyModal`'s appearance. Three states rather than a boolean, because "not now" and "answered" must behave differently: a dismissal mid-task defers for `DEFER_DAYS` (14), while submitting or "Don't ask me again" closes permanently. `surveyIsDue()` is exported separately from the hook so the rule is testable without a component. A malformed stored value (localStorage is editable) reads as "never asked" rather than throwing inside render — the safe direction for everything except a parent who has said no, which is why a well-formed `closed` record is the one thing that must survive being read back exactly.
   debugBus.ts              Pub/sub ring-buffer logger (`logDebug`, `subscribeDebug`, `clearDebugEntries`, `MAX_ENTRIES=100`) backing `DebugOverlay`
 utils/
   gradeTimer.ts      Session hard stop for every grade (SessionConfig.session_cap_minutes: 2h default, 4h schema-enforced max) + mandatory 10-min break each hour; K-3 additionally paces subjects in 20-min blocks
@@ -727,12 +729,95 @@ deployer testing their own instance — see
 which tracks findings pinned to the git SHA tested so they can be
 correlated release-to-release.
 
+**Beta surveys — one instrument, three delivery channels
+(`docs/BETA_SURVEY.md`):** the beta period has three decisions to make
+(does the pedagogy land, what should this cost and in what unit, are
+co-ops a real channel) and, before this, one general "tell us what to fix"
+form (`site/feedback/index.html`) aimed at none of them. The word "co-op"
+appeared twice in the entire repository, both times in passing, which is
+the size of that particular gap. `docs/BETA_SURVEY.md` is the **source of
+truth**: two instruments (beta parents; co-op educators), the reasoning
+behind every question, and the rules governing what a survey here may ask.
+Change a question there first, then in the channel.
+
+- **`site/survey/index.html`** (`/survey/`) and **`site/educators/index.html`**
+  (`/educators/`) are the primary channel, and the only one that reaches a
+  co-op leader who has never opened Bede. **`BetaSurveyModal.tsx`** is the
+  short in-app leg for parents already using it. All three post to
+  `POST /feedback` → Resend → `FEEDBACK_EMAIL` (`info@agnusdei.ai`, set in
+  `render.yaml`) under one `beta_survey` category so their answers pool;
+  each tags its own message body so the inbox can still tell them apart.
+  The hosted pages have no session, so they mint one the way a demo visitor
+  does (`POST /auth/demo-code` → `demo_code` JWT → submit) — which needed no
+  backend change at all: `agnusdei.ai` was already in `CORS_ORIGINS`, and
+  `site/_headers`' single site-wide CSP already allows
+  `connect-src https://*.onrender.com` because the demo under `/bede/`
+  needs the identical permission.
+- **The API's URL is filled in by the build, not by hand.**
+  `site/assets/api-base.js` ships empty (`window.BEDE_API_BASE = ''`) and
+  `scripts/build_pages_site.sh` overwrites it in `publish/` from
+  `VITE_DEMO_API_BASE` — the same variable `demo/src/api.ts` already
+  consumes, so the value is configured once on the Worker rather than
+  committed as a second copy someone has to keep in step. The build
+  validates it is a plain `https` origin before writing it into a script
+  served to every visitor, and trims trailing slashes so the value is
+  canonical. Unset is a supported outcome, not a failure: the forms fall
+  back to the visitor's own mail client, and the build prints which of the
+  two happened — otherwise the only symptom of a lost variable is an inbox
+  that quietly stays empty while every form still appears to work.
+  Because this makes those static pages contact the API at all,
+  `site/privacy/index.html` had to move with it: it now states that the
+  pages make no network request until a visitor presses play on the home
+  page's video or send on a form, and carries a table row for the forms.
+  That page promises a complete, code-audited inventory, so wiring this up
+  without amending it would have made a public privacy claim false.
+- **A fully-answered survey does not fit in a `mailto:` link.**
+  `MAILTO_SAFE_LENGTH` (1900) was sized for the twelve-field feedback form;
+  these are twice that, so overflow is an ordinary outcome here rather than
+  an edge case, and it is reached on the only delivery path those pages
+  currently have. The original behavior — tell the visitor to "shorten the
+  longer answers" — breaks these pages' own promise that nothing they typed
+  is lost, at the worst possible moment. `handOffToClipboard` renders the
+  assembled message back into a read-only textarea with a copy button and a
+  `mailto:` link instead. Pinned by filling both surveys completely in
+  `demo/src/surveyForms.test.ts`, verified to fail when the fallback is
+  reverted.
+- **`site/assets/feedback-form.js` is now one script for all three hosted
+  pages**, configured per page by `data-category`/`data-tag`/`data-mail-subject`
+  on its own `<form>`. Its question labels are read from each page's own
+  `<legend>`/`<label for>` rather than from the hardcoded field-name map it
+  used to carry — that map was a second copy of every question, whose
+  failure mode was an answer arriving in the inbox filed under wording no
+  longer on the page. `demo/src/surveyForms.test.ts` loads the real pages
+  into a real DOM, runs the real script, and asserts the assembled message;
+  verified to fail on all three pages when the DOM lookup regresses.
+- **The category string is the same fact in four files** — a pydantic
+  `Literal`, two HTML attributes, and a TypeScript call site. Nothing
+  type-checks a static site's markup against a `Literal`, so a typo would
+  not fail a build; it would 422 at the moment a parent pressed submit,
+  after they had filled the form in. `tests/test_beta_survey_category.py`
+  pins all four, and was verified to fail on exactly that typo.
+- **The refusals travel with the instrument, and are tested rather than
+  promised.** A survey never asks a parent to rate their child (it would be
+  the same claim-about-a-child this codebase already refuses to compute —
+  see `_WORK_SCORING_NOTE` and the `SkillActivityLog`/`MasteryProfile`
+  split), and never asks anything about a child's faith engagement, which
+  would be the forbidden metric collected by hand. Both are scanned for, in
+  both locales, in `BetaSurveyModal.test.tsx` and
+  `tests/test_beta_survey_category.py`. Note the modal's own subtitle had to
+  be reworded during this work — it said "nothing here asks you to rate your
+  child", which is a disavowal the blunt scan cannot distinguish from the
+  thing it forbids; the check was deliberately left blunt and the copy moved.
+- **Locale never reaches the wire.** The in-app prompt is translated, but
+  the question labels and answer values it POSTS are always English — a
+  translated wire value would split one question into a bucket per locale.
+
 **Public tracker & data disclosure page (`site/privacy/index.html`,
 `/privacy/` — renamed from `/trackers/` for GA; `site/trackers/index.html`
 is now a redirect stub to `/privacy/`, matching
 `scripts/build_github_pages_redirect.sh`'s existing meta-refresh + JS +
 plain-link pattern, so an already-shared or bookmarked `/trackers/` link
-still lands somewhere real):** answers, for `agnusdei.io` itself (the marketing site
+still lands somewhere real):** answers, for `agnusdei.ai` itself (the marketing site
 and the public demo it hosts under `/bede/`) rather than the self-hosted
 product, what actually sets a cookie, what uses browser storage, and what
 third-party origin is contacted — a code-audited inventory, not a

@@ -778,8 +778,23 @@ class FeedbackRequest(BaseModel):
     same contract; just a distinct subject-line prefix (see
     services/email_service.py's _feedback_prefix) so it doesn't read like
     ordinary in-use feedback.
+
+    "beta_survey" is the beta period's structured instrument — a whole set
+    of questions rather than one remark — and is the ONE category with more
+    than one delivery channel: the two hosted pages on the marketing site
+    (site/survey/, site/educators/) and the in-app BetaSurveyModal all post
+    under it, deliberately, so their answers pool into a single pile in the
+    operator's inbox instead of three that have to be merged by hand. Which
+    channel a given response came from is carried in the message body's own
+    leading tag line, not in the category. The questions themselves, and
+    the rules governing what a survey here may and may not ask (never rate
+    a child, never ask about a child's faith), live in docs/BETA_SURVEY.md,
+    which is the source of truth all three channels are checked against.
     """
-    category: Literal["cx", "ux", "content_quality", "plans", "other", "beta_close", "onboarding"]
+    category: Literal[
+        "cx", "ux", "content_quality", "plans", "other",
+        "beta_close", "onboarding", "beta_survey",
+    ]
     message: str = Field(..., min_length=1, max_length=2000)
     rating: Optional[int] = Field(None, ge=1, le=5)
     contact_email: Optional[EmailStr] = None

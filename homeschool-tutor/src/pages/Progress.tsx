@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -6,6 +6,8 @@ import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
 import PodWorkRoster from '../components/PodWorkRoster'
+import BetaSurveyModal from '../components/BetaSurveyModal'
+import { useBetaSurvey } from '../hooks/useBetaSurvey'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
 import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
@@ -18,7 +20,21 @@ import {
   fetchStudentActivity,
   fetchPodActivity,
   buildLearnerProfile,
+  isFeedbackEnabled,
 } from '../services/api'
+
+/**
+ * How much recorded narration a student needs before this page offers the
+ * parent the beta survey (see BetaSurveyModal.tsx and docs/BETA_SURVEY.md).
+ *
+ * Three sessions' worth of assessed narration, roughly. Deliberately not
+ * one: the survey's first question asks how many days Bede was actually
+ * used, and asking it of a family who tried it once produces a first
+ * impression filed alongside findings from families who used it for a
+ * month. Deliberately not ten either, since the beta is short and a bar
+ * that high would mean nobody is ever asked.
+ */
+const MIN_ASSESSMENTS_BEFORE_SURVEY = 3
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -775,6 +791,44 @@ export default function Progress() {
       .finally(() => setLoading(false))
   }, [token, activeStudent, activeStudentIsFoundations, activeStudentIsBeyondFoundations])
 
+  // ── The beta survey prompt ────────────────────────────────────────────
+  // Asked here rather than mid-session for two reasons: a parent on this
+  // page has come to look at how their children are doing, which is the
+  // frame the survey's own questions sit in, and a child must never meet
+  // it — this page is already parent-only.
+  //
+  // Gated on real evidence rather than on time or on visit count: the
+  // survey asks what Bede did to a family's teaching, and a family whose
+  // children have not narrated to it yet has no answer to give. Narration
+  // assessments are written by Bede itself during a session, so a non-empty
+  // history means the product was genuinely used, not merely opened.
+  const { due: surveyDue, close: closeSurvey, defer: deferSurvey } = useBetaSurvey()
+  const hasRealUsage = assessments.length >= MIN_ASSESSMENTS_BEFORE_SURVEY
+  // Whether the modal is on screen, tracked separately from whether the
+  // survey is still due. They come apart the moment a parent submits:
+  // answering records "never ask again" immediately (so closing the tab
+  // from the thank-you screen still counts), but the modal has to stay up
+  // to show that thank-you and its link to the longer survey.
+  const [surveyOpen, setSurveyOpen] = useState(false)
+  const surveyOfferedRef = useRef(false)
+
+  useEffect(() => {
+    // Checked only once the gate is otherwise open, so a deployment with no
+    // FEEDBACK_EMAIL configured is never asked about at all — and so a
+    // parent who has already answered costs no request either.
+    if (!surveyDue || !hasRealUsage || surveyOfferedRef.current || loading) return
+    let cancelled = false
+    isFeedbackEnabled().then((enabled) => {
+      if (cancelled || !enabled) return
+      // A ref, not state: this must stay true after answering flips
+      // surveyDue false, or the effect would re-fire and reopen the modal
+      // on the next render.
+      surveyOfferedRef.current = true
+      setSurveyOpen(true)
+    })
+    return () => { cancelled = true }
+  }, [surveyDue, hasRealUsage, loading])
+
   return (
     <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
@@ -898,6 +952,15 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {surveyOpen && token && (
+        <BetaSurveyModal
+          token={token}
+          onAnswered={closeSurvey}
+          onClose={() => { closeSurvey(); setSurveyOpen(false) }}
+          onDefer={() => { deferSurvey(); setSurveyOpen(false) }}
+        />
+      )}
     </div>
   )
 }

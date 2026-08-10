@@ -36,8 +36,11 @@
       <h2>The marketing site, and the demo, are not the same product</h2>
       <p>
         The pages you are reading now (the home page, this page,
-        the FAQ, the feedback form) are static. They contact
-        nothing but your own browser. The interactive demo at
+        the FAQ, the feedback form, and the two survey pages for
+        parents and co-op leaders) are static. They contact nothing at
+        all while you read them. The single exception is the moment you
+        press send on one of the forms, and it goes to our own server and
+        nowhere else, described below. The interactive demo at
         <a href="/bede/">agnusdei.ai/bede/</a> is a different thing
         entirely: a separate, time-limited, fully-featured free trial
         that runs in the cloud, on our own servers, so you can try Bede
@@ -62,12 +65,25 @@
         embedded video on the home page, and it is click-to-play: no
         request reaches YouTube until a visitor presses play themselves.
       </p>
+      <p>
+        Two things do leave your browser, and only when you choose to make
+        them. Pressing play on that video contacts YouTube. Pressing send
+        on the feedback form or either survey posts what you typed to our
+        own API, which emails it to us and stores nothing. Both are
+        listed below. Until you do one of those, these pages make no
+        network request of any kind.
+      </p>
       <table class="tracker-table">
         <tr><th>Item</th><th>Category</th><th>Notes</th></tr>
         <tr>
           <td>YouTube video embed (home page)</td>
           <td>Marketing / embedded video</td>
           <td>Loaded only after a visitor clicks &ldquo;Watch: Meet Bede.&rdquo; Served via YouTube's privacy-enhanced <code>youtube-nocookie.com</code> domain. Nothing is requested from YouTube before that click.</td>
+        </tr>
+        <tr>
+          <td>Feedback and survey forms</td>
+          <td>Strictly necessary</td>
+          <td>Sent only when you press send. What you typed goes to our own API and is emailed straight to us through Resend; it is not written to any database, and no analytics or form service is involved. If we cannot be reached, your own email program opens with your answers in it instead, so nothing is lost. Name and email are optional on every one of these forms &mdash; leave them blank and we have no way to know who you are.</td>
         </tr>
       </table>
 
@@ -208,8 +224,8 @@
         </tr>
         <tr>
           <td>Resend</td>
-          <td>Your feedback message and, if you choose to leave one, a reply email address</td>
-          <td>Delivers the optional feedback form to our own inbox</td>
+          <td>Your feedback or survey answers and, if you choose to leave one, a reply email address</td>
+          <td>Delivers the optional feedback and survey forms to our own inbox</td>
         </tr>
       </table>
 
@@ -252,6 +268,7 @@
       <a href="/bede/">Demo</a> &nbsp;&middot;&nbsp;
       <a href="mailto:sales@agnusdei.ai?subject=Onboarding%20call">Schedule Onboarding</a> &nbsp;&middot;&nbsp;
       <a href="/feedback/">Feedback</a> &nbsp;&middot;&nbsp;
+      <a href="/educators/">Co-ops</a> &nbsp;&middot;&nbsp;
       <a href="/privacy/">Privacy</a>
     </div>
     <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>

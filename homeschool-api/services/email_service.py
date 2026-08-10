@@ -141,20 +141,30 @@ _CATEGORY_LABELS = {
     "other": "Other",
     "beta_close": "💬 End-of-demo suggestion",
     "onboarding": "🌱 New family's first-day hopes",
+    "beta_survey": "📋 Beta survey response",
 }
 
 
 def _feedback_prefix(category: str) -> str:
-    """"plans" is a demo lead, not product feedback, and "onboarding" is
-    collected before a family has used the product at all — both read oddly
-    under a "beta feedback" heading, so each gets its own prefix even though
-    they share every other part of this pipeline (same inbox, same
-    template, same one-outbound-email contract) with routers/feedback.py's
-    original cx/ux/content_quality/other categories."""
+    """"plans" is a demo lead, not product feedback, "onboarding" is
+    collected before a family has used the product at all, and
+    "beta_survey" is a whole structured instrument rather than one remark —
+    each reads oddly under a "beta feedback" heading, so each gets its own
+    prefix even though they share every other part of this pipeline (same
+    inbox, same template, same one-outbound-email contract) with
+    routers/feedback.py's original cx/ux/content_quality/other categories.
+
+    The survey prefix is shared by all three of its delivery channels (the
+    two hosted pages and the in-app prompt) on purpose — they ask the same
+    questions, so their answers have to land in one pile to be readable
+    together. Which channel a response came from is carried in the message
+    body's own tag line instead. See docs/BETA_SURVEY.md."""
     if category == "plans":
         return "Bede demo lead"
     if category == "onboarding":
         return "Bede beta onboarding"
+    if category == "beta_survey":
+        return "Bede beta survey"
     return "Bede beta feedback"
 
 

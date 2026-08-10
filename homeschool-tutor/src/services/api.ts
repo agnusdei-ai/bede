@@ -695,7 +695,7 @@ export async function emailSessionSummary(
 // persisted server-side beyond that one email. See
 // homeschool-api/routers/feedback.py.
 
-export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other' | 'onboarding'
+export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other' | 'onboarding' | 'beta_survey'
 
 /** Checked before showing the feedback button at all, so it never appears
  *  only to fail on submit on a deployment where FEEDBACK_EMAIL isn't set. */

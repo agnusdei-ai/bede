@@ -198,7 +198,7 @@ export interface SubjectInfo {
   durationMin: number
   // A single hex color, not a Tailwind class string — one hue per subject,
   // used as a left-border accent (SubjectPicker, SubjectDrawer). Matches
-  // agnusdei.io's own curriculum-grid color binder exactly: 14 hues evenly
+  // agnusdei.ai's own curriculum-grid color binder exactly: 14 hues evenly
   // spaced around the wheel (25.7° apart, S=0.380, L=0.361 — see
   // site/assets/site.css's ".curriculum .card:nth-child" rules, the source
   // of truth for these values), in the same subject order as the Subject

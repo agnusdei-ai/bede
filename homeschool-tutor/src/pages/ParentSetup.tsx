@@ -761,7 +761,7 @@ function StudentCard({
               fits every current label on one line; truncate + title remain
               as a safety net for a future label that doesn't. The left
               border is each subject's own color from SUBJECTS, matching
-              agnusdei.io's curriculum color binder — see that field's own
+              agnusdei.ai's curriculum color binder — see that field's own
               comment in types/index.ts. */}
           <div className="grid grid-cols-1 gap-1.5">
             {availableSubjects.map((s) => {

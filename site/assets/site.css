@@ -1,4 +1,4 @@
-/* Shared stylesheet for agnusdei.io — index.html and faq/index.html.
+/* Shared stylesheet for agnusdei.ai — index.html and faq/index.html.
    Extracted from index.html's inline <style> when the FAQ moved to its
    own page, so the two cannot drift apart. No build step: this file is
    served as-is, same as the pages that link it. */

@@ -1171,6 +1171,34 @@ Bede tutors. Setup instructions and the full reasoning are in
   cannot be undone. See `docs/DATA_RETENTION.md` for the full, table-by-table list
   of what's kept and for how long.
 
+## 14. The beta survey (during the beta only)
+
+Once your child has a few sessions behind them, the Progress page may ask
+you five short questions: how many days Bede has actually been used, what
+it did to your own teaching time, whether what Bede does with a narration
+is better or worse than what you would have done, whether Bede has ever
+said something you had to correct, and the one thing that would make it
+genuinely useful to you.
+
+Some things worth knowing about it:
+
+- **It never asks you to rate your child.** Every question is about the
+  software or about your own day. That is a rule, not a coincidence: this
+  product does not score children, and a survey is not an exception to it.
+- **Nothing about your child is sent.** Your answers go to us as one
+  email and are not stored on any server. No names, no scores, no
+  transcripts travel with them.
+- **"Not now" is honoured.** Dismissing it asks again in a fortnight;
+  "Don't ask me again" means never, on that device.
+- **It only appears if the person running your deployment configured a
+  feedback address** (`FEEDBACK_EMAIL`). On a deployment without one you
+  will never see it.
+
+There is a longer version at [agnusdei.ai/survey](https://agnusdei.ai/survey/),
+including questions about what a year of this should cost. If you help
+run a homeschool co-op, there is a separate one for that at
+[agnusdei.ai/educators](https://agnusdei.ai/educators/).
+
 ## Troubleshooting
 
 - **"Too many requests" on login**: the rate limiter (10 attempts/minute per

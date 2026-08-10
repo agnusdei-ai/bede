@@ -22,7 +22,8 @@ Last reviewed: 2026-08-04.
 ## Scope
 
 This policy covers only data **Agnus Dei Technologies, LLC** itself
-collects as operator of the public demo (`agnusdei.io/bede/`). A
+collects as operator of the public demo (`agnusdei.ai/bede/`, also
+reachable at `agnusdei.io/bede/` — the same build on the same Worker). A
 self-hosted family's own retention of their own data, in their own
 database, is that family's decision — see `docs/DATA_RETENTION.md`'s
 "Your family's data" section for the technical facts of what's stored

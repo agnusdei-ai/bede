@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>For co-op leaders and educators &mdash; Agnus Dei Technologies</title>
+  <meta name="description" content="For the people who run homeschool co-ops: what would have to be true before you put an AI tutor in front of your member families, who would run it, and what it should cost. Six minutes." />
+  <link rel="canonical" href="https://agnusdei.ai/educators/" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/assets/site.css" />
+</head>
+<body>
+  <div class="beta-banner">
+    <strong>Public beta now open.</strong> Free to use through August 31. Every homeschooling family welcome.
+  </div>
+
+  <div class="band">
+    <section class="page-head">
+      <div class="inner" style="max-width: 44rem;">
+        <a class="backlink" href="/">&larr; Agnus Dei Technologies</a>
+        <h1>For the people who run co-ops</h1>
+        <p class="lede">
+          Bede is a classical, Socratic tutor that a homeschooling family
+          runs on their own computer. It introduces a lesson, asks the
+          child to narrate it back, and sends them to the real book. Your
+          families meet with you once or twice a week. This is about the
+          other three or four days.
+        </p>
+        <p class="lede">
+          We have built and tested it in one family. We do not know what a
+          co-op would need, who decides, or whether you would want it at
+          all. Six minutes, and you can leave your name off it. If you
+          would rather just talk, write to
+          <a href="mailto:info@agnusdei.ai?subject=Co-op%20conversation">info@agnusdei.ai</a>
+          and a person will answer.
+        </p>
+        <p class="lede">
+          Never seen it? <a href="/bede/">Try the demo</a> first, or read
+          the <a href="/faq/">FAQ</a>. Neither is required to answer this.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="band-curriculum">
+    <div class="inner">
+      <form class="form-block" id="feedback-form"
+            data-category="beta_survey"
+            data-tag="[Co-op educator survey]"
+            data-mail-subject="Bede co-op survey">
+
+        <fieldset class="field">
+          <legend>What is your role?</legend>
+          <div class="choices">
+            <label><input type="radio" name="role" value="Director or board" /> Director or board</label>
+            <label><input type="radio" name="role" value="Teaching parent" /> Teaching parent</label>
+            <label><input type="radio" name="role" value="Hired tutor or teacher" /> Hired tutor or teacher</label>
+            <label><input type="radio" name="role" value="Curriculum lead" /> Curriculum lead</label>
+            <label><input type="radio" name="role" value="Member parent" /> Member parent</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>How many families are in your co-op?</legend>
+          <div class="choices">
+            <label><input type="radio" name="size" value="Under 10" /> Under 10</label>
+            <label><input type="radio" name="size" value="10-25" /> 10&ndash;25</label>
+            <label><input type="radio" name="size" value="25-50" /> 25&ndash;50</label>
+            <label><input type="radio" name="size" value="50-100" /> 50&ndash;100</label>
+            <label><input type="radio" name="size" value="More than 100" /> More than 100</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Which grade bands do you serve?</legend>
+          <div class="choices">
+            <label><input type="checkbox" name="stages" value="K-2" /> K&ndash;2</label>
+            <label><input type="checkbox" name="stages" value="3-5" /> 3&ndash;5</label>
+            <label><input type="checkbox" name="stages" value="6-8" /> 6&ndash;8</label>
+            <label><input type="checkbox" name="stages" value="9-12" /> 9&ndash;12</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="rhythm">How often do you meet, and what happens on the other days?</label>
+          <span class="hint">The most useful box on this page. We would rather hear the week described in your words than guess at it.</span>
+          <textarea id="rhythm" name="rhythm"></textarea>
+        </div>
+
+        <fieldset class="field">
+          <legend>Does the co-op set curriculum, or does each family choose?</legend>
+          <span class="hint">Bede is built to defer to the parent as the child's primary educator. A co-op that sets curriculum for its members is a case we have never designed against, and we would like to know how common it is.</span>
+          <div class="choices">
+            <label><input type="radio" name="curriculum_authority" value="Co-op sets it" /> The co-op sets it</label>
+            <label><input type="radio" name="curriculum_authority" value="Co-op recommends, families choose" /> We recommend, families choose</label>
+            <label><input type="radio" name="curriculum_authority" value="Entirely up to each family" /> Entirely up to each family</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Does your co-op hold a statement of faith or a required tradition?</legend>
+          <span class="hint">Bede ships a Catholic Saints &amp; Catechism module and a separate, deliberately denomination-neutral Scripture module beside it. A family enables either, both, or neither.</span>
+          <div class="choices">
+            <label><input type="radio" name="statement_of_faith" value="Yes, and it is specific" /> Yes, and it is specific</label>
+            <label><input type="radio" name="statement_of_faith" value="Yes, broadly Christian" /> Yes, broadly Christian</label>
+            <label><input type="radio" name="statement_of_faith" value="No" /> No</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="tradition">If yes, which tradition?</label>
+          <input type="text" id="tradition" name="tradition" placeholder="e.g. Catholic, Reformed Baptist, broadly evangelical, Orthodox" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="gate">What would have to be true before you would put an AI tutor in front of your member families?</label>
+          <span class="hint">Asked openly rather than as a checklist we invented. This is the question we most need answered.</span>
+          <textarea id="gate" name="gate"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="q" for="safeguarding">What is your co-op's position on an AI talking to a child without an adult in the room?</label>
+          <span class="hint">We have answers to this, and we would rather hear the objection in your words before giving them.</span>
+          <textarea id="safeguarding" name="safeguarding"></textarea>
+        </div>
+
+        <fieldset class="field">
+          <legend>If your co-op used Bede, what role would it play?</legend>
+          <div class="choices">
+            <label><input type="radio" name="endorsement" value="We would require it" /> We would require it</label>
+            <label><input type="radio" name="endorsement" value="We would recommend it" /> We would recommend it</label>
+            <label><input type="radio" name="endorsement" value="We would tell families it exists" /> We would mention it exists</label>
+            <label><input type="radio" name="endorsement" value="We would let families find it themselves" /> Families would find it themselves</label>
+            <label><input type="radio" name="endorsement" value="We would not" /> We would not use it</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Who decides something like this?</legend>
+          <div class="choices">
+            <label><input type="radio" name="decider" value="Director alone" /> Director alone</label>
+            <label><input type="radio" name="decider" value="Board vote" /> Board vote</label>
+            <label><input type="radio" name="decider" value="Member vote" /> Member vote</label>
+            <label><input type="radio" name="decider" value="Each family independently" /> Each family independently</label>
+            <label><input type="radio" name="decider" value="Not sure" /> Not sure</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Who would run the software?</legend>
+          <span class="hint">Bede runs on a computer you control, which is what keeps children's data off our servers entirely. A co-op-owned server is a shape we have written down and not yet built.</span>
+          <div class="choices">
+            <label><input type="radio" name="hosting" value="A computer the co-op owns" /> A computer the co-op owns</label>
+            <label><input type="radio" name="hosting" value="Each family's own computer" /> Each family's own computer</label>
+            <label><input type="radio" name="hosting" value="We would want it hosted for us" /> Hosted for us</label>
+            <label><input type="radio" name="hosting" value="No idea, and that matters" /> No idea, and that matters</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Would you host an onboarding session for member families?</legend>
+          <div class="choices">
+            <label><input type="radio" name="onboarding" value="Yes" /> Yes</label>
+            <label><input type="radio" name="onboarding" value="Maybe" /> Maybe</label>
+            <label><input type="radio" name="onboarding" value="No" /> No</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Bede asks rather than tells, and runs on narration. Does that fit how your co-op teaches?</legend>
+          <div class="choices">
+            <label><input type="radio" name="method_fit" value="Fits well" /> Fits well</label>
+            <label><input type="radio" name="method_fit" value="Partly" /> Partly</label>
+            <label><input type="radio" name="method_fit" value="Conflicts with how we teach" /> Conflicts with how we teach</label>
+            <label><input type="radio" name="method_fit" value="Not sure yet" /> Not sure yet</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Which subjects should Bede stay out of for you?</legend>
+          <span class="hint">A co-op that already teaches Latin in the room every week does not need Bede teaching Latin. Knowing what you cover tells us what Bede is actually for in a co-op.</span>
+          <div class="choices">
+            <label><input type="checkbox" name="hands_off" value="None" /> None, all of it is welcome</label>
+            <label><input type="checkbox" name="hands_off" value="Morning Time" /> Morning Time</label>
+            <label><input type="checkbox" name="hands_off" value="Living Books" /> Living Books</label>
+            <label><input type="checkbox" name="hands_off" value="Mathematics" /> Mathematics</label>
+            <label><input type="checkbox" name="hands_off" value="Nature Study" /> Nature Study</label>
+            <label><input type="checkbox" name="hands_off" value="History & Geography" /> History &amp; Geography</label>
+            <label><input type="checkbox" name="hands_off" value="Language Arts" /> Language Arts</label>
+            <label><input type="checkbox" name="hands_off" value="Science" /> Science</label>
+            <label><input type="checkbox" name="hands_off" value="Art & Music" /> Art &amp; Music</label>
+            <label><input type="checkbox" name="hands_off" value="Saints & Catechism" /> Saints &amp; Catechism</label>
+            <label><input type="checkbox" name="hands_off" value="Scripture & Bible Study" /> Scripture &amp; Bible Study</label>
+            <label><input type="checkbox" name="hands_off" value="Latin & Christian Foundations" /> Latin</label>
+            <label><input type="checkbox" name="hands_off" value="Greek & New Testament Foundations" /> Greek</label>
+            <label><input type="checkbox" name="hands_off" value="Logic" /> Logic</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="struggle">What do your families struggle with most between meetings?</label>
+          <textarea id="struggle" name="struggle"></textarea>
+        </div>
+
+        <fieldset class="field">
+          <legend>Does your co-op collect fees or hold a budget?</legend>
+          <div class="choices">
+            <label><input type="radio" name="budget" value="Yes, and we buy curriculum with it" /> Yes, and we buy curriculum</label>
+            <label><input type="radio" name="budget" value="Yes, but only for space and events" /> Yes, for space and events only</label>
+            <label><input type="radio" name="budget" value="No, families pay their own way" /> No, families pay their own way</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>If your co-op paid, what would work?</legend>
+          <div class="choices">
+            <label><input type="radio" name="billing" value="One site license for the whole co-op" /> One site license</label>
+            <label><input type="radio" name="billing" value="Per family, billed to the co-op" /> Per family, billed to us</label>
+            <label><input type="radio" name="billing" value="Per family, billed to each family" /> Per family, billed to them</label>
+            <label><input type="radio" name="billing" value="We would not pay, families would" /> We would not pay at all</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Per family per month, what would your families accept?</legend>
+          <div class="choices">
+            <label><input type="radio" name="price_band" value="Under $10" /> Under $10</label>
+            <label><input type="radio" name="price_band" value="$10-20" /> $10&ndash;20</label>
+            <label><input type="radio" name="price_band" value="$20-40" /> $20&ndash;40</label>
+            <label><input type="radio" name="price_band" value="$40-75" /> $40&ndash;75</label>
+            <label><input type="radio" name="price_band" value="More than $75" /> More than $75</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="name">Your name</label>
+          <span class="hint">Optional, like everything else. But a survey we cannot follow up on has wasted the harder half of your time and ours.</span>
+          <input type="text" id="name" name="name" autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="coop_name">Co-op name</label>
+          <input type="text" id="coop_name" name="coop_name" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+
+        <fieldset class="field">
+          <legend>Would you take a call?</legend>
+          <span class="hint">Twenty minutes, and it would be with the person who builds this, not a salesperson.</span>
+          <div class="choices">
+            <label><input type="radio" name="call" value="Yes" /> Yes</label>
+            <label><input type="radio" name="call" value="No" /> No</label>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="cta">Send my answers &rarr;</button>
+        <p class="form-note" id="form-note">
+          This goes straight to us and nowhere else: no form service,
+          no analytics, no tracker. Your answers are emailed to our own inbox
+          and not stored on a server. If we cannot be reached, your own email
+          program opens with the answers filled in instead, so nothing you
+          typed is lost. Either way you can write to
+          <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> directly.
+        </p>
+      </form>
+    </div>
+  </section>
+
+  <section class="band-closing">
+    <div class="inner" style="max-width: 40rem;">
+      <p class="eyebrow">Member families</p>
+      <h2>Already using Bede at home?</h2>
+      <p class="lede">
+        There is a separate survey for parents, about whether the teaching
+        is working and what a year should cost. If you wear both hats,
+        answering both is genuinely more useful than answering one twice.
+      </p>
+      <a class="cta gilt" href="/survey/">The parent survey &rarr;</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">Home</a> &nbsp;&middot;&nbsp;
+      <a href="/faq/">FAQ</a> &nbsp;&middot;&nbsp;
+      <a href="/bede/">Demo</a> &nbsp;&middot;&nbsp;
+      <a href="mailto:sales@agnusdei.ai?subject=Onboarding%20call">Schedule Onboarding</a> &nbsp;&middot;&nbsp;
+      <a href="/feedback/">Feedback</a> &nbsp;&middot;&nbsp;
+      <a href="/educators/">Co-ops</a> &nbsp;&middot;&nbsp;
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+  </footer>
+
+  <script src="/assets/feedback-form.js"></script>
+</body>
+</html>

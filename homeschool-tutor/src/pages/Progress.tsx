@@ -5,9 +5,11 @@ import type { TFunction } from 'i18next'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
+import SubjectCoverage from '../components/SubjectCoverage'
 import PodWorkRoster from '../components/PodWorkRoster'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
 import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
+import type { SubjectCoverage as SubjectCoverageData } from '../services/api'
 import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
 import {
   fetchNarrationAssessments,
@@ -16,6 +18,7 @@ import {
   fetchMasteryProfileSummary,
   fetchStudentUsage,
   fetchStudentActivity,
+  fetchSubjectCoverage,
   fetchPodActivity,
   buildLearnerProfile,
 } from '../services/api'
@@ -701,6 +704,7 @@ export default function Progress() {
   const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
   const [literacySummary, setLiteracySummary] = useState<MasteryProfileSummary | null>(null)
   const [workLedger, setWorkLedger] = useState<WorkLedgerData | null>(null)
+  const [coverage, setCoverage] = useState<SubjectCoverageData | null>(null)
   const [podRoster, setPodRoster] = useState<PodWorkRosterData | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -731,6 +735,7 @@ export default function Progress() {
     setLanguageSummary(null)
     setLiteracySummary(null)
     setWorkLedger(null)
+    setCoverage(null)
     setPodRoster(null)
     setUsage(null)
 
@@ -748,6 +753,7 @@ export default function Progress() {
         ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
         : Promise.resolve(null),
       fetchStudentActivity(token, activeStudent),
+      fetchSubjectCoverage(token, activeStudent),
       // The pod roster is about the whole pod, not the active student —
       // fetched once here rather than per-student so switching students
       // doesn't refetch identical data.
@@ -756,7 +762,7 @@ export default function Progress() {
         : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, lang, lit, act, pod, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, lit, act, cov, pod, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
@@ -766,6 +772,7 @@ export default function Progress() {
         setLanguageSummary(lang)
         setLiteracySummary(lit)
         setWorkLedger(act)
+        setCoverage(cov)
         setPodRoster(pod)
         setUsage(u)
       })
@@ -890,6 +897,7 @@ export default function Progress() {
               noDataText={t('progress.noLanguageMasteryData', { name: activeStudent })}
               calibrationText={t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 })}
             />
+            <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}
             <AiUsageCard usage={usage} loading={loading} />

@@ -1601,6 +1601,72 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     )
 
 
+def _learning_support_note(config: SessionConfig) -> str:
+    """
+    What the PARENT has told Bede helps this particular child
+    (SessionConfig.learning_support — see LEARNING_SUPPORT_SUGGESTIONS in
+    models/schemas.py).
+
+    THIS IS BEHAVIOURAL GUIDANCE UNDER STATED PRINCIPLES, NOT AN ALGORITHM.
+    Bede is not running an adaptive test and is not selecting items to
+    maximise information about a latent trait — it is a tutor who has been
+    told something useful about the child in front of it and is expected to
+    act on it with judgment, the way a good teacher's aide would. The rules
+    below are the governing principles; within them Bede decides.
+
+    THE ONE DISTINCTION EVERYTHING ELSE RESTS ON: these change HOW a lesson
+    is delivered, never WHAT is taught, and never the standard the work is
+    held to. An accommodation removes an obstacle between a child and the
+    material. A lowered expectation removes the material. A child given
+    more time still learns the same thing, and the work they produce is
+    still judged against what the task asked for
+    (see _WORK_SCORING_NOTE) — not against a softer version of it.
+
+    Parent-declared, never inferred: see SessionConfig.learning_support's
+    own comment for why deciding a child needs support is not a judgment
+    this software makes.
+
+    Sanitized like every other parent-supplied free-text field
+    (_sanitize_parent_field) — it sits in the cached static block for the
+    whole session, which is exactly the class of field that rule exists for.
+    """
+    entries = [
+        cleaned for cleaned in (_sanitize_parent_field(e) for e in (config.learning_support or []))
+        if cleaned
+    ]
+    if not entries:
+        return ""
+    lines = "\n".join(f"  - {e}" for e in entries)
+    return f"""
+
+<what_helps_this_child>
+This child's parent has told you what helps them:
+{lines}
+
+Follow these. They are not suggestions from a stranger — they come from the person who
+knows this child best, and who is this child's primary educator.
+
+How to hold them:
+- These change HOW you teach, never WHAT you teach, and never the standard the work is
+  held to. A child who needs more time still learns the same material, and their work is
+  still judged against what the task actually asked for. Removing an obstacle is help;
+  removing the material is not.
+- NEVER say any of this to the child, and never explain why a lesson is shaped the way it
+  is. A child should experience a lesson that fits them, not a lesson that has been
+  visibly adjusted for them. "Let's take this one step at a time" is fine. "Because
+  reading is hard for you" is not, ever.
+- Never treat this as a reason to praise more easily, lower a question's difficulty, or
+  accept less than the child can actually give. Expect real work; make the path to it
+  clear.
+- Never name, guess at, or imply a diagnosis — not to the child and not to the parent.
+  You have been told what helps. You have not been told why, you are not qualified to
+  decide why, and it is not your question to answer.
+- If something here genuinely conflicts with a lesson (a written narration for a child
+  who answers aloud), the accommodation wins and you find another way to reach the same
+  end.
+</what_helps_this_child>"""
+
+
 def _curriculum_resources_note(config: SessionConfig) -> str:
     """
     Names curriculum publishers/resources the family already uses alongside
@@ -1857,7 +1923,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_curriculum_resources_note(config)}
+{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_learning_support_note(config)}{_curriculum_resources_note(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \

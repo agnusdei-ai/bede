@@ -191,6 +191,51 @@ async def get_pod_activity(
     return await pod_activity(db, names, min(365, max(1, since_days)), subject_area)
 
 
+@router.get("/{student_name}/coverage")
+async def get_subject_coverage(
+    student_name: str,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Which of this student's scheduled subjects are actually getting taught,
+    and when each was last taught.
+
+    Answers a question a parent could not previously ask: a subject
+    producing nothing might never have been scheduled, or might have been
+    scheduled for six weeks and opened twice. Those need opposite responses
+    and nothing could tell them apart — see services/subject_coverage.py.
+
+    Reports the SCHEDULE, never the child. It does not score engagement or
+    interest; a subject can go untaught because of the hour, the book, or a
+    busy fortnight. Parent-only, like every other route on this router — a
+    child shown "you have not done History in three weeks" has been handed a
+    reproach.
+    """
+    from sqlalchemy import select
+
+    from core import student_keys
+    from core.database import StudentConfig
+    from core.encryption import decrypt_json
+    from models.schemas import SessionConfig
+    from routers.pod import _config_aad
+    from services.subject_coverage import coverage_for_student, to_payload
+
+    row = (await db.execute(
+        select(StudentConfig).where(StudentConfig.student_name == student_name)
+    )).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No saved plan for {student_name} yet.",
+        )
+    config = SessionConfig(**decrypt_json(
+        row.config_enc, _config_aad(student_name), await student_keys.get_existing(db, student_name)
+    ))
+    coverage = await coverage_for_student(db, student_name, config.subjects)
+    return to_payload(coverage)
+
+
 @router.get("/{student_name}/activity")
 async def get_student_activity(
     student_name: str,

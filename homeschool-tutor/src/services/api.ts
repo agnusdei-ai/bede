@@ -797,6 +797,37 @@ export async function fetchStudentActivity(
   return res.json()
 }
 
+export interface SubjectCoverage {
+  stale_after_days: number
+  subjects: Array<{
+    subject: string
+    label: string
+    last_taught: string | null
+    days_since: number | null
+    needs_attention: boolean
+  }>
+  note: string
+}
+
+/**
+ * Which scheduled subjects are actually getting taught. Answers a question
+ * a parent could not previously ask — a subject with nothing to show for it
+ * might never have been scheduled, or might have been scheduled for six
+ * weeks and opened twice. Reports the SCHEDULE, never the child.
+ */
+export async function fetchSubjectCoverage(
+  token: string,
+  studentName: string,
+): Promise<SubjectCoverage | null> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/coverage`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (res.status === 404) return null
+  if (!res.ok) return null
+  return res.json()
+}
+
 /**
  * The same ledger across the parent's own students, keyed by skill. Used
  * to arrange peer teaching from evidence of completed work — never to rank

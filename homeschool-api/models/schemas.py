@@ -45,6 +45,27 @@ BIBLE_TRANSLATIONS = [
 # verify it has permission or accurate memory to reproduce.
 PUBLIC_DOMAIN_BIBLE_TRANSLATIONS = {"KJV", "Douay-Rheims"}
 
+# What actually HELPS a particular child, in the parent's own words — never
+# what is "wrong" with them. Quick-pick suggestions only; a family's own
+# wording outside this list is kept exactly as typed (see
+# SessionConfig.learning_support).
+#
+# Every entry names a change to HOW a lesson is delivered, never to WHAT is
+# taught or the standard the work is held to. That distinction is the whole
+# design: an accommodation removes an obstacle between a child and the
+# material, and a lowered expectation removes the material. See
+# services/ai_service.py's _learning_support_note.
+LEARNING_SUPPORT_SUGGESTIONS = [
+    "More time to answer",
+    "Shorter passages at a time",
+    "Answer out loud instead of writing",
+    "Read the passage aloud to them",
+    "Break tasks into one step at a time",
+    "Frequent short breaks",
+    "Repeat instructions before starting",
+    "Say numbers and letters clearly, one at a time",
+]
+
 # Curriculum publishers commonly used alongside Bede by classical/Christian
 # homeschool families, offered as quick-pick suggestions for
 # SessionConfig.curriculum_resources — NOT a closed enum (a family's own
@@ -312,6 +333,22 @@ class SessionConfig(BaseModel):
     # treating them as anything beyond a name to align tone with would risk
     # fabricating claims about content Bede was never actually given.
     curriculum_resources: List[str] = Field(default_factory=list)
+    # What helps THIS child, stated by the parent — never inferred by Bede,
+    # and never a diagnosis. See LEARNING_SUPPORT_SUGGESTIONS above and
+    # services/ai_service.py's _learning_support_note for the governing
+    # rules; docs/PARENT_SETUP.md for how it is put to a parent.
+    #
+    # WHY PARENT-DECLARED AND NOT INFERRED. Deciding a child needs support
+    # is a judgment about that child, and the two ways to reach it are a
+    # qualified evaluator or the parent who lives with them. Bede is
+    # neither. It can notice a pattern and say so (see the reading-strands
+    # observation in docs/PARENT_SETUP.md), but the standing decision about
+    # what a child needs is not one this software makes — the same
+    # authority_order the constitution states, where the parent is the
+    # child's primary educator.
+    #
+    # Same "clean, never reject" convention as curriculum_resources above.
+    learning_support: List[str] = Field(default_factory=list)
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
     # The session's hard stop, in minutes — on by default and there by
@@ -434,6 +471,20 @@ class SessionConfig(BaseModel):
             if cleaned and cleaned.lower() not in seen:
                 seen[cleaned.lower()] = cleaned
         self.curriculum_resources = list(seen.values())[:6]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_learning_support(self):
+        """Same clean-never-reject shape as _validate_curriculum_resources
+        above, and for a sharper reason: a parent describing what helps
+        their child is the last person who should meet a 422 over
+        whitespace."""
+        seen: dict[str, str] = {}
+        for entry in self.learning_support or []:
+            cleaned = entry.strip()[:80] if entry else ""
+            if cleaned and cleaned.lower() not in seen:
+                seen[cleaned.lower()] = cleaned
+        self.learning_support = list(seen.values())[:8]
         return self
 
     @model_validator(mode="after")

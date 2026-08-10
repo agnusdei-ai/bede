@@ -100,6 +100,10 @@ GUARDS = {
     ('GET', '/diagnostic/pod/activity'): 'require_parent',
     ('GET', '/diagnostic/summary'): '_require_diagnostic_quota',
     ('GET', '/diagnostic/{student_name}/activity'): 'require_parent',
+    # Which scheduled subjects are actually getting taught. Parent-only
+    # for the same reason the ledger is: a child shown "you have not done
+    # History in three weeks" has been handed a reproach.
+    ('GET', '/diagnostic/{student_name}/coverage'): 'require_parent',
     # Parent-only, and deliberately not merely by convention: the plan's
     # reasons say things like "this hasn't come up in a while", which is a
     # statement about the schedule that a CHILD would read as a statement

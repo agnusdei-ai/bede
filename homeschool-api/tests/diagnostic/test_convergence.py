@@ -41,6 +41,7 @@ The thresholds below are regression floors with headroom, not targets. They
 exist so a future change that quietly degrades accuracy fails a test instead
 of reaching a family.
 """
+import inspect
 import random
 from collections import Counter
 
@@ -244,3 +245,132 @@ def test_accuracy_does_not_degrade_as_evidence_accumulates():
     early = _cohort(COHORTS["middle"], n_evidence=10)
     late = _cohort(COHORTS["middle"], n_evidence=60)
     assert late["accuracy_where_decided"] > early["accuracy_where_decided"] - 0.05
+
+
+# ── Cold start: a grade is not evidence ──────────────────────────────────
+#
+# The priors used to seed below-band skills up to 0.9, above the 0.80 secure
+# cutoff, so a brand-new 6-8 student's profile reported 24 of 95 skills as
+# Mastered before Bede had asked a single question. These pin the rule that
+# replaced it — assume the child has probably MET earlier material, never
+# that they have mastered it.
+
+@pytest.mark.parametrize("band", ["K-2", "3-5", "6-8"])
+def test_no_skill_is_ever_reported_secure_without_evidence(band):
+    """
+    The hard invariant, and the reason the prior scheme changed. A grade is
+    not evidence. Whatever the seeding rule becomes later, a cold-start
+    vector must never contain a skill a parent would be shown as Mastered.
+    """
+    vector = new_vector(band)
+    secure = {s: p for s, p in vector.items() if p >= SECURE_CUTOFF}
+    assert not secure, (
+        f"{band}: {len(secure)} skills would be reported Mastered before the "
+        f"child has been asked anything — e.g. {sorted(secure)[:3]}"
+    )
+
+
+@pytest.mark.parametrize("band", ["K-2", "3-5", "6-8"])
+def test_the_below_band_prior_stays_inside_its_window(band):
+    """
+    The other half of the rule, and it is NOT "assume nothing" — the window
+    has two live edges and the lower one is easy to forget.
+
+    Above kst.fringe's `prereq_hi`, or every unprobed earlier-band
+    prerequisite blocks its dependents and a student's whole "next steps"
+    list collapses to the two skills with no prerequisites at all — see
+    test_next_steps_band_leak.py, which caught exactly that when this
+    change first went too far. Below the secure cutoff, or a grade alone
+    reports a skill as Mastered.
+    """
+    from services.diagnostic.kst import fringe as _fringe
+
+    prereq_hi = inspect.signature(_fringe).parameters["prereq_hi"].default
+    vector = new_vector(band)
+    band_index = BAND_ORDER.index(band)
+    below = [
+        s for s in all_skill_ids()
+        if BAND_ORDER.index(get_skill(s).band.value) < band_index
+    ]
+    if not below:
+        pytest.skip(f"{band} has no band beneath it")
+    assert all(vector[s] > prereq_hi for s in below), (
+        "an unprobed earlier-band skill would block its dependents"
+    )
+    assert all(vector[s] < SECURE_CUTOFF for s in below), (
+        "a grade alone would report an earlier-band skill as Mastered"
+    )
+
+
+def test_the_false_secure_collapse_this_bought_stays_bought():
+    """
+    Measured, not asserted from taste. Band 6-8 is where the old scheme did
+    its damage (the only band with two beneath it), and the struggling
+    cohort is where it did the most: false-secure ran at 13.1% before this
+    change and 1.9% after, with accuracy on committed verdicts RISING from
+    70.0% to 92.1% — the coverage that was lost had been largely wrong.
+
+    The floor is set with headroom above the measured 1.9%, not at it.
+    """
+    result = _cohort(COHORTS["struggling"], band="6-8")
+    assert result["false_secure_rate"] < 0.04, (
+        f"false-secure at {result['false_secure_rate']:.2%} for a struggling "
+        f"6-8 student — the regression this file exists to catch"
+    )
+    assert result["accuracy_where_decided"] > 0.85, (
+        f"only {result['accuracy_where_decided']:.1%} of committed verdicts "
+        f"were right for a struggling 6-8 student"
+    )
+
+
+# ── No child is ever restarted by a tuning change ────────────────────────
+#
+# The question this had to answer before it could ship: does re-tuning the
+# engine throw away what a family has already accumulated? It does not, and
+# the reason is structural rather than careful — but structural properties
+# are exactly the ones that get broken by an unrelated refactor, so they are
+# asserted here.
+
+def test_retuning_never_touches_a_vector_a_family_already_has():
+    """
+    Priors apply at cold start and at ensure_complete's backfill of skills
+    that did not exist when the row was written. They are not re-applied to
+    a stored probability, so a child who has been assessed keeps every value
+    they earned — no reset, no recompute, no re-test.
+    """
+    from services.diagnostic.mastery import ensure_complete
+
+    earned = {"cc.rote_count_20": 0.93, "fr.divide_fractions": 0.31}
+    after = ensure_complete(dict(earned), "6-8")
+    for skill_id, probability in earned.items():
+        assert after[skill_id] == probability, (
+            f"{skill_id} was rewritten from {probability} to {after[skill_id]} "
+            f"— a family's accumulated evidence must survive a tuning change"
+        )
+
+
+def test_the_calibration_threshold_is_read_time_and_write_forward_only():
+    """
+    CALIBRATION_THRESHOLD is used in exactly two ways, neither retroactive:
+    build_summary_view reads it on every render to decide whether to show
+    the "still getting to know your learner" banner, and
+    calibration_weight_for uses it to weight the NEXT piece of evidence.
+    Past updates are already folded into the stored probability and are
+    never recomputed, so moving the threshold cannot rewrite history.
+    """
+    stored = 0.72
+    for threshold in (3, 5, 20):
+        vector, _ = bayesian_update(
+            {"fr.divide_fractions": stored},
+            {"probe_id": "probe.fr.divide_fractions", "outcome": "correct", "confidence": 1.0},
+            calibration_weight=calibration_weight_for(99, threshold),
+        )
+        # Past the threshold the weight is 1.0 regardless of what the
+        # threshold is, so a settled learner's updates are identical.
+        assert vector["fr.divide_fractions"] == pytest.approx(
+            bayesian_update(
+                {"fr.divide_fractions": stored},
+                {"probe_id": "probe.fr.divide_fractions", "outcome": "correct", "confidence": 1.0},
+                calibration_weight=1.0,
+            )[0]["fr.divide_fractions"]
+        )

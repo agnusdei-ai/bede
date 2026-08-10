@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -802,23 +802,32 @@ export default function Progress() {
   // children have not narrated to it yet has no answer to give. Narration
   // assessments are written by Bede itself during a session, so a non-empty
   // history means the product was genuinely used, not merely opened.
-  const [surveyOffered, setSurveyOffered] = useState(false)
   const { due: surveyDue, close: closeSurvey, defer: deferSurvey } = useBetaSurvey()
   const hasRealUsage = assessments.length >= MIN_ASSESSMENTS_BEFORE_SURVEY
+  // Whether the modal is on screen, tracked separately from whether the
+  // survey is still due. They come apart the moment a parent submits:
+  // answering records "never ask again" immediately (so closing the tab
+  // from the thank-you screen still counts), but the modal has to stay up
+  // to show that thank-you and its link to the longer survey.
+  const [surveyOpen, setSurveyOpen] = useState(false)
+  const surveyOfferedRef = useRef(false)
 
   useEffect(() => {
     // Checked only once the gate is otherwise open, so a deployment with no
     // FEEDBACK_EMAIL configured is never asked about at all — and so a
     // parent who has already answered costs no request either.
-    if (!surveyDue || !hasRealUsage || surveyOffered || loading) return
+    if (!surveyDue || !hasRealUsage || surveyOfferedRef.current || loading) return
     let cancelled = false
     isFeedbackEnabled().then((enabled) => {
-      if (!cancelled && enabled) setSurveyOffered(true)
+      if (cancelled || !enabled) return
+      // A ref, not state: this must stay true after answering flips
+      // surveyDue false, or the effect would re-fire and reopen the modal
+      // on the next render.
+      surveyOfferedRef.current = true
+      setSurveyOpen(true)
     })
     return () => { cancelled = true }
-  }, [surveyDue, hasRealUsage, surveyOffered, loading])
-
-  const showSurvey = surveyOffered && surveyDue
+  }, [surveyDue, hasRealUsage, loading])
 
   return (
     <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
@@ -944,8 +953,13 @@ export default function Progress() {
         )}
       </div>
 
-      {showSurvey && token && (
-        <BetaSurveyModal token={token} onClose={closeSurvey} onDefer={deferSurvey} />
+      {surveyOpen && token && (
+        <BetaSurveyModal
+          token={token}
+          onAnswered={closeSurvey}
+          onClose={() => { closeSurvey(); setSurveyOpen(false) }}
+          onDefer={() => { deferSurvey(); setSurveyOpen(false) }}
+        />
       )}
     </div>
   )

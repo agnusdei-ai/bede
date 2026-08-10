@@ -36,11 +36,19 @@ beforeEach(() => {
   submitFeedback.mockResolvedValue(undefined)
 })
 
-function mount(overrides: Partial<{ onClose: () => void; onDefer: () => void }> = {}) {
+function mount(overrides: Partial<{ onAnswered: () => void; onClose: () => void; onDefer: () => void }> = {}) {
+  const onAnswered = overrides.onAnswered ?? vi.fn()
   const onClose = overrides.onClose ?? vi.fn()
   const onDefer = overrides.onDefer ?? vi.fn()
-  render(<BetaSurveyModal token="t" onClose={onClose} onDefer={onDefer} />)
-  return { onClose, onDefer }
+  render(<BetaSurveyModal token="t" onAnswered={onAnswered} onClose={onClose} onDefer={onDefer} />)
+  return { onAnswered, onClose, onDefer }
+}
+
+/** Answer one radio and submit. */
+async function answerAndSubmit() {
+  fireEvent.click(screen.getByRole('radio', { name: en.betaSurvey.daysWeek }))
+  fireEvent.click(screen.getByRole('button', { name: en.betaSurvey.submit }))
+  await waitFor(() => expect(submitFeedback).toHaveBeenCalled())
 }
 
 /** Every radio value the modal can submit, read off the rendered DOM. */
@@ -155,6 +163,43 @@ describe('the two ways of closing it are not the same', () => {
   it('"Don’t ask me again" closes for good', () => {
     const { onClose, onDefer } = mount()
     fireEvent.click(screen.getByRole('button', { name: en.betaSurvey.dontAskAgain }))
+    expect(onClose).toHaveBeenCalled()
+    expect(onDefer).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Answering and dismissing are different events, and conflating them loses
+ * responses in both directions — a parent re-prompted a fortnight after
+ * they already helped, or an answer that was sent and recorded as never
+ * given because they closed the tab on the thank-you screen.
+ */
+describe('answering is recorded when it happens, not when the modal closes', () => {
+  it('records the answer the moment the send succeeds', async () => {
+    const { onAnswered } = mount()
+    await answerAndSubmit()
+    expect(onAnswered).toHaveBeenCalled()
+  })
+
+  it('does not record an answer when the send fails', async () => {
+    submitFeedback.mockRejectedValueOnce(new Error('offline'))
+    const { onAnswered } = mount()
+    await answerAndSubmit()
+    expect(onAnswered).not.toHaveBeenCalled()
+  })
+
+  it('stays on screen after answering, so the thank-you is actually seen', async () => {
+    mount()
+    await answerAndSubmit()
+    expect(screen.getByText(en.betaSurvey.thanks)).toBeTruthy()
+  })
+
+  it('treats the corner X after answering as done, never as a deferral', async () => {
+    const { onClose, onDefer } = mount()
+    await answerAndSubmit()
+    // Post-send the X is relabelled, so it is found by the done label now.
+    const buttons = screen.getAllByRole('button', { name: en.betaSurvey.done })
+    fireEvent.click(buttons[0])
     expect(onClose).toHaveBeenCalled()
     expect(onDefer).not.toHaveBeenCalled()
   })

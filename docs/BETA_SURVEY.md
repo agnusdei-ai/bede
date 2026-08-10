@@ -13,10 +13,36 @@ three ways, and all three must agree with what is written here:
 | In-app prompt | Beta parents already using Bede | `homeschool-tutor/src/components/BetaSurveyModal.tsx` |
 | Email / in person | Either | Copy the question bank out of this file |
 
-All three land in the same operator inbox through the same pipeline
-(`POST /feedback` → Resend → `FEEDBACK_EMAIL`), and nothing any of them
-collects is persisted server-side beyond that one outbound email. See
-`homeschool-api/routers/feedback.py`.
+All three land in the same operator inbox, and nothing any of them
+collects is persisted server-side beyond one outbound email. They do not
+all take the same road there, and the difference matters operationally:
+
+- **The in-app prompt** posts to `POST /feedback` → Resend →
+  `FEEDBACK_EMAIL` (`homeschool-api/routers/feedback.py`). It has a
+  session, so this always works.
+- **The two hosted pages** can use that same endpoint, but **only once
+  `API_BASE` is filled in** at the top of `site/assets/feedback-form.js`.
+  It ships as `''`, and while it is, those pages never contact the API at
+  all: they assemble the answers and hand off to the visitor's own mail
+  client, or — for a fully-answered survey, which overflows what a
+  `mailto:` link can carry — offer the text back to be copied into an
+  email. Either way the answers reach the same inbox, by hand.
+
+**If you are waiting on the Resend inbox and seeing nothing, this is
+why.** Setting `API_BASE` is a three-line change and worth doing before
+the survey goes out at any scale, since a mail-client hand-off loses
+respondents who have no mail client configured — on a phone or a shared
+machine, that is a lot of them. It is deliberately not set here because
+the value is a per-deployment Render URL this repository does not hold
+(the same `VITE_DEMO_API_BASE` the demo build uses). Two other files have
+to move with it, both noted in that script's own comment: `site/_headers`
+(the CSP's `connect-src`) and `site/privacy/index.html`, which currently
+states these pages "contact nothing but your own browser" — true only
+while `API_BASE` is `''`, and a public privacy claim once it is not.
+
+The `data-category` attributes and the four-way category check in
+`homeschool-api/tests/test_beta_survey_category.py` are what make that
+switch safe to flip later. They are correct now and inert until then.
 
 If you change a question, change it here first, then in the page or the
 component. A question that exists in one channel and not another produces

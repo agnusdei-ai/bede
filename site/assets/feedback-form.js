@@ -112,13 +112,69 @@ function collect() {
   return lines;
 }
 
+/**
+ * Too long for a mailto link. Do NOT just say so: these pages promise
+ * "nothing you typed is lost", and telling someone who has just answered
+ * twenty-five questions to "shorten the longer answers" breaks that
+ * promise at the worst possible moment.
+ *
+ * A fully-answered survey exceeds MAILTO_SAFE_LENGTH easily — the limit
+ * was sized for the twelve-field feedback form and these are twice that —
+ * so this is an ordinary outcome here, not an edge case. Hand the visitor
+ * the assembled text instead, ready to copy, so the work survives even
+ * though the link cannot carry it.
+ */
+function handOffToClipboard(body, why) {
+  note.textContent = why
+    ? `${why} Your answers are below, ready to copy — please paste them into an email to ${FEEDBACK_TO} and we will read them the same.`
+    : `You answered enough that this is too long for an email link to carry. Nothing is lost: your answers are below, ready to copy. Paste them into an email to ${FEEDBACK_TO}.`;
+
+  if (form.querySelector('#form-overflow')) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'field';
+  wrap.id = 'form-overflow';
+
+  const area = document.createElement('textarea');
+  area.readOnly = true;
+  area.rows = 8;
+  area.value = body;
+
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'cta';
+  copy.textContent = 'Copy my answers';
+  copy.addEventListener('click', async () => {
+    area.select();
+    try {
+      // Not available on an insecure origin or in some older browsers, so
+      // the selection above is the real fallback: the text is already
+      // highlighted and one keystroke away either way.
+      await navigator.clipboard.writeText(body);
+      copy.textContent = 'Copied — now paste it into an email';
+    } catch {
+      copy.textContent = 'Selected — press Ctrl+C (or Cmd+C) to copy';
+    }
+  });
+
+  const mail = document.createElement('a');
+  mail.className = 'cta gilt';
+  mail.href = `mailto:${FEEDBACK_TO}?subject=${encodeURIComponent(MAIL_SUBJECT)}`;
+  mail.textContent = `Open an email to ${FEEDBACK_TO}`;
+
+  wrap.append(area, copy, mail);
+  form.append(wrap);
+  // Guarded rather than assumed: this is the last statement in the one
+  // path that exists to stop a visitor losing their answers, and it must
+  // not be able to throw its way out of having appended them.
+  if (typeof area.scrollIntoView === 'function') area.scrollIntoView({ block: 'nearest' });
+}
+
 /** Fall back to the visitor's own mail client. */
 function handOffToMail(body, why) {
   const url = `mailto:${FEEDBACK_TO}?subject=${encodeURIComponent(MAIL_SUBJECT)}&body=${encodeURIComponent(body)}`;
   if (url.length > MAILTO_SAFE_LENGTH) {
-    note.textContent = why
-      ? `We could not reach the server, and this is too long to hand to your email program. Please write to ${FEEDBACK_TO} — we read those the same.`
-      : `That is longer than an email link can carry reliably. Shorten the longer answers, or write straight to ${FEEDBACK_TO}.`;
+    handOffToClipboard(body, why ? 'We could not reach the server just now.' : '');
     return;
   }
   // Recorded before handing off so the assembled message can be

@@ -135,6 +135,81 @@ describe.each(PAGES)('$name page', ({ file, category, tag }) => {
   })
 })
 
+/**
+ * MAILTO_SAFE_LENGTH was sized for the twelve-field feedback form. The two
+ * surveys are twice that, and with API_BASE unset the mailto hand-off is
+ * the ONLY delivery path — so a fully-answered survey overflowing it is an
+ * ordinary outcome, not an edge case. The first version of this code
+ * answered that by telling the visitor to "shorten the longer answers",
+ * which breaks these pages' own promise that nothing they typed is lost,
+ * at the worst possible moment.
+ */
+describe('a survey too long for an email link', () => {
+  /** Tick every radio and put a paragraph in every free-text box. */
+  function fillCompletely(form: HTMLFormElement) {
+    const picked = new Set<string>()
+    for (const el of Array.from(form.elements) as HTMLInputElement[]) {
+      if (el.type === 'radio' && !picked.has(el.name)) { el.checked = true; picked.add(el.name) }
+      else if (el.type === 'checkbox') el.checked = true
+      else if (el.tagName === 'TEXTAREA' || el.type === 'text' || el.type === 'email') {
+        el.value = 'A realistic paragraph of the kind a parent who cares enough to fill this in actually writes, which is several lines long.'
+      }
+    }
+  }
+
+  it.each(['survey/index.html', 'educators/index.html'])(
+    '%s overflows the link when fully answered, which is why the fallback exists',
+    (file) => {
+      const { form } = mount(file)
+      fillCompletely(form)
+      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      // No mailto was attempted, and none was navigated to.
+      expect(form.dataset.mailto).toBeUndefined()
+      expect(assignedHref).toBe('')
+    },
+  )
+
+  it.each(PAGES.filter((p) => p.name !== 'feedback'))(
+    '$name hands the answers back to be copied rather than losing them',
+    ({ file, tag }) => {
+      const { form, note } = mount(file)
+      fillCompletely(form)
+      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+
+      const overflow = form.querySelector('#form-overflow')
+      expect(overflow, 'no copy-out offered').not.toBeNull()
+
+      const area = overflow!.querySelector('textarea') as HTMLTextAreaElement
+      // The whole assembled message, not a truncated preview: the inbox
+      // tag it opens with through to the last answer.
+      expect(area.value).toContain(tag)
+      expect(area.value).toContain(form.querySelector('legend')!.textContent!.trim())
+      expect(area.value.length).toBeGreaterThan(1900)
+      expect(area.readOnly).toBe(true)
+
+      // And somewhere to send it.
+      expect(overflow!.querySelector('a[href^="mailto:"]')).not.toBeNull()
+      expect(note.textContent).not.toMatch(/shorten/i)
+    },
+  )
+
+  it('does not stack a second copy-out when submitted twice', () => {
+    const { form } = mount('survey/index.html')
+    fillCompletely(form)
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    expect(form.querySelectorAll('#form-overflow')).toHaveLength(1)
+  })
+
+  it('still uses the plain mailto path for a short answer', () => {
+    const { form } = mount('survey/index.html')
+    ;(form.querySelector('input[type="radio"]') as HTMLInputElement).checked = true
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    expect(form.dataset.mailto).toMatch(/^mailto:/)
+    expect(form.querySelector('#form-overflow')).toBeNull()
+  })
+})
+
 describe('the three pages stay pooled in one inbox', () => {
   it('files both surveys under the same category so they sort together', () => {
     const surveys = PAGES.filter((p) => p.name !== 'feedback')

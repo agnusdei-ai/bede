@@ -67,13 +67,27 @@ export const FULL_SURVEY_URL = 'https://agnusdei.ai/survey/'
 
 export default function BetaSurveyModal({
   token,
+  onAnswered,
   onClose,
   onDefer,
 }: {
   token: string
-  /** Answered, or explicitly declined — never ask again on this device. */
+  /**
+   * Called the moment a send succeeds, NOT when the parent dismisses the
+   * thank-you afterwards. Those are different events and conflating them
+   * loses answers in both directions: a parent who submits and then closes
+   * the tab would be recorded as never having answered and re-prompted in
+   * a fortnight, and one who submits and taps the corner X would be
+   * recorded as merely deferring — either way their response is counted
+   * twice or the prompt nags someone who already helped.
+   *
+   * Must not unmount this component: the thank-you, and the link to the
+   * longer survey on it, are the whole reason the modal stays up.
+   */
+  onAnswered: () => void
+  /** Dismissed after answering, or explicitly declined — never ask again. */
   onClose: () => void
-  /** Dismissed for now — ask again in a fortnight. */
+  /** Dismissed without answering — ask again in a fortnight. */
   onDefer: () => void
 }) {
   const { t } = useTranslation()
@@ -103,6 +117,9 @@ export default function BetaSurveyModal({
 
     try {
       await submitFeedback(token, 'beta_survey', lines.join('\n').slice(0, 2000))
+      // Recorded before the thank-you renders, so closing the tab from
+      // that screen still counts as answered.
+      onAnswered()
       setStatus('sent')
     } catch {
       setStatus('error')
@@ -113,9 +130,11 @@ export default function BetaSurveyModal({
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-6 relative my-8">
         <button
-          onClick={onDefer}
+          // After a successful send this is just "dismiss the thank-you",
+          // which must not be recorded as a deferral.
+          onClick={status === 'sent' ? onClose : onDefer}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-          aria-label={t('betaSurvey.notNow')}
+          aria-label={status === 'sent' ? t('betaSurvey.done') : t('betaSurvey.notNow')}
         >
           <X size={18} />
         </button>

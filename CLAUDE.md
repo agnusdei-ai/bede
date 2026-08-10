@@ -743,9 +743,30 @@ Change a question there first, then in the channel.
 - **`site/survey/index.html`** (`/survey/`) and **`site/educators/index.html`**
   (`/educators/`) are the primary channel, and the only one that reaches a
   co-op leader who has never opened Bede. **`BetaSurveyModal.tsx`** is the
-  short in-app leg for parents already using it. All three post to
-  `POST /feedback` under one `beta_survey` category so their answers pool;
-  each tags its own message body so the inbox can still tell them apart.
+  short in-app leg for parents already using it. All three declare one
+  `beta_survey` category so their answers pool; each tags its own message
+  body so the inbox can still tell them apart. **They do not all take the
+  same road there.** The in-app prompt posts to `POST /feedback` → Resend.
+  The hosted pages do too, but only once `API_BASE` is filled in at the top
+  of `feedback-form.js` — it ships `''` (the value is a per-deployment
+  Render URL this repo doesn't hold), and until then those pages hand off to
+  the visitor's own mail client instead, so the answers arrive by hand. That
+  makes the `data-category` attributes correct-but-inert for now, which is
+  the point: they are what makes flipping the switch later a one-line
+  change. `site/_headers`' `connect-src` and `site/privacy/index.html`'s
+  "contact nothing but your own browser" claim have to move with it, and
+  both the script's own comment and `docs/BETA_SURVEY.md` say so.
+- **A fully-answered survey does not fit in a `mailto:` link.**
+  `MAILTO_SAFE_LENGTH` (1900) was sized for the twelve-field feedback form;
+  these are twice that, so overflow is an ordinary outcome here rather than
+  an edge case, and it is reached on the only delivery path those pages
+  currently have. The original behavior — tell the visitor to "shorten the
+  longer answers" — breaks these pages' own promise that nothing they typed
+  is lost, at the worst possible moment. `handOffToClipboard` renders the
+  assembled message back into a read-only textarea with a copy button and a
+  `mailto:` link instead. Pinned by filling both surveys completely in
+  `demo/src/surveyForms.test.ts`, verified to fail when the fallback is
+  reverted.
 - **`site/assets/feedback-form.js` is now one script for all three hosted
   pages**, configured per page by `data-category`/`data-tag`/`data-mail-subject`
   on its own `<form>`. Its question labels are read from each page's own

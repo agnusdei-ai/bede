@@ -365,7 +365,10 @@
     "travelMode": "We travel, so our weeks aren't always regular",
     "travelModeHelp": "Progress normally reports movement over the last 4 actual weeks. Turn this on if weeks away mean that window is often too short to see anything, and choose a longer one. It doesn't change how your child is taught, only how far back the Progress page looks.",
     "masteryWindowLabel": "Report movement over",
-    "weeksN": "{{n}} weeks"
+    "weeksN": "{{n}} weeks",
+    "learningSupport": "What helps this child",
+    "learningSupportPlaceholder": "e.g. More time to answer, Shorter passages at a time",
+    "learningSupportHint": "Optional. Anything you already know helps — Bede will teach the same material to the same standard, just in a way that fits. It never mentions this to your child, and never guesses at a reason for it."
   },
   "progress": {
     "advance": "Advance",
@@ -537,5 +540,27 @@
     "loggedOutInactivity": "Logged out due to inactivity. Nothing was lost — sign back in to pick up where you left off.",
     "loggedOutBreakInactivity": "Logged out during your break. That's on purpose, to keep things safe while you're away — sign back in whenever you're ready.",
     "loggedOutSessionExpired": "Your session ended, so you'll need to sign in again."
+  },
+  "coverage": {
+    "title": "What's Been Taught Lately",
+    "subtitle": "When each subject on {{name}}'s plan was last actually taught. Anything untouched for {{days}} days or more is listed first.",
+    "notYetStarted": "not yet started",
+    "today": "today",
+    "daysAgo": "{{count}} days ago",
+    "keptUp": "Keeping up with: {{subjects}}.",
+    "caveat": "This is about the plan, not your child. A subject can go untaught because of the hour it's scheduled, the book, or simply a busy fortnight — you know which, and Bede doesn't."
+  },
+  "mastery": {
+    "title": "Where {{name}} Is",
+    "subtitle": "One row per area. Tap any of them for the detail.",
+    "areaMathematics": "Mathematics",
+    "areaPhonics": "Reading foundations",
+    "areaLiteracy": "Reading & spelling",
+    "areaComposition": "Writing",
+    "areaLanguage": "Language exposure",
+    "notStartedYet": "not started yet",
+    "stillGettingToKnow": "still getting to know — {{count}} so far",
+    "secureOf": "{{secure}} of {{total}} secure",
+    "nothingYet": "Nothing assessed yet for {{name}}. This fills in as you work together — the Work Completed card below is the honest picture in the meantime."
   }
 }

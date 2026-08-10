@@ -1,5 +1,9 @@
 # Setting Up Bede: A Guide for Parents & Tutors
 
+> **New here?** Read [MASTERY.md](MASTERY.md) first — ten minutes on what Bede
+> measures, what it deliberately refuses to, and how to tell whether it is
+> working. This guide is the field-by-field walkthrough; that one is the why.
+
 This walks through everything from "nothing installed" to "my child is having their
 first lesson," including the parts that matter for keeping it secure once you hand
 it off. No terminal or typed commands required: steps 2 and 3 below are answering
@@ -642,6 +646,35 @@ break every hour for every child, but it will not tell you that your
    sounds like the same Bible your child already reads at home. Leave it
    on "No preference" and Bede quotes Scripture from its own knowledge
    without favoring any particular translation's phrasing.
+
+   The panel also has a **What Helps This Child** field: always available,
+   not tied to any subject. Type in (or tap a chip for) anything you
+   already know makes a lesson go better for this particular child — more
+   time to answer, shorter passages, answering out loud instead of
+   writing, one step at a time, frequent short breaks.
+
+   **Bede teaches the same material to the same standard.** This changes
+   *how* a lesson is delivered, never *what* is taught and never how the
+   work is judged. Removing an obstacle between your child and the
+   material is help; removing the material is not, and Bede is told so
+   explicitly. A child given more time is still expected to do real work,
+   and what they produce is still measured against what the task actually
+   asked for.
+
+   **Bede never mentions it to your child, and never guesses at a reason
+   for it.** Your child experiences a lesson that fits them, not a lesson
+   they can tell has been adjusted. "Let's take this one step at a time"
+   is something Bede will say. "Because reading is hard for you" is
+   something it will not, ever. And Bede will not name, guess at, or imply
+   a diagnosis — to your child or to you. You have told it what helps; you
+   have not told it why, that isn't its question to answer, and it isn't
+   qualified to answer it.
+
+   You don't need a diagnosis to use this. If you have one, you don't need
+   to share it — describe what helps and that is enough. If you suspect
+   something and don't know, that is a conversation for your pediatrician
+   or an educational specialist, and this field works perfectly well in the
+   meantime.
 
    The panel also has a **Curriculum Resources You Already Use** field:
    always available, not tied to any one subject, since a family's
@@ -1415,6 +1448,32 @@ threshold, no "is/isn't" attached to it. Whether your child is a learning
 entrepreneur isn't a call Bede is competent to make. What it can do is
 notice the evidence and put it in front of you.
 
+
+### What's been taught lately
+
+A card on the Progress page, above the ledger, answering a question you
+couldn't previously ask.
+
+You could always see that History had produced almost nothing. What you
+couldn't see was **which of two completely different situations you were
+in**: History was never actually on the plan, or History was on the plan
+for six weeks and got opened twice. The first is a scheduling fix. The
+second is a conversation. They look identical from a blank column.
+
+So the card lists each subject on that student's plan and when it was last
+*actually taught* — anything untouched for a fortnight or more first, then
+a short line naming the subjects that are being kept up. "Not yet started"
+is its own state, separate from "not lately," because a subject you haven't
+got to isn't a subject you're neglecting.
+
+**This is about the plan, not your child.** There is no score on this card,
+nothing about how well anything went, and no measure of interest or effort.
+A subject goes untaught for all sorts of reasons — the hour it's scheduled,
+the book, a hard fortnight, or a child who needs it approached a different
+way. You know which. Bede genuinely doesn't, and won't pretend to.
+
+Parent-only, like everything else built on the ledger. A child shown "you
+haven't done History in three weeks" has been handed a reproach.
 
 ### Where you'll see the ledger
 

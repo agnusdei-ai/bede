@@ -10,6 +10,7 @@ voice biometrics authenticate children at session start.
 
 | I want to... | Read |
 |---|---|
+| **Understand what mastery means here, before anything else** | **[docs/MASTERY.md](docs/MASTERY.md)** — the short foundations: what is measured, what deliberately isn't, and how to read the first month. Ten minutes, and the rest makes sense after it |
 | Understand who Bede is and what governs his character | [docs/CONSTITUTION.md](docs/CONSTITUTION.md) — the immutable, tamper-evident foundation behind every lesson |
 | Set up Bede for my family to actually use | [docs/PARENT_SETUP.md](docs/PARENT_SETUP.md) — the full non-technical walkthrough, including the security model to understand before handing a tablet to your child |
 | Know what hardware I need (can a Raspberry Pi run this?) | [docs/PARENT_SETUP.md](docs/PARENT_SETUP.md#choosing-your-server-machine) — "Choosing your server machine": what a modest always-on box does and doesn't change, and which AI provider options each rules in or out |

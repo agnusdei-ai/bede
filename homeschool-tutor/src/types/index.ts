@@ -54,6 +54,11 @@ export interface SessionConfig {
   // panel; Bede aligns terminology/approach where it naturally overlaps,
   // never claiming to reproduce a named publisher's actual content.
   curriculum_resources?: string[]
+  // What the PARENT says helps this child — never inferred by Bede, never a
+  // diagnosis. Mirrors the backend's SessionConfig.learning_support; see
+  // LEARNING_SUPPORT_SUGGESTIONS below and the backend's
+  // _learning_support_note for the rules that govern how Bede acts on it.
+  learning_support?: string[]
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
@@ -142,6 +147,24 @@ export const BIBLE_TRANSLATIONS = [
 ] as const
 
 // Curriculum publishers commonly used alongside Bede, offered as quick-pick
+// Quick-pick suggestions for SessionConfig.learning_support — mirrors
+// homeschool-api/models/schemas.py's LEARNING_SUPPORT_SUGGESTIONS. Not a
+// closed list: a family's own wording is kept exactly as typed.
+//
+// Every entry names a change to HOW a lesson is delivered, never to what is
+// taught or the standard the work is held to. A parent reading this list
+// should come away with "here is what we can do", not a deficit checklist.
+export const LEARNING_SUPPORT_SUGGESTIONS = [
+  'More time to answer',
+  'Shorter passages at a time',
+  'Answer out loud instead of writing',
+  'Read the passage aloud to them',
+  'Break tasks into one step at a time',
+  'Frequent short breaks',
+  'Repeat instructions before starting',
+  'Say numbers and letters clearly, one at a time',
+]
+
 // suggestions for SessionConfig.curriculum_resources — mirrors
 // homeschool-api/models/schemas.py's CURRICULUM_RESOURCE_SUGGESTIONS. Not a
 // closed list — a parent's own free-text entry is kept as typed.

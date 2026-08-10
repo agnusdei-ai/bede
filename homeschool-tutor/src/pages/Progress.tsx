@@ -5,11 +5,15 @@ import type { TFunction } from 'i18next'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
+import SubjectCoverage from '../components/SubjectCoverage'
+import MasteryOverview from '../components/MasteryOverview'
+import type { MasteryArea } from '../components/MasteryOverview'
 import PodWorkRoster from '../components/PodWorkRoster'
 import BetaSurveyModal from '../components/BetaSurveyModal'
 import { useBetaSurvey } from '../hooks/useBetaSurvey'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
 import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
+import type { SubjectCoverage as SubjectCoverageData } from '../services/api'
 import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
 import {
   fetchNarrationAssessments,
@@ -18,6 +22,7 @@ import {
   fetchMasteryProfileSummary,
   fetchStudentUsage,
   fetchStudentActivity,
+  fetchSubjectCoverage,
   fetchPodActivity,
   buildLearnerProfile,
   isFeedbackEnabled,
@@ -126,93 +131,6 @@ function ScoreBar({ score }: { score: number }) {
 
 // ── Math mastery bar — 0-1 probability, colored by level ────────────────────
 
-function MasteryBar({ probability, level }: { probability: number; level: MasteryProfileSummary['domains'][number]['level'] }) {
-  const color = level === 'secure' ? 'bg-emerald-400' : level === 'developing' ? 'bg-amber-400' : 'bg-red-300'
-  return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${Math.round(probability * 100)}%` }} />
-      </div>
-      <span className="text-xs text-gray-500 tabular-nums w-10 text-right shrink-0">
-        {Math.round(probability * 100)}%
-      </span>
-    </div>
-  )
-}
-
-/**
- * Real, persisted (mastery_profiles table) math diagnostic — see
- * homeschool-api/services/diagnostic. Reflects the student's WHOLE
- * history with Bede, not a single session, unlike the public demo's own
- * single-session preview of the same engine. Silent to the child the
- * entire time it's being built (record_skill_evidence never touches the
- * SSE stream) — this is the first and only place any of it becomes
- * visible, and only to a parent (this page is require_parent-gated).
- */
-// Subject-agnostic mastery-snapshot card — math and composition (see
-// homeschool-api/services/diagnostic/composition.py) both render through
-// this one component, since MasteryProfileSummary's shape is deliberately
-// the same for either (domains/gaps/next_steps/calibration). Only the
-// title/empty-state/calibration copy differs, passed in as already-
-// translated strings so this component carries no i18n-key knowledge of
-// its own.
-function MasterySnapshot({
-  summary, loading, title, noDataText, calibrationText,
-}: {
-  summary: MasteryProfileSummary | null
-  loading: boolean
-  title: string
-  noDataText: string
-  calibrationText: string
-}) {
-  const { t } = useTranslation()
-  if (loading) return null
-
-  if (!summary) {
-    return (
-      <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{title}</h2>
-        <p className="text-xs text-gray-500">{noDataText}</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-700">{title}</h2>
-        <span className="text-xs text-gray-400">
-          {t('progress.observation', { count: summary.evidence_count })}
-        </span>
-      </div>
-      {summary.calibration && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-          {calibrationText}
-        </p>
-      )}
-      <div className="space-y-3 mb-4">
-        {summary.domains.map((d) => (
-          <div key={d.domain}>
-            <p className="text-xs font-semibold text-navy-700 mb-1">{d.domain}</p>
-            <MasteryBar probability={d.average_probability} level={d.level} />
-          </div>
-        ))}
-      </div>
-      {summary.gaps.length > 0 && (
-        <div className="mb-2">
-          <p className="text-xs font-semibold text-gray-700 mb-1">{t('progress.gapsToFocusOn')}</p>
-          <p className="text-xs text-gray-500">{summary.gaps.map((s) => s.label).join(', ')}</p>
-        </div>
-      )}
-      {summary.next_steps.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-gray-700 mb-1">{t('progress.suggestedNextSteps')}</p>
-          <p className="text-xs text-gray-500">{summary.next_steps.map((s) => s.label).join(', ')}</p>
-        </div>
-      )}
-    </div>
-  )
-}
 
 /**
  * This deployment is BYOK (bring your own Anthropic API key) — Bede
@@ -717,6 +635,7 @@ export default function Progress() {
   const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
   const [literacySummary, setLiteracySummary] = useState<MasteryProfileSummary | null>(null)
   const [workLedger, setWorkLedger] = useState<WorkLedgerData | null>(null)
+  const [coverage, setCoverage] = useState<SubjectCoverageData | null>(null)
   const [podRoster, setPodRoster] = useState<PodWorkRosterData | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -734,6 +653,52 @@ export default function Progress() {
   // card that can never have data — same reasoning as phonics above.
   const activeStudentIsBeyondFoundations = !activeStudentIsFoundations
 
+  // The rows of the unified mastery card, in a FIXED pedagogical order —
+  // foundational first, never sorted by how well the child is doing. A list
+  // that reshuffles as a child improves is a ranking of their own subjects.
+  //
+  // Phonics and literacy are the two halves of one gate (phonics owns K-2
+  // decoding, literacy owns 3-8) and never both appear; an area that can
+  // never have data for this student is left out entirely rather than shown
+  // permanently empty.
+  const masteryAreas: MasteryArea[] = [
+    {
+      key: 'mathematics',
+      label: t('mastery.areaMathematics'),
+      summary: masterySummary,
+      noDataText: t('progress.noMathMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 }),
+    },
+    ...(activeStudentIsFoundations ? [{
+      key: 'phonics',
+      label: t('mastery.areaPhonics'),
+      summary: phonicsSummary,
+      noDataText: t('progress.noPhonicsMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 }),
+    }] : []),
+    ...(activeStudentIsBeyondFoundations ? [{
+      key: 'literacy',
+      label: t('mastery.areaLiteracy'),
+      summary: literacySummary,
+      noDataText: t('progress.noLiteracyMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.literacyMasteryCalibration', { name: activeStudent, count: literacySummary?.evidence_count ?? 0 }),
+    }] : []),
+    {
+      key: 'composition',
+      label: t('mastery.areaComposition'),
+      summary: compositionSummary,
+      noDataText: t('progress.noCompositionMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 }),
+    },
+    {
+      key: 'language_exposure',
+      label: t('mastery.areaLanguage'),
+      summary: languageSummary,
+      noDataText: t('progress.noLanguageMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 }),
+    },
+  ]
+
   useEffect(() => {
     if (!token || !activeStudent) return
     setLoading(true)
@@ -747,6 +712,7 @@ export default function Progress() {
     setLanguageSummary(null)
     setLiteracySummary(null)
     setWorkLedger(null)
+    setCoverage(null)
     setPodRoster(null)
     setUsage(null)
 
@@ -764,6 +730,7 @@ export default function Progress() {
         ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
         : Promise.resolve(null),
       fetchStudentActivity(token, activeStudent),
+      fetchSubjectCoverage(token, activeStudent),
       // The pod roster is about the whole pod, not the active student —
       // fetched once here rather than per-student so switching students
       // doesn't refetch identical data.
@@ -772,7 +739,7 @@ export default function Progress() {
         : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, lang, lit, act, pod, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, lit, act, cov, pod, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
@@ -782,6 +749,7 @@ export default function Progress() {
         setLanguageSummary(lang)
         setLiteracySummary(lit)
         setWorkLedger(act)
+        setCoverage(cov)
         setPodRoster(pod)
         setUsage(u)
       })
@@ -905,45 +873,12 @@ export default function Progress() {
               config={podStudents.find((s) => s.student_name === activeStudent)}
               assessments={assessments}
             />
-            <MasterySnapshot
-              summary={masterySummary}
-              loading={loading}
-              title={t('progress.mathMasterySnapshotTitle')}
-              noDataText={t('progress.noMathMasteryData', { name: activeStudent })}
-              calibrationText={t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 })}
-            />
-            <MasterySnapshot
-              summary={compositionSummary}
-              loading={loading}
-              title={t('progress.compositionMasterySnapshotTitle')}
-              noDataText={t('progress.noCompositionMasteryData', { name: activeStudent })}
-              calibrationText={t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 })}
-            />
-            {activeStudentIsBeyondFoundations && (
-              <MasterySnapshot
-                summary={literacySummary}
-                loading={loading}
-                title={t('progress.literacyMasterySnapshotTitle')}
-                noDataText={t('progress.noLiteracyMasteryData', { name: activeStudent })}
-                calibrationText={t('progress.literacyMasteryCalibration', { name: activeStudent, count: literacySummary?.evidence_count ?? 0 })}
-              />
-            )}
-            {activeStudentIsFoundations && (
-              <MasterySnapshot
-                summary={phonicsSummary}
-                loading={loading}
-                title={t('progress.phonicsMasterySnapshotTitle')}
-                noDataText={t('progress.noPhonicsMasteryData', { name: activeStudent })}
-                calibrationText={t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 })}
-              />
-            )}
-            <MasterySnapshot
-              summary={languageSummary}
-              loading={loading}
-              title={t('progress.languageMasterySnapshotTitle')}
-              noDataText={t('progress.noLanguageMasteryData', { name: activeStudent })}
-              calibrationText={t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 })}
-            />
+            {/* One picture instead of five near-identical cards — see
+                MasteryOverview.tsx for why the fragmentation was worth
+                removing rather than restyling. Every area's own detail is
+                still here, one tap into its row. */}
+            <MasteryOverview areas={masteryAreas} loading={loading} studentName={activeStudent} />
+            <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}
             <AiUsageCard usage={usage} loading={loading} />

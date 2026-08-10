@@ -227,7 +227,24 @@
           <td>Your feedback or survey answers and, if you choose to leave one, a reply email address</td>
           <td>Delivers the optional feedback and survey forms to our own inbox</td>
         </tr>
+        <tr>
+          <td>Wikipedia / Wikimedia<br><em>(contacted by your browser directly)</em></td>
+          <td>Nothing you typed, and nothing about your session. Your browser asks Wikipedia for one article summary &mdash; the painting's name &mdash; and then loads that picture from Wikimedia. As with any request your browser makes, those two servers see your IP address and that you asked for that article.</td>
+          <td>Shows the actual painting during Art&nbsp;&amp;&nbsp;Music picture study. We store the artwork's Wikipedia title rather than a copy of the image, so the picture is fetched when it is shown.</td>
+        </tr>
       </table>
+
+      <p class="tracker-note" style="margin-top: 0.75rem;">
+        <strong>One of those rows is not like the others.</strong> OpenAI,
+        Mistral, Claude and Resend are contacted by <em>our</em> server, so
+        they never see your browser or your IP address. Wikipedia and
+        Wikimedia are contacted by <em>your own browser</em>, the same way
+        they would be if you opened the article yourself, which means they
+        see your IP address and we are not in the middle of it. We think
+        showing a child the real painting is worth that, but it is a
+        different kind of request and it would be misleading to list it in
+        the same breath as the rest.
+      </p>
 
       <div class="tracker-note">
         <strong>No consent banner on this page.</strong> A cookie/consent

@@ -119,6 +119,43 @@ None of these addresses are ever written to the database or the audit log
 (`services/email_service.py`'s module docstring) — each is used for
 exactly the one outbound send that triggered it.
 
+## Wikimedia — the only call made by the CHILD's browser, not the server
+
+Every other flow on this page is server-to-vendor: the family's own
+machine talks to Bede, and Bede talks to the provider. Picture study is
+the one exception, and the distinction is the whole reason it has its own
+section rather than a row in a table above.
+
+`data/visual_aids.json` stores a Wikipedia article title (`wiki_title`),
+never an image URL or a copy of the image — deliberately, so the catalog
+survives Wikimedia file and path changes and this project hosts no
+artwork. `VisualAidCard.tsx` therefore resolves the picture at the moment
+it is shown, which is two cross-origin requests **from the tablet
+itself**:
+
+| Request | Origin | Directive that permits it |
+|---|---|---|
+| `GET /api/rest_v1/page/summary/<title>` | `en.wikipedia.org` | `connect-src` |
+| The thumbnail that lookup returns | `upload.wikimedia.org` | `img-src` |
+
+**What travels:** the article title, and nothing else. No session data, no
+student name, no conversation text, no identifier, no query string. It is
+the same public request a browser makes when someone opens the article.
+
+**What is nonetheless true:** because it comes from the child's browser
+rather than from Bede, Wikimedia sees that browser's IP address and which
+article it asked for. On a LAN deployment that is a request leaving the
+LAN, which nothing else here does. It is disclosed on
+`site/privacy/index.html` and on the demo's own Privacy Notice, in both
+languages, and stated as the different kind of request it is rather than
+listed alongside the server-side vendors.
+
+**Turning it off** is deleting those two origins from
+`homeschool-tutor/nginx.conf`'s CSP. Picture study then falls back to the
+captioned card it already shows when a lookup fails — a real degradation,
+not a break. That fallback existing is what makes this an honest choice
+rather than a condition of using the product.
+
 ## Voice biometrics — never leaves your machine
 
 Worth stating explicitly since it's easy to assume voice data is cloud

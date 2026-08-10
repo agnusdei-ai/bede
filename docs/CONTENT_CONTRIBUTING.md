@@ -106,6 +106,21 @@ and `get_catechism_note()` correctly returns `None` for `"K"`). Feeds the
 Picture study (`art_music`) and history maps/artifacts. No image hosting —
 `wiki_title` is resolved client-side against Wikipedia's REST summary API.
 
+**That client-side resolution is a Content-Security-Policy dependency, and
+it takes two directives, not one.** The lookup is a `fetch()` to
+`en.wikipedia.org` (`connect-src`); the thumbnail it returns is served from
+`upload.wikimedia.org` (`img-src`). Both `site/_headers` and
+`homeschool-tutor/nginx.conf` must permit both, or the card degrades to its
+captioned fallback with no visible error — which is exactly how this
+shipped broken once, every picture blank on the public demo, because a CSP
+refusal produces the same bare `TypeError` as any other failed fetch.
+Allowing only `connect-src` is the trap: the lookup then succeeds and the
+image is still blocked, rendering the identical fallback.
+`homeschool-api/tests/test_picture_study_csp.py` pins all four places
+against each other, and reads the lookup origin out of `VisualAidCard.tsx`
+rather than restating it. Adding an aid needs no CSP change; repointing the
+component at a different endpoint does.
+
 ```json
 {
   "id": "vermeer_girl_pearl",       // unique — this is what show_visual_aid references

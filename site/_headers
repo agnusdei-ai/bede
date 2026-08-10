@@ -73,4 +73,18 @@
   # the primary device this product runs on — and it fails silently, with
   # no error a parent could usefully report.
   # frame-src youtube-nocookie: the home page's click-to-play video.
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.onrender.com; media-src 'self' blob: data:; worker-src 'self' blob:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
+  #
+  # Wikipedia/Wikimedia — picture study, and it takes BOTH directives or it
+  # still shows nothing. data/visual_aids.json stores a `wiki_title`, never
+  # an image URL (deliberately — see that file's own comment: the catalog
+  # stays resilient to Wikimedia file/path changes and we host no images).
+  # VisualAidCard.tsx therefore does two separate cross-origin things:
+  #   1. connect-src https://en.wikipedia.org — the REST summary lookup,
+  #      which is a fetch() and is governed by connect-src, not img-src.
+  #   2. img-src https://upload.wikimedia.org — the thumbnail that lookup
+  #      returns. Wikimedia serves every file from that one host; the
+  #      article host never serves the image itself.
+  # Allowing only the first leaves a card that resolves and then cannot
+  # paint, which looks identical to the failure being fixed. Both, or
+  # neither.
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://upload.wikimedia.org; font-src 'self'; connect-src 'self' https://*.onrender.com https://en.wikipedia.org; media-src 'self' blob: data:; worker-src 'self' blob:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';

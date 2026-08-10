@@ -409,6 +409,16 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
     // Everything this turn has already said (text + rendered cards) — the
     // duplicate-suppression reference for isDuplicateUtterance below.
     let turnText = ''
+    // Pictures this turn has already rendered. The server is the real fix
+    // for repeated cards (see homeschool-api's shown_aid_ids); this is the
+    // same guarantee restated where the rendering happens, since `tool`
+    // chunks have had isDuplicateUtterance since the beginning and
+    // `visual_aid` chunks never had anything.
+    //
+    // Per TURN, exactly like the server's, and for the same reason: picture
+    // study is look → put away → narrate, so re-showing a picture in a
+    // LATER turn is the method working, not a repeat to suppress.
+    const shownAidIds = new Set<string>()
     const flush = () => {
       if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
@@ -434,6 +444,8 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         } else if (chunk.type === 'assessment') {
           // Silent server-side narration score — no UI change for child
         } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
+          if (shownAidIds.has(chunk.visualAid.id)) continue
+          shownAidIds.add(chunk.visualAid.id)
           addVisualAidMessage(chunk.visualAid)
         } else if (chunk.type === 'subject_complete') {
           flush()

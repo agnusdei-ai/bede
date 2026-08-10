@@ -1371,6 +1371,17 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
     }
     // Everything this turn has already said — duplicate-suppression reference.
     let turnText = ''
+    // Pictures this turn has already rendered. The server is the real fix
+    // for repeated cards (see homeschool-api's shown_aid_ids), and this is
+    // the same guarantee restated where the rendering actually happens —
+    // `tool` chunks have had isDuplicateUtterance below since the beginning
+    // and `visual_aid` chunks never had anything.
+    //
+    // Per TURN, exactly like the server's, and for the same reason: picture
+    // study is look → put away → narrate, so re-showing a picture in a
+    // LATER turn is the method working. A set that outlived the turn would
+    // silently break that, which is worse than the bug it prevents.
+    const shownAidIds = new Set<string>()
     try {
       for await (const chunk of runChat(subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
         if (chunk.type === 'text') {
@@ -1392,8 +1403,16 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             speechSegments.push(chunk.content)
             turnText += ' ' + chunk.content
           }
-        } else if (chunk.type === 'visual_aid') {
-          setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
+        } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
+          // `&& chunk.visualAid` matches SocraticChat.tsx's own guard, and
+          // is load-bearing now in a way it wasn't before: the previous
+          // code only PASSED this object along, so a malformed chunk was
+          // harmless, whereas the dedupe below reads `.id` off it and
+          // would throw. These two files are meant to mirror each other.
+          if (!shownAidIds.has(chunk.visualAid.id)) {
+            shownAidIds.add(chunk.visualAid.id)
+            setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
+          }
         } else if (chunk.type === 'subject_complete') {
           flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: 'subject_complete' }])

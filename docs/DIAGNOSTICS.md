@@ -165,6 +165,43 @@ through the 2026-08-04 outage. It could not have caught it: curl does not
 evaluate CSP, does not send an `Origin` header, and does not enforce
 CORS, and the failure lived entirely in those layers.
 
+### Step 4: can picture study actually show a picture?
+
+Added after every picture-study card on the demo was found blank — the
+deployed CSP forbade both origins `VisualAidCard.tsx` needs, and the
+session-start check could not see it because a session started fine.
+
+**It does not drive Bede into calling `show_visual_aid`.** That would make
+the watchdog depend on a model's choice: non-deterministic, several paid
+LLM turns every 30 minutes, and flaky in a check whose entire value is
+that it only goes red for real. The failure it guards against was
+deterministic and had nothing to do with the model. So the probe performs
+exactly what the component performs — the same summary lookup, then the
+image that lookup returns — **inside the real page**, and is therefore
+governed by the real deployed policy. That last part is the point: this
+repository's `site/_headers` can be correct while the deployment serves a
+stale or overridden header, and only a request made from the deployed
+origin can tell the difference.
+
+**One catalog entry, not all 23.** The failures being guarded against (a
+policy that forbids the origins, a changed Wikimedia API shape, a changed
+image host) show up on any entry. Validating every `wiki_title` is catalog
+hygiene and belongs in a test, not in something that runs 48 times a day.
+
+**The distinction that keeps it honest**, and the reason it is safe to run
+unattended:
+
+| Observation | Whose problem | Watchdog |
+|---|---|---|
+| A CSP violation naming wikipedia/wikimedia | **Ours.** No request was sent; waiting fixes nothing. Repairable from this repo (`site/_headers`). | **Fails**, `failedStep: "picture-study-csp"` |
+| Lookup or image failed, no violation | Not ours — Wikimedia unreachable, slow, or an article renamed. The demo stays usable; the card falls back to its caption. | **Passes**, and says so in the summary |
+
+Failing on the second row would wake a repair agent for someone else's
+outage and teach everyone to ignore the alert. `report.pictureStudy`
+carries the full evidence either way — `violations[]` with the exact
+directive and blocked URI, plus `imageHost`, so a Wikimedia host change
+names itself rather than having to be guessed.
+
 On failure the report goes to an agent driven by
 `.github/agent-prompts/demo-repair.md` — a versioned, reviewable file
 rather than a string in YAML, because it is the part of an unattended

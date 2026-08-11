@@ -128,6 +128,22 @@ def test_no_policy_opens_these_directives_to_everything(path):
         )
 
 
+def test_the_watchdog_and_the_repair_prompt_agree_on_the_failure_name():
+    """`failedStep: "picture-study-csp"` is one string in two files:
+    scripts/synthetic_journey.mjs emits it, and
+    .github/agent-prompts/demo-repair.md keys its repair guidance off it.
+    Nothing type-checks a markdown table against a JS string literal, so a
+    rename would not fail a build — the agent would simply stop recognising
+    the failure and fall through to "cause not determined", which its own
+    prompt correctly tells it to investigate rather than act on. Silent,
+    and only visible during an outage."""
+    step = "picture-study-csp"
+    journey = (_REPO / "scripts" / "synthetic_journey.mjs").read_text()
+    prompt = (_REPO / ".github" / "agent-prompts" / "demo-repair.md").read_text()
+    assert f"'{step}'" in journey or f'"{step}"' in journey
+    assert step in prompt
+
+
 @pytest.mark.parametrize(
     "card", [pytest.param(_CARD, id="app"), pytest.param(_DEMO_CARD, id="demo")]
 )

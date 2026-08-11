@@ -50,6 +50,7 @@ for a person.
 
 | Evidence | Cause | Fix location |
 |---|---|---|
+| `failedStep: "picture-study-csp"` | Policy forbids Wikipedia/Wikimedia | `site/_headers` — see below |
 | `CSP BLOCKED directive=connect-src` on the API origin | Policy forbids the backend | `site/_headers` |
 | `CSP BLOCKED` on `media-src`/`worker-src` | Audio/voice path blocked | `site/_headers` |
 | Response 403/blocked with no CORS header | `CORS_ORIGINS` missing the site origin | `render.yaml` (**cannot** be applied from here — report it) |
@@ -66,6 +67,22 @@ Two traps that have already caused real incidents here — check for both:
 2. **`media-src` must include `data:`.** It is the iOS audio-unlock path
    (`useTextToSpeech.ts`'s silent WAV). Dropping it makes Bede mute on
    iPad with no visible error.
+3. **Picture study needs TWO directives, and fixing one is indistinguishable
+   from fixing neither.** `report.pictureStudy` tells you which legs failed.
+   `VisualAidCard.tsx` resolves artwork live: a `fetch()` to
+   `en.wikipedia.org` (**`connect-src`**) whose result is an image served
+   from a Wikimedia host (**`img-src`**). Allow only `connect-src` and the
+   lookup succeeds while the thumbnail is still refused — rendering the
+   exact same "Picture unavailable right now" card, so your fix will look
+   like it did nothing. Read `pictureStudy.violations[].directive` and
+   satisfy every directive listed there. If `pictureStudy.imageHost` names
+   a host the policy does not cover, that host belongs in `img-src`.
+
+**`report.pictureStudy` without `cspBlocked: true` is NOT your problem.**
+`lookupOk: false` with no violation means Wikimedia was unreachable or
+slow. The demo is fine — picture study falls back to a captioned card by
+design. Do not "fix" that, do not widen the policy hoping it helps, and do
+not open a PR for it. Report it only if you were opening one anyway.
 
 ## Hard limits — do not cross these, ever
 

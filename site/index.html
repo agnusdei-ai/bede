@@ -437,10 +437,42 @@
         </p>
       </div>
 
-      <a class="cta gilt" href="mailto:sales@agnusdei.ai?subject=Onboarding%20call">Schedule Onboarding &rarr;</a>
+      <form class="form-block" id="request-a-call"
+            data-category="plans"
+            data-tag="[Website: onboarding / pricing request]"
+            data-mail-subject="Bede onboarding &amp; pricing request"
+            data-mail-to="sales@agnusdei.ai">
+        <div class="field">
+          <label class="q" for="call_name">Your name</label>
+          <input type="text" id="call_name" name="name" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label class="q" for="call_email">Email</label>
+          <span class="hint">So a person can actually reach you &mdash; this is the one field that matters here.</span>
+          <input type="email" id="call_email" name="email" autocomplete="email" placeholder="you@example.com" required />
+        </div>
+        <div class="field">
+          <label class="q" for="call_children">How many children, and their grades?</label>
+          <input type="text" id="call_children" name="children" placeholder="e.g. two, grades 2 and 5" />
+        </div>
+        <div class="field">
+          <label class="q" for="call_details">What would you like to know?</label>
+          <span class="hint">Pricing, scheduling, whether it fits your family &mdash; whatever you would ask on a call. Leave it blank and we will just start with the basics.</span>
+          <textarea id="call_details" name="details"></textarea>
+        </div>
+        <button type="submit" class="cta gilt">Request a call &rarr;</button>
+        <p class="form-note" id="form-note">
+          This goes straight to us and nowhere else: no form service,
+          no analytics, no tracker. We do not quote a price before we
+          understand your family &mdash; a person reads this and walks you
+          through the year your children would actually have, then what it
+          costs. If we cannot be reached, your own email program opens with
+          this filled in instead, so nothing you typed is lost. Either way
+          you can write to
+          <a href="mailto:sales@agnusdei.ai">sales@agnusdei.ai</a> directly.
+        </p>
+      </form>
       <p class="cta-sub light">
-        <a href="mailto:sales@agnusdei.ai?subject=Pricing%20request">Ask what a year costs</a>
-        &nbsp;&middot;&nbsp;
         <a href="/bede/">try the demo first</a> (free, no account, no card)
         &nbsp;&middot;&nbsp;
         <a href="/feedback/">send feedback</a>
@@ -461,13 +493,15 @@
       <a href="/">Home</a> &nbsp;&middot;&nbsp;
       <a href="/faq/">FAQ</a> &nbsp;&middot;&nbsp;
       <a href="/bede/">Demo</a> &nbsp;&middot;&nbsp;
-      <a href="mailto:sales@agnusdei.ai?subject=Onboarding%20call">Schedule Onboarding</a> &nbsp;&middot;&nbsp;
+      <a href="#request-a-call">Schedule Onboarding</a> &nbsp;&middot;&nbsp;
       <a href="/feedback/">Feedback</a> &nbsp;&middot;&nbsp;
       <a href="/educators/">Co-ops</a> &nbsp;&middot;&nbsp;
       <a href="/privacy/">Privacy</a>
     </div>
     <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
   </footer>
+  <script src="/assets/api-base.js"></script>
+  <script src="/assets/feedback-form.js"></script>
   <script src="/assets/video.js"></script>
 </body>
 </html>

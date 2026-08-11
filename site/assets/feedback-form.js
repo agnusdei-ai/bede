@@ -56,7 +56,6 @@
 // tag falls back to the mail hand-off instead of throwing on load, which
 // would take the whole form with it.
 const API_BASE = (window.BEDE_API_BASE || '');
-const FEEDBACK_TO = 'info@agnusdei.ai';
 // mailto URLs get truncated by some mail clients past roughly 2000
 // characters, which would silently eat the end of a long answer. Warn
 // rather than let that happen quietly.
@@ -67,6 +66,12 @@ const note = document.getElementById('form-note');
 
 const CATEGORY = form.dataset.category || 'cx';
 const TAG = form.dataset.tag || '[Website form]';
+// The mailto FALLBACK's own recipient only — the primary path (sendViaApi)
+// always lands in the operator's one configured FEEDBACK_EMAIL regardless
+// of this value, since that's a server-side setting, not something a page
+// can steer. Defaults to the same address every other form on this site
+// already uses, so leaving this off changes nothing for them.
+const FEEDBACK_TO = form.dataset.mailTo || 'info@agnusdei.ai';
 const MAIL_SUBJECT = form.dataset.mailSubject || 'Bede feedback';
 
 const button = form.querySelector('button.cta');

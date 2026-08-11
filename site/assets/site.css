@@ -770,6 +770,12 @@ p.lede {
 
 .guarantee p:last-child { margin-bottom: 0; }
 
+.guarantee p a {
+  color: var(--gilt-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .cta-sub.light {
   color: rgba(250, 246, 236, 0.72);
   margin: 0.9rem 0 0;
@@ -791,12 +797,12 @@ p.lede {
    three light-section ones. */
 .band-closing .field > legend,
 .band-closing .field > label.q {
-  color: rgba(250, 246, 236, 0.92);
+  color: var(--vellum);
 }
 
 .band-closing .field .hint,
 .band-closing .form-note {
-  color: rgba(250, 246, 236, 0.68);
+  color: var(--gilt-light);
 }
 
 .band-closing .field {

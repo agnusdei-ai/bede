@@ -12,6 +12,7 @@ import pytest
 import services.email_service as es
 from services.email_service import (
     _feedback_prefix,
+    _recipient_for,
     build_distress_alert_html,
     build_feedback_email_html,
     build_summary_email_html,
@@ -184,6 +185,31 @@ def test_feedback_prefix_treats_plans_and_onboarding_specially():
     assert _feedback_prefix("onboarding") == "Bede beta onboarding"
     for category in ("cx", "ux", "content_quality", "other", "beta_close", "anything-unrecognized"):
         assert _feedback_prefix(category) == "Bede beta feedback"
+
+
+def test_recipient_for_plans_uses_sales_email_when_set(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "feedback_email", "info@example.com")
+    monkeypatch.setattr(settings, "sales_email", "sales@example.com")
+    assert _recipient_for("plans") == "sales@example.com"
+
+
+def test_recipient_for_plans_falls_back_to_feedback_email_when_sales_unset(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "feedback_email", "info@example.com")
+    monkeypatch.setattr(settings, "sales_email", "")
+    assert _recipient_for("plans") == "info@example.com"
+
+
+def test_recipient_for_other_categories_ignores_sales_email(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "feedback_email", "info@example.com")
+    monkeypatch.setattr(settings, "sales_email", "sales@example.com")
+    for category in ("cx", "ux", "content_quality", "other", "beta_close", "onboarding", "beta_survey"):
+        assert _recipient_for(category) == "info@example.com"
 
 
 def test_feedback_configured_requires_both_resend_and_feedback_email(monkeypatch):

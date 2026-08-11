@@ -204,6 +204,15 @@ def feedback_configured() -> bool:
     return email_configured() and bool(settings.feedback_email)
 
 
+def _recipient_for(category: str) -> str:
+    """"plans" — a real lead, not product feedback — goes to sales_email
+    when the operator has set one; every other category, and "plans"
+    itself when sales_email is unset, keeps going to feedback_email."""
+    if category == "plans" and settings.sales_email:
+        return settings.sales_email
+    return settings.feedback_email
+
+
 async def send_feedback(
     category: str,
     message: str,
@@ -216,7 +225,7 @@ async def send_feedback(
     html_body = build_feedback_email_html(category, message, role, rating, contact_email)
     label = _CATEGORY_LABELS.get(category, category)
     return await send_email(
-        settings.feedback_email,
+        _recipient_for(category),
         subject=f"{_feedback_prefix(category)}: {label}",
         html_body=html_body,
     )

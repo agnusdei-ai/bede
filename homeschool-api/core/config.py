@@ -193,6 +193,14 @@ class Settings(BaseSettings):
     # above (a family's own address) — reuses the same Resend setup. Leave
     # unset to disable the feature entirely (POST /feedback returns 404).
     feedback_email: str = ""
+    # Where a "plans" category submission goes instead of feedback_email — a
+    # real lead asking about pricing or an onboarding call (site/index.html's
+    # #request-a-call form, and the demo's own quota-exceeded "interested in
+    # plans" prompt) isn't ordinary product feedback and shouldn't land in
+    # the same inbox as a bug report. Leave unset and every category,
+    # "plans" included, keeps going to feedback_email like before — this is
+    # additive, not a second thing to configure.
+    sales_email: str = ""
 
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"

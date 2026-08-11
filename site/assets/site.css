@@ -770,6 +770,12 @@ p.lede {
 
 .guarantee p:last-child { margin-bottom: 0; }
 
+.guarantee p a {
+  color: var(--gilt-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .cta-sub.light {
   color: rgba(250, 246, 236, 0.72);
   margin: 0.9rem 0 0;
@@ -779,6 +785,32 @@ p.lede {
   color: var(--gilt-light);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* A .form-block placed inside a dark section (currently: the home page's
+   "Request a call" form, .band-closing) needs its own light-on-dark
+   palette. .form-block's shared rules above hardcode --ink (dark) for
+   labels/hints/notes because every OTHER form on this site (feedback,
+   survey, educators) sits inside a light .band-curriculum section, where
+   that's correct. Scoped here rather than changed at the source, so
+   fixing the one dark-section form can't silently darken labels on the
+   three light-section ones. */
+.band-closing .field > legend,
+.band-closing .field > label.q {
+  color: var(--vellum);
+}
+
+.band-closing .field .hint,
+.band-closing .form-note {
+  color: var(--gilt-light);
+}
+
+.band-closing .field {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.band-closing .form-note a {
+  color: var(--gilt-light);
 }
 
 /* One row on a wide screen. The failure mode is what happens when it

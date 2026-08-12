@@ -394,18 +394,40 @@ jobs:
         #
         # This now tests the real disaster-recovery scenario a family
         # would actually hit — data is GONE, restore it from a backup —
-        # by wiping the schema before restoring, then diffing a fresh dump
-        # taken immediately after restore against the original backup file.
-        # No API/auth/license dependency at all (sidesteps this workflow's
-        # own known CI_TEST_LICENSE_KEY staleness gap — see docs/
-        # SECURITY.md's Known open gaps — entirely, rather than inheriting
-        # it), and it's a stronger check than probing one field through the
-        # API: pg_dump serializes the raw encrypted BYTEA column bytes
-        # directly, so a byte-identical diff proves the WHOLE database —
-        # every table, including encryption_config's wrapped DATA_KEY —
-        # survives the round trip intact, not just one hand-picked record.
+        # by wiping the schema before restoring, then comparing a DATA-ONLY
+        # snapshot taken right before the wipe against one taken right
+        # after restore. No API/auth/license dependency at all (sidesteps
+        # this workflow's own known CI_TEST_LICENSE_KEY staleness gap —
+        # see docs/SECURITY.md's Known open gaps — entirely, rather than
+        # inheriting it), and it's a stronger check than probing one field
+        # through the API: pg_dump serializes the raw encrypted BYTEA
+        # column bytes directly, so an identical diff proves every table's
+        # DATA — including encryption_config's wrapped DATA_KEY — survives
+        # the round trip intact, not just one hand-picked record.
+        #
+        # Deliberately --data-only/--no-owner/--no-privileges/--no-comments
+        # for the COMPARISON snapshots specifically (the real backup two
+        # lines below, the one a family would actually restore from, stays
+        # a full unmodified `make db-backup` — untouched by any of this):
+        # a first attempt diffed two full dumps directly and got real,
+        # confusing false positives — recreating the schema via DROP/CREATE
+        # leaves it owned by a different role than the original
+        # initdb-created one, so pg_dump legitimately emits extra ALTER
+        # SCHEMA OWNER/REVOKE/COMMENT statements for the restored schema
+        # that were never in the original (a metadata artifact of the wipe
+        # method, not a data-loss signal) — and pg_dump 16 also wraps every
+        # dump in a `\restrict`/`\unrestrict` pair carrying a random token
+        # that's never the same twice by design. Data-only sidesteps the
+        # schema-ownership noise entirely; the two `grep -Fv` calls strip
+        # the random restrict/unrestrict wrapper lines, the only other
+        # legitimately-nondeterministic-but-harmless output pg_dump adds.
         run: |
           set -e
+          echo "--- Snapshotting data before the wipe (comparison only — the real backup below is untouched) ---"
+          docker compose exec -T db pg_dump -U sage --data-only --no-owner --no-privileges --no-comments --no-security-labels bede \
+            | grep -Fv '\restrict' | grep -Fv '\unrestrict' > before-data.sql
+
+          echo "--- Taking the real backup a family would actually restore from ---"
           make db-backup
           ls backups/*.sql
           BACKUP_FILE=$(ls -t backups/*.sql | head -1)
@@ -416,21 +438,15 @@ jobs:
           echo "--- Restoring from the backup taken before the wipe ---"
           make db-restore FILE="$BACKUP_FILE"
 
-          echo "--- Diffing a fresh post-restore dump against the original backup ---"
-          docker compose exec -T db pg_dump -U sage bede > post-restore.sql
-          # pg_dump's own header comments carry a real dump timestamp, so
-          # they legitimately differ between the two dumps even on a
-          # perfect restore — strip those lines before comparing, they
-          # carry no actual data.
-          if ! diff \
-              <(grep -Ev '^-- (Dumped from|Started on|Completed on)' "$BACKUP_FILE") \
-              <(grep -Ev '^-- (Dumped from|Started on|Completed on)' post-restore.sql) \
-              > dump-diff.txt; then
-            echo "Restored data differs from the original backup — the restore did NOT preserve data intact:"
+          echo "--- Comparing data before the wipe against data after the restore ---"
+          docker compose exec -T db pg_dump -U sage --data-only --no-owner --no-privileges --no-comments --no-security-labels bede \
+            | grep -Fv '\restrict' | grep -Fv '\unrestrict' > after-data.sql
+          if ! diff before-data.sql after-data.sql > dump-diff.txt; then
+            echo "Restored data differs from what was backed up — the restore did NOT preserve data intact:"
             cat dump-diff.txt
             exit 1
           fi
-          echo "Backup/restore verified: a full wipe-and-restore round trip is byte-identical to the original backup." >> "$GITHUB_STEP_SUMMARY"
+          echo "Backup/restore verified: every table's data survived a full wipe-and-restore round trip intact." >> "$GITHUB_STEP_SUMMARY"
 
           echo "--- Confirming the API boots cleanly against the restored (previously wiped) database ---"
           # restart so the API re-reads a freshly-restored DB cleanly

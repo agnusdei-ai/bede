@@ -54,6 +54,16 @@
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
+  # Referrer-Policy: no-referrer is the domain-wide default, matching
+  # core/middleware.py and nginx.conf. ONE element opts out of it and has to:
+  # the home page's YouTube iframe (site/assets/video.js) carries its own
+  # referrerpolicy="strict-origin-when-cross-origin", because YouTube's
+  # embedded player refuses to start when it cannot identify the embedding
+  # host from a Referer, showing "Error 153 - Video player configuration
+  # error" instead of the video. An element attribute overrides the document
+  # policy for that element only, so the exception stops at that iframe.
+  # Tightening this line further (or dropping that attribute) breaks the
+  # video — see homeschool-api/tests/test_youtube_embed_referrer.py.
   Referrer-Policy: no-referrer
   X-Permitted-Cross-Domain-Policies: none
   # microphone=(self): the demo's press-and-hold voice input. Granting it

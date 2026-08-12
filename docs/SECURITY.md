@@ -11,7 +11,9 @@ something has actually gone wrong (or you've found a vulnerability in
 Bede's code), see **[docs/INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)**
 instead — this file is the architecture/posture overview, that one is the
 action plan. See **[docs/OWASP_LLM_TOP10.md](OWASP_LLM_TOP10.md)** for the
-companion mapping against the OWASP Top 10 for LLM Applications.
+companion mapping against the OWASP Top 10 for LLM Applications, or
+**[docs/NIST_AI_RMF.md](NIST_AI_RMF.md)** for the companion mapping
+against the NIST AI Risk Management Framework.
 
 ## AIUC-1 Society pillar: scope statement
 

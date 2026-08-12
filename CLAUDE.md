@@ -760,7 +760,9 @@ For the audit-facing view of this section — AIUC-1/SOC 2 control mapping,
 the Society-pillar scope statement, and tracked open compliance gaps —
 see **[docs/SECURITY.md](docs/SECURITY.md)**, or
 **[docs/OWASP_LLM_TOP10.md](docs/OWASP_LLM_TOP10.md)** for the companion
-mapping against the OWASP Top 10 for LLM Applications. If something has actually
+mapping against the OWASP Top 10 for LLM Applications, or
+**[docs/NIST_AI_RMF.md](docs/NIST_AI_RMF.md)** for the companion mapping
+against the NIST AI Risk Management Framework. If something has actually
 gone wrong, or you've found a vulnerability in Bede's code, see
 **[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)** and the
 root-level **[SECURITY.md](SECURITY.md)**. For the dependency SBOM and

@@ -151,20 +151,21 @@ list as items are closed.
   human with that private key has to notice and act on it — nothing
   enforces that anymore. Worth periodically confirming this step is
   actually green, not just that the workflow overall is.
-- **A proposed Bede↔Locuto content-agent connector has two unresolved
-  pre-implementation blockers, tracked in
+- **A proposed Bede↔Locuto content-agent connector has one remaining
+  unresolved pre-implementation blocker, tracked in
   [`docs/LOCUTO_CONNECTOR_DECISIONS.md`](LOCUTO_CONNECTOR_DECISIONS.md).**
-  Neither is a gap in shipped code — no such connector exists yet — but both
-  need resolving before one could be built safely: (1) nothing in
-  `services/adapters/` today can pin one specific capability's model call to
-  the local-only adapter regardless of a household's general
-  `BEDE_ADAPTER_ORDER`, which a naive implementation would need to avoid
-  leaking Locuto-supplied content to a commercial API; (2) Bede has no
+  No such connector exists yet, and this is infrastructure ahead of a
+  feature, not a gap in anything shipped today. Packet 1 (which adapter a
+  Locuto-content-touching capability may call) is resolved —
+  `services/adapters/router.py`'s `resolve_local_only()` exists and is
+  tested, independent of `BEDE_ADAPTER_ORDER`/`BEDE_FORCE_ADAPTER`/any live
+  DB override. Packet 2 remains open: Bede has no
   signed-release/reproducible-build/hash-pinned-weights infrastructure
   matching `agnusdei-ai/locuto`'s own `docs/agents.md` §5 measurement
   requirement for a locally-composed agent. See that document for the full
-  options and recommendations — both remain open, pending a decision from
-  both products' owners.
+  options and recommendation — pending a decision from both products'
+  owners, and moot until `agents.md` §9 open question 1 (whether a content
+  agent ships at all) resolves.
 
 ## Closed gaps
 

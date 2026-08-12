@@ -10,7 +10,8 @@ accredited third-party auditor's opinion after a live assessment. If
 something has actually gone wrong (or you've found a vulnerability in
 Bede's code), see **[docs/INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)**
 instead — this file is the architecture/posture overview, that one is the
-action plan.
+action plan. See **[docs/OWASP_LLM_TOP10.md](OWASP_LLM_TOP10.md)** for the
+companion mapping against the OWASP Top 10 for LLM Applications.
 
 ## AIUC-1 Society pillar: scope statement
 
@@ -152,6 +153,42 @@ list as items are closed.
   actually green, not just that the workflow overall is.
 
 ## Closed gaps
+
+- **Public demo had no hard per-visitor cost ceiling — OWASP LLM10
+  "Unbounded Consumption" — closed 2026-08-12.** `core/demo_code_session.py`'s
+  own module docstring previously stated "No per-code message cap by
+  design," reasoning that `_MAX_ACTIVE_CODES` (concurrent codes) and the
+  per-IP `RateLimitMiddleware` "api" bucket (120 req/min default) were
+  sufficient cost control. Neither bounds aggregate spend: the rate limit
+  caps REQUEST RATE, not total messages, so a single scripted session
+  sustained at that ceiling for its whole `demo_code_token_expire_minutes`
+  token lifetime (120 min default) could sustain roughly 14,000 real model
+  calls from one demo code — a genuine denial-of-wallet surface with no
+  dollar or message-count floor underneath the rate limit, on the one
+  publicly-reachable, unauthenticated-signup surface this codebase has.
+  `core/demo_code_session.py` now adds `_MAX_MESSAGES_PER_CODE` (400 — well
+  above any real evaluation, see that constant's own comment) and
+  `has_message_quota()`, a read-only pre-check kept deliberately separate
+  from the existing `record_message()` counter so the ENFORCEMENT happens
+  before the expensive model call a turn triggers, not after: an
+  over-quota turn is refused for free, never billed. Wired into both
+  `routers/tutor.py`'s `/tutor/chat` and `routers/sandbox.py`'s
+  `/sandbox/demo-chat` — the two call sites that were already logging
+  "usage bookkeeping only — no cap enforced" verbatim — ahead of the
+  safeguarding/moderation/policy-engine pipeline, so a refused turn costs
+  nothing beyond one DB read. The refusal is a plain, localized (en/es)
+  chat message (`services/ai_service.py`'s `demo_quota_response`, same
+  fallback contract as `safeguarding_response`/`moderation_redirect_response`)
+  rather than an HTTP error, matching how every other pre-model gate in
+  these two SSE endpoints already communicates a redirect to the child/
+  visitor's own chat window, and is audit-logged as `AuditEvent.RATE_LIMITED`
+  with `detail="demo_message_quota"`. `core/diagnostic_preview_quota.py`'s
+  own docstring (which referenced the old "uncapped in duration and message
+  count" framing) was corrected in the same change. Duration and subject
+  BREADTH remain deliberately uncapped — a full, real evaluation is still
+  the point, not a crippled preview; only aggregate message volume per code
+  is now bounded. See `CLAUDE.md`'s demo-session documentation and
+  `tests/test_demo_message_quota.py`.
 
 - **The setup wizard recommended a PIN the API refuses to boot on —
   closed 2026-08-03.**

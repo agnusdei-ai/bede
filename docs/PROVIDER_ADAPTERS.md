@@ -228,6 +228,27 @@ WireGuard, an SSH tunnel) or at minimum put an authenticating reverse proxy in
 front of it and set `LOCAL_LLM_API_KEY` accordingly — never hang it directly on
 the public internet.
 
+## Model weight integrity — self-hosted local models (OWASP LLM04)
+
+Neither `packaging/unix/install.sh` nor `packaging/windows/Setup-Bede.ps1`
+(nor the browser wizard, `scripts/setup_wizard/wizard.py`) adds any
+checksum or signature verification of its own on top of `ollama pull
+qwen3:<tag>` — it's a plain call into Ollama's own pull mechanism.
+This isn't an unverified download: Ollama's own protocol is
+content-addressed (each model layer is fetched and checked against a
+SHA256 digest named in its manifest, the same scheme container registries
+use), so integrity is delegated to a well-known upstream tool's own
+mechanism rather than skipped — the same posture this codebase already
+takes toward `apt`/`pip`/`npm`. It just isn't independently re-verified by
+Bede, and until now that delegation wasn't written down anywhere.
+
+For a self-hosted vLLM deployment (the "rented/home GPU box" path above),
+model sourcing is entirely the deployer's own choice — this codebase has
+no opinion on where those weights come from, which is inherent to a
+bring-your-own-model architecture rather than something a checksum in
+this repo could enforce. See `docs/OWASP_LLM_TOP10.md`'s LLM04 section
+for the fuller reasoning.
+
 ## Setup guide — configuring and installing each adapter
 
 **For a first-time family install, `setup.sh`/`setup-gui` (see

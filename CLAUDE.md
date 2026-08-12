@@ -326,6 +326,36 @@ Deliberately excluded from this build: live adversarial pentesting against the r
 
 **Demo/app voice parity:** the demo's voice input is now the app's, not a lagging copy of it. It had drifted three ways at once, all of them making the demo *look worse than the product it sells* — the wrong direction for the one surface a prospective family judges Bede by. `demo/src/endpointing.ts` mirrors `homeschool-tutor/src/utils/endpointing.ts` byte for byte apart from its header, and `demo/src/endpointing.test.ts` imports **both** and asserts every constant matches, since a silence window that drifted apart would mean the demo was demonstrating something a family wouldn't get. `demo/src/useVoiceModePreference.ts` is likewise mirrored, so the demo now offers the same opt-in, off-by-default, per-device continuous "Voice on" mode, with the same two circuit breakers (`MAX_CONSECUTIVE_VOICE_FAILURES`, `MAX_CONSECUTIVE_SILENT_TURNS`) and the same `MIN_MS_BETWEEN_AUTO_STARTS` floor. The toggle reuses the app's own i18n keys (`voiceModeToggleTooltip`/`voiceModeContinuous`/`voiceModeHold`) rather than a parallel vocabulary. Two genuine bug fixes travelled with it, both previously app-only: `finishRequestedRef` (release() finished the session and the following stop() finished it *again*, a guaranteed 404 on every successful turn, filling the debug log with 404s that made a real one hard to spot) and the **stream-ended-while-still-recording teardown** — whose original trace was a *demo* trace, since it's the demo's own multi-instance session loss on Render that produces it, and without the teardown the recorder kept capturing, the mic latched on, and every subsequent press was silently refused. `bede-voice-mode` is a new `localStorage` key, so it has a row on `site/privacy/index.html` and an entry in `demo/src/privacyInventory.test.ts` — that page promises "no rounding up," which a key without a row would make publicly false.
 
+**Demo message quota (OWASP LLM10, "Unbounded Consumption"):** `core/demo_code_session.py`'s
+`_MAX_MESSAGES_PER_CODE` (400) is a hard per-code ceiling on chat messages,
+enforced ahead of both public-demo streaming entry points —
+`routers/tutor.py`'s `/tutor/chat` and `routers/sandbox.py`'s
+`/sandbox/demo-chat`. Before this, that module's own docstring said "No
+per-code message cap by design," reasoning that `_MAX_ACTIVE_CODES`
+(concurrent codes) and `core/middleware.py`'s per-IP `RateLimitMiddleware`
+"api" bucket (120 req/min default) were sufficient cost control — but a
+rate limit bounds REQUEST RATE, never aggregate spend, so a single
+scripted session sustained at that ceiling for its whole
+`demo_code_token_expire_minutes` token lifetime could run an effectively
+unbounded number of real model calls, a genuine denial-of-wallet risk on
+the one publicly-reachable, unauthenticated-signup surface this codebase
+has. `has_message_quota(code)` is a read-only pre-check kept deliberately
+separate from the existing `record_message()` counter (which stays pure
+bookkeeping, uncapped) so enforcement happens BEFORE the expensive model
+call a turn triggers — an over-quota turn costs one DB read, never a
+model call. Both call sites check it first, ahead of the
+safeguarding/moderation/policy-engine pipeline, and refuse with a plain,
+localized (en/es) chat message — `services/ai_service.py`'s
+`demo_quota_response`, same fallback contract as
+`safeguarding_response`/`moderation_redirect_response` — audit-logged as
+`AuditEvent.RATE_LIMITED` with `detail="demo_message_quota"`. 400 is sized
+well above any real evaluation (every subject, both faith modules,
+picture study, voice — comfortably under 200 exchanges) so it never
+crimps a genuine visitor; duration and subject breadth remain
+deliberately uncapped, matching `core/diagnostic_preview_quota.py`'s own
+"a real demo, not a crippled preview" reasoning for the base chat. See
+`docs/SECURITY.md`'s Closed gaps and `tests/test_demo_message_quota.py`.
+
 **Continuing Mastery (demo):** the public demo's own answer to lesson continuity — deliberately a *different* mechanism from the real app's `LessonBookmark` above, not a reuse of it, because `demo_code` sessions are explicitly excluded from that table (`db=None` for the demo role — see `routers/tutor.py`'s `chat()`) and the demo's own consent screen promises "your conversation is never stored." Two independent pieces, both client-side-only within the current browser tab (`sessionStorage`/React state in `demo/src/App.tsx`, nothing new sent to or stored by the backend beyond what's below), surfaced in a "Continuing Mastery" card rendered under the subject picker in `ChatScreen`'s header (`ContinuingMasteryCard`):
 - **Resuming a touched subject.** `subjectLastExchange` (React state, per-subject) is updated after every completed turn in `runStream` with that subject's REAL last exchange (Bede's actual reply text, plus the child's own message when it wasn't the silent `[START]`/`[CONTINUE]` sentinel) — never a synthesized summary, since there's no per-subject LLM bookmark call available client-side the way the real app's `LessonBookmark` write path has server-side. The card lists every subject other than the one currently open that has a recorded exchange, with a short excerpt and a "Resume →" button (`onClick={() => setSubject(s)}`). In-memory only, not persisted across a reload, mirroring the existing `openerFired` ref's own not-fully-restored posture just above it in the same file.
 - **Anchoring on a lesson the family brought from outside Bede's own curriculum.** `CodeScreen` gains a third optional field (alongside name/grade) — "Continuing a lesson from home?" — a short free-text note (e.g. "reading Farmer Boy together", "our own Ancient Egypt unit"). Sent to `POST /auth/demo-code` as `current_unit` (`DemoCodeRequest.current_unit`, `models/schemas.py`), sanitized identically to `student_name` (`_sanitize_parent_field` — HTML/prompt-injection/credential stripping) since it's the second piece of free text an anonymous public visitor puts in front of the model, then stored in `core/database.py`'s `DemoCodeUnitNote` — a **new, standalone table**, not a column on `DemoCodeSession`, because this codebase's startup only ever runs `CREATE TABLE IF NOT EXISTS` (no `ALTER TABLE` migration path — see `core/database.py`'s own module docstring), so a new table is the only way to ship this to an already-running deployment without a manual schema change. Same TTL/eviction convention as `DemoCodeSession`: no expiry column, `core/demo_code_session.py`'s `_cutoff()` filters both at read time (`get_current_unit`) and in the opportunistic cleanup inside `generate_code()`; `end_session()` deletes a code's note row immediately on explicit logout, same as it does for the `DemoCodeSession` row itself. `routers/tutor.py`'s `_demo_session_config()` reads it back and sets it on `SessionConfig.current_unit` — **zero new prompt logic**: this is the exact same field a real parent's own `current_unit` already populates, so `_build_subject_prompt`'s existing `unit_note` (every subject, not just one) and the `[START]` opener rule's existing "the parent's own note always wins" precedence (`_build_static_prompt` rule 9) apply to it unchanged. The Continuing Mastery card surfaces this back to the visitor as "Following your own lesson: {note}" so they can see Bede is actually anchoring on what they typed, not just demonstrating its own bundled curriculum — this is the demo's showcase of the same `book_companion`/`current_unit` behavior `docs/PARENT_SETUP.md`'s §5 documents for real families. This one piece — a short config note, not the conversation — is the one part of Continuing Mastery that reaches the backend/database at all; it's the same category the consent screen's own "name and grade personalize this session, kept up to 6 hours" line already carves out, so that promise is unchanged, just extended to cover one more short field of the same kind.
@@ -728,7 +758,9 @@ threat model than launching local commands.
 
 For the audit-facing view of this section — AIUC-1/SOC 2 control mapping,
 the Society-pillar scope statement, and tracked open compliance gaps —
-see **[docs/SECURITY.md](docs/SECURITY.md)**. If something has actually
+see **[docs/SECURITY.md](docs/SECURITY.md)**, or
+**[docs/OWASP_LLM_TOP10.md](docs/OWASP_LLM_TOP10.md)** for the companion
+mapping against the OWASP Top 10 for LLM Applications. If something has actually
 gone wrong, or you've found a vulnerability in Bede's code, see
 **[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)** and the
 root-level **[SECURITY.md](SECURITY.md)**. For the dependency SBOM and

@@ -329,6 +329,33 @@ class Settings(BaseSettings):
     mcp_external_servers: str = ""
     mcp_external_timeout_seconds: float = 10.0
 
+    # ── Locuto local-IPC listener (services/locuto_ipc/) ──────────────────────
+    # Bede's half of a proposed on-device connector to agnusdei-ai/locuto's
+    # own client — see docs/LOCUTO_CONNECTOR_DECISIONS.md and Locuto's
+    # docs/bede-ipc-spec.md (the single canonical wire spec; nothing in this
+    # codebase duplicates it). ON by default — Bede is meant to interoperate
+    # with a paired Locuto installation out of the box, and the listener's
+    # own v1 registers zero capabilities (see capabilities.py), so a
+    # deployment that never pairs with Locuto is unaffected either way: the
+    # socket accepts a handshake but every real capability is refused.
+    # Still a real, deliberate switch a deployer can set to `false` at
+    # install time (or any time after, restart required — see below) to
+    # disable the listener outright. Runs as its own separate process
+    # (`python -m services.locuto_ipc`), not inside the main FastAPI app;
+    # a False value here means that process never binds the socket, which
+    # is also this listener's kill-switch (bede-ipc-spec.md §7) — see
+    # services/locuto_ipc/server.py's own docstring for why this is
+    # restart-based rather than live, and for why the process stays up
+    # (rather than exiting) while disabled.
+    locuto_ipc_enabled: bool = True
+    # bede-ipc-spec.md §2: a Unix domain socket, never TCP even on loopback.
+    # Default path sits under the api container's one writable location
+    # (docker-compose.yml's `/tmp:size=64m,mode=1777` tmpfs) — a real
+    # household deployment bind-mounts this directory to a host-visible
+    # path so a native Locuto process can reach it; see docker-compose.yml's
+    # own comment on the locuto-ipc service for the full reasoning.
+    locuto_ipc_socket_path: str = "/tmp/bede-locuto/locuto.sock"
+
     # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
     # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
     # as DEMO_PIN) — a family only needs to set these if they want to enroll a

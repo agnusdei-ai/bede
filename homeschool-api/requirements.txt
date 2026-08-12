@@ -46,3 +46,8 @@ httpx>=0.28.1
 # read-only/cap_drop container) — used by services/document_extraction.py to
 # read narration transcripts exported from a smart pen/notebook app.
 pypdf>=5.0.0
+# CBOR (RFC 8949) — services/locuto_ipc/framing.py's wire body encoding, per
+# agnusdei-ai/locuto's docs/bede-ipc-spec.md §3. Pure-Python-compatible
+# (has an optional C extension, safe either way in the read-only/cap_drop
+# container).
+cbor2>=5.6.0

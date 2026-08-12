@@ -31,12 +31,37 @@ proof that it ignores `BEDE_ADAPTER_ORDER`, `BEDE_FORCE_ADAPTER`, and a live DB 
 when each would otherwise point at a configured, higher-priority cloud adapter.
 
 **This closes only what packet 1 asked** — the resolver exists and is proven independent of
-household configuration. No capability call site uses it yet. **`agents.md` §9 open question 1 has
-since resolved** (`open-decisions.md` decision 167 — see packet 2's premise note above), so what
-remains is the connector itself, not a further ruling: `agnusdei-ai/locuto`'s `docs/bede-ipc-spec.md`
-now specifies the local-IPC listener and names this exact function as the required resolution path
-(§6) — the caller `resolve_local_only()` has been waiting for is spec'd, not yet built, on either
-side. `resolve_local_only()` remains infrastructure without a caller, not a shipped feature.
+household configuration. **`agents.md` §9 open question 1 has since resolved**
+(`open-decisions.md` decision 167 — see packet 2's premise note above), and
+`agnusdei-ai/locuto`'s `docs/bede-ipc-spec.md` (merged in Locuto PR #47) has since specified the
+local-IPC listener and named this exact function as the required resolution path (§6).
+
+**A caller now exists.** `services/locuto_ipc/` implements Bede's half of that spec — the
+Unix-domain-socket listener (framing, handshake, per-connection dispatch), a separate process from
+the main `api` container (matching `bede-connector.md` §2's own recommendation). Its `_dispatch_request()`
+is the single place a `Request`'s capability is looked up and invoked, and it is where
+`resolve_local_only()` gets its first real caller: any future capability handler that resolves a
+model client must go through it, and `LocalAdapterUnavailableError` translates to the wire's
+`Unavailable` outcome rather than being caught and retried against a different adapter — never a
+fallback to a commercial API, per this packet's own resolution. **The capability registry is still
+deliberately empty** — no capability has an exact CBOR schema specified in either repo yet
+(bede-ipc-spec.md §4: "a new capability is a new named message body ... never a widening of an
+existing one"), so registering one here would mean inventing a schema unilaterally. What ships is a
+provable, tested protocol skeleton — transport, framing, peer-credential check, handshake, and the
+§6 enforcement point proven correct in isolation — with zero actual agent behavior. `resolve_local_only()`
+is infrastructure with a caller now, but that caller still dispatches nothing real.
+
+**The listener ships enabled by default, not gated behind an extra opt-in.** `LOCUTO_IPC_ENABLED`
+defaults `true` and the `locuto-ipc` docker-compose service starts alongside the rest of the stack —
+Bede is meant to interoperate with a paired Locuto installation out of the box, per product intent,
+rather than requiring a deployer to discover and flip a second switch after the fact. This is a
+deliberate departure from this codebase's usual "empty/off = disabled" convention for a new trust
+surface, and it is safe only because of the empty registry immediately above: a deployment that never
+pairs with Locuto gets a socket that completes a handshake and refuses every real capability, nothing
+more. It remains a real, configurable choice — a deployer can set `LOCUTO_IPC_ENABLED=false` at
+install time or later (container restart required) to disable the listener outright, and a disabled
+listener idles rather than exiting so that choice doesn't turn into a restart-loop now that the
+container runs by default. See `services/locuto_ipc/__init__.py` and `server.py`'s own docstrings.
 
 Left below unedited otherwise, as the record of the question and the options it was closed against.
 
@@ -145,9 +170,13 @@ if the feature is built at all.
 
 ## What is not in here
 
-**No signing infrastructure, and no Locuto capability call site — nothing that requires the
-connector itself to exist.** Packet 1 is the one exception to "no code, no adapter-router change":
-its resolution shipped `resolve_local_only()`, real and tested, because the resolver's own
-correctness could be verified in isolation without the connector it will eventually serve. Packet 2
-remains a question with a recommendation attached, not a decision — matching Locuto's own convention
-that a recommendation here is an argument the owner may reject.
+**No signing infrastructure, and no real capability.** Packet 1 is the one exception to "no code, no
+adapter-router change": its resolution shipped `resolve_local_only()`, real and tested, because the
+resolver's own correctness could be verified in isolation without the connector it would eventually
+serve — and `services/locuto_ipc/` (see packet 1's closing note above) is that connector's transport
+skeleton, now real and tested too, dispatching to an intentionally empty capability registry. Neither
+of those is a capability: no Locuto plaintext has ever reached this process, and none can until a
+specific capability's CBOR schema is specified and a handler registered — a separate, deliberate
+change this document's packet 1 doesn't pre-authorize. Packet 2 remains a question with a
+recommendation attached, not a decision — matching Locuto's own convention that a recommendation
+here is an argument the owner may reject.

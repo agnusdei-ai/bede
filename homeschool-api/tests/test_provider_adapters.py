@@ -618,6 +618,92 @@ async def test_check_local_adapter_reachable_false_when_local_is_down(monkeypatc
     assert await router.check_local_adapter_reachable(s) is False
 
 
+# ── resolve_local_only() — docs/LOCUTO_CONNECTOR_DECISIONS.md packet 1's
+# fail-closed, local-only resolver for a capability handling content from
+# outside Bede's own process ─────────────────────────────────────────────────
+
+def test_resolve_local_only_returns_the_local_adapter_when_configured():
+    s = _settings(local_llm_base_url="http://gpu-box.lan:8000/v1")
+    client = router.resolve_local_only(s)
+    assert isinstance(client, OpenAICompatibleClient)
+
+
+def test_resolve_local_only_raises_when_local_is_not_configured():
+    s = _settings(local_llm_base_url="")
+    with pytest.raises(router.LocalAdapterUnavailableError):
+        router.resolve_local_only(s)
+
+
+def test_resolve_local_only_ignores_bede_adapter_order_entirely():
+    """The whole point: a household's ordinary tutoring configuration must
+    have zero say in this resolver's outcome, in either direction — local
+    configured but NOT in the order, and local configured but NOT first."""
+    s = _settings(
+        bede_adapter_order="anthropic",  # local isn't even listed
+        anthropic_api_key="sk-ant",
+        local_llm_base_url="http://gpu-box.lan:8000/v1",
+    )
+    client = router.resolve_local_only(s)
+    assert isinstance(client, OpenAICompatibleClient)
+
+
+def test_resolve_local_only_ignores_bede_force_adapter():
+    """A parent pinning BEDE_FORCE_ADAPTER=anthropic for ordinary tutoring
+    must not be able to also redirect this resolver to a commercial API —
+    that pin governs get_default_client()/resolve_with_failover() only."""
+    s = _settings(
+        bede_force_adapter="anthropic",
+        anthropic_api_key="sk-ant",
+        local_llm_base_url="http://gpu-box.lan:8000/v1",
+    )
+    client = router.resolve_local_only(s)
+    assert isinstance(client, OpenAICompatibleClient)
+
+
+def test_resolve_local_only_ignores_a_live_provider_state_override(monkeypatch):
+    """core/provider_state.py's DB-backed live override (a parent switching
+    primary providers from the UI, no restart) must have no effect here
+    either — this resolver never consults it at all."""
+    from core import provider_state
+
+    s = _settings(
+        bede_adapter_order="local,anthropic",
+        anthropic_api_key="sk-ant",
+        local_llm_base_url="http://gpu-box.lan:8000/v1",
+    )
+    provider_state._set_cached_primary("anthropic")
+    try:
+        client = router.resolve_local_only(s)
+        assert isinstance(client, OpenAICompatibleClient)
+    finally:
+        provider_state._set_cached_primary(None)
+
+
+def test_resolve_local_only_never_returns_a_cloud_adapter_even_when_local_is_last():
+    """local configured but ranked last in the order, with a cloud provider
+    both configured and ranked first — must still resolve to local, since
+    order has no bearing on this function at all."""
+    s = _settings(
+        bede_adapter_order="mistral,anthropic,local",
+        mistral_api_key="sk-m",
+        anthropic_api_key="sk-ant",
+        local_llm_base_url="http://gpu-box.lan:8000/v1",
+    )
+    client = router.resolve_local_only(s)
+    assert isinstance(client, OpenAICompatibleClient)
+    assert str(client._openai.base_url).startswith("http://gpu-box.lan")
+
+
+def test_resolve_local_only_builds_a_fresh_client_each_call():
+    """No caching — matching check_local_adapter_reachable()'s own reasoning
+    that this must never share state with whatever client ordinary tutoring
+    is using."""
+    s = _settings(local_llm_base_url="http://gpu-box.lan:8000/v1")
+    first = router.resolve_local_only(s)
+    second = router.resolve_local_only(s)
+    assert first is not second
+
+
 # ── OpenAICompatibleClient.is_reachable() — main.py's periodic local-adapter
 # health check (see "AI backend failure alerting" / the health-check follow-up
 # in CLAUDE.md) ────────────────────────────────────────────────────────────

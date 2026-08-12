@@ -18,6 +18,25 @@
 
 ## 1. Which of Bede's model adapters may a Locuto-content-touching capability call, and how is that enforced?
 
+**RESOLVED — option A, a dedicated fail-closed local-only resolver.** Implemented as
+`resolve_local_only()` in `services/adapters/router.py`: bypasses `_order()`,
+`BEDE_FORCE_ADAPTER`, and `core/provider_state.py`'s live override entirely rather than merely
+reordering around them, so no household configuration — present or future — can route a
+Locuto-content-touching call through a commercial adapter. Raises
+`LocalAdapterUnavailableError` (never falls back) when `LOCAL_LLM_BASE_URL` isn't configured;
+builds a fresh client per call rather than caching, so it can never share state with whatever
+client ordinary tutoring turns are using. Covered by seven tests in
+`tests/test_provider_adapters.py` (a new "resolve_local_only()" section), including explicit
+proof that it ignores `BEDE_ADAPTER_ORDER`, `BEDE_FORCE_ADAPTER`, and a live DB override even
+when each would otherwise point at a configured, higher-priority cloud adapter.
+
+**This closes only what packet 1 asked** — the resolver exists and is proven independent of
+household configuration. No capability call site uses it yet; there is no Locuto capability to
+call it from until `agents.md` §9 open question 1 resolves and the actual connector is built.
+`resolve_local_only()` is infrastructure waiting for that decision, not a shipped feature.
+
+Left below unedited otherwise, as the record of the question and the options it was closed against.
+
 **Exact question.** When a capability like `PrepareUserReviewableSendDraft` needs a model call to
 draft, summarize, or search Locuto-supplied plaintext, which of Bede's configured adapters
 (`services/adapters/`) may that specific call use, and what stops it from using any other?

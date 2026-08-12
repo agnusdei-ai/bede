@@ -16,6 +16,15 @@ Two entry points:
   isn't retried on every request. Call sites may opt into it; it is deliberately
   NOT the default `_client` so the single-client test contract stays intact.
 
+* `resolve_local_only()` — a fail-closed resolver that ALWAYS returns the
+  local adapter, never any other configured provider, regardless of
+  BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER/any live DB override. Raises
+  `LocalAdapterUnavailableError` rather than falling back when `local` isn't
+  configured. Exists for docs/LOCUTO_CONNECTOR_DECISIONS.md's first packet:
+  a capability handling content from outside Bede's own process must never
+  be able to reach a commercial model API through this codebase's ordinary
+  adapter routing.
+
 ## The account-closure scenario this exists for
 
 The whole refactor's trigger case is "we can no longer rely on Anthropic at
@@ -164,6 +173,50 @@ async def check_local_adapter_reachable(
         return None
     client = _build("local", settings)
     return await client.is_reachable(timeout_seconds=timeout_seconds)
+
+
+class LocalAdapterUnavailableError(RuntimeError):
+    """Raised by resolve_local_only() when no local adapter is configured.
+
+    Deliberately its own type rather than a bare RuntimeError: a caller must
+    treat this as "the capability is unavailable right now" (the same
+    fail-closed convention docs/PROVIDER_ADAPTERS.md and host-connector.md's
+    own "a model-backed feature that cannot run simply stops, disclosed as
+    such" already use elsewhere), never as a signal to retry against a
+    different adapter."""
+
+
+def resolve_local_only(settings: Any = _global_settings) -> Any:
+    """Resolve a client that is ALWAYS the local adapter — never any other
+    configured provider, regardless of BEDE_ADAPTER_ORDER, BEDE_FORCE_ADAPTER,
+    or any live core/provider_state.py override, all of which govern ordinary
+    tutoring's adapter choice and must have zero influence here.
+
+    This exists for exactly one reason: docs/LOCUTO_CONNECTOR_DECISIONS.md's
+    first packet. A capability that touches content from an external,
+    non-Bede source may only ever call this resolver, never
+    get_default_client()/resolve_with_failover() — so a household's general
+    model configuration (which a parent can change live, at any time, for
+    reasons having nothing to do with that capability) can never determine
+    whether that content reaches a commercial API. Deliberately bypasses
+    _order()/provider_state.effective_order() entirely rather than merely
+    reordering around them, since even being LISTED in that order would let
+    a future refactor of this function accidentally reintroduce a path to a
+    non-local adapter.
+
+    Raises LocalAdapterUnavailableError when `local` isn't configured —
+    never falls back to any other adapter, silently or otherwise. Builds a
+    fresh client on every call rather than caching one, matching
+    check_local_adapter_reachable()'s own reasoning: this must never share
+    state with, or be affected by, whatever client ordinary tutoring turns
+    are using."""
+    if not _is_configured("local", settings):
+        raise LocalAdapterUnavailableError(
+            "No local adapter is configured (LOCAL_LLM_BASE_URL unset) — "
+            "this capability requires local-only inference and has no "
+            "fallback to any other provider."
+        )
+    return _build("local", settings)
 
 
 def get_default_client(settings: Any = _global_settings) -> Any:

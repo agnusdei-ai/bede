@@ -63,6 +63,7 @@ class AuditEvent:
     TOOL_CALL_SUPPRESSED     = "tool.call_suppressed"
     ADVERSARIAL_DETECTED     = "adversarial.detected"
     AGENTIC_LOOP_CAPPED      = "agentic.loop_capped"
+    AI_BACKEND_FAILURE       = "ai_backend.failure"
     # An external MCP tool ran (services/mcp_client.py). Distinct from
     # TOOL_INVOKED on purpose: this is the ONLY event in the system marking a
     # moment when content from outside this process entered model context, and
@@ -143,6 +144,15 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # all means someone is actively trying to use hardware that was already
     # reported lost or compromised.
     AuditEvent.DEVICE_LOGIN_BLOCKED: (3, 600),
+    # Unlike every rule above — all keyed per-IP, since they're about ONE
+    # actor's behavior — a failing AI backend (local model down, API key
+    # revoked, every configured provider rate-limited) affects the whole
+    # household identically regardless of which device happens to trip it
+    # first. 3 different children on 3 different tablets each hitting one
+    # failure would never individually cross a per-IP threshold even
+    # though the backend is clearly broken. See _GLOBAL_ANOMALY_EVENTS
+    # below — this rule's count is pooled across every IP instead.
+    AuditEvent.AI_BACKEND_FAILURE: (3, 600),
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
 
@@ -150,20 +160,39 @@ from core.encryption import aad_for
 
 _AUDIT_AAD = aad_for("audit_log", "event_enc", "audit")
 
+# Events whose anomaly count is pooled across every caller instead of
+# tracked per-IP (see AI_BACKEND_FAILURE's own comment above) — a
+# reliability signal about the deployment as a whole, not a security
+# pattern from one actor. _GLOBAL_ANOMALY_KEY is a fixed placeholder, not
+# a real IP, used only to key these events' shared window.
+_GLOBAL_ANOMALY_EVENTS = frozenset({AuditEvent.AI_BACKEND_FAILURE})
+_GLOBAL_ANOMALY_KEY = "*"
+
 _anomaly_windows: dict[tuple[str, str], list[float]] = {}
 _anomaly_last_alert: dict[tuple[str, str], float] = {}
 
 
 def _check_anomaly(event: str, ip: str) -> Optional[int]:
-    """Returns the occurrence count if `event` from `ip` just crossed its
-    threshold (and isn't still in cooldown from a prior alert on the same
-    pattern), else None. Not async / has no side effects beyond its own
-    module-level dicts — safe to call synchronously from log_event()."""
+    """Returns the occurrence count if `event` just crossed its threshold
+    (and isn't still in cooldown from a prior alert on the same pattern),
+    else None. Not async / has no side effects beyond its own module-level
+    dicts — safe to call synchronously from log_event().
+
+    For a per-IP rule, "just crossed its threshold" means from that one
+    `ip`; ip="unknown"/"" is skipped outright since there's no actor to
+    attribute a pattern to. For a rule in _GLOBAL_ANOMALY_EVENTS, `ip` is
+    ignored for bucketing purposes (including "unknown", which many
+    internal callers pass by default — see AI_BACKEND_FAILURE call sites)
+    since the whole point is pooling occurrences across every caller.
+    """
     rule = _ANOMALY_RULES.get(event)
-    if rule is None or ip in ("unknown", ""):
+    if rule is None:
+        return None
+    is_global = event in _GLOBAL_ANOMALY_EVENTS
+    if not is_global and ip in ("unknown", ""):
         return None
     threshold, window = rule
-    key = (ip, event)
+    key = (_GLOBAL_ANOMALY_KEY if is_global else ip, event)
     now = time.monotonic()
 
     last_alert = _anomaly_last_alert.get(key)
@@ -186,14 +215,30 @@ async def _fire_anomaly_alert(event: str, ip: str, count: int) -> None:
     """Fire-and-forget: records the alert itself in the audit log (so the
     alert is part of the durable trail, not just implied by the events that
     triggered it) and best-effort emails the parent — same pattern as
-    ai_service.py's safeguarding alert."""
-    from services.email_service import security_alert_configured, send_security_alert
+    ai_service.py's safeguarding alert.
 
+    AI_BACKEND_FAILURE gets its own email (send_backend_failure_alert) —
+    reusing the security-alert template's "unusual activity"/"from
+    address" copy for a reliability problem would be actively misleading
+    (there IS no single culprit address here, see _GLOBAL_ANOMALY_EVENTS
+    above), so this is a genuinely different notice, not a reskin.
+    """
+    from services.email_service import (
+        security_alert_configured,
+        send_backend_failure_alert,
+        send_security_alert,
+    )
+
+    is_global = event in _GLOBAL_ANOMALY_EVENTS
     await log_event(
         AuditEvent.ANOMALY_ALERT, ip=ip, success=True,
-        detail=f"{event} x{count} from {ip}",
+        detail=f"{event} x{count}" if is_global else f"{event} x{count} from {ip}",
     )
-    if security_alert_configured():
+    if not security_alert_configured():
+        return
+    if event == AuditEvent.AI_BACKEND_FAILURE:
+        await send_backend_failure_alert(count)
+    else:
         await send_security_alert(event, ip, count)
 
 

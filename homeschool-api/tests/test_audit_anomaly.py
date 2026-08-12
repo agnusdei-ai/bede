@@ -128,6 +128,32 @@ def test_check_anomaly_tool_call_suppressed_fires_immediately():
     assert _check_anomaly(AuditEvent.TOOL_CALL_SUPPRESSED, "7.7.7.7") == 1
 
 
+def test_check_anomaly_ai_backend_failure_pools_across_different_ips():
+    """Unlike every other rule, AI_BACKEND_FAILURE is a deployment-wide
+    reliability signal, not a per-actor security pattern — three
+    DIFFERENT devices each hitting one failure must still cross the
+    threshold together, not reset each other's count."""
+    assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "1.2.3.4") is None
+    assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "5.6.7.8") is None
+    assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "9.9.9.9") == 3
+
+
+def test_check_anomaly_ai_backend_failure_fires_even_with_unknown_ip():
+    """Most internal stream_tutor_response callers default to ip="unknown"
+    — a global-pooled event must not be silently skipped the way a per-IP
+    rule is for that same value."""
+    assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "unknown") is None
+    assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "unknown") is None
+    assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "unknown") == 3
+
+
+def test_check_anomaly_ai_backend_failure_cooldown_still_applies():
+    for _ in range(3):
+        _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "1.1.1.1")
+    for _ in range(5):
+        assert _check_anomaly(AuditEvent.AI_BACKEND_FAILURE, "2.2.2.2") is None
+
+
 def test_check_anomaly_ignores_events_with_no_rule():
     for _ in range(50):
         assert _check_anomaly(AuditEvent.SESSION_START, "9.9.9.9") is None
@@ -211,6 +237,47 @@ async def test_log_event_skips_email_when_not_configured_but_still_records_alert
     async with demo_db() as db:
         entries = await read_audit_log(db, limit=50)
     assert any(e.get("event") == AuditEvent.ANOMALY_ALERT for e in entries)
+
+
+@pytest.mark.asyncio
+async def test_log_event_ai_backend_failure_uses_the_reliability_alert_not_the_security_one(
+    demo_db, audit_tasks, monkeypatch,
+):
+    """The whole point of branching in _fire_anomaly_alert: this event must
+    reach send_backend_failure_alert, never send_security_alert — sending
+    a "from address" security template for a crashed local model would be
+    actively misleading."""
+    security_calls = []
+    backend_calls = []
+    monkeypatch.setattr("services.email_service.security_alert_configured", lambda: True)
+    monkeypatch.setattr(
+        "services.email_service.send_security_alert",
+        lambda *a, **kw: security_calls.append((a, kw)),
+    )
+
+    async def fake_backend_alert(count, window_label="in the last 10 minutes"):
+        backend_calls.append(count)
+        return True
+
+    monkeypatch.setattr("services.email_service.send_backend_failure_alert", fake_backend_alert)
+
+    # Three different IPs — proves the pooling from the unit tests above
+    # actually reaches the real log_event()/alert integration too.
+    await log_event(AuditEvent.AI_BACKEND_FAILURE, ip="20.0.0.1", success=False)
+    await log_event(AuditEvent.AI_BACKEND_FAILURE, ip="20.0.0.2", success=False)
+    await log_event(AuditEvent.AI_BACKEND_FAILURE, ip="20.0.0.3", success=False)
+    await asyncio.gather(*audit_tasks)
+
+    assert security_calls == []
+    assert backend_calls == [3]
+
+    async with demo_db() as db:
+        entries = await read_audit_log(db, limit=50)
+    alert_entries = [e for e in entries if e.get("event") == AuditEvent.ANOMALY_ALERT]
+    assert len(alert_entries) == 1
+    # Global events omit "from <ip>" — there's no single meaningful address
+    # to attribute a pooled, cross-device pattern to.
+    assert alert_entries[0]["detail"] == "ai_backend.failure x3"
 
 
 @pytest.mark.asyncio

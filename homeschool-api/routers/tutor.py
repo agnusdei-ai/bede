@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.audit import AuditEvent, audit_from_request, log_event
+from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
@@ -299,13 +299,33 @@ async def chat(
                 "Tutor stream stalled past %.0fs for %s — closing with a recoverable error",
                 STREAM_STALL_TIMEOUT_SECONDS, req.session_config.student_name,
             )
+            # See core/audit.py's AI_BACKEND_FAILURE / _GLOBAL_ANOMALY_EVENTS —
+            # a repeated pattern here (pooled across every device, not just
+            # this one) is what actually tells a parent/operator Bede's AI
+            # backend is unhealthy, rather than that surfacing only as a
+            # string of individually-unremarkable "try again" replies with
+            # nobody watching. Fire-and-forget: must not delay the error
+            # response the child is waiting on.
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE,
+                role=role, student_name=req.session_config.student_name,
+                success=False, detail=f"cause=stall subject={req.current_subject.value}",
+                **audit_from_request(request),
+            )
             yield json.dumps({
                 'type': 'text',
                 'content': "Sorry, that took too long to come through. Could you try sending that again?",
             })
             yield json.dumps({'type': 'done'})
-        except Exception:
+        except Exception as exc:
             log.exception("Tutor stream failed mid-turn for %s", req.session_config.student_name)
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE,
+                role=role, student_name=req.session_config.student_name,
+                success=False,
+                detail=f"cause=exception subject={req.current_subject.value} error={type(exc).__name__}",
+                **audit_from_request(request),
+            )
             yield json.dumps({
                 'type': 'text',
                 'content': "Something went wrong on my end. Could you try sending that again?",

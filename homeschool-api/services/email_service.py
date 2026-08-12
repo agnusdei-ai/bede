@@ -349,3 +349,61 @@ async def send_security_alert(event: str, ip: str, count: int, window_label: str
         subject="Bede: unusual activity detected on your instance",
         html_body=html_body,
     )
+
+
+def build_backend_failure_alert_html(count: int, window_label: str) -> str:
+    """
+    Reliability alert — the AI backend itself (local model, or every
+    configured cloud provider) has failed or stalled repeatedly, not a
+    security concern. Deliberately its own template rather than reusing
+    build_security_alert_html's "unusual activity"/"from address" framing
+    above: there's no single culprit address for a broken backend (see
+    core/audit.py's _GLOBAL_ANOMALY_EVENTS), and calling this "unusual
+    activity" would send a worried parent looking for an intruder instead
+    of a crashed local model server.
+    """
+    return f"""\
+<!DOCTYPE html>
+<html>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">Bede is having trouble responding</h1>
+  <p style="font-size: 13px; color: #6b7280; margin: 0 0 24px 0;">
+    Bede's AI service has failed or timed out repeatedly, which usually means it can't
+    currently hold a tutoring session at all — worth checking on before your child's
+    next one.
+  </p>
+  <div style="font-size: 15px; line-height: 1.6; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+    <p style="margin: 0;"><strong>{count}&times;</strong> failed or stalled {window_label}</p>
+  </div>
+  <p style="font-size: 13px; color: #4b5563; margin-top: 16px;">
+    If you're running a local/self-hosted model, check that its server is still running.
+    If you're using a cloud provider, check that its API key is still valid and that
+    provider isn't reporting an outage. The AI Provider card (parent login &rarr; Setup)
+    shows which provider is currently primary.
+  </p>
+  <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
+    Full detail is in your instance's audit log (parent login &rarr; Admin &rarr; Audit Log).
+    This alert is a single automated notice — it won't repeat for the same pattern for a
+    while, even if it continues, so check the log directly for the current picture.
+  </p>
+</body>
+</html>"""
+
+
+async def send_backend_failure_alert(count: int, window_label: str = "in the last 10 minutes") -> bool:
+    """
+    Best-effort real-time notification when core/audit.py's anomaly watch
+    crosses the threshold for AuditEvent.AI_BACKEND_FAILURE — repeated
+    tutor/sandbox stream failures or stalls, pooled across every device
+    (see that event's own comment for why). Same PARENT_EMAIL/Resend
+    config as send_security_alert above; returns False silently when
+    unconfigured, same convention as every other alert in this file.
+    """
+    if not security_alert_configured():
+        return False
+    html_body = build_backend_failure_alert_html(count, window_label)
+    return await send_email(
+        settings.parent_email,
+        subject="Bede: having trouble responding — please check in",
+        html_body=html_body,
+    )

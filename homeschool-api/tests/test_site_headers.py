@@ -167,3 +167,38 @@ def test_no_unsafe_inline_script_crept_back_in():
             f"{pattern} allows 'unsafe-inline' in script-src. Extract the "
             f"inline script to a file under site/assets/ instead."
         )
+
+
+def test_object_src_is_named_rather_than_left_to_default_src():
+    """`<object>`/`<embed>` are the one legacy class that can sidestep
+    script-src in some engines, which is why strict-CSP guidance treats
+    naming object-src as mandatory even where — as here — there is no
+    upload path and no user-controlled same-origin content to point one
+    at. Inheriting 'self' from default-src is not the same statement."""
+    for pattern, headers in RULES:
+        policy = headers.get("content-security-policy")
+        if not policy:
+            continue
+        directives = [d.strip() for d in policy.split(";") if d.strip()]
+        assert "object-src 'none'" in directives, (
+            f"{pattern}'s policy does not set object-src 'none'."
+        )
+
+
+def test_the_opener_policy_is_set_and_not_paired_with_require_corp():
+    """COOP costs nothing here (no window.open, no target="_blank" anywhere
+    in site/) and closes opener-tampering ahead of the first link that
+    needs it. COEP: require-corp is the trap that travels with it — it
+    would break BOTH cross-origin things this deployment depends on, the
+    youtube-nocookie iframe and the Wikimedia picture-study thumbnails, to
+    buy an isolation nothing here uses."""
+    for pattern, headers in RULES:
+        if "content-security-policy" not in headers:
+            continue  # not a security-policy-bearing rule
+        assert headers.get("cross-origin-opener-policy") == "same-origin", (
+            f"{pattern} does not set Cross-Origin-Opener-Policy: same-origin"
+        )
+        assert "require-corp" not in headers.get("cross-origin-embedder-policy", ""), (
+            f"{pattern} sets COEP: require-corp, which blocks the YouTube "
+            f"embed and the Wikimedia picture-study images."
+        )

@@ -795,17 +795,33 @@ p.lede {
    that's correct. Scoped here rather than changed at the source, so
    fixing the one dark-section form can't silently darken labels on the
    three light-section ones. */
+.band-closing .form-block {
+  border-color: rgba(250, 246, 236, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .band-closing .field > legend,
 .band-closing .field > label.q {
   color: var(--vellum);
 }
 
-.band-closing .field .hint,
-.band-closing .form-note {
-  color: var(--gilt-light);
+/* Hints and fine print were --gilt-light here, which put two full
+   paragraphs of gold on the page: gold is this site's accent — the CTA,
+   the guarantee's border, the one thing a visitor's eye should be pulled
+   to — so spending it on a hint made the quietest copy on the page shout,
+   and the note under the button competed with the button. Muted vellum
+   instead, with gold kept for the LINKS inside them, which is the one
+   thing there worth clicking. */
+.band-closing .field .hint {
+  color: rgba(250, 246, 236, 0.6);
 }
 
-.band-closing .field {
+.band-closing .form-note {
+  color: rgba(250, 246, 236, 0.58);
+  border-top-color: rgba(250, 246, 236, 0.14);
+}
+
+.band-closing .field:has(~ .field) {
   border-bottom-color: rgba(255, 255, 255, 0.14);
 }
 
@@ -813,34 +829,71 @@ p.lede {
   color: var(--gilt-light);
 }
 
-/* One row on a wide screen. The failure mode is what happens when it
-   wraps: each item centres on its own line, so the emojis and the text
-   after them land at four different left edges and the group reads as
-   scattered rather than as a list. Fixed below by stacking into a
-   left-aligned column whose BLOCK is still centred — `width: fit-content`
-   plus `margin-inline: auto` is what centres the group while keeping the
-   items' left edges shared, so the icons line up. */
-.notes {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1.25rem 2.25rem;
-  font-size: 0.88rem;
-  color: rgba(250, 246, 236, 0.7);
+/* On the dark band a 75%-white input (the shared rule above, correct on
+   the three light-section forms) renders as a flat pale-grey slab whose
+   dark 18%-ink border vanishes into it — it reads as a DISABLED control
+   rather than a field waiting for an answer, which was the single worst
+   thing about this form. A lifted dark fill with a light edge reads as
+   enterable, and matches how every other panel on this band is built
+   (`.limit`, `.guarantee`: white at low alpha over the navy). */
+.band-closing .form-block input[type="text"],
+.band-closing .form-block input[type="email"],
+.band-closing .form-block textarea {
+  color: var(--vellum);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(250, 246, 236, 0.24);
 }
 
-/* Deliberately wider than the 640px breakpoint used elsewhere in this
-   file: these items stop fitting on one line well before the layout
-   itself becomes "mobile", and a ragged multi-line wrap has the same
-   problem a single column stack avoids. */
-@media (max-width: 860px) {
-  .notes {
-    flex-direction: column;
-    align-items: flex-start;
-    width: fit-content;
-    margin-inline: auto;
-    gap: 0.65rem;
-  }
+/* Same measurement on the dark side: 0.42 alpha over the field colour
+   above is 3.1:1, 0.62 is 4.8:1. */
+.band-closing .form-block ::placeholder {
+  color: rgba(250, 246, 236, 0.62);
+}
+
+/* Autofill repaints the field with the browser's own near-white and a
+   dark text colour it picks itself, which on this band lands back at the
+   pale slab the rules above exist to avoid. There is no supported way to
+   set the background directly; a long inset shadow in the field's own
+   colour is the standard way to cover it. */
+.band-closing .form-block input:-webkit-autofill {
+  -webkit-text-fill-color: var(--vellum);
+  -webkit-box-shadow: 0 0 0 100px #232c42 inset;
+  caret-color: var(--vellum);
+}
+
+/* Five short assurances under the form. Each is now a bordered chip, and
+   the border is doing a job the previous version needed leading emoji to
+   do: giving each item an edge so the row reads as five distinct items
+   rather than one run of grey text. Those emoji were the change worth
+   making here — a lock, a house, a cross, books, a key, all rendered by
+   whatever font the visitor's OS ships, at whatever size and in whatever
+   palette it chose. On iOS the cross arrives as a white glyph in a filled
+   PURPLE rounded box, which is simply a colour this site does not
+   contain; against Georgia and a hand-mixed ink/vellum/gilt palette a row
+   of platform emoji is the one element that looks borrowed. An outlined
+   chip is quieter, identical on every device, and needs no glyph.
+   Chips wrap into a centred block whose rows stay evenly spaced, so the
+   old failure mode (items centring individually and landing at different
+   left edges) cannot occur — there is no leading icon left to misalign,
+   and each chip carries its own boundary. */
+/* The row itself is `.pill-row` and each item a `.pill` in the markup, so
+   this contributes only the spacing above it (which was an inline style
+   on the element until now) and the dark-band repaint below. Reusing the
+   existing component rather than describing a second chip here is the
+   point: a bordered pill row already exists on this page for the Bible
+   translations, and two chip styles a few sections apart would drift the
+   moment either is touched. */
+.notes {
+  margin-top: 2.5rem;
+}
+
+/* `.pill`'s own colours are for a light section. On the closing band the
+   same component needs the treatment every other panel here already uses
+   — white at low alpha over the navy, a light hairline edge. */
+.band-closing .pill {
+  color: rgba(250, 246, 236, 0.82);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(250, 246, 236, 0.22);
 }
 
 @media (max-width: 640px) {
@@ -875,9 +928,20 @@ footer {
    lines on a narrow phone width, so its own line-height (not a margin
    sized for one line) is what keeps that wrap readable; the gap down to
    the copyright line is a real margin instead. */
+/* A flex row with a real gap, rather than links separated by literal
+   &middot; and &nbsp; in the markup. Those separators are inline text, so
+   a wrap could break the row immediately AFTER one — leaving a dot
+   stranded at the end of the first line and the next link starting the
+   second, which is exactly what happened at phone widths ("Feedback ·"
+   then "Co-ops · Privacy"). Flex gap cannot strand, since there is
+   nothing between the items to strand. */
 .footer-links {
-  margin-bottom: 0.85rem;
-  line-height: 1.8;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.4rem;
+  margin-bottom: 1rem;
+  line-height: 1.6;
 }
 
 .footer-copyright {
@@ -941,19 +1005,67 @@ footer a:hover { color: var(--ink); }
    hands it to the visitor's mail client. No third-party form service,
    which would put a tracker on the one page arguing that nothing leaves
    your house. */
+/* A form is a PANEL, not loose fields on the page ground. Before this it
+   was `max-width` and nothing else, so on the home page the "Request a
+   call" fields floated directly on the closing band — flush to both
+   screen edges on a phone, with only faint hairlines between them — while
+   `.guarantee`, sitting immediately above it in the same column, was a
+   bordered card. Two adjacent things at the same level of importance,
+   one of them enclosed and one not, is what reads as unfinished rather
+   than as a design.
+   The measurements are `.guarantee`'s own (0.75rem radius, ~1.75rem
+   padding) so the two stack as siblings; only the border colour differs,
+   because gold there carries the commercial promise and would be noise
+   here. */
 .form-block {
   max-width: 40rem;
   margin: 0 auto;
+  padding: 1.75rem 1.9rem;
   text-align: left;
+  border: 1px solid rgba(28, 36, 56, 0.14);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.6);
 }
 
+/* The panel is what encloses the fields now, so the padding that used to
+   substitute for an edge would only push the first label away from it. */
+@media (max-width: 640px) {
+  .form-block {
+    padding: 1.15rem 1.15rem 1.35rem;
+  }
+}
+
+/* "Rule under every field that is followed by another" — which is a bug
+   fix, not a restyling. The rule used to be `.field:last-of-type
+   { border-bottom: 0 }`, and `:last-of-type` means "last sibling of this
+   ELEMENT type", not "last field". These forms mix both: a question with
+   radio or checkbox options is a `<fieldset class="field">`, a plain text
+   question a `<div class="field">`. On the feedback and survey pages that
+   matched the last fieldset AND the last div — and the last fieldset sits
+   in the MIDDLE of the form, so one separator was missing halfway down
+   every long form, which reads as sloppiness and had nothing to do with
+   where the form actually ends.
+   `:has(~ .field)` asks the question that was actually meant — is another
+   field still to come — and cannot be fooled by tag names, marker classes,
+   or a question being added, removed, or reordered.
+   Deliberately a BOTTOM rule: the obvious inversion, `.field + .field`
+   with `border-top`, needs no `:has()` and was tried first, but a
+   `<legend>` is laid over its fieldset's own top border, so on every
+   fieldset the line ran along the heading and out to the edge rather than
+   sitting above it. A bottom border has no such interaction.
+   Where `:has()` is unsupported the fields simply have no separators —
+   the panel and the spacing still carry the grouping, so the fallback is
+   a plainer form rather than a broken one. */
 .field {
-  margin: 0 0 1.75rem;
-  padding: 0 0 1.5rem;
+  margin: 0 0 1.3rem;
+  padding: 0;
+  border: 0;
+}
+
+.field:has(~ .field) {
+  padding-bottom: 1.3rem;
   border-bottom: 1px solid rgba(28, 36, 56, 0.1);
 }
-
-.field:last-of-type { border-bottom: 0; }
 
 .field > legend,
 .field > label.q {
@@ -974,9 +1086,12 @@ footer a:hover { color: var(--ink); }
   margin: 0 0 0.85rem;
 }
 
+/* A <fieldset> brings a border and horizontal margins of its own that a
+   <div> does not; both are cleared so the two kinds of field are the same
+   shape. The separator itself comes from `.field:has(~ .field)` above,
+   which is what lets these two element types be interchangeable here. */
 fieldset.field {
   border: 0;
-  border-bottom: 1px solid rgba(28, 36, 56, 0.1);
   margin-inline: 0;
 }
 
@@ -1020,6 +1135,18 @@ fieldset.field {
   outline-offset: 1px;
 }
 
+/* Placeholder text is text, and on these forms it is sometimes the only
+   statement of what a field wants ("e.g. two, grades 2 and 5" is the home
+   page's only note on that field's expected shape). Measured against the
+   composited field background rather than guessed: #8a857a reaches only
+   3.6:1 there — below WCAG AA, and dimmer than the browser default it
+   replaces, which is the wrong direction for a change made on purpose.
+   #7a7568 is 4.5:1. */
+.form-block ::placeholder {
+  color: #7a7568;
+  opacity: 1; /* Firefox dims placeholders further on its own. */
+}
+
 /* The feedback form's submit control is a <button>, so the call-to-action
    rules above are element-agnostic (.cta, not a.cta) and this only resets
    what a button brings of its own. */
@@ -1028,9 +1155,15 @@ button.cta {
   cursor: pointer;
 }
 
+/* Fine print, and it has to look like fine print. It is the last child of
+   every .form-block, so a rule above it separates it from the button
+   rather than leaving a paragraph of body copy hanging off the end of the
+   form with nothing marking the change of register. */
 .form-note {
   max-width: 40rem;
-  margin: 1.25rem auto 0;
+  margin: 1.35rem auto 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(28, 36, 56, 0.1);
   font-size: 0.8rem;
   line-height: 1.6;
   color: #635f54;

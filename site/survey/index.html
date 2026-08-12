@@ -37,7 +37,21 @@
 
   <section class="band-curriculum">
     <div class="inner">
+      <!-- method="post" is a safety net, not a route: nothing here
+           accepts a POST. feedback-form.js intercepts submit and sends the
+           answers itself, but if that script ever fails to load or parse,
+           the button falls through to a NATIVE submit of this form.
+           Without a method that is a GET to this same static page, which
+           puts every answered field - name, email, and long free-text
+           answers - into the query string, and so into browser history
+           and any URL-logging intermediary. As a POST the same failure
+           loses the answers instead of publishing them, and the mailto
+           line in the note below is already on screen as the way to send
+           them. Keeping type="submit" on the button preserves
+           Enter-to-submit and the browser's own required-field
+           validation. -->
       <form class="form-block" id="feedback-form"
+            method="post"
             data-category="beta_survey"
             data-tag="[Beta parent survey]"
             data-mail-subject="Bede beta survey">
@@ -316,12 +330,12 @@
 
   <footer>
     <div class="footer-links">
-      <a href="/">Home</a> &nbsp;&middot;&nbsp;
-      <a href="/faq/">FAQ</a> &nbsp;&middot;&nbsp;
-      <a href="/bede/">Demo</a> &nbsp;&middot;&nbsp;
-      <a href="/#request-a-call">Schedule Onboarding</a> &nbsp;&middot;&nbsp;
-      <a href="/feedback/">Feedback</a> &nbsp;&middot;&nbsp;
-      <a href="/educators/">Co-ops</a> &nbsp;&middot;&nbsp;
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/bede/">Demo</a>
+      <a href="/#request-a-call">Schedule Onboarding</a>
+      <a href="/feedback/">Feedback</a>
+      <a href="/educators/">Co-ops</a>
       <a href="/privacy/">Privacy</a>
     </div>
     <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>

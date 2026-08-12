@@ -18,7 +18,7 @@ name: Demo watchdog
 # the demo. It is the only check in this repository that fails for the same
 # reason a visitor would.
 #
-# ── A DELIBERATE DEPARTURE, STATED PLAINLY ────────────────────────────────
+# ── A DELIBERATE DEPARTURE, STATED PLAINLY ────────────────────────────────────
 #
 # Every other workflow here is `permissions: contents: read`, and
 # adversarial-probe.yml argues at length for `workflow_dispatch` only:
@@ -43,7 +43,7 @@ name: Demo watchdog
 # If those bounds ever need widening, widen them in a reviewed diff — not
 # by loosening the prompt.
 #
-# ── WHEN THIS WORKFLOW GOES RED AND THE DEMO IS FINE ──────────────────────
+# ── WHEN THIS WORKFLOW GOES RED AND THE DEMO IS FINE ──────────────────
 #
 # On 2026-08-06 every leg of this workflow reported failure for four hours
 # while the demo was perfectly healthy. GitHub's hosted runner pool simply
@@ -115,9 +115,9 @@ jobs:
       group: demo-watchdog-check
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
 
@@ -191,7 +191,7 @@ jobs:
           # The job's own result is what the repair gate reads.
           exit $overall
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           # One artifact holding every device's report. The per-device
@@ -224,9 +224,9 @@ jobs:
       pull-requests: write   # to open the PR
       issues: write          # to report a cause that lives outside the repo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           # Every device's report, not one — a failure on the 360px phone
           # and a pass on desktop is a real and common shape, and the agent
@@ -244,7 +244,7 @@ jobs:
         # GitHub's action registry). If this action name or version is
         # wrong the job fails loudly at startup rather than silently
         # skipping — confirm on the first real run.
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1
         with:
           anthropic_api_key: ${{ secrets.WATCHDOG_API_KEY }}
           # A dedicated key, never shared with adversarial-probe.yml or any

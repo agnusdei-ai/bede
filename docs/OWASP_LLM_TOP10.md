@@ -98,13 +98,16 @@ category doesn't apply to Bede's architecture, with the reason stated).
   of the API image and its `pip-audit` gate — a hand-rolled JSON-RPC
   client instead, so an optional integration doesn't widen the audited
   dependency surface for every deployment.
-- **Known, open gaps** (unchanged by this document, tracked at their
-  original location): `homeschool-api/requirements.txt` is floor-pinned
-  (`>=`, no upper bound) rather than hash-locked, so a CI run today can
-  resolve different exact versions than one from a month ago; GitHub
-  Actions are pinned to mutable version tags (`@v4`) rather than commit
-  SHAs, so a compromised action's next tag push runs in this repo's CI
-  automatically.
+- **Closed** (tracked at their original location, `docs/SECURITY.md`'s
+  Closed gaps): `homeschool-api/requirements.txt` being floor-pinned
+  (`>=`, no upper bound) rather than hash-locked meant a CI run today
+  could resolve different exact versions than one from a month ago;
+  GitHub Actions being pinned to mutable version tags (`@v4`) rather
+  than commit SHAs meant a compromised action's next tag push would run
+  in this repo's CI automatically. CI now installs from a hash-verified
+  `requirements.lock.txt`/`requirements-dev.lock.txt`
+  (`pip-compile --generate-hashes`), and every `uses:` line across every
+  workflow is pinned to the exact commit SHA its tag resolved to.
 
 ## LLM04: Data and Model Poisoning
 

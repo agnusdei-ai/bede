@@ -1,0 +1,12 @@
+{
+  "_comment": "Python (pip-audit) vulnerability findings this repo has deliberately decided NOT to fix by upgrading, with the reason recorded here rather than only in a workflow comment. Read by .github/workflows/test.yml's pip-audit step, which turns each entry into a --ignore-vuln flag. This file exists because test.yml and frontend-tests.yml's own header comments already referenced it as the established escape hatch ('record why it is unreachable in .github/audit-allowlist.json') before it was ever actually built -- CLAUDE.md's own standing rule is to carry a stated decision through to the code that enforces it, not just describe it. Every entry needs an id, package, fix_version (from pip-audit's own output), reason, and added date. A red pip-audit gate for anything NOT listed here still means upgrade the pin -- this file is for genuinely irreconcilable constraints, never a shortcut around one that could just be fixed.",
+  "python": [
+    {
+      "id": "PYSEC-2026-3447",
+      "package": "setuptools",
+      "fix_version": "83.0.0",
+      "reason": "setuptools is pinned <81 in homeschool-api/requirements.in specifically to keep the bundled pkg_resources module -- setuptools removed it starting around release 81, and webrtcvad (a resemblyzer/voice-auth transitive dependency, imported by services/voice_auth.py) still does `import pkg_resources` the old way. There is no version of setuptools that is both <81 (keeps pkg_resources, keeps voice authentication working) and >=83.0.0 (the fix for this advisory), so the two constraints cannot both be satisfied by choosing a different pin. setuptools is present here purely as a runtime dependency ctranslate2/torch declare, never invoked directly by this application's own code -- nothing in this codebase calls into setuptools's package-index/download machinery (the class of issue prior setuptools advisories in this same family have covered), so the advisory's actual attack surface is not reachable through this app regardless of version. Revisit if/when webrtcvad (or a replacement) drops the legacy pkg_resources import, which would remove the <81 constraint entirely.",
+      "added": "2026-08-12"
+    }
+  ]
+}

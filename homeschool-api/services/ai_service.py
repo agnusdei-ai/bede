@@ -1054,6 +1054,30 @@ def moderation_redirect_response(locale: str = "en") -> str:
     return _MODERATION_REDIRECT_RESPONSES.get(locale, _MODERATION_REDIRECT_RESPONSES["en"])
 
 
+# core/demo_code_session.py's _MAX_MESSAGES_PER_CODE (LLM10, "Unbounded
+# Consumption") — shown once a demo code has used up its message quota,
+# in place of a real turn. Same fallback contract as the two responses
+# above.
+_DEMO_QUOTA_RESPONSES = {
+    "en": (
+        "This demo session has reached its message limit — thanks for spending "
+        "time with Bede! Start a fresh demo any time to keep exploring, or see "
+        "agnusdei.ai for the full version."
+    ),
+    "es": (
+        "Esta sesión de demostración ha alcanzado su límite de mensajes — "
+        "¡gracias por tu tiempo con Bede! Inicia una nueva demostración cuando "
+        "quieras para seguir explorando, o visita agnusdei.ai para la versión completa."
+    ),
+}
+
+
+def demo_quota_response(locale: str = "en") -> str:
+    """Localized demo-message-quota notice — same fallback contract as
+    safeguarding_response()/moderation_redirect_response()."""
+    return _DEMO_QUOTA_RESPONSES.get(locale, _DEMO_QUOTA_RESPONSES["en"])
+
+
 _GRADE_DESCRIPTORS = {
     "K": "a Kindergarten student", "0": "a Kindergarten student",
     "1": "a first-grade student", "2": "a second-grade student", "3": "a third-grade student",

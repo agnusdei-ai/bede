@@ -10,12 +10,20 @@ server-side the whole time. Each code is unique to whoever generated it, so
 unlike a shared PIN, concurrent visitors never collide with or invalidate
 each other's sessions — no single-active-session lock needed here.
 
-No per-code message cap by design — a code is good for as long as its
-_CODE_TTL_SECONDS lifetime lasts. The cost-control lever instead is the
-number of codes that can exist at all: _MAX_ACTIVE_CODES caps how many are
-outstanding at once, and POST /auth/demo-code lives under /auth/ so it
-already inherits the existing per-IP auth rate limit (core/middleware.py)
-for free.
+Duration is intentionally generous — a code lives out its full
+_CODE_TTL_SECONDS window, and POST /auth/demo-code lives under /auth/ so
+minting one already inherits the existing per-IP auth rate limit
+(core/middleware.py) for free, with _MAX_ACTIVE_CODES bounding how many
+codes can be outstanding at once. Message VOLUME per code is a separate
+question, and is now hard-capped (_MAX_MESSAGES_PER_CODE, enforced via
+has_message_quota() below) — the per-IP "api" rate-limit bucket bounds
+REQUEST RATE (120/min by default), never aggregate spend, so a single
+scripted session sustained at that ceiling for a whole token/code
+lifetime was a genuine unbounded-cost surface (OWASP Top 10 for LLM
+Applications, LLM10 "Unbounded Consumption") with no dollar or
+message-count ceiling underneath the rate limit. See has_message_quota's
+own docstring for why the cap is a separate check rather than folded into
+record_message.
 
 Backed by core.database.DemoCodeSession (Postgres) rather than an
 in-memory dict, so an in-flight demo/diagnostic session survives a backend
@@ -42,6 +50,19 @@ _CODE_TTL_SECONDS = 6 * 60 * 60
 # hammering the generate endpoint can't manufacture unbounded aggregate quota
 # even within the per-IP rate limit's one-minute window.
 _MAX_ACTIVE_CODES = 500
+
+# Hard ceiling on chat messages a single code may send before being asked to
+# start a fresh demo. The base demo is deliberately generous with DURATION
+# and BREADTH (every subject, no artificial preview crippling — see this
+# module's own docstring and diagnostic_preview_quota.py's), but nothing
+# previously stopped a single scripted session from running indefinitely at
+# the per-IP rate limit's own ceiling for the code's whole token lifetime —
+# a real, unbounded per-visitor cost surface (OWASP LLM10). A genuine
+# thorough evaluation — every subject, both faith modules, picture study,
+# voice, the works — runs well under 200 exchanges; 400 leaves a wide
+# safety margin over any real visitor while bounding worst-case model
+# spend per code to a small, known number of calls.
+_MAX_MESSAGES_PER_CODE = 400
 
 
 def _cutoff() -> datetime:
@@ -324,10 +345,35 @@ async def code_exists(code: str) -> bool:
         return (await _fetch_live(db, code)) is not None
 
 
+async def has_message_quota(code: str) -> bool:
+    """True if `code` may still send a chat message — False once it has
+    reached _MAX_MESSAGES_PER_CODE, or for an unknown/evicted code (there's
+    nothing to meter, and by the time an authenticated request reaches this
+    point the code should already exist — treat the edge case the same
+    direction record_message does).
+
+    Deliberately a separate check from record_message rather than folded
+    into it: the ENFORCEMENT point has to run before the expensive model
+    call a chat turn triggers (so an over-quota turn is refused for free,
+    never billed), while record_message's own job — incrementing the
+    counter — has to run only once a turn is actually going to happen. A
+    caller checks this first, then calls record_message only if it passes;
+    see routers/tutor.py's chat() and routers/sandbox.py's demo_chat()."""
+    from core.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        row = await _fetch_live(db, code)
+        if row is None:
+            return False
+        return row.message_count < _MAX_MESSAGES_PER_CODE
+
+
 async def record_message(code: str) -> bool:
-    """Call once per actual chat message sent, for usage bookkeeping — no
-    cap enforced. Returns False only for an unknown/evicted code (e.g. the
-    visitor logged out or the code's TTL expired mid-session)."""
+    """Call once per actual chat message sent, for usage bookkeeping —
+    pure counting, no cap enforced here (see has_message_quota above,
+    which callers must check first). Returns False only for an
+    unknown/evicted code (e.g. the visitor logged out or the code's TTL
+    expired mid-session)."""
     from core.database import AsyncSessionLocal, DemoCodeSession
 
     async with AsyncSessionLocal() as db:

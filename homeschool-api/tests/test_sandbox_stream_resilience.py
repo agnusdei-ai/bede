@@ -11,6 +11,7 @@ import asyncio
 import pytest
 from starlette.requests import Request
 
+import core.demo_code_session as demo_code_session
 import routers.sandbox as sandbox_module
 from core.audit import AuditEvent
 from core.config import settings
@@ -117,8 +118,14 @@ async def test_sandbox_demo_chat_exception_logs_ai_backend_failure(monkeypatch, 
 
     monkeypatch.setattr("routers.sandbox.stream_sandbox_response", erroring_stream)
 
+    # A real, registered code — in production require_demo_preview already
+    # validates code existence before demo_chat() runs, and since
+    # core/demo_code_session.py's message-quota check (see
+    # tests/test_demo_message_quota.py) now also depends on the code being
+    # real, a fabricated one no longer reaches this far.
+    code = await demo_code_session.generate_code()
     req = SandboxDemoChatRequest(message="test")
-    response = await demo_chat(req, _fake_request(), auth={"role": "demo_code", "code": "nonexistent"})
+    response = await demo_chat(req, _fake_request(), auth={"role": "demo_code", "code": code})
     chunks = await _collect(response)
 
     assert any("went wrong" in c for c in chunks)

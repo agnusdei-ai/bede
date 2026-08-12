@@ -171,13 +171,13 @@ python3 scripts/generate_sbom.py
 
 Regenerates both `docs/sbom/backend.cdx.json` and
 `docs/sbom/frontend.cdx.json` (CycloneDX 1.5) from the currently committed
-`requirements.txt`/`requirements-dev.txt` and `package-lock.json` — no
+`requirements.in`/`requirements-dev.in` and `package-lock.json` — no
 `pip install`/`npm install` required, so it works offline and doesn't
 depend on matching Python/Node versions locally. Two caveats to know about
 before treating either file as authoritative for an audit:
 
 - **Backend versions are declared floors, not exact pins.**
-  `requirements.txt` uses `>=` with no upper bound, so `backend.cdx.json`
+  `requirements.in` uses `>=` with no upper bound, so `backend.cdx.json`
   records the minimum version each dependency is allowed to resolve to,
   not necessarily what's actually running in any given deployment. Run
   `pip freeze` inside your own running container if you need exact
@@ -187,7 +187,13 @@ before treating either file as authoritative for an audit:
   weekly update PR for every ecosystem in this repo, and `.github/
   workflows/test.yml`/`frontend-tests.yml` run `pip-audit`/`npm audit`
   against the exact versions each PR would ship, on every push — see
-  `docs/SECURITY.md`'s "Closed gaps" for when this was added.
+  `docs/SECURITY.md`'s "Closed gaps" for when this was added. The exact,
+  hash-verified versions CI actually installs from now live in
+  `requirements.lock.txt`/`requirements-dev.lock.txt` (also
+  `docs/SECURITY.md`'s Closed gaps) — this SBOM generator deliberately
+  keeps reading the floor-pinned `.in` files rather than the lockfile, so
+  `backend.cdx.json` stays a declared-scope document rather than
+  restating the lockfile's own exact-pin record a second time.
 - **Frontend versions are exact**, since `package-lock.json` pins real
   resolved versions — those entries are a genuine, accurate snapshot as of
   whenever the lockfile was last updated.

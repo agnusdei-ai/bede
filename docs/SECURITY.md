@@ -11,9 +11,7 @@ something has actually gone wrong (or you've found a vulnerability in
 Bede's code), see **[docs/INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)**
 instead — this file is the architecture/posture overview, that one is the
 action plan. See **[docs/OWASP_LLM_TOP10.md](OWASP_LLM_TOP10.md)** for the
-companion mapping against the OWASP Top 10 for LLM Applications, or
-**[docs/NIST_AI_RMF.md](NIST_AI_RMF.md)** for the companion mapping
-against the NIST AI Risk Management Framework.
+companion mapping against the OWASP Top 10 for LLM Applications.
 
 ## AIUC-1 Society pillar: scope statement
 
@@ -108,30 +106,6 @@ list as items are closed.
   single-instance Render deployment) — would need a shared store (Redis)
   behind a real multi-replica deployment, which nothing in this app runs
   today.
-- **Backend `requirements.txt` is floor-pinned (`>=`, no upper bound), with
-  no lockfile.** Unlike the frontend's exact-pinned `package-lock.json`, a
-  fresh `pip install` at two different points in time can resolve
-  different transitive versions — CI (`test.yml`) reinstalls fresh on every
-  run rather than from a hash-pinned lockfile. The new `pip-audit` step
-  (below) catches a *known-vulnerable* version whenever it's resolved, but
-  doesn't make installs reproducible. A real fix (pip-tools/`pip-compile`,
-  or switching to Poetry/uv with a lockfile) touches every dependency in
-  the tree and needs its own compatibility pass — out of scope for a
-  same-day hardening pass. One specific instance of this was closed
-  separately: `homeschool-api/Dockerfile`'s `torch` install had no version
-  constraint *at all* and pulled from a second package index
-  (`download.pytorch.org`), so it is now pinned exactly. The general
-  floor-pinning gap across `requirements.txt` remains open.
-- **GitHub Actions are pinned to mutable version tags (`@v4`), not commit
-  SHAs.** Common practice, but a compromised upstream Action could push a
-  same-tag update that CI trusts automatically. Low severity, deferred in
-  favor of the higher-value fixes below. Note that `dependabot.yml`'s
-  `github-actions` entry does *not* mitigate this the way an earlier
-  revision of this document claimed: it now runs with
-  `open-pull-requests-limit: 0`, which deliberately suppresses routine
-  version-bump PRs and leaves only security-advisory PRs. That is the
-  right trade for the other ecosystems, but it does mean mutable action
-  tags move silently unless SHA-pinning is adopted.
 - **Branch-protection / required-status-checks configuration on `main` is
   not verifiable from the repository itself** — it's a GitHub repo-settings
   concern, not a file in this codebase. `frontend-tests.yml`'s own header
@@ -170,6 +144,83 @@ list as items are closed.
   agent ships at all) resolves.
 
 ## Closed gaps
+
+- **GitHub Actions were pinned to mutable version tags (`@v4`), not commit
+  SHAs — closed 2026-08-12.** A compromised upstream Action could push a
+  same-tag update that CI would trust automatically the next time any
+  workflow ran, with nothing in this repository able to tell the
+  difference between that update and the one a maintainer actually
+  reviewed. `dependabot.yml`'s `github-actions` entry does not mitigate
+  this on its own — it runs with `open-pull-requests-limit: 0`, which
+  deliberately suppresses routine version-bump PRs and leaves only
+  security-advisory PRs, so a mutable tag can still move silently between
+  those.
+
+  Every `uses:` line across all nine workflow files under
+  `.github/workflows/` now pins the exact commit SHA the referenced tag
+  resolved to at the time of this change, with the original tag kept as a
+  trailing comment for readability (`uses: actions/checkout@<sha> # v4`),
+  the standard pattern for this class of hardening. Resolved directly
+  against each action's own repository (`git ls-remote --tags`, peeling
+  annotated tags to their underlying commit where the tag itself was
+  annotated rather than lightweight — `azure/login`, `azure/artifact-signing-action`,
+  and `anthropics/claude-code-action` all needed that peel; the `actions/*`
+  and `Minionguyjpro/Inno-Setup-Action` tags were already lightweight).
+  Bumping to a newer release now means re-resolving and replacing both the
+  SHA and its comment, not editing a version number — a deliberate,
+  visible change rather than something that moves on its own.
+
+- **Backend `requirements.txt` was floor-pinned (`>=`, no upper bound),
+  with no lockfile — closed 2026-08-12.** Unlike the frontend's
+  exact-pinned `package-lock.json`, a fresh `pip install` at two different
+  points in time could resolve different transitive versions, and
+  `test.yml`'s existing `pip-audit` step could only catch a
+  *known-vulnerable* version whenever one happened to be resolved — it
+  never made installs reproducible in the first place.
+
+  `homeschool-api/requirements.txt`/`requirements-dev.txt` are renamed to
+  `requirements.in`/`requirements-dev.in` — pip-tools' own convention,
+  and the smallest-diff way to keep them as the human-edited, floor-pinned
+  *source of intent* they already were (`requirements-dev.in`'s `-r
+  requirements.in` line is the only content change either file needed).
+  `requirements.lock.txt`/`requirements-dev.lock.txt` are new,
+  fully-pinned, hash-verified lockfiles generated via `pip-compile
+  --generate-hashes --allow-unsafe` (Python 3.12, matching CI's own
+  interpreter — `--allow-unsafe` is what also pins `setuptools`, which
+  `ctranslate2`/`torch` need at an exact version once hashes are in play).
+  `test.yml`'s `api-tests`/`demo-concurrency-test` jobs and
+  `adversarial-probe.yml` now install from the lockfile
+  (`pip install --require-hashes -r requirements-dev.lock.txt`) instead of
+  the loose `.in` file, so what CI actually tests is byte-for-byte what a
+  fresh install produces — not whatever the resolver happens to pick that
+  day. The `pip-audit` step audits the lockfile too, for the same reason:
+  the floor-pinned range was never what was actually installed.
+
+  A new `lockfile-freshness` job (`test.yml`) and its underlying script
+  (`homeschool-api/scripts/check_lockfile_freshness.sh`) regenerate both
+  lockfiles into a temp directory with the same `pip-compile` invocation
+  and diff the result against what's committed, failing the build if
+  they've drifted — the guard against this becoming exactly the kind of
+  config that "looks maintained but silently isn't" that CLAUDE.md's own
+  "Thirty settings never reached the container" incident describes
+  happening to this codebase before, just for a different file. Run
+  locally with `--fix` to regenerate both lockfiles in place after editing
+  either `.in` file.
+
+  `homeschool-api/Dockerfile` keeps installing from `requirements.in`
+  (renamed reference only, behavior unchanged) rather than the lockfile:
+  its own CPU-only-`torch` install (a separate, deliberately-unpinned-here
+  supply-chain surface documented in that file's own comments) relies on
+  resemblyzer's transitive `torch` dependency being satisfied by whatever
+  was already installed a step earlier, not matched against an exact
+  hash — switching the image build to the lockfile is a reasonable
+  follow-up but wasn't verifiable from the authoring sandbox, whose
+  egress proxy blocks `download.pytorch.org` (the same limitation that
+  file's own comment already notes for confirming the CPU-index pin).
+  Verified end to end: the lockfile was generated for real (not
+  hand-written), and `pip install --require-hashes -r
+  requirements-dev.lock.txt` was run against a clean virtualenv and
+  completed successfully before this was considered done.
 
 - **Public demo had no hard per-visitor cost ceiling — OWASP LLM10
   "Unbounded Consumption" — closed 2026-08-12.** `core/demo_code_session.py`'s

@@ -269,7 +269,7 @@ deployment).
 3. Optionally set `OPENAI_MODEL` (default `gpt-4.1-mini`) to a different chat model.
 4. Add `openai` to `BEDE_ADAPTER_ORDER`, e.g. `BEDE_ADAPTER_ORDER=openai,mistral`.
 5. No package install needed — the `openai` Python SDK (`>=1.40.0`) is already in
-   `homeschool-api/requirements.txt` (it was already a dependency for TTS).
+   `homeschool-api/requirements.in` (it was already a dependency for TTS).
 
 ### Mistral AI (cloud, no local install)
 

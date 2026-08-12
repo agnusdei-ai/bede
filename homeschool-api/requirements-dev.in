@@ -1,6 +1,6 @@
 # Test-only dependencies — not needed to run the app itself, only to run
 # the regression suite in tests/ (see .github/workflows/test.yml).
--r requirements.txt
+-r requirements.in
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
 aiosqlite>=0.20.0  # async SQLite driver — real AsyncSession round-trip tests without a live Postgres

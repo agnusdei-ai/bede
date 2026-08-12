@@ -723,7 +723,7 @@ instead, which serves the full CUDA-bundled build (measured directly:
 526.6MB, versus the CPU-only build's well-documented roughly one-third of
 that) into a container that will never touch a GPU. See the Dockerfile's
 own comment for the mechanism (installing torch first so the later
-`requirements.txt` install sees it as already satisfied).
+`requirements.in` install sees it as already satisfied).
 
 One thing that *did* need a deployment-level fix alongside the swap: the
 `api` container runs `read_only: true` in production

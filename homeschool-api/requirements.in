@@ -31,7 +31,18 @@ faster-whisper>=1.0.0
 # own comment for why that's installed from PyTorch's CPU-only wheel index
 # BEFORE this file, rather than letting it resolve from the default index
 # (which serves the much larger CUDA-bundled build this CPU-only,
-# GPU-less container would otherwise silently end up with).
+# GPU-less container would otherwise silently end up with). CI (test.yml,
+# via requirements.lock.txt) doesn't do that CPU-index-first trick — it
+# never has — so the lockfile below hash-pins the SAME default-index
+# (CUDA-bundled) torch build CI's own fresh installs have always resolved
+# transitively; this closes the reproducibility gap without changing what
+# CI actually installs. PyTorch's CPU-only index is unreachable from the
+# sandbox that authored this lockfile (confirmed: a direct request to
+# download.pytorch.org gets a 403 from the egress proxy — see this
+# repo's own note on the same limitation in Dockerfile), so generating a
+# CPU-pinned lockfile entry would need to happen from an environment that
+# can actually reach that index; tracked as a possible follow-up, not
+# done here.
 resemblyzer>=0.1.1
 # Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
 webauthn>=2.0.0
@@ -51,3 +62,15 @@ pypdf>=5.0.0
 # (has an optional C extension, safe either way in the read-only/cap_drop
 # container).
 cbor2>=5.6.0
+# Not used directly — pinned explicitly because torch/ctranslate2 declare it
+# as a runtime dependency, which pip-compile's hash-checking mode (--generate-
+# hashes) requires be resolvable and hashed like any other package. Capped
+# below 81: setuptools removed the bundled `pkg_resources` module starting
+# around that release, and webrtcvad (a resemblyzer transitive dependency,
+# imported by services/voice_auth.py) still does `import pkg_resources` the
+# old way — an unconstrained pin here resolves to the newest setuptools and
+# breaks voice authentication at import time. Verified directly: 75.8.0
+# still ships pkg_resources (deprecated but present); pip's own default
+# venv bootstrap setuptools happened to mask this before hash-locking
+# existed, since nothing previously forced setuptools to a specific version.
+setuptools<81

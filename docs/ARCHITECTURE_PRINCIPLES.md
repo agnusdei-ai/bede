@@ -654,12 +654,14 @@ failure: SCA was deleted entirely across three ecosystems and ran with five
 known-vulnerable packages installed until restored.
 
 **Implications.** Keep the `pip-audit`/`npm audit` hard gates and Dependabot.
-Open items: GitHub Actions are tag-pinned rather than SHA-pinned (a
-compromised upstream can move a tag silently), and `requirements.txt` is
-floor-pinned with no lockfile, so two installs can resolve differently.
+Both prior open items are now closed: GitHub Actions are SHA-pinned (every
+`uses:` line pins the exact commit its tag resolved to, tag kept as a
+comment), and `requirements.in` is hash-locked via `requirements.lock.txt`/
+`requirements-dev.lock.txt` (`pip-compile --generate-hashes`), so CI
+installs the same exact, hash-verified versions every run.
 
-**Conformance.** Gates restored and enforced; pinning gaps remain open in
-`docs/SECURITY.md`.
+**Conformance.** Gates restored and enforced; both pinning gaps closed — see
+`docs/SECURITY.md`'s Closed gaps.
 
 *AIUC-1: Accountability · CISSP D1/D8 supply-chain risk management (a stated 2026 Domain 1 emphasis)*
 

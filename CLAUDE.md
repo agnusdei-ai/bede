@@ -123,11 +123,26 @@ npm test           # vitest run
 **Backend** — FastAPI with async SQLAlchemy:
 ```bash
 cd homeschool-api
-pip install -r requirements.txt
+pip install -r requirements.in   # or requirements-dev.in for tests too
 cp .env.example .env   # then fill in values
 uvicorn main:app --reload --port 8000
 # API docs at http://localhost:8000/docs  (only when DISABLE_API_DOCS=false)
 ```
+
+`requirements.in`/`requirements-dev.in` are this backend's human-edited,
+floor-pinned (`>=`) source of intent — same file either name has always
+been, just renamed to pip-tools' own convention.
+`requirements.lock.txt`/`requirements-dev.lock.txt` are the fully-pinned,
+hash-verified lockfiles CI actually installs from
+(`pip-compile --generate-hashes`, `.github/workflows/test.yml`), so what
+CI tests is byte-for-byte what a fresh install produces rather than
+whatever the resolver happens to pick that day. After editing either
+`.in` file, regenerate both lockfiles with
+`homeschool-api/scripts/check_lockfile_freshness.sh --fix` and commit the
+result — a `lockfile-freshness` CI job fails the build if they drift out
+of sync, the same "config that looks maintained but silently isn't"
+failure mode described below. See docs/SECURITY.md's closed-gap entry for
+the full reasoning.
 
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 

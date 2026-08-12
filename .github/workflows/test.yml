@@ -13,6 +13,19 @@ name: Backend regression tests
 # .github/dependabot.yml so it has the auto-fix companion it was missing.
 # A red gate means upgrade the pin, or record an unreachability argument
 # in .github/audit-allowlist.json — never delete the step.
+#
+# Dependencies are installed from the hash-locked requirements.lock.txt /
+# requirements-dev.lock.txt (pip-compile --generate-hashes), not the
+# floor-pinned requirements.in / requirements-dev.in directly — so what
+# this job actually tests is byte-for-byte what a fresh install produces,
+# not whatever the resolver happens to pick that day. See
+# docs/SECURITY.md's closed-gap entry and homeschool-api/requirements.in's
+# own header. The lockfile-freshness job below is what keeps the lockfile
+# from silently drifting out of sync with the .in files the way other
+# config in this repo already has (see CLAUDE.md's "Thirty settings never
+# reached the container" incident) — a red lockfile-freshness check means
+# re-run homeschool-api/scripts/check_lockfile_freshness.sh --fix and
+# commit the result.
 on:
   push:
     branches: [main]
@@ -36,7 +49,7 @@ jobs:
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - id: filter
@@ -62,24 +75,65 @@ jobs:
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install dependencies
         working-directory: homeschool-api
-        run: pip install -r requirements-dev.txt
+        # From the hash-locked lockfile, not requirements-dev.in directly —
+        # see this file's header.
+        run: pip install --require-hashes -r requirements-dev.lock.txt
       - name: Audit dependencies for known vulnerabilities
         working-directory: homeschool-api
-        # Hard gate — see this file's header. Both files are audited: a
+        # Hard gate — see this file's header. Both lockfiles are audited: a
         # dev-only CVE still runs on this runner against this repo's code.
+        # Audited against the LOCKFILE (exact pinned versions), not the
+        # floor-pinned .in files, since the lockfile is what's actually
+        # installed above. IGNORE_ARGS is built from
+        # .github/audit-allowlist.json's recorded, justified exceptions —
+        # see that file for what's listed and why. Anything not listed
+        # there still fails this gate; upgrade the pin, or add a new
+        # entry with a real reason.
         run: |
           pip install pip-audit
-          pip-audit -r requirements.txt
-          pip-audit -r requirements-dev.txt
+          IGNORE_ARGS=$(python3 -c "
+          import json
+          with open('../.github/audit-allowlist.json') as f:
+              data = json.load(f)
+          ids = [e['id'] for e in data.get('python', [])]
+          print(' '.join(f'--ignore-vuln {i}' for i in ids))
+          ")
+          pip-audit -r requirements.lock.txt $IGNORE_ARGS
+          pip-audit -r requirements-dev.lock.txt $IGNORE_ARGS
       - name: Run tests
         working-directory: homeschool-api
         run: python -m pytest tests/ -v
+
+  lockfile-freshness:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    # Fails if requirements.lock.txt / requirements-dev.lock.txt no longer
+    # match what `pip-compile --generate-hashes` produces from the current
+    # requirements.in / requirements-dev.in — the guard against the exact
+    # shape of silent drift CLAUDE.md's "Thirty settings never reached the
+    # container" incident describes: a file that looks maintained but
+    # isn't actually checked against its own source of truth.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Check lockfiles are up to date with requirements*.in
+        working-directory: homeschool-api
+        # bash scripts/... rather than ./scripts/... — deliberately does not
+        # depend on the executable bit surviving whatever wrote this file to
+        # the repo (GitHub's Contents API, which some non-git write paths go
+        # through, does not preserve it), matching the convention already
+        # used for scripts/build_github_pages_redirect.sh elsewhere in this
+        # repo's workflows.
+        run: bash scripts/check_lockfile_freshness.sh
 
   demo-concurrency-test:
     needs: changes
@@ -107,13 +161,13 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install dependencies
         working-directory: homeschool-api
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.lock.txt
       - name: Run the demo concurrency scaling test
         working-directory: homeschool-api
         env:
@@ -125,8 +179,8 @@ jobs:
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install pytest
@@ -140,8 +194,8 @@ jobs:
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install pytest and segno
@@ -159,8 +213,8 @@ jobs:
     # above.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install dependencies

@@ -798,15 +798,20 @@ Change a question there first, then in the channel.
   `mailto:` link instead. Pinned by filling both surveys completely in
   `demo/src/surveyForms.test.ts`, verified to fail when the fallback is
   reverted.
-- **`site/assets/feedback-form.js` is now one script for all three hosted
-  pages**, configured per page by `data-category`/`data-tag`/`data-mail-subject`
+- **`site/assets/feedback-form.js` is one script for every form on the
+  site** — the home page's own "Request a call" as well as the three
+  hosted pages — configured per page by `data-category`/`data-tag`/`data-mail-subject`
   on its own `<form>`. Its question labels are read from each page's own
   `<legend>`/`<label for>` rather than from the hardcoded field-name map it
   used to carry — that map was a second copy of every question, whose
   failure mode was an answer arriving in the inbox filed under wording no
   longer on the page. `demo/src/surveyForms.test.ts` loads the real pages
   into a real DOM, runs the real script, and asserts the assembled message;
-  verified to fail on all three pages when the DOM lookup regresses.
+  verified to fail on each page when the DOM lookup regresses. The home
+  page was **missing from that list** until the pass that rebuilt its form
+  around a dropdown and option tiles, even though it runs the same script
+  through the same code path — and it is the one form whose silent failure
+  costs a sales lead rather than a survey answer.
 - **The category string is the same fact in four files** — a pydantic
   `Literal`, two HTML attributes, and a TypeScript call site. Nothing
   type-checks a static site's markup against a `Literal`, so a typo would

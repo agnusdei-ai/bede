@@ -838,10 +838,49 @@ p.lede {
    (`.limit`, `.guarantee`: white at low alpha over the navy). */
 .band-closing .form-block input[type="text"],
 .band-closing .form-block input[type="email"],
+.band-closing .form-block select,
 .band-closing .form-block textarea {
   color: var(--vellum);
-  background: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.08);
   border-color: rgba(250, 246, 236, 0.24);
+}
+
+/* The same chevron in vellum — the ink one is invisible on this band, and
+   a dropdown with no arrow does not read as a dropdown at all. */
+.band-closing .form-block select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23faf6ec' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+}
+
+/* An <option> is painted by the OS, not the page: on most platforms the
+   list pops up in the system's own light chrome, so vellum-on-vellum text
+   would be unreadable in the one moment the control is actually being
+   used. Set back to ink explicitly. */
+.band-closing .form-block select option {
+  color: var(--ink);
+  background: var(--vellum);
+}
+
+.band-closing .choices label {
+  color: rgba(250, 246, 236, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(250, 246, 236, 0.2);
+}
+
+.band-closing .choices label:hover {
+  border-color: rgba(224, 184, 74, 0.55);
+}
+
+/* Gold rather than fern for the selected tile here: fern is a dark green
+   and all but disappears against the navy, where gold is this band's own
+   accent and is what every other emphasis on it already uses. */
+.band-closing .choices label:has(input:checked) {
+  color: var(--vellum);
+  background: rgba(224, 184, 74, 0.16);
+  border-color: var(--gilt-light);
+}
+
+.band-closing .choices input {
+  accent-color: var(--gilt);
 }
 
 /* Same measurement on the dark side: 0.42 alpha over the field colour
@@ -1095,41 +1134,132 @@ fieldset.field {
   margin-inline: 0;
 }
 
+/* Options are CARDS, not a bare control with a word beside it. The old
+   version was a wrapped flex row of `☐ Morning Time` pairs: on a phone the
+   only reliable target was the box itself, about 13px across, and the rows
+   ran together so it took reading to see where one option ended and the
+   next began. Each option is now its own bordered tile filling the column,
+   so the whole thing is tappable and the group reads as a set of choices
+   at a glance.
+   A grid rather than wrapped flex: `auto-fit` with a minimum gives equal
+   columns that resolve to ONE full-width column on a phone and three
+   inside the panel on a desktop, without a breakpoint and without the
+   ragged last row a flex wrap leaves. */
 .choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+/* For a genuinely long list (the fifteen subjects), a narrower minimum
+   pairs them up on a phone instead of running fifteen full-width tiles
+   down the screen. */
+.choices.compact {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
 }
 
 .choices label {
   display: flex;
-  align-items: flex-start;
-  gap: 0.45rem;
+  align-items: center;
+  gap: 0.55rem;
+  /* 44px is Apple's own minimum touch target and the floor the app's
+     canvas toolbar already holds to. */
+  min-height: 44px;
+  padding: 0.5rem 0.8rem;
   font-size: 0.92rem;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--prose);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(28, 36, 56, 0.14);
+  border-radius: 0.6rem;
   cursor: pointer;
 }
 
-.choices input { margin-top: 0.28rem; accent-color: var(--fern); }
+.choices label:hover {
+  border-color: rgba(71, 97, 63, 0.5);
+}
+
+/* The native control stays VISIBLE rather than being replaced by a styled
+   box. That is what makes the selected state safe: where `:has()` is
+   unsupported the tile simply does not tint, and the radio or checkbox
+   itself still shows what is chosen. Hiding the input first and painting
+   the state only in CSS would make an unsupported selector mean "no
+   visible answer at all". */
+.choices label:has(input:checked) {
+  border-color: var(--fern);
+  background: rgba(71, 97, 63, 0.1);
+  color: var(--ink);
+}
+
+/* Focus belongs on the tile, not just the 13px control inside it, so
+   keyboard position is as obvious as pointer position. */
+.choices label:has(input:focus-visible) {
+  outline: 2px solid var(--gilt);
+  outline-offset: 1px;
+}
+
+.choices input {
+  flex: none;
+  accent-color: var(--fern);
+}
+
+/* Option icons — the "what would you like to know" tiles. Inline SVG
+   drawn in currentColor, NOT emoji: the assurance row under this form was
+   just moved off emoji for the reason that applies twice over here, that
+   the glyph is whatever the visitor's OS ships (on iOS one of them arrives
+   as a white mark in a filled purple box). These inherit the tile's own
+   colour, so they darken with the text when the tile is selected. */
+.choices svg {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  opacity: 0.75;
+}
+
+.choices label:has(input:checked) svg {
+  opacity: 1;
+}
 
 .form-block input[type="text"],
 .form-block input[type="email"],
+.form-block select,
 .form-block textarea {
   width: 100%;
   font-family: Georgia, Cambria, serif;
   font-size: 0.95rem;
   line-height: 1.6;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.75);
+  background-color: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(28, 36, 56, 0.18);
   border-radius: 0.4rem;
   padding: 0.6rem 0.7rem;
 }
 
+/* A dropdown is the right control wherever the answer is one of a known
+   short list — it is one tap on a phone (the OS picker does the rest)
+   against a sentence the visitor has to compose and we then have to
+   interpret. Given one, it should not look like the browser's default:
+   `appearance: none` plus a chevron drawn as an inline SVG data URI, which
+   `img-src 'self' data:` in site/_headers already permits — no image file,
+   no extra request. The right padding reserves the chevron's space so a
+   long option cannot run underneath it. `min-height` matches the option
+   tiles' touch target. */
+.form-block select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  padding-right: 2.3rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%231c2438' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 0.7rem;
+  cursor: pointer;
+}
+
 .form-block textarea { min-height: 5.5rem; resize: vertical; }
 
 .form-block input:focus-visible,
+.form-block select:focus-visible,
 .form-block textarea:focus-visible {
   outline: 2px solid var(--gilt);
   outline-offset: 1px;

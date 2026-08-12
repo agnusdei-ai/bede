@@ -57,8 +57,21 @@ _ORIGIN_ONLY_POLICIES = {
 
 
 def _document_referrer_policy() -> str | None:
-    match = re.search(r"^\s+Referrer-Policy:\s*(\S+)\s*$", _HEADERS.read_text(), re.M)
-    return match.group(1) if match else None
+    """The policy a browser would actually apply.
+
+    Deliberately not `(\\S+)$`: `Referrer-Policy` legally takes a
+    comma-separated fallback list (`no-referrer, strict-origin-when-cross-origin`),
+    and a browser uses the LAST token it recognises. A single-token regex
+    returns nothing for that perfectly ordinary value — which would make
+    every test below return early and pass green with the iframe's
+    referrerpolicy deleted, i.e. the guard would go quiet at exactly the
+    moment the Error 153 regression came back.
+    """
+    match = re.search(r"^\s+Referrer-Policy:\s*(.+?)\s*$", _HEADERS.read_text(), re.M)
+    if not match:
+        return None  # No header: the browser default already sends an origin.
+    tokens = [t.strip() for t in match.group(1).split(",") if t.strip()]
+    return tokens[-1] if tokens else None
 
 
 def _iframe_referrer_policy() -> str | None:

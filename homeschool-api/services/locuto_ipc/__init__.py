@@ -25,4 +25,13 @@ and `decision-packets.md` packet 11's "process-boundary impact" note. It
 imports this codebase's modules directly (same package, same
 `resolve_local_only()`) but is a structurally separate listener with a much
 smaller attack surface than the tutor-facing API.
+
+`LOCUTO_IPC_ENABLED` (`core/config.py`) defaults True and the
+`locuto-ipc` docker-compose service starts alongside the rest of the stack
+by default — Bede is meant to interoperate with a paired Locuto
+installation out of the box. This is safe precisely because of the empty
+registry above: a deployment that never pairs with Locuto has a socket
+that completes a handshake and refuses every real capability, nothing
+more. A deployer can still set `LOCUTO_IPC_ENABLED=false` to disable the
+listener outright (restart required — see `server.py`'s own docstring).
 """

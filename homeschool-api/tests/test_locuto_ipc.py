@@ -284,9 +284,21 @@ async def _handshake(reader, writer):
 
 @pytest.mark.asyncio
 async def test_serve_refuses_to_bind_when_disabled(socket_path):
+    """Disabled means no socket — but serve() deliberately idles rather
+    than returning (see server.py's own docstring: a returning coroutine
+    would exit `python -m services.locuto_ipc` and Docker would
+    restart-loop the always-on container), so this asserts "still running,
+    never bound" rather than "returned"."""
     settings.locuto_ipc_enabled = False
-    await server_module.serve(socket_path)  # returns immediately, no server started
-    assert not Path(socket_path).exists()
+    task = asyncio.create_task(server_module.serve(socket_path))
+    try:
+        await asyncio.sleep(0.05)
+        assert not task.done()
+        assert not Path(socket_path).exists()
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
 
 @pytest.mark.asyncio

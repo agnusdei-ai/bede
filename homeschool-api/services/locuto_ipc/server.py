@@ -17,15 +17,24 @@ request/response, never multiplexed):
 
 Kill-switch (§7): `settings.locuto_ipc_enabled` is checked once, at
 `serve()` startup — this process simply never binds the socket at all when
-it's False, matching this codebase's "empty/off = disabled" convention
-elsewhere (DEMO_PIN, sandbox_pin, mcp_external_enabled). This is a
+it's False. Defaults to True (Bede is meant to interoperate with a paired
+Locuto installation out of the box), so this is an explicit opt-OUT rather
+than the "empty/off = disabled" opt-in pattern used elsewhere in this
+codebase (DEMO_PIN, sandbox_pin, mcp_external_enabled). This is a
 restart-based switch, not a live no-restart one: turning it off means
-stopping this process (or restarting it with the flag flipped), same as
-every other env-based setting here. A live, no-restart toggle would need
-the same DB-backed override pattern core/provider_state.py uses for
-AI-provider switching — real, larger scope, and not required for v1's
-"stops accepting new connections" requirement, which a process that never
-binds the listener satisfies unconditionally.
+restarting this process with the flag flipped, same as every other
+env-based setting here. A live, no-restart toggle would need the same
+DB-backed override pattern core/provider_state.py uses for AI-provider
+switching — real, larger scope, and not required for v1.
+
+Disabled-but-running, not disabled-and-exited: `serve()` deliberately stays
+up (idling on an event that never fires) rather than returning when the
+flag is False. The `locuto-ipc` docker-compose service now starts by
+default alongside the rest of the stack (no compose profile gate), with
+`restart: unless-stopped` — a `serve()` that simply returned on a False
+flag would exit `python -m services.locuto_ipc` immediately, and Docker
+would restart-loop the container forever. Idling keeps a disabled
+deployment's container in a normal, quiet "up" state instead.
 """
 from __future__ import annotations
 
@@ -225,12 +234,18 @@ def _prepare_socket_path(path: str) -> None:
 
 
 async def serve(socket_path: str | None = None) -> None:
-    """Binds and serves forever. Refuses to start at all if
-    settings.locuto_ipc_enabled is False at startup — matching this
-    codebase's "empty/off = disabled" convention (DEMO_PIN, sandbox_pin,
-    mcp_external_enabled)."""
+    """Binds and serves forever. Refuses to bind the socket at all if
+    settings.locuto_ipc_enabled is False at startup — checked once, not
+    live (see this module's own docstring). Deliberately does not RETURN in
+    that case: it idles on an Event that never fires, so the owning process
+    (`python -m services.locuto_ipc`, run under `restart: unless-stopped`
+    in docker-compose.yml) stays up rather than exiting and being
+    restart-looped by Docker — the listener defaults to enabled, so a
+    deployer who explicitly disables it should get a quiet, stable
+    container, not a crash loop."""
     if not settings.locuto_ipc_enabled:
         log.info("locuto_ipc_enabled is False — not starting the listener")
+        await asyncio.Event().wait()
         return
 
     path = socket_path or settings.locuto_ipc_socket_path

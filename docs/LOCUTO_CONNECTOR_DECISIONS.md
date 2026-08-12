@@ -51,6 +51,18 @@ provable, tested protocol skeleton — transport, framing, peer-credential check
 §6 enforcement point proven correct in isolation — with zero actual agent behavior. `resolve_local_only()`
 is infrastructure with a caller now, but that caller still dispatches nothing real.
 
+**The listener ships enabled by default, not gated behind an extra opt-in.** `LOCUTO_IPC_ENABLED`
+defaults `true` and the `locuto-ipc` docker-compose service starts alongside the rest of the stack —
+Bede is meant to interoperate with a paired Locuto installation out of the box, per product intent,
+rather than requiring a deployer to discover and flip a second switch after the fact. This is a
+deliberate departure from this codebase's usual "empty/off = disabled" convention for a new trust
+surface, and it is safe only because of the empty registry immediately above: a deployment that never
+pairs with Locuto gets a socket that completes a handshake and refuses every real capability, nothing
+more. It remains a real, configurable choice — a deployer can set `LOCUTO_IPC_ENABLED=false` at
+install time or later (container restart required) to disable the listener outright, and a disabled
+listener idles rather than exiting so that choice doesn't turn into a restart-loop now that the
+container runs by default. See `services/locuto_ipc/__init__.py` and `server.py`'s own docstrings.
+
 Left below unedited otherwise, as the record of the question and the options it was closed against.
 
 **Exact question.** When a capability like `PrepareUserReviewableSendDraft` needs a model call to

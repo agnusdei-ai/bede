@@ -771,14 +771,21 @@ actual agent behavior.
 
 Runs as its own process (`python -m services.locuto_ipc`), never inside the
 tutor-facing `api` container — a new `locuto-ipc` service in
-`docker-compose.yml`, behind a `profiles: ["locuto-ipc"]` opt-in gate so an
-ordinary deployment never starts it. Binds a Unix domain socket
-(`LOCUTO_IPC_SOCKET_PATH`, default `/tmp/bede-locuto/locuto.sock`) only when
-`LOCUTO_IPC_ENABLED` is true (`core/config.py`) — matching this codebase's
-"empty/off = disabled" convention (`DEMO_PIN`, `sandbox_pin`,
-`mcp_external_enabled`). This is a restart-based kill-switch, not a live
+`docker-compose.yml`, starting alongside the rest of the stack by default
+(no compose profile gate) — Bede is meant to interoperate with a paired
+Locuto installation out of the box. `LOCUTO_IPC_ENABLED` (`core/config.py`)
+defaults **true**, an explicit opt-OUT rather than this codebase's usual
+"empty/off = disabled" opt-in convention (`DEMO_PIN`, `sandbox_pin`,
+`mcp_external_enabled`) — safe by construction even so, since v1's empty
+capability registry means a deployment that never pairs with Locuto just
+completes a handshake and refuses every real capability. A deployer can
+still set `LOCUTO_IPC_ENABLED=false` at install time or later to disable
+the listener outright. This is a restart-based kill-switch, not a live
 no-restart one (see `server.py`'s own docstring for why a DB-backed override
-like `core/provider_state.py`'s is out of scope for v1). The socket's parent
+like `core/provider_state.py`'s is out of scope for v1, and for why a
+disabled `serve()` idles rather than returning — returning would exit the
+process and Docker's `restart: unless-stopped` would loop it forever now
+that the container starts by default). The socket's parent
 directory is bind-mounted (`volumes:`, not `tmpfs`) since a native Locuto
 process on the host needs to reach it — the one place this connector's
 container is deliberately less isolated than `api`'s tmpfs-only scratch

@@ -1,6 +1,7 @@
 /**
- * The three form pages on the public site (/feedback/, /survey/,
- * /educators/) share one script, `site/assets/feedback-form.js`, which
+ * The four form pages on the public site (the home page's "Request a
+ * call", /feedback/, /survey/, /educators/) share one script,
+ * `site/assets/feedback-form.js`, which
  * reads each question's wording out of that page's own markup rather than
  * from a map inside the script. That removed a real duplication: the old
  * version carried a hardcoded field-name-to-label map, so a question
@@ -26,11 +27,18 @@ const SCRIPT = readFileSync(join(SITE, 'assets/feedback-form.js'), 'utf8')
 const API_BASE_ASSET = readFileSync(join(SITE, 'assets/api-base.js'), 'utf8')
 const BUILD_SCRIPT = readFileSync(join(__dirname, '../../scripts/build_pages_site.sh'), 'utf8')
 
+// The home page's form was missing from this list until the pass that
+// rebuilt it around dropdowns and option tiles — it runs the same script
+// through the same code path, and is the one form on the site whose
+// failure costs a sales lead rather than a survey answer.
 const PAGES = [
+  { name: 'home', file: 'index.html', category: 'plans', tag: '[Website: onboarding / pricing request]' },
   { name: 'feedback', file: 'feedback/index.html', category: 'cx', tag: '[Website feedback form]' },
   { name: 'survey', file: 'survey/index.html', category: 'beta_survey', tag: '[Beta parent survey]' },
   { name: 'educators', file: 'educators/index.html', category: 'beta_survey', tag: '[Co-op educator survey]' },
 ] as const
+
+const SURVEYS = PAGES.filter((p) => p.category === 'beta_survey')
 
 /**
  * Load a page's markup into the document and evaluate the shared script
@@ -134,9 +142,15 @@ describe.each(PAGES)('$name page', ({ file, category, tag }) => {
 
   it('puts the question wording, not the field name, into the message', () => {
     const { form } = mount(file)
-    const [name, el] = [...namedControls(form)].find(
-      ([, candidate]) => (candidate as HTMLInputElement).type === 'radio',
-    )!
+    // Radio OR checkbox: the home page's form is all checkboxes and a
+    // dropdown, having been rebuilt away from free text, and a radio-only
+    // search there returns undefined and throws on destructuring rather
+    // than reporting anything useful.
+    const grouped = [...namedControls(form)].find(([, candidate]) =>
+      ['radio', 'checkbox'].includes((candidate as HTMLInputElement).type),
+    )
+    expect(grouped, 'no grouped control to check the wording of').toBeDefined()
+    const [name, el] = grouped!
     const input = form.querySelector(`input[name="${name}"]`) as HTMLInputElement
     input.checked = true
     const expectedQuestion = el.closest('fieldset')!.querySelector('legend')!.textContent!.trim()
@@ -167,6 +181,13 @@ describe('a survey too long for an email link', () => {
     for (const el of Array.from(form.elements) as HTMLInputElement[]) {
       if (el.type === 'radio' && !picked.has(el.name)) { el.checked = true; picked.add(el.name) }
       else if (el.type === 'checkbox') el.checked = true
+      // A <select>'s first option is the "Select a number…" placeholder,
+      // whose empty value collect() drops — picking the last one answers
+      // the question, which is what "completely" has to mean here.
+      else if (el.tagName === 'SELECT') {
+        const select = el as unknown as HTMLSelectElement
+        select.selectedIndex = select.options.length - 1
+      }
       else if (el.tagName === 'TEXTAREA' || el.type === 'text' || el.type === 'email') {
         el.value = 'A realistic paragraph of the kind a parent who cares enough to fill this in actually writes, which is several lines long.'
       }
@@ -185,7 +206,7 @@ describe('a survey too long for an email link', () => {
     },
   )
 
-  it.each(PAGES.filter((p) => p.name !== 'feedback'))(
+  it.each(SURVEYS)(
     '$name hands the answers back to be copied rather than losing them',
     ({ file, tag }) => {
       const { form, note } = mount(file)
@@ -312,14 +333,78 @@ describe('the build fills in the API base', () => {
   })
 })
 
-describe('the three pages stay pooled in one inbox', () => {
+describe('the form pages stay sortable in one inbox', () => {
   it('files both surveys under the same category so they sort together', () => {
-    const surveys = PAGES.filter((p) => p.name !== 'feedback')
+    const surveys = SURVEYS
     expect(new Set(surveys.map((p) => p.category))).toEqual(new Set(['beta_survey']))
   })
 
   it('gives each page a distinct tag so the inbox can still tell them apart', () => {
     const tags = PAGES.map((p) => p.tag)
     expect(new Set(tags).size).toBe(tags.length)
+  })
+})
+
+/**
+ * The home page's form was rebuilt away from free text: "How many
+ * children, and their grades?" as one text box became a dropdown plus a
+ * set of stage tiles, and the open "What would you like to know?" became
+ * topic tiles with one optional comment box under them.
+ *
+ * That is a change to what the operator receives, not only to what the
+ * visitor sees, and the two ways it could go wrong are both silent. A
+ * <select> whose only <option> is the "Select a number…" placeholder
+ * submits an empty value that collect() drops, so the question vanishes
+ * from the email with nothing to show it ever existed. And a group of
+ * checkboxes reaches the inbox as one comma-joined line, so a value
+ * reworded on the page changes what an answer looks like without changing
+ * anything that fails.
+ */
+describe('the home form delivers its structured answers', () => {
+  it('sends a dropdown choice, a multi-select, and the comment box', () => {
+    const { form } = mount('index.html')
+    ;(form.querySelector('#call_children') as HTMLSelectElement).value = '2'
+    for (const value of ['K-2', '6-8']) {
+      ;(form.querySelector(`input[name="stages"][value="${value}"]`) as HTMLInputElement).checked = true
+    }
+    ;(form.querySelector('input[name="topics"][value="Pricing"]') as HTMLInputElement).checked = true
+    ;(form.querySelector('#call_details') as HTMLTextAreaElement).value = 'We already read Farmer Boy together.'
+
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    const sent = decodeURIComponent(form.dataset.mailto ?? '')
+
+    expect(sent).toContain('How many children are you teaching?: 2')
+    // Both ticked stages, joined — not just the first, and not the raw
+    // field name.
+    expect(sent).toContain('Which stages are they in?: K-2, 6-8')
+    expect(sent).toContain('What would you like to know?: Pricing')
+    expect(sent).toContain('Anything else we should know?: We already read Farmer Boy together.')
+    expect(sent).not.toContain('stages:')
+    expect(sent).not.toContain('topics:')
+  })
+
+  it('leaves the dropdown out of the message when it was never answered', () => {
+    const { form } = mount('index.html')
+    ;(form.querySelector('#call_name') as HTMLInputElement).value = 'A Parent'
+
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    const sent = decodeURIComponent(form.dataset.mailto ?? '')
+
+    // The placeholder option's empty value must not arrive as a blank
+    // answer to a question nobody chose to answer.
+    expect(sent).toContain('Your name: A Parent')
+    expect(sent).not.toContain('How many children are you teaching?')
+  })
+
+  it('keeps the stage vocabulary the other forms already use', () => {
+    // All four forms land in one inbox. The home page asking "K-2" while
+    // the feedback page asks "K–2 (Grammar)" would make the same answer
+    // two different strings to whoever reads them.
+    const home = readFileSync(join(SITE, 'index.html'), 'utf8')
+    const feedback = readFileSync(join(SITE, 'feedback/index.html'), 'utf8')
+    for (const value of ['K-2', '3-5', '6-8', 'Older']) {
+      expect(home).toContain(`name="stages" value="${value}"`)
+      expect(feedback).toContain(`name="stages" value="${value}"`)
+    }
   })
 })

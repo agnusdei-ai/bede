@@ -329,6 +329,27 @@ class Settings(BaseSettings):
     mcp_external_servers: str = ""
     mcp_external_timeout_seconds: float = 10.0
 
+    # ── Locuto local-IPC listener (services/locuto_ipc/) ──────────────────────
+    # Bede's half of a proposed on-device connector to agnusdei-ai/locuto's
+    # own client — see docs/LOCUTO_CONNECTOR_DECISIONS.md and Locuto's
+    # docs/bede-ipc-spec.md (the single canonical wire spec; nothing in this
+    # codebase duplicates it). OFF by default, same "empty/off = disabled"
+    # pattern as DEMO_PIN/sandbox_pin/mcp_external_enabled — this is a new
+    # local trust surface and must never activate by accident. Runs as its
+    # own separate process (`python -m services.locuto_ipc`), not inside the
+    # main FastAPI app; a False value here means that process refuses to
+    # bind the socket at all and exits, which is also this listener's
+    # kill-switch (bede-ipc-spec.md §7) — see services/locuto_ipc/server.py's
+    # own docstring for why this is restart-based rather than live.
+    locuto_ipc_enabled: bool = False
+    # bede-ipc-spec.md §2: a Unix domain socket, never TCP even on loopback.
+    # Default path sits under the api container's one writable location
+    # (docker-compose.yml's `/tmp:size=64m,mode=1777` tmpfs) — a real
+    # household deployment bind-mounts this directory to a host-visible
+    # path so a native Locuto process can reach it; see docker-compose.yml's
+    # own comment on the locuto-ipc service for the full reasoning.
+    locuto_ipc_socket_path: str = "/tmp/bede-locuto/locuto.sock"
+
     # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
     # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
     # as DEMO_PIN) — a family only needs to set these if they want to enroll a

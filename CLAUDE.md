@@ -240,7 +240,8 @@ routers/
   feedback.py        GET /feedback/enabled (public, gates whether the frontend shows any feedback UI at all); POST /feedback — any authenticated role (parent, child, demo visitor), routed via `services/email_service.py` to `FEEDBACK_EMAIL` over Resend, never persisted server-side beyond that one outbound email. `FeedbackRequest.category` (`models/schemas.py`) covers ordinary in-use feedback (cx/ux/content_quality/other), the demo's own "interested in plans" lead capture (`plans`) and end-of-session survey (`beta_close`), a real beta family's one-time setup-completion intake (`onboarding` — see `ParentSetup.tsx`/`BetaIntakeModal.tsx` above), and the beta period's structured survey (`beta_survey` — see "Beta surveys" below) — each gets its own email subject-line prefix (`_feedback_prefix`) so the operator's inbox stays triageable at a glance. `plans` is also the one category with its own destination: `_recipient_for` sends it to `SALES_EMAIL` when set (a real lead, not a bug report), falling back to `FEEDBACK_EMAIL` like every other category when it isn't — see `site/index.html`'s `#request-a-call` form, the marketing site's own onboarding/pricing entry point into this same pipeline.
 services/
   ai_service.py      stream_tutor_response() + generate_session_summary(); _constitution_preamble() prepends the verified constitution to every persona/summary/profile-synthesis prompt. Its module-level `_client` is resolved through services/adapters/ (resolve_with_failover()), NOT hardcoded to Anthropic — see docs/PROVIDER_ADAPTERS.md
-  adapters/          Provider-adapter layer decoupling the tutor from any single LLM vendor. base.py (Anthropic-shaped vocabulary + ChatAdapter Protocol), anthropic_adapter.py (returns a real anthropic.AsyncAnthropic), openai_compatible_adapter.py (ONE class translating Anthropic↔OpenAI /v1/chat/completions — covers OpenAI, a self-hosted vLLM/Qwen3-Coder server (or Ollama — anything speaking the same OpenAI-compatible endpoint), Mistral, any OpenAI-compatible endpoint), router.py (get_default_client() picks the first CONFIGURED adapter in BEDE_ADAPTER_ORDER — default "local,anthropic", never requires ANTHROPIC_API_KEY to boot; resolve_with_failover() is the Phase-6 failover client, and is what `services/ai_service.py`'s module-level `_client` actually resolves through; both honor core/provider_state.py's live DB override before falling through to the env order — see "Live AI-provider switching" below). Also exposes two small public helpers routers/admin.py's switcher uses: `configured_adapters()` (which adapters currently have credentials set) and `preference_order()` (the env BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER baseline). The library/self-hosted default treats a local vLLM server as primary and Anthropic as optional fallback, for the account-closure case. **The public Render demo overrides this**: `render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral,anthropic` for the `bede-demo-api` service specifically (OpenAI primary, Mistral the default fallback, Anthropic a third, optional candidate present so it's a legitimate secondary-override choice — see below — the moment `ANTHROPIC_API_KEY` is filled in, with no redeploy). Because `_client` is a `FailoverClient`, this is LIVE failover, not just a boot-time preference: if OpenAI errors (auth/rate-limit/connection failure) on a request, that request automatically retries against whichever adapter is second in the effective order (Mistral by default, or Claude if picked as secondary) before any content streams back, with a ~60s circuit-breaker cooldown on the failed provider — see docs/PROVIDER_ADAPTERS.md (merged in PR #159; live failover wired in as a follow-up; the configurable-secondary override added 2026-08-03 alongside the fixed demo Privacy Notice, see "Public tracker & data disclosure page" above). `resolve_local_only()` is a fourth, deliberately narrower entry point: always the local adapter, never any other, bypassing `BEDE_ADAPTER_ORDER`/`BEDE_FORCE_ADAPTER`/`core/provider_state.py`'s live override entirely rather than reordering around them, and raising `LocalAdapterUnavailableError` (never falling back) when `local` isn't configured. Built for `docs/LOCUTO_CONNECTOR_DECISIONS.md`'s first packet — a future capability handling content from outside Bede's own process (a proposed on-device connector to `agnusdei-ai/locuto`, see that document) must never be able to reach a commercial API through this codebase's ordinary routing, regardless of a household's general tutoring configuration. Infrastructure only: no capability call site uses it yet, since the connector itself remains contingent on a decision in the Locuto repository.
+  adapters/          Provider-adapter layer decoupling the tutor from any single LLM vendor. base.py (Anthropic-shaped vocabulary + ChatAdapter Protocol), anthropic_adapter.py (returns a real anthropic.AsyncAnthropic), openai_compatible_adapter.py (ONE class translating Anthropic↔OpenAI /v1/chat/completions — covers OpenAI, a self-hosted vLLM/Qwen3-Coder server (or Ollama — anything speaking the same OpenAI-compatible endpoint), Mistral, any OpenAI-compatible endpoint), router.py (get_default_client() picks the first CONFIGURED adapter in BEDE_ADAPTER_ORDER — default "local,anthropic", never requires ANTHROPIC_API_KEY to boot; resolve_with_failover() is the Phase-6 failover client, and is what `services/ai_service.py`'s module-level `_client` actually resolves through; both honor core/provider_state.py's live DB override before falling through to the env order — see "Live AI-provider switching" below). Also exposes two small public helpers routers/admin.py's switcher uses: `configured_adapters()` (which adapters currently have credentials set) and `preference_order()` (the env BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER baseline). The library/self-hosted default treats a local vLLM server as primary and Anthropic as optional fallback, for the account-closure case. **The public Render demo overrides this**: `render.yaml` sets `BEDE_ADAPTER_ORDER=openai,mistral,anthropic` for the `bede-demo-api` service specifically (OpenAI primary, Mistral the default fallback, Anthropic a third, optional candidate present so it's a legitimate secondary-override choice — see below — the moment `ANTHROPIC_API_KEY` is filled in, with no redeploy). Because `_client` is a `FailoverClient`, this is LIVE failover, not just a boot-time preference: if OpenAI errors (auth/rate-limit/connection failure) on a request, that request automatically retries against whichever adapter is second in the effective order (Mistral by default, or Claude if picked as secondary) before any content streams back, with a ~60s circuit-breaker cooldown on the failed provider — see docs/PROVIDER_ADAPTERS.md (merged in PR #159; live failover wired in as a follow-up; the configurable-secondary override added 2026-08-03 alongside the fixed demo Privacy Notice, see "Public tracker & data disclosure page" above). `resolve_local_only()` is a fourth, deliberately narrower entry point: always the local adapter, never any other, bypassing `BEDE_ADAPTER_ORDER`/`BEDE_FORCE_ADAPTER`/`core/provider_state.py`'s live override entirely rather than reordering around them, and raising `LocalAdapterUnavailableError` (never falling back) when `local` isn't configured. Built for `docs/LOCUTO_CONNECTOR_DECISIONS.md`'s first packet — a future capability handling content from outside Bede's own process (a proposed on-device connector to `agnusdei-ai/locuto`, see that document) must never be able to reach a commercial API through this codebase's ordinary routing, regardless of a household's general tutoring configuration. `services/locuto_ipc/`'s dispatch loop is its first real caller — see that entry below and `docs/LOCUTO_CONNECTOR_DECISIONS.md`'s packet 1 closing note.
+  locuto_ipc/        Bede's half of the proposed local-IPC connector to `agnusdei-ai/locuto` — see "Locuto local-IPC listener" below for the full design.
   moderation.py      classify_child_message() — AIUC-1 B005 automated moderation classifier (Haiku, reuses session_model/ANTHROPIC_API_KEY) run before every tutoring turn; fails open on any error, self_harm routes through the same safeguarding crisis path as check_safeguarding, prompt_injection is logged but never blocks alone — see docs/SECURITY.md. Its taxonomy also carries four adversarial-resilience categories (jailbreak_intent, policy_override_attempt, data_exfiltration_attempt, social_engineering) that `_BLOCKING_CATEGORIES`/`should_block` deliberately do NOT act on — those are read out of this same classification result by services/policy_engine.py instead, so adding them cost no second LLM call. See "Adversarial resilience pipeline" below.
   adversarial_detection.py  Tier 1 of the adversarial-resilience pipeline — free, instant, deterministic regex (`detect_tier1`) for the same four categories above, curated for near-zero false positives against ordinary K-8 Socratic dialogue; still catches the bluntest attack phrasings during a moderation-classifier outage, when Tier 2 (moderation.py, above) is unavailable. `build_signals()` merges a Tier 1 pass with the already-computed Tier 2 result into one `AdversarialSignals` for policy_engine.py — no second classifier call.
   policy_engine.py   Tier-agnostic policy stage — `decide(signals) -> PolicyDecision`. Pure function, no I/O: policy_override_attempt/data_exfiltration_attempt redirect the turn (Tier 1 hit OR Tier 2 at medium+ confidence); jailbreak_intent/social_engineering never redirect alone, mirroring moderation.py's own prompt_injection treatment — see "Adversarial resilience pipeline" below and docs/SECURITY.md.
@@ -753,6 +754,67 @@ reading of the spec. Bede never spawns a subprocess for this: the API
 container runs `read_only` with `cap_drop: ALL`, so an outbound HTTP call to
 an address the parent named is a far smaller change to the deployment's
 threat model than launching local commands.
+
+**Locuto local-IPC listener (`services/locuto_ipc/`) — Bede's half of the
+proposed on-device connector to `agnusdei-ai/locuto`:** implements against
+`agnusdei-ai/locuto`'s `docs/bede-ipc-spec.md` (merged there in PR #47), the
+single canonical source for the wire protocol — nothing in this repo
+duplicates that document's content; this section describes Bede's
+implementation of it, not the spec itself. v1 scope is transport, framing,
+handshake, and dispatch only, with a deliberately **empty capability
+registry** (`capabilities.py`'s `CAPABILITIES: dict = {}`) — no capability has
+an exact CBOR body schema specified in either repo yet, and the spec's own §4
+("a new capability is a new named message body ... never a widening of an
+existing one") means registering one here would mean inventing a schema
+unilaterally. What ships is a provable, tested protocol skeleton with zero
+actual agent behavior.
+
+Runs as its own process (`python -m services.locuto_ipc`), never inside the
+tutor-facing `api` container — a new `locuto-ipc` service in
+`docker-compose.yml`, behind a `profiles: ["locuto-ipc"]` opt-in gate so an
+ordinary deployment never starts it. Binds a Unix domain socket
+(`LOCUTO_IPC_SOCKET_PATH`, default `/tmp/bede-locuto/locuto.sock`) only when
+`LOCUTO_IPC_ENABLED` is true (`core/config.py`) — matching this codebase's
+"empty/off = disabled" convention (`DEMO_PIN`, `sandbox_pin`,
+`mcp_external_enabled`). This is a restart-based kill-switch, not a live
+no-restart one (see `server.py`'s own docstring for why a DB-backed override
+like `core/provider_state.py`'s is out of scope for v1). The socket's parent
+directory is bind-mounted (`volumes:`, not `tmpfs`) since a native Locuto
+process on the host needs to reach it — the one place this connector's
+container is deliberately less isolated than `api`'s tmpfs-only scratch
+space, while keeping the same `read_only: true`/`cap_drop: ALL`/
+`no-new-privileges` hardening.
+
+`peer_auth.py` verifies the connecting process's UID at accept time via
+`SO_PEERCRED` (Linux) / `LOCAL_PEERCRED` (macOS) against
+`default_allowed_uids()` (this process's own UID) before a single frame is
+read — closing the connection immediately on any mismatch or on an
+unsupported platform (Windows named-pipe peer auth is an explicit, untested
+v1 exclusion). `framing.py` enforces the spec's 256 KiB body-size bound from
+the 6-byte header alone, before allocating for the body, so an oversized
+declared length can never be used to force allocation ahead of the bound
+meant to prevent exactly that. `protocol.py` holds the closed message-type
+table and the Request/Response/Hello/HelloAck shapes exactly as the spec
+defines them — described here only insofar as this module implements them,
+never restated as spec text.
+
+`server.py`'s `_dispatch_request()` is the single place a `Request`'s
+capability name is looked up and invoked — the spec's §6 enforcement point,
+and `resolve_local_only()`'s (`services/adapters/router.py`, see that entry
+above and `docs/LOCUTO_CONNECTOR_DECISIONS.md`'s packet 1) first real caller:
+any future capability handler resolving a model client must go through it,
+and `LocalAdapterUnavailableError` translates to the wire's `Unavailable`
+outcome rather than being caught and retried against a different adapter —
+never a fallback to a commercial API for Locuto-touching content, regardless
+of a household's general `BEDE_ADAPTER_ORDER`/live-override configuration.
+`HelloAck`'s `policy_hash` is a SHA-256 of the (currently empty) registered
+capability names, sorted — a partial answer to
+`docs/LOCUTO_CONNECTOR_DECISIONS.md` packet 2, not a resolution of it, since
+it says nothing about signed releases or hash-pinned weights; it only lets
+Locuto detect that the registry itself changed between sessions.
+`__main__.py` is a minimal entrypoint that does NOT run `main.py`'s full
+FastAPI lifespan (no constitution check, no license gating, no voice
+warm-up) — none of that is this listener's concern.
 
 ## Security Constraints
 

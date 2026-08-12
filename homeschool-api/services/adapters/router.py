@@ -130,6 +130,42 @@ def _configured_order(settings: Any) -> List[str]:
     return [name for name in _order(settings) if _is_configured(name, settings)]
 
 
+def current_primary_adapter(settings: Any = _global_settings) -> Optional[str]:
+    """Which configured adapter is primary right now, honoring any live DB
+    override (core/provider_state.py) — the same value FailoverClient.
+    _live_order() would put first, ignoring circuit-breaker state (that's
+    per-FailoverClient-instance and irrelevant to "who is primary" as a
+    static question). None if nothing is configured. Used by main.py's
+    periodic local-adapter health check to decide whether a ping is even
+    worth sending."""
+    order = provider_state.effective_order(_configured_order(settings))
+    return order[0] if order else None
+
+
+async def check_local_adapter_reachable(
+    settings: Any = _global_settings, timeout_seconds: float = 5.0,
+) -> Optional[bool]:
+    """
+    True/False if `local` is configured, currently primary, and got
+    checked; None if `local` isn't configured or isn't primary right now —
+    nothing worth checking (a cloud provider's uptime is already caught
+    fast by real traffic plus FailoverClient's circuit breaker; a
+    background health ping there would just spend tokens proving what a
+    real turn already proves — see main.py's periodic health-check task).
+
+    Builds its OWN short-lived OpenAICompatibleClient rather than reaching
+    into ai_service._client's cached FailoverClient — a health check must
+    never share state with, or risk interfering with, the client real
+    tutoring turns actually go through.
+    """
+    if not _is_configured("local", settings):
+        return None
+    if current_primary_adapter(settings) != "local":
+        return None
+    client = _build("local", settings)
+    return await client.is_reachable(timeout_seconds=timeout_seconds)
+
+
 def get_default_client(settings: Any = _global_settings) -> Any:
     """Resolve the single concrete adapter used as ai_service._client.
 

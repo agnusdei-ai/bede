@@ -68,7 +68,15 @@ PIN, and API key always have to be typed, never spoken.
 > boots the *entire* real stack from that `.env` — Caddy, nginx, FastAPI,
 > local Postgres — and confirms `https://.../api/health` actually answers
 > through the full TLS→proxy→API path, plus that `make db-backup`/
-> `make db-restore` round-trip cleanly. This is a real Docker daemon doing
+> `make db-restore` genuinely recovers from real data loss, not just that
+> Postgres accepts the SQL and the API process comes back up afterward:
+> the schema is wiped first (simulating the actual disaster-recovery
+> scenario a family would hit — data is gone, restore it), then a
+> data-only snapshot taken right before the wipe is compared against one
+> taken right after restore, proving every table's data — including the
+> encrypted BYTEA columns holding a real family's actual data — survives
+> the round trip intact, not just one hand-picked record. This is a real
+> Docker daemon doing
 > a real `docker build`/`docker run`/`docker compose up`, not a dry run.
 > What CI can't cover: the double-click launchers themselves
 > (`setup-gui.command`/`setup-gui.bat`) run on a Linux runner under the

@@ -31,9 +31,12 @@ proof that it ignores `BEDE_ADAPTER_ORDER`, `BEDE_FORCE_ADAPTER`, and a live DB 
 when each would otherwise point at a configured, higher-priority cloud adapter.
 
 **This closes only what packet 1 asked** — the resolver exists and is proven independent of
-household configuration. No capability call site uses it yet; there is no Locuto capability to
-call it from until `agents.md` §9 open question 1 resolves and the actual connector is built.
-`resolve_local_only()` is infrastructure waiting for that decision, not a shipped feature.
+household configuration. No capability call site uses it yet. **`agents.md` §9 open question 1 has
+since resolved** (`open-decisions.md` decision 167 — see packet 2's premise note above), so what
+remains is the connector itself, not a further ruling: `agnusdei-ai/locuto`'s `docs/bede-ipc-spec.md`
+now specifies the local-IPC listener and names this exact function as the required resolution path
+(§6) — the caller `resolve_local_only()` has been waiting for is spec'd, not yet built, on either
+side. `resolve_local_only()` remains infrastructure without a caller, not a shipped feature.
 
 Left below unedited otherwise, as the record of the question and the options it was closed against.
 
@@ -79,6 +82,22 @@ anything already shipping.
 ---
 
 ## 2. Does a Bede companion need to satisfy `agents.md` §5's measurement requirements, and if so, how?
+
+> **Premise update, not a resolution: `agents.md` §9 open question 1 has resolved yes.**
+> `agnusdei-ai/locuto`'s `docs/open-decisions.md` decision 167 (owner ruling, 2026-08) permits a
+> content agent to be built at all, conditioned on the containment `agents.md` §4 already specifies
+> (may read and advise, may never act) and the monitoring `bede-connector.md` §7 already specifies
+> (metadata-only audit, one revocation switch) holding as load-bearing requirements. It does not
+> choose Bede as the candidate, and it does not resolve this packet's own question — but this
+> packet's recommendation below was written when §9.1 "hasn't resolved yes yet," and that premise no
+> longer holds. Left below unedited otherwise: the recommendation is not changed by this note, since
+> whether to build A now is a real timeline and resourcing call for this project's own owner, not
+> something a premise change alone decides. Cross-referenced from Locuto's own
+> `docs/decision-packets.md` packet 12, which independently reaches this same question from Locuto's
+> side and verified `resolve_local_only()` (packet 1, resolved below) as real against this
+> repository's actual source rather than assuming it. The wire-level transport this packet's
+> eventual answer would need to travel over — once a capability call site exists to use it — is now
+> specified at `agnusdei-ai/locuto`'s `docs/bede-ipc-spec.md`; neither side has implemented it.
 
 **Exact question.** `agents.md` §5 requires a locally-composed agent's runtime (signed), weights
 (hash-pinned), and policy (hash-pinned), so Locuto's peer-side detection layer
@@ -126,6 +145,9 @@ if the feature is built at all.
 
 ## What is not in here
 
-No code, no CI change, no adapter-router change, and no signing infrastructure. Both packets are
-questions with a recommendation attached, not a decision — matching Locuto's own convention that a
-recommendation here is an argument the owner may reject.
+**No signing infrastructure, and no Locuto capability call site — nothing that requires the
+connector itself to exist.** Packet 1 is the one exception to "no code, no adapter-router change":
+its resolution shipped `resolve_local_only()`, real and tested, because the resolver's own
+correctness could be verified in isolation without the connector it will eventually serve. Packet 2
+remains a question with a recommendation attached, not a decision — matching Locuto's own convention
+that a recommendation here is an argument the owner may reject.

@@ -68,7 +68,12 @@ PIN, and API key always have to be typed, never spoken.
 > boots the *entire* real stack from that `.env` — Caddy, nginx, FastAPI,
 > local Postgres — and confirms `https://.../api/health` actually answers
 > through the full TLS→proxy→API path, plus that `make db-backup`/
-> `make db-restore` round-trip cleanly. This is a real Docker daemon doing
+> `make db-restore` round-trip a real, identifiable record through the
+> real API intact — not just that Postgres accepts the SQL and the API
+> process comes back up, but that the specific data saved before backup
+> reads back byte-for-byte the same after restore, through the same
+> AES-256-GCM encryption/decryption path a real family's data goes
+> through. This is a real Docker daemon doing
 > a real `docker build`/`docker run`/`docker compose up`, not a dry run.
 > What CI can't cover: the double-click launchers themselves
 > (`setup-gui.command`/`setup-gui.bat`) run on a Linux runner under the

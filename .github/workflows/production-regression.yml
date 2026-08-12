@@ -377,20 +377,86 @@ jobs:
             exit 1
           fi
 
-      - name: Confirm local Postgres backup/restore works
+      - name: Confirm local Postgres backup/restore preserves data, not just that the API boots
+        # Before this, the step below only proved a restore leaves the API
+        # able to boot and answer /health — it never confirmed any actual
+        # DATA survived the round trip intact. A dump/restore that silently
+        # dropped or corrupted rows (a pg_dump version mismatch, a partial
+        # write, truncation) would have sailed through as green as long as
+        # Postgres itself still started and the API process came back up.
+        # This now seeds one identifiable, encrypted record through the
+        # real API before backup, and fetches it back through the real API
+        # (proving the full dump → restore → AES-256-GCM decrypt chain,
+        # not just the SQL layer) after restore, asserting the exact value
+        # survives byte-for-byte. A fresh parent login after restore is the
+        # same proof for credentials/encryption key material, not just
+        # session data — a restored DB with unreadable encryption_config
+        # would fail right there rather than only surfacing much later.
         run: |
+          set -e
+          PARENT_PASSWORD=$(grep '^PARENT_PASSWORD=' .env | cut -d= -f2-)
+          BACKUP_TEST_MARKER="backup-fidelity-check-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          login() {
+            curl -sk -X POST https://localhost/api/auth/login \
+              -H "Content-Type: application/json" \
+              -d "{\"role\":\"parent\",\"credential\":\"${PARENT_PASSWORD}\"}" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))"
+          }
+
+          echo "--- Seeding a known record before backup ---"
+          TOKEN=$(login)
+          if [ -z "$TOKEN" ]; then
+            echo "Could not log in as parent to seed the pre-backup record"
+            exit 1
+          fi
+          save_code=$(curl -sk -o /dev/null -w '%{http_code}' -X POST https://localhost/api/pod/configs \
+            -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+            -d "{\"configs\":[{\"student_name\":\"CIBackupFidelityCheck\",\"grade\":\"4\",\"grade_stage\":\"3-5\",\"lesson_focus\":\"${BACKUP_TEST_MARKER}\"}]}")
+          if [ "$save_code" != "204" ]; then
+            echo "Expected 204 saving the seed pod config, got ${save_code}"
+            exit 1
+          fi
+          seeded=$(curl -sk https://localhost/api/pod/configs/CIBackupFidelityCheck -H "Authorization: Bearer ${TOKEN}")
+          if ! echo "$seeded" | grep -q "$BACKUP_TEST_MARKER"; then
+            echo "Seed record didn't actually save before backup — nothing meaningful to verify after restore:"
+            echo "$seeded"
+            exit 1
+          fi
+
+          echo "--- Backing up and restoring ---"
           make db-backup
           ls backups/*.sql
           BACKUP_FILE=$(ls -t backups/*.sql | head -1)
           make db-restore FILE="$BACKUP_FILE"
           # restart so the API re-reads a freshly-restored DB cleanly
           docker compose restart api
+          healthy=false
           for i in $(seq 1 30); do
-            curl -skf https://localhost/api/health >/dev/null 2>&1 && exit 0
+            if curl -skf https://localhost/api/health >/dev/null 2>&1; then
+              healthy=true
+              break
+            fi
             sleep 2
           done
-          echo "API did not come back healthy after a db-restore"
-          exit 1
+          if [ "$healthy" != "true" ]; then
+            echo "API did not come back healthy after a db-restore"
+            exit 1
+          fi
+
+          echo "--- Verifying the seeded record survived intact ---"
+          RESTORED_TOKEN=$(login)
+          if [ -z "$RESTORED_TOKEN" ]; then
+            echo "Could not log in as parent after restore — credentials/encryption did not survive the round trip"
+            exit 1
+          fi
+          restored=$(curl -sk https://localhost/api/pod/configs/CIBackupFidelityCheck -H "Authorization: Bearer ${RESTORED_TOKEN}")
+          if ! echo "$restored" | grep -q "$BACKUP_TEST_MARKER"; then
+            echo "Data seeded before backup did NOT survive the restore round trip intact:"
+            echo "$restored"
+            exit 1
+          fi
+          echo "Backup/restore verified: the seeded record's exact value survived the full encrypted round trip." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Dump logs on failure
         if: failure()

@@ -377,86 +377,70 @@ jobs:
             exit 1
           fi
 
-      - name: Confirm local Postgres backup/restore preserves data, not just that the API boots
+      - name: Confirm local Postgres backup/restore actually restores lost data
         # Before this, the step below only proved a restore leaves the API
-        # able to boot and answer /health — it never confirmed any actual
-        # DATA survived the round trip intact. A dump/restore that silently
-        # dropped or corrupted rows (a pg_dump version mismatch, a partial
-        # write, truncation) would have sailed through as green as long as
-        # Postgres itself still started and the API process came back up.
-        # This now seeds one identifiable, encrypted record through the
-        # real API before backup, and fetches it back through the real API
-        # (proving the full dump → restore → AES-256-GCM decrypt chain,
-        # not just the SQL layer) after restore, asserting the exact value
-        # survives byte-for-byte. A fresh parent login after restore is the
-        # same proof for credentials/encryption key material, not just
-        # session data — a restored DB with unreadable encryption_config
-        # would fail right there rather than only surfacing much later.
+        # able to boot and answer /health afterward — it never confirmed
+        # any actual DATA survived. Worse, `make db-restore` was being run
+        # on top of a database that STILL HAD ALL ITS ORIGINAL DATA (never
+        # wiped first): pg_dump's plain-SQL restore replays `COPY ... FROM
+        # stdin` per table inside one implicit transaction, so the first
+        # row that collides with an existing primary key rolls back that
+        # WHOLE table's restore — and psql's default (non-ON_ERROR_STOP)
+        # behavior just prints the error and moves on rather than failing
+        # the script. So the previous version of this step was silently
+        # exercising almost nothing: restoring onto live, already-populated
+        # tables mostly no-ops, then "the API is healthy afterward" was
+        # trivially true because the data was never actually touched.
+        #
+        # This now tests the real disaster-recovery scenario a family
+        # would actually hit — data is GONE, restore it from a backup —
+        # by wiping the schema before restoring, then diffing a fresh dump
+        # taken immediately after restore against the original backup file.
+        # No API/auth/license dependency at all (sidesteps this workflow's
+        # own known CI_TEST_LICENSE_KEY staleness gap — see docs/
+        # SECURITY.md's Known open gaps — entirely, rather than inheriting
+        # it), and it's a stronger check than probing one field through the
+        # API: pg_dump serializes the raw encrypted BYTEA column bytes
+        # directly, so a byte-identical diff proves the WHOLE database —
+        # every table, including encryption_config's wrapped DATA_KEY —
+        # survives the round trip intact, not just one hand-picked record.
         run: |
           set -e
-          PARENT_PASSWORD=$(grep '^PARENT_PASSWORD=' .env | cut -d= -f2-)
-          BACKUP_TEST_MARKER="backup-fidelity-check-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-
-          login() {
-            curl -sk -X POST https://localhost/api/auth/login \
-              -H "Content-Type: application/json" \
-              -d "{\"role\":\"parent\",\"credential\":\"${PARENT_PASSWORD}\"}" \
-              | python3 -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))"
-          }
-
-          echo "--- Seeding a known record before backup ---"
-          TOKEN=$(login)
-          if [ -z "$TOKEN" ]; then
-            echo "Could not log in as parent to seed the pre-backup record"
-            exit 1
-          fi
-          save_code=$(curl -sk -o /dev/null -w '%{http_code}' -X POST https://localhost/api/pod/configs \
-            -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-            -d "{\"configs\":[{\"student_name\":\"CIBackupFidelityCheck\",\"grade\":\"4\",\"grade_stage\":\"3-5\",\"lesson_focus\":\"${BACKUP_TEST_MARKER}\"}]}")
-          if [ "$save_code" != "204" ]; then
-            echo "Expected 204 saving the seed pod config, got ${save_code}"
-            exit 1
-          fi
-          seeded=$(curl -sk https://localhost/api/pod/configs/CIBackupFidelityCheck -H "Authorization: Bearer ${TOKEN}")
-          if ! echo "$seeded" | grep -q "$BACKUP_TEST_MARKER"; then
-            echo "Seed record didn't actually save before backup — nothing meaningful to verify after restore:"
-            echo "$seeded"
-            exit 1
-          fi
-
-          echo "--- Backing up and restoring ---"
           make db-backup
           ls backups/*.sql
           BACKUP_FILE=$(ls -t backups/*.sql | head -1)
+
+          echo "--- Wiping the schema to simulate real data loss ---"
+          docker compose exec -T db psql -U sage -d bede -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+          echo "--- Restoring from the backup taken before the wipe ---"
           make db-restore FILE="$BACKUP_FILE"
+
+          echo "--- Diffing a fresh post-restore dump against the original backup ---"
+          docker compose exec -T db pg_dump -U sage bede > post-restore.sql
+          # pg_dump's own header comments carry a real dump timestamp, so
+          # they legitimately differ between the two dumps even on a
+          # perfect restore — strip those lines before comparing, they
+          # carry no actual data.
+          if ! diff \
+              <(grep -Ev '^-- (Dumped from|Started on|Completed on)' "$BACKUP_FILE") \
+              <(grep -Ev '^-- (Dumped from|Started on|Completed on)' post-restore.sql) \
+              > dump-diff.txt; then
+            echo "Restored data differs from the original backup — the restore did NOT preserve data intact:"
+            cat dump-diff.txt
+            exit 1
+          fi
+          echo "Backup/restore verified: a full wipe-and-restore round trip is byte-identical to the original backup." >> "$GITHUB_STEP_SUMMARY"
+
+          echo "--- Confirming the API boots cleanly against the restored (previously wiped) database ---"
           # restart so the API re-reads a freshly-restored DB cleanly
           docker compose restart api
-          healthy=false
           for i in $(seq 1 30); do
-            if curl -skf https://localhost/api/health >/dev/null 2>&1; then
-              healthy=true
-              break
-            fi
+            curl -skf https://localhost/api/health >/dev/null 2>&1 && exit 0
             sleep 2
           done
-          if [ "$healthy" != "true" ]; then
-            echo "API did not come back healthy after a db-restore"
-            exit 1
-          fi
-
-          echo "--- Verifying the seeded record survived intact ---"
-          RESTORED_TOKEN=$(login)
-          if [ -z "$RESTORED_TOKEN" ]; then
-            echo "Could not log in as parent after restore — credentials/encryption did not survive the round trip"
-            exit 1
-          fi
-          restored=$(curl -sk https://localhost/api/pod/configs/CIBackupFidelityCheck -H "Authorization: Bearer ${RESTORED_TOKEN}")
-          if ! echo "$restored" | grep -q "$BACKUP_TEST_MARKER"; then
-            echo "Data seeded before backup did NOT survive the restore round trip intact:"
-            echo "$restored"
-            exit 1
-          fi
-          echo "Backup/restore verified: the seeded record's exact value survived the full encrypted round trip." >> "$GITHUB_STEP_SUMMARY"
+          echo "API did not come back healthy after a db-restore"
+          exit 1
 
       - name: Dump logs on failure
         if: failure()

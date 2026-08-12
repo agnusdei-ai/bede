@@ -33,6 +33,7 @@ trouble and (where configured) email `PARENT_EMAIL`:
 | Repeated failed logins, JWT fingerprint mismatches, access-denied hits, or a blocked exfiltration attempt from one address | `core/audit.py`'s anomaly watch, `AuditEvent.ANOMALY_ALERT` — see `docs/SECURITY.md`'s E009 entry for exact thresholds | Yes, if `PARENT_EMAIL` is set (`send_security_alert`) |
 | Rate limiting kicking in | `RateLimitMiddleware`, `AuditEvent.RATE_LIMITED` | No — audit log only |
 | A blocked endpoint or response containing key material | `ExfiltrationGuard`, `AuditEvent.SUSPICIOUS_REQUEST` | Yes — this alone crosses the anomaly threshold on its own |
+| Bede's AI backend itself failing or stalling repeatedly *(reliability, not a security signal — see below)* | `core/audit.py`'s anomaly watch, `AuditEvent.AI_BACKEND_FAILURE` — pooled across every device, not per-address | Yes, if `PARENT_EMAIL` is set (`send_backend_failure_alert`) |
 
 **Reading the full audit log today is API-only** — there's no dedicated
 page in the parent UI yet (a real gap, tracked here rather than silently
@@ -47,6 +48,17 @@ Every entry is decrypted server-side and returned as plain JSON (`ts`,
 `event`, `ip`, `ua`, `success`, `role`, `student`, `detail`) — see
 `core/audit.py`'s `read_audit_log` for exactly which fields are ever
 exposed this way (never raw key material).
+
+**If you get a "Bede is having trouble responding" email:** this is the
+one row in the table above that isn't about security — nobody's
+attacking your instance, its AI backend (a local model server, or a
+cloud provider) is failing or timing out. If you're running a local/
+self-hosted model, check that its server process is still running and
+reachable. If you're on a cloud provider (Anthropic/OpenAI/Mistral),
+check that its API key is still valid and that the provider isn't
+reporting an outage of its own. The **Agentic Loop Insights** and **AI
+Provider** cards (parent login → Setup) show which provider is
+currently primary and whether it's actually usable.
 
 ## Severity
 

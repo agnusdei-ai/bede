@@ -19,10 +19,27 @@ import pytest
 from starlette.requests import Request
 
 import core.sse_utils as sse_utils
+import routers.tutor as tutor_module
+from core.audit import AuditEvent
 from models.schemas import GradeStage, SessionConfig, Subject, TutorRequest
 from routers.tutor import chat
 
 pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture
+def audit_events(monkeypatch):
+    """Captures every routers.tutor.log_event_nowait(...) call — this
+    file's resilience tests already prove /chat's SSE stream stays clean,
+    this fixture additionally proves the AI_BACKEND_FAILURE reliability
+    signal (see core/audit.py) actually fires alongside it, not just the
+    child-facing message."""
+    calls = []
+    monkeypatch.setattr(
+        tutor_module, "log_event_nowait",
+        lambda event, **kwargs: calls.append((event, kwargs)),
+    )
+    return calls
 
 
 def _fake_request() -> Request:
@@ -55,7 +72,7 @@ def _low_stall_timeout(monkeypatch):
     monkeypatch.setattr("routers.tutor.STREAM_STALL_TIMEOUT_SECONDS", 0.05)
 
 
-async def test_a_stalled_upstream_stream_still_ends_with_a_recoverable_done(monkeypatch):
+async def test_a_stalled_upstream_stream_still_ends_with_a_recoverable_done(monkeypatch, audit_events):
     async def stalling_stream(*args, **kwargs):
         yield '{"type": "text", "content": "Let\'s think about"}'
         await asyncio.sleep(1.0)  # far past the 0.05s test timeout
@@ -70,8 +87,13 @@ async def test_a_stalled_upstream_stream_still_ends_with_a_recoverable_done(monk
     assert any('"type": "done"' in c for c in chunks)
     assert any("too long" in c for c in chunks)
 
+    failures = [kw for event, kw in audit_events if event == AuditEvent.AI_BACKEND_FAILURE]
+    assert len(failures) == 1
+    assert failures[0]["student_name"] == "Sam"
+    assert "cause=stall" in failures[0]["detail"]
 
-async def test_an_exception_mid_stream_still_ends_with_a_recoverable_done(monkeypatch):
+
+async def test_an_exception_mid_stream_still_ends_with_a_recoverable_done(monkeypatch, audit_events):
     async def erroring_stream(*args, **kwargs):
         yield '{"type": "text", "content": "So the tree"}'
         raise RuntimeError("simulated upstream failure")
@@ -85,8 +107,13 @@ async def test_an_exception_mid_stream_still_ends_with_a_recoverable_done(monkey
     assert any('"type": "done"' in c for c in chunks)
     assert any("went wrong" in c for c in chunks)
 
+    failures = [kw for event, kw in audit_events if event == AuditEvent.AI_BACKEND_FAILURE]
+    assert len(failures) == 1
+    assert "cause=exception" in failures[0]["detail"]
+    assert "RuntimeError" in failures[0]["detail"]
 
-async def test_a_healthy_stream_is_unaffected_by_the_stall_guard(monkeypatch):
+
+async def test_a_healthy_stream_is_unaffected_by_the_stall_guard(monkeypatch, audit_events):
     async def healthy_stream(*args, **kwargs):
         yield '{"type": "text", "content": "Cells."}'
         yield '{"type": "done"}'
@@ -97,3 +124,4 @@ async def test_a_healthy_stream_is_unaffected_by_the_stall_guard(monkeypatch):
     chunks = await _collect(response)
 
     assert chunks == ['{"type": "text", "content": "Cells."}', '{"type": "done"}']
+    assert audit_events == [], "a healthy turn must never log a backend-failure event"

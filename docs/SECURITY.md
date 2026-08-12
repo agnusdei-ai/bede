@@ -786,7 +786,29 @@ list as items are closed.
   reaches `/Applications`; Ollama additionally extracts to a private
   staging directory first rather than unpacking an unverified archive over
   a system location.
-
+- **AI backend failure alerting (reliability, not a security control),
+  closed 2026-07-29.** Not an AIUC-1/SOC 2 control — noted here because
+  it extends E009's anomaly-watch infrastructure and a reader tracing
+  that mechanism should know this one rule works differently. Before
+  this, a crashed local model server or a revoked cloud API key just
+  looked like Bede being broken, with no signal reaching the parent —
+  `routers/tutor.py`/`routers/sandbox.py`'s existing stall-timeout/
+  guaranteed-`done` resilience already kept the child's UI from hanging,
+  but nothing told anyone the backend itself was unhealthy. A new
+  `AuditEvent.AI_BACKEND_FAILURE`, logged from all three streaming call
+  sites on a stall or any exception, feeds a new E009 rule — but
+  deliberately the only one in `_GLOBAL_ANOMALY_EVENTS`, pooled across
+  every IP instead of per-IP like every security rule here, since a
+  broken backend affects the whole household identically rather than
+  being one actor's pattern. 3 failures in 10 minutes emails
+  `PARENT_EMAIL` via a dedicated template (`send_backend_failure_alert`)
+  distinct from the security-alert one — "unusual activity"/"from
+  address" framing would be actively misleading for a reliability
+  problem with no culprit address. See `CLAUDE.md`'s "AI backend failure
+  alerting" section for the full mapping. Covered by
+  `tests/test_audit_anomaly.py`, `tests/test_email_service.py`,
+  `tests/test_tutor_stream_resilience.py`, and
+  `tests/test_sandbox_stream_resilience.py`.
 - **Parent account lockout + recovery, ending a stolen-credential
   takeover, closed 2026-07-23.** Follows directly from the pre-production
   hardening pass below: that pass closed the "weak password accepted"

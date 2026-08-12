@@ -270,6 +270,43 @@ was. Hold-to-talk (the default for every family, and for every demo
 visitor) was unaffected throughout, and deliberately still does not
 endpoint itself.
 
+### "Unknown or expired session" on an open events stream, even on a single-instance deployment
+
+A second, DIFFERENT way to reach the exact same symptom as the
+cross-instance case above — same client-visible error, same
+`voice stream event error: unknown or expired session` debug line — but
+confirmed on a deployment with `X-Bede-Instance` reporting the SAME value
+across the whole trace, which rules out cross-instance routing outright.
+
+Real trace: the child released the mic, the final chunk uploaded (`200`),
+`/finish` succeeded (`200`) — and several seconds later, the events stream
+that had been open since before any of that finally resolved with
+`{"type": "error", "message": "unknown or expired session"}` instead of the
+`final`/`done` pair the successful `/finish` should have produced. On a
+real mobile connection with visibly poor round-trip latency (a slow,
+multi-second `GET .../events` is itself a symptom of this, not a cause).
+
+The cause: `services/streaming_transcription.py`'s `events()` only checks
+`_sessions.get(session_id)` ONCE, at the very top of the generator, then
+consumes `session.queue` in a loop until a `"done"` item arrives, at which
+point its `finally` block calls `_discard()` and removes the session
+entirely. Nothing previously stopped a SECOND, concurrent `events()`
+attach for the exact same `session_id` — most plausibly a network- or
+proxy-level retry of the GET request under poor connectivity, not a
+client-code bug (the client's own JS only ever issues one events() request
+per turn). With two consumers racing the same `asyncio.Queue`, whichever
+one happened to receive the terminal `"done"` item tore the session down
+via `_discard()`, silently pulling it out from under the OTHER, still-open,
+still-legitimate reader — which is what a family/visitor actually saw.
+
+**Fixed**: `_Session.active_reader` tracks whether a reader is already
+attached. A second, concurrent `events()` call for the same session now
+returns immediately without touching the queue or calling `_discard`,
+leaving the first (real) reader entirely undisturbed — it keeps consuming
+the queue on its own and remains the one that eventually tears the session
+down normally. See `tests/test_streaming_transcription.py`'s "Concurrent
+readers" section.
+
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 
 Reported live on the public demo shortly after the server-side-streaming

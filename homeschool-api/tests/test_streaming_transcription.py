@@ -266,6 +266,65 @@ async def test_events_reports_unknown_for_a_different_owner():
     assert session_id in st._sessions
 
 
+# ── Concurrent readers ────────────────────────────────────────────────────
+# Reported live from the demo on a real, poor mobile connection: a client
+# that had already sent its final chunk and a successful /finish still saw
+# its own, still-open events() stream come back "unknown or expired session"
+# moments later — on a deployment confirmed pinned to a single instance, so
+# cross-instance session loss is ruled out. The only other way _discard()
+# can run out from under a session still mid-turn is a second, concurrent
+# events() attach for the same id racing the first on the same queue.
+
+@pytest.mark.asyncio
+async def test_a_second_concurrent_reader_does_not_steal_or_discard_the_first(monkeypatch):
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "hello", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    session_id = st.start_session(language="en")
+    st.push_chunk(session_id, b"audio")
+
+    first = st.events(session_id)
+    # Attach the first reader and let it actually consume the partial —
+    # this is what sets active_reader=True.
+    first_item = await asyncio.wait_for(first.__anext__(), timeout=2)
+    assert first_item == {"type": "partial", "text": "hello"}
+
+    # A second, concurrent attach for the SAME session — must end quietly,
+    # never touching the queue or discarding the session out from under the
+    # first reader.
+    second_items = [item async for item in st.events(session_id)]
+    assert second_items == []
+    assert session_id in st._sessions, "the second attach must not discard the session"
+
+    # The FIRST reader is still the one driving this session to completion —
+    # finishing it now must still deliver normally through the original
+    # connection.
+    st.finish_session(session_id)
+    remaining = [item async for item in first]
+    assert [e["type"] for e in remaining] == ["final", "done"]
+    assert session_id not in st._sessions
+
+
+@pytest.mark.asyncio
+async def test_a_second_reader_after_the_first_finishes_gets_unknown_session():
+    """Once the real reader has driven the session to completion (and
+    _discard has run), a LATER duplicate attach is indistinguishable from any
+    other truly-gone session — the existing, unchanged behavior."""
+    session_id = st.start_session(language="en")
+    st.finish_session(session_id)
+    # No early break — the generator must run to its own natural
+    # StopAsyncIteration so its finally block (and _discard) fires
+    # synchronously here rather than at some later, non-deterministic GC.
+    async for _ in st.events(session_id):
+        pass
+
+    assert session_id not in st._sessions
+    late_items = [item async for item in st.events(session_id)]
+    assert late_items == [{"type": "error", "message": "unknown or expired session"}]
+
+
 @pytest.mark.asyncio
 async def test_default_empty_owner_preserves_prior_no_owner_behavior():
     """Every call in this file above this section never passes owner= at

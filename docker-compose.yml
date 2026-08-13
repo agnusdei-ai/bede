@@ -210,6 +210,31 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true
+    # mem_limit (legacy top-level key, NOT deploy.resources.limits — the
+    # latter is only reliably honored by `docker compose up` on some
+    # versions without the --compatibility flag, a config-that-looks-right-
+    # but-is-silently-ignored risk this file avoids elsewhere; mem_limit
+    # works unconditionally, verified against this exact file with
+    # `docker compose config`). Guards the Linux OOM killer's behavior on a
+    # memory-constrained host (a Raspberry Pi, most concretely) — without
+    # an explicit limit, the kernel picks WHICH process to SIGKILL under
+    # memory pressure, and that process could just as easily be `db`
+    # (data-loss-adjacent) or sshd as it could be this container. A limit
+    # confines the blast radius to "this container restarts" (restart:
+    # unless-stopped below already handles that) rather than "the kernel
+    # guesses." 1024m default: this is the heaviest service (the full
+    # torch/faster-whisper stack this Dockerfile builds), with real
+    # measured headroom above the ~642MB RSS this repo has already
+    # observed in a similarly-heavy environment (Render's free tier, see
+    # services/transcription.py's own docstring). A 2GB Raspberry Pi
+    # should either raise this via API_MEM_LIMIT or, better, switch to
+    # homeschool-api/requirements-mobile.in's reduced footprint (no torch/
+    # faster-whisper — see docs/MOBILE_HOSTING_DECISIONS.md) rather than
+    # just widening the ceiling. See docs/PRODUCTION_SETUP.md's Raspberry
+    # Pi section for the full per-service memory budget and the separate,
+    # Pi-specific cgroup-memory-accounting gotcha this limit depends on
+    # actually being enforced.
+    mem_limit: ${API_MEM_LIMIT:-1024m}
     read_only: true                    # stateless container — all state in Postgres
     tmpfs:
       - /tmp:size=64m,mode=1777       # audio processing temp files only
@@ -287,6 +312,13 @@ services:
       - LICENSE_KEY=${LICENSE_KEY:?LICENSE_KEY is required}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true
+    # See `api`'s own mem_limit comment above for why this key (not
+    # deploy.resources.limits) and why it matters on a memory-constrained
+    # host. Lighter than api's: this process never loads a model
+    # (v1's capability registry is empty, so resolve_local_only() has no
+    # real caller yet) — 256m gives real headroom above an ordinary
+    # Python/asyncio/FastAPI baseline.
+    mem_limit: ${LOCUTO_IPC_MEM_LIMIT:-256m}
     read_only: true
     # A bind-mount, not a tmpfs — deliberately. tmpfs (what `api`'s own
     # /tmp uses) is container-internal-only memory, invisible from the
@@ -345,6 +377,12 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. This is the service the OOM
+    # killer would be worst to pick without a limit — it holds the only
+    # writable copy of every family's data, and an unclean kill mid-write
+    # is exactly the class of SD-card/database corruption
+    # docs/PRODUCTION_SETUP.md's Raspberry Pi section warns about.
+    mem_limit: ${DB_MEM_LIMIT:-384m}
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -373,6 +411,9 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. nginx serving a static
+    # build is light; 128m is generous headroom, not a tight fit.
+    mem_limit: ${UI_MEM_LIMIT:-128m}
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -417,6 +458,9 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. A tiny static-file/QR-code
+    # service; 128m is generous headroom.
+    mem_limit: ${TRUST_MEM_LIMIT:-128m}
     read_only: true
     tmpfs:
       - /tmp:size=8m,mode=1777
@@ -442,6 +486,10 @@ services:
       - ui
       - trust
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. Caddy's Go runtime plus
+    # cert/ACME handling; 256m is comfortable headroom for a LAN deployment
+    # (no high connection volume to size for).
+    mem_limit: ${CADDY_MEM_LIMIT:-256m}
     security_opt:
       - no-new-privileges:true
 

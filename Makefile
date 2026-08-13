@@ -40,6 +40,32 @@ status:          ## Show container health and last 20 API log lines
 	@echo "=== Recent API logs ==="
 	docker compose logs --tail=20 api
 
+pi-check:        ## Diagnose Raspberry Pi reliability risks (SD card, memory, swap) — see docs/PRODUCTION_SETUP.md's Raspberry Pi section
+	@echo "=== Storage medium ==="
+	@ROOT_DEV=$$(findmnt -n -o SOURCE / 2>/dev/null || echo unknown); \
+	  echo "  Root filesystem device: $$ROOT_DEV"; \
+	  case "$$ROOT_DEV" in \
+	    *mmcblk*) echo "  -> On an SD card. If you're using LOCAL Postgres (COMPOSE_PROFILES=local-db)," \
+	              "this is a real corruption risk under power loss — see docs/PRODUCTION_SETUP.md's" \
+	              "\"Running on a Raspberry Pi\" section. A USB SSD is the recommended fix." ;; \
+	    *sd*|*nvme*) echo "  -> Not an SD card (looks like USB/SSD/NVMe) — the higher-risk SD-card" \
+	              "write-endurance concern in docs/PRODUCTION_SETUP.md does not apply here." ;; \
+	    *) echo "  -> Could not determine automatically; check by hand if you're unsure." ;; \
+	  esac
+	@echo ""
+	@echo "=== cgroup memory accounting (needed for docker-compose.yml's mem_limit to actually be enforced) ==="
+	@docker info 2>&1 | grep -qi "no memory limit support" && \
+	  echo "  MISSING — mem_limit in docker-compose.yml is currently NOT enforced." \
+	       "See docs/PRODUCTION_SETUP.md's Raspberry Pi section for the (manual, boot-config) fix." || \
+	  echo "  OK — cgroup memory accounting is enabled."
+	@echo ""
+	@echo "=== Swap ==="
+	@free -h | grep -i swap
+	@echo "  Raspberry Pi OS's default swap (often 100MB) is thin for this stack under memory"
+	@echo "  pressure. See docs/PRODUCTION_SETUP.md's Raspberry Pi section to size it up."
+	@echo ""
+	@echo "This target only reports — it never edits boot configuration or swap size itself."
+
 caddy-trust:     ## Export Caddy's root CA cert — install on each LAN tablet once (CLI route; http://<server-ip>/trust is the no-CLI route)
 	@docker compose exec caddy cat /data/caddy/pki/authorities/local/root.crt > sage-root-ca.crt 2>/dev/null || \
 	  { echo "Caddy is not running yet. Start with 'make start' first."; exit 1; }

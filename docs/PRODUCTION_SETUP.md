@@ -121,6 +121,82 @@ Both are fully supported; `make setup` wires up whichever you pick. See the
 "Storage model" comment at the top of `docker-compose.yml` if you want to
 switch later by hand.
 
+## Running on a Raspberry Pi
+
+`packaging/unix/install.sh` already supports Raspberry Pi (arm64) as a
+target — this section is about running it **reliably**, not just getting it
+installed, and covers two failure modes that are real and well-documented in
+the Pi community, not theoretical.
+
+**Storage medium: boot from a USB SSD, not the SD card, if you're running
+local Postgres.** This is the single highest-leverage decision here. A
+database doing constant WAL fsyncs is close to the worst-case write pattern
+for an SD card — the community consensus is blunt about it ("please, for
+the love of god, do not use Postgres on a SD card, you'll corrupt it"), and
+SD cards fail after roughly 1,000-3,000 full rewrites versus 100-600+ TBW
+for an entry-level USB SSD. The Raspberry Pi 4 and 5 both natively boot from
+USB, and it's a one-time setup cost, not an ongoing one. If you must stay on
+SD card (cost, simplicity), at minimum use a genuine high-endurance card
+(not a standard consumer one) and pair it with a real power supply — a
+brownout mid-write is the other half of this failure mode, and the
+[official Raspberry Pi USB-C supply](https://www.raspberrypi.com/products/type-c-power-supply/)
+or an equivalent-rated one matters more than it sounds like it should.
+Choosing **managed Postgres** instead of local (see "Choosing a database"
+above) sidesteps this specific risk entirely, at the cost of your data
+leaving the Pi for the provider's cloud.
+
+**Memory: every service in `docker-compose.yml` now carries an explicit
+`mem_limit`**, overridable per service (`API_MEM_LIMIT`, `DB_MEM_LIMIT`,
+`LOCUTO_IPC_MEM_LIMIT`, `UI_MEM_LIMIT`, `TRUST_MEM_LIMIT`,
+`CADDY_MEM_LIMIT` — defaults `1024m`/`384m`/`256m`/`128m`/`128m`/`256m`,
+roughly 2.2GB combined worst case with every service running). This exists
+because of how the Linux kernel behaves under memory pressure, not as
+general-purpose tuning: without an explicit limit, the OOM killer picks
+*any* process to SIGKILL when memory runs out — on a Pi that could just as
+easily be `db` (mid-write, the exact corruption risk above) as it could be
+`api`. A limit confines an out-of-memory event to "this one container
+restarts" (`restart: unless-stopped` already handles that), which is a
+predictable, recoverable failure instead of an arbitrary one.
+
+Two things to check on the Pi itself, not just in this repo, before that
+limit actually does anything:
+
+1. **cgroup memory accounting must be enabled in the kernel.** Some
+   Raspberry Pi OS configurations ship with it off, which shows up as
+   `docker info` printing `WARNING: No memory limit support` — when that's
+   the case, `mem_limit` above is silently unenforced (the exact "looks
+   configured but isn't" failure this repo tries hard to avoid elsewhere).
+   Check with `docker info 2>&1 | grep -i "memory limit"`. If it warns, add
+   `cgroup_memory=1 cgroup_enable=memory` to the kernel command line —
+   `/boot/firmware/cmdline.txt` on current Raspberry Pi OS, `/boot/cmdline.txt`
+   on older releases — and reboot. **Back up that file before editing it**;
+   a malformed `cmdline.txt` can prevent the Pi from booting at all, which
+   is a worse outcome than the OOM killer this is meant to guard against.
+   This repo's installer does not edit this file automatically, on purpose
+   — it's boot-critical configuration on hardware the installer cannot
+   verify recovers cleanly if the edit is wrong.
+2. **Give the OOM killer some room before it needs to act at all**, via
+   swap. Raspberry Pi OS ships with `dphys-swapfile` and a small (often
+   100MB) default swap, which is thin for this stack. Check current swap
+   with `free -h`; increase it by editing `/etc/dphys-swapfile`'s
+   `CONF_SWAPSIZE` (1-2GB is reasonable for a 2-4GB Pi) and running
+   `sudo systemctl restart dphys-swapfile`. Swap on an SD card carries the
+   same write-wear consideration as the database above — another reason a
+   USB SSD is the more durable choice if local Postgres is in the picture.
+
+**A 4GB (or larger) Pi is the realistic baseline for the full stack** —
+`api`'s default 1024m limit reflects real measured usage (this codebase has
+already observed ~642MB RSS for a similarly-heavy environment, see
+`services/transcription.py`'s own docstring on why cloud transcription
+exists partly for this reason). A 2GB Pi is tight for local Postgres plus
+every other service; consider managed Postgres instead of local, and see
+`homeschool-api/requirements-mobile.in` (full write-up in
+`docs/MOBILE_HOSTING_DECISIONS.md`) for a reduced-dependency profile (drops
+`torch`/`resemblyzer`/`faster-whisper` in favor of cloud STT/TTS and the
+built-in MFCC voice-auth fallback) if you need the footprint smaller still
+— that profile is proposed, not yet wired into this Docker image, but the
+numbers behind it are real and verified against the actual test suite.
+
 ## Day-to-day commands
 
 ```bash

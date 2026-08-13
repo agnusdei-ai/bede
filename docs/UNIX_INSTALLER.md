@@ -12,6 +12,12 @@ shell/curl ecosystem, so the only real differences between them are which
 official installer or package manager to reach for at each step — see "Why
 a single script, not native per-distro packages" below.
 
+**Running specifically on a Raspberry Pi?** This script gets Docker and the
+stack installed the same way on any Linux target — see
+`docs/PRODUCTION_SETUP.md`'s "Running on a Raspberry Pi" section afterward
+for the reliability-specific follow-up (storage medium, memory limits, the
+Linux OOM killer) that installation alone doesn't cover.
+
 ## What it actually does
 
 Same shape as the Windows installer: get from "nothing installed" to the

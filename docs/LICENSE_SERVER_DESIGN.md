@@ -176,9 +176,22 @@ Made using one consistent lens — the simplest, lowest-friction customer experi
 
 ## 13. Remaining open questions
 
-1. **Stripe-vs-Square ordering for Phase 3:** which comes second is a business call (e.g., wanting Stripe's maturity as the first fallback given it's the easiest to integrate, versus an existing Square POS/banking relationship) — doesn't block Phase 1 or 2 either way, so it can be answered whenever, not before implementation starts.
-2. **Tier 3 billing primitive:** does its metered billing genuinely need ad-hoc per-event charging (vs. Helcim's subscription/payment-plan-shaped Recurring API, which is a different primitive) — needs its own small spike, not an assumption.
-3. **Tier 3 "no updates":** confirm this means no new/premium features (requiring the feature-gating work in §14.1) rather than something else.
+**These are tracked in [`DECISIONS.md`](DECISIONS.md), not here.** They were
+listed inline in this section until 2026-08-13, with no status, no owner and
+nothing checking them. They now have entries in the register, which carries the
+status and what each one blocks:
+
+- **Entry 4** — payment-processor ordering after Helcim (Stripe or Square).
+  Deferred until Phase 3, since it blocks neither Phase 1 nor Phase 2.
+- **Entry 3** — Tier 3's billing primitive. Helcim's Recurring API is
+  subscription-shaped and verified. Arbitrary per-event charging is a different
+  capability and is not. Needs its own spike.
+- **Entry 5** — what Tier 3's "no new/premium features" actually excludes,
+  which §14.1's feature-gating work cannot start without.
+
+The reasoning for each stays in this document, in §14 and §14.1. The register
+carries whether it is decided. Where the two would say the same thing twice,
+this document is the argument and the register is the state.
 
 ## 14. Pricing & service tiers (replaces the old `trial`/`core`/`coop` split)
 

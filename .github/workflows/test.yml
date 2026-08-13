@@ -64,8 +64,12 @@ jobs:
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # docs/DECISIONS.md is named explicitly: tests/test_decision_register.py
+          # guards its structure, and without this line a register-only change
+          # computes relevant=false, skips api-tests, and never runs that guard
+          # on the one kind of change it exists for.
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|\.github/workflows/test\.yml)'; then
+               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|docs/DECISIONS\.md|\.github/workflows/test\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

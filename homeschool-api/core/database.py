@@ -7,6 +7,18 @@ AES-256-GCM encrypted by core/encryption.py before it reaches the driver.
 Startup sequence (main.py lifespan):
   1. create_tables()          — idempotent CREATE TABLE IF NOT EXISTS
   2. initialize_encryption()  — reads/writes encryption_config rows
+
+DATABASE_URL is not hard-coded to PostgreSQL: every table already carries
+`.with_variant(Integer(), "sqlite")` on its autoincrement primary key
+specifically so the real test suite can run this exact schema against
+`sqlite+aiosqlite://` (18 test files do, via Base.metadata.create_all()),
+and _build_engine() below needs no dialect branching — SQLAlchemy's async
+SQLite pool accepts the same pool_size/max_overflow kwargs the Postgres
+path does. This is proposed-but-undecided infrastructure for a
+resource-constrained single-device host (see
+docs/MOBILE_HOSTING_DECISIONS.md), not a supported production target —
+PostgreSQL remains the only officially documented choice
+(docs/PRODUCTION_SETUP.md).
 """
 
 from datetime import datetime, timezone

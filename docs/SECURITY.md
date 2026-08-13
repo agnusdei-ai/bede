@@ -147,80 +147,62 @@ list as items are closed.
 
 - **GitHub Actions were pinned to mutable version tags (`@v4`), not commit
   SHAs — closed 2026-08-12.** A compromised upstream Action could push a
-  same-tag update that CI would trust automatically the next time any
-  workflow ran, with nothing in this repository able to tell the
-  difference between that update and the one a maintainer actually
-  reviewed. `dependabot.yml`'s `github-actions` entry does not mitigate
-  this on its own — it runs with `open-pull-requests-limit: 0`, which
-  deliberately suppresses routine version-bump PRs and leaves only
-  security-advisory PRs, so a mutable tag can still move silently between
-  those.
+  same-tag update that CI would trust automatically next run, with nothing
+  in this repository able to tell that update apart from one a maintainer
+  actually reviewed. `dependabot.yml`'s `github-actions` entry doesn't
+  cover this — `open-pull-requests-limit: 0` suppresses routine
+  version-bump PRs, leaving only security-advisory PRs, so a mutable tag
+  can still move silently between those.
 
-  Every `uses:` line across all nine workflow files under
-  `.github/workflows/` now pins the exact commit SHA the referenced tag
-  resolved to at the time of this change, with the original tag kept as a
-  trailing comment for readability (`uses: actions/checkout@<sha> # v4`),
-  the standard pattern for this class of hardening. Resolved directly
-  against each action's own repository (`git ls-remote --tags`, peeling
-  annotated tags to their underlying commit where the tag itself was
-  annotated rather than lightweight — `azure/login`, `azure/artifact-signing-action`,
-  and `anthropics/claude-code-action` all needed that peel; the `actions/*`
-  and `Minionguyjpro/Inno-Setup-Action` tags were already lightweight).
-  Bumping to a newer release now means re-resolving and replacing both the
-  SHA and its comment, not editing a version number — a deliberate,
-  visible change rather than something that moves on its own.
+  Every `uses:` line across all nine workflow files now pins the exact
+  commit SHA the tag resolved to, with the tag kept as a trailing comment
+  (`uses: actions/checkout@<sha> # v4`) — the standard pattern for this
+  hardening. Resolved via `git ls-remote --tags` against each action's own
+  repo, peeling annotated tags to their underlying commit where needed
+  (`azure/login`, `azure/artifact-signing-action`,
+  `anthropics/claude-code-action`). Bumping to a newer release now means
+  re-resolving and replacing both the SHA and its comment, not editing a
+  version number.
 
 - **Backend `requirements.txt` was floor-pinned (`>=`, no upper bound),
   with no lockfile — closed 2026-08-12.** Unlike the frontend's
   exact-pinned `package-lock.json`, a fresh `pip install` at two different
   points in time could resolve different transitive versions, and
-  `test.yml`'s existing `pip-audit` step could only catch a
-  *known-vulnerable* version whenever one happened to be resolved — it
-  never made installs reproducible in the first place.
+  `test.yml`'s `pip-audit` step could only catch a *known-vulnerable*
+  version whenever one happened to be resolved — installs were never
+  reproducible.
 
   `homeschool-api/requirements.txt`/`requirements-dev.txt` are renamed to
-  `requirements.in`/`requirements-dev.in` — pip-tools' own convention,
-  and the smallest-diff way to keep them as the human-edited, floor-pinned
-  *source of intent* they already were (`requirements-dev.in`'s `-r
-  requirements.in` line is the only content change either file needed).
-  `requirements.lock.txt`/`requirements-dev.lock.txt` are new,
+  `requirements.in`/`requirements-dev.in` (pip-tools' own convention),
+  kept as the human-edited, floor-pinned *source of intent* they already
+  were. `requirements.lock.txt`/`requirements-dev.lock.txt` are new,
   fully-pinned, hash-verified lockfiles generated via `pip-compile
-  --generate-hashes --allow-unsafe` (Python 3.12, matching CI's own
-  interpreter — `--allow-unsafe` is what also pins `setuptools`, which
-  `ctranslate2`/`torch` need at an exact version once hashes are in play).
+  --generate-hashes --allow-unsafe` (Python 3.12, matching CI —
+  `--allow-unsafe` is what also pins `setuptools`, which
+  `ctranslate2`/`torch` need exactly once hashes are in play).
   `test.yml`'s `api-tests`/`demo-concurrency-test` jobs and
   `adversarial-probe.yml` now install from the lockfile
-  (`pip install --require-hashes -r requirements-dev.lock.txt`) instead of
-  the loose `.in` file, so what CI actually tests is byte-for-byte what a
-  fresh install produces — not whatever the resolver happens to pick that
-  day. The `pip-audit` step audits the lockfile too, for the same reason:
-  the floor-pinned range was never what was actually installed.
+  (`pip install --require-hashes -r requirements-dev.lock.txt`), so CI
+  tests byte-for-byte what a fresh install produces, not whatever the
+  resolver picks that day. `pip-audit` now audits the lockfile too, for
+  the same reason.
 
-  A new `lockfile-freshness` job (`test.yml`) and its underlying script
+  A new `lockfile-freshness` job (`test.yml`) and script
   (`homeschool-api/scripts/check_lockfile_freshness.sh`) regenerate both
-  lockfiles into a temp directory with the same `pip-compile` invocation
-  and diff the result against what's committed, failing the build if
-  they've drifted — the guard against this becoming exactly the kind of
-  config that "looks maintained but silently isn't" that CLAUDE.md's own
-  "Thirty settings never reached the container" incident describes
-  happening to this codebase before, just for a different file. Run
-  locally with `--fix` to regenerate both lockfiles in place after editing
-  either `.in` file.
+  lockfiles into a temp directory and diff against what's committed,
+  failing the build on drift — the guard against this becoming another
+  "looks maintained but silently isn't" config, per CLAUDE.md's "Thirty
+  settings never reached the container" incident. Run locally with
+  `--fix` to regenerate both after editing either `.in` file.
 
-  `homeschool-api/Dockerfile` keeps installing from `requirements.in`
-  (renamed reference only, behavior unchanged) rather than the lockfile:
-  its own CPU-only-`torch` install (a separate, deliberately-unpinned-here
-  supply-chain surface documented in that file's own comments) relies on
-  resemblyzer's transitive `torch` dependency being satisfied by whatever
-  was already installed a step earlier, not matched against an exact
-  hash — switching the image build to the lockfile is a reasonable
-  follow-up but wasn't verifiable from the authoring sandbox, whose
-  egress proxy blocks `download.pytorch.org` (the same limitation that
-  file's own comment already notes for confirming the CPU-index pin).
-  Verified end to end: the lockfile was generated for real (not
-  hand-written), and `pip install --require-hashes -r
-  requirements-dev.lock.txt` was run against a clean virtualenv and
-  completed successfully before this was considered done.
+  `homeschool-api/Dockerfile` still installs from `requirements.in`
+  (rename only, behavior unchanged): its CPU-only-`torch` install relies
+  on resemblyzer's transitive `torch` dependency rather than an exact
+  hash, and switching it to the lockfile wasn't verifiable here — the
+  sandbox's egress proxy blocks `download.pytorch.org`. Verified end to
+  end otherwise: the lockfile was generated for real, and `pip install
+  --require-hashes -r requirements-dev.lock.txt` succeeded against a
+  clean virtualenv before this was considered done.
 
 - **Public demo had no hard per-visitor cost ceiling — OWASP LLM10
   "Unbounded Consumption" — closed 2026-08-12.** `core/demo_code_session.py`'s

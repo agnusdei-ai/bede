@@ -771,72 +771,56 @@ an address the parent named is a far smaller change to the deployment's
 threat model than launching local commands.
 
 **Locuto local-IPC listener (`services/locuto_ipc/`) — Bede's half of the
-proposed on-device connector to `agnusdei-ai/locuto`:** implements against
+proposed on-device connector to `agnusdei-ai/locuto`:** implements
 `agnusdei-ai/locuto`'s `docs/bede-ipc-spec.md` (merged there in PR #47), the
-single canonical source for the wire protocol — nothing in this repo
-duplicates that document's content; this section describes Bede's
-implementation of it, not the spec itself. v1 scope is transport, framing,
-handshake, and dispatch only, with a deliberately **empty capability
-registry** (`capabilities.py`'s `CAPABILITIES: dict = {}`) — no capability has
-an exact CBOR body schema specified in either repo yet, and the spec's own §4
-("a new capability is a new named message body ... never a widening of an
-existing one") means registering one here would mean inventing a schema
-unilaterally. What ships is a provable, tested protocol skeleton with zero
-actual agent behavior.
+single canonical source for the wire protocol — nothing here duplicates it,
+only implements it. v1 scope is transport, framing, handshake, and dispatch
+only, with a deliberately **empty capability registry**
+(`capabilities.py`'s `CAPABILITIES: dict = {}`) — no capability has an exact
+CBOR body schema specified in either repo yet (spec §4: never invent one
+unilaterally). What ships is a tested protocol skeleton with zero actual
+agent behavior.
 
 Runs as its own process (`python -m services.locuto_ipc`), never inside the
-tutor-facing `api` container — a new `locuto-ipc` service in
-`docker-compose.yml`, starting alongside the rest of the stack by default
-(no compose profile gate) — Bede is meant to interoperate with a paired
+tutor-facing `api` container — a `locuto-ipc` service in
+`docker-compose.yml`, starting with the rest of the stack by default (no
+compose profile gate), since Bede is meant to interoperate with a paired
 Locuto installation out of the box. `LOCUTO_IPC_ENABLED` (`core/config.py`)
-defaults **true**, an explicit opt-OUT rather than this codebase's usual
-"empty/off = disabled" opt-in convention (`DEMO_PIN`, `sandbox_pin`,
-`mcp_external_enabled`) — safe by construction even so, since v1's empty
-capability registry means a deployment that never pairs with Locuto just
-completes a handshake and refuses every real capability. A deployer can
-still set `LOCUTO_IPC_ENABLED=false` at install time or later to disable
-the listener outright. This is a restart-based kill-switch, not a live
-no-restart one (see `server.py`'s own docstring for why a DB-backed override
-like `core/provider_state.py`'s is out of scope for v1, and for why a
-disabled `serve()` idles rather than returning — returning would exit the
-process and Docker's `restart: unless-stopped` would loop it forever now
-that the container starts by default). The socket's parent
-directory is bind-mounted (`volumes:`, not `tmpfs`) since a native Locuto
-process on the host needs to reach it — the one place this connector's
-container is deliberately less isolated than `api`'s tmpfs-only scratch
-space, while keeping the same `read_only: true`/`cap_drop: ALL`/
-`no-new-privileges` hardening.
+defaults **true** — an opt-OUT rather than this codebase's usual
+"empty/off = disabled" convention (`DEMO_PIN`, `sandbox_pin`,
+`mcp_external_enabled`) — safe because the empty registry means an
+unpaired deployment just completes a handshake and refuses every real
+capability. A deployer can set `LOCUTO_IPC_ENABLED=false` (install time or
+later, restart required) to disable it; a disabled `serve()` idles rather
+than returning, so it doesn't restart-loop under `restart: unless-stopped`
+now that the container runs by default — see `server.py`'s own docstring.
+The socket's parent directory is bind-mounted (`volumes:`, not `tmpfs`) so
+a native Locuto process on the host can reach it — the one place this
+container is less isolated than `api`'s tmpfs-only scratch space, keeping
+the same `read_only: true`/`cap_drop: ALL`/`no-new-privileges` hardening.
 
 `peer_auth.py` verifies the connecting process's UID at accept time via
-`SO_PEERCRED` (Linux) / `LOCAL_PEERCRED` (macOS) against
-`default_allowed_uids()` (this process's own UID) before a single frame is
-read — closing the connection immediately on any mismatch or on an
-unsupported platform (Windows named-pipe peer auth is an explicit, untested
-v1 exclusion). `framing.py` enforces the spec's 256 KiB body-size bound from
-the 6-byte header alone, before allocating for the body, so an oversized
-declared length can never be used to force allocation ahead of the bound
-meant to prevent exactly that. `protocol.py` holds the closed message-type
-table and the Request/Response/Hello/HelloAck shapes exactly as the spec
-defines them — described here only insofar as this module implements them,
-never restated as spec text.
+`SO_PEERCRED` (Linux) / `LOCAL_PEERCRED` (macOS) before a single frame is
+read, closing on any mismatch or unsupported platform (Windows named-pipe
+auth is an untested v1 exclusion). `framing.py` enforces the spec's 256 KiB
+body-size bound from the 6-byte header alone, before allocating for the
+body. `protocol.py` holds the closed message-type table and the
+Request/Response/Hello/HelloAck shapes as the spec defines them.
 
 `server.py`'s `_dispatch_request()` is the single place a `Request`'s
-capability name is looked up and invoked — the spec's §6 enforcement point,
-and `resolve_local_only()`'s (`services/adapters/router.py`, see that entry
-above and `docs/LOCUTO_CONNECTOR_DECISIONS.md`'s packet 1) first real caller:
-any future capability handler resolving a model client must go through it,
-and `LocalAdapterUnavailableError` translates to the wire's `Unavailable`
-outcome rather than being caught and retried against a different adapter —
-never a fallback to a commercial API for Locuto-touching content, regardless
-of a household's general `BEDE_ADAPTER_ORDER`/live-override configuration.
-`HelloAck`'s `policy_hash` is a SHA-256 of the (currently empty) registered
-capability names, sorted — a partial answer to
-`docs/LOCUTO_CONNECTOR_DECISIONS.md` packet 2, not a resolution of it, since
-it says nothing about signed releases or hash-pinned weights; it only lets
-Locuto detect that the registry itself changed between sessions.
-`__main__.py` is a minimal entrypoint that does NOT run `main.py`'s full
-FastAPI lifespan (no constitution check, no license gating, no voice
-warm-up) — none of that is this listener's concern.
+capability is looked up and invoked — the spec's §6 enforcement point, and
+`resolve_local_only()`'s (`services/adapters/router.py`,
+`docs/LOCUTO_CONNECTOR_DECISIONS.md` packet 1) first real caller: any
+future capability handler must go through it, and
+`LocalAdapterUnavailableError` translates to the wire's `Unavailable`
+outcome rather than being retried against a different adapter — never a
+fallback to a commercial API for Locuto-touching content. `HelloAck`'s
+`policy_hash` is a SHA-256 of the (currently empty) sorted capability
+names — a partial answer to packet 2, letting Locuto detect the registry
+changed between sessions, nothing about signed releases or hash-pinned
+weights. `__main__.py` does NOT run `main.py`'s full FastAPI lifespan
+(no constitution check, license gating, or voice warm-up) — none of that
+is this listener's concern.
 
 ## Security Constraints
 

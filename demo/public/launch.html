@@ -117,7 +117,40 @@
      line of its own and the co-op card reads as broken beside the three
      fixed-price ones. */
   .tier .amount .from { font-size: 0.95rem; font-weight: 400; }
+  /* "Custom pricing" is this tier's price, not a qualifier on one, so it
+     keeps the figure's weight without the 2rem size a numeral needs. */
+  .tier .amount .custom { font-size: 1.3rem; font-weight: 700; }
   .tier p { margin: 0; font-size: 0.98rem; }
+  .tier .alt { margin-top: 4px; color: var(--gold-text); }
+  .tier .includes { margin: 14px 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
+  .tier .includes li { padding: 4px 0 4px 18px; position: relative; }
+  /* Decorative gold mark, not a list bullet — the <ul> already carries the
+     list semantics, so this is hidden from the accessibility tree. */
+  .tier .includes li::before {
+    content: '\2022'; color: var(--gold); position: absolute; left: 2px;
+  }
+
+  /* The per-child table is the figure worth publishing, since per-family
+     pricing is what inverts against every per-student comparable. */
+  .effective-head { text-align: center; margin: 38px 0 0; }
+  .effective {
+    border-collapse: collapse; margin: 16px auto 0; width: 100%; max-width: 460px;
+    font-size: 1rem;
+  }
+  .effective caption {
+    caption-side: bottom; padding-top: 12px; font-size: 0.9rem; color: #4b5563;
+  }
+  .effective th, .effective td {
+    border-bottom: 1px solid var(--rule); padding: 10px 14px; text-align: left;
+  }
+  .effective thead th {
+    font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gold-text); text-indent: 0.12em;
+  }
+  .effective tbody th { font-weight: 400; }
+  .effective td { text-align: right; color: var(--navy); font-weight: 700; }
+  .effective .highlight { background: #f4f7fd; }
+  .effective .highlight th, .effective .highlight td { border-bottom-color: var(--gold); }
   .price-notes { margin-top: 30px; border-left: 3px solid var(--gold); padding: 4px 0 4px 18px; }
   .price-notes p { margin: 0 0 6px; font-size: 1rem; }
   .price-notes p:last-child { margin-bottom: 0; }
@@ -183,9 +216,18 @@
   @media (min-width: 720px) {
     .cards { grid-template-columns: repeat(3, 1fr); }
     .tiers { grid-template-columns: repeat(2, 1fr); }
+    /* Three cards in two columns would strand one alone on the second row.
+       The Family Membership takes the full first row instead. */
+    .tiers .featured { grid-column: 1 / -1; }
   }
   @media (min-width: 1000px) {
-    .tiers { grid-template-columns: repeat(4, 1fr); }
+    .tiers .featured { grid-column: auto; }
+  }
+  @media (min-width: 1000px) {
+    /* Three tiers, and the Family Membership carries the includes list, so it
+       takes the extra column rather than sitting cramped beside two short
+       cards. */
+    .tiers { grid-template-columns: 1.4fr 1fr 1fr; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
@@ -251,27 +293,22 @@
       <hr class="rule" aria-hidden="true">
     </div>
 
-    <p class="price-intro">One membership. Your whole family.</p>
-    <p class="price-sub">No per-child tuition multiplier</p>
+    <p class="price-intro">One price. No per-child fees.</p>
+    <p class="price-sub">Up to six children</p>
 
     <div class="tiers">
-      <article class="tier">
-        <h3>Bede Family</h3>
-        <p class="amount">$129<span class="per">/month</span></p>
-        <p>Independent and self-directed.</p>
-      </article>
-
       <article class="tier featured">
-        <p class="flag">Most Popular</p>
-        <h3>Bede Guided</h3>
+        <p class="flag">Family Membership</p>
+        <h3>Everything, for your household</h3>
         <p class="amount">$199<span class="per">/month</span></p>
-        <p>Live group guidance and implementation support.</p>
-      </article>
-
-      <article class="tier">
-        <h3>Bede Complete</h3>
-        <p class="amount">$299<span class="per">/month</span></p>
-        <p>Priority support and personal family guidance.</p>
+        <p class="alt">or <strong>$2,149/year</strong> &mdash; save $239</p>
+        <ul class="includes">
+          <li>Bede Tutor</li>
+          <li>Locuto messaging</li>
+          <li>Family Portal</li>
+          <li>Parent tools and oversight</li>
+          <li>Verified access</li>
+        </ul>
       </article>
 
       <article class="tier">
@@ -279,10 +316,30 @@
         <p class="amount"><span class="from">from</span> $149<span class="per">/family/month</span></p>
         <p>Ten-family minimum.</p>
       </article>
+
+      <article class="tier">
+        <h3>Network Partnership</h3>
+        <p class="amount"><span class="custom">Custom pricing</span></p>
+        <p>Schools and organizations.</p>
+      </article>
     </div>
 
+    <h3 class="effective-head" id="effective-heading">What that works out to</h3>
+    <table class="effective" aria-labelledby="effective-heading">
+      <caption>Family Membership at $199 per month, divided by household size.</caption>
+      <thead>
+        <tr><th scope="col">Children</th><th scope="col">Per child, per month</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">1</th><td>$199</td></tr>
+        <tr><th scope="row">2</th><td>$99.50</td></tr>
+        <tr class="highlight"><th scope="row">3</th><td>$66.33</td></tr>
+        <tr><th scope="row">4</th><td>$49.75</td></tr>
+        <tr><th scope="row">5 or 6</th><td>Less again</td></tr>
+      </tbody>
+    </table>
+
     <div class="price-notes">
-      <p>A family of three on Guided is about <strong>$66 per child, per month</strong>.</p>
       <p>Bede Classical Core is included with every membership.</p>
       <p>Publisher curriculum editions are available separately.</p>
     </div>
@@ -294,8 +351,9 @@
       <h2 id="guidance-heading">Human guidance</h2>
       <hr class="rule rule-left" aria-hidden="true">
       <p>
-        Guided families receive onboarding help, live family office hours,
-        co-op leader support, and responses within two business days.
+        Every member family receives onboarding help, live family office
+        hours, co-op leader support, and responses within two business days.
+        It is one membership, so there is no support tier to buy up into.
       </p>
     </div>
   </section>
@@ -373,8 +431,9 @@
           Every membership includes all three: <strong>Bede</strong>, the
           Socratic tutor; <strong>Locuto</strong>, secure messaging for your
           family and co-op; and the <strong>Family Portal</strong>, where you
-          plan the year and see how it is going. One membership covers every
-          child in your household.
+          plan the year and see how it is going. Parent tools, oversight, and
+          verified access come with all of it. One membership covers up to six
+          children in your household, at one price.
         </p>
       </div>
     </details>

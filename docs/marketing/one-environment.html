@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agnus Dei — One Environment. Everything in Its Place.</title>
+<style>
+  /* Print source for one-environment.pdf. See docs/marketing/README.md. */
+  @page { size: Letter; margin: 0; }
+  :root {
+    --navy: #1e3a8a;
+    --navy-deep: #0b1636;
+    --gold: #d4a106;
+    --gold-text: #7c5a03;
+    --rule: #dce6f7;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    color: var(--navy-deep);
+    background: #fff;
+  }
+  .page {
+    width: 8.5in; height: 11in; padding: 0.8in 0.8in;
+    display: flex; flex-direction: column;
+  }
+  h1, h2, h3 {
+    font-family: Georgia, 'Times New Roman', serif; color: var(--navy);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 0;
+  }
+  .brand { text-align: center; }
+  .brand h1 { font-size: 30pt; letter-spacing: 0.2em; text-indent: 0.2em; }
+  .rule { width: 70px; height: 2px; background: var(--gold); border: 0; margin: 16px auto; }
+
+  .headline {
+    text-align: center; font-size: 19pt; color: var(--navy); margin: 0 0 6px;
+    font-family: Georgia, serif; letter-spacing: 0.04em;
+  }
+  .sub {
+    text-align: center; font-size: 10pt; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--gold-text); text-indent: 0.2em;
+    margin: 0 0 40px;
+  }
+
+  .values { display: flex; gap: 20px; margin-bottom: 48px; }
+  .value { flex: 1; text-align: center; border-top: 3px solid var(--gold); padding-top: 18px; }
+  .value h3 { font-size: 11pt; letter-spacing: 0.12em; text-indent: 0.12em; }
+  .value p { margin: 5px 0 0; font-size: 9.5pt; color: #4b5563; }
+
+  .pieces { border: 1px solid var(--rule); padding: 28px 28px; margin-bottom: 48px; }
+  .pieces h2 { font-size: 11pt; letter-spacing: 0.14em; text-indent: 0.14em; margin-bottom: 12px; text-align: center; }
+  .piece { display: flex; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--rule); }
+  .piece:last-child { border-bottom: 0; padding-bottom: 0; }
+  .piece .name {
+    flex: 0 0 168px; font-family: Georgia, serif; color: var(--navy);
+    font-weight: 700; font-size: 10.5pt;
+  }
+  .piece .what { flex: 1; font-size: 10.5pt; }
+
+  .claims { margin-bottom: auto; }
+  .claim {
+    text-align: center; font-family: Georgia, serif; color: var(--navy);
+    font-size: 13pt; letter-spacing: 0.05em; padding: 22px 0;
+  }
+  .claim + .claim { border-top: 1px solid var(--rule); }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 24px;
+    text-align: center; font-size: 9pt; color: #4b5563;
+  }
+  footer strong { color: var(--navy); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="brand"><h1>Agnus Dei</h1></div>
+  <hr class="rule">
+
+  <p class="headline">One Environment. Everything in Its Place.</p>
+  <p class="sub">Focus on what matters &middot; We handle the rest</p>
+
+  <div class="values">
+    <div class="value"><h3>Classical</h3><p>Timeless</p></div>
+    <div class="value"><h3>Human</h3><p>Personal</p></div>
+    <div class="value"><h3>Private</h3><p>Trusted</p></div>
+    <div class="value"><h3>Purposeful</h3><p>Enduring</p></div>
+  </div>
+
+  <div class="pieces">
+    <h2>What a membership carries</h2>
+    <div class="piece">
+      <div class="name">Bede Tutor</div>
+      <div class="what">Socratic dialogue, classical formation, personalized to each child.</div>
+    </div>
+    <div class="piece">
+      <div class="name">Locuto Messaging</div>
+      <div class="what">Private communication for families, co-ops, and trusted communities. No public feeds.</div>
+    </div>
+    <div class="piece">
+      <div class="name">Family Portal</div>
+      <div class="what">Plans, progress, resources, and schedules in one place.</div>
+    </div>
+    <div class="piece">
+      <div class="name">Parent Tools &amp; Oversight</div>
+      <div class="what">You set the subjects, the pace, and the limits. Bede reports back to you.</div>
+    </div>
+    <div class="piece">
+      <div class="name">Verified Access</div>
+      <div class="what">Closed communities, granted and withdrawn by the co-op or family that invited you.</div>
+    </div>
+  </div>
+
+  <div class="claims">
+    <p class="claim">Private by Design. Verified by Membership.</p>
+    <p class="claim">Parents lead. Bede assists. Books and real life still come first.</p>
+  </div>
+
+  <footer>
+    <strong>Agnus Dei Technologies</strong> &mdash; Technology in service of what lasts<br>
+    agnusdei.ai &middot; Fall Launch: September 30
+  </footer>
+
+</div>
+</body>
+</html>

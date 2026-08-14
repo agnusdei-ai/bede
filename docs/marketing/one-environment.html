@@ -19,6 +19,7 @@
     font-family: 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     color: var(--navy-deep);
     background: #fff;
+    line-height: 1.5;
   }
   .page {
     width: 8.5in; height: 11in; padding: 0.8in 0.8in;
@@ -27,6 +28,7 @@
   h1, h2, h3 {
     font-family: Georgia, 'Times New Roman', serif; color: var(--navy);
     text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 0;
+    line-height: 1.25;
   }
   .brand { text-align: center; }
   .brand h1 { font-size: 30pt; letter-spacing: 0.2em; text-indent: 0.2em; }
@@ -55,7 +57,10 @@
     flex: 0 0 168px; font-family: Georgia, serif; color: var(--navy);
     font-weight: 700; font-size: 10.5pt;
   }
-  .piece .what { flex: 1; font-size: 10.5pt; }
+  .piece .what {
+    flex: 1; font-size: 10.5pt; line-height: 1.55;
+    text-align: justify; hyphens: auto; -webkit-hyphens: auto;
+  }
 
   .claims { margin-bottom: auto; }
   .claim {
@@ -66,7 +71,7 @@
 
   footer {
     border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 24px;
-    text-align: center; font-size: 9pt; color: #4b5563;
+    text-align: center; font-size: 9pt; color: #4b5563; line-height: 1.7;
   }
   footer strong { color: var(--navy); }
 </style>

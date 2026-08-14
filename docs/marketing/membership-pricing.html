@@ -22,6 +22,7 @@
     font-family: 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     color: var(--navy-deep);
     background: #fff;
+    line-height: 1.5;
   }
   .page {
     width: 8.5in; height: 11in; padding: 0.7in 0.75in;
@@ -30,7 +31,7 @@
   h1, h2, h3 {
     font-family: Georgia, 'Times New Roman', serif; color: var(--navy);
     text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
-    margin: 0;
+    margin: 0; line-height: 1.25;
   }
   .brand { text-align: center; }
   .brand h1 { font-size: 34pt; letter-spacing: 0.2em; text-indent: 0.2em; }
@@ -47,8 +48,8 @@
          margin: 0 0 22px; }
 
   .hero-price {
-    border: 2px solid var(--navy); padding: 36px 26px; text-align: center;
-    margin-bottom: 28px;
+    border: 2px solid var(--navy); padding: 26px 26px; text-align: center;
+    margin-bottom: 24px;
   }
   .hero-price .label {
     font-family: Georgia, serif; font-size: 9pt; letter-spacing: 0.16em;
@@ -59,21 +60,21 @@
   .hero-price .annual { margin: 8px 0 0; font-size: 11pt; color: var(--gold-text); }
   .hero-price .cap { margin: 4px 0 0; font-size: 10.5pt; }
 
-  .cols { display: flex; gap: 22px; margin-bottom: 30px; }
+  .cols { display: flex; gap: 22px; margin-bottom: 24px; }
   .col { flex: 1; border: 1px solid var(--rule); border-top: 3px solid var(--gold); padding: 18px 18px; }
   .col h3 { font-size: 10pt; letter-spacing: 0.08em; margin-bottom: 6px; }
   .col .amt { font-size: 15pt; color: var(--navy); font-weight: 700; margin: 0 0 4px; }
-  .col p { margin: 0; font-size: 9.5pt; }
+  .col p { margin: 0; font-size: 9.5pt; line-height: 1.5; }
 
   table { border-collapse: collapse; width: 100%; font-size: 11pt; margin-bottom: 6px; }
-  th, td { border-bottom: 1px solid var(--rule); padding: 11px 10px; text-align: left; }
+  th, td { border-bottom: 1px solid var(--rule); padding: 9px 10px; text-align: left; }
   thead th { font-size: 8.5pt; letter-spacing: 0.12em; text-transform: uppercase;
              color: var(--gold-text); text-indent: 0.12em; }
   tbody th { font-weight: 400; }
   td { text-align: right; color: var(--navy); font-weight: 700; }
   tr.highlight { background: #f4f7fd; }
   tr.highlight th, tr.highlight td { border-bottom-color: var(--gold); }
-  .caption { font-size: 9pt; color: #4b5563; margin: 0 0 30px; }
+  .caption { font-size: 9pt; color: #4b5563; margin: 0 0 24px; }
 
   .includes { border-left: 3px solid var(--gold); padding: 6px 0 6px 16px; margin-bottom: auto; }
   .includes h3 { font-size: 9.5pt; margin-bottom: 6px; }
@@ -82,8 +83,8 @@
   .includes li::before { content: '\2022'; color: var(--gold); margin-right: 7px; }
 
   footer {
-    border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 20px;
-    text-align: center; font-size: 9pt; color: #4b5563;
+    border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 24px;
+    text-align: center; font-size: 9pt; color: #4b5563; line-height: 1.7;
   }
   footer strong { color: var(--navy); }
 </style>

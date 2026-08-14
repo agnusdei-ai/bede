@@ -1,6 +1,18 @@
 # Bede License Server — Design Document
 
 **Status:** Design only. No implementation code lands with this document.
+
+> **Payment processor superseded (2026-08-14).** This document selected
+> **Helcim** (§6.1, §11) with Stripe phased as a later addition (§13).
+> That is reversed: [`DECISIONS.md`](DECISIONS.md) entry 11 cancels Helcim
+> and makes **Stripe** the processor, first and only. Read every Helcim
+> reference below as describing the cancelled plan; the processor-agnostic
+> architecture (license wire format, activation/heartbeat protocol, ledger
+> shape, trial guard) is unaffected and still current. PR #82, the Helcim
+> checkout Worker built from this document, is closed unmerged per the
+> same entry. A Stripe-specific revision of §6/§11/§13 belongs to the
+> checkout rebuild, not to this notice.
+
 **Author's note on citations:** every file path, function, and behavior below was read from the actual `bede` source at design time. Anything asserted but not directly verified is marked **[to verify]**.
 
 ---

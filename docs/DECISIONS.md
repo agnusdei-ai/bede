@@ -89,35 +89,47 @@ need to match.
 
 ## 3. `[COMMERCIAL]` Tier 3's billing primitive
 
-**Status:** open · needs: a spike against a real Helcim account
+**Status:** open · needs: a spike against a real Stripe account
 
-Tier 3 bills per completed diagnostic test. Helcim's Recurring API, which
-[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §6.1 and §11 selected for
-Phase 1, is subscription-plan shaped and was verified to exist. It was not
-verified to cover arbitrary per-event charges. Helcim does expose a separate
-endpoint for charging a stored card once, which could plausibly serve this, but
-that is a different capability from the one already confirmed.
+**Re-pointed at Stripe by entry 11 (2026-08)** — the unverified-capability
+question below was originally asked of Helcim and transfers to Stripe
+unanswered, though Stripe's per-event charging (PaymentIntents against a
+saved payment method) is a far better documented primitive than the one
+Helcim left unconfirmed. Note the metered tier itself is absent from the
+Fall Launch (entry 10), so this blocks nothing being sold today.
 
-This is the one tier that changes the License Server's own design rather than
-just its labels. It needs a new `usage_charged` payment-event type, and a
-reporting hook in `homeschool-api` wherever a real diagnostic test completes in
-`services/diagnostic/`. The existing activate and heartbeat protocol reports
-license status only and never usage.
+Tier 3 bills per completed diagnostic test. The processor's recurring API
+covers subscription-plan-shaped billing; charging a stored card per
+arbitrary event is a different capability and must be verified against a
+real account, not documentation, before this tier launches.
 
-**Blocks:** any Tier 3 launch. Does not block Tiers 1 and 2, which use the
-already-verified subscription primitive.
+This is the one tier that changes the License Server's own design rather
+than just its labels. It needs a new `usage_charged` payment-event type,
+and a reporting hook in `homeschool-api` wherever a real diagnostic test
+completes in `services/diagnostic/`. The existing activate and heartbeat
+protocol reports license status only and never usage.
+
+**Blocks:** any metered-tier launch. Does not block the Fall Launch
+memberships, which are subscription-shaped.
 
 ---
 
 ## 4. `[COMMERCIAL]` Payment-processor ordering after Helcim
 
-**Status:** deferred · until: Phase 3 begins
+**Status:** closed
 
-Helcim is Phase 1. Whether Stripe or Square comes second is a business call that
-can turn on an existing banking or point-of-sale relationship as easily as on
-integration effort. [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §13
-records that it blocks neither Phase 1 nor Phase 2, so it is deferred rather
-than open.
+**Decided (2026-08), dissolved by entry 11.** The question this entry
+deferred — whether Stripe or Square comes second after Helcim — no longer
+exists, because Helcim is cancelled and Stripe is first (entry 11). Whether
+a second processor ever follows Stripe is a new question for whoever needs
+one, not this entry reopened.
+
+The original entry, kept for the record: Helcim was Phase 1, and whether
+Stripe or Square came second was a business call that could turn on an
+existing banking or point-of-sale relationship as easily as on integration
+effort. [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §13 recorded
+that it blocked neither Phase 1 nor Phase 2, so it was deferred rather than
+open.
 
 ---
 
@@ -171,20 +183,26 @@ strings and moves with it.
 
 ## 8. `[COMMERCIAL]` The checkout pipeline predates the current pricing model
 
-**Status:** open · needs: reconciliation against entries 1, 3 and 7
+**Status:** closed
 
-Pull request #82 builds the entire paid and trial pipeline as a standalone
-Cloudflare Worker: Helcim integration, license minting in the wire format
-`core/licensing.py` already verifies, a D1 ledger, trial guard, and 50 passing
-tests. It has been open since 2026-07-14.
+**Decided (2026-08), by entry 11: PR #82 is closed unmerged, not
+reconciled.** The pipeline it built was Helcim-specific end to end —
+Helcim integration, Helcim webhook handling, and three Helcim API details
+its own description flagged as unverified against a real account — and
+entry 11 cancels Helcim in favor of Stripe. What survives it is the
+processor-independent design worth carrying into a Stripe rebuild:
+license minting in the wire format `core/licensing.py` already verifies,
+the D1 ledger shape, and the trial guard. The rebuild is a new piece of
+work against entry 10's model and entry 11's processor, not a revival of
+this branch; it also inherits entry 7's unresolved tier-vocabulary
+migration, which this pipeline would have hard-coded the old answer to.
 
-It was built for the `core`/`coop` split that entry 1 replaced, and for
-subscription billing only, so it does not implement Tier 3's metered charging.
-Its own description flags three Helcim API details as unverified against a real
-account, and states they must be confirmed before it processes real money.
-
-Merging it is safe on its own, since Workers deploy only via a manual
-`wrangler deploy`. Going live is what these entries gate.
+The original entry, kept for the record: PR #82 built the entire paid and
+trial pipeline as a standalone Cloudflare Worker (Helcim integration,
+license minting, D1 ledger, trial guard, 50 passing tests), open since
+2026-07-14. It was built for the `core`/`coop` split that entry 1
+replaced, and for subscription billing only. Merging it was safe on its
+own, since Workers deploy only via a manual `wrangler deploy`.
 
 ---
 
@@ -275,3 +293,40 @@ Membership; what a household above 6 children pays; where the Co-op
 Membership's "from" ends; and how monthly billing reconciles with the offline,
 phone-home-free license verification `core/licensing.py` deliberately
 implements. Each is its own entry when someone rules on it.
+
+---
+
+## 11. `[COMMERCIAL]` Stripe replaces Helcim as the payment processor
+
+**Status:** closed
+
+**Decided (2026-08-14), by the founder.** Helcim is cancelled. Stripe is
+the payment processor — first, not second-after-Helcim, which dissolves
+entry 4's ordering question and closes entry 8's pipeline unmerged.
+
+What this changes, entry by entry:
+
+- **Entry 4** (Stripe-or-Square-after-Helcim) is dissolved — there is no
+  "after Helcim."
+- **Entry 8**: PR #82, the Helcim checkout Worker, is closed rather than
+  merged. Its processor-independent parts (license wire format, D1 ledger
+  shape, trial guard) are the design to carry into the Stripe rebuild.
+- **Entry 3**'s open question — is per-event charging for the metered
+  diagnostic tier actually supported — transfers to Stripe and stays open,
+  though Stripe's PaymentIntents-against-a-saved-method is a much better
+  documented primitive than what Helcim left unverified.
+- **[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md)** selected
+  Helcim in §6.1/§11 and phased Stripe as a later addition in §13. Those
+  sections now describe a cancelled plan; the document carries a notice
+  pointing here rather than a rewrite, per this register's own "the fact
+  has one home" rule. A Stripe-specific revision of that design (webhook
+  signature verification, Checkout Sessions vs. Payment Links, customer
+  portal for the monthly membership) is part of the rebuild, not this
+  entry.
+
+**Not decided here:** which Stripe surface the Fall Launch checkout uses
+(Checkout Sessions, Payment Links, or invoicing for co-ops); whether the
+$2,149 annual and $199 monthly prices are two Stripe Prices on one
+Product; and how Stripe subscription state reconciles with the offline,
+phone-home-free license verification — the same open question entry 10
+already records for monthly billing generally.

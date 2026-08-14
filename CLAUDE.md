@@ -1036,6 +1036,41 @@ product actually does, so they get an extra human checkpoint the rest of the
 repo doesn't require. Everything else about the workflow (test first, open a
 PR with a real test plan, tell the user once merged) still applies.
 
+## The Decision Register
+
+**[docs/DECISIONS.md](docs/DECISIONS.md)** carries one numbered entry per
+decision that shapes the product and cannot be read off the code. Seeded
+2026-08-13 with the commercial decisions (pricing tiers, the rejected free
+tier, the open questions blocking a Tier 3 launch), which had no home before
+it. Not scoped to commercial subjects.
+
+Three statuses, each carrying an obligation the tests enforce: `open` names
+what it `needs:`, `deferred` names its `until:` trigger, `closed` states what
+was `**Decided**`. A deferral without a trigger is an open entry wearing a
+calmer word, which is the failure the status column exists to prevent. Tags
+(`[COMMERCIAL]`, `[PRODUCT]`, `[DESIGN]`, `[LEGAL]`, `[RESEARCH]`) name who
+resolves an entry; the status names when. A tag is never changed to make an
+entry feel less blocked.
+
+`homeschool-api/tests/test_decision_register.py` enforces the shape, never the
+content, since no test can know whether a decision is correct. Every guard was
+verified by breaking it: dropping a deferral's trigger, an open entry's
+`needs:`, a closed entry's `**Decided**`, duplicating a number, inventing a
+tag, and removing the register from CI's change filter each fail the suite.
+That last one matters because `.github/workflows/test.yml`'s filter computes
+`relevant=false` for a docs-only change and skips `api-tests`, so without
+naming `docs/DECISIONS.md` in the pattern the guard would be real everywhere
+except on register-only edits. The first version of that test asserted the
+filename appeared anywhere in the workflow and passed on the comment beside
+the filter, which is the vacuous pass this file warns about elsewhere; it now
+reads the `grep -qE` pattern line itself.
+
+**Where a design document and the register would state the same fact, the
+design document points at the register.** `docs/LICENSE_SERVER_DESIGN.md` §13
+used to list its own open questions inline with no status and no owner; it now
+references entries 3, 4 and 5 instead. The design document is the argument,
+the register is the state.
+
 ## Standing Workflow: Carry Out the Decision, Don't Just Record It
 
 A design decision is not finished when it is written down. It is finished

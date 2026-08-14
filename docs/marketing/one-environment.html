@@ -25,6 +25,9 @@
     width: 8.5in; height: 11in; padding: 0.8in 0.8in;
     display: flex; flex-direction: column;
   }
+  /* See membership-pricing.html: shrink hides overflow by crushing the
+     layout, gold rule first. Overflow must overflow. */
+  .page > * { flex-shrink: 0; }
   h1, h2, h3 {
     font-family: Georgia, 'Times New Roman', serif; color: var(--navy);
     text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 0;
@@ -41,15 +44,15 @@
   .sub {
     text-align: center; font-size: 10pt; letter-spacing: 0.2em;
     text-transform: uppercase; color: var(--gold-text); text-indent: 0.2em;
-    margin: 0 0 40px;
+    margin: 0 0 24px;
   }
 
-  .values { display: flex; gap: 20px; margin-bottom: 48px; }
-  .value { flex: 1; text-align: center; border-top: 3px solid var(--gold); padding-top: 18px; }
+  .values { display: flex; gap: 20px; margin-bottom: 28px; }
+  .value { flex: 1; text-align: center; border-top: 2px solid var(--gold); padding-top: 18px; }
   .value h3 { font-size: 11pt; letter-spacing: 0.12em; text-indent: 0.12em; }
-  .value p { margin: 5px 0 0; font-size: 9.5pt; color: #4b5563; }
+  .value p { margin: 5px 0 0; font-size: 9.5pt; color: #4a5878; }
 
-  .pieces { border: 1px solid var(--rule); padding: 28px 28px; margin-bottom: 48px; }
+  .pieces { border: 1px solid var(--rule); padding: 28px 28px; margin-bottom: 32px; }
   .pieces h2 { font-size: 11pt; letter-spacing: 0.14em; text-indent: 0.14em; margin-bottom: 12px; text-align: center; }
   .piece { display: flex; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--rule); }
   .piece:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -57,21 +60,18 @@
     flex: 0 0 168px; font-family: Georgia, serif; color: var(--navy);
     font-weight: 700; font-size: 10.5pt;
   }
-  .piece .what {
-    flex: 1; font-size: 10.5pt; line-height: 1.55;
-    text-align: justify; hyphens: auto; -webkit-hyphens: auto;
-  }
+  .piece .what { flex: 1; font-size: 10.5pt; line-height: 1.55; }
 
   .claims { margin-bottom: auto; }
   .claim {
     text-align: center; font-family: Georgia, serif; color: var(--navy);
-    font-size: 13pt; letter-spacing: 0.05em; padding: 22px 0;
+    font-size: 13pt; letter-spacing: 0.05em; padding: 14px 0;
   }
   .claim + .claim { border-top: 1px solid var(--rule); }
 
   footer {
     border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 24px;
-    text-align: center; font-size: 9pt; color: #4b5563; line-height: 1.7;
+    text-align: center; font-size: 9pt; color: #4a5878; line-height: 1.7;
   }
   footer strong { color: var(--navy); }
 </style>

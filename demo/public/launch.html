@@ -74,6 +74,7 @@
   }
   .launch-date {
     display: inline-block; border: 2px solid var(--gold);
+    text-decoration: none;
     padding: 8px 20px; font-size: 0.9rem; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--navy); text-indent: 0.16em;
   }
@@ -104,7 +105,7 @@
   .price-intro { text-align: center; margin-bottom: 8px; font-size: 1.2rem; color: var(--navy); }
 
   .price-sub { text-align: center; margin-bottom: 32px; color: var(--gold-text); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; text-indent: 0.08em; }
-  .tiers { display: grid; gap: 20px; grid-template-columns: 1fr; }
+  .tiers { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
   .tier { border: 1px solid var(--rule); padding: 24px 22px; position: relative; }
   .tier.featured { border: 2px solid var(--navy); }
   .tier .flag {
@@ -140,7 +141,7 @@
     font-size: 1rem;
   }
   .effective caption {
-    caption-side: bottom; padding-top: 12px; font-size: 0.9rem; color: #4b5563;
+    caption-side: bottom; padding-top: 12px; font-size: 0.9rem; color: #4a5878;
   }
   .effective th, .effective td {
     border-bottom: 1px solid var(--rule); padding: 10px 14px; text-align: left;
@@ -149,10 +150,27 @@
     font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--gold-text); text-indent: 0.12em;
   }
+  /* The money column's header aligns with the figures under it — a
+     left-set header over right-set figures leaves the table's spine
+     hanging. text-indent compensates LEFT-edge tracking, so it must go
+     when the cell is right-aligned. */
+  .effective th:last-child, .effective td:last-child {
+    text-align: right; text-indent: 0;
+  }
   .effective tbody th { font-weight: 400; }
   .effective td { text-align: right; color: var(--navy); font-weight: 700; }
+  /* Georgia's tabular lining figures stack the decimal points; Palatino's
+     proportional figures don't, and this column is arithmetic. */
+  .effective td, .effective tbody th {
+    font-family: Georgia, serif; font-variant-numeric: tabular-nums;
+  }
   .effective .highlight { background: #f4f7fd; }
+  /* The highlight band is framed in gold on BOTH edges — bottom via its
+     own cells, top via the preceding row's bottom border (border-collapse
+     resolves shared edges to one line, so styling the entering edge from
+     above is the reliable way in). */
   .effective .highlight th, .effective .highlight td { border-bottom-color: var(--gold); }
+  .effective .pre-highlight th, .effective .pre-highlight td { border-bottom-color: var(--gold); }
   .price-notes { margin-top: 32px; border-left: 3px solid var(--gold); padding: 8px 0 8px 20px; }
   .price-notes p { margin: 0 0 8px; font-size: 1rem; }
   .price-notes p:last-child { margin-bottom: 0; }
@@ -163,6 +181,7 @@
      them, which reads as a mistake rather than as emphasis. Measure is held
      by the paragraph instead. */
   .plain p { font-size: 1.05rem; max-width: 660px; line-height: 1.75; }
+  .plain-pair { display: grid; gap: 48px; grid-template-columns: 1fr; }
 
   /* ── FAQ (recessed navy block, deliberately outside the body) ── */
   .faq { background: var(--navy); color: #ffffff; padding: 56px 0; margin-top: 20px; }
@@ -180,10 +199,11 @@
   .faq summary::-webkit-details-marker { display: none; }
   .faq summary::after {
     content: '+'; color: var(--gold); font-size: 1.5rem; line-height: 1; flex: none;
+    align-self: flex-start; margin-top: 2px;
   }
   .faq details[open] summary::after { content: '\2212'; }
   .faq summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-  .faq .answer { padding: 0 0 20px; color: #dce6f7; font-size: 1rem; max-width: 700px; line-height: 1.75; }
+  .faq .answer { padding: 0 40px 20px 0; color: #dce6f7; font-size: 1rem; max-width: 700px; line-height: 1.75; }
   .faq .answer p { margin: 0 0 12px; }
   .faq .answer p:last-child { margin-bottom: 0; }
 
@@ -203,9 +223,9 @@
   .btn-secondary { background: #ffffff; color: var(--navy); }
   .btn-secondary:hover { background: #f0f4fb; }
   .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
-  .cta .fallback { margin-top: 20px; font-size: 0.9rem; color: #4b5563; }
+  .cta .fallback { margin-top: 20px; font-size: 0.9rem; color: #4a5878; }
 
-  footer { border-top: 1px solid var(--rule); padding: 26px 0 44px; text-align: center; font-size: 0.85rem; color: #4b5563; }
+  footer { border-top: 1px solid var(--rule); padding: 26px 0 44px; text-align: center; font-size: 0.85rem; color: #4a5878; }
   footer a { margin: 0 10px; }
 
   /* Skip link — visible on focus only. */
@@ -216,11 +236,6 @@
   .skip:focus { left: 0; }
 
   @media (min-width: 720px) {
-    .faq .answer p, .plain p {
-      text-align: justify;
-      hyphens: auto;
-      -webkit-hyphens: auto;
-    }
     .cards { grid-template-columns: repeat(3, 1fr); }
     .tiers { grid-template-columns: repeat(2, 1fr); }
     /* Three cards in two columns would strand one alone on the second row.
@@ -235,6 +250,10 @@
        takes the extra column rather than sitting cramped beside two short
        cards. */
     .tiers { grid-template-columns: 1.4fr 1fr 1fr; }
+    .plain-pair { grid-template-columns: 1fr 1fr; }
+    /* Reserve two heading lines in every tier so the three amounts share
+       one baseline — the featured card's h3 wraps, the others don't. */
+    .tier h3 { min-height: 2.6em; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
@@ -251,8 +270,8 @@
   <header class="hero wrap">
     <h1>Bede</h1>
     <p class="lede">Classical education for the whole family.</p>
-    <p class="virtues">Comprehension &middot; Compassion &middot; Conscience</p>
-    <p><span class="launch-date">Fall Launch: September&nbsp;30</span></p>
+    <p class="virtues">Comprehension&nbsp;&middot; Compassion&nbsp;&middot;&nbsp;Conscience</p>
+    <p><a class="launch-date" href="#cta-heading">Fall Launch: September&nbsp;30</a></p>
 
     <p class="subhead">
       Raise children who understand deeply, care for others, and learn to
@@ -338,11 +357,11 @@
         <tr><th scope="col">Children</th><th scope="col">Per child, per month</th></tr>
       </thead>
       <tbody>
-        <tr><th scope="row">1</th><td>$199</td></tr>
-        <tr><th scope="row">2</th><td>$99.50</td></tr>
-        <tr class="highlight"><th scope="row">3</th><td>$66.33</td></tr>
-        <tr><th scope="row">4</th><td>$49.75</td></tr>
-        <tr><th scope="row">5 or 6</th><td>Less again</td></tr>
+        <tr><th scope="row">1 child</th><td>$199</td></tr>
+        <tr class="pre-highlight"><th scope="row">2 children</th><td>$99.50</td></tr>
+        <tr class="highlight"><th scope="row">3 children</th><td>$66.33</td></tr>
+        <tr><th scope="row">4 children</th><td>$49.75</td></tr>
+        <tr><th scope="row">5 or 6</th><td>Even less</td></tr>
       </tbody>
     </table>
 
@@ -352,21 +371,19 @@
     </div>
   </section>
 
-  <!-- ── Human guidance ──────────────────────────────────── -->
-  <section class="wrap" aria-labelledby="guidance-heading">
+  <!-- ── Human guidance + sports: companions (the people / the
+       activities), two-up at desktop so neither strands as a lone stub
+       against an empty right half. ── -->
+  <section class="wrap plain-pair" aria-label="Human guidance, sports and activities">
     <div class="plain">
       <h2 id="guidance-heading">Human guidance</h2>
       <hr class="rule rule-left" aria-hidden="true">
       <p>
         Every member family receives onboarding help, live family office
         hours, co-op leader support, and responses within two business days.
-        It is one membership, so there is no support tier to buy up into.
+        It is one membership, so there is no support&nbsp;tier to buy&nbsp;up&nbsp;into.
       </p>
     </div>
-  </section>
-
-  <!-- ── Sports ──────────────────────────────────────────── -->
-  <section class="wrap" aria-labelledby="sports-heading">
     <div class="plain">
       <h2 id="sports-heading">Sports and activities</h2>
       <hr class="rule rule-left" aria-hidden="true">
@@ -385,8 +402,8 @@
   <div class="wrap">
     <div class="section-head">
       <h2 id="faq-heading">Got Questions? Got Bede?</h2>
-      <p>A few honest answers for thoughtful homeschool parents.</p>
       <hr class="rule" aria-hidden="true">
+      <p>A few honest answers for thoughtful homeschool parents.</p>
     </div>
 
     <details>

@@ -53,7 +53,13 @@ Full specification in [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md)
 §14, including what the License Server tracks per tier and the scope boundary
 that keeps coaching logistics out of a payment system.
 
-**Depends on this:** entries 3, 5, 6 and 7.
+**Superseded by entry 10 (2026-08).** The Fall Launch model is monthly rather
+than flat annual, renames the tiers, reinstates a co-op tier this entry had
+removed, and carries no metered tier. Kept here unedited as the record of what
+was chosen in 2026-07 and what entries 3, 5, 6 and 7 were written against.
+
+**Depends on this:** entries 3, 5, 6 and 7 — each of which now describes a tier
+model that is no longer the one being sold. See entry 10.
 
 ---
 
@@ -182,7 +188,19 @@ Merging it is safe on its own, since Workers deploy only via a manual
 
 ## 9. `[COMMERCIAL]` Prices are not published
 
-**Status:** open · needs: a go-to-market ruling
+**Status:** closed
+
+**Decided (2026-08), reversing the position described below.** Prices are
+published. `demo/public/launch.html` (deployed at `/bede/launch.html`) carries
+the full tier table ahead of the September 30 Fall Launch, and the demo entry
+screen links to it. The call-request form on `site/index.html` remains, now as
+the way onto the Fall Launch list rather than the only way to learn a price.
+
+The reasoning below still holds for the concierge tier specifically — that one
+is a conversation — but it did not justify withholding every price from every
+visitor. Entry 10 records the model now published.
+
+The original entry, kept for the record:
 
 No price appears anywhere a prospective family can read. `site/index.html`
 offers a call-request form with a pricing checkbox, routed to `SALES_EMAIL`.
@@ -193,3 +211,46 @@ checkout. It is recorded as open because nothing states it was chosen, and a
 sales-led motion for a $15 metered tier is a different proposition from one for
 an annual concierge subscription. Answering this decides whether the marketing
 site needs a pricing page at all.
+
+---
+
+## 10. `[COMMERCIAL]` Fall Launch pricing: four monthly memberships, per family
+
+**Status:** closed
+
+**Decided (2026-08), superseding entry 1.** Four memberships, billed monthly,
+priced per family with no per-child multiplier:
+
+| Membership | Price | Shape |
+| --- | --- | --- |
+| Bede Family | $129/month | Independent and self-directed |
+| Bede Guided | $199/month | Live group guidance and implementation support |
+| Bede Complete | $299/month | Priority support and personal family guidance |
+| Co-op Membership | from $149/family/month | Ten-family minimum |
+
+Bede Classical Core is included with every membership; publisher curriculum
+editions are sold separately. A membership covers Bede, Locuto, and the Family
+Portal together, not separately.
+
+**Per-family pricing is the load-bearing choice, not the headline number.**
+Every comparable in this market is priced per student — Classical Conversations
+at $400–700/student/year, forest-school hybrids at $3,049–3,800/child/year for
+one day a week. Pricing per family inverts with household size: a family of
+three on Guided is about $66 per child per month, which is below Classical
+Conversations per child. The published figure to lead with is therefore the
+per-child one, and it is why the tiers are not per-seat.
+
+**What changed from entry 1:** monthly rather than flat annual; the tier names
+are new; the metered $15-per-diagnostic tier is not part of this launch; and a
+co-op tier returns, having been removed by entry 1.
+
+**Depends on this:** entries 3, 5, 6, 7 and 8 all describe the superseded
+model. Entry 7's finding is now larger, not smaller — `core/licensing.py`'s
+`_VALID_TIERS` (`trial`, `core`, `coop`) matches neither entry 1's tiers nor
+these.
+
+**Not decided here:** whether the metered diagnostic tier is cancelled or
+merely absent from this launch; whether a trial still precedes these four; and
+how monthly billing reconciles with the offline, phone-home-free license
+verification `core/licensing.py` deliberately implements. Each is its own
+entry when someone rules on it.

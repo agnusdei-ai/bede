@@ -8,6 +8,14 @@ description of the code's behavior so a parent, and anyone reviewing this
 deployment for a family or organization, can see exactly what's retained
 and how to remove it.
 
+**Its counterpart is `docs/RETENTION_POLICY.md`**, the written policy the
+amended FTC COPPA Rule requires of us as operator of the public demo:
+purpose and deletion timeframe per category, stated as a commitment. That
+document is what we have promised; this one is the evidence, and the code
+it cites is how either can be checked. Where the two could drift,
+`homeschool-api/tests/test_coppa_compliance.py` fails rather than leaving
+it to be noticed.
+
 Two genuinely different situations are covered here — don't conflate them:
 
 - **Your family's own self-hosted instance** (`docs/PRODUCTION_SETUP.md`)

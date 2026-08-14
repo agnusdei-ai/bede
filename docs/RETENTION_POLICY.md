@@ -34,13 +34,14 @@ to that data and sets no retention policy over it.
 
 | Category | Why we collect it | Deletion timeframe | How deletion happens |
 |---|---|---|---|
-| Session identity (learner's name, grade) — optional | Personalize the tone and content of the one demo session in progress | 6 hours from creation, or immediately on logout | Automatic: filtered out of every read past that age and opportunistically deleted on each new code issued (`core/demo_code_session.py`) |
-| Current-unit note — optional | Let Bede anchor that one session on what the family is already learning, instead of only its own bundled curriculum | 6 hours from creation, or immediately on logout | Same mechanism as above |
-| Church-tradition note — optional | Frame that one session's Scripture/Saints content consistently with the family's own tradition, instead of assuming one | 6 hours from creation, or immediately on logout | Same mechanism as above |
+| Session identity (learner's name, grade) — optional | Personalize the tone and content of the one demo session in progress | 6 hours from creation, or immediately on logout | Automatic: filtered out of every read past that age and opportunistically deleted on each new code issued (`demo_code_sessions`, `core/demo_code_session.py`) |
+| Current-unit note — optional | Let Bede anchor that one session on what the family is already learning, instead of only its own bundled curriculum | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_unit_notes`, encrypted) |
+| Church-tradition note — optional | Frame that one session's Scripture/Saints content consistently with the family's own tradition, instead of assuming one | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_faith_notes`, encrypted) |
+| Work-ledger record (which skill was worked, how much help it took, what Bede noticed about the work) | Show the visitor what their learner actually completed during the session — the demo's own copy of the work ledger a real family gets | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_activity_logs`, encrypted) |
 | The conversation itself | Generate that turn's response | **Never stored.** Exists only in transit and in-process memory for the duration of one turn | Nothing to delete — no row is ever created |
 | Voice audio, if the microphone is used | Transcribe speech to text for that turn (sent to OpenAI, see below); synthesize Bede's spoken reply | **Never stored**, by us or by OpenAI. Passes through our server for the live turn only | Nothing to delete — no row is ever created |
-| Anonymized interaction-pattern signals (which tools fired, turn counts, subjects visited) | Understand, in aggregate, which teaching patterns work well | 30 days from creation | **Automatic background purge**, run every few hours for the life of the backend process (`main.py`'s periodic purge task calling `services/interaction_signals.purge_old_signals()`) |
-| Diagnostic-preview rate-limit record (hashed visitor IP) | Prevent abuse of a public preview feature | Rolling 30-day window | Read-time filtering plus opportunistic cleanup (`core/diagnostic_preview_quota.py`) |
+| Anonymized interaction-pattern signals (which tools fired, turn counts, subjects visited) | Understand, in aggregate, which teaching patterns work well | 30 days from creation | **Automatic background purge**, run every few hours for the life of the backend process (`demo_interaction_signals`, `main.py`'s periodic purge task calling `services/interaction_signals.purge_old_signals()`). This is the one demo category that deliberately outlives the session rather than being deleted at logout — aggregating patterns across many sessions is its whole purpose. It is keyed by an unreversible HMAC of the code rather than the code itself, so it cannot be joined back to a visitor |
+| Diagnostic-preview rate-limit record (hashed visitor IP) | Prevent abuse of a public preview feature | Rolling 30-day window | Read-time filtering plus opportunistic cleanup (`diagnostic_preview_uses`, `core/diagnostic_preview_quota.py`) |
 | Feedback message + optional reply email | Read and, if requested, reply to the feedback | **Never persisted to any database.** Exists only as one outbound email via Resend to the operator's own inbox | Nothing to delete — no row is ever created |
 
 ## What "deletion timeframe" means for a field with no database row
@@ -49,11 +50,26 @@ Several categories above are marked "never stored." That is a stronger
 commitment than a short retention window, not a weaker one — it means
 there is no row for this policy to schedule the deletion of, because
 none is ever written. This distinction matters for anyone reviewing this
-policy against the code: `core/database.py` defines exactly four demo-
+policy against the code: `core/database.py` defines exactly five demo-
 related tables (`DemoCodeSession`, `DemoCodeUnitNote`, `DemoCodeFaithNote`,
-`DemoInteractionSignal`) plus the rate-limit table above — nothing else
-exists to hold a demo visitor's data, and in particular no table holds
-conversation transcript text or audio for any `demo_code` session.
+`DemoCodeActivityLog`, `DemoInteractionSignal`) plus the rate-limit table
+above — nothing else exists to hold a demo visitor's data, and in
+particular no table holds conversation transcript text or audio for any
+`demo_code` session.
+
+**This count was wrong until 2026-08-14, and is recorded rather than
+quietly corrected**, for the same reason the vendor correction below is.
+The policy said "exactly four" and omitted `DemoCodeActivityLog`, the
+demo's work ledger, which has been collected since it shipped. Nothing
+was undisclosed to visitors — the public Privacy Notice
+(`demo/public/privacy.html`), the demo's own consent screen, and
+`docs/DATA_RETENTION.md` all described it, and its retention was always
+the same 6-hour window as the rest — but this document is the artifact
+that has to enumerate every category, so an omission here is a real
+defect in the policy even where the practice was correct.
+`homeschool-api/tests/test_coppa_compliance.py` now fails if a demo table
+exists in the code without a row in the table above, so the next one
+cannot go unnoticed the same way.
 
 ## A correction this policy documents rather than hides
 

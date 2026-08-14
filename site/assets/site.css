@@ -776,6 +776,25 @@ p.lede {
   text-underline-offset: 2px;
 }
 
+/* Inline links inside body text (the membership section's pointer at the
+   launch page is the first) — a browser-default blue is the one color the
+   palette never uses. Ink on light ground; the dark bands (.band-closing,
+   .curriculum, .founder — everywhere color is set to vellum) get vellum
+   with the same gilt underline instead, or the link vanishes into the
+   ground it sits on. */
+.lede a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--gilt);
+  text-underline-offset: 3px;
+}
+.band-closing .lede a,
+.curriculum .lede a,
+.founder .lede a {
+  color: var(--vellum);
+  text-decoration-color: var(--gilt-light);
+}
+
 .cta-sub.light {
   color: rgba(250, 246, 236, 0.72);
   margin: 0.9rem 0 0;
@@ -998,6 +1017,13 @@ footer {
 
 .beta-banner strong {
   color: var(--gilt-light);
+}
+
+.beta-banner a {
+  color: var(--vellum);
+  text-decoration-color: var(--gilt-light);
+  text-underline-offset: 3px;
+  white-space: nowrap;
 }
 
 /* ── faq/index.html only ─────────────────────────────────────────────────

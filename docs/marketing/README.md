@@ -40,9 +40,23 @@ for name in ["membership-pricing", "one-environment"]:
         # The sheet is one page by construction. 1056px is exactly 11in at
         # 96 DPI, so anything else means content has overflowed onto a
         # second page and the layout needs tightening rather than the check
-        # relaxing.
+        # relaxing. Both dimensions are checked: scrollHeight of the fixed
+        # page, AND the natural content height with the fixed height
+        # released — the first alone was satisfied vacuously while
+        # flex-shrink silently crushed ~69px of overflow out of the layout
+        # (the gold rule rendered at 0px), which is why the sheets now also
+        # set `.page > * { flex-shrink: 0 }`.
         h = pg.evaluate("document.querySelector('.page').scrollHeight")
         assert h == 1056, f"{name} is {h}px tall, expected 1056 (one Letter page)"
+        natural = pg.evaluate(
+            "(() => { const el = document.querySelector('.page');"
+            " el.style.height = 'auto'; const n = el.scrollHeight;"
+            " el.style.height = ''; return n; })()"
+        )
+        assert natural <= 1056, (
+            f"{name}'s natural content height is {natural}px — it only "
+            "appears to fit because something is being crushed"
+        )
         pg.pdf(
             path=f"docs/marketing/{name}.pdf",
             format="Letter",

@@ -349,9 +349,12 @@ export function CodeScreen({ onLoggedIn }: {
         <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
           Fall Launch: September 30
         </span>
-        <span className="mt-0.5 block text-xs text-gray-600">
+        <span className="mt-0.5 block text-xs text-navy-700">
           Founding Family access opening soon.{' '}
-          <span className="font-medium text-navy-600 underline">Learn more →</span>
+          {/* Arrow outside the underlined span — an underlined arrow reads
+              as a typo, not an affordance. */}
+          <span className="font-medium text-navy-600 underline">Learn more</span>
+          <span className="font-medium text-navy-600"> →</span>
         </span>
       </a>
 

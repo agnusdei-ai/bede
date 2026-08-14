@@ -53,7 +53,15 @@ Full specification in [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md)
 §14, including what the License Server tracks per tier and the scope boundary
 that keeps coaching logistics out of a payment system.
 
-**Depends on this:** entries 3, 5, 6 and 7.
+**Superseded by entry 10 (2026-08).** The Fall Launch model is monthly or
+annual rather than flat annual, replaces the three graded tiers with a single
+household membership, reinstates a co-op tier this entry had removed, adds a
+custom network tier, and carries no metered tier. Kept here unedited as the
+record of what was chosen in 2026-07 and what entries 3, 5, 6 and 7 were
+written against.
+
+**Depends on this:** entries 3, 5, 6 and 7 — each of which now describes a tier
+model that is no longer the one being sold. See entry 10.
 
 ---
 
@@ -182,7 +190,21 @@ Merging it is safe on its own, since Workers deploy only via a manual
 
 ## 9. `[COMMERCIAL]` Prices are not published
 
-**Status:** open · needs: a go-to-market ruling
+**Status:** closed
+
+**Decided (2026-08), reversing the position described below.** Prices are
+published. `demo/public/launch.html` (deployed at `/bede/launch.html`) carries
+the membership pricing ahead of the September 30 Fall Launch, and the demo
+entry screen links to it. The call-request form on `site/index.html` remains,
+now as the way onto the Fall Launch list rather than the only way to learn a
+price.
+
+The reasoning below still holds for the Network Partnership tier specifically —
+that one is genuinely a conversation, and is published as "custom" — but it did
+not justify withholding every price from every visitor. Entry 10 records the
+model now published.
+
+The original entry, kept for the record:
 
 No price appears anywhere a prospective family can read. `site/index.html`
 offers a call-request form with a pricing checkbox, routed to `SALES_EMAIL`.
@@ -193,3 +215,63 @@ checkout. It is recorded as open because nothing states it was chosen, and a
 sales-led motion for a $15 metered tier is a different proposition from one for
 an annual concierge subscription. Answering this decides whether the marketing
 site needs a pricing page at all.
+
+---
+
+## 10. `[COMMERCIAL]` Fall Launch pricing: one Family Membership, plus co-op and network
+
+**Status:** closed
+
+**Decided (2026-08), superseding entry 1.** One membership for a household,
+not a ladder of tiers. Priced per family with no per-child multiplier:
+
+| Membership | Price | Shape |
+| --- | --- | --- |
+| Family Membership | $199/month, or $2,149/year | Up to 6 children. Annual saves $239. |
+| Co-op Membership | from $149/family/month | Ten-family minimum |
+| Network Partnership | custom | Schools and organizations |
+
+Every membership carries the same five things — Bede Tutor, Locuto messaging,
+the Family Portal, parent tools and oversight, and verified access. Bede
+Classical Core is included; publisher curriculum editions are sold separately.
+
+**Per-family pricing is the load-bearing choice, not the headline number.**
+Every comparable in this market is priced per student — Classical Conversations
+at $400–700/student/year, forest-school hybrids at $3,049–3,800/child/year for
+one day a week. Pricing per family inverts with household size, and that
+inversion is the figure to publish:
+
+| Children | Effective per child, per month |
+| --- | --- |
+| 1 | $199 |
+| 2 | $99.50 |
+| 3 | $66.33 |
+| 4 | $49.75 |
+| 5 or 6 | Less again |
+
+Three children is the figure to lead with, at $66.33 per child per month —
+below Classical Conversations per child, for a whole year rather than one day
+a week.
+
+**What changed from entry 1:** monthly (or annual) rather than flat annual;
+one household tier rather than three graded ones, so there is no feature
+ladder to gate; the metered $15-per-diagnostic tier is not part of this
+launch; a co-op tier returns, having been removed by entry 1; and a custom
+network tier is added for schools and organizations.
+
+**An earlier draft of this entry named three consumer tiers** — Family $129,
+Guided $199, Complete $299 — and was superseded within the same month by the
+market-analyst pricing recorded above. It is noted here rather than kept,
+because a three-tier ladder implies feature gating (entries 5 and 6) that this
+model does not need.
+
+**The 6-child cap is new and has no implementation.** `routers/pod.py`'s seat
+cap is driven by `core/licensing.py`, whose `_VALID_TIERS` knows nothing about
+this model. See entry 7, whose finding is now larger rather than smaller.
+
+**Not decided here:** whether the metered diagnostic tier is cancelled or
+merely absent from this launch; whether a trial still precedes the Family
+Membership; what a household above 6 children pays; where the Co-op
+Membership's "from" ends; and how monthly billing reconciles with the offline,
+phone-home-free license verification `core/licensing.py` deliberately
+implements. Each is its own entry when someone rules on it.

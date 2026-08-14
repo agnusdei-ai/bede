@@ -329,6 +329,32 @@ export function CodeScreen({ onLoggedIn }: {
       ref={formContainerRef}
       className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
     >
+      {/* Fall Launch banner. Deliberately ABOVE the demo card and outside
+          it: this screen's job is "try Bede now", and the launch offer is
+          a separate errand. No pricing here — the full table lives on
+          launch.html so the learner form stays the only thing to fill in.
+
+          Relative href, not "/launch.html": demo/vite.config.ts uses
+          `base: './'` and scripts/build_pages_site.sh nests demo/dist under
+          publish/bede/, so the deployed page is /bede/launch.html. A
+          root-relative link would 404 in production.
+
+          Stateless by design — no dismiss flag, so it adds no browser
+          storage key and nothing to declare in site/privacy/index.html's
+          inventory (see demo/src/privacyInventory.test.ts). */}
+      <a
+        href="./launch.html"
+        className="w-full max-w-sm block rounded-xl border border-gold-300 bg-white/80 px-4 py-3 text-center shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-navy-400"
+      >
+        <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
+          Fall Launch: September 30
+        </span>
+        <span className="mt-0.5 block text-xs text-gray-600">
+          Founding Family access opening soon.{' '}
+          <span className="font-medium text-navy-600 underline">Learn more →</span>
+        </span>
+      </a>
+
       <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
         {/* Language toggle — only rendered when this deployment offers one */}
         {availableLocales.length > 0 && (

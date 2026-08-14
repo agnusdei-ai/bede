@@ -849,6 +849,62 @@ deployer testing their own instance — see
 which tracks findings pinned to the git SHA tested so they can be
 correlated release-to-release.
 
+**COPPA compliance guards — the written policies checked against the code
+(`homeschool-api/tests/test_coppa_compliance.py`):** this repo has had a
+security test suite for a long time and had **no COPPA-specific check at
+all** — the amended FTC Rule's required artifacts
+(`docs/RETENTION_POLICY.md`, `docs/INFORMATION_SECURITY_POLICY.md`) were
+prose nobody verified. A compliance document is worth exactly its
+accuracy, and its failure mode is silent: nothing errors, nothing fails
+to build, the document simply describes a system that has moved on. What
+is enforced is agreement between policy and code, never whether a policy
+is *sufficient* — no test can rule on that, a lawyer can.
+
+**It found a real defect the day it was written.**
+`docs/RETENTION_POLICY.md` claimed "exactly four demo-related tables" and
+omitted `DemoCodeActivityLog`, the demo work ledger, collected since it
+shipped. Nothing was hidden from visitors — the public Privacy Notice,
+the consent screen and `docs/DATA_RETENTION.md` all described it, and its
+window was always the same 6 hours — but the one document required to
+enumerate every category did not enumerate it. Corrected in place with
+the correction recorded, matching the vendor correction already in that
+file. Two smaller gaps travelled with it: the policy's categories table
+never named the rows it governs (`demo_code_sessions` and friends), and
+`docs/DATA_RETENTION.md` did not point back at the policy it is the
+evidence for.
+
+Eleven guards, each **verified by breaking it** — every demo table has a
+row in the policy's categories table; the policy's own stated table count
+matches the code; the three retention windows (6 hours, 30 days, 30 days)
+match their constants in both directions; logout and the TTL sweep each
+reach every code-scoped demo table; every `student_name`-bearing table is
+in `student_deletion.py`'s cascade or a named exemption; deletion
+crypto-shreds the student's key; feedback is never persisted; no demo
+table has a content-bearing column; `build_pages_site.sh` never publishes
+`docs/`; and every AI vendor in `render.yaml`'s `BEDE_ADAPTER_ORDER` is
+named in all three disclosure documents — the commitment
+`RETENTION_POLICY.md` made after the 2026-08-03 Anthropic/OpenAI
+mismatch, now mechanical rather than remembered.
+
+**Three of those guards were vacuous in their first cut**, all the same
+way: these ORM models and functions carry long explanatory docstrings, so
+a name-anywhere scan read `DemoInteractionSignal` as student-scoped off a
+sentence saying it deliberately *cannot* be joined to a student, read
+`DemoCodeActivityLog` as holding a transcript off the words "never a
+transcript", and kept passing with a `delete()` removed because
+`end_session`'s docstring lists what it clears. The scans now read
+`mapped_column` declarations, `delete(Model)` calls, and markdown table
+rows specifically. A privacy guard that fires on a document saying the
+right thing is worse than no guard.
+
+Two paths in `.github/workflows/test.yml`'s change filter matter here for
+the reason `test_decision_register.py` already documents: this suite
+reads six files outside `homeschool-api/`, and until they were named, a
+policy-only edit or a `render.yaml` provider switch computed
+`relevant=false`, skipped `api-tests`, and never ran the guard written
+for exactly that change. A parametrized test now reads the `grep -qE`
+pattern line itself and fails if any of them is dropped.
+
 **Beta surveys — one instrument, three delivery channels
 (`docs/BETA_SURVEY.md`):** the beta period has three decisions to make
 (does the pedagogy land, what should this cost and in what unit, are

@@ -75,7 +75,7 @@ jobs:
           #                              policies must agree with)
           #   scripts/build_pages_site.sh, render.yaml                      ditto
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|docs/DECISIONS\.md|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|render\.yaml|\.github/workflows/test\.yml)'; then
+               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|site/_headers|wrangler\.jsonc|docs/DECISIONS\.md|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|render\.yaml|\.github/workflows/test\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

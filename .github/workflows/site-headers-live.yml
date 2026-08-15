@@ -1,0 +1,61 @@
+name: Live site security headers
+
+# Asserts that the DEPLOYED site serves every security header site/_headers
+# declares — on every merge to main, and on a schedule.
+#
+# WHY A LIVE CHECK, WHEN test_site_headers.py ALREADY EXISTS
+#
+# That suite checks the source: the file declares every header the product
+# enforces, no two rules conflict, it survives the build into publish/, and
+# wrangler.jsonc has not grown a `main` script (which would stop Cloudflare
+# applying _headers at all). All of that can be green while the live site
+# serves nothing, because the last hop — Cloudflare's own project settings —
+# is not in this repository. A custom domain attached to a different Worker, a
+# Pages project shadowing the Workers one, or run_worker_first toggled in the
+# dashboard rather than in wrangler.jsonc are each invisible to CI and each
+# fatal to the header set.
+#
+# That gap was reported from a browser while all three source-side layers were
+# correct, and could not be reproduced from the agent sandbox, whose egress
+# proxy blocks agnusdei.io and agnusdei.ai outright. Actions runners have
+# ordinary internet access, so this is where the check can live.
+#
+# ON MERGE, not just on a schedule: a deploy that drops the headers should be
+# attributable to the change that caused it, while that change is still the
+# thing someone is looking at.
+#
+# The expected header set is READ FROM site/_headers by the script rather than
+# restated in either place — add a header there and it becomes a live
+# requirement on the next run.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Twice daily. The source side is already gated per-PR; this exists to
+    # catch drift that originates OUTSIDE the repository (a dashboard change,
+    # a domain re-pointed), which no push would announce.
+    - cron: '17 6,18 * * *'
+  workflow_dispatch:
+
+# Reads a public URL and the repo. Nothing here needs write access.
+permissions:
+  contents: read
+
+concurrency:
+  # A burst of merges should converge on checking the newest deploy rather
+  # than queueing one run per commit against a site that has already moved on.
+  group: site-headers-live
+  cancel-in-progress: true
+
+jobs:
+  headers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Assert the live site serves its declared security headers
+        # The script retries the FETCH (a merge triggers a Cloudflare deploy
+        # that finishes on its own schedule, so racing it would be flaky), but
+        # never retries a successful fetch whose headers are missing — that is
+        # a real result, not a flake.
+        run: bash scripts/check_live_site_headers.sh

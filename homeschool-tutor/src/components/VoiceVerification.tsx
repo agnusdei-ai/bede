@@ -74,7 +74,7 @@ export default function VoiceVerification({ studentName, token, onVerified }: Pr
   }
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative">
         {/* Parent password modal overlay */}
         {showParentModal && (

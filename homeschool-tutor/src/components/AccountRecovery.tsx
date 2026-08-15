@@ -121,7 +121,7 @@ export default function AccountRecovery({ onDone }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8">
         <div className="text-center mb-6">
           <div className="w-14 h-14 rounded-full bg-navy-50 border-2 border-navy-200 flex items-center justify-center mx-auto mb-3">

@@ -170,7 +170,7 @@ export default function Login() {
 
   if (phase === 'voice-verify') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100">
+      <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100">
         <VoiceVerification
           studentName={knownStudentName || 'Student'}
           token={pendingToken}
@@ -194,7 +194,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
         {/* Header */}
         <div className="text-center mb-8">

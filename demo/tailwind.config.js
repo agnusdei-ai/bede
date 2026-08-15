@@ -30,60 +30,86 @@ export default {
         '9xl': ['9.2rem', { lineHeight: '1' }],
       },
       colors: {
-        // Dark olive green (hue-rotated from the original leaf-green ramp,
-        // same lightness/step structure — see the "sage" name, kept as-is
-        // since it's referenced by hundreds of sage-* classes across both
-        // apps; only the hex values moved). Mirrors homeschool-tutor's
-        // tailwind.config.js.
+        // ── Drawn from agnusdei.ai's own palette ──────────────────────────
+        // Every 500/600 below IS a token from site/assets/site.css, copied
+        // verbatim, so the app a family logs into is the same object as the
+        // site they bought it from. The ramp NAMES are unchanged (there are
+        // ~930 sage-*/navy-*/gold-*/parchment-* classes across both apps);
+        // only the hex values moved — the same approach taken when the
+        // original leaf-green was hue-rotated to olive.
+        //
+        // The intermediate steps are generated around those anchors in OKLab
+        // rather than snapped to a generic Tailwind curve: the site's ink is
+        // far darker than a stock 500, and a generic curve puts 600 LIGHTER
+        // than 500, silently inverting every `hover:bg-*-600` in the app.
+        // tests/palette.test.ts pins the anchors, the monotonic ordering,
+        // and the WCAG floors so neither can drift back.
+
+        // fern / fern-deep — the nature-notebook green.
         sage: {
-          50: '#f5f7f0',
-          100: '#e7edd8',
-          200: '#cfdcb2',
-          300: '#aec37e',
-          400: '#8fab4c',
-          500: '#73902e',
-          600: '#5b7321',
-          700: '#495c1b',
-          800: '#3a4918',
-          900: '#313d14',
+          50:  '#f5f9f4',
+          100: '#cfd9cd',
+          200: '#acb9a8',
+          300: '#899985',
+          400: '#6a7c65',
+          500: '#47613f', // --fern
+          600: '#33482d', // --fern-deep
+          700: '#25381f',
+          800: '#172911',
+          900: '#091b05',
         },
+        // ink-soft / ink — iron-gall ink. 500 is the resting brand fill and
+        // heading colour; hover deepens into true ink at 600, which is also
+        // the colour of the site's dark bands.
         navy: {
-          50:  '#f0f4fb',
-          100: '#dce6f7',
-          200: '#b9cdef',
-          300: '#87a9e2',
-          400: '#5585d5',
-          500: '#1e3a8a',
-          600: '#17306e',
-          700: '#112252',
-          800: '#0b1636',
-          900: '#060c1e',
+          50:  '#f6f7fb',
+          100: '#ccd0da',
+          200: '#a5abb8',
+          300: '#7f8697',
+          400: '#5c6476',
+          500: '#3a4358', // --ink-soft
+          600: '#1c2438', // --ink
+          700: '#12192c',
+          800: '#090f21',
+          900: '#030616',
         },
+        // gilt-light / gilt — the gilt on a cloth book spine.
         gold: {
-          50:  '#fefae8',
-          100: '#fdf2c1',
-          200: '#fbe585',
-          300: '#f9d54a',
-          400: '#f5c014',
-          500: '#d4a106',
-          600: '#a67d05',
-          700: '#7c5a03',
-          800: '#503b02',
-          900: '#271d01',
+          50:  '#fff6e5',
+          100: '#f6e1bc',
+          200: '#eacc97',
+          300: '#e0b84a', // --gilt-light
+          400: '#b98e38',
+          500: '#b8860b', // --gilt
+          600: '#9a6a00',
+          700: '#7d4f00',
+          800: '#603600',
+          900: '#451d00',
         },
+        // vellum / vellum-deep — foxed paper. parchment-50 is the page the
+        // whole app is printed on, and matches the site's own ground exactly.
         parchment: {
-          50: '#fefcf7',
-          100: '#fdf7e8',
-          200: '#faedc6',
-          300: '#f6de9a',
-          400: '#f0c95e',
-          500: '#e8b430',
+          50:  '#faf6ec', // --vellum
+          100: '#f1e7d2', // --vellum-deep
+          200: '#d7ceb9',
+          300: '#beb5a1',
+          400: '#a69d8a',
+          500: '#8e8573',
         },
-        faith: {
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          500: '#8b5cf6',
-          600: '#7c3aed',
+        // madder — the old plant dye, and the site's fifth token. Replaces a
+        // violet ramp named `faith` that appeared nowhere on agnusdei.ai and
+        // gave every loading screen a cool cast against Bede's warm portrait.
+        madder: {
+          50:  '#fff4f1',
+          100: '#f2cbc3',
+          200: '#dca59a',
+          300: '#c28174',
+          400: '#a85e50',
+          500: '#8c3b2e', // --madder
+          600: '#7b2d21',
+          700: '#691e13',
+          800: '#580e05',
+          900: '#480000',
         },
       },
       fontFamily: {

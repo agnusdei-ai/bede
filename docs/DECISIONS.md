@@ -340,8 +340,24 @@ on the critical path to taking money.
 
 ## 12. `[DESIGN]` What `lockfile-freshness` should compare against
 
-**Status:** open · needs: a supply-chain posture call — is "the lockfile is
-current" a property CI should enforce, or only "the lockfile matches its `.in`"
+**Status:** closed
+
+**Decided (2026-08-15): keep the live resolve.** The property it buys is worth
+the recurring refresh — the committed lockfile is what `pip-compile` produces
+*today*, so the pins CI installs are never quietly behind what the floors
+permit. The alternative below would have bought a quieter gate by giving that
+up, and a lockfile sitting months behind its own floors with nothing to say so
+is the worse failure for a product whose dependencies reach a child's device.
+
+What made this affordable rather than merely principled is that
+`.github/workflows/lockfile-refresh.yml` now absorbs the toil: a daily job
+regenerates and keeps one standing pull request open, never merging. The cost
+that prompted the question — a person regenerating by hand while unrelated PRs
+sat blocked — is the part that was removed. The gate's shape is unchanged and
+deliberately so.
+
+The reasoning below is kept because the trade is real and someone will
+reasonably ask again.
 
 `scripts/check_lockfile_freshness.sh` regenerates from `requirements*.in` and
 fails if the committed lockfiles differ. Its own header states the intent:
@@ -364,10 +380,7 @@ property: the committed lockfile is what `pip-compile` produces *today*, so
 the pins CI installs are never quietly behind what the floors permit.
 Comparing against the previous commit gives that up — a lockfile could sit
 months behind its own floors and nothing would say so — in exchange for a gate
-that only fires on human error. That is a security-posture trade, not a
-tidy-up, which is why it is recorded rather than taken.
+that only fires on human error. That is a security-posture trade rather than
+a tidy-up, which is why it went to the founder instead of being taken in
+passing.
 
-**Not urgent.** `.github/workflows/lockfile-refresh.yml` now absorbs the toil:
-a daily job regenerates and keeps one standing pull request open, never
-merging. The question is whether the gate's shape is right, not whether anyone
-is currently suffering for it.

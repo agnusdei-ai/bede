@@ -3,7 +3,11 @@ name: Deploy demo to GitHub Pages
 on:
   push:
     branches:
-      - claude/clean-project-clone-s216ne
+      # claude/clean-project-clone-s216ne was removed here on 2026-08-15: it
+      # was a branch on the repository history that predates the re-clone, it
+      # shares no common ancestor with main, and it is being deleted. A
+      # trigger naming a branch that does not exist is dead config of exactly
+      # the kind this repo keeps finding — it never fires and nothing says so.
       - main
     paths:
       - 'scripts/build_github_pages_redirect.sh'

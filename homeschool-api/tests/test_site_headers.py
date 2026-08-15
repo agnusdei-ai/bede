@@ -333,3 +333,48 @@ def test_ci_runs_this_suite_when_the_files_it_guards_change(path):
         f"{path} is not in test.yml's change filter, so a change touching "
         f"only that file skips this entire suite."
     )
+
+
+def test_a_live_check_asserts_the_headers_on_every_merge():
+    """Everything else in this file checks the SOURCE. The last hop —
+    Cloudflare's own project settings — is not in this repository, so all of
+    it can be green while the deployed site serves nothing: a domain attached
+    to a different Worker, a Pages project shadowing the Workers one, or
+    run_worker_first toggled in the dashboard rather than in wrangler.jsonc.
+
+    .github/workflows/site-headers-live.yml closes that by curling the real
+    site on every push to main. This test exists because a CI gate in this
+    repository has been deleted before (frontend-tests.yml, in #296) and the
+    only signal was its absence. The rule is the same one that workflow's own
+    comment records: a red gate means fix the deployment, never delete the
+    check."""
+    workflow = _REPO / ".github" / "workflows" / "site-headers-live.yml"
+    assert workflow.is_file(), (
+        "site-headers-live.yml is gone. It is the only check that would notice "
+        "the deployed site losing its security headers."
+    )
+    text = workflow.read_text()
+    assert "scripts/check_live_site_headers.sh" in text, (
+        "the live-headers workflow no longer runs the header check script"
+    )
+    assert "branches: [main]" in text, (
+        "the live-headers check no longer runs on merges to main, which is "
+        "what attributes a header regression to the change that caused it"
+    )
+
+    script = _REPO / "scripts" / "check_live_site_headers.sh"
+    assert script.is_file(), "scripts/check_live_site_headers.sh is missing"
+    body = script.read_text()
+    # The expected set must be derived from site/_headers, not restated in the
+    # script — otherwise adding a header to the site silently fails to become a
+    # live requirement, which is this repo's most-repeated failure mode.
+    #
+    # Asserted against the ASSIGNMENT, not the filename appearing anywhere in
+    # the file: the first version of this check tested `"site/_headers" in
+    # body` and passed with the assignment repointed at /dev/null, because the
+    # script's own explanatory comment mentions the path. Same vacuous pass
+    # test_decision_register.py records for the CI-filter guard.
+    assert re.search(r'^HEADERS_FILE=(["\']?)site/_headers\1\s*$', body, re.M), (
+        "the live check no longer reads its expected header set from "
+        "site/_headers, so the two can drift"
+    )

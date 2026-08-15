@@ -1205,6 +1205,68 @@ look for it:
 This is a standing rule for this repo across sessions, not a one-off for
 whichever change prompted it.
 
+## Standing Workflow: Test The Function AND Its Invocation
+
+**A function that is tested but never correctly invoked is untested in the
+only way that matters.** Whenever you add or change a tested function, the
+same change must also prove the thing that *calls* it does so — with the
+right arguments, on the real path, in the runtime that actually runs it.
+Unit coverage of a function's body says nothing about whether the caller
+reaches it, passes what it expects, or exists at all.
+
+This repository has produced that gap repeatedly, and every time the unit
+suite stayed green:
+
+- `bayesian_update` never passed `params` to `cdm.update_attribute_posteriors`,
+  so the slip/guess values Phase 5 existed to tune were **unreachable from the
+  only path that used them**. The estimator was tested; the wiring was not.
+- `scripts/mcp_server/bede_tools.py` sent `password` where `LoginRequest`
+  requires `credential` — a guaranteed 422 against any real deployment. It
+  survived because the unit tests stubbed the transport and the e2e stub
+  accepted any JSON body. The fix was to validate with the API's own pydantic
+  model, and it was verified by reintroducing the bug.
+- `server.py`'s first cut was written against the MCP SDK's 1.x decorator API
+  and **could not start at all**. Every unit test passed.
+- `site/_headers` was correct, the build copied it, and nothing anywhere
+  checked that the deployed site actually *served* it.
+- `palette.test.ts`'s config was right while the dev server served stale CSS —
+  the assertion "the config says X" and the fact "the browser paints X" are
+  different claims.
+
+**In practice:**
+
+1. **Assert the call site, not just the callee.** If a value must reach a
+   function, test that it arrives — pass a sentinel and observe it downstream,
+   rather than testing the function with the value handed to it directly.
+2. **Read the real object, never a reconstructed replica.**
+   `test_the_instance_id_header_is_actually_exposed_cross_origin` reads
+   `main.app`'s own middleware config for exactly this reason: a replica test
+   passed after the regression it guarded was deliberately reintroduced.
+3. **A fake looser than the real thing is not a test, it is a second place for
+   the bug to hide.** Where a stub stands in for a real interface, validate
+   against the real contract (the actual pydantic model, the actual schema).
+4. **Where the wiring only exists in another runtime, test it there.** jsdom
+   evaluates no CSS or media queries, so `short:sr-only` vs `short:hidden` was
+   structurally invisible to a component test and needed real Chromium. The
+   same logic puts the live header check in Actions rather than pytest.
+5. **Verify the guard by breaking the thing it guards.** A test that does not
+   fail when the behavior regresses is decoration. Every guard added under
+   this rule gets that treatment, and the result is stated in the PR.
+
+**A general "is this function ever called" scan was tried and deliberately
+not shipped.** An AST pass over `core/`, `services/` and `routers/` flags 46
+of 614 functions as never referenced, and essentially all are false
+positives: FastAPI route handlers invoked by decorator, middleware
+`dispatch`, and imports bound under an alias (`get_faith_tradition as
+get_demo_faith_tradition` is called, and the scan cannot see it). A guard
+that cries wolf gets deleted — this repo has deleted a CI gate once already
+(#296) — so invocation is proven per change by the five techniques above,
+not by a blanket checker. If someone later models decorators and aliases well
+enough to get the false-positive count to zero, that is worth revisiting.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever change prompted it.
+
 ## Standing Workflow: The Site's Security Headers Are Asserted On Every Merge
 
 `site/_headers` is the whole public deployment's security posture — HSTS,

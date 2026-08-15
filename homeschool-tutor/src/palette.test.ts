@@ -275,15 +275,38 @@ describe('WCAG floors for the pairs the app paints', () => {
     // Moving gilt in took this from 2.36:1 to 3.25:1, i.e. over the line.
     ['gold-500 rating-star stroke on white', () => appColors.gold['500'], () => WHITE],
   ]
-  // KNOWN, PRE-EXISTING, and deliberately not asserted here: the UNFILLED
-  // rating star is `text-gray-300`, 1.47:1 on white, so filled-vs-unfilled is
-  // 2.21:1 — under 1.4.11's 3:1 for a state indicator. That is a component
-  // choice this palette does not govern and did not introduce; the brand move
-  // improved both figures (1.60 -> 2.21 between states, 2.36 -> 3.25 for the
-  // filled star itself) without being able to fix it. Darkening the unfilled
-  // star is a separate change to FeedbackModal.tsx and demo/src/App.tsx.
   it.each(UI)('%s clears 3:1', (_label, fg, bg) => {
     expect(contrast(fg(), bg())).toBeGreaterThanOrEqual(3.0)
+  })
+})
+
+describe('the rating control is visible at all', () => {
+  // The UNFILLED star was `text-gray-300` — 1.47:1 on white, faint enough
+  // that a user may not register there are five stars to click. Fixed to
+  // gray-500 (4.83:1) in FeedbackModal.tsx and demo/src/App.tsx.
+  //
+  // Worth recording why this is asserted against the PAGE and not against the
+  // filled star: no gold that clears 3:1 on white also separates from a grey
+  // dark enough to do the same — gold-600 against gray-500 is 1.02:1. Gold on
+  // white and any passing grey occupy the same luminance band, so a
+  // filled-vs-unfilled LUMINANCE floor is unreachable by construction, not by
+  // oversight. The state is carried by fill presence — a large solid area —
+  // plus hue, which is how star ratings conventionally work and which was
+  // confirmed by rendering both variants side by side rather than by
+  // arithmetic.
+  const GRAY_500 = '#6b7280' // Tailwind's, used directly by the star markup
+
+  it('paints the unfilled star dark enough to see on white', () => {
+    expect(contrast(GRAY_500, '#ffffff')).toBeGreaterThanOrEqual(3.0)
+  })
+
+  it.each([
+    'homeschool-tutor/src/components/FeedbackModal.tsx',
+    'demo/src/App.tsx',
+  ])('%s no longer paints an unfilled star at gray-300', (f) => {
+    const src = readFileSync(join(REPO, f), 'utf8')
+    expect(src).not.toMatch(/fill-gold-400[^'"]*'\s*:\s*'text-gray-300'/)
+    expect(src).not.toMatch(/text-gold-500'\s*:\s*'text-gray-300'/)
   })
 })
 

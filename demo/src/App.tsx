@@ -1988,7 +1988,7 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (n: n
               // Brand gold, matching FeedbackModal's own stars for the
               // identical rating widget — Tailwind's default amber read as
               // a different, off-brand yellow next to it.
-              className={n <= value ? 'fill-gold-400 text-gold-500' : 'text-gray-300'}
+              className={n <= value ? 'fill-gold-400 text-gold-500' : 'text-gray-500'}
             />
           </button>
         ))}
@@ -2789,7 +2789,7 @@ function FeedbackModal({ token, onClose, initialCategory = 'cx' }: {
                       aria-label={`${n} star${n > 1 ? 's' : ''}`}
                       className="p-0.5"
                     >
-                      <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-300'} />
+                      <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-500'} />
                     </button>
                   ))}
                 </div>

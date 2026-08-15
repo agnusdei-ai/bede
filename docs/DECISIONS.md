@@ -89,14 +89,15 @@ need to match.
 
 ## 3. `[COMMERCIAL]` Tier 3's billing primitive
 
-**Status:** open · needs: a spike against a real Helcim account
+**Status:** open · needs: a spike against a real Stripe account
 
-Tier 3 bills per completed diagnostic test. Helcim's Recurring API, which
+Tier 3 bills per completed diagnostic test. The subscription billing that
 [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §6.1 and §11 selected for
-Phase 1, is subscription-plan shaped and was verified to exist. It was not
-verified to cover arbitrary per-event charges. Helcim does expose a separate
-endpoint for charging a stored card once, which could plausibly serve this, but
-that is a different capability from the one already confirmed.
+Phase 1 is the primitive Tiers 1 and 2 need, and per-event charging is a
+different one. Entry 11's move from Helcim to Stripe does not settle this
+question, it only changes whose API has to answer it: Stripe offers both
+metered/usage-based subscription billing and one-off charges against a saved
+payment method, and which of those fits Tier 3 is unconfirmed.
 
 This is the one tier that changes the License Server's own design rather than
 just its labels. It needs a new `usage_charged` payment-event type, and a
@@ -109,15 +110,17 @@ already-verified subscription primitive.
 
 ---
 
-## 4. `[COMMERCIAL]` Payment-processor ordering after Helcim
+## 4. `[COMMERCIAL]` Whether to build the Square adapter at all
 
 **Status:** deferred · until: Phase 3 begins
 
-Helcim is Phase 1. Whether Stripe or Square comes second is a business call that
-can turn on an existing banking or point-of-sale relationship as easily as on
-integration effort. [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §13
-records that it blocks neither Phase 1 nor Phase 2, so it is deferred rather
-than open.
+Entry 11 makes Stripe the Phase 1 primary, which leaves Square as the only other
+processor this design still names. Whether it is worth building is a business
+call that can turn on an existing banking or point-of-sale relationship as
+easily as on integration effort, and the adapter layer exists precisely so the
+answer can be "not yet" indefinitely.
+[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §13 records that it blocks
+neither Phase 1 nor Phase 2, so it is deferred rather than open.
 
 ---
 
@@ -171,20 +174,26 @@ strings and moves with it.
 
 ## 8. `[COMMERCIAL]` The checkout pipeline predates the current pricing model
 
-**Status:** open · needs: reconciliation against entries 1, 3 and 7
+**Status:** closed
 
-Pull request #82 builds the entire paid and trial pipeline as a standalone
-Cloudflare Worker: Helcim integration, license minting in the wire format
-`core/licensing.py` already verifies, a D1 ledger, trial guard, and 50 passing
-tests. It has been open since 2026-07-14.
+**Decided (2026-08-15): closed unmerged, and not because of its own quality.**
+Pull request #82 built the entire paid and trial pipeline as a standalone
+Cloudflare Worker — license minting in the wire format `core/licensing.py`
+already verifies, a D1 ledger, a trial guard, and 50 passing tests — and was
+open from 2026-07-14.
 
-It was built for the `core`/`coop` split that entry 1 replaced, and for
-subscription billing only, so it does not implement Tier 3's metered charging.
-Its own description flags three Helcim API details as unverified against a real
-account, and states they must be confirmed before it processes real money.
+Three separate things ruled it out, any one of which would have been enough. It
+was built against an **orphaned git history**: its branch and `main` share no
+common ancestor at all (different root commits; `git merge` refuses outright),
+so it was never mergeable by ordinary means regardless of its contents. Its
+processor is Helcim, which entry 11 has since replaced. And it was built for the
+`core`/`coop` split that entry 1 replaced, with subscription billing only, so it
+does not implement Tier 3's metered charging either.
 
-Merging it is safe on its own, since Workers deploy only via a manual
-`wrangler deploy`. Going live is what these entries gate.
+What survives it is the design, not the code: the pipeline it describes is the
+one [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §11 Phase 1 still
+calls for, and its Stripe implementation — which existed in that branch before a
+later commit swapped it for Helcim — is the shape to rebuild from.
 
 ---
 
@@ -275,3 +284,54 @@ Membership; what a household above 6 children pays; where the Co-op
 Membership's "from" ends; and how monthly billing reconciles with the offline,
 phone-home-free license verification `core/licensing.py` deliberately
 implements. Each is its own entry when someone rules on it.
+
+---
+
+## 11. `[COMMERCIAL]` Payment processor: Stripe, replacing Helcim
+
+**Status:** closed
+
+**Decided (2026-08-15).** Stripe is the Phase 1 processor.
+[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §6.1 and §11 are rewritten
+accordingly, and Helcim is removed from that document rather than demoted — it is
+no longer a candidate, so leaving it listed would misdescribe the design.
+
+The earlier choice picked Helcim on **effective card-processing cost**: no
+monthly platform fee, no per-recurring-charge surcharge, and interchange-plus
+averaging below Stripe's and Square's online rates for recurring billing. That
+reasoning was about rates, and on rates it was sound. What it did not weigh is
+that §5 had already locked **Cloudflare Workers** as the runtime, and processor
+support for that runtime is not uniform.
+
+Two things decided it, and they point the same way:
+
+**Least code.** §6.1's canonical `PaymentEvent` vocabulary was already
+Stripe-shaped, on the same reasoning `services/adapters/base.py` uses Anthropic's
+shape as canonical. So the Stripe adapter is a near-passthrough while every other
+processor needs a translation layer. Choosing Stripe deletes work that choosing
+anything else preserves.
+
+**Workers compatibility.** Stripe publishes a Cloudflare Workers path —
+`Stripe.createFetchHttpClient()` for the HTTP client, and `constructEventAsync()`
+with `Stripe.createSubtleCryptoProvider()` for webhook verification against
+Workers' async Web Crypto. The synchronous `constructEvent` throws on Workers, so
+this is a compatibility property rather than a convenience. Square's SDK has no
+equivalent documented support and defaults to `node-fetch`; its HMAC-SHA256
+verification would be hand-rolled against `crypto.subtle`. Helcim would have been
+hand-rolled too — which is precisely what PR #82 did, and precisely why it
+shipped with three Helcim API details its author could not confirm from
+documentation alone (entry 8).
+
+**Square is not ruled out**, it is deferred: it remains the one other processor
+this design names, behind the same adapter layer, and entry 4 governs whether it
+is ever built.
+
+**What this does not decide.** Tier 3's per-event billing primitive stays open
+(entry 3) — choosing a processor does not settle which of Stripe's two relevant
+mechanisms fits, and that still needs a spike against a real account. Nor does
+this re-open §5: Workers remain the runtime, and this choice reinforces it.
+
+**The rate argument survives and can be re-run.** The adapter layer exists so the
+business can change processors without the issuance logic changing. What it
+should not do is buy a rate advantage with unverifiable integration code sitting
+on the critical path to taking money.

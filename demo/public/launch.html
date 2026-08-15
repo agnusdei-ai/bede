@@ -41,7 +41,19 @@
     line-height: 1.7;
     -webkit-text-size-adjust: 100%;
   }
-  .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
+  /* Each rule below owns ONE axis, and that is load-bearing rather than
+     stylistic. `.wrap` (a class) and `section` (an element) both used the
+     `padding` shorthand, so `.wrap`'s horizontal gutter also set vertical
+     padding to 0 and — being a class — beat `section { padding: 56px 0 }`
+     outright. Every `<section class="wrap">` therefore had NO vertical
+     rhythm, and the gaps that survived were incidental margins from whatever
+     the last child happened to be. The same collision ran the other way for
+     `.hero` and `.cta`, whose own shorthands are declared after `.wrap` and
+     zeroed the side gutter, so their text ran to the screen edge on a phone.
+     Measured at 390px: three of four sections at 0px vertical padding, and
+     0px between every top-level block. Keep horizontal here and vertical in
+     the section rules; do not merge either back into a shorthand. */
+  .wrap { max-width: 940px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
   h1, h2, h3 {
     font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
     color: var(--ink);
@@ -61,7 +73,8 @@
   .rule-left { margin-left: 0; margin-right: 0; }
 
   /* ── Hero ─────────────────────────────────────────────── */
-  .hero { text-align: center; padding: 64px 0 8px; }
+  /* vertical only — the side gutter is .wrap's (see above) */
+  .hero { text-align: center; padding-top: 64px; padding-bottom: 8px; }
   .hero h1 { text-wrap: balance; }
   .hero h1 {
     font-size: clamp(3rem, 12vw, 5.5rem);
@@ -93,7 +106,8 @@
   }
 
   /* ── Sections ─────────────────────────────────────────── */
-  section { padding: 56px 0; }
+  /* vertical only — the side gutter is .wrap's (see above) */
+  section { padding-top: 56px; padding-bottom: 56px; }
   .section-head { text-align: center; margin-bottom: 32px; }
 
   /* ── Product cards ────────────────────────────────────── */
@@ -212,7 +226,8 @@
   .faq .answer p:last-child { margin-bottom: 0; }
 
   /* ── Final CTA ────────────────────────────────────────── */
-  .cta { text-align: center; padding: 56px 0 64px; }
+  /* vertical only — the side gutter is .wrap's (see above) */
+  .cta { text-align: center; padding-top: 56px; padding-bottom: 64px; }
   .cta p { max-width: 620px; margin-left: auto; margin-right: auto; }
   .buttons { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 26px; }
   .btn {
@@ -299,19 +314,19 @@
       <article class="card">
         <p class="role">Bede</p>
         <h3>Socratic AI Tutor</h3>
-        <p>Thoughtful dialogue, classical formation, personalized learning.</p>
+        <p>Asks questions instead of handing over answers, one child at a time.</p>
       </article>
 
       <article class="card">
         <p class="role">Locuto</p>
         <h3>Secure Messaging</h3>
-        <p>Private communication for families, co-ops, and trusted communities. No public feeds.</p>
+        <p>Private messaging for families and co-ops. No public feeds.</p>
       </article>
 
       <article class="card">
         <p class="role">Family Portal</p>
         <h3>Parent Command Center</h3>
-        <p>Plans, progress, resources, schedules, parent oversight, and community access.</p>
+        <p>Where you set each child's plan and see what they actually finished.</p>
       </article>
     </div>
   </section>
@@ -393,8 +408,7 @@
       <hr class="rule rule-left" aria-hidden="true">
       <p>
         Sports are not the core Bede program. Through the Co-op Portal,
-        trusted families may coordinate local leagues, clubs, lessons, and
-        extracurricular opportunities.
+        trusted families may coordinate local leagues, clubs, and lessons.
       </p>
     </div>
   </section>

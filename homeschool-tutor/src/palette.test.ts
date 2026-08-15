@@ -181,6 +181,23 @@ describe('every ramp darkens', () => {
     expect(inversions).toEqual([])
   })
 
+  it('never spends two steps on the same colour', () => {
+    // gold-400 was briefly darkened to clear a focus-ring floor and landed
+    // 1.005:1 from gold-500 — one colour occupying two steps. The monotonic
+    // check above passes on any positive delta however small, so it cannot
+    // catch this: `fill-gold-400 text-gold-500` rating stars rendered flat,
+    // and a future `hover:bg-gold-500` would have been a visual no-op.
+    for (const [name, ramp] of Object.entries(appColors)) {
+      const steps = Object.keys(ramp).map(Number).sort((a, b) => a - b)
+      for (const [i, s] of steps.slice(1).entries()) {
+        const prev = steps[i]
+        const delta = oklabL(ramp[String(prev)]) - oklabL(ramp[String(s)])
+        expect(delta, `${name}-${prev} and ${name}-${s} are the same colour`)
+          .toBeGreaterThan(0.02)
+      }
+    }
+  })
+
   it('deepens on hover rather than paling', () => {
     // `bg-navy-500 hover:bg-navy-600` and `bg-sage-500 hover:bg-sage-600` are
     // the app's two primary buttons.
@@ -250,9 +267,21 @@ describe('WCAG floors for the pairs the app paints', () => {
     // enough to stay above gold-500 can clear 3:1 there.
     ['ring-gold-700 on bg-gold-50', () => appColors.gold['700'], () => appColors.gold['50']],
     ['ring-gold-700 on bg-gold-100 (hover)', () => appColors.gold['700'], () => appColors.gold['100']],
-    ['gold-500 rating star on white', () => appColors.gold['500'], () => WHITE],
-    ['gold-400 star fill on white', () => appColors.gold['400'], () => WHITE],
+    // The rating star is `fill-gold-400 text-gold-500`: the STROKE is what
+    // identifies it against the page, and gold-400 is the fill inside that
+    // stroke rather than an independent indicator — which is why gold-400 is
+    // not required to clear 3:1 on its own (no gold both lighter than gilt and
+    // above 3:1 exists; gilt itself is only 3.25:1).
+    // Moving gilt in took this from 2.36:1 to 3.25:1, i.e. over the line.
+    ['gold-500 rating-star stroke on white', () => appColors.gold['500'], () => WHITE],
   ]
+  // KNOWN, PRE-EXISTING, and deliberately not asserted here: the UNFILLED
+  // rating star is `text-gray-300`, 1.47:1 on white, so filled-vs-unfilled is
+  // 2.21:1 — under 1.4.11's 3:1 for a state indicator. That is a component
+  // choice this palette does not govern and did not introduce; the brand move
+  // improved both figures (1.60 -> 2.21 between states, 2.36 -> 3.25 for the
+  // filled star itself) without being able to fix it. Darkening the unfilled
+  // star is a separate change to FeedbackModal.tsx and demo/src/App.tsx.
   it.each(UI)('%s clears 3:1', (_label, fg, bg) => {
     expect(contrast(fg(), bg())).toBeGreaterThanOrEqual(3.0)
   })
@@ -263,6 +292,21 @@ describe('the palette reaches surfaces Tailwind does not paint', () => {
   // so a ramp change cannot reach them and they drift silently. All three were
   // found still carrying the pre-launch palette after the ramps had moved.
   const read = (p: string) => readFileSync(join(REPO, p), 'utf8')
+
+  it('writes no malformed colour literal', () => {
+    // A blanket old->new hex sweep produced `#faf6ecbeb` in both privacy
+    // notices: the '#fff' rule fired inside '#fffbeb'. CSS drops a declaration
+    // with an invalid hex, so the callout silently lost its ground — nothing
+    // errors, nothing fails to build, and the literal scan below still passed
+    // because the OLD value was genuinely gone.
+    for (const f of ['demo/public/launch.html', 'demo/public/privacy.html',
+                     'demo/public/privacy.es.html', 'homeschool-tutor/index.html',
+                     'demo/index.html', 'homeschool-tutor/tailwind.config.js',
+                     'demo/tailwind.config.js']) {
+      const bad = read(f).match(/#[0-9a-fA-F]{7,}\b/g)
+      expect(bad, `${f} has a malformed hex colour`).toBeNull()
+    }
+  })
 
   it('has no royal-blue or old-gold literal left in the shipped chrome', () => {
     const OLD = /#1e3a8a|#d4a106|#7c8a5a|#fefcf7|#17306e|#0b1636/i

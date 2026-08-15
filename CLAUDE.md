@@ -498,9 +498,19 @@ every ramp darkens monotonically (a generic Tailwind lightness curve puts
 ~40 `hover:bg-navy-600` call sites — that inversion was produced and caught
 during this work) and that the pairs the app actually paints clear their WCAG
 floors. `site/assets/site.css` is named in `frontend-tests.yml`'s change
-filter for the reason `test_decision_register.py` documents: without it, a
-site-only palette edit computes `relevant=false` and skips the guard written
-for exactly that change. A child's own `CHAT_THEMES`/`BUBBLE_COLORS` choices
+filter (both `on.push.paths` and the PR change filter) for the reason
+`test_decision_register.py` documents: without it, a site-only palette edit
+computes `relevant=false` and skips the guard written for exactly that change.
+Contrast is asserted against the **real ground** each colour is painted on,
+never white — this app's page is vellum, and checking against white passed
+while `text-gold-600` sat at 3.86:1 on `VisualAidCard`'s own
+`bg-parchment-100` panel. The test also scans the surfaces a ramp change
+cannot reach and which were each found stale: `public/manifest.json` (whose
+`theme_color` **wins over the `<meta>` tag for an installed PWA**),
+`tailwind.config.js`'s own `keyframes` (raw `rgba()`, not ramp lookups — the
+`ringPulse` ring went on pulsing the old royal blue), and `demo/public/*.html`
+(`launch.html` plus both privacy notices, plain static pages one click from
+the consent modal). A child's own `CHAT_THEMES`/`BUBBLE_COLORS` choices
 (`useChatTheme.ts`) deliberately range beyond the brand; only their defaults
 come from these ramps.
 

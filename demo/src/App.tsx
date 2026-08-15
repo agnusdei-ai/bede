@@ -888,7 +888,7 @@ export function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, su
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="continuing-mastery-panel"
-        className="w-full flex items-center gap-1.5 border-l-[3px] border-gold-400 bg-gold-50/70 hover:bg-gold-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        className="w-full flex items-center gap-1.5 border-l-[3px] border-gold-400 bg-gold-50/70 hover:bg-gold-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-700"
       >
         <GraduationCap size={13} className="text-gold-600 flex-shrink-0" aria-hidden="true" />
         <span className="font-display font-bold text-gray-800">{t('continuingMastery.heading')}</span>

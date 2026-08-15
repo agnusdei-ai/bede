@@ -54,7 +54,7 @@ export default {
           50:  '#f5f9f4',
           100: '#cfd9cd',
           200: '#acb9a8',
-          300: '#899985',
+          300: '#83937f',
           400: '#6a7c65',
           500: '#47613f', // --fern
           600: '#33482d', // --fern-deep
@@ -83,9 +83,9 @@ export default {
           100: '#f6e1bc',
           200: '#eacc97',
           300: '#e0b84a', // --gilt-light
-          400: '#b98e38',
+          400: '#b38832',
           500: '#b8860b', // --gilt
-          600: '#9a6a00',
+          600: '#8e5f00',
           700: '#7d4f00',
           800: '#603600',
           900: '#451d00',
@@ -138,8 +138,8 @@ export default {
           '100%': { transform: 'scale(1) translateY(0)' },
         },
         ringPulse: {
-          '0%, 100%': { boxShadow: '0 0 0 0 rgba(30, 58, 138, 0.35)' },
-          '50%': { boxShadow: '0 0 0 6px rgba(30, 58, 138, 0)' },
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(58, 67, 88, 0.35)' },
+          '50%': { boxShadow: '0 0 0 6px rgba(58, 67, 88, 0)' },
         },
         // A gentle head-bob, not a literal mouth-flap (no per-frame mouth art
         // exists for bede-icon.png) — reads as "he's the one talking" at the

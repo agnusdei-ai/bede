@@ -34,6 +34,7 @@ on:
     paths:
       - 'homeschool-tutor/**'
       - 'demo/**'
+      - 'site/assets/site.css'
       - '.github/workflows/frontend-tests.yml'
   pull_request:
   workflow_dispatch:

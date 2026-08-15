@@ -67,6 +67,41 @@ description of what the site does anyway.
 3.25:1 on white: a pass for the rating stars it is used on (a non-text UI
 component needs 3:1) and a fail as body text. Prose uses `gold-600`/`700`.
 
+## Contrast is measured against the real ground, never white
+
+This app's page is vellum, and several accents sit on their own tinted panels,
+so white is a ground it mostly does not use. Checking against white passed
+while `text-gold-600` was 3.86:1 on the `bg-parchment-100` panel
+`VisualAidCard` actually puts it on, and while `ring-sage-300` was 2.80:1 on
+the vellum page — two real WCAG failures behind a green test. Every entry in
+`palette.test.ts` now names its own ground, and a colour used on more than one
+is checked against all of them.
+
+One consequence worth keeping: the demo's `connect_to_faith` card focuses on
+its own gilt-tinted ground, and **no gold light enough to stay above
+`gold-500` can clear 3:1 there**. So the ring moved to `gold-700` rather than
+the brand colour being distorted to rescue it. When an accent cannot carry a
+focus indicator on its own ground, move the indicator.
+
+## Colours written by hand, outside the ramps
+
+A ramp change reaches every `bg-*`/`text-*` class and nothing else. Three
+kinds of surface hold colour literally, and each was still carrying the
+pre-launch palette after the ramps had moved:
+
+- **`public/manifest.json`** — `theme_color`/`background_color`. The manifest
+  **wins over the `<meta>` tag for an installed PWA**, so a stale value there
+  reinstates on the tablet exactly the banding the meta was changed to remove.
+- **`tailwind.config.js`'s own `keyframes`** — raw `rgba()`, not ramp lookups.
+  `ringPulse` went on pulsing the old royal blue around a slate dot.
+- **`demo/public/*.html`** — `launch.html` and both privacy notices are plain
+  static pages one click from the consent modal, and had their own `--navy`
+  and `--gold`. They now use the site tokens under the site's names, and
+  inherit its inline-link idiom (ink, gilt underline).
+
+`palette.test.ts` scans all of them for pre-launch literals, so the next hand-
+written colour has to be a deliberate choice rather than an oversight.
+
 ## What is deliberately *not* brand-locked
 
 `useChatTheme.ts`'s `CHAT_THEMES` and `BUBBLE_COLORS` are a child's own choice

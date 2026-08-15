@@ -194,6 +194,16 @@ describe('every ramp darkens', () => {
   })
 })
 
+/**
+ * Contrast is meaningless without the ground the thing is actually painted on,
+ * and white is a ground this app mostly does NOT use — the page is vellum and
+ * several accents sit on their own tinted panels. An earlier version of this
+ * file checked everything against `#ffffff` and passed while `text-gold-600`
+ * was 3.86:1 on the `bg-parchment-100` panel `VisualAidCard` puts it on, and
+ * `ring-sage-300` was 2.80:1 on the vellum page. So each entry below names its
+ * real ground, and where a colour appears on more than one, it is checked
+ * against all of them.
+ */
 describe('WCAG floors for the pairs the app paints', () => {
   const WHITE = '#ffffff'
   const PAPER = () => appColors.parchment['50']
@@ -215,21 +225,78 @@ describe('WCAG floors for the pairs the app paints', () => {
     ['text-sage-700 on white', () => appColors.sage['700'], () => WHITE],
     ['text-gold-600 on white', () => appColors.gold['600'], () => WHITE],
     ['text-gold-700 on white', () => appColors.gold['700'], () => WHITE],
+    // VisualAidCard.tsx paints text-gold-600 on both of these panels.
+    ['text-gold-600 on bg-gold-50', () => appColors.gold['600'], () => appColors.gold['50']],
+    ['text-gold-600 on bg-parchment-100', () => appColors.gold['600'], () => appColors.parchment['100']],
+    // Body text sits on the vellum page as often as on a white card.
+    ['text-navy-400 (muted) on the vellum page', () => appColors.navy['400'], PAPER],
+    ['text-sage-600 on the vellum page', () => appColors.sage['600'], PAPER],
   ]
   it.each(TEXT)('%s clears 4.5:1', (_label, fg, bg) => {
     expect(contrast(fg(), bg())).toBeGreaterThanOrEqual(4.5)
   })
 
   // Focus indicators and icons are non-text UI components: 3:1 (WCAG 1.4.11).
-  const UI: Array<[string, () => string]> = [
-    ['ring-navy-400', () => appColors.navy['400']],
-    ['ring-sage-300', () => appColors.sage['300']],
-    ['ring-sage-400', () => appColors.sage['400']],
-    ['ring-gold-400', () => appColors.gold['400']],
-    ['gold-500 rating star', () => appColors.gold['500']],
+  // A focus ring is drawn OUTSIDE its control, so its ground is whatever the
+  // control sits on — the page, or the tinted panel around it.
+  const UI: Array<[string, () => string, () => string]> = [
+    ['ring-navy-400 on the vellum page', () => appColors.navy['400'], PAPER],
+    ['ring-navy-400 on a white card', () => appColors.navy['400'], () => WHITE],
+    ['ring-sage-300 on the vellum page', () => appColors.sage['300'], PAPER],
+    ['ring-sage-300 on a white card', () => appColors.sage['300'], () => WHITE],
+    ['ring-sage-400 on the vellum page', () => appColors.sage['400'], PAPER],
+    // The demo's connect_to_faith card focuses on its own gilt-tinted ground,
+    // which is why that ring is gold-700 and not gold-400: no gold light
+    // enough to stay above gold-500 can clear 3:1 there.
+    ['ring-gold-700 on bg-gold-50', () => appColors.gold['700'], () => appColors.gold['50']],
+    ['ring-gold-700 on bg-gold-100 (hover)', () => appColors.gold['700'], () => appColors.gold['100']],
+    ['gold-500 rating star on white', () => appColors.gold['500'], () => WHITE],
+    ['gold-400 star fill on white', () => appColors.gold['400'], () => WHITE],
   ]
-  it.each(UI)('%s clears 3:1 against white', (_label, c) => {
-    expect(contrast(c(), '#ffffff')).toBeGreaterThanOrEqual(3.0)
+  it.each(UI)('%s clears 3:1', (_label, fg, bg) => {
+    expect(contrast(fg(), bg())).toBeGreaterThanOrEqual(3.0)
+  })
+})
+
+describe('the palette reaches surfaces Tailwind does not paint', () => {
+  // Each of these is a place a colour is written by hand, outside the ramps —
+  // so a ramp change cannot reach them and they drift silently. All three were
+  // found still carrying the pre-launch palette after the ramps had moved.
+  const read = (p: string) => readFileSync(join(REPO, p), 'utf8')
+
+  it('has no royal-blue or old-gold literal left in the shipped chrome', () => {
+    const OLD = /#1e3a8a|#d4a106|#7c8a5a|#fefcf7|#17306e|#0b1636/i
+    for (const f of [
+      'homeschool-tutor/index.html',
+      'demo/index.html',
+      'homeschool-tutor/public/manifest.json',
+      'homeschool-tutor/tailwind.config.js',
+      'demo/tailwind.config.js',
+      'demo/public/launch.html',
+      'demo/public/privacy.html',
+      'demo/public/privacy.es.html',
+    ]) {
+      expect(read(f), `${f} still carries a pre-launch colour`).not.toMatch(OLD)
+    }
+  })
+
+  it('gives the installed PWA the same theme colour as the page', () => {
+    // The manifest wins over the <meta> for an installed app, so a stale
+    // theme_color there reinstates on the tablet exactly the banding the meta
+    // was changed to remove.
+    const manifest = JSON.parse(read('homeschool-tutor/public/manifest.json'))
+    expect(manifest.theme_color.toLowerCase()).toBe(siteToken('vellum'))
+    expect(manifest.background_color.toLowerCase()).toBe(siteToken('vellum'))
+    expect(read('homeschool-tutor/index.html')).toContain(`content="${siteToken('vellum')}"`)
+    expect(read('demo/index.html')).toContain(`content="${siteToken('vellum')}"`)
+  })
+
+  it('keeps the ring-pulse keyframe on the brand navy', () => {
+    // tailwind.config.js's own keyframes are raw rgba() and are not ramp
+    // lookups, so they do not follow when a ramp moves. This one pulsed the
+    // old royal blue around a slate dot in SubjectDrawer.
+    const [r, g, b] = [58, 67, 88] // navy-500 #3a4358
+    expect(read('homeschool-tutor/tailwind.config.js')).toContain(`rgba(${r}, ${g}, ${b}`)
   })
 })
 

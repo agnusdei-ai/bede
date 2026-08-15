@@ -327,7 +327,7 @@ export function CodeScreen({ onLoggedIn }: {
         for the localStorage flag this checks/sets. */}
     <div
       ref={formContainerRef}
-      className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
+      className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
     >
       {/* Fall Launch banner. Deliberately ABOVE the demo card and outside
           it: this screen's job is "try Bede now", and the launch offer is
@@ -888,7 +888,7 @@ export function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, su
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="continuing-mastery-panel"
-        className="w-full flex items-center gap-1.5 border-l-[3px] border-gold-400 bg-gold-50/70 hover:bg-gold-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        className="w-full flex items-center gap-1.5 border-l-[3px] border-gold-400 bg-gold-50/70 hover:bg-gold-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-700"
       >
         <GraduationCap size={13} className="text-gold-600 flex-shrink-0" aria-hidden="true" />
         <span className="font-display font-bold text-gray-800">{t('continuingMastery.heading')}</span>
@@ -2111,7 +2111,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
   return (
     // Gradient background matches CodeScreen/SessionEndedScreen — this used
     // to be the only end-state screen with a flat fill instead.
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
@@ -2975,7 +2975,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
 function SessionEndedScreen({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation()
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
         <KeyRound size={32} className="text-navy-400 mx-auto mb-3" />
         <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionEnded.title')}</h1>

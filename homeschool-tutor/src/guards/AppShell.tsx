@@ -151,7 +151,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
 function SplashScreen() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-faith-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-madder-100 flex items-center justify-center">
       <div className="text-center">
         <AgnusDeiMark className="w-16 h-16 mx-auto mb-4 animate-pulse-soft" />
         <p className="text-sage-600 font-display text-lg font-semibold">

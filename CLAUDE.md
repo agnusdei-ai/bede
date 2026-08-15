@@ -484,6 +484,36 @@ A follow-up research pass looked up each publisher's own actual stated permissio
 
 ### Frontend (`homeschool-tutor/src/`)
 
+**The app's palette IS agnusdei.ai's palette** — see
+**[docs/VISUAL_IDENTITY.md](docs/VISUAL_IDENTITY.md)**. Both
+`tailwind.config.js` files re-anchor their existing ramps on the tokens in
+`site/assets/site.css` (`navy-*` carries ink/ink-soft, `sage-*` fern,
+`gold-*` gilt, `parchment-*` vellum, `madder-*` madder); the ramp NAMES are
+unchanged, since ~930 classes across the two apps reference them and only the
+hex values needed to move — the same approach used when the original
+leaf-green was hue-rotated to olive. `src/palette.test.ts` parses the site CSS
+and both configs and fails when they disagree, and additionally pins that
+every ramp darkens monotonically (a generic Tailwind lightness curve puts
+`600` LIGHTER than `500` for a colour as dark as ink, silently inverting all
+~40 `hover:bg-navy-600` call sites — that inversion was produced and caught
+during this work) and that the pairs the app actually paints clear their WCAG
+floors. `site/assets/site.css` is named in `frontend-tests.yml`'s change
+filter (both `on.push.paths` and the PR change filter) for the reason
+`test_decision_register.py` documents: without it, a site-only palette edit
+computes `relevant=false` and skips the guard written for exactly that change.
+Contrast is asserted against the **real ground** each colour is painted on,
+never white — this app's page is vellum, and checking against white passed
+while `text-gold-600` sat at 3.86:1 on `VisualAidCard`'s own
+`bg-parchment-100` panel. The test also scans the surfaces a ramp change
+cannot reach and which were each found stale: `public/manifest.json` (whose
+`theme_color` **wins over the `<meta>` tag for an installed PWA**),
+`tailwind.config.js`'s own `keyframes` (raw `rgba()`, not ramp lookups — the
+`ringPulse` ring went on pulsing the old royal blue), and `demo/public/*.html`
+(`launch.html` plus both privacy notices, plain static pages one click from
+the consent modal). A child's own `CHAT_THEMES`/`BUBBLE_COLORS` choices
+(`useChatTheme.ts`) deliberately range beyond the brand; only their defaults
+come from these ramps.
+
 ```
 App.tsx              React Router routes + RequireAuth guard + `GlobalAuthInterceptor` (401 → logout; its own file under components/ since it grew a rule worth testing) + ElevationPrompt (403 elevation_required → password/TOTP prompt, retries once — see below)
 guards/

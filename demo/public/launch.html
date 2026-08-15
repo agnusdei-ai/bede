@@ -6,13 +6,17 @@
 <title>Bede — Fall Launch, September 30</title>
 <meta name="description" content="Classical education for the whole family. Comprehension, compassion, conscience. Bede's Fall Launch opens September 30.">
 <style>
-  /* Three colours only, per the launch brief:
-       navy  #1e3a8a  (headings, rules, the recessed FAQ block)
-       gold  #d4a106  (decorative rules and marks ONLY — 2.4:1 on white,
-                       below the 4.5:1 text minimum, so it is never used
-                       for type. #7c5a03 is the accessible gold for text.)
-       white #ffffff  (page ground)
-     Body type is a darker navy (#0b1636) rather than a fourth colour.
+  /* Three colours only, per the launch brief — now drawn from agnusdei.ai's
+     own tokens rather than a parallel set, since this page is one click from
+     the demo and the marketing site and had been carrying the old palette:
+       ink    #1c2438  (--ink: headings, rules, the recessed FAQ block)
+       gilt   #b8860b  (--gilt: decorative rules and marks ONLY — 3.0:1 on
+                        vellum, below the 4.5:1 text minimum, so it is never
+                        used for type. #7d4f00 is the accessible gold for
+                        text, at 6.5:1.)
+       vellum #faf6ec  (--vellum: page ground)
+     Body type is a deeper ink (#090f21) rather than a fourth colour.
+     See docs/VISUAL_IDENTITY.md; the app's ramps carry the same tokens.
 
      No webfonts: site/_headers sets `font-src 'self'` and
      `style-src 'self' 'unsafe-inline'`, so Google Fonts would be blocked
@@ -21,26 +25,38 @@
      privacy.html already uses. Self-hosting the real faces is a follow-up
      (both are SIL OFL, and `font-src 'self'` permits it). */
   :root {
-    --navy: #1e3a8a;
-    --navy-deep: #0b1636;
-    --gold: #d4a106;
-    --gold-text: #7c5a03;
-    --rule: #dce6f7;
+    --ink: #1c2438;
+    --ink-deep: #090f21;
+    --gilt: #b8860b;
+    --gilt-text: #7d4f00;
+    --rule: #e0d6c1;
   }
   *, *::before, *::after { box-sizing: border-box; }
   body {
     margin: 0;
-    background: #ffffff;
-    color: var(--navy-deep);
+    background: #faf6ec;
+    color: var(--ink-deep);
     font-family: 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     font-size: 18px;
     line-height: 1.7;
     -webkit-text-size-adjust: 100%;
   }
-  .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
+  /* Each rule below owns ONE axis, and that is load-bearing rather than
+     stylistic. `.wrap` (a class) and `section` (an element) both used the
+     `padding` shorthand, so `.wrap`'s horizontal gutter also set vertical
+     padding to 0 and — being a class — beat `section { padding: 56px 0 }`
+     outright. Every `<section class="wrap">` therefore had NO vertical
+     rhythm, and the gaps that survived were incidental margins from whatever
+     the last child happened to be. The same collision ran the other way for
+     `.hero` and `.cta`, whose own shorthands are declared after `.wrap` and
+     zeroed the side gutter, so their text ran to the screen edge on a phone.
+     Measured at 390px: three of four sections at 0px vertical padding, and
+     0px between every top-level block. Keep horizontal here and vertical in
+     the section rules; do not merge either back into a shorthand. */
+  .wrap { max-width: 940px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
   h1, h2, h3 {
     font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
-    color: var(--navy);
+    color: var(--ink);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -49,15 +65,16 @@
   h2 { font-size: 1.35rem; margin: 0 0 8px; text-wrap: balance; }
   h3 { font-size: 1rem; letter-spacing: 0.06em; margin: 0 0 8px; }
   p { margin: 0 0 16px; text-wrap: pretty; }
-  a { color: var(--navy); }
+  a { color: var(--ink); }
 
   /* A short gold rule used as the section mark. Decorative only —
      aria-hidden where it appears as an element. */
-  .rule { width: 64px; height: 2px; background: var(--gold); border: 0; margin: 24px auto; }
+  .rule { width: 64px; height: 2px; background: var(--gilt); border: 0; margin: 24px auto; }
   .rule-left { margin-left: 0; margin-right: 0; }
 
   /* ── Hero ─────────────────────────────────────────────── */
-  .hero { text-align: center; padding: 64px 0 8px; }
+  /* vertical only — the side gutter is .wrap's (see above) */
+  .hero { text-align: center; padding-top: 64px; padding-bottom: 8px; }
   .hero h1 { text-wrap: balance; }
   .hero h1 {
     font-size: clamp(3rem, 12vw, 5.5rem);
@@ -67,16 +84,16 @@
        glyph, which visually pushes a centred word left. */
     text-indent: 0.18em;
   }
-  .hero .lede { font-size: 1.35rem; color: var(--navy); margin: 0 0 6px; }
+  .hero .lede { font-size: 1.35rem; color: var(--ink); margin: 0 0 6px; }
   .hero .virtues {
     font-size: 0.95rem; letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--gold-text); margin: 0 0 24px; text-indent: 0.22em;
+    color: var(--gilt-text); margin: 0 0 24px; text-indent: 0.22em;
   }
   .launch-date {
-    display: inline-block; border: 2px solid var(--gold);
+    display: inline-block; border: 2px solid var(--gilt);
     text-decoration: none;
     padding: 8px 20px; font-size: 0.9rem; letter-spacing: 0.16em;
-    text-transform: uppercase; color: var(--navy); text-indent: 0.16em;
+    text-transform: uppercase; color: var(--ink); text-indent: 0.16em;
   }
   .subhead {
     max-width: 640px; margin: 32px auto 0; text-align: center;
@@ -85,36 +102,37 @@
   .trust {
     max-width: 660px; margin: 32px auto 0; text-align: center;
     border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
-    padding: 16px 0; font-size: 1rem; color: var(--navy);
+    padding: 16px 0; font-size: 1rem; color: var(--ink);
   }
 
   /* ── Sections ─────────────────────────────────────────── */
-  section { padding: 56px 0; }
+  /* vertical only — the side gutter is .wrap's (see above) */
+  section { padding-top: 56px; padding-bottom: 56px; }
   .section-head { text-align: center; margin-bottom: 32px; }
 
   /* ── Product cards ────────────────────────────────────── */
   .cards { display: grid; gap: 20px; grid-template-columns: 1fr; }
-  .card { border: 1px solid var(--rule); border-top: 3px solid var(--gold); padding: 24px 22px; }
+  .card { border: 1px solid var(--rule); border-top: 3px solid var(--gilt); padding: 24px 22px; }
   .card p { margin: 0; font-size: 1rem; }
   .card .role {
     font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--gold-text); margin: 0 0 10px; text-indent: 0.14em;
+    color: var(--gilt-text); margin: 0 0 10px; text-indent: 0.14em;
   }
 
   /* ── Pricing ──────────────────────────────────────────── */
-  .price-intro { text-align: center; margin-bottom: 8px; font-size: 1.2rem; color: var(--navy); }
+  .price-intro { text-align: center; margin-bottom: 8px; font-size: 1.2rem; color: var(--ink); }
 
-  .price-sub { text-align: center; margin-bottom: 32px; color: var(--gold-text); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; text-indent: 0.08em; }
+  .price-sub { text-align: center; margin-bottom: 32px; color: var(--gilt-text); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; text-indent: 0.08em; }
   .tiers { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
   .tier { border: 1px solid var(--rule); padding: 24px 22px; position: relative; }
-  .tier.featured { border: 2px solid var(--navy); }
+  .tier.featured { border: 2px solid var(--ink); }
   .tier .flag {
-    position: absolute; top: -11px; left: 22px; background: var(--navy); color: #fff;
+    position: absolute; top: -11px; left: 22px; background: var(--ink); color: #faf6ec;
     font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
     padding: 3px 12px; text-indent: 0.14em;
     font-family: Georgia, serif;
   }
-  .tier .amount { font-size: 2rem; color: var(--navy); font-weight: 700; margin: 6px 0 2px; }
+  .tier .amount { font-size: 2rem; color: var(--ink); font-weight: 700; margin: 6px 0 2px; }
   .tier .amount .per { font-size: 0.95rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
   /* "from" must not inherit the 2rem figure size — at full size it takes a
      line of its own and the co-op card reads as broken beside the three
@@ -124,13 +142,13 @@
      keeps the figure's weight without the 2rem size a numeral needs. */
   .tier .amount .custom { font-size: 1.3rem; font-weight: 700; }
   .tier p { margin: 0; font-size: 0.98rem; }
-  .tier .alt { margin-top: 4px; color: var(--gold-text); }
+  .tier .alt { margin-top: 4px; color: var(--gilt-text); }
   .tier .includes { margin: 14px 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
   .tier .includes li { padding: 4px 0 4px 18px; position: relative; }
   /* Decorative gold mark, not a list bullet — the <ul> already carries the
      list semantics, so this is hidden from the accessibility tree. */
   .tier .includes li::before {
-    content: '\2022'; color: var(--gold); position: absolute; left: 2px;
+    content: '\2022'; color: var(--gilt); position: absolute; left: 2px;
   }
 
   /* The per-child table is the figure worth publishing, since per-family
@@ -141,14 +159,14 @@
     font-size: 1rem;
   }
   .effective caption {
-    caption-side: bottom; padding-top: 12px; font-size: 0.9rem; color: #4a5878;
+    caption-side: bottom; padding-top: 12px; font-size: 0.9rem; color: #3a4358;
   }
   .effective th, .effective td {
     border-bottom: 1px solid var(--rule); padding: 10px 14px; text-align: left;
   }
   .effective thead th {
     font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--gold-text); text-indent: 0.12em;
+    color: var(--gilt-text); text-indent: 0.12em;
   }
   /* The money column's header aligns with the figures under it — a
      left-set header over right-set figures leaves the table's spine
@@ -158,20 +176,20 @@
     text-align: right; text-indent: 0;
   }
   .effective tbody th { font-weight: 400; }
-  .effective td { text-align: right; color: var(--navy); font-weight: 700; }
+  .effective td { text-align: right; color: var(--ink); font-weight: 700; }
   /* Georgia's tabular lining figures stack the decimal points; Palatino's
      proportional figures don't, and this column is arithmetic. */
   .effective td, .effective tbody th {
     font-family: Georgia, serif; font-variant-numeric: tabular-nums;
   }
-  .effective .highlight { background: #f4f7fd; }
+  .effective .highlight { background: #f1e7d2; }
   /* The highlight band is framed in gold on BOTH edges — bottom via its
      own cells, top via the preceding row's bottom border (border-collapse
      resolves shared edges to one line, so styling the entering edge from
      above is the reliable way in). */
-  .effective .highlight th, .effective .highlight td { border-bottom-color: var(--gold); }
-  .effective .pre-highlight th, .effective .pre-highlight td { border-bottom-color: var(--gold); }
-  .price-notes { margin-top: 32px; border-left: 3px solid var(--gold); padding: 8px 0 8px 20px; }
+  .effective .highlight th, .effective .highlight td { border-bottom-color: var(--gilt); }
+  .effective .pre-highlight th, .effective .pre-highlight td { border-bottom-color: var(--gilt); }
+  .price-notes { margin-top: 32px; border-left: 3px solid var(--gilt); padding: 8px 0 8px 20px; }
   .price-notes p { margin: 0 0 8px; font-size: 1rem; }
   .price-notes p:last-child { margin-bottom: 0; }
 
@@ -184,54 +202,55 @@
   .plain-pair { display: grid; gap: 48px; grid-template-columns: 1fr; }
 
   /* ── FAQ (recessed navy block, deliberately outside the body) ── */
-  .faq { background: var(--navy); color: #ffffff; padding: 56px 0; margin-top: 20px; }
-  .faq h2, .faq h3 { color: #ffffff; }
-  .faq .section-head p { color: #dce6f7; }
+  .faq { background: var(--ink); color: #faf6ec; padding: 56px 0; margin-top: 20px; }
+  .faq h2, .faq h3 { color: #faf6ec; }
+  .faq .section-head p { color: #e0d6c1; }
   .faq details {
     border-bottom: 1px solid rgba(255,255,255,0.22);
     padding: 4px 0;
   }
   .faq summary {
-    cursor: pointer; padding: 18px 0; font-size: 1.05rem; color: #ffffff;
+    cursor: pointer; padding: 18px 0; font-size: 1.05rem; color: #faf6ec;
     font-family: Georgia, serif; list-style: none;
     display: flex; justify-content: space-between; align-items: center; gap: 16px;
   }
   .faq summary::-webkit-details-marker { display: none; }
   .faq summary::after {
-    content: '+'; color: var(--gold); font-size: 1.5rem; line-height: 1; flex: none;
+    content: '+'; color: var(--gilt); font-size: 1.5rem; line-height: 1; flex: none;
     align-self: flex-start; margin-top: 2px;
   }
   .faq details[open] summary::after { content: '\2212'; }
-  .faq summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-  .faq .answer { padding: 0 40px 20px 0; color: #dce6f7; font-size: 1rem; max-width: 700px; line-height: 1.75; }
+  .faq summary:focus-visible { outline: 2px solid var(--gilt); outline-offset: 3px; }
+  .faq .answer { padding: 0 40px 20px 0; color: #e0d6c1; font-size: 1rem; max-width: 700px; line-height: 1.75; }
   .faq .answer p { margin: 0 0 12px; }
   .faq .answer p:last-child { margin-bottom: 0; }
 
   /* ── Final CTA ────────────────────────────────────────── */
-  .cta { text-align: center; padding: 56px 0 64px; }
+  /* vertical only — the side gutter is .wrap's (see above) */
+  .cta { text-align: center; padding-top: 56px; padding-bottom: 64px; }
   .cta p { max-width: 620px; margin-left: auto; margin-right: auto; }
   .buttons { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 26px; }
   .btn {
     display: inline-block; padding: 15px 30px; font-size: 0.92rem;
     letter-spacing: 0.12em; text-transform: uppercase; text-indent: 0.12em;
-    text-decoration: none; font-family: Georgia, serif; border: 2px solid var(--navy);
+    text-decoration: none; font-family: Georgia, serif; border: 2px solid var(--ink);
     /* 48px min target — comfortably above the 44px floor. */
     min-height: 48px;
   }
-  .btn-primary { background: var(--navy); color: #ffffff; }
-  .btn-primary:hover { background: #17306e; }
-  .btn-secondary { background: #ffffff; color: var(--navy); }
-  .btn-secondary:hover { background: #f0f4fb; }
-  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
-  .cta .fallback { margin-top: 20px; font-size: 0.9rem; color: #4a5878; }
+  .btn-primary { background: var(--ink); color: #faf6ec; }
+  .btn-primary:hover { background: var(--ink-deep); }
+  .btn-secondary { background: #faf6ec; color: var(--ink); }
+  .btn-secondary:hover { background: #f1e7d2; }
+  .btn:focus-visible { outline: 3px solid var(--gilt); outline-offset: 3px; }
+  .cta .fallback { margin-top: 20px; font-size: 0.9rem; color: #3a4358; }
 
-  footer { border-top: 1px solid var(--rule); padding: 26px 0 44px; text-align: center; font-size: 0.85rem; color: #4a5878; }
+  footer { border-top: 1px solid var(--rule); padding: 26px 0 44px; text-align: center; font-size: 0.85rem; color: #3a4358; }
   footer a { margin: 0 10px; }
 
   /* Skip link — visible on focus only. */
   .skip {
     position: absolute; left: -9999px; top: 0;
-    background: var(--navy); color: #fff; padding: 12px 18px; z-index: 10;
+    background: var(--ink); color: #faf6ec; padding: 12px 18px; z-index: 10;
   }
   .skip:focus { left: 0; }
 
@@ -295,19 +314,19 @@
       <article class="card">
         <p class="role">Bede</p>
         <h3>Socratic AI Tutor</h3>
-        <p>Thoughtful dialogue, classical formation, personalized learning.</p>
+        <p>Asks questions instead of handing over answers, one child at a time.</p>
       </article>
 
       <article class="card">
         <p class="role">Locuto</p>
         <h3>Secure Messaging</h3>
-        <p>Private communication for families, co-ops, and trusted communities. No public feeds.</p>
+        <p>Private messaging for families and co-ops. No public feeds.</p>
       </article>
 
       <article class="card">
         <p class="role">Family Portal</p>
         <h3>Parent Command Center</h3>
-        <p>Plans, progress, resources, schedules, parent oversight, and community access.</p>
+        <p>Where you set each child's plan and see what they actually finished.</p>
       </article>
     </div>
   </section>
@@ -389,8 +408,7 @@
       <hr class="rule rule-left" aria-hidden="true">
       <p>
         Sports are not the core Bede program. Through the Co-op Portal,
-        trusted families may coordinate local leagues, clubs, lessons, and
-        extracurricular opportunities.
+        trusted families may coordinate local leagues, clubs, and lessons.
       </p>
     </div>
   </section>

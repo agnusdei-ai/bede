@@ -1157,6 +1157,57 @@ used to list its own open questions inline with no status and no owner; it now
 references entries 3, 4 and 5 instead. The design document is the argument,
 the register is the state.
 
+## Standing Workflow: A Decision Backed By Research Ships The Evidence
+
+Where an entry rests on published research rather than on this codebase's own
+facts, the evidence goes in a document next to it, structured so a later reader
+can check the reasoning instead of taking it on trust.
+**[docs/PRICING_RESEARCH.md](docs/PRICING_RESEARCH.md)** is the pattern — the
+evidence base behind entry 13's à la carte question — and
+`homeschool-api/tests/test_research_citations.py` enforces it, the same way
+`test_decision_register.py` enforces the register's own shape.
+
+Seven rules, each written into that document's own §7 so it holds itself to
+them, and each pinned by a test verified by breaking it:
+
+1. **Every claim names its study.** No sentence of the form "research shows"
+   with nothing attached to it.
+2. **Every study's evidence class is stated** — analytical, computational,
+   empirical, meta-analytic — from a closed vocabulary. An analytical model and
+   a pooled meta-analysis must not read as though they carry the same weight.
+   This matters more than it sounds: most of the bundling literature behind
+   entry 13 is *analytical*, and writing that down is what stopped the entry
+   from being closed on theory.
+3. **Editorial notices are checked before citing**, and the check is reported
+   whether or not it found a retraction, correction, or expression of concern.
+   A document that does not say it looked has not looked, as far as any later
+   reader can tell.
+4. **Nothing is cited that was not retrieved.** A result known only through
+   another paper's description is attributed to the paper that described it.
+   Citing a study nobody read, because a second study characterised it, is how
+   a literature review becomes folklore.
+5. **Contrary findings get their own section**, not a subordinate clause. A
+   corpus assembled to support a conclusion is not evidence.
+6. **Weak evidence is labelled weak in the sentence that uses it**, not only in
+   a table someone may not reach.
+7. **The limits of each finding are stated with the finding.**
+
+**The point is not rigour for its own sake — it is knowing what the research
+cannot tell you.** Entry 13's models all turn on the distribution of household
+reservation prices, which nobody has measured for Bede, so the literature
+narrows the shape of the answer and cannot supply the number. Stating that is
+what makes the entry honestly `open` against `docs/BETA_SURVEY.md` rather than
+closed on a model. A research document whose conclusion always matches the
+thing someone already wanted to do is doing no work.
+
+Name any such document in `.github/workflows/test.yml`'s change filter when you
+add it, for the reason `test_decision_register.py` documents: without it, a
+research-only edit computes `relevant=false`, skips `api-tests`, and never runs
+the guard written for exactly that change.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever change prompted it.
+
 ## Standing Workflow: Carry Out the Decision, Don't Just Record It
 
 A design decision is not finished when it is written down. It is finished

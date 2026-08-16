@@ -957,12 +957,13 @@ stops showing certificate warnings for this server.
 *(Prefer a terminal? `make caddy-trust` prints the same certificate to
 install by hand: same one-time result.)*
 
-**iPad shortcut:** `make ipad-profile` (requires a terminal) generates one
-file that installs a Home Screen icon *and* trusts the certificate in a
-single step, instead of doing both separately. iOS still requires one
-manual toggle afterward either way (Settings → General → About →
-Certificate Trust Settings). Works on older iPads too (tested down to
-iOS 15.8).
+**iPhone and iPad shortcut:** `make ipad-profile` (requires a terminal)
+generates one file that installs a Home Screen icon *and* trusts the
+certificate in a single step, instead of doing both separately. The profile
+payloads are identical on iPhone and iPad — the target keeps its original
+name, but nothing in it is iPad-specific. iOS still requires one manual
+toggle afterward either way (Settings → General → About → Certificate Trust
+Settings). Works on older iPads too (tested down to iOS 15.8).
 
 **Then**, from the Pod Dashboard, **"Copy Link for Tablet"** gives you a link
 pre-filled with that student's name: send it to their device (AirDrop, text,

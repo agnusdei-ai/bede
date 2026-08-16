@@ -232,9 +232,9 @@ The stack is: **Caddy (TLS/443) → nginx (UI/80) → FastAPI (API/8000)**,
 plus an optional local Postgres. Caddy generates a local CA for LAN HTTPS —
 tablets need its root cert installed once.
 
-For iPads specifically, `make ipad-profile` generates `bede-ipad.mobileconfig`,
+For iPhones and iPads, `make ipad-profile` generates `bede-ipad.mobileconfig`,
 which bundles the CA trust and a "Bede" Home Screen icon into one installable
-profile — AirDrop it to the iPad (or host it and open the link in Safari),
+profile — AirDrop it to the device (or host it and open the link in Safari),
 then **Settings → Profile Downloaded → Install**. iOS still requires one
 manual step no matter how the cert is delivered: **Settings → General →
 About → Certificate Trust Settings** → enable full trust for "Bede LAN Root

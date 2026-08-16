@@ -1,7 +1,66 @@
 # Release quality gates
 
-What must be true before a change reaches `main`. One gate today; this file
-is where further ones get recorded rather than living in someone's memory.
+What must be true before a change reaches `main`. This file is where gates get
+recorded rather than living in someone's memory.
+
+## What a release IS, today
+
+**There is no release artifact, and `main` is the release.** This is stated
+first because every other line in this file depends on it, and because it is
+currently true by default rather than by decision — see `docs/DECISIONS.md`
+entry 17.
+
+The mechanics, verifiable in two files:
+
+- `docker-compose.yml` declares all four of Bede's own services (`api`, `ui`,
+  `locuto-ipc`, `trust`) with `build:`, not `image:`. Nothing is published to
+  any registry. The only `image:` entries are third-party — `postgres:16-alpine`
+  and `caddy:2-alpine`.
+- `make update` is `git pull && docker compose pull && docker compose up -d
+  --build`. That `docker compose pull` therefore fetches Postgres and Caddy
+  only; Bede is rebuilt from whatever source `git pull` just brought down.
+
+So a family runs **whatever `main` was at the moment they typed `make
+update`.** No tag has ever been cut. There is no `CHANGELOG`. The `1.0.0` in
+both `package.json` files is read by nothing.
+
+**The consequence that matters:** every merge to `main` is immediately what
+the next family builds. There is no staging period, no release branch, and no
+moment between "merged" and "shipped" in which anything could be caught. That
+is why the merge gate below is a *release* gate, and why the periodic proofs
+in the next section are not optional extras.
+
+**What this file does not do.** It does not describe a versioned release
+process, because there is not one. Adding version tags without changing
+`make update` would create a number that nothing reads — the "config that
+looks maintained but silently isn't" failure this repository has shipped
+twice (the 22 settings `docker-compose.yml` never passed through, and
+`DiagnosticEvidenceLog`'s docstring contradicting the design doc for four
+phases). Whether to move to tagged releases is entry 17, and it is a decision
+about how every existing family receives updates, not a tidy-up.
+
+## The proofs that stand in for a release candidate
+
+With no staging period, these are what continuously establish that `main` is
+in a shippable state. Listed together because they were not collected
+anywhere, and a gate nobody can enumerate is one nobody notices losing.
+
+| Proof | Where | Cadence | What it establishes |
+| --- | --- | --- | --- |
+| Merge gate | `.github/rulesets/main-branch-protection.json` | every merge | The merged state was tested, not each branch in isolation — see Gate 1 |
+| Full test suites | `.github/workflows/test.yml`, `frontend-tests.yml` | every PR | Backend, frontend, demo, wizard, trust service, MCP server |
+| Real production boot | `.github/workflows/production-regression.yml` | weekly + on deploy-path pushes | The Docker stack actually boots and serves traffic with a real daemon |
+| Live security headers | `.github/workflows/site-headers-live.yml` | every push to `main`, twice daily | The deployed site really serves the header set, not just declares it |
+| Installer integrity | `.github/workflows/verify-unix-installer-checksum.yml`, `build-windows-installer.yml` | on packaging changes | The unsigned Unix installer matches its published checksum; the Windows installer compiles and signs |
+| Lockfile currency | `lockfile-freshness` in `test.yml` | every PR | The committed pins are what `pip-compile` produces today — see entry 12 |
+| Constitution integrity | `core/constitution.py`, re-verified in `main.py`'s lifespan | every process start | A modified constitution prevents Bede starting at all |
+
+Note the last one is enforced at **runtime on the family's own machine**, not
+in CI. It is the only gate here that keeps working after delivery, which is
+deliberate: `main` reaching a family unaltered is a CI question, but the file
+staying unaltered on their disk is not.
+
+
 
 ## Gate 1 — a branch must be up to date with `main` before it merges
 

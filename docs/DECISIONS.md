@@ -384,3 +384,74 @@ that only fires on human error. That is a security-posture trade rather than
 a tidy-up, which is why it went to the founder instead of being taken in
 passing.
 
+
+---
+
+## 13. `[COMMERCIAL]` Whether the membership is broken into à la carte components
+
+**Status:** open · needs: a founder ruling, informed by beta pricing responses
+(`docs/BETA_SURVEY.md`'s price-and-unit questions)
+
+Entry 10 sells one Family Membership carrying five things — Bede Tutor, Locuto
+messaging, the Family Portal, parent tools and oversight, and verified access.
+The question raised is whether those should also be purchasable separately.
+
+**What the literature says, and where it stops.** Every model below is driven
+by the distribution of household reservation prices across the five components
+and by how those valuations correlate. Nobody has measured that for Bede, so
+the research narrows the shape of the answer without settling the number.
+
+- **Do not go to a flat à la carte grid.** For complementary products, pure or
+  mixed bundling beats selling each separately regardless of how complementary
+  they are, and pure bundling wins outright once complementarity is large
+  enough (Xu et al., 2018). Ignoring cross-category effects, or forbidding
+  bundling, produces significant profit loss (Rabbani et al., 2017).
+- **The strongest result points at a middle path, not at either pole.** When
+  consumers do *not* positively value every good, customized bundling — pick
+  up to N of J — outperforms both pure bundling and individual sale, and that
+  consumer characteristic matters more than the shape of the valuation
+  distribution; it also outperforms under incomplete information about
+  reservation values, which is Bede's actual state (Wu et al., 2008).
+- **Bede's specific asymmetry already has a named answer.** Locuto messaging
+  has direct network externality; the tutor has none. Where a portfolio
+  diverges in cost and externality, the optimum is pure components or
+  *mixed bundling-1* — the bundle plus one component standalone, the rest
+  bundle-only — rather than traditional mixed bundling (Prasad et al., 2010).
+  The component to sell standalone is therefore the tutor, and Locuto is the
+  one that must stay bundle-only.
+- **Tiers should nest, not fan out.** Where components are consumed jointly the
+  optimal assortment forms nested sets; where they are not, bundles need a
+  positive discount (Honhon & Pan, 2017). Tutor ⊂ Family ⊂ Co-op ⊂ Network is
+  the shape, never a feature grid.
+- **Keep any bundle discount modest.** Once the discount is carried into
+  willingness-to-pay for the bundle itself and reservation prices are
+  heterogeneous, full mixed bundling can be *less* profitable than pure
+  components (Liu & Yu, 2017). Weak evidence — one citing publication — but it
+  bounds the discount rather than the strategy.
+- **Per-family pricing survives this.** Sharing an information good within
+  small teams of roughly constant size raises profit rather than eroding it
+  (Bakos et al., 1999). Entry 10's per-child table stays arithmetic on the
+  page, not a set of SKUs.
+- **"A menu would confuse parents" is not supported.** Choice overload has a
+  mean effect size of virtually zero across 63 conditions (N = 5,036), with no
+  sufficient conditions identified (Scheibehenne et al., 2010). The real reason
+  to cap the menu is menu and cognitive cost bounding the number of bundles
+  worth offering (Wu et al., 2008) — four visible offers, not the folklore.
+- **One caution worth stating.** Under competition, mixed bundling raises
+  profit and lowers consumer surplus specifically when buyers face
+  firm-specific costs (Thanassoulis, 2007). Bede accumulates exactly that:
+  mastery history, the work ledger, bookmarks. Leaning on it is available and
+  is a positioning choice, not a free one.
+
+**Two components are outside the economics.** Parent tools and oversight, and
+verified access, are not features to be priced off. Selling a membership with
+the guardrails removed would create a version of this product whose safety
+posture is a paid upgrade, which `docs/CONSTITUTION.md`'s non-negotiable rules
+do not leave open as a commercial option. They stay in every membership at
+every tier whatever this entry resolves to.
+
+**The recommendation this entry is waiting on a ruling for:** keep the Family
+Membership as the headline, add exactly one standalone (Bede Tutor), keep
+Locuto, the Family Portal, oversight and verified access bundle-only, keep the
+tiers nested, and cap the visible menu at four. Nothing on `site/` changes
+until the ruling.

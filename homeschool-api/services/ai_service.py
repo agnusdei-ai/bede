@@ -2247,6 +2247,85 @@ def _get_visual_aids_context(
         return ""
 
 
+# Composer study rotates the same way picture study does (see _TERM_ARTISTS
+# just above) — one composer per term. Currently a single-entry list: every
+# term resolves to Vivaldi until more composers are added to
+# data/composer_catalog.json, at which point this list (and the rotation
+# math in _get_composer_context, already generic over its length) simply
+# grows — no other code needs to change.
+_TERM_COMPOSERS = ["Antonio Vivaldi"]
+
+
+def _get_composer_context(subject: Subject, config: SessionConfig, today: "date | None" = None) -> str:
+    """
+    Composer/music-listening context for art_music — see data/composer_catalog.json.
+    Mirrors _get_visual_aids_context's "one artist per term" rotation: one
+    composer per term (_TERM_COMPOSERS), and within that composer's works,
+    one per calendar week (same ISO-week mechanism as poetry_catalog/
+    prayer_catalog, so it advances on its own with nothing for a parent to
+    configure or forget).
+
+    Explicitly tells Bede it has no audio output and must never claim to be
+    playing music — this is composer/listening-guide content for Bede to
+    teach FROM, not a substitute for the family's own recording, and a
+    child hearing "let's listen together" with no sound playing would be a
+    real, confusing product bug.
+
+    Which WORK comes up doesn't vary by grade (all three current pieces are
+    equally suitable listening for any age) — but the DEPTH of discussion
+    does, via each entry's stage_notes (data/composer_catalog.json), keyed
+    by GradeStage the same three-way split _STAGE_GUIDANCE already uses
+    elsewhere (Grammar/foundations stays concrete and sensory; Logic/
+    core_mastery adds structure and "why"; Rhetoric/independent adds
+    vocabulary, history, and cross-work comparison) — so this genuinely
+    evolves with the child instead of handing every grade the same note.
+    """
+    if subject != Subject.art_music:
+        return ""
+    try:
+        from services.catalog_service import get_composer_works
+        works = get_composer_works(subject.value)
+        if not works:
+            return ""
+
+        composer = _TERM_COMPOSERS[(max(1, config.current_term) - 1) % len(_TERM_COMPOSERS)]
+        term_works = [w for w in works if w.get("composer") == composer]
+        if not term_works:
+            term_works = works
+
+        week = (today or date.today()).isocalendar()[1]
+        work = term_works[(week + config.current_term - 1) % len(term_works)]
+        # GradeStage member NAMES ("foundations"/"core_mastery"/"independent")
+        # are the stage_notes keys — not .value ("K-2"/"3-5"/"6-8").
+        stage_note = work.get("stage_notes", {}).get(config.grade_stage.name) or work["listening_notes"]
+
+        term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
+        return f"""
+
+<composer_study>
+This {term_word}'s composer is {composer} — Mater Amabilis composer study lives with one composer at a
+time, listening and responding rather than technical analysis.
+
+This week: "{work['work_title']}", {work['movement']} ({work['era']}), scored for {work['forces']}.
+
+{work['composer_bio']}
+
+{work['listening_notes']}
+
+For this child's stage: {stage_note}
+
+You have no audio output and cannot play this or any recording — never say or imply that you are
+playing music or that you and the child are listening together right now. If the family has this
+piece playing in the room (their own recording), invite the child to listen quietly first, then ask
+open questions like "How does this music make you feel?" or "What do you notice about the
+instruments?" — appreciation, never a quiz. If no recording is playing, teach FROM the facts and
+listening notes above instead (what the piece is, who wrote it, what to notice), and never pretend
+sound is happening.
+</composer_study>"""
+    except Exception:
+        return ""
+
+
 def _time_of_day_note(time_of_day: Optional[str]) -> str:
     """
     Bede has no built-in sense of wall-clock time — time_of_day is derived
@@ -2681,6 +2760,7 @@ async def _build_subject_prompt(
     bookmark_note = "" if resume_note else _bookmark_note(bookmark, today=local_date)
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject, config, history)
+    composer_note = _get_composer_context(subject, config, today=local_date)
     session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
     time_of_day_note = _time_of_day_note(time_of_day)
     # Poetry co-study belongs where Mater Amabilis puts poetry: the Morning
@@ -2756,7 +2836,7 @@ async def _build_subject_prompt(
     companion_note = _classical_language_companion_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

@@ -886,6 +886,29 @@ Advance the term yourself each time your family's own term/quarter turns
 over. (The weekly poem and prayer above are different: those rotate
 automatically off the calendar and need no action from you.)
 
+**Art & Music also includes composer study — talked through, not played.**
+Alongside picture study, Bede introduces one composer at a time (currently
+Antonio Vivaldi, with more composers to be added over time) and, each week,
+one specific piece of that composer's music: the piece's title, movement,
+what instruments play it, and a few sourced, true facts about the composer
+and what to listen for. Bede has no way to actually play audio in a
+session — this is a listening *guide*, meant to be used alongside your own
+recording of the piece (from a streaming service, CD, or a source like
+[Musopen](https://musopen.org), which hosts free public-domain classical
+recordings) playing in the room, especially nice as quiet background music
+during handwriting, composition, or drawing time. If you don't have a
+recording playing, Bede still teaches from the facts and won't pretend
+music is playing. Which composer is featured follows the same **Term**
+dropdown as picture study; which of that composer's pieces comes up
+rotates weekly on its own, same as the poem and prayer above.
+
+The same piece comes up regardless of your child's grade, but how Bede
+talks about it grows with them, the same way it already paces every other
+subject to your child's stage: a K-2 child gets simple, physical questions
+("does it feel fast or slow? can you tap the beat?"), a 3rd-5th grader
+starts noticing structure and asking why, and a 6th-8th grader gets real
+vocabulary, historical context, and comparisons across the term's pieces.
+
 **Composition is encouraged, never required.** At least once per session,
 Bede invites your child to spend about ten minutes on a piece of their own
 handwritten work: a written narration, a nature journal entry, math worked

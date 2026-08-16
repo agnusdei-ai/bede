@@ -134,7 +134,57 @@ component at a different endpoint does.
 }
 ```
 
-### 4. Bible translation copyright permissions — `data/bible_translations/copyright_permissions.json`
+### 4. Composer / music-listening catalog — `data/composer_catalog.json`
+
+Composer study (`art_music`), alongside picture study above — Mater
+Amabilis's "one composer at a time" practice. Metadata and original
+descriptive listening notes only, **never audio itself**: Bede has no
+audio output, and `services/ai_service.py`'s `_get_composer_context()`
+(which renders this into the prompt) explicitly tells Bede never to claim
+it's playing music. Which composer is featured rotates by term
+(`_TERM_COMPOSERS` in `ai_service.py`, same "one artist per term" pattern
+as picture study's `_TERM_ARTISTS`); which of that composer's works comes
+up rotates weekly off the calendar, same mechanism as poetry/prayer below.
+
+`listening_notes` is one general note shared by every grade; `stage_notes`
+is where grade-by-grade progression actually lives — three required keys,
+one per `GradeStage` **member name** (`foundations`/`core_mastery`/
+`independent` — not the enum's `"K-2"`/`"3-5"`/`"6-8"` *value*, which
+`_get_composer_context` deliberately does not key by), each pitched at
+that stage's depth the same way `_STAGE_GUIDANCE` already frames every
+subject: foundations stays concrete and sensory (fast/slow, loud/soft,
+"can you tap the beat?"), core_mastery adds structure and "why" ("why a
+slow tempo here?"), independent adds vocabulary, history, and comparison
+across the term's other works. The same piece is used at every stage —
+the depth of what Bede asks about it is what evolves, not the piece
+itself, since a Baroque chamber movement's tempo/character doesn't need
+gating by grade the way, say, sensitive book content might.
+
+```json
+{
+  "id": "vivaldi_rv93_ii_largo",      // unique — mirrors visual_aids.json's id convention
+  "subject": "art_music",             // only "art_music" has entries today
+  "composer": "Antonio Vivaldi",
+  "composer_dates": "1678-1741",
+  "work_title": "Lute Concerto in D major, RV 93",
+  "movement": "II. Largo",
+  "era": "Baroque (composed c. 1730-1731)",
+  "forces": "solo lute (often played on classical guitar today), two violins, and basso continuo",
+  "composer_bio": "...",              // shared verbatim across a composer's entries
+  "listening_notes": "...",           // original prose Bede teaches from — not a quoted source
+  "stage_notes": {                    // REQUIRED — all three GradeStage member names, all non-empty
+    "foundations": "...",             // K-2: concrete, sensory
+    "core_mastery": "...",            // 3-5: structure, "why"
+    "independent": "..."              // 6-8: vocabulary, history, comparison
+  }
+}
+```
+
+To add a second composer, add entries with a new `composer` value and
+append their name to `_TERM_COMPOSERS` in `ai_service.py` — the rotation
+math is already generic over that list's length.
+
+### 5. Bible translation copyright permissions — `data/bible_translations/copyright_permissions.json`
 
 Publisher-stated permission-to-quote limits for the nine modern,
 copyrighted translations in `models.schemas.BIBLE_TRANSLATIONS` (KJV and
@@ -163,7 +213,7 @@ the file's own `_comment` for the full sourcing note and dated
 verses — don't convert one to the other; keep the field name that matches
 what the publisher actually states.
 
-### 5. Poetry — `services/poetry_catalog.py`
+### 6. Poetry — `services/poetry_catalog.py`
 
 Verbatim public-domain Catholic poems/hymn-texts — see the sourcing
 standard above before adding here. Rotates weekly off the calendar (ISO
@@ -174,7 +224,7 @@ derived automatically from that grade set (never hand-maintained
 separately) and used only as a fallback when a session has a stage but no
 specific grade.
 
-### 6. Classical languages — `services/latin_catalog.py`, `services/greek_catalog.py`
+### 7. Classical languages — `services/latin_catalog.py`, `services/greek_catalog.py`
 
 Verbatim Vulgate anchors and the six foundational terms behind
 `Subject.latin` (Fides, Spes, Caritas, Sapientia, Veritas, Ora et Labora),
@@ -239,7 +289,7 @@ reason they're two mappings rather than one. Adding a language means a row
 in both plus a catalog module; adding a non-language catalog subject means
 a row in the first only — never another branch in three functions.
 
-### 6b. Logic — `services/logic_catalog.py`
+### 7b. Logic — `services/logic_catalog.py`
 
 Same fixed-content discipline as the language catalogs, for a sharper
 reason: a model asked to invent a syllogism will sometimes produce an
@@ -267,7 +317,7 @@ Three rules specific to this subject, all enforced by
   religious dispute. Each guarantee travels in both the prompt block and
   every year plan, so softening one doesn't quietly soften the feature.
 
-### 7. Subject/stage guidance — `services/ai_service.py`
+### 8. Subject/stage guidance — `services/ai_service.py`
 
 Not a data file — plain Python dicts that are part of the system prompt:
 
@@ -347,8 +397,9 @@ its own strictly-additive discipline — never a side effect of adding a poem.
    this doc, checks this in CI — see below).
 4. Run the backend test suite: `cd homeschool-api && python -m pytest tests/ -q`.
 5. If you added or changed a `Subject`-scoped file (catalog, catechism,
-   visual aids), sanity-check it actually surfaces where expected —
-   `_get_catalog_context`/`_get_visual_aids_context`/`_build_subject_prompt`
+   visual aids, composer works), sanity-check it actually surfaces where
+   expected —
+   `_get_catalog_context`/`_get_visual_aids_context`/`_get_composer_context`/`_build_subject_prompt`
    in `services/ai_service.py` are the wiring to trace if something added
    doesn't show up in a session.
 6. Open a PR — same flow as any other change in this repo (see the root
@@ -358,9 +409,13 @@ its own strictly-additive discipline — never a side effect of adding a poem.
 
 `tests/test_catalog_data_integrity.py` runs on every push/PR (same CI as
 the rest of the backend test suite) and checks, across every catalog file:
-every book/visual-aid ID is globally unique, every entry has its required
-fields non-empty, every `subject` value is a real `Subject` enum member,
-and every catechism grade key is a plausible `"1"`–`"8"` string. It exists
-so a future content PR — from you, or a future Claude Code session — fails
-loudly in CI on a malformed entry instead of silently shipping a broken
-lookup.
+every book/visual-aid/composer-work ID is globally unique, every entry has
+its required fields non-empty, every `subject` value is a real `Subject`
+enum member, every catechism grade key is a plausible `"1"`–`"8"` string,
+and every composer-work entry has all three `stage_notes` (`foundations`/
+`core_mastery`/`independent`) present and non-empty — so a content PR that
+adds a work but forgets one grade band's discussion depth fails in CI
+instead of silently falling back to the generic `listening_notes` for that
+stage. It exists so a future content PR — from you, or a future Claude
+Code session — fails loudly in CI on a malformed entry instead of silently
+shipping a broken lookup.

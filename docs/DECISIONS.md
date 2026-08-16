@@ -533,3 +533,47 @@ that would also stop devices that were fine.
 either frontend are the diagnostic log lines in `hooks/diagnostics.ts` and its
 demo mirror; nothing anywhere branches on a platform or a version. If a future
 change adds a gate, this entry is what it has to argue against.
+
+**Its premise moved, its decision did not (2026-08-16).** This entry was
+written against a stated 15.6 floor, which entry 16 superseded hours later.
+The no-gate decision is unaffected and is if anything stronger without a
+number to gate on: with support defined by the vendor's own moving list, a
+hardcoded version check would be wrong the moment that list changed.
+
+
+---
+
+## 16. `[PRODUCT]` No minimum OS version — support tracks the vendor's own catalog
+
+**Status:** closed
+
+**Decided (2026-08-16), superseding the 15.6 floor recorded the same day.**
+Bede states no minimum iOS/iPadOS version. Supported means **the versions
+Apple itself still supports**, referencing Apple's own currently-supported
+list rather than a number restated here.
+
+**Why the number was the wrong instrument.** A named floor ages in one
+direction only. It accumulates legacy commitments and never sheds them, so a
+version chosen once quietly becomes a promise about hardware the vendor has
+itself stopped supporting — a bias toward legacy devices dressed as a
+compatibility guarantee. This project is open-ecosystem on hardware, and a
+frozen floor pulls directly against staying current with what Apple ships.
+
+**What this does not change.** Nothing in the code enforces a version and
+nothing should (entry 15). No device is turned away; each capability a device
+lacks degrades on its own feature check. This is a change to what the project
+*says*, not to what any device *does* — a 15.5 device behaved the same before
+and after.
+
+**The honest cost.** A rule that defers to a third party means the supported
+set changes without any commit here, so the docs cannot be read as a snapshot
+of it. That is the intended trade: a set that silently stays current is worth
+more than a number that is precise and steadily less true. Anyone needing the
+exact set on a given day reads Apple's list, not this repository.
+
+**What was deleted with it.** The 15.6 floor's stated-but-unrecorded rationale
+question is moot — there is no longer a number needing one.
+`docs/RELEASE_QUALITY_GATES.md`'s platform table keeps its older observations,
+relabelled as historical observations rather than support statements, because
+deleting a true observation would be erasing a fact rather than removing a
+commitment.

@@ -963,7 +963,10 @@ certificate in a single step, instead of doing both separately. The profile
 payloads are identical on iPhone and iPad — the target keeps its original
 name, but nothing in it is iPad-specific. iOS still requires one manual
 toggle afterward either way (Settings → General → About → Certificate Trust
-Settings). Works on older iPads too (tested down to iOS 15.8).
+Settings). Bede supports iOS and iPadOS **15.6 and newer**; the oldest
+iPad it has actually been run on was iOS 15.8. See
+`docs/RELEASE_QUALITY_GATES.md`'s platform verification log for the
+difference between those two numbers.
 
 **Then**, from the Pod Dashboard, **"Copy Link for Tablet"** gives you a link
 pre-filled with that student's name: send it to their device (AirDrop, text,

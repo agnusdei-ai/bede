@@ -494,3 +494,42 @@ worse: it looks finished.
 **Related:** `docs/LOCUTO_CONNECTOR_DECISIONS.md` holds the connector's own
 pre-implementation packets; this entry carries the state, per this register's
 own design-document-points-here rule.
+
+---
+
+## 15. `[PRODUCT]` The minimum OS version is unenforced by design
+
+**Status:** closed
+
+**Decided (2026-08-16): run on feature detection; add no version gate.**
+`docs/RELEASE_QUALITY_GATES.md` states iOS/iPadOS 15.6 as the minimum
+supported version. Nothing in the code enforces it, and nothing should.
+
+A device below the floor is **not turned away**. It runs, and each capability
+it lacks degrades on its own feature check — `navigator.audioSession`
+(iOS/iPadOS 17+) behind a capability check plus try/catch, `h-dvh` falling
+back to ordinary viewport height, `getUserMedia` inside a real user gesture
+with a classified error when it is refused. "Supported" therefore states what
+this project will stand behind and answer questions about, not what the
+software will consent to run on.
+
+**Why no gate.** A version check is a claim about capability inferred from a
+number, and the inference is wrong in both directions: it refuses devices that
+work, and it admits devices that do not once a vendor moves a feature between
+releases. User-agent parsing is worse — it is the string most often
+misreported, including by the third-party in-app browsers `docs/VOICE_SETUP.md`
+already documents as a real source of trouble. A feature check asks the device
+the actual question.
+
+**The cost, stated.** A family on an unsupported build gets a partly-degraded
+Bede rather than a clear "your device is too old." That is the accepted trade:
+this codebase's standing position is that silent degradation is the worst
+outcome, and the defence here is per-feature reporting at the point of failure
+(a denied microphone surfaces as a plain-language chat message; a missing
+picture renders as a captioned card) rather than a blanket refusal at the door
+that would also stop devices that were fine.
+
+**Verified rather than assumed.** The only reads of `navigator.userAgent` in
+either frontend are the diagnostic log lines in `hooks/diagnostics.ts` and its
+demo mirror; nothing anywhere branches on a platform or a version. If a future
+change adds a gate, this entry is what it has to argue against.

@@ -1,6 +1,6 @@
 // Mirror of demo/src/useVoiceRecorder.ts for the homeschool-tutor app.
 import { useState, useRef, useCallback } from 'react'
-import { resample, encodeWav } from '../utils/audioUtils'
+import { resample, encodeWav, encodePcm16 } from '../utils/audioUtils'
 import { logDebug } from './debugBus'
 
 /**
@@ -92,10 +92,54 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // even when IT runs much later, outside any gesture — see prewarm().
   const prewarmStreamRef = useRef<MediaStream | null>(null)
   const prewarmPromiseRef = useRef<Promise<MediaStream | null> | null>(null)
+  // True from the instant startRecording() is entered until the recording is
+  // fully torn down — including the async window while getUserMedia() is
+  // still in flight, which the `isRecording` STATE below cannot cover (it
+  // only flips true once the audio graph is actually live, several hundred
+  // milliseconds later). Guarding on the state instead had two failure modes,
+  // both seen in a real debug-panel trace: two presses inside that window
+  // opened two independent audio graphs, and — far worse — a state update
+  // that never landed left `isRecording` stuck true, which made the
+  // `if (isRecording) return` guard reject every subsequent press for the
+  // rest of the session, so the mic button silently stopped working with
+  // nothing on screen explaining why.
+  const activeRef = useRef(false)
+  // Bumped by every stopRecording(). startRecording() captures it before
+  // awaiting getUserMedia() and re-checks afterwards, so a turn that ended
+  // while the mic was still opening can tear the just-granted stream down
+  // instead of building a live graph nobody is tracking. That orphaned graph
+  // was the actual cause of the stuck-`isRecording` case above: the OS
+  // recording indicator stayed lit while the app believed it was idle.
+  const runGenRef = useRef(0)
 
-  const getStream = useCallback((constraints: MediaStreamConstraints['audio']) =>
-    navigator.mediaDevices
+  // `report: false` marks a call whose failure is NOT the final word — a
+  // fallback is still coming, so surfacing onError here would tell the
+  // child their turn failed before it's actually been decided. This is
+  // what used to be native SpeechRecognition's own job: startRecording()'s
+  // own comment below records that a prewarm failure "never even reached
+  // onError (mode was still 'native' when it rejected, so the guard in
+  // useHybridVoiceInput correctly ignored it)" — that guard existed only
+  // because native mode was still active to gate it, and it left with
+  // native SpeechRecognition's removal. This flag is that guard's direct
+  // replacement, now owned by the one place that actually knows whether a
+  // given getStream() call is provisional or final: the caller.
+  const getStream = useCallback((
+    constraints: MediaStreamConstraints['audio'], { report = true }: { report?: boolean } = {},
+  ) => {
+    const requestedAt = Date.now()
+    return navigator.mediaDevices
       .getUserMedia({ audio: constraints })
+      .then((stream) => {
+        // How long getUserMedia() itself took to resolve — the piece a
+        // "missing the start of speech" report can't be diagnosed without.
+        // A cold call issued at press-time can take anywhere from ~0ms
+        // (mic already warm) to several hundred ms (first-ever permission
+        // grant, OS-level device negotiation), and every one of those
+        // milliseconds is audio the child was already speaking into a mic
+        // that wasn't listening yet.
+        logDebug(`getStream() resolved in ${Date.now() - requestedAt}ms`)
+        return stream
+      })
       .catch((err: unknown): MediaStream | null => {
         console.error('Microphone access denied', err)
         const name = err instanceof DOMException ? err.name : ''
@@ -105,12 +149,14 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
         // is the one line that reveals WHICH getUserMedia failure occurred
         // (NotReadableError/device-in-use vs. NotFoundError vs. genuine
         // permission denial), which the reason classification below throws away.
-        logDebug(`getStream() rejected name=${name || 'unknown'} message=${err instanceof Error ? err.message : String(err)}`)
+        // Logged regardless of `report`, so a provisional failure still
+        // shows up in a debug trace even though the child never sees it.
+        logDebug(`getStream() rejected name=${name || 'unknown'} message=${err instanceof Error ? err.message : String(err)} report=${report}`)
         const reason: MicErrorReason = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? 'permission-denied' : 'unavailable'
-        onError?.(reason)
+        if (report) onError?.(reason)
         return null
       })
-  , [onError])
+  }, [onError])
 
   const MIC_CONSTRAINTS = {
     sampleRate: 16000,
@@ -135,9 +181,22 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // below then reuses whatever this resolves to (or falls back to a fresh,
   // synchronous call itself, for callers that invoke it directly from a
   // press handler with no separate prewarm step).
+  //
+  // SocraticChat.tsx's own prewarm call site is itself NOT inside a user
+  // gesture — it fires from a useEffect the instant it becomes the child's
+  // turn, specifically so the mic is already warm by the time a press
+  // happens (see that file's own comment). On a browser enforcing the
+  // gesture requirement above, THIS call can therefore fail on every single
+  // turn, before the child has touched anything. That is fine — it is
+  // exactly the race startRecording()'s own fresh-retry fallback below
+  // already exists to cover — but only if this failure never reaches the
+  // child as though it were a real one. `report: false` is what keeps it
+  // silent: a failed prewarm is not a failed turn, it is a warm-up that
+  // didn't take, and the child has not pressed anything yet for there to
+  // be a turn to fail.
   const prewarm = useCallback(() => {
     if (prewarmPromiseRef.current) return prewarmPromiseRef.current
-    const p = getStream(MIC_CONSTRAINTS).then((stream) => {
+    const p = getStream(MIC_CONSTRAINTS, { report: false }).then((stream) => {
       prewarmStreamRef.current = stream
       return stream
     })
@@ -162,6 +221,12 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
 
   const stopRecording = useCallback(async () => {
     logDebug('useVoiceRecorder.stopRecording()')
+    // Both SYNCHRONOUSLY and first, before anything below can await: this is
+    // what a startRecording() still waiting on getUserMedia() checks to learn
+    // its turn is already over, and what lets the very next press start a
+    // fresh recording even when this call takes the early return below.
+    runGenRef.current += 1
+    activeRef.current = false
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     if (animRef.current) cancelAnimationFrame(animRef.current)
     analyserRef.current = null
@@ -212,6 +277,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
 
     const chunks = pcmChunksRef.current
     pcmChunksRef.current = []
+    uploadedChunksRef.current = 0
 
     if (durationMs < MIN_RECORDING_MS) {
       // Too short to be real speech — discard without transcribing. Still
@@ -229,7 +295,9 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   }, [onComplete, onStopped])
 
   const startRecording = useCallback(async () => {
-    if (isRecording) return
+    if (activeRef.current) return
+    activeRef.current = true
+    const gen = runGenRef.current
     logDebug('useVoiceRecorder.startRecording()')
     pcmChunksRef.current = []
 
@@ -239,7 +307,12 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     // startRecording() directly from their own press handler (still inside
     // a gesture at that point, so a cold call here is still safe) — see
     // prewarm() above for why a cold call from anywhere else is not.
-    const pending = prewarmPromiseRef.current ?? getStream(MIC_CONSTRAINTS)
+    //
+    // `report: false` here too: this may be the FIRST of two attempts (see
+    // the fresh retry below), so a failure here is not yet the final word
+    // either — same reasoning as prewarm()'s own silent call, just one step
+    // later in the same fallback chain.
+    const pending = prewarmPromiseRef.current ?? getStream(MIC_CONSTRAINTS, { report: false })
     prewarmPromiseRef.current = null
     let stream = prewarmStreamRef.current ?? (await pending)
     prewarmStreamRef.current = null
@@ -258,9 +331,28 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
       // silently gave up on that same stale, already-failed promise instead
       // of trying again — turning a one-off race into a hard failure.
       logDebug('startRecording(): prewarmed stream unavailable — retrying getUserMedia() fresh')
+      // This IS the final attempt — no further fallback follows — so it
+      // reports normally (report defaults to true). A rejection here is a
+      // real turn failure and the child should be told.
       stream = await getStream(MIC_CONSTRAINTS)
     }
-    if (!stream) return
+    if (!stream) {
+      // getUserMedia failed for good (onError has already fired). Release the
+      // guard so the next press is a real retry rather than a no-op — but
+      // only if this is still the current turn, since a later press may
+      // already have claimed the guard while this one was failing.
+      if (runGenRef.current === gen) activeRef.current = false
+      return
+    }
+    if (runGenRef.current !== gen) {
+      // The turn ended while the mic was still opening — stopRecording() has
+      // already run and found nothing to tear down. Building the graph now
+      // would leave the microphone live with no owner, so hand the stream
+      // straight back instead. activeRef was cleared by that stopRecording().
+      logDebug('startRecording(): cancelled while the mic was opening — releasing the stream')
+      stream.getTracks().forEach((t) => t.stop())
+      return
+    }
 
     const audioCtx = new AudioContext()
     audioCtxRef.current = audioCtx
@@ -304,7 +396,11 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
 
     // Auto-stop at maxDuration
     timeoutRef.current = setTimeout(stopRecording, maxDurationMs)
-  }, [isRecording, maxDurationMs, stopRecording, getStream, onStarted])
+    // `isRecording` is deliberately NOT a dependency any more — the guard at
+    // the top reads activeRef instead, so this callback no longer needs to be
+    // rebuilt on every recording state change (and can no longer capture a
+    // stale copy of it).
+  }, [maxDurationMs, stopRecording, getStream, onStarted])
 
   // Non-destructive: does NOT clear pcmChunksRef the way stopRecording()
   // does, since the caller (the streaming-transcription chunk-upload loop)
@@ -312,10 +408,36 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   // snapshot — matching how the server always re-transcribes the whole
   // growing buffer too. Returns null before the audio graph is actually up
   // (audioCtxRef not yet set, or nothing captured yet).
+  // How many captured chunks the streaming-transcription loop has already
+  // uploaded. snapshotPcmDelta() below reads from here forward, so a long
+  // hold uploads each second of audio exactly once instead of re-sending the
+  // whole recording on every tick — that used to cost 8.3MB of upload for a
+  // 40-second answer, and 63MB at the 120s safety cap.
+  const uploadedChunksRef = useRef(0)
+
+  /** Raw int16 PCM for everything captured since the last call, advancing the
+   *  cursor. Returns null when nothing new has arrived. Non-destructive with
+   *  respect to the buffer itself: stopRecording()'s final encode still sees
+   *  every chunk, so the delta cursor can never cost us the real recording. */
+  const snapshotPcmDelta = useCallback((): Blob | null => {
+    const ctx = audioCtxRef.current
+    if (!ctx) return null
+    const fresh = pcmChunksRef.current.slice(uploadedChunksRef.current)
+    if (!fresh.length) return null
+    uploadedChunksRef.current = pcmChunksRef.current.length
+
+    const total = fresh.reduce((sum, c) => sum + c.length, 0)
+    const merged = new Float32Array(total)
+    let offset = 0
+    for (const chunk of fresh) { merged.set(chunk, offset); offset += chunk.length }
+    const samples = ctx.sampleRate === 16000 ? merged : resample(merged, ctx.sampleRate, 16000)
+    return new Blob([encodePcm16(samples)], { type: 'application/octet-stream' })
+  }, [])
+
   const snapshotWav = useCallback((): Blob | null => {
     if (!audioCtxRef.current || pcmChunksRef.current.length === 0) return null
     return _encodeChunksToWav(pcmChunksRef.current, audioCtxRef.current.sampleRate)
   }, [])
 
-  return { isRecording, level, startRecording, stopRecording, snapshotWav, prewarm, cancelPrewarm }
+  return { isRecording, level, startRecording, stopRecording, snapshotWav, snapshotPcmDelta, prewarm, cancelPrewarm }
 }

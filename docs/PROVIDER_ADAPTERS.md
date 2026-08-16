@@ -161,6 +161,44 @@ failover above — use the failover order (`BEDE_ADAPTER_ORDER=local,mistral`,
 say) for "keep working if my primary errors out," and the AI Provider card
 for "I've decided the other one should be primary now."
 
+### Choosing the failover itself, not just primary
+
+With exactly two adapters configured, picking a primary already answers
+"what's the failover" implicitly — the other one is the only fallback
+there is. With **three or more** configured (e.g. `openai`, `mistral`,
+`anthropic` all credentialed), that's no longer true: a family might
+prefer Claude over Mistral as backup, or vice versa, and previously had
+no way to express that short of editing `BEDE_ADAPTER_ORDER` and
+restarting.
+
+`POST /admin/ai-provider/secondary` (`routers/admin.py`, backed by
+`core/provider_state.py`'s `set_secondary`/`clear_secondary`/
+`current_secondary`) is the same "DB value wins over env, live, no
+restart" mechanism as primary, applied one slot deeper: it picks which
+configured adapter is tried FIRST if primary errors, leaving the rest of
+the configured list to follow in its original relative order after that.
+`AIProviderOverride`'s `key` column was always a string primary key
+rather than a hardcoded singleton specifically so a second row
+(`key="secondary"`) could be added later without a schema change — this
+is that second row. The parent-facing AI Provider card
+(`AIProviderSettings.tsx`) only shows this second picker once 3+ adapters
+are configured, since with two it would have nothing meaningful to offer;
+naming the current primary as secondary is rejected (422) as a no-op.
+Clearing it (`provider: null`) reverts the failover-after-primary to
+whichever adapter is next in the env order, exactly as before this
+existed.
+
+This is also what makes the public demo's disclosed failover choice
+(`docs/RETENTION_POLICY.md`, `demo/public/privacy.html`) an actual,
+codepath-backed configuration rather than a hardcoded claim: `render.yaml`
+lists `openai,mistral,anthropic` for that deployment specifically so
+Anthropic is a legitimate, already-in-the-order candidate the moment its
+API key is filled in, and this endpoint (called directly against the
+demo's own backend with its parent credentials — the demo's frontend
+never renders this UI, but the same FastAPI backend code path exists
+underneath it) is how an operator would actually pick Claude over Mistral
+as that deployment's backup, live, without a redeploy.
+
 **Practical example for a home-server local model (e.g. Ollama):** keep both
 credentials populated in `.env` at all times —
 
@@ -190,6 +228,27 @@ WireGuard, an SSH tunnel) or at minimum put an authenticating reverse proxy in
 front of it and set `LOCAL_LLM_API_KEY` accordingly — never hang it directly on
 the public internet.
 
+## Model weight integrity — self-hosted local models (OWASP LLM04)
+
+Neither `packaging/unix/install.sh` nor `packaging/windows/Setup-Bede.ps1`
+(nor the browser wizard, `scripts/setup_wizard/wizard.py`) adds any
+checksum or signature verification of its own on top of `ollama pull
+qwen3:<tag>` — it's a plain call into Ollama's own pull mechanism.
+This isn't an unverified download: Ollama's own protocol is
+content-addressed (each model layer is fetched and checked against a
+SHA256 digest named in its manifest, the same scheme container registries
+use), so integrity is delegated to a well-known upstream tool's own
+mechanism rather than skipped — the same posture this codebase already
+takes toward `apt`/`pip`/`npm`. It just isn't independently re-verified by
+Bede, and until now that delegation wasn't written down anywhere.
+
+For a self-hosted vLLM deployment (the "rented/home GPU box" path above),
+model sourcing is entirely the deployer's own choice — this codebase has
+no opinion on where those weights come from, which is inherent to a
+bring-your-own-model architecture rather than something a checksum in
+this repo could enforce. See `docs/OWASP_LLM_TOP10.md`'s LLM04 section
+for the fuller reasoning.
+
 ## Setup guide — configuring and installing each adapter
 
 **For a first-time family install, `setup.sh`/`setup-gui` (see
@@ -210,7 +269,7 @@ deployment).
 3. Optionally set `OPENAI_MODEL` (default `gpt-4.1-mini`) to a different chat model.
 4. Add `openai` to `BEDE_ADAPTER_ORDER`, e.g. `BEDE_ADAPTER_ORDER=openai,mistral`.
 5. No package install needed — the `openai` Python SDK (`>=1.40.0`) is already in
-   `homeschool-api/requirements.txt` (it was already a dependency for TTS).
+   `homeschool-api/requirements.in` (it was already a dependency for TTS).
 
 ### Mistral AI (cloud, no local install)
 
@@ -255,7 +314,10 @@ an NVIDIA GPU on Linux (bare metal or WSL2):
 
 If your household hardware is a laptop/tablet/Raspberry Pi without a suitable
 GPU, skip this adapter and rely on `openai`/`mistral` (or `anthropic` if/when
-restored) instead — that's exactly what the adapter design is for.
+restored) instead — that's exactly what the adapter design is for. The
+parent-facing version of this same decision (plus what modest hardware does and
+doesn't affect elsewhere — voice transcription, encryption) is
+`docs/PARENT_SETUP.md`'s "Choosing your server machine".
 
 **Install/run** (on the separate GPU machine, not on Render):
 

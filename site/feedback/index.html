@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tell us what to fix &mdash; Agnus Dei Technologies</title>
+  <meta name="description" content="Feedback from homeschooling parents on Bede: the method, the faith modules, the curriculum fit, the parent's role, progress reporting, and screens. Or request pricing." />
+  <link rel="canonical" href="https://agnusdei.ai/feedback/" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/assets/site.css" />
+</head>
+<body>
+  <div class="beta-banner">
+    <strong>Public beta now open.</strong> Free to use through August 31. Every homeschooling family welcome.
+  </div>
+
+  <div class="band">
+    <section class="page-head">
+      <div class="inner" style="max-width: 44rem;">
+        <a class="backlink" href="/">&larr; Agnus Dei Technologies</a>
+        <h1>Tell us what to fix</h1>
+        <p class="lede">
+          Bede has been built and tested in one family. Every question below
+          exists because we genuinely do not know the answer for yours.
+          Skip anything you would rather not answer. A form with two
+          fields filled in is more use to us than one nobody finishes.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="band-curriculum">
+    <div class="inner">
+      <!-- method="post" is a safety net, not a route: nothing here
+           accepts a POST. feedback-form.js intercepts submit and sends the
+           answers itself, but if that script ever fails to load or parse,
+           the button falls through to a NATIVE submit of this form.
+           Without a method that is a GET to this same static page, which
+           puts every answered field - name, email, and long free-text
+           answers - into the query string, and so into browser history
+           and any URL-logging intermediary. As a POST the same failure
+           loses the answers instead of publishing them, and the mailto
+           line in the note below is already on screen as the way to send
+           them. Keeping type="submit" on the button preserves
+           Enter-to-submit and the browser's own required-field
+           validation. -->
+      <form class="form-block" id="feedback-form"
+            method="post"
+            data-category="cx"
+            data-tag="[Website feedback form]"
+            data-mail-subject="Bede feedback">
+
+        <fieldset class="field">
+          <legend>Where are you with Bede today?</legend>
+          <div class="choices">
+            <label><input type="radio" name="stage" value="Using it in the beta" /> Using it in the beta</label>
+            <label><input type="radio" name="stage" value="Tried the demo" /> Tried the demo</label>
+            <label><input type="radio" name="stage" value="Just exploring" /> Just exploring</label>
+            <label><input type="radio" name="stage" value="Decided against it" /> Decided against it</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Which stages are you teaching?</legend>
+          <div class="choices">
+            <label><input type="checkbox" name="stages" value="K-2" /> K&ndash;2</label>
+            <label><input type="checkbox" name="stages" value="3-5" /> 3&ndash;5</label>
+            <label><input type="checkbox" name="stages" value="6-8" /> 6&ndash;8</label>
+            <label><input type="checkbox" name="stages" value="Older" /> Older than 8th</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Which subjects matter most in your week?</legend>
+          <span class="hint">Tick as many as apply. This tells us where to spend our effort.</span>
+          <div class="choices compact">
+            <label><input type="checkbox" name="subjects" value="Morning Time" /> Morning Time</label>
+            <label><input type="checkbox" name="subjects" value="Living Books" /> Living Books</label>
+            <label><input type="checkbox" name="subjects" value="Mathematics" /> Mathematics</label>
+            <label><input type="checkbox" name="subjects" value="Nature Study" /> Nature Study</label>
+            <label><input type="checkbox" name="subjects" value="History & Geography" /> History &amp; Geography</label>
+            <label><input type="checkbox" name="subjects" value="Language Arts" /> Language Arts</label>
+            <label><input type="checkbox" name="subjects" value="Science" /> Science</label>
+            <label><input type="checkbox" name="subjects" value="Art & Music" /> Art &amp; Music</label>
+            <label><input type="checkbox" name="subjects" value="Saints & Catechism" /> Saints &amp; Catechism</label>
+            <label><input type="checkbox" name="subjects" value="Scripture & Bible Study" /> Scripture &amp; Bible Study</label>
+            <label><input type="checkbox" name="subjects" value="Latin & Christian Foundations" /> Latin &amp; Christian Foundations</label>
+            <label><input type="checkbox" name="subjects" value="Greek & New Testament Foundations" /> Greek &amp; New Testament Foundations</label>
+            <label><input type="checkbox" name="subjects" value="Logic" /> Logic</label>
+            <label><input type="checkbox" name="subjects" value="Free Study" /> Free Study</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>How is the Socratic questioning landing?</legend>
+          <span class="hint">Bede asks rather than tells, and backs off to a hint after a round or two. We would rather hear that it frustrates your child than not hear it.</span>
+          <div class="choices">
+            <label><input type="radio" name="socratic" value="About right" /> About right</label>
+            <label><input type="radio" name="socratic" value="Too hard / frustrating" /> Too hard, frustrating</label>
+            <label><input type="radio" name="socratic" value="Too easy" /> Too easy</label>
+            <label><input type="radio" name="socratic" value="Too many questions" /> Too many questions</label>
+            <label><input type="radio" name="socratic" value="Have not seen enough yet" /> Not seen enough yet</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Does the faith side fit your family?</legend>
+          <span class="hint">Scripture &amp; Bible Study and Saints &amp; Catechism are separate subjects on purpose. Tell us if that split gets your tradition wrong.</span>
+          <div class="choices">
+            <label><input type="radio" name="faith" value="Fits well" /> Fits well</label>
+            <label><input type="radio" name="faith" value="Close, but not quite" /> Close, not quite</label>
+            <label><input type="radio" name="faith" value="Does not fit our tradition" /> Does not fit ours</label>
+            <label><input type="radio" name="faith" value="We do not use the faith subjects" /> We do not use them</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="curriculum">What curriculum or materials are you already using?</label>
+          <span class="hint">Mater Amabilis, Memoria Press, Well-Trained Mind, RightStart, IEW, your own, whatever it is. Homeschool resources are badly fragmented, and mapping that honestly is work we are actively doing.</span>
+          <input type="text" id="curriculum" name="curriculum" placeholder="e.g. Memoria Press Latin, our own history unit, AmblesideOnline Year 4" />
+        </div>
+
+        <fieldset class="field">
+          <legend>Is the parent commitment realistic for you?</legend>
+          <span class="hint">Roughly two focused hours a day, plus the pledge: no television or video games on school days, five days a week.</span>
+          <div class="choices">
+            <label><input type="radio" name="commitment" value="Realistic" /> Realistic</label>
+            <label><input type="radio" name="commitment" value="The hours are the hard part" /> The hours are hard</label>
+            <label><input type="radio" name="commitment" value="The media pledge is the hard part" /> The pledge is hard</label>
+            <label><input type="radio" name="commitment" value="Both are too much" /> Both are too much</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="progress">What would you want to see in the progress reporting that is not there?</label>
+          <span class="hint">Bede tracks mastery in mathematics, composition, K&ndash;2 reading, and language exposure, and deliberately never measures a child's faith.</span>
+          <textarea id="progress" name="progress"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="q" for="concerns">Anything about safety, privacy, or screen time you would change?</label>
+          <textarea id="concerns" name="concerns"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="q" for="missing">What is the one thing that would make Bede genuinely useful to your family?</label>
+          <span class="hint">The most valuable box on this page. Be blunt.</span>
+          <textarea id="missing" name="missing"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="q" for="name">Your name, if you would like a reply</label>
+          <span class="hint">Optional. Leave both blank and this stays anonymous.</span>
+          <input type="text" id="name" name="name" autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="email">Email for a reply</label>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+
+        <button type="submit" class="cta">Send feedback &rarr;</button>
+        <p class="form-note" id="form-note">
+          This goes straight to us and nowhere else: no form service,
+          no analytics, no tracker. Your answers are emailed to our own inbox
+          and not stored on a server. If we cannot be reached, your own email
+          program opens with the answers filled in instead, so nothing you
+          typed is lost. Either way you can write to
+          <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> directly.
+        </p>
+      </form>
+    </div>
+  </section>
+
+  <section class="band-closing">
+    <div class="inner" style="max-width: 40rem;">
+      <p class="eyebrow">Pricing</p>
+      <h2>See what a year would cost</h2>
+      <p class="lede">
+        One Family Membership covers the household, up to six children,
+        with no per-child fees &mdash; the
+        <a href="/bede/launch.html">full table is published</a>. A person
+        will still walk you through the year your children would actually
+        have before you decide anything.
+      </p>
+      <a class="cta gilt" href="/#request-a-call">Schedule Onboarding &rarr;</a>
+      <p class="cta-sub light">
+        <a href="mailto:sales@agnusdei.ai">sales@agnusdei.ai</a>
+        &nbsp;&middot;&nbsp; every year is backed by the
+        <a href="/faq/">learner's guarantee</a>.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/bede/">Demo</a>
+      <a href="/#request-a-call">Schedule Onboarding</a>
+      <a href="/feedback/">Feedback</a>
+      <a href="/educators/">Co-ops</a>
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+  </footer>
+
+  <script src="/assets/api-base.js"></script>
+  <script src="/assets/feedback-form.js"></script>
+</body>
+</html>

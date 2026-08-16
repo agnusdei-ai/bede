@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy &amp; Data Disclosure &mdash; Agnus Dei Technologies</title>
+  <meta name="description" content="What agnusdei.ai actually collects: every cookie, every piece of browser storage, and every third party contacted, on the marketing site and the interactive demo alike." />
+  <link rel="canonical" href="https://agnusdei.ai/privacy/" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/assets/site.css" />
+</head>
+<body>
+  <div class="beta-banner">
+    <strong>Public beta now open.</strong> Free to use through August 31. Every homeschooling family welcome.
+  </div>
+
+  <div class="band">
+    <section class="page-head">
+      <div class="inner" style="max-width: 44rem;">
+        <a class="backlink" href="/">&larr; Agnus Dei Technologies</a>
+        <h1>Privacy &amp; Data Disclosure</h1>
+        <p class="lede">
+          A plain accounting of what this domain actually does: every
+          cookie, every piece of browser storage, and every outside
+          service contacted, with no rounding up. Last reviewed
+          2026-08-05.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="band-curriculum">
+    <div class="inner" style="max-width: 44rem;">
+
+      <p class="eyebrow">Two Different Things Share This Domain</p>
+      <h2>The marketing site, and the demo, are not the same product</h2>
+      <p>
+        The pages you are reading now (the home page, this page,
+        the FAQ, the feedback form, and the two survey pages for
+        parents and co-op leaders) are static. They contact nothing at
+        all while you read them. The single exception is the moment you
+        press send on one of the forms, and it goes to our own server and
+        nowhere else, described below. The interactive demo at
+        <a href="/bede/">agnusdei.ai/bede/</a> is a different thing
+        entirely: a separate, time-limited, fully-featured free trial
+        that runs in the cloud, on our own servers, so you can try Bede
+        without installing anything. It is not the product a family
+        actually buys.
+      </p>
+      <p>
+        Once purchased, Bede runs entirely on hardware a family owns, in
+        their own home. No lesson text, no voice recording, and no
+        biometric profile leaves that house unless the family
+        deliberately configures a cloud AI provider themselves. The
+        table below is split accordingly: the marketing site first, then
+        the demo, since only the demo collects anything at all.
+      </p>
+
+      <h2>The marketing site (this domain, outside <code>/bede/</code>)</h2>
+      <p>
+        No cookie is set anywhere on these pages. No browser storage of
+        any kind (localStorage, sessionStorage, IndexedDB) is used. No
+        font, script, analytics tag, tag manager, or chat widget is
+        loaded from any outside origin. The one exception is a single
+        embedded video on the home page, and it is click-to-play: no
+        request reaches YouTube until a visitor presses play themselves.
+      </p>
+      <p>
+        Two things do leave your browser, and only when you choose to make
+        them. Pressing play on that video contacts YouTube. Pressing send
+        on the feedback form or either survey posts what you typed to our
+        own API, which emails it to us and stores nothing. Both are
+        listed below. Until you do one of those, these pages make no
+        network request of any kind.
+      </p>
+      <table class="tracker-table">
+        <tr><th>Item</th><th>Category</th><th>Notes</th></tr>
+        <tr>
+          <td>YouTube video embed (home page)</td>
+          <td>Marketing / embedded video</td>
+          <td>Loaded only after a visitor clicks &ldquo;Watch: Meet Bede.&rdquo; Served via YouTube's privacy-enhanced <code>youtube-nocookie.com</code> domain. Nothing is requested from YouTube before that click. When you do press play, your browser tells YouTube which site the video is playing on &mdash; this site's own address and nothing more, never the page you were reading or anything you typed. YouTube refuses to play an embedded video without that, so it is the minimum required rather than a choice we made; every other request on this site sends no referring address at all.</td>
+        </tr>
+        <tr>
+          <td>Forms: &ldquo;Request a call&rdquo; (home page), feedback, and the two surveys</td>
+          <td>Strictly necessary</td>
+          <td>Sent only when you press send. What you typed goes to our own API and is emailed straight to us through Resend; it is not written to any database, and no analytics or form service is involved. If we cannot be reached, your own email program opens with your answers in it instead, so nothing is lost. On the feedback form and both surveys, name and email are optional &mdash; leave them blank and we have no way to know who you are. On &ldquo;Request a call&rdquo; an email address is required, because it is the only way a person can call you back; that request reaches our sales address rather than the general one, and nothing else about it is treated differently.</td>
+        </tr>
+      </table>
+
+      <h2>The interactive demo (<code>/bede/</code>)</h2>
+      <p>
+        The demo asks for your consent before it collects anything, and
+        explains what it collects and for how long in its own
+        <a href="/bede/privacy.html">Privacy Notice</a>, which this page
+        links back to. What follows is the technical inventory behind
+        that notice.
+      </p>
+
+      <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Cookies</h3>
+      <p>None. The demo sets no cookie of any kind.</p>
+
+      <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Browser storage</h3>
+      <table class="tracker-table">
+        <tr><th>Name</th><th>Type</th><th>Category</th><th>Purpose</th><th>Lifetime</th></tr>
+        <tr>
+          <td><code>bede-demo-consent-v2</code></td>
+          <td>localStorage</td>
+          <td>Functional</td>
+          <td>Remembers that this browser already acknowledged the demo's data-use notice, so it is not shown again on this device.</td>
+          <td>Indefinite, until cleared</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-auth</code></td>
+          <td>sessionStorage</td>
+          <td>Strictly necessary</td>
+          <td>The active demo session's login token and code.</td>
+          <td>Tab close / logout</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-student-name</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>The learner's optional first name, for this one session.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-grade</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>The learner's optional grade level.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-current-unit</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>An optional note on what the family is already learning at home.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-faith-tradition</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>An optional note on the family's own church tradition, used only to frame that session's faith-subject content.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-locale</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>The English/Spanish language choice for this session.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-chat-&lt;code&gt;</code></td>
+          <td>sessionStorage</td>
+          <td>Strictly necessary</td>
+          <td>The in-progress chat, kept only in the browser tab so a reload does not lose it. Never written to our servers.</td>
+          <td>Tab close / logout</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-canvas-v2:&lt;code&gt;</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>The drawing in progress on the writing pad, so switching back to the chat and returning does not lose it. Kept only in the browser tab, capped at 2&nbsp;MB, and never written to our servers. Cleared by the &ldquo;New page&rdquo; button and on logout.</td>
+          <td>Tab close / logout / New page</td>
+        </tr>
+        <tr>
+          <td><code>bede-chat-theme</code></td>
+          <td>localStorage</td>
+          <td>Functional</td>
+          <td>A saved chat background theme preference.</td>
+          <td>Indefinite, until cleared</td>
+        </tr>
+        <tr>
+          <td><code>bede-bubble-color</code></td>
+          <td>localStorage</td>
+          <td>Functional</td>
+          <td>A saved chat bubble color preference.</td>
+          <td>Indefinite, until cleared</td>
+        </tr>
+        <tr>
+          <td><code>bede-voice-mode</code></td>
+          <td>localStorage</td>
+          <td>Functional</td>
+          <td>Whether the microphone is set to press-and-hold (the default) or hands-free &ldquo;Voice on&rdquo;. Saved per device, because hands-free behaviour depends on that device&rsquo;s own microphone.</td>
+          <td>Indefinite, until cleared</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-text-scale</code></td>
+          <td>localStorage</td>
+          <td>Functional (accessibility)</td>
+          <td>A saved text-size preference.</td>
+          <td>Indefinite, until cleared</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-session-cap</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>A parent's chosen session length, for this session.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
+          <td><code>bede-demo-appearance-locked</code></td>
+          <td>sessionStorage</td>
+          <td>Functional</td>
+          <td>Whether a parent locked the chat appearance for this session.</td>
+          <td>Tab close</td>
+        </tr>
+      </table>
+
+      <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Outside services contacted</h3>
+      <table class="tracker-table">
+        <tr><th>Service</th><th>What reaches it</th><th>Purpose</th></tr>
+        <tr>
+          <td>OpenAI</td>
+          <td>The conversation text, to generate Bede's replies; Bede's reply text, to synthesize its spoken voice if you use audio; and your microphone audio, if you use the mic, to transcribe it into text</td>
+          <td>Primary AI tutoring &amp; voice provider for this demo</td>
+        </tr>
+        <tr>
+          <td>Mistral, or Claude (Anthropic)</td>
+          <td>The conversation text, only if OpenAI is briefly unavailable</td>
+          <td>Automatic backup AI provider. Mistral by default, though which one is configurable: Claude is used instead if it's been set as the backup (see the Privacy Notice).</td>
+        </tr>
+        <tr>
+          <td>Resend</td>
+          <td>Your feedback or survey answers and, if you choose to leave one, a reply email address</td>
+          <td>Delivers the optional feedback and survey forms to our own inbox</td>
+        </tr>
+        <tr>
+          <td>Wikipedia / Wikimedia<br><em>(contacted by your browser directly)</em></td>
+          <td>Nothing you typed, and nothing about your session. Your browser asks Wikipedia for one article summary &mdash; the painting's name &mdash; and then loads that picture from Wikimedia. As with any request your browser makes, those two servers see your IP address and that you asked for that article.</td>
+          <td>Shows the actual painting during Art&nbsp;&amp;&nbsp;Music picture study. We store the artwork's Wikipedia title rather than a copy of the image, so the picture is fetched when it is shown.</td>
+        </tr>
+      </table>
+
+      <p class="tracker-note" style="margin-top: 0.75rem;">
+        <strong>One of those rows is not like the others.</strong> OpenAI,
+        Mistral, Claude and Resend are contacted by <em>our</em> server, so
+        they never see your browser or your IP address. Wikipedia and
+        Wikimedia are contacted by <em>your own browser</em>, the same way
+        they would be if you opened the article yourself, which means they
+        see your IP address and we are not in the middle of it. We think
+        showing a child the real painting is worth that, but it is a
+        different kind of request and it would be misleading to list it in
+        the same breath as the rest.
+      </p>
+
+      <div class="tracker-note">
+        <strong>No consent banner on this page.</strong> A cookie/consent
+        banner exists to disclose non-essential tracking: advertising,
+        cross-site tracking, or analytics profiling. This review found
+        none, anywhere on this domain. Every item above is either
+        strictly necessary for a feature to work, or a saved preference
+        the visitor chose themselves. The one place this domain collects
+        anything at all, the demo, already gates that collection behind
+        its own explicit, affirmative consent step before anything is
+        stored. Adding a second, generic banner on top of that would not
+        disclose anything a visitor does not already see.
+      </div>
+
+      <h2>What we do not do</h2>
+      <p>
+        We do not sell personal data, and we never have. We do not use
+        anything on this domain for advertising. We do not run
+        analytics, an ad pixel, or a tracking script of any kind.
+      </p>
+
+      <h2>Requesting your data, or asking a question</h2>
+      <p>
+        To ask what we hold, request deletion, or ask anything else about
+        this page, write to
+        <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>. For the
+        demo specifically, see the Parental Rights section of its
+        <a href="/bede/privacy.html">Privacy Notice</a>.
+      </p>
+
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/bede/">Demo</a>
+      <a href="/#request-a-call">Schedule Onboarding</a>
+      <a href="/feedback/">Feedback</a>
+      <a href="/educators/">Co-ops</a>
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+  </footer>
+</body>
+</html>

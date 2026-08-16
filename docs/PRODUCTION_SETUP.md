@@ -68,7 +68,15 @@ PIN, and API key always have to be typed, never spoken.
 > boots the *entire* real stack from that `.env` — Caddy, nginx, FastAPI,
 > local Postgres — and confirms `https://.../api/health` actually answers
 > through the full TLS→proxy→API path, plus that `make db-backup`/
-> `make db-restore` round-trip cleanly. This is a real Docker daemon doing
+> `make db-restore` genuinely recovers from real data loss, not just that
+> Postgres accepts the SQL and the API process comes back up afterward:
+> the schema is wiped first (simulating the actual disaster-recovery
+> scenario a family would hit — data is gone, restore it), then a
+> data-only snapshot taken right before the wipe is compared against one
+> taken right after restore, proving every table's data — including the
+> encrypted BYTEA columns holding a real family's actual data — survives
+> the round trip intact, not just one hand-picked record. This is a real
+> Docker daemon doing
 > a real `docker build`/`docker run`/`docker compose up`, not a dry run.
 > What CI can't cover: the double-click launchers themselves
 > (`setup-gui.command`/`setup-gui.bat`) run on a Linux runner under the
@@ -113,6 +121,82 @@ Both are fully supported; `make setup` wires up whichever you pick. See the
 "Storage model" comment at the top of `docker-compose.yml` if you want to
 switch later by hand.
 
+## Running on a Raspberry Pi
+
+`packaging/unix/install.sh` already supports Raspberry Pi (arm64) as a
+target — this section is about running it **reliably**, not just getting it
+installed, and covers two failure modes that are real and well-documented in
+the Pi community, not theoretical.
+
+**Storage medium: boot from a USB SSD, not the SD card, if you're running
+local Postgres.** This is the single highest-leverage decision here. A
+database doing constant WAL fsyncs is close to the worst-case write pattern
+for an SD card — the community consensus is blunt about it ("please, for
+the love of god, do not use Postgres on a SD card, you'll corrupt it"), and
+SD cards fail after roughly 1,000-3,000 full rewrites versus 100-600+ TBW
+for an entry-level USB SSD. The Raspberry Pi 4 and 5 both natively boot from
+USB, and it's a one-time setup cost, not an ongoing one. If you must stay on
+SD card (cost, simplicity), at minimum use a genuine high-endurance card
+(not a standard consumer one) and pair it with a real power supply — a
+brownout mid-write is the other half of this failure mode, and the
+[official Raspberry Pi USB-C supply](https://www.raspberrypi.com/products/type-c-power-supply/)
+or an equivalent-rated one matters more than it sounds like it should.
+Choosing **managed Postgres** instead of local (see "Choosing a database"
+above) sidesteps this specific risk entirely, at the cost of your data
+leaving the Pi for the provider's cloud.
+
+**Memory: every service in `docker-compose.yml` now carries an explicit
+`mem_limit`**, overridable per service (`API_MEM_LIMIT`, `DB_MEM_LIMIT`,
+`LOCUTO_IPC_MEM_LIMIT`, `UI_MEM_LIMIT`, `TRUST_MEM_LIMIT`,
+`CADDY_MEM_LIMIT` — defaults `1024m`/`384m`/`256m`/`128m`/`128m`/`256m`,
+roughly 2.2GB combined worst case with every service running). This exists
+because of how the Linux kernel behaves under memory pressure, not as
+general-purpose tuning: without an explicit limit, the OOM killer picks
+*any* process to SIGKILL when memory runs out — on a Pi that could just as
+easily be `db` (mid-write, the exact corruption risk above) as it could be
+`api`. A limit confines an out-of-memory event to "this one container
+restarts" (`restart: unless-stopped` already handles that), which is a
+predictable, recoverable failure instead of an arbitrary one.
+
+Two things to check on the Pi itself, not just in this repo, before that
+limit actually does anything:
+
+1. **cgroup memory accounting must be enabled in the kernel.** Some
+   Raspberry Pi OS configurations ship with it off, which shows up as
+   `docker info` printing `WARNING: No memory limit support` — when that's
+   the case, `mem_limit` above is silently unenforced (the exact "looks
+   configured but isn't" failure this repo tries hard to avoid elsewhere).
+   Check with `docker info 2>&1 | grep -i "memory limit"`. If it warns, add
+   `cgroup_memory=1 cgroup_enable=memory` to the kernel command line —
+   `/boot/firmware/cmdline.txt` on current Raspberry Pi OS, `/boot/cmdline.txt`
+   on older releases — and reboot. **Back up that file before editing it**;
+   a malformed `cmdline.txt` can prevent the Pi from booting at all, which
+   is a worse outcome than the OOM killer this is meant to guard against.
+   This repo's installer does not edit this file automatically, on purpose
+   — it's boot-critical configuration on hardware the installer cannot
+   verify recovers cleanly if the edit is wrong.
+2. **Give the OOM killer some room before it needs to act at all**, via
+   swap. Raspberry Pi OS ships with `dphys-swapfile` and a small (often
+   100MB) default swap, which is thin for this stack. Check current swap
+   with `free -h`; increase it by editing `/etc/dphys-swapfile`'s
+   `CONF_SWAPSIZE` (1-2GB is reasonable for a 2-4GB Pi) and running
+   `sudo systemctl restart dphys-swapfile`. Swap on an SD card carries the
+   same write-wear consideration as the database above — another reason a
+   USB SSD is the more durable choice if local Postgres is in the picture.
+
+**A 4GB (or larger) Pi is the realistic baseline for the full stack** —
+`api`'s default 1024m limit reflects real measured usage (this codebase has
+already observed ~642MB RSS for a similarly-heavy environment, see
+`services/transcription.py`'s own docstring on why cloud transcription
+exists partly for this reason). A 2GB Pi is tight for local Postgres plus
+every other service; consider managed Postgres instead of local, and see
+`homeschool-api/requirements-mobile.in` (full write-up in
+`docs/MOBILE_HOSTING_DECISIONS.md`) for a reduced-dependency profile (drops
+`torch`/`resemblyzer`/`faster-whisper` in favor of cloud STT/TTS and the
+built-in MFCC voice-auth fallback) if you need the footprint smaller still
+— that profile is proposed, not yet wired into this Docker image, but the
+numbers behind it are real and verified against the actual test suite.
+
 ## Day-to-day commands
 
 ```bash
@@ -148,9 +232,9 @@ The stack is: **Caddy (TLS/443) → nginx (UI/80) → FastAPI (API/8000)**,
 plus an optional local Postgres. Caddy generates a local CA for LAN HTTPS —
 tablets need its root cert installed once.
 
-For iPads specifically, `make ipad-profile` generates `bede-ipad.mobileconfig`,
+For iPhones and iPads, `make ipad-profile` generates `bede-ipad.mobileconfig`,
 which bundles the CA trust and a "Bede" Home Screen icon into one installable
-profile — AirDrop it to the iPad (or host it and open the link in Safari),
+profile — AirDrop it to the device (or host it and open the link in Safari),
 then **Settings → Profile Downloaded → Install**. iOS still requires one
 manual step no matter how the cert is delivered: **Settings → General →
 About → Certificate Trust Settings** → enable full trust for "Bede LAN Root
@@ -184,6 +268,60 @@ PIN (`CHILD_PIN`/`DEMO_PIN`/`SANDBOX_PIN`) isn't a strong pattern, or
 generate/collect values that satisfy all of these, so this only bites a
 `.env` edited by hand afterward (e.g. during incident-response
 containment, `docs/INCIDENT_RESPONSE.md`) with a weak replacement value.
+
+## Security posture settings
+
+Five optional settings control how strict this deployment is. All have safe
+defaults, none is required to boot, and **the API logs each one's state at
+startup** — so if you'd rather not read this section, start the stack and
+read the log. `GET /admin/status` reports the same facts.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `ELEVATION_ENFORCED` | `true` | Require a password step-up for management-plane actions — audit log, AI provider, MFA/recovery changes, permanent student deletion. |
+| `ELEVATION_TTL_MINUTES` | `10` | How long a step-up lasts, absolute from the moment of elevation. |
+| `LEGACY_TOKEN_GRACE` | `true` | Accept JWTs issued before identity domains existed. |
+| `DEMO_SECRET_KEY` | unset | Independent signing key for the public demo's identity domain. |
+| `LOCUTO_IPC_ENABLED` | `true` | Run the local-IPC listener that lets a paired `agnusdei-ai/locuto` installation on the same machine talk to Bede. See below. |
+
+Two of these want your attention rather than being left alone:
+
+**`ELEVATION_ENFORCED` defaults on**, so without doing anything a parent
+opening the audit log, switching AI provider, changing a security key, or
+deleting a student sees a one-time password prompt (plus a TOTP code, if
+one is enrolled) before the action goes through — a tablet left open on the
+kitchen table is logged in but not administrator. The prompt appears once
+per `ELEVATION_TTL_MINUTES`, not on every management action. Set it to
+`false` only if you drive the API directly rather than through the web UI,
+or on an existing deployment you've upgraded and want to defer this for
+now.
+
+**`LEGACY_TOKEN_GRACE` should be turned off** after your first deploy on a
+version that has identity domains. It exists only so upgrading doesn't sign
+your family out mid-lesson; once every pre-upgrade token has expired (8
+hours at most), it accepts nothing that a normal token wouldn't, and it
+keeps an alternate signature-verification path alive for no reason. Set it
+to `false` the next day.
+
+`DEMO_SECRET_KEY` is only meaningful where the public demo role is reachable
+— a family instance has no demo token to isolate, and `render.yaml` already
+generates one for the hosted demo. `docker-compose.yml` passes all four of
+`ELEVATION_ENFORCED`/`ELEVATION_TTL_MINUTES`/`LEGACY_TOKEN_GRACE`/
+`DEMO_SECRET_KEY` through to the `api` service; note that it enumerates
+environment variables explicitly, so a setting you add to `.env` without
+also naming it there is silently ignored.
+
+**`LOCUTO_IPC_ENABLED` defaults on and starts a second, small container**
+(`locuto-ipc` in `docker-compose.yml`) alongside `api` — an `docker compose
+up`/`make start` on an ordinary deployment will now show this extra
+container running, plus a `./locuto-ipc` directory created next to your
+`.env`. This is expected and harmless if you have no Locuto installation:
+the listener binds a Unix domain socket, completes a handshake with
+whatever connects to it, and refuses every real capability request, since
+v1 ships with none actually implemented — see
+[docs/LOCUTO_CONNECTOR_DECISIONS.md](LOCUTO_CONNECTOR_DECISIONS.md). Set
+`LOCUTO_IPC_ENABLED=false` in `.env` and restart the stack if you'd rather
+this listener not run at all.
 
 ## Licensing
 

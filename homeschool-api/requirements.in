@@ -1,0 +1,76 @@
+anthropic>=0.40.0
+# OpenAI Python SDK — backs services/adapters/openai_compatible_adapter.py, the
+# single adapter class used for every non-Anthropic provider (OpenAI, a
+# self-hosted vLLM/Qwen3-Coder server, Mistral, any OpenAI-compatible endpoint)
+# via its base_url override. See docs/PROVIDER_ADAPTERS.md.
+openai>=2.47.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.2.2
+pydantic>=2.9.0
+pydantic-settings>=2.14.2
+sse-starlette>=2.1.0
+python-multipart>=0.0.12
+# Encryption at rest (AES-256-GCM, no cffi dependency)
+pycryptodome>=3.21.0
+# Managed PostgreSQL async driver + ORM
+asyncpg>=0.30.0
+sqlalchemy[asyncio]>=2.0.36
+# Voice authentication + transcription
+numpy>=1.26.0
+scipy>=1.13.0
+librosa>=0.11.0
+soundfile>=0.12.0
+# CTranslate2-backed Whisper fallback STT — several times faster than
+# openai-whisper on CPU (int8 quantization) and drops the torch dependency
+# entirely, since it doesn't share openai-whisper's PyTorch runtime. See
+# services/transcription.py and docs/VOICE_SETUP.md.
+faster-whisper>=1.0.0
+# Speaker-embedding voice verification (services/voice_auth.py). Not listed
+# here, but resemblyzer has a hard `torch` dependency — see Dockerfile's
+# own comment for why that's installed from PyTorch's CPU-only wheel index
+# BEFORE this file, rather than letting it resolve from the default index
+# (which serves the much larger CUDA-bundled build this CPU-only,
+# GPU-less container would otherwise silently end up with). CI (test.yml,
+# via requirements.lock.txt) doesn't do that CPU-index-first trick — it
+# never has — so the lockfile below hash-pins the SAME default-index
+# (CUDA-bundled) torch build CI's own fresh installs have always resolved
+# transitively; this closes the reproducibility gap without changing what
+# CI actually installs. PyTorch's CPU-only index is unreachable from the
+# sandbox that authored this lockfile (confirmed: a direct request to
+# download.pytorch.org gets a 403 from the egress proxy — see this
+# repo's own note on the same limitation in Dockerfile), so generating a
+# CPU-pinned lockfile entry would need to happen from an environment that
+# can actually reach that index; tracked as a possible follow-up, not
+# done here.
+resemblyzer>=0.1.1
+# Parent MFA: FIDO2/WebAuthn security keys (YubiKey, etc.) + TOTP authenticator apps
+webauthn>=2.0.0
+pyotp>=2.9.0
+# Email format validation (pydantic's EmailStr) for the post-session diagnostic email
+email-validator>=2.3.0
+# Async HTTP client — used by services/email_service.py (Resend) and
+# services/voice_synthesis.py (OpenAI TTS). Was already a transitive
+# dependency; pinned explicitly since both modules import it directly.
+httpx>=0.28.1
+# Pure-Python PDF text extraction (no native/compiled deps, safe for the
+# read-only/cap_drop container) — used by services/document_extraction.py to
+# read narration transcripts exported from a smart pen/notebook app.
+pypdf>=5.0.0
+# CBOR (RFC 8949) — services/locuto_ipc/framing.py's wire body encoding, per
+# agnusdei-ai/locuto's docs/bede-ipc-spec.md §3. Pure-Python-compatible
+# (has an optional C extension, safe either way in the read-only/cap_drop
+# container).
+cbor2>=5.6.0
+# Not used directly — pinned explicitly because torch/ctranslate2 declare it
+# as a runtime dependency, which pip-compile's hash-checking mode (--generate-
+# hashes) requires be resolvable and hashed like any other package. Capped
+# below 81: setuptools removed the bundled `pkg_resources` module starting
+# around that release, and webrtcvad (a resemblyzer transitive dependency,
+# imported by services/voice_auth.py) still does `import pkg_resources` the
+# old way — an unconstrained pin here resolves to the newest setuptools and
+# breaks voice authentication at import time. Verified directly: 75.8.0
+# still ships pkg_resources (deprecated but present); pip's own default
+# venv bootstrap setuptools happened to mask this before hash-locking
+# existed, since nothing previously forced setuptools to a specific version.
+setuptools<81

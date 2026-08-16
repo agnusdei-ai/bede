@@ -65,11 +65,29 @@ async def test_diagnostic_summary_reflects_recorded_evidence():
 
 
 async def test_diagnostic_summary_rejects_non_demo_code_roles():
-    from routers.diagnostic import _require_demo_code
-    for role in ("parent", "child", None):
-        with pytest.raises(HTTPException) as exc_info:
-            _require_demo_code(auth={"role": role, "code": "123456"})
-        assert exc_info.value.status_code == 403
+    """This restriction used to live in a local `_require_demo_code` helper
+    doing an inline role comparison in routers/diagnostic.py. It's now the
+    "diagnostic.demo_preview" action in core/policy.py's decision table,
+    enforced by core.deps.require_demo_preview — so the property is asserted
+    against the decision layer that actually owns it now, rather than
+    through a router-private helper.
+
+    Enforcement (that the guard raises a 403 carrying this reason) is
+    covered in tests/test_deps_policy_equivalence.py; the full role x action
+    matrix is in tests/test_policy.py."""
+    from core.policy import Subject, decide
+
+    for role in ("parent", "child", "parent_pending", "parent_recovery", None):
+        subject = Subject.from_token({"role": role, "code": "123456"})
+        decision = decide(subject, "diagnostic.demo_preview")
+        assert decision.allowed is False
+        assert decision.status_code in (401, 403)
+
+    # The one role that may reach it.
+    assert decide(
+        Subject.from_token({"role": "demo_code", "code": "123456"}),
+        "diagnostic.demo_preview",
+    ).allowed is True
 
 
 async def test_templated_diagnostic_reply_mentions_gaps_and_next_steps():

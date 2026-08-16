@@ -16,20 +16,74 @@ set in `.env`:
 OPENAI_API_KEY=sk-...
 OPENAI_TTS_MODEL=gpt-4o-mini-tts   # the only OpenAI TTS model with `instructions` support
 OPENAI_TTS_VOICE=fable             # OpenAI's own description: closest preset to a British storyteller tone
-OPENAI_TTS_INSTRUCTIONS=Speak as an elderly, warm, unhurried Southern English monk.
+OPENAI_TTS_INSTRUCTIONS=Speak as an elderly, warm, unhurried Southern English monk with clear, distinct diction.
+OPENAI_TTS_SPEED=0.9               # 0.25-4.0, API default 1.0 — a real, hard lever on pacing (see below)
 ```
 
 `gpt-4o-mini-tts`'s `instructions` field is what actually lets you steer
 character and delivery in plain English — that's the real lever for sounding
 like a specific persona rather than a generic preset voice, and it's the main
 reason to prefer `gpt-4o-mini-tts` over the older `tts-1`/`tts-1-hd` models
-(which accept a fixed voice only, no instructions). Then apply it to your
-running deployment — see "Applying this to a running deployment" below —
-and test in a real session; there's no local script for this path since it's
-a live API call, not a local model to benchmark offline.
+(which accept a fixed voice only, no instructions). `OPENAI_TTS_SPEED` is a
+separate, harder lever specifically for pace: `instructions` alone is only
+ever a soft steer the model can drift from turn to turn, so when real
+listening feedback asked for a more distinct, unhurried pace, the actual fix
+was setting `speed` on the API call itself (slightly under `1.0`), not just
+stronger wording in `instructions`. (`onyx`, a deeper preset, was tried
+briefly in place of `fable`; real listening found it read as higher-pitched
+and less like Bede than `fable`, not deeper as its own description implied
+— a preset's on-paper description doesn't reliably predict how it actually
+sounds, so if you retune this, test a real session rather than trusting the
+description alone.) Then apply your own choice to your running deployment —
+see "Applying this to a running deployment" below — and test in a real
+session; there's no local script for this path since it's a live API call,
+not a local model to benchmark offline.
 
 Leave `OPENAI_API_KEY` unset to skip cloud voice entirely — the browser's own
 speech takes over automatically, with no other changes needed.
+
+## "It stopped hearing me after a while" — a leaked worker per abandoned turn
+
+Reported from the demo: voice became unreliable "after 20 minutes and about
+10 turns", on a stable WiFi connection. Degradation proportional to TURNS
+rather than to network conditions is the useful part of that report — it
+points at something accumulating per turn rather than at connectivity.
+
+**What was wrong.** Every voice turn starts one worker task
+(`services/streaming_transcription.py`'s `_worker_loop`) which owns that
+session's transcription. On the normal path it returns as soon as it has
+queued the final `done`, and that path was always correct.
+
+What leaked was every session that ended any OTHER way. `events()`'s
+`finally` and the periodic sweeper both dropped the session from `_sessions`
+with a bare `pop`, and neither stopped the worker. A worker parked on
+`new_audio.wait()` is held by the event loop and holds its session as an
+argument, so removing the dict entry collects nothing: the task waits
+forever and the session's whole PCM buffer stays reachable through it. At
+16kHz 16-bit that is roughly 32KB per second of audio pinned per abandoned
+turn, for the life of the process.
+
+Sessions end that way routinely on a tablet — a child navigating back to the
+chat mid-turn, pressing the mic again before the previous turn finished, or
+the browser dropping the SSE connection, which happens on good WiFi too.
+
+**Why it shows up as "it can't hear me".** The demo runs on a 512MB
+instance, single-process, with every streaming session held in memory. Extra
+retained buffers push it toward the memory ceiling, and an OOM restart
+destroys every in-flight voice session at once — which reaches the tablet as
+`startVoiceStream failed`, indistinguishable from a broken microphone.
+
+**The fix.** `_discard(session_id)` pops the session *and* cancels its
+worker, and both call sites use it. `tests/test_streaming_transcription.py`
+pins it, including a ten-turn test alternating completed and abandoned turns
+— the mix a real sitting produces. Verified to fail without the fix, with
+five of ten workers leaked.
+
+**Honest scope.** This is one real leak whose shape matches the report. It
+has not been reproduced against the live demo, so it should not be treated
+as a confirmed sole cause: a session that ends cleanly never leaked, so a
+family whose turns all complete normally would have seen none of this.
+
 
 ## Applying this to a running deployment
 
@@ -134,6 +188,67 @@ a different instance mid-turn. Abandoned/orphaned sessions (a browser tab
 closed mid-hold, a dropped connection) are swept after 180 seconds of no
 activity, so nothing leaks indefinitely.
 
+**This stopped being hypothetical.** A family on the public demo sent two
+real traces, five minutes apart: a session opened successfully
+(`POST /voice/stream/start` → 200), then the very next `chunk`/`finish`
+calls against that SAME session id both 404'd ("Unknown or finished
+streaming session") — in one trace, within 3.8 seconds of the session
+opening. That is nowhere near the 180s TTL above, and no other cause in
+this codebase produces an immediate, consistent 404 on a session that just
+started. It fits cross-instance routing under autoscaling exactly. Losing
+the `finish` signal is also why the failure reads as *latency* rather than
+a clean error: the instance that actually holds the session has no way to
+know the turn ended, so its SSE stream sits open until its own stall
+timeout closes it (~15s observed), and the client's own overall-turn
+timeout is what finally gives up around 45s — see the section below for how
+to confirm this for certain the next time it's reported.
+
+### Confirming cross-instance routing from a trace, without server log access
+
+`core/instance_id.py` + `core/middleware.py`'s `InstanceIdHeaderMiddleware`
+stamp every `/voice/stream/*` response — success or 404 alike — with
+`X-Bede-Instance: <id>`, resolved once per process from Render's own
+`RENDER_INSTANCE_ID` (or a random `local-*` value when that's unset).
+`homeschool-tutor/src/hooks/diagnostics.ts` (and its `demo/` mirror) append
+`instance=<id>` to the same `← <status> <method> <url> (<ms>ms)` debug line
+already used to report this class of bug, so the very next screenshot of a
+DebugOverlay trace answers the question directly:
+
+```
+← 200 POST .../voice/stream/{id}/start   (175ms)  instance=srv-abc123-1
+← 404 POST .../voice/stream/{id}/chunk   (368ms)  instance=srv-abc123-2
+← 404 POST .../voice/stream/{id}/finish  (225ms)  instance=srv-abc123-2
+```
+
+Two different `instance=` values across the same session id is the
+confirmation — no Render dashboard or log access needed, since the browser
+trace carries the proof itself. If a future trace instead shows the SAME
+instance id on every call and still 404s, that rules out cross-instance
+routing entirely and points somewhere else (a restart recycling the
+process — `local-*` values also change on every restart, which doubles as
+a signal for that case — or a genuine client-side bug in how the session
+id is threaded through).
+
+Deliberately scoped to `/voice/stream/*` only, not stamped on every
+response: `core/middleware.py`'s `SecurityHeadersMiddleware` goes out of
+its way to STRIP server-identifying headers everywhere else, and this is a
+narrow diagnostic, not a general fingerprinting surface, on a deployment
+(the public demo) any visitor can reach. The header also has to be
+explicitly named in `CORSMiddleware`'s `expose_headers` — the demo's
+frontend and backend are different origins (Cloudflare Pages vs. Render),
+and a cross-origin `fetch()` silently drops any response header that isn't
+CORS-safelisted or explicitly exposed, with no error anywhere; that gap is
+real enough that it needed its own test reading `main.app`'s actual
+middleware configuration rather than a reconstructed replica (see
+`tests/test_app_composition.py`).
+
+**This is observation, not a fix.** It doesn't change where sessions are
+stored or how a session survives (or doesn't) landing on a different
+instance — it exists purely to turn "very likely cross-instance routing"
+into "confirmed" from the next real report, before committing to either of
+the two actual fixes: pin the deployment to one instance, or move sessions
+to a shared store (Redis).
+
 **Known gap: no real end-of-speech detection.** Hold-to-talk
 (`startHold`/`release`) is unaffected by this — the child's own release()
 already marks the end of a turn explicitly, exactly as before. But
@@ -143,15 +258,54 @@ below), which used to rely entirely on native recognition's own autonomous
 endpointing to decide a turn was over and fire `onFinal` on its own — there
 was never an explicit `release()` call on that path. With native gone,
 `start()` now behaves exactly like `startHold()` and needs an explicit end
-signal the same way; continuous mode's call site still doesn't provide one,
-so as of this rewrite a continuous-mode turn runs for the full
-`HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before auto-finishing,
-instead of ending snappily the moment the child actually stops talking.
-This is a real, known regression for that one opt-in feature specifically —
-not something this rewrite silently papered over — and needs real
-client-side silence/voice-activity detection as a follow-up before
-continuous mode is genuinely usable again. Hold-to-talk (the default for
-every family) is fully unaffected.
+signal the same way. For a while it didn't have one, and a continuous-mode
+turn ran to the full `HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before
+auto-finishing instead of ending the moment the child stopped talking —
+a real, disclosed regression for that one opt-in feature.
+
+**That is now closed in both apps.** `endpointing.ts` supplies the missing
+end signal (see "Endpointing: how a continuous-mode turn ends" below), and
+the 120-second ceiling remains underneath purely as the backstop it always
+was. Hold-to-talk (the default for every family, and for every demo
+visitor) was unaffected throughout, and deliberately still does not
+endpoint itself.
+
+### "Unknown or expired session" on an open events stream, even on a single-instance deployment
+
+A second, DIFFERENT way to reach the exact same symptom as the
+cross-instance case above — same client-visible error, same
+`voice stream event error: unknown or expired session` debug line — but
+confirmed on a deployment with `X-Bede-Instance` reporting the SAME value
+across the whole trace, which rules out cross-instance routing outright.
+
+Real trace: the child released the mic, the final chunk uploaded (`200`),
+`/finish` succeeded (`200`) — and several seconds later, the events stream
+that had been open since before any of that finally resolved with
+`{"type": "error", "message": "unknown or expired session"}` instead of the
+`final`/`done` pair the successful `/finish` should have produced. On a
+real mobile connection with visibly poor round-trip latency (a slow,
+multi-second `GET .../events` is itself a symptom of this, not a cause).
+
+The cause: `services/streaming_transcription.py`'s `events()` only checks
+`_sessions.get(session_id)` ONCE, at the very top of the generator, then
+consumes `session.queue` in a loop until a `"done"` item arrives, at which
+point its `finally` block calls `_discard()` and removes the session
+entirely. Nothing previously stopped a SECOND, concurrent `events()`
+attach for the exact same `session_id` — most plausibly a network- or
+proxy-level retry of the GET request under poor connectivity, not a
+client-code bug (the client's own JS only ever issues one events() request
+per turn). With two consumers racing the same `asyncio.Queue`, whichever
+one happened to receive the terminal `"done"` item tore the session down
+via `_discard()`, silently pulling it out from under the OTHER, still-open,
+still-legitimate reader — which is what a family/visitor actually saw.
+
+**Fixed**: `_Session.active_reader` tracks whether a reader is already
+attached. A second, concurrent `events()` call for the same session now
+returns immediately without touching the queue or calling `_discard`,
+leaving the first (real) reader entirely undisturbed — it keeps consuming
+the queue on its own and remains the one that eventually tears the session
+down normally. See `tests/test_streaming_transcription.py`'s "Concurrent
+readers" section.
 
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 
@@ -211,6 +365,220 @@ If a family reports this again after updating, check whether the
 IP running an unusually large number of simultaneous or extremely long
 holds) rather than `voice` — the fix separates the two failure modes, it
 doesn't make rate limiting disappear entirely.
+
+## Troubleshooting: the mic keeps saying "something's wrong with the microphone" every single press, with a `startVoiceStream failed: Load failed` line in the debug panel
+
+Different failure from the rate-limit one just above — same surfaced error
+message, different root cause and different fix. Reported live via a
+debug-panel trace: `startVoiceStream failed: Load failed` on nearly every
+single hold attempt in a row, each one failing within roughly 100ms of the
+press — far too fast to be a real round trip to the server that actually
+got a response. `"Load failed"` (Safari/WebKit's own wording for a failed
+`fetch()`; Chrome's equivalent is `"Failed to fetch"`) means the request
+never got a response at all — a dropped connection, a brief Wi-Fi/cellular
+blip, a momentary DNS hiccup — not the server rejecting it (that would
+instead read `startVoiceStream failed: Could not start voice streaming`,
+the message the code throws for a real non-2xx response, as in the section
+above).
+
+Before this fix, `_start()`'s `startVoiceStream()` call had **no retry at
+all** — a single transient network failure gave up on the entire turn
+immediately (`clearHoldSafety()`, `setMode('idle')`,
+`setMicError('unavailable')`), with no native-SpeechRecognition fallback
+left to fall back to (see this doc's own history on why that path was
+removed entirely). On a real tablet over real household Wi-Fi, a brief
+connection blip is common enough that this made voice input feel
+unreliable well beyond what the underlying connection quality actually
+warranted — especially noticeable as "every attempt fails" during a run of
+bad connectivity, since nothing about the failure was self-healing.
+
+Fix: `useHybridVoiceInput.ts`'s `_start()` (both `homeschool-tutor` and the
+demo — the two files are kept as intentional mirrors of each other) now
+retries `startVoiceStream()` once, after a short `START_STREAM_RETRY_DELAY_MS`
+(500ms) delay, before surfacing an error at all (`network` now rather than
+`unavailable` — see the follow-up section below) — the same "one quick retry
+before giving up" reasoning `services/voice_synthesis.py`'s OpenAI TTS call
+already applies on the backend side for the identical class of transient
+failure. `pushVoiceStreamChunk`/`finishVoiceStream` deliberately keep their
+existing no-retry, throw-and-let-the-caller-decide contract unchanged — a
+single dropped chunk mid-turn is already tolerated (the next chunk a few
+seconds later carries the whole growing buffer anyway); only the turn's
+*first* request, whose failure is otherwise unrecoverable, gets a retry.
+
+If a family reports this again after updating, and the debug panel still
+shows two failed `startVoiceStream` attempts in a row for the same hold
+(not just one), that's a real, sustained connectivity problem on that
+device/network, not something a client-side retry can paper over — check
+whether the server itself is reachable at all from that device.
+
+## Troubleshooting: after a run of `Load failed`, the mic button stops doing anything at all — and the phone still shows the recording indicator
+
+The follow-up to the section above, from a second real debug-panel trace on
+the public demo. The connection blip itself was genuine and the retry above
+worked as designed, but the trace showed three separate problems the moment
+the retry was exhausted — and the third is why "the connection dropped for
+20 seconds" turned into "voice input is dead for the rest of the lesson."
+
+The tell, in the trace itself:
+
+```
+[225067ms] _start() attempt=7
+[225068ms] useVoiceRecorder.startRecording()
+[225152ms] startVoiceStream failed: Load failed (attemptsLeft=1)
+[225841ms] startVoiceStream failed: Load failed (attemptsLeft=0)
+[235865ms] _start() attempt=8            ← no startRecording() line
+[243038ms] _start() attempt=9            ← no startRecording() line
+[246383ms] _start() attempt=10           ← no startRecording() line
+```
+
+Attempt 7 logged `useVoiceRecorder.startRecording()`; attempts 8, 9 and 10
+did not. Every press after the first failure was reaching `_start()` and
+then never reaching the recorder at all.
+
+**1. The give-up path never handed the microphone back.** `_start()` starts
+the recorder immediately (the audio has to be captured from the instant of
+the press) and opens the streaming session over the network afterwards.
+When that session could not be opened, `_start()` cleared its timers and
+set the mode to `idle` — but never called `recorder.stopRecording()`. The
+microphone stayed live, capturing into a buffer for a turn that had already
+been abandoned. On iOS that is visible: the orange recording dot stays lit
+over an app whose mic button looks idle. The `!token` branch had the same
+omission. Both now stop the recorder.
+
+**2. That orphaned recording then blocked every later press.**
+`useVoiceRecorder.startRecording()` refuses to start a second recording
+while one is already running — correct in itself, and exactly what made the
+first problem permanent instead of momentary. With a recording nobody would
+ever stop, the guard rejected every subsequent press silently: the child
+held the button, spoke, released, and nothing whatsoever happened. That is
+the missing `startRecording()` line in the trace above.
+
+The same guard had a second way in, independent of any network failure.
+`startRecording()` is asynchronous — it awaits `getUserMedia()` — so a
+short hold can reach `stopRecording()` while the microphone is still
+opening. `stopRecording()` then found every ref still null and took its
+early return, and the pending `getUserMedia()` resolved a moment later and
+built a live audio graph with nothing left that could stop it: the same
+orphaned-recording state, arrived at from an ordinary quick tap on a slow
+connection. `useVoiceRecorder.ts` now carries a generation counter that
+`stopRecording()` bumps and `startRecording()` re-checks after the await,
+so a stream granted after its turn ended is handed straight back instead of
+being wired up. Its "am I already recording" guard also reads a ref set
+synchronously at the top of `startRecording()` rather than the React
+`isRecording` state, which only flips true once the graph is live — the
+state could not cover the window where the problem actually happened, and
+a state update that never landed used to latch the button off for good.
+
+**3. The message blamed the microphone for a network problem.** All of the
+above surfaced as *"I can't hear you right now — something's wrong with the
+microphone"*, which sends a family off checking browser permissions for a
+microphone that was working perfectly. `MicError` now has a `network`
+value, chosen when the rejection came from the transport layer rather than
+from a server (`fetch()` rejects with a `TypeError` for every transport
+failure — `"Load failed"` on Safari, `"Failed to fetch"` on Chrome,
+`"NetworkError…"` on Firefox), and it reads *"we lost the connection for a
+moment. Try holding the mic again, or type your answer instead."* A real
+non-2xx response from the server still reports `unavailable` as before.
+Both strings are localized in `en.json` and `es.json` for both apps.
+
+**Also fixed alongside: the same warning stacking up.** Whatever is wrong
+with the mic is usually still wrong on the next press, so each attempt
+appended another identical warning to the conversation — the reported
+screenshot showed the lesson buried under repeats of the same bubble.
+`SocraticChat.tsx` and the demo's `App.tsx` now skip an error that is
+already the most recent thing on screen. Only an *immediate* repeat is
+suppressed: once Bede or the child has said anything since, the same
+warning is new information again rather than a duplicate.
+
+All of it is mirrored across `homeschool-tutor` and `demo` (the voice hooks
+are intentional mirrors of each other), and pinned by tests in
+`useVoiceRecorder.test.ts` and `useHybridVoiceInput.test.ts` in both apps —
+including that the recorder is stopped on both give-up paths, that a stream
+granted after the turn ended is released rather than wired up, and that the
+next press after either failure genuinely reopens the microphone.
+
+**And the cause underneath all of it, on the public demo: the backend was
+being OOM-killed.** Everything above makes the client recover honestly from
+a backend that vanishes mid-lesson. It does not stop the backend vanishing.
+On `bede-demo-api` it was vanishing on a schedule, and the thing consuming
+the memory was the voice stack itself — `faster-whisper`'s `ctranslate2`
+backend imports torch (~480MB of RSS on import alone), putting the process
+at 642MB warmed against Render's 512MB free-tier cap. Because
+`services/streaming_transcription.py` keeps its sessions in memory in a
+single process, every one of those restarts destroyed every in-flight
+child's voice turn, which reaches the tablet as exactly the `Load failed`
+run above.
+
+That is why the same symptom kept coming back with a different explanation
+each time: two independent causes were producing one message, and the
+message blamed the microphone for both. The memory half is fixed by
+`TRANSCRIPTION_PROVIDER=openai` on that deployment — see the section below.
+
+## Where speech-to-text actually runs (`TRANSCRIPTION_PROVIDER`)
+
+`core/config.py`'s `transcription_provider` selects the backend behind
+`services/transcription.py`'s single `transcribe_audio()`:
+
+- **`local` (the default).** `faster-whisper` runs in the API process. This
+  is the right setting for a family, and it is not a performance
+  preference: the premise of self-hosting Bede is that a child's voice
+  never leaves the house. Every `WHISPER_*` knob applies only here. A
+  deployment that never touches this setting behaves exactly as it always
+  has.
+- **`openai`.** The recorded audio is POSTed to
+  `https://api.openai.com/v1/audio/transcriptions`
+  (`OPENAI_TRANSCRIPTION_MODEL`, default `gpt-4o-mini-transcribe`), and
+  **nothing imports `faster_whisper` at all** — which is the entire point.
+  The saving is the import that does not happen, not the inference that
+  gets moved, so both `main.py`'s warm-up and `preload()` check before
+  touching the model rather than relying on one of them.
+
+The public demo runs on `openai` (`render.yaml`) for the memory reason
+above: it already sends the whole conversation to OpenAI's chat models and
+already uses OpenAI for TTS, so local transcription there was paying 480MB
+for a privacy property that deployment does not claim. **Turning this on is
+a disclosure change** wherever a deployment publishes one — the demo's
+Privacy Notice (both languages), `docs/RETENTION_POLICY.md`,
+`docs/INFORMATION_SECURITY_POLICY.md` §5 and `docs/VENDOR_DATA_FLOW.md`
+were all updated in the same change.
+
+Misconfiguration fails at boot rather than at the first child who presses
+the mic: an unrecognized value, or `openai` with no `OPENAI_API_KEY`, both
+raise from `core/config.py`. There is deliberately no silent fallback to
+the local model on the `openai` setting, since falling back would
+reintroduce the import the setting exists to avoid.
+
+Two things this does NOT change on a local deployment: the concurrency
+semaphore (`VOICE_TRANSCRIPTION_MAX_CONCURRENCY`) still serializes local
+inference, which the OpenAI path does not need because an HTTP request
+isn't competing for the same CPU cores; and voice biometric child
+authentication (`services/voice_auth.py`) is untouched by this setting
+entirely — it is a different model, on a different path, and it is
+parent-only.
+
+### One thing the `openai` backend deliberately gives up: live partials
+
+`services/streaming_transcription.py` re-transcribes the **whole growing
+buffer** on every pass, because nothing here has an incremental mode. On
+`local` that is CPU we already own and are not otherwise using mid-hold, so
+a discarded preview is close to free and is capped by duration
+(`VOICE_PARTIAL_MAX_SECONDS`) rather than forbidden.
+
+Against a metered API the same behaviour is a real, recurring cost: at the
+client's 4-second chunk cadence a 20-second answer would become roughly
+**five billed requests, each re-uploading everything captured so far**, and
+four of the five are discarded the moment the final pass lands. So on any
+non-local backend the worker skips partial passes entirely
+(`services/transcription.py`'s `partial_passes_are_affordable()`).
+
+What the child loses is the live word-by-word settle while they are still
+talking — they still see "Transcribing…" and then their words, which is
+already exactly what happens on any hold shorter than one chunk interval.
+**The final pass is never skipped on either backend**, so what actually
+reaches Bede is identical; only the preview differs. Both halves are pinned
+by `tests/test_transcription_provider.py`, including that partials still
+run on `local` — so this cost fix can't quietly become a downgrade for
+self-hosted families.
 
 ## Troubleshooting: "Transcribing…" sits for a while after releasing the mic
 
@@ -337,11 +705,25 @@ back to.
 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (a CTranslate2
 reimplementation of Whisper), not the original `openai-whisper` package —
 several times faster on CPU with `int8` quantization, and it drops the
-PyTorch runtime `openai-whisper` needed, for a meaningfully smaller/faster
-Docker build. Same `base` model weights, same accuracy trade-off already
-described above; only the inference engine changed. No `.env` setting or
-deployment action is needed for this — nothing to configure, no account,
-still 100% local (see docs/VENDOR_DATA_FLOW.md).
+PyTorch runtime `openai-whisper` needed, for the transcription path itself.
+Same `base` model weights, same accuracy trade-off already described above;
+only the inference engine changed. No `.env` setting or deployment action
+is needed for this — nothing to configure, no account, still 100% local
+(see docs/VENDOR_DATA_FLOW.md).
+
+That "drops PyTorch" framing only holds for transcription specifically —
+`services/voice_auth.py`'s speaker-verification library (`resemblyzer`) has
+its own, separate hard dependency on `torch`, so the `api` image ends up
+with PyTorch installed regardless of faster-whisper's own choice not to
+need it. What faster-whisper's swap DOES still make possible: the
+Dockerfile installs torch from PyTorch's CPU-only wheel index specifically
+*because* nothing in this image ever uses a GPU — without that one line,
+pip would resolve resemblyzer's `torch` requirement from the default index
+instead, which serves the full CUDA-bundled build (measured directly:
+526.6MB, versus the CPU-only build's well-documented roughly one-third of
+that) into a container that will never touch a GPU. See the Dockerfile's
+own comment for the mechanism (installing torch first so the later
+`requirements.in` install sees it as already satisfied).
 
 One thing that *did* need a deployment-level fix alongside the swap: the
 `api` container runs `read_only: true` in production
@@ -357,6 +739,50 @@ instead, so the running container only ever reads an already-baked file.
 If you maintain a custom Dockerfile or build pipeline for this service,
 make sure it keeps that pre-download `RUN` step, or the fallback STT path
 will silently stop working the same way once deployed read-only.
+
+### Running on low-power hosts (Raspberry Pi, ARM, small NAS)
+
+`docs/PARENT_SETUP.md` lists a Raspberry Pi as a legitimate server machine,
+and it is — but transcription is the one part of a lesson that is genuinely
+CPU-bound *on your own server*, so it's worth knowing what that means before
+choosing hardware.
+
+Everything else in a tutoring turn is either a network call to whichever AI
+provider you configured or a fast database write. Speech-to-text is the
+exception: `faster-whisper` inference runs locally on the host CPU, always.
+There is deliberately **no cloud speech-to-text option** in Bede — the child's
+audio never leaves the house — so this work cannot be offloaded the way the
+tutoring model can. (`OPENAI_API_KEY` buys cloud **TTS**, Bede's spoken output;
+it does nothing for microphone input.)
+
+Practical consequences on a Pi-class host:
+
+- **Expect meaningfully longer per-turn transcription** than on a modern
+  x86 desktop. The `base` model at `int8` is already the fast end of the
+  accuracy/speed trade-off (see above); dropping to `tiny` was tried and
+  produced noticeably worse transcripts on real sentences, so that isn't a
+  recommended lever.
+- **Leave `VOICE_TRANSCRIPTION_MAX_CONCURRENCY` at its default of 1.** That
+  setting exists precisely because overlapping Whisper passes contend for the
+  same cores rather than parallelizing (see the transcription-delay section
+  above) — the failure it prevents is *worse*, not milder, on fewer/slower
+  cores. Raising it is only appropriate on a host with real CPU headroom.
+- **Typing remains a first-class input path.** A child who doesn't want to wait
+  can always type; nothing about the lesson depends on the mic.
+
+This has not been benchmarked against a physical Pi in this repo — the guidance
+above follows from the architecture (batch-only local inference, one pass at a
+time per session) rather than from a measured figure. If you run Bede on a Pi,
+the per-pass `elapsed=` log described in the transcription-delay section above
+is the number that tells you what your hardware actually does.
+
+Encryption, by contrast, is **not** a concern on this hardware. Per-request
+`encrypt`/`decrypt` is plain AES-256-GCM over small payloads. The one
+deliberately expensive step is `core/encryption.py`'s PBKDF2-HMAC-SHA256 KEK
+derivation (600k iterations, ~0.3–1.5s depending on hardware), and it runs
+**once at startup**, off the event loop, never per request — see that module's
+`_derive_kek` docstring, which already treats the Pi as the low-power target
+it optimized the PRF loop for.
 
 ## Troubleshooting (historical): the mic shows "listening" but nothing reaches Bede
 
@@ -382,6 +808,250 @@ itself came back empty (`transcribeFallback` in `voiceApi.ts`/`api.ts`
 silently returns `''` on a failed or blank transcription, and nothing is
 sent — no error surfaces to the child either) rather than the watchdog
 failing to trigger at all.
+
+## Troubleshooting: voice input uploads a lot of data, or "Transcribing…" hangs on a slow connection
+
+**Symptom.** Long answers take a very long time to transcribe, worst on a slow
+home connection. Mobile data usage looks far higher than the length of the
+recordings would suggest.
+
+**Cause (fixed).** The chunk-upload loop re-sent **everything captured so far**
+on every tick, and the server replaced its buffer each time, so the client had
+no choice. That is O(N²) upload over a hold:
+
+| Hold | Uploads | Audio actually sent | Bytes | Waste |
+|---|---|---|---|---|
+| 20s | 6 | 80s | 2.6 MB | 4.0× |
+| 40s | 11 | 260s | 8.3 MB | 6.5× |
+| 120s (safety cap) | 31 | 1980s | 63 MB | 16.5× |
+
+Home connections upload far slower than they download, so a 40-second answer
+could spend over a minute uploading on a 1 Mbps uplink. Raising
+`CHUNK_UPLOAD_INTERVAL_MS` from 2.5s to 4s (see the transcription-delay
+section above) reduced the number of uploads but left the quadratic growth.
+
+**Now:** the client sends only what it captured since its last upload
+(`useVoiceRecorder.ts`'s `snapshotPcmDelta`), as raw 16kHz mono int16 PCM with
+no container, and the server appends it (`streaming_transcription.py`'s
+`push_chunk`), wrapping the accumulated buffer in a WAV header when it
+transcribes. **Upload bandwidth** goes from O(N²) to O(N).
+
+Server decode cost does *not* — every pass still re-transcribes the whole
+buffer, because faster-whisper has no incremental mode. That is a separate
+problem, addressed by `VOICE_PARTIAL_MAX_SECONDS` below.
+
+Two details worth knowing if you touch this path:
+
+- **The protocol is sniffed, not flagged.** `push_chunk` treats a payload
+  starting with `RIFF` as the old whole-buffer upload and replaces; anything
+  else is a PCM delta and appends. An older client therefore keeps working
+  against a newer server with no version negotiation.
+- **A dropped chunk is retried.** The old protocol got this for free — any
+  failed upload was covered by the next one. Deltas do not, so a failed chunk
+  is held and prepended to the following upload
+  (`useHybridVoiceInput.ts`'s `pendingPartsRef`). One network blip never costs
+  the child a word.
+
+## Troubleshooting: everything feels slow and inconsistent on the public demo specifically
+
+**Symptom.** Bede takes several seconds to start speaking, or voice-stream
+session-open times vary wildly between two attempts seconds apart (seen in a
+real trace: 225ms, then 1445ms for the next hold). Both symptoms in the same
+session, with no obvious pattern.
+
+**Likely cause.** `render.yaml` runs `bede-demo-api` on Render's **free**
+plan — a single shared, CPU-constrained instance that sleeps after idle and
+cold-starts on the next request. A chat turn's LLM stream, its TTS
+synthesis, and a voice-input transcription pass can all be competing for the
+same tiny CPU at once. This is a hosting-tier property, not a bug in the
+voice pipeline itself, and it will not reproduce on a self-hosted deployment
+running on real hardware.
+
+If this is affecting real usage rather than occasional testing, moving
+`bede-demo-api` off the free plan is the fix — a `render.yaml`/billing
+change, not a code change.
+
+A ~10-second delay specifically, on what feels like an early interaction in
+a session, is consistent with an additional contributor stacking on top of
+the above: `services/transcription.py`'s faster-whisper model is **lazy**
+— `_get_model()` loads it (deserializing the "base" model's weights into
+memory, real work even though they're pre-baked into the image at build
+time rather than downloaded) on the first call that actually needs it.
+`main.py`'s `_warm_voice_models()` tries to pre-empt this at startup, but it
+is a fire-and-forget background task (`asyncio.create_task`, deliberately
+non-blocking so it doesn't delay the server's own readiness) — on a
+free-tier instance that just woke from sleep, the first REAL transcription
+request can still land before that warm-up finishes, paying the model-load
+cost inline instead of finding it already done. Confirmed from the code;
+not confirmed as the actual cause of any one specific report, since nothing
+here currently logs whether warm-up had completed by the time a given
+request arrived.
+
+**Ruled out, not assumed:** the diagnostic below distinguishes this from an
+actual capture-side bug. If a hold produces "voice stream produced nothing"
+with `~0ms` of audio captured, that is NOT this — see below. And as of this
+change, a *successful* transcription now logs its own release-to-delivery
+time too (`voice stream delivered "..." — Nms after release (Nms total
+hold)`) — previously only the empty-result path had any timing signal at
+all, so a slow-but-successful transcription was invisible in the debug
+panel. That log is what actually confirms or rules out everything in this
+section for a specific report, rather than each of us reasoning about it
+from the architecture alone.
+
+## Troubleshooting: transcription is slow, especially in Spanish
+
+Three levers, in the order worth trying.
+
+> **If you tried these before August 2026 and nothing changed, that was
+> not your imagination.** `docker-compose.yml` passes environment
+> variables to the API container by naming them one at a time, and none
+> of the three below was on that list, so setting them in `.env` had no
+> effect at all under the packaged Docker deployment. Nothing failed
+> visibly: the container simply used the built-in default and ran. They
+> are wired now, and `tests/test_compose_settings_passthrough.py` fails
+> if any documented setting goes missing from that list again. Changes
+> here need `make update` (a rebuild), not just a restart.
+
+**1. `WHISPER_BEAM_SIZE` (default `1`).** faster-whisper's own default is `5`,
+i.e. beam search, which is several times slower than greedy decoding. This
+project now defaults to `1`. For short, single-language child utterances where
+the language is already known, greedy gives up very little. Raise it only if
+*accuracy* is the complaint and latency is not.
+
+**2. `WHISPER_MODEL_SIZE` (default `base`).** This lever cuts both ways, so be
+clear which problem you have:
+
+| Problem | Direction |
+|---|---|
+| Transcription is **slow** | Go **down**: `tiny` is roughly 2-3× faster than `base` |
+| Transcription is **wrong** | Go **up**: `small` is materially more accurate, at ~3× the compute |
+
+Spanish is genuinely harder for the smaller models, so a Spanish deployment
+can find itself wanting accuracy *and* speed. If so, the honest answer is
+hardware, not configuration — Whisper on a CPU is the constraint.
+
+**3. `WHISPER_VAD_FILTER` (default `false`).** Skips silence instead of
+decoding it, a real saving on a hold full of pauses. Off by default on
+purpose: VAD can clip a child who answers quietly, and losing a word is worse
+than waiting for one. Turn it on only after hearing it work on your own
+hardware, with your own children.
+
+### Why long answers get disproportionately slow
+
+faster-whisper has no incremental mode, so **every pass re-transcribes the
+whole buffer from the start**. Across a hold that is O(N²) decode work — a
+40-second answer costs roughly 220 seconds of audio decoded, spread over ten
+passes.
+
+`VOICE_PARTIAL_MAX_SECONDS` (default `25`) caps that: past this much audio,
+live partial transcripts stop being computed and the buffer rides to the
+final pass. A partial computed over 60 seconds of audio is expensive *and*
+stale by the time it lands, so it was never worth much. **The final pass is
+never skipped** — what actually reaches Bede does not depend on this setting.
+Set it to `0` to always compute partials.
+
+Note this is a different problem from the upload-bandwidth one above, and the
+delta-upload change did not fix it. That change made the *network* cost linear;
+this one is *decode* cost, and it is capped rather than eliminated.
+
+The cap applies regardless of which upload protocol a client is speaking — the
+current delta protocol above, or the legacy whole-buffer one a stale browser
+tab might still be running mid-deploy (`streaming_transcription.py`'s
+`push_chunk` supports both — see that module's own docstring). An earlier
+version of this cap computed buffered-audio duration from the delta
+protocol's own buffer only, so a legacy-protocol client silently never hit
+it and kept paying the full O(N²) decode cost for the whole hold; fixed to
+derive the duration from whichever protocol the session is actually using.
+
+## Troubleshooting: Bede is slow to start speaking, especially in Spanish or on a slow connection
+
+**Symptom.** A noticeable gap between the child finishing their turn and Bede
+starting to speak. Worse on a slow home connection, and worse again in a
+Spanish session than an English one.
+
+**Cause (fixed).** `/tutor/speak` used to return **uncompressed WAV**. At
+OpenAI TTS's 24kHz 16-bit mono that is **48KB for every second of speech**, so
+a 30-second line ran to roughly 1.4MB. The whole utterance is synthesized
+server-side, buffered, and only then sent as one response body, so all of
+those bytes sit squarely between the child asking and hearing anything:
+
+| Format | 30s of speech | Time to arrive on a 1.5 Mbps link |
+|---|---|---|
+| WAV (old) | ~1.4 MB | ~7.7s |
+| MP3 (tried, then replaced — see below) | ~240 KB | ~1.3s |
+| **AAC (now)** | roughly similar to MP3 | roughly similar to MP3 |
+
+Spanish suffered most, and predictably so: Spanish runs roughly 15-25% longer
+than English for the same content, so the same lesson produces proportionally
+more audio seconds and therefore proportionally more bytes.
+
+**MP3 was the first fix, and it introduced a real regression of its own.**
+Reported back from actual use as sounding "like a lisp," with "a residual
+echo." That is close to a textbook description of MP3's own well-known
+pre-echo artifact — its transform coding spreads quantization noise
+backward in time around a sharp transient, and sibilants/consonants (s, sh,
+f, t — exactly what "lisp" calls out) are the sharpest, most transient-heavy
+content in speech. Bede's own voice (slow, measured, softly spoken, per
+`openai_tts_instructions`) is close to a worst case for this specific
+artifact: lots of soft consonants with quiet space around them for the
+smearing to be audible in.
+
+`services/voice_synthesis.py` now requests `AUDIO_FORMAT = "aac"` and
+`routers/tutor.py` serves it as `AUDIO_MEDIA_TYPE = "audio/aac"`. AAC uses
+temporal noise shaping specifically to control pre-echo, so it should not
+reproduce the same artifact at a similar bitrate, while keeping most of
+MP3's size win over WAV — and it's Apple's own preferred codec, reinforcing
+rather than fighting the tablet-first reasoning that already ruled out Opus
+below. Both frontends read the response with `res.blob()` and hand it to
+`createObjectURL`, so the blob inherits whatever Content-Type `/speak` sets
+and no client change was needed either time — but the two constants must
+agree, which is why the media type is derived from the same module rather
+than restated.
+
+**Not verified by ear.** Same caveat as the MP3 change it replaces — this is
+reasoned from how these codecs actually work, not confirmed against a real
+recording. If a lisp/echo report recurs against AAC, that argues against
+codec choice as the explanation entirely: two different lossy codecs
+producing the same complaint would point at the separate, still-open
+overlapping-playback investigation below ("Diagnosing a reported speech
+echo") rather than a third codec swap.
+
+AAC rather than Opus (which would be smaller still, ~16x, and also avoids
+MP3's pre-echo behavior): Safari/iOS support for Opus in `<audio>` is patchy
+and this is a tablet-first product, so it's not the first thing to reach for.
+
+**This does not change Bede's speaking pace.** Pacing is
+`settings.openai_tts_speed` (0.9) plus `openai_tts_instructions`, both
+untouched. Compression changes the bytes on the wire, never the delivery —
+pinned by `tests/test_voice_synthesis.py`'s
+`test_pacing_is_untouched_by_the_format_change`.
+
+**Still outstanding.** Synthesis itself is not streamed: `/speak` waits for
+the complete audio before sending the first byte. Streaming OpenAI's chunked
+response through FastAPI would remove the other half of the delay, and is a
+separate change.
+
+## Troubleshooting: in a Spanish session, Bede's fallback voice reads Spanish with an English accent
+
+**Symptom.** With backend TTS unconfigured (or on a deployment relying on the
+browser's own `speechSynthesis`), a Spanish session reads Spanish text in an
+audibly English voice.
+
+**Cause (fixed).** `pickBestVoice()` in both frontends filtered exclusively on
+`v.lang.startsWith('en')` at every priority level, so a Spanish session could
+only ever be handed an English voice. It now takes a language prefix, derived
+from the session's own locale (`i18n.language`) rather than the device's —
+the same rule the speech-recognition language already follows.
+
+- Spanish sessions prefer a known Spanish male voice (`Jorge`, `Diego`,
+  `Microsoft Pablo`, …), then any Spanish voice that is not explicitly female,
+  then any Spanish voice.
+- If **no** Spanish voice exists on the device, `pickBestVoice` returns `null`
+  rather than falling through to an English one — a wrong-language voice is
+  worse than none. `utterance.lang` is always set (`es-MX`), so the engine
+  picks something appropriate itself.
+- English behaviour is deliberately unchanged, including its long-standing
+  last-resort "any voice at all" fallback.
 
 ## Troubleshooting: Bede's spoken narration goes silent for some turns
 
@@ -428,21 +1098,34 @@ outright, which `useTextToSpeech.ts` (both copies) deliberately treats as
 silence rather than a voice switch (see that section). A voice switch
 specifically means the backend call *succeeded* — real audio bytes came
 back — but this browser's `audio.play()` refused to actually play them for
-that one call, which the code intentionally treats as "browser speech is
-better than total silence" and falls back accordingly. That fallback
-decision is by design, not itself a bug, but two related things needed
-fixing:
+that one call.
 
-1. **No visibility into which of the two failure classes actually
-   happened.** `speakViaBackend`/`playBackendVoice` distinguish "backend
-   request itself failed" from "backend succeeded but this browser blocked
-   playback," but neither branch logged anything — unlike every other
-   voice-pipeline file in this app, TTS playback had zero `debugBus`
-   output. Both copies of `useTextToSpeech.ts` now log the exact
-   `spoke`/`configured`/`fetchedAudio` state whenever a turn falls back to
-   the browser voice, and the specific rejection reason when
-   `audio.play()` itself throws — so the next occurrence is diagnosable
-   from `DebugOverlay.tsx` instead of guessed at.
+**This used to fall back to the browser voice on purpose** ("browser
+speech is better than total silence"). A later real report showed why
+that reasoning didn't hold up in practice: a family on a browser that kept
+blocking `audio.play()` (see the autoplay-block section below) got the
+jarring, robotic browser default voice on *every single turn* for the
+whole session, not just an occasional one — worse, by far, than staying
+silent for the handful of lines actually affected. **Bede's voice now has
+no fallback to the browser's default voice for this case at all** — real
+audio that was fetched but blocked from playing just stays silent for
+that one line; see the autoplay-block section below for the actual fix
+(a self-healing retry), which is what makes staying silent an acceptable
+trade rather than a real loss. The *only* remaining fallback case is the
+genuinely different one: TTS was never configured on this deployment at
+all (no `OPENAI_API_KEY`), where the browser's own voice is a reasonable
+zero-config default rather than a mid-session bait-and-switch.
+
+Two related things were also fixed in the process, both still true today:
+
+1. **No visibility into which failure class actually happened.**
+   `speakViaBackend`/`playBackendVoice` distinguish "backend request
+   itself failed" from "backend succeeded but this browser blocked
+   playback," and both copies of `useTextToSpeech.ts` log the exact
+   `spoke`/`configured`/`fetchedAudio` state whenever either happens, plus
+   the specific rejection reason when `audio.play()` itself throws — so an
+   occurrence is diagnosable from `DebugOverlay.tsx` rather than guessed
+   at.
 2. **A real leak on every mic barge-in during backend-voice playback.**
    Both copies reuse one shared `<audio>` element across turns (see the
    `getSharedAudioElement` comment on why). `stop()` — called on every
@@ -457,11 +1140,46 @@ fixing:
 
 **Fixed in both copies** of `useTextToSpeech.ts`, same
 independent-codebases caveat as every other voice-pipeline fix in this
-file. The leak fix is unconditionally correct regardless of cause; whether
-it was actually the trigger behind the reported voice switch (versus a
-one-off browser autoplay quirk) wasn't conclusively confirmed — no debug
-trace existed from the moment it happened, which is exactly what item 1
-above now provides for next time.
+file.
+
+## Troubleshooting: Bede's voice keeps getting blocked by the browser's autoplay policy, turn after turn
+
+Reported live via a debug-panel trace: `backend TTS audio.play() rejected:
+The request is not allowed by the user agent or the platform in the
+current context` on repeated turns within the same session — not a one-off.
+Real audio came back from the backend every time (`fetchedAudio: true`),
+it just never played.
+
+Some background: `unlockSpeechForSession()` "spends" a real, synchronous
+user gesture (the login/code-entry button click) on a silent `play()` of
+the shared `<audio>` element (`getSharedAudioElement()`) specifically so
+every later *programmatic* `play()` call on that SAME element — the
+opener, every subsequent turn — is allowed by the browser's autoplay
+policy without needing its own fresh gesture. By spec, once an element has
+actually played due to a user gesture, it stays "blessed" for the rest of
+the page's lifetime. A session where the block recurs on *every* turn
+means that initial unlock either didn't actually succeed on that
+browser/device, or didn't durably stick — and before this fix, there was
+no recovery from that state short of a full page reload: every future
+`play()` call kept failing identically for the rest of the session.
+
+Fix: both copies of `useTextToSpeech.ts` now arm a one-shot,
+self-removing `pointerdown` listener on `document` (`armAutoReUnlock()`)
+the moment a real `audio.play()` rejection happens. The very next genuine
+tap anywhere on the page — a subject switch, the mic button, anything —
+re-primes the same shared element with another silent, synchronous
+`play()`/`pause()`, inside that real gesture, the same trick
+`unlockSpeechForSession()` already uses. If that re-prime succeeds, every
+`play()` call after it succeeds too, without the family needing to reload
+anything. This is deliberately paired with the "no fallback" decision
+above, not a replacement for it — staying silent for the blocked line(s)
+while this self-heals is the whole reason no fallback is needed here.
+
+If a family reports audio never recovering even after several taps, that
+points to something more persistent than an autoplay-policy quirk (a
+device/browser genuinely refusing to ever unlock audio playback) — check
+whether `armAutoReUnlock`'s own re-prime attempt is itself rejecting in
+the debug panel, not just the original turn's.
 
 ## Troubleshooting: the whole chat UI freezes/spins after Bede replies
 
@@ -839,6 +1557,255 @@ hard to reason about from first principles alone, and "native also probably
 needs this" is a hypothesis, not a finding, until an actual trace confirms
 which specific call it was racing against.
 
+## Troubleshooting: "I didn't quite catch that" on short holds, especially on cellular
+
+Caught from a real debug-panel capture on a phone, and the most damaging
+voice bug found so far — it silently threw away a child's whole answer.
+
+The trace:
+
+```
+[270187ms] holdStart type=pointerdown isSpeaking=false
+[270188ms] _start() attempt=6
+[270188ms] useVoiceRecorder.startRecording()
+[271228ms] holdEnd type=pointerup            <- 1041ms hold
+[271228ms] release() from mode=recording
+[271229ms] useVoiceRecorder.stopRecording()
+[272098ms] voice stream produced nothing after a 1910ms turn — surfacing to the user
+```
+
+**The race.** `_start()` starts the recorder synchronously, but opens the
+server-side streaming session over the network — `sessionIdRef` is only set
+inside `startVoiceStream(...).then()`. A short hold on a slow connection
+therefore reaches `release()` while that request is still in flight, with
+`sessionIdRef.current` still `null`. `release()` used to treat that as
+unrecoverable:
+
+```js
+if (!token || !sessionId) {
+  clearHoldSafety()
+  setMode('idle')
+  return          // audio discarded — no upload, no finish, no error
+}
+```
+
+The captured audio was simply dropped. Nothing was uploaded, nothing was
+transcribed, and no error was surfaced — from the child's side, they spoke
+and Bede ignored them.
+
+**It compounded.** `release()` does not bump `attemptRef` (only `stop()`
+does), so when the session finally opened a moment later, the `.then()`
+still passed its staleness check and went on to install an SSE consumer
+*and* a `CHUNK_UPLOAD_INTERVAL_MS` timer for a turn that had already ended
+with a stopped recorder. Since nothing ever called `finishVoiceStream`,
+that consumer waited until the stream died on its own, then reported "voice
+stream produced nothing" and raised `no-speech-heard` — which is the
+`[272098ms]` line above and the "I didn't quite catch that" bubble the
+family actually sees. The stray chunk timer kept firing every 4 seconds
+against a recorder that had nothing left to give.
+
+**The fix** is to defer the release rather than discard it. A
+`pendingReleaseRef` parks the already-captured audio plus its attempt id;
+`_start()`'s `.then()` checks for it the instant the session opens and
+completes the turn immediately — uploading the final chunk and calling
+`finishVoiceStream` — instead of arming a chunk timer. The mode stays
+`transcribing` while parked, which is what the UI was already claiming, and
+the hold-safety timer stays armed as the backstop. `stop()` clears the
+parked release, since a cancel should discard it. If the session never
+opens at all, the existing retry-exhausted path clears it and surfaces
+`unavailable` rather than sitting in `transcribing` forever.
+
+Why it looked intermittent: it is purely a race between hold length and
+session-open latency. On a fast connection with a normal multi-second hold,
+the session is open long before release and nothing is wrong. Short holds,
+cellular, or a cold backend are what expose it — which is also why it hit a
+phone capture and not desktop testing.
+
+`startVoiceStream` success is now logged with the elapsed time
+(`startVoiceStream opened session after Nms`), which the trace above was
+missing entirely — there was no way to tell from a capture whether the
+session had opened before the release or not.
+
+Regression coverage lives in each app's `useHybridVoiceInput.test.ts`
+("release() arriving before the streaming session opens"), including a test
+that the ordinary fast-hold path still arms the chunk timer, so this cannot
+be "fixed" by never arming it. Two of those tests were confirmed to fail
+against the unfixed hook.
+
+## Open: "produced nothing" with the session already open (not the release-race above)
+
+A real trace from a phone, captured after the session-open race above was
+already fixed:
+
+```
+[40598ms] useVoiceRecorder.startRecording()
+[40822ms] startVoiceStream opened session after 225ms
+[40582ms] holdStart type=pointerdown isSpeaking=true   <- barge-in: mic
+                                                            pressed while
+                                                            Bede was still
+                                                            speaking
+[42926ms] holdEnd type=pointerup                       <- 2344ms hold
+[42926ms] release() from mode=recording
+[43107ms] voice stream produced nothing after a 2510ms turn — surfacing to the user
+```
+
+Unlike the race documented above, `startVoiceStream` had already resolved
+2.1 seconds before `release()` — `sessionIdRef` was populated the whole
+time, so `pendingReleaseRef` never enters into it. The hold was real and
+well past `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` (1200ms), yet the round trip
+came back with empty text.
+
+**Not yet root-caused.** Two open hypotheses, not confirmed:
+
+1. **A genuinely quiet or silent hold** — the child didn't actually speak,
+   or spoke too quietly for the mic to pick up. Ordinary and not a bug.
+2. **A capture-side race specific to barge-in.** `isSpeaking=true` in the
+   trace means this hold started by interrupting Bede's own speech —
+   `stopSpeech()` fires synchronously, then `enterRecordingAudioSession()`
+   switches the (iOS) audio session category from playback to
+   play-and-record, then `recorder.startRecording()` begins. If the
+   hardware doesn't finish that switch as fast as the JS call returns, real
+   audio could be lost during a window early in the hold specifically when
+   it's barge-in-triggered — a different failure mode from the
+   `enterRecordingAudioSession()` placement bug fixed above, but the same
+   general class of "the JS call returned before the hardware caught up."
+
+**What would tell the two apart, and didn't exist yet at the time of the
+trace above:** `release()` now logs the actual size of the audio it's about
+to upload — `release() captured ~Nms of audio this delta (B bytes)` — right
+where the final delta snapshot is taken, in both apps'
+`useHybridVoiceInput.ts`. Compare that number to the hold length reported in
+the same trace:
+
+- **`~0ms` captured against a multi-second hold** confirms hypothesis 2 (a
+  real capture-side bug) and rules out 1 — something prevented the mic from
+  producing samples during a hold that definitely happened.
+- **`capturedMs` roughly matching the hold length** rules out 2 — the audio
+  reached the server intact, so an empty result is either a genuinely quiet
+  utterance or a server-side transcription problem, not a client capture
+  race.
+
+Until a trace with this line lands, treat this as open. If it turns out to
+be hypothesis 2 and specific to barge-in, the fix is almost certainly
+awaiting the audio-session switch (or at least a short buffer/delay) before
+`startRecording()` runs when `isSpeaking` was true at `holdStart` — but that
+is a plan for once the diagnostic confirms it, not a fix shipped blind.
+
+## Diagnosing a reported speech "echo"
+
+Open, as of this writing: a doubled/echoing voice has been reported on a
+current build. Root cause not yet found — the earlier fixes in #292 and
+#314 addressed one specific doubling (the browser `speechSynthesis`
+fallback playing *alongside* real backend audio) and are still in place,
+so whatever is happening now is something else.
+
+**A second, distinct hypothesis exists for a similar-sounding complaint —
+don't conflate the two.** A report of "sounds like a lisp" plus "a residual
+echo" was traced instead to MP3's pre-echo artifact on sibilants (see the
+transcription-delay section's MP3→AAC entry above) and addressed by
+switching codecs, not by anything in this section. Both explanations can
+produce something a parent would call "echo": this section is about two
+separate audio clips actually overlapping on playback; the codec one is a
+single clip whose own encoding smears transients. The table below is what
+tells them apart — a genuine overlap shows two `STARTED` events with no
+`ENDED` between them; a codec artifact shows one clean playback with
+nothing unusual in the log at all, since there's only one clip and it never
+overlaps anything. If a report includes the word "lisp" specifically, check
+the AAC change above first; if the debug panel shows a genuine double
+`STARTED`, it's this section instead.
+
+**The debug overlay only used to log failure paths** — an autoplay
+rejection, a fallback decision. During a normal-looking turn that happens
+to echo, it emitted nothing at all, so a capture came back empty and told
+you nothing. The TTS path is now instrumented on the success paths too, in
+both apps, specifically so one screenshot can distinguish the three
+plausible causes:
+
+| What the log shows | What it means |
+|---|---|
+| `TTS speak()` twice with the same `text="…"` for one turn | Duplication is **upstream**, in the turn-stream consumer batching speech segments — not in playback at all. |
+| Two `TTS backend playback STARTED` with no `ENDED` between | Two clips **overlapping on the shared `<audio>` element** — the doubled/"reverby" case. |
+| `TTS browser fallback STARTED` while a backend clip is playing | **Two different voices at once** — the #292/#314 class, not fully closed. |
+
+Also logged: `TTS processQueue start` (tutor only — the demo has no queue),
+playback `ENDED`/`ERROR`, and `TTS stop()` with the generation counter, so
+barge-in and subject-switch boundaries are visible and a superseded call
+resuming can be spotted by its stale `gen=`.
+
+To capture: open the session, toggle the debug overlay from the session
+header (the muted control set apart from the real session controls),
+reproduce the echo, screenshot the panel. The buffer holds 100 entries
+(`hooks/debugBus.ts`), so screenshot reasonably promptly after it happens.
+
+## Troubleshooting: press-and-hold cuts off mid-sentence, or "the voice button is unreliable"
+
+Reported as press-and-hold feeling unreliable compared with other
+assistants' recording buttons. This was a real bug in the button's pointer
+wiring, not in transcription, the audio graph, or the model.
+
+The mic button's handlers were:
+
+```jsx
+onPointerDown={holdStart}
+onPointerUp={holdEnd}
+onPointerLeave={holdEnd}     // <- the bug
+onPointerCancel={holdEnd}
+```
+
+with no pointer capture. `pointerleave` fires the moment the pointer crosses
+outside the element's box, and it was wired straight to the "stop recording
+and send" path. So any finger drift off the button mid-hold ended the turn
+immediately — silently, mid-sentence, with no error and nothing in the
+resulting transcript to explain the truncation.
+
+On a tablet, held by a child, against what was then a ~38px target, that is
+not an edge case. It is the common case, and it is exactly what "the mic
+keeps cutting me off" and "it only caught half of what she said" look like
+from the outside. Note the failure is *silent*: the partial audio still
+transcribes fine, so the child simply sees a short, oddly-truncated version
+of what they said reach Bede.
+
+**The fix** is `setPointerCapture()`, in `utils/holdGesture.ts` (mirrored to
+`demo/src/holdGesture.ts`). Once the pointer is captured, the capturing
+element receives every subsequent event for that pointer regardless of where
+it travels, and boundary events are suppressed while capture is held. The
+hold then ends only when the child actually lifts their finger — the entire
+contract of a press-and-hold control.
+
+This app already used the technique elsewhere: `HandwritingCanvas.tsx`
+captures the pointer so a drawing stroke survives leaving the canvas bounds.
+The mic button simply never got the same treatment.
+
+Three details worth keeping:
+
+- **`onPointerLeave` is retained, but only as a fallback for when capture
+  could not be established at all** (a very old WebView, a synthetic pointer
+  with no usable id). When capture succeeded, a leave event is ignored,
+  because leaving the box is not the end of the gesture. Degrading to the
+  old lossy behavior is still better than a hold that can only end at the
+  120-second `HOLD_SAFETY_TIMEOUT_MS` ceiling.
+- **Gesture-active is tracked separately from capture-held.** Releasing
+  capture necessarily clears the captured flag, and the spec allows a
+  deferred `pointerleave` immediately afterwards — with a single flag, that
+  trailing event falls through the "capture unavailable" branch and fires a
+  *second* send for one gesture. A regression test caught this during
+  development; the call sites happen to carry their own `holdingRef` guard,
+  but the helper is correct on its own rather than depending on every caller
+  to re-derive that.
+- **The touch target was raised to a 44px floor** (Apple HIG minimum) from
+  roughly 38px. Capture makes drift harmless, but a larger target means less
+  drift to begin with, and this button is aimed at K-8 hands.
+
+`touch-action: none` was already correctly set on this button (Tailwind's
+`touch-none`), so scroll-gesture `pointercancel` was never part of this
+particular failure.
+
+**Not the same issue as continuous mode's endpointing** (see that feature's
+section below). Hold-to-talk has always had an explicit end signal — the
+child's own finger lift — and this fix is about that signal being delivered
+reliably. Continuous "Voice on" mode had no end signal at all, which was
+separate work, since closed by `endpointing.ts` in both apps.
+
 ## Troubleshooting: the live transcript while speaking is off-screen
 
 Reported with a screenshot: while holding the mic and talking, the child's
@@ -905,6 +1872,187 @@ other voice-pipeline fix in this file. Android Chrome has no equivalent
 public API for a page to control audio session category directly, so this
 fix is iOS/iPadOS-specific; Android's own routing behavior around
 `getUserMedia` wasn't reported as broken and is left alone.
+
+## Troubleshooting: a held turn is silently discarded, and then the mic button stops working
+
+From a real trace on the public demo. The server answered a session's very
+first `events` request with **"unknown or expired session" 238 milliseconds
+after creating it**. The TTL is 180 seconds, so that is not expiry — it is the
+request landing on a different process from the one that created the session.
+`services/streaming_transcription.py` keeps sessions in memory, in one
+process, and says so in its own docstring; the same trace shows the signature
+plainly, with chunks on one session id succeeding, then 404ing, then
+succeeding again.
+
+**That root cause is server-side and no frontend change fixes it.** It needs
+the instance count pinned to one, session affinity, or a shared store. Note
+`render.yaml` carries no instance or scaling configuration at all, so that
+number lives only in the Render dashboard — the same blueprint-versus-
+dashboard drift `render.yaml`'s own plan comments were written about.
+
+Two client faults made it far worse than it needed to be, and both are fixed:
+
+**The turn was reported as finished while the child was still holding.**
+`consumeEvents` logged the error event, fell out of its loop, and ran straight
+into `setMode('idle')`. The child went on speaking for another seven seconds
+and all of it was discarded. `heldMs` at that instant was 643ms — under
+`MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` — so not even an error appeared. The
+stream ending while `mode` is still `recording` is now treated as the turn
+dying underneath the child: the recorder is stopped, the chunk timer cleared,
+and `network` surfaced (the microphone is fine; the session it was streaming
+to is gone).
+
+**Nothing tore the turn down, so the next press did nothing.** The recorder
+kept capturing and the chunk timer kept uploading. `useVoiceRecorder` refuses
+to start a second recording while one is live, so the child's next press
+reached `_start()` and never reached `startRecording()` — visible in the trace
+as an `_start() attempt=9` with no `useVoiceRecorder.startRecording()` line
+after it. Same latch-off failure the give-up path was fixed for, arriving
+through a different door.
+
+**Every successful turn also fired a second `finish` that 404'd.** `release()`
+finishes the session but leaves `sessionIdRef` populated, because the final
+`uploadSnapshot` still needs it — so the `stop()` that follows when the child
+confirms and sends finished the same session again. Harmless on its own, but a
+wasted round trip per turn, and it filled the log with 404s that made the real
+one above hard to find. A `finishRequestedRef` set synchronously at release
+now makes it exactly one finish per session; an outright cancel with no
+release still finishes properly, or the session would leak until its TTL.
+
+## Troubleshooting: "I can't hear you" appears the instant it becomes the child's turn, before any press
+
+A parent sent two real traces from a live iOS Safari session, five minutes
+apart, both showing the same shape: `_start() attempt=11` (and climbing),
+two `getStream() rejected name=NotAllowedError` lines back to back on every
+attempt, the mic message on screen, and Bede continuing to converse normally
+via typed input in between. Not a one-off — every turn in the trace failed
+the same way.
+
+Root cause, found by reading `prewarm()`'s own call site rather than
+guessing from the log: `SocraticChat.tsx` calls `prewarm()` from a
+`useEffect` the instant `awaitingChildTurn` goes true — *before* the child
+has pressed anything, and therefore *not inside a user gesture at all*.
+`useVoiceRecorder.ts` carries its own comment on exactly why that matters:
+iOS Safari only honors `getUserMedia()` when it's initiated directly inside
+a user gesture's call stack, and rejects (or never settles) a call made from
+anywhere else. A prewarm effect is exactly "anywhere else."
+
+That alone would just make prewarm fail quietly on a strict browser — not
+itself the bug, since `startRecording()`'s own fresh-retry fallback exists
+precisely to recover from a failed prewarm. The actual defect is that
+`getStream()` called `onError` unconditionally on every rejection, with no
+way to tell "this was only the provisional prewarm attempt, a retry is
+still coming" from "this was the truly final attempt, nothing is left to
+try." So a prewarm failure and a real press-time failure were
+indistinguishable to the child: both flipped `mode` to `'idle'` and set
+`micError`, both showed the same message — including, worst of all,
+*before the child had touched the mic button*.
+
+This gap used to be covered. `startRecording()`'s own comment on the
+prewarm-fails-then-retry-succeeds case recorded that a failed prewarm
+"never even reached onError (mode was still `'native'` when it rejected, so
+the guard in useHybridVoiceInput correctly ignored it)" — a `mode !==
+'native'` check from the browser-native SpeechRecognition era. When native
+recognition was removed entirely (see the top of `useHybridVoiceInput.ts`
+and this file's own rewrite section), that guard went with it, and nothing
+replaced it. The comment describing the old protection stayed in the file
+long after the protection itself was gone.
+
+Fix: `getStream()` takes a `report` option (default `true`). `prewarm()`
+always passes `report: false` — a prewarm failure is never the final word.
+`startRecording()`'s own first attempt (reusing the prewarm promise, or a
+cold call for a caller with no separate prewarm step) is `report: false`
+too, for the identical reason: a fresh retry still follows it. Only that
+fresh retry — genuinely the last attempt, nothing left to fall back to —
+reports normally. `logDebug()` still records every rejection regardless of
+`report`, so a provisional failure remains visible in a debug trace even
+though the child never sees it.
+
+**What this fix does and does not explain about the two traces above.** It
+closes a real, provable gap: a prewarm-stage failure can no longer surface
+as though it were the turn's own outcome, and (per the regression test
+added alongside it) a turn that ultimately succeeds after a failed prewarm
+attempt no longer shows a spurious error along the way. What it can't
+settle from a log alone is whether that specific family's *in-gesture*
+retry — the one now correctly reporting — was failing because the site's
+own microphone permission was genuinely blocked on that device, or because
+even a same-tick `await` on an already-rejected prewarm promise is enough
+to cost WebKit's user-activation window before the fresh call runs. Both
+produce the identical `NotAllowedError` text on iOS Safari, and only a real
+device trace after this fix ships can distinguish them going forward.
+
+## Endpointing: how a continuous-mode turn ends
+
+Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.
+Continuous "Voice on" mode had none at all: `start()` behaved exactly like
+`startHold()`, nothing ever called `release()`, and the turn therefore ran to
+the 120-second `HOLD_SAFETY_TIMEOUT_MS` ceiling. A child answered in four
+seconds and the microphone stayed open for another hundred and sixteen.
+
+`homeschool-tutor/src/utils/endpointing.ts` closes that. It samples the
+recorder's existing level meter every 200ms and ends the turn on trailing
+silence.
+
+**`demo/src/endpointing.ts` is its mirror, and the demo has continuous mode
+too.** For a while it did not, and that was the wrong way round: the demo is
+what a prospective family judges the product by, so shipping it with worse
+voice behaviour than the product it is selling made Bede look slower at
+listening than it actually is. The two files are byte-identical apart from
+their header note, and `demo/src/endpointing.test.ts` imports both and
+asserts every constant matches — a silence window that drifted apart would
+mean the demo was quietly demonstrating something a family would not get.
+
+**The silence window is deliberately longer than a dictation app's, and that
+is the whole design.** General-purpose dictation endpoints after roughly
+700-1500ms. That is wrong here: this app's central activity is narration — a
+child recalling a passage aloud, from memory, in their own words. Thinking
+pauses mid-narration are not hesitation to be trimmed, they are the work.
+Cutting a child off to "helpfully" submit half a sentence is worse than any
+latency it saves, and it punishes exactly the unhurried recall the method is
+built on. `TRAILING_SILENCE_MS` is 3000ms, and a test asserts it stays clear
+of dictation territory so shortening it has to be an argument rather than a
+quiet edit.
+
+Two independent reasons end a turn, kept apart on purpose:
+
+- **`finished-speaking`** — at least `MIN_SPEECH_MS` (600ms) of speech was
+  heard, then `TRAILING_SILENCE_MS` of quiet.
+- **`no-speech`** — nothing was ever heard, so after `NO_SPEECH_TIMEOUT_MS`
+  (12s) the turn ends rather than holding the mic to the 120s ceiling. Covers
+  an auto-start that fired after the child walked away.
+
+Both are logged to the debug overlay with the speech/silence split, so a
+report can say *why* a turn ended rather than only that it did.
+
+**They exit differently, and that is the difference between a helpful
+endpoint and an irritating one.** `finished-speaking` calls `release()` — the
+child spoke, so the turn is delivered. `no-speech` calls `stop()` instead,
+which discards silently.
+
+Routing `no-speech` through `release()` looks harmless and is not. It produces
+an empty transcript, which `MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK` turns into an
+"I didn't quite catch that" bubble **and** a tick on `SocraticChat`'s
+voice-mode circuit breaker — telling a child the microphone failed when they
+had simply not spoken yet. That cascade already existed at the 120-second
+ceiling, where it took six minutes to reach three strikes. At a 12-second
+no-speech timeout it would take **thirty-six seconds**, so shortening the
+timeout without changing the exit would have made an existing annoyance ten
+times more frequent. Silence is ordinary; it is not a fault.
+
+Repeated silence still needs an answer, though, because a cheap endpoint makes
+an empty room expensive: the mic would re-arm, open a streaming session and
+tear it down five times a minute forever. After `MAX_CONSECUTIVE_SILENT_TURNS`
+(3) the app stands continuous mode down to hold-to-talk with one plain line —
+not an error — and hold-to-talk works the instant the child returns. Any real
+transcript resets the count, so pauses between thoughts never accumulate
+toward it.
+
+**`SILENCE_LEVEL` is untuned against real hardware** and says so in its own
+comment — it cannot be tuned from a sandbox with no microphone. If turns end
+too early, raise `TRAILING_SILENCE_MS` first, then lower `SILENCE_LEVEL`; if
+they never end, raise `SILENCE_LEVEL`. Everything stays bounded by the 120s
+safety timeout regardless, so a badly tuned threshold degrades to the old
+behaviour rather than to something worse.
 
 ## Feature: continuous "Voice on" mode (opt-in, hold-to-talk stays the default)
 

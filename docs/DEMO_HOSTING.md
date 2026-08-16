@@ -28,7 +28,7 @@ just push to `main` and it redeploys itself.
      separately).
    - `OPENAI_API_KEY` — for the voice feature (see `docs/VOICE_SETUP.md`).
    - `CHILD_PIN` — must satisfy `pin_is_strong()` (6+ digits, no sequential
-     run/repeated block/palindrome — e.g. `602656`, not `111111`). Unused in
+     run/repeated block/palindrome, and not one of Bede's own published example PINs). Unused in
      practice (this instance's parent/child roles aren't advertised), but
      the app still validates it at startup.
    - `DEMO_PIN` — not a credential anyone types; purely the on/off switch for
@@ -221,7 +221,7 @@ domain serves the identical build directly — no redirect needed between
 `bede.agnusdei.workers.dev` and `agnusdei.ai`, since Cloudflare's Custom
 Domains feature lets one Worker answer on both hostnames at once.
 
-**Why Cloudflare Pages and not a GitHub Pages custom domain** (the
+**Why a Cloudflare Worker and not a GitHub Pages custom domain** (the
 originally-planned approach): a first attempt at exactly this apex/subpath
 split on GitHub Pages caused a real near-outage. **GitHub Pages
 auto-detects a `CNAME` file anywhere in the published artifact and silently
@@ -231,10 +231,11 @@ artifact quietly pointed the whole deployment at that domain, and since DNS
 was never pointed at GitHub Pages for it, the result wasn't "shows the
 wrong page," it was the site becoming unreachable entirely — on top of a
 *second*, independent bug in the same attempt (the demo itself moving to a
-doubled `/bede/bede/` path). Cloudflare Pages has no equivalent
-auto-detection footgun: a custom domain is attached explicitly, in the
-dashboard or via API, never inferred from a file in the build output. The
-old `site/CNAME` file has been removed from the repo entirely rather than
+doubled `/bede/bede/` path). A Cloudflare Worker's Custom Domains have no
+equivalent auto-detection footgun: a custom domain is attached explicitly,
+in the dashboard (Workers & Pages → `bede` → Settings → Domains & Routes)
+or via API, never inferred from a file in the build output. The old
+`site/CNAME` file has been removed from the repo entirely rather than
 carried forward inert — Cloudflare doesn't read it, and leaving a
 GitHub-Pages-specific trigger file lying around after deliberately moving
 away from GitHub Pages custom domains is exactly the kind of thing that
@@ -246,7 +247,10 @@ shell script rather than logic duplicated per platform, so it runs
 identically whether GitHub Actions invokes it (`deploy-demo.yml`),
 Cloudflare invokes it, or you run it locally to preview.
 
-**One-time Cloudflare Pages setup:**
+**One-time Cloudflare Worker custom domain setup** (there is no separate
+Cloudflare Pages project involved — a domain is attached directly to the
+existing, already-Git-connected `bede` Worker described in "Wiring the demo
+frontend to it" above, the same way `agnusdei.io` already was):
 
 1. Create a Cloudflare account if you don't have one, and add `agnusdei.ai`
    as a site (**Add a site** → enter the domain). Cloudflare will show you
@@ -254,45 +258,45 @@ Cloudflare invokes it, or you run it locally to preview.
    only you can do (registrar access, not something scriptable from here).
    DNS propagation after the nameserver change can take anywhere from
    minutes to about 24 hours.
-2. **Workers & Pages → Create → Pages → Connect to Git**, select
-   `agnusdei-ai/bede`. Configure the build:
-   - **Build command**: `bash scripts/build_pages_site.sh`
-   - **Build output directory**: `publish`
-   - **Root directory**: `/` (repo root — the script itself `cd`s into
-     `demo/` as needed)
-3. **Environment variables** (Pages project → Settings → Environment
-   variables): add `VITE_DEMO_API_BASE` = your Render backend URL (no
-   trailing slash) — same value the old GitHub Actions `vars.VITE_DEMO_API_BASE`
-   held. Vite bakes this in at build time, so it must be set here, not just
-   on the backend.
-4. **Custom domains** (Pages project → Custom domains): add `agnusdei.ai`
-   (and `www.agnusdei.ai` if you want that to resolve too — Cloudflare
-   offers a one-click redirect rule for it). Cloudflare issues and manages
-   the TLS certificate automatically once the domain's nameservers are
-   actually pointed at Cloudflare from step 1.
-5. **While you're already touching DNS for this domain**, add Resend's
+2. **Workers & Pages → `bede` → Settings → Domains & Routes → Add → Custom
+   Domain**, enter `agnusdei.ai` (and `www.agnusdei.ai` if you want that to
+   resolve too — Cloudflare offers a one-click redirect rule for it).
+   Cloudflare issues and manages the TLS certificate automatically once the
+   domain's nameservers are actually pointed at Cloudflare from step 1. No
+   new build configuration is needed — it's the same Worker, same Git
+   integration, same `bash scripts/build_pages_site.sh` build already
+   wired up for `agnusdei.io`, just answering on one more hostname.
+3. `VITE_DEMO_API_BASE` needs no new step either — it's the build-time
+   variable set once on the `bede` Worker's own Build → Variables and
+   secrets (see "Wiring the demo frontend to it" above), and applies to
+   every hostname the Worker answers on, `agnusdei.ai` included.
+4. **While you're already touching DNS for this domain**, add Resend's
    domain-verification records (TXT/DKIM, from Resend's dashboard → your
    domain → DNS records) for `agnusdei.ai` too, if you haven't — this is
    what `RESEND_FROM_ADDRESS` needs to actually be able to send mail (see
    "Wiring the demo frontend to it" above and `services/email_service.py`'s
    `email_configured()`), and doing it in the same DNS session avoids a
    second round of propagation waiting later.
-6. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists
+5. **Backend CORS** — `render.yaml`'s `CORS_ORIGINS` already lists
    `agnusdei.ai` and `bede.ai` (plus `www` variants) ahead of time, so this
    needs no backend redeploy. Trim it back to just whichever domain is
    actually in use once settled, and drop the `agnusdei-ai.github.io`
    fallback once the custom domain is confirmed working end to end.
-7. **Confirm** — open `agnusdei.ai` (the home page) and `agnusdei.ai/bede/`
+6. **Confirm** — open `agnusdei.ai` (the home page) and `agnusdei.ai/bede/`
    (the demo), generate a code, and confirm the chat works. A CORS mismatch
    here shows up as every `/tutor/chat` request silently failing in the
-   browser console, not a visible error banner.
-8. GitHub Pages doesn't need retiring the way an earlier version of this
+   browser console, not a visible error banner. TLS on a freshly-attached
+   Custom Domain can take a few minutes to provision — a certificate error
+   right after attaching isn't necessarily a misconfiguration, give it a
+   short while before troubleshooting further.
+7. GitHub Pages doesn't need retiring the way an earlier version of this
    plan assumed — it's already just a redirect to
    `bede.agnusdei.workers.dev/bede/` (see "GitHub Pages now redirects"
-   above), not a second live copy. Once `agnusdei.ai` is confirmed working,
-   update `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` to point at
-   `agnusdei.ai/bede/` instead, so the old GitHub Pages link forwards to the
-   final domain rather than the workers.dev one.
+   above), not a second live copy. Once `agnusdei.ai` is confirmed working
+   and a canonical domain is decided (see "Interim beta domain: agnusdei.io"
+   below), update `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` to
+   point at that domain instead, so the old GitHub Pages link forwards to
+   the final domain rather than the workers.dev one.
 
 ## Interim beta domain: agnusdei.io
 
@@ -300,8 +304,8 @@ At beta launch (2026-07), `agnusdei.ai`'s domain transfer was mid-flight,
 and most registrars (plus ICANN's post-transfer lock) freeze nameserver
 changes at the losing registrar for the duration — so the steps above
 couldn't be run against `.ai` yet. `agnusdei.io`, not being mid-transfer,
-went through the identical one-time Cloudflare Pages setup instead and is
-the live beta domain today:
+went through the identical one-time Cloudflare Worker custom domain setup
+instead and became the live beta domain:
 
 - Cloudflare zone added for `agnusdei.io`, nameservers switched at the
   registrar (GoDaddy), DNSSEC confirmed off first (leaving it on during an
@@ -313,14 +317,64 @@ the live beta domain today:
   that file's own comment on the full list and why unused entries are left
   in rather than trimmed early).
 
-**When `agnusdei.ai`'s transfer clears**, run the "One-time Cloudflare
-Pages setup" steps above for it too (same Worker, so no rebuild). At that
-point decide: keep both domains live (add a `<link rel="canonical">` to
-whichever is the intended long-term brand domain — serving identical
-content on two live domains without one is a mild SEO duplicate-content
-hit), or add a Cloudflare redirect rule sending `agnusdei.io` traffic to
-`agnusdei.ai`. Either way, update `CORS_ORIGINS` and this doc to match
-whatever's actually live once that decision is made.
+**Update (2026-08-04):** `agnusdei.ai`'s transfer has cleared. Its
+nameservers are now pointed at Cloudflare and it's been attached as a
+Custom Domain on the same `bede` Worker, the same way `agnusdei.io` was —
+not a separate Cloudflare Pages project (see "One-time Cloudflare Worker
+custom domain setup" above, which previously described the wrong,
+superseded Pages-based process and has since been corrected to match).
+Both domains now answer on the identical Worker, build, and (once
+`site/_headers` ships) security-header policy — TLS on `agnusdei.ai`
+confirmed working.
+
+**Decision (2026-08-04, revised): both domains stay live — no redirect.**
+An earlier version of this section decided to redirect `agnusdei.io` to
+`agnusdei.ai` via a Cloudflare zone-level Redirect Rule. That's been
+reversed, deliberately, on the same day, before the rule was ever created:
+both domains currently sit on the **same** `bede` Worker (one origin, two
+hostnames), and a 301 redirect from `.io` would have made `.io` stop
+serving its own content entirely — every visitor forwarded straight to
+`.ai`. That's fine for SEO but it quietly destroys the one thing having a
+second live domain was actually buying: **if `agnusdei.ai` alone becomes
+unreachable** (its zone breaks, its cert lapses, it gets suspended,
+anything scoped to that specific domain rather than the shared Worker),
+a redirect sends every visitor *into* that failure instead of around it.
+Keeping `.io` genuinely, independently live is what preserves it as a real
+fallback rather than a decorative one.
+
+`agnusdei.ai` is still the intended long-term brand domain — that part of
+the original decision stands — so instead of a redirect, each static page
+gets a `<link rel="canonical" href="https://agnusdei.ai/...">` tag pointing
+search engines at `.ai` as the authoritative URL, while `.io` keeps
+resolving and serving the identical build. This is the standard fix for
+the mild duplicate-content SEO cost of two live domains, with none of a
+redirect's downside.
+
+**Stated future direction, not yet built:** the real gap this leaves open
+is that both domains still share **one Worker** — an attack or failure
+that takes out the Worker itself (a compromised deploy, a compromised
+Cloudflare account, the project being "completely whacked") takes both
+domains down together regardless of the DNS-level independence above. The
+architecture this decision is deliberately leaving room for is a **second,
+fully independent Worker** — its own deployment, potentially its own
+Cloudflare account for real blast-radius isolation — with `agnusdei.io`
+repointed to serve *from* it instead of merely resolving alongside it, so
+a compromise of one Worker doesn't take the other's domain with it. That
+is real engineering effort (a duplicate build/deploy pipeline, keeping two
+Workers' content in sync or accepting them diverging) and is out of scope
+for now — not something this repo builds today, just the reason "keep
+both domains genuinely live" was chosen over "redirect one into the
+other": a redirect would have made that future move impossible without
+first undoing it, since a domain that only forwards elsewhere has nothing
+of its own left to repoint.
+
+`render.yaml`'s `CORS_ORIGINS` needs no change under this decision —
+both `.io` and `.ai` entries stay live and reachable, exactly as already
+listed. `scripts/build_github_pages_redirect.sh`'s `DEMO_URL` stays
+pointed at `https://agnusdei.ai/bede/`, matching the canonical-brand
+choice above (the GitHub Pages stub only needs to pick *a* working URL to
+forward old links to, and `.ai` is it) — this is independent of whether
+`.io` also stays live, so it needs no further change either.
 
 ## Cold starts (free plan)
 
@@ -334,9 +388,28 @@ workspace**, and keeping one service warm around the clock burns nearly all
 744 of a 31-day month's hours by itself, leaving nothing for any other free
 service in the workspace before it gets suspended for the rest of the
 month. `bede-demo-db` is no longer part of that shared pool — it runs on a
-paid Basic-256mb plan (see `render.yaml`'s own comment on `databases[0].plan`
-for why), which also means it doesn't expire and need periodic recreation
-the way Render's free Postgres tier does.
+paid plan (Pro-4gb as of 2026-08-04; see `render.yaml`'s own comment on
+`databases[0].plan` for why the file and the dashboard must agree), which
+also means it doesn't expire and need periodic recreation the way Render's
+free Postgres tier does.
+
+**As of 2026-08-04 `bede-demo-api` itself is on Render's Pro plan**, so the
+spin-down this whole section describes no longer applies to it: there is no
+15-minute idle shutdown and no shared free-hours cap. The keep-alive
+workflow is now belt-and-braces rather than load-bearing. Two consequences
+worth knowing, because both bit during the outage that day:
+
+- **"It may be waking up after being idle" is no longer a safe assumption.**
+  That is what the demo tells a visitor on any connection-level failure
+  (`friendlyErrorMessage` in `demo/src/App.tsx`), and on the free plan it
+  was usually true. On Pro it is usually *false* — a request that fails now
+  is far more likely to be a real fault than a cold start, so treat that
+  message as a symptom to investigate rather than as an explanation.
+- **Keep `render.yaml`'s `services[0].plan` in step with the dashboard.**
+  Unlike the database plan, Render applies a web-service plan exactly as
+  written, so a stale `free` there silently downgrades a running Pro
+  instance on the next successful Blueprint sync. See that key's own
+  comment.
 
 It starts working automatically once `VITE_DEMO_API_BASE` (see below) is
 set — no separate setup. If demo traffic falls outside 12:00-23:50 UTC,
@@ -354,6 +427,46 @@ long, the form says plainly that Bede is waking up rather than leaving an
 unexplained spinner. Neither replaces the keep-alive above — they just
 soften the one cold start it doesn't cover.
 
+## The health check, and what "Deployed ✓" does and doesn't mean
+
+`render.yaml`'s `healthCheckPath` points at `/health`, and **that endpoint
+verifies the database, not just the process.** It runs a `SELECT 1` behind a
+3-second timeout and returns:
+
+- `200 {"status": "ok", "database": "ok"}` — this instance can serve.
+- `503 {"status": "degraded", "database": "unreachable"}` — it cannot.
+
+This is deliberately a *readiness* check rather than a liveness one, and it
+is a change from the original, which returned `{"status": "ok"}`
+unconditionally. That version could not fail. Every real endpoint in this
+API needs Postgres — there is no in-memory fallback, by design (see
+`core/database.py`) — so an instance that cannot reach the database cannot
+answer a single request, yet it passed its own health check, stayed marked
+healthy, kept receiving traffic, and never alerted.
+
+That is not hypothetical. On 2026-08-04 the demo was down for over an hour
+while the Render dashboard read **Deployed ✓** the entire time, and the
+green badge actively misled the investigation: it was taken as evidence the
+database was fine, which is exactly what it was not. The lesson is the
+general one — *a check that cannot fail is indistinguishable from a check
+that passes.*
+
+**The tradeoff, stated plainly:** while the database is unreachable, Render
+sees a failing health check and may restart the instance or stop routing to
+it, and if the fault is at the database end a restart will not fix it. That
+is intended. A service that can answer nothing should fail loudly rather
+than sit green absorbing requests it can only drop.
+
+**When triaging, read the logs, not the badge.** A failed probe writes
+`Health check FAILED — database unreachable: <ExceptionType>: <detail>` —
+the exception type is the part that distinguishes a DNS failure from a
+refused connection from an auth error, and Render's own UI records only
+that the check failed. Startup failures now log a single greppable
+`FATAL: <ExceptionType>: <detail>` line too; previously a database that was
+unreachable *at boot* escaped `main.py`'s error handling entirely (it
+catches `RuntimeError`, but SQLAlchemy raises `OperationalError`) and
+produced an unhandled traceback instead of that line.
+
 ## Memory limits (free plan)
 
 Distinct from the cold-start problem above: Render's free web-service plan
@@ -367,23 +480,48 @@ itself the moment it's installed in the environment, regardless of whether
 "exceeded its memory limit" alert fired for `bede-demo-api`, triggering an
 automatic restart that made the demo briefly unreachable.
 
-`main.py`'s `_warm_voice_models()` now skips preloading `resemblyzer`
-entirely on a demo deployment (`settings.is_demo_deployment`) — voice
-biometric auth (`/voice/enroll`, `/voice/verify`, `/voice/override`) is
-parent-only and structurally unreachable by the demo's `demo_code` role
-either way, so preloading it was pure waste on this deployment shape. Be
-clear-eyed about what this buys, though: measured directly, it only trims
-~30MB of live RSS. The dominant cost (torch, ~480MB) loads regardless,
-because the demo genuinely does need faster-whisper for its own STT
-fallback, and `ctranslate2` pulls torch in the moment it's present in the
-environment — this fix doesn't eliminate that.
+**First attempt (partial).** `main.py`'s `_warm_voice_models()` skips
+preloading `resemblyzer` on a demo deployment
+(`settings.is_demo_deployment`) — voice biometric auth (`/voice/enroll`,
+`/voice/verify`, `/voice/override`) is parent-only and structurally
+unreachable by the demo's `demo_code` role either way, so preloading it was
+pure waste on this deployment shape. Measured directly, that alone only
+trimmed ~30MB of live RSS. The dominant cost (torch, ~480MB) still loaded,
+because faster-whisper was still being loaded for the demo's own STT and
+`ctranslate2` pulls torch in the moment it's present in the environment.
 
-If OOM restarts recur, the real fix is more RAM, not just no-spin-down:
-confirm current specs on Render's pricing page before upgrading — the
-Starter plan historically matches the free plan's RAM (it buys no
-spin-down, not more memory), so eliminating this specific failure mode
-needs whichever tier actually raises the memory allocation, not just the
-next plan up.
+**The actual fix (2026-08-04): stop loading a local Whisper model on this
+deployment at all.** `TRANSCRIPTION_PROVIDER=openai` (`render.yaml`, see
+`core/config.py`) routes speech-to-text to OpenAI's transcription API, and
+nothing on that path imports `faster_whisper` — so `ctranslate2` never
+runs, torch never imports, and the ~480MB simply is not paid. Both
+`main.py`'s warm-up and `services/transcription.py`'s `preload()` check
+before touching the model, deliberately twice, so the saving never depends
+on one call site staying correct.
+
+Why this is the right trade **for the demo specifically and nowhere else**:
+this deployment already sends the whole conversation to OpenAI's chat
+models and already uses OpenAI for TTS, so transcribing locally was buying
+a privacy property it does not claim. A family's self-hosted instance does
+claim it — a child's voice staying on their own LAN is the entire premise
+— so `core/config.py`'s default stays `local` and a deployment has to opt
+in by name. It is also a disclosure change: `demo/public/privacy.html` and
+`privacy.es.html`, `docs/RETENTION_POLICY.md`, and
+`docs/INFORMATION_SECURITY_POLICY.md` §5 were all updated in the same
+change, since a new category of a visitor's data now reaches a third party.
+
+**Why this mattered beyond uptime.** `services/streaming_transcription.py`
+keeps its sessions in memory in a single process, so each OOM restart
+destroyed every in-flight child's voice turn. From the tablet that arrives
+as `startVoiceStream failed: Load failed` and a mic that appears broken —
+so the memory limit was showing up in bug reports as a voice bug, and
+being chased as one. See `docs/VOICE_SETUP.md`.
+
+If OOM restarts recur even so, the remaining fix is more RAM, not just
+no-spin-down: confirm current specs on Render's pricing page before
+upgrading — the Starter plan historically matches the free plan's RAM (it
+buys no spin-down, not more memory), so that would need whichever tier
+actually raises the memory allocation, not just the next plan up.
 
 ## Expecting a crowd? (public events, ~100 simultaneous users)
 
@@ -405,11 +543,65 @@ backend is the part to prepare:
    large room, `RATE_LIMIT_API_PER_MINUTE`) as environment variables on
    `bede-demo-api` and let it restart; no code change involved. Or have
    attendees use cellular data.
-3. **Anthropic rate limits are the real concurrency ceiling** for chat:
-   each active conversation is a streaming request against your API key's
-   tier. Check your organization's limits before the event; the demo
-   persists nothing, so the backend itself (async FastAPI, SSE) is not
-   the bottleneck.
+3. **Your AI provider's rate limits are the real concurrency ceiling**
+   for chat: each active conversation is a streaming request against your
+   API key's tier. For this deployment that is OpenAI first, with the
+   configured backup behind it (`BEDE_ADAPTER_ORDER` in `render.yaml` —
+   not Anthropic unless you have selected it, see
+   docs/PROVIDER_ADAPTERS.md). Check your organization's limits before the
+   event; the demo persists nothing, so the backend itself (async FastAPI,
+   SSE) is not the bottleneck.
+
+### What simultaneous microphone users actually cost
+
+Worth its own note, because the intuition ("20 kids talking at once = 20
+transcriptions at once") is wrong in a way that matters.
+
+**They do not overlap the way they appear to.** With
+`TRANSCRIPTION_PROVIDER=openai`, live partial passes are skipped entirely
+(see `services/transcription.py`'s `partial_passes_are_affordable`), so a
+session makes exactly **one** transcription request, at the moment the
+child releases the mic. While twenty children are holding the button, the
+server is only appending uploaded bytes to a buffer. The requests fire as
+each child finishes, and children do not release in lockstep.
+
+**Even if they did**, `services/transcription.py`'s pooled client caps this
+process at 10 concurrent requests to OpenAI (`max_connections`), and an
+eleventh **waits for a free connection rather than failing** — bounded by
+the 30-second request timeout. Twenty simultaneous releases means ten go
+out and ten wait roughly one extra request's worth of time.
+
+**Memory per session** is 16kHz 16-bit mono PCM: ~32KB per second of audio
+held. A typical 10-second answer is ~320KB; the 120-second safety cap
+(`HOLD_SAFETY_TIMEOUT_MS`) is ~3.8MB. Twenty concurrent sessions is
+therefore ~6MB realistically and ~77MB in the pathological case where every
+one of them runs to the cap. That is comfortable against the headroom this
+deployment now has — and was **not** comfortable before, when torch was
+consuming it (see the memory section above). Skipping partials also removes
+the per-tick buffer copy that used to accompany them, so the growing buffer
+is now wrapped into a WAV once per turn rather than once every four
+seconds per session.
+
+**The ceiling you will actually hit first is the per-IP rate limit**, and
+only in one specific situation. `RATE_LIMIT_VOICE_PER_MINUTE` (default 20)
+governs *starting* a stream and `RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE`
+(default 120) governs the chunk/finish/events traffic of an already-started
+one — both **per IP address**. Twenty visitors on their own phones and home
+networks are twenty different IPs and nowhere near either. Twenty visitors
+sharing one venue's Wi-Fi are **one** IP: their first turn alone consumes
+the entire 20/minute start budget, and their chunk traffic runs at roughly
+80/minute against the 120 ceiling. For a shared-network event, raise both
+from Render's dashboard alongside the auth limits in point 2 — same
+mechanism, no code change.
+
+**On a self-hosted family instance the answer is different**, because
+`local` transcription is CPU-bound and `VOICE_TRANSCRIPTION_MAX_CONCURRENCY`
+defaults to 1: simultaneous holds queue and each pass re-transcribes the
+whole buffer, which is the compounding stall documented in
+docs/VOICE_SETUP.md's transcription-delay section. That default is right for
+one family at one kitchen table; a co-op running many tablets at once should
+raise it on hardware with real cores to spare, or accept that voice turns
+serialize.
 
 ## Staying up to date
 

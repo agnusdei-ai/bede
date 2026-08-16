@@ -58,7 +58,16 @@ jobs:
   compose-config-validation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Generated per run rather than hardcoded. A literal PIN committed
+      # here is published exactly like the one in .env.example was, and
+      # that value (602656) is now refused at boot for precisely that
+      # reason — which is what turned this job red for five runs. Calling
+      # the app's own suggest_pin() also proves the generator and the
+      # policy that judges it cannot drift apart.
+      - name: Generate a throwaway CHILD_PIN for this run
+        run: |
+          echo "CI_CHILD_PIN=$(python3 -c 'import sys; sys.path.insert(0, "homeschool-api"); from core.pin_policy import suggest_pin; print(suggest_pin())')" >> "$GITHUB_ENV"
       - name: Validate managed-DB mode
         run: |
           cat > .env <<EOF
@@ -66,7 +75,7 @@ jobs:
           SECRET_KEY=test
           MASTER_SECRET=test
           PARENT_PASSWORD=test
-          CHILD_PIN=602656
+          CHILD_PIN=${CI_CHILD_PIN}
           DATABASE_URL=postgresql+asyncpg://user:pass@host/db
           LICENSE_KEY=${CI_TEST_LICENSE_KEY}
           EOF
@@ -84,7 +93,7 @@ jobs:
           SECRET_KEY=test
           MASTER_SECRET=test
           PARENT_PASSWORD=test
-          CHILD_PIN=602656
+          CHILD_PIN=${CI_CHILD_PIN}
           DATABASE_URL=postgresql+asyncpg://sage:testpass@db:5432/bede
           COMPOSE_PROFILES=local-db
           POSTGRES_PASSWORD=testpass
@@ -106,7 +115,7 @@ jobs:
           SECRET_KEY=test
           MASTER_SECRET=test
           PARENT_PASSWORD=test
-          CHILD_PIN=602656
+          CHILD_PIN=${CI_CHILD_PIN}
           DATABASE_URL=postgresql+asyncpg://user:pass@host/db
           LICENSE_KEY=${CI_TEST_LICENSE_KEY}
           EOF
@@ -123,7 +132,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: compose-config-validation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Generated per run rather than hardcoded. A literal PIN committed
+      # here is published exactly like the one in .env.example was, and
+      # that value (602656) is now refused at boot for precisely that
+      # reason — which is what turned this job red for five runs. Calling
+      # the app's own suggest_pin() also proves the generator and the
+      # policy that judges it cannot drift apart.
+      - name: Generate a throwaway CHILD_PIN for this run
+        run: |
+          echo "CI_CHILD_PIN=$(python3 -c 'import sys; sys.path.insert(0, "homeschool-api"); from core.pin_policy import suggest_pin; print(suggest_pin())')" >> "$GITHUB_ENV"
 
       - name: Build the setup wizard image
         run: docker build -t bede-setup-wizard -f scripts/setup_wizard/Dockerfile .
@@ -145,7 +164,7 @@ jobs:
             --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
             --data-urlencode "db_choice=local" \
             --data-urlencode "parent_password=cipassword123" \
-            --data-urlencode "child_pin=602656" \
+            --data-urlencode "child_pin=${CI_CHILD_PIN}" \
             --data-urlencode "license_key=${CI_TEST_LICENSE_KEY}" \
             | grep -q "All set"
 
@@ -168,13 +187,13 @@ jobs:
           grep -q '^ANTHROPIC_API_KEY=sk-ant-ci-test-key$' .env
           grep -q '^COMPOSE_PROFILES=local-db$' .env
           grep -q '^POSTGRES_PASSWORD=' .env
-          grep -q '^CHILD_PIN=602656$' .env
+          grep -q "^CHILD_PIN=${CI_CHILD_PIN}\$" .env
           grep -q "^LICENSE_KEY=${CI_TEST_LICENSE_KEY}\$" .env
           grep -q '@db:5432/bede$' .env
           [ "$(stat -c '%a' .env)" = "600" ]
 
       - name: Upload .env as an artifact for the next job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wizard-generated-env
           path: .env
@@ -189,13 +208,31 @@ jobs:
     runs-on: ubuntu-latest
     needs: wizard-end-to-end
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wizard-generated-env
 
       - name: Start the full stack (as the wizard configured it)
         run: docker compose up -d --build
+
+      # Real, measured image sizes from a real build — not a hand-typed
+      # estimate in a doc that goes stale the moment a dependency changes.
+      # docs/PARENT_SETUP.md and docs/UNIX_INSTALLER.md point families here
+      # (this job's own log) for current numbers rather than committing to
+      # exact figures that would silently drift out of date. See the
+      # torch-CPU-only fix in homeschool-api/Dockerfile's own comment for
+      # why the api image's size in particular is worth watching — a
+      # regression there (e.g. a new dependency accidentally reintroducing
+      # a full CUDA wheel) would show up here first.
+      - name: Report built image sizes (for docs/PARENT_SETUP.md's disk-space guidance)
+        run: |
+          echo "## Built image sizes" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' \
+            | grep -E '^bede-' | sort >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep -E '^bede-' | sort
 
       - name: Wait for the API to become healthy
         run: |
@@ -243,22 +280,49 @@ jobs:
         # signal to go reissue the key (see docs/SECURITY.md's Known open
         # gaps) — it just no longer blocks the rest of this job or later CI
         # on unrelated changes.
+        #
+        # A prior revision relied on that "still reports failure" alone —
+        # true, but easy to miss: continue-on-error hides the step behind a
+        # yellow/passing job in the PR checks list, so it takes actually
+        # opening this step's log to notice. This step now also emits a
+        # `::error::` workflow-command annotation (shows as a red banner on
+        # the PR and the run summary, not just inside the log) and writes
+        # to $GITHUB_STEP_SUMMARY, so a stale secret is visible without
+        # anyone going looking for it. A final always()-run step below
+        # re-surfaces the same banner as the LAST thing in the job summary,
+        # in case later steps' own output pushes this one out of view.
+        id: license_check
         continue-on-error: true
         run: |
           body=$(curl -sk https://localhost/api/pod/configs)
           code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/api/pod/configs)
           if echo "$body" | grep -q 'license_required'; then
-            echo "Instance is GATED — CI_TEST_LICENSE_KEY is missing/invalid/expired."
-            echo "Reissue it (scripts/issue_license.py --tier trial --days 730 ...) and"
-            echo "update the CI_TEST_LICENSE_KEY repository secret."
+            msg="CI_TEST_LICENSE_KEY is missing/invalid/expired — the production-regression license gate has not actually been proven this run. Reissue with scripts/issue_license.py (needs the offline private signing key — docs/PRODUCTION_SETUP.md#licensing) and update the CI_TEST_LICENSE_KEY repository secret."
+            echo "::error title=Stale CI_TEST_LICENSE_KEY::${msg}"
+            {
+              echo "## :rotating_light: License gate NOT verified this run"
+              echo "${msg}"
+              echo ""
+              echo "Response: \`${body}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg"
             echo "Response: $body"
             exit 1
           fi
           if [ "$code" != "401" ] && [ "$code" != "403" ]; then
-            echo "Expected an auth-shaped 401/403 from an unauthenticated /pod/configs, got $code"
+            msg="Expected an auth-shaped 401/403 from an unauthenticated /pod/configs, got ${code} instead — the license gate did not behave as expected."
+            echo "::error title=License gate check failed::${msg}"
+            {
+              echo "## :rotating_light: License gate check failed"
+              echo "${msg}"
+              echo ""
+              echo "Response: \`${body}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg"
             echo "Response: $body"
             exit 1
           fi
+          echo "License gate verified: CI_TEST_LICENSE_KEY is valid and the gate lifts correctly." >> "$GITHUB_STEP_SUMMARY"
           echo "License gate is down (auth answered normally) — license is active."
 
       - name: Confirm the no-CLI tablet-trust page works end-to-end
@@ -313,12 +377,78 @@ jobs:
             exit 1
           fi
 
-      - name: Confirm local Postgres backup/restore works
+      - name: Confirm local Postgres backup/restore actually restores lost data
+        # Before this, the step below only proved a restore leaves the API
+        # able to boot and answer /health afterward — it never confirmed
+        # any actual DATA survived. Worse, `make db-restore` was being run
+        # on top of a database that STILL HAD ALL ITS ORIGINAL DATA (never
+        # wiped first): pg_dump's plain-SQL restore replays `COPY ... FROM
+        # stdin` per table inside one implicit transaction, so the first
+        # row that collides with an existing primary key rolls back that
+        # WHOLE table's restore — and psql's default (non-ON_ERROR_STOP)
+        # behavior just prints the error and moves on rather than failing
+        # the script. So the previous version of this step was silently
+        # exercising almost nothing: restoring onto live, already-populated
+        # tables mostly no-ops, then "the API is healthy afterward" was
+        # trivially true because the data was never actually touched.
+        #
+        # This now tests the real disaster-recovery scenario a family
+        # would actually hit — data is GONE, restore it from a backup —
+        # by wiping the schema before restoring, then comparing a DATA-ONLY
+        # snapshot taken right before the wipe against one taken right
+        # after restore. No API/auth/license dependency at all (sidesteps
+        # this workflow's own known CI_TEST_LICENSE_KEY staleness gap —
+        # see docs/SECURITY.md's Known open gaps — entirely, rather than
+        # inheriting it), and it's a stronger check than probing one field
+        # through the API: pg_dump serializes the raw encrypted BYTEA
+        # column bytes directly, so an identical diff proves every table's
+        # DATA — including encryption_config's wrapped DATA_KEY — survives
+        # the round trip intact, not just one hand-picked record.
+        #
+        # Deliberately --data-only/--no-owner/--no-privileges/--no-comments
+        # for the COMPARISON snapshots specifically (the real backup two
+        # lines below, the one a family would actually restore from, stays
+        # a full unmodified `make db-backup` — untouched by any of this):
+        # a first attempt diffed two full dumps directly and got real,
+        # confusing false positives — recreating the schema via DROP/CREATE
+        # leaves it owned by a different role than the original
+        # initdb-created one, so pg_dump legitimately emits extra ALTER
+        # SCHEMA OWNER/REVOKE/COMMENT statements for the restored schema
+        # that were never in the original (a metadata artifact of the wipe
+        # method, not a data-loss signal) — and pg_dump 16 also wraps every
+        # dump in a `\restrict`/`\unrestrict` pair carrying a random token
+        # that's never the same twice by design. Data-only sidesteps the
+        # schema-ownership noise entirely; the two `grep -Fv` calls strip
+        # the random restrict/unrestrict wrapper lines, the only other
+        # legitimately-nondeterministic-but-harmless output pg_dump adds.
         run: |
+          set -e
+          echo "--- Snapshotting data before the wipe (comparison only — the real backup below is untouched) ---"
+          docker compose exec -T db pg_dump -U sage --data-only --no-owner --no-privileges --no-comments --no-security-labels bede \
+            | grep -Fv '\restrict' | grep -Fv '\unrestrict' > before-data.sql
+
+          echo "--- Taking the real backup a family would actually restore from ---"
           make db-backup
           ls backups/*.sql
           BACKUP_FILE=$(ls -t backups/*.sql | head -1)
+
+          echo "--- Wiping the schema to simulate real data loss ---"
+          docker compose exec -T db psql -U sage -d bede -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+          echo "--- Restoring from the backup taken before the wipe ---"
           make db-restore FILE="$BACKUP_FILE"
+
+          echo "--- Comparing data before the wipe against data after the restore ---"
+          docker compose exec -T db pg_dump -U sage --data-only --no-owner --no-privileges --no-comments --no-security-labels bede \
+            | grep -Fv '\restrict' | grep -Fv '\unrestrict' > after-data.sql
+          if ! diff before-data.sql after-data.sql > dump-diff.txt; then
+            echo "Restored data differs from what was backed up — the restore did NOT preserve data intact:"
+            cat dump-diff.txt
+            exit 1
+          fi
+          echo "Backup/restore verified: every table's data survived a full wipe-and-restore round trip intact." >> "$GITHUB_STEP_SUMMARY"
+
+          echo "--- Confirming the API boots cleanly against the restored (previously wiped) database ---"
           # restart so the API re-reads a freshly-restored DB cleanly
           docker compose restart api
           for i in $(seq 1 30); do
@@ -331,6 +461,25 @@ jobs:
       - name: Dump logs on failure
         if: failure()
         run: docker compose logs
+
+      - name: Re-flag a stale CI_TEST_LICENSE_KEY, if there was one
+        # The license-gate step above is continue-on-error (see its own
+        # comment for why), so its ::error:: annotation and step summary
+        # can end up buried under everything that ran after it — tablet-
+        # trust, Postgres backup/restore, several more minutes of log
+        # output. This runs unconditionally (always(), so it fires whether
+        # or not anything else failed) as the LAST thing in the job, purely
+        # to check that one step's outcome and re-surface the same signal
+        # if it failed, so "was the license actually verified this run" is
+        # never something you have to scroll back through the whole job to
+        # find out.
+        if: always()
+        run: |
+          if [ "${{ steps.license_check.outcome }}" = "failure" ]; then
+            echo "::error title=Stale CI_TEST_LICENSE_KEY::This run's license gate was NOT verified — see the 'Confirm the license is ACTIVE' step above. CI_TEST_LICENSE_KEY needs reissuing (scripts/issue_license.py, private key required — docs/PRODUCTION_SETUP.md#licensing)."
+            echo "## :rotating_light: Reminder: this run's license gate was NOT verified" >> "$GITHUB_STEP_SUMMARY"
+            echo "See the 'Confirm the license is ACTIVE' step above for details. CI_TEST_LICENSE_KEY needs reissuing." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Tear down
         if: always()

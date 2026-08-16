@@ -1,6 +1,7 @@
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, LicenseStatus, AIProviderStatus, AIProviderName } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
+import { getOrCreateDeviceId } from '../utils/deviceId'
 
 const BASE = '/api'
 
@@ -48,10 +49,19 @@ export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
 }
 
 export async function login(role: 'parent' | 'child', credential: string, locale?: string): Promise<LoginResult> {
+  // P9 device revocation (core/device_registry.py) — identifies this
+  // physical device so a parent can later revoke it (see fetchDevices/
+  // revokeDevice below) if it's lost or compromised. null when
+  // localStorage is unavailable (getOrCreateDeviceId's own fallback);
+  // JSON.stringify drops a null-valued key entirely, so an omitted
+  // device_id here is indistinguishable from an older client that never
+  // sent one — LoginRequest.device_id is optional server-side for exactly
+  // that reason.
+  const deviceId = getOrCreateDeviceId()
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(locale ? { role, credential, locale } : { role, credential }),
+    body: JSON.stringify({ role, credential, ...(locale ? { locale } : {}), ...(deviceId ? { device_id: deviceId } : {}) }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -130,6 +140,75 @@ export const totpAuthVerify = async (pendingToken: string, code: string): Promis
 // counterpart to the recovery flow below):
 export async function changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
   await postJson('/mfa/change-password', token, { current_password: currentPassword, new_password: newPassword })
+}
+
+// ── Privileged-access step-up (P8, core/elevation.py) ────────────────────
+// Management-plane actions (the audit log, licensing, the AI provider
+// switch, any auth/recovery factor change, permanent student deletion)
+// additionally require a recent elevation. ElevationPrompt.tsx is what
+// actually calls this — it intercepts the 403 those endpoints return when
+// unelevated and prompts for the password itself, so no individual call
+// site above needs to know elevation exists at all.
+export interface ElevationResult {
+  elevated: boolean
+  expiresAt: string
+  ttlSeconds: number
+}
+
+export async function elevateSession(token: string, password: string, totpCode?: string): Promise<ElevationResult> {
+  const res = await fetch(`${BASE}/auth/elevate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password, totp_code: totpCode || '' }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    // /auth/elevate's own failures are always plain-string details (wrong
+    // password, missing/invalid TOTP, no session id) — never the structured
+    // {elevation_required: true} shape the endpoints IT unlocks return.
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not confirm your password')
+  }
+  const data = await res.json()
+  return { elevated: data.elevated, expiresAt: data.expires_at, ttlSeconds: data.ttl_seconds }
+}
+
+// ── P9 device revocation (core/device_registry.py) ────────────────────────
+// "Revoke that lost tablet" — the visible device list
+// docs/DEVICE_IDENTITY_DESIGN.md calls "the feature families actually ask
+// for". See utils/deviceId.ts for what device_id is and is not (a
+// revocation mechanism, not a cryptographic identity).
+
+export interface DeviceInfo {
+  device_id: string
+  first_seen_at: string
+  last_seen_at: string
+  last_role: string
+  last_user_agent: string
+  revoked: boolean
+  revoked_at: string | null
+}
+
+export async function fetchDevices(token: string): Promise<DeviceInfo[]> {
+  const res = await fetch(`${BASE}/admin/devices`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to load devices')
+  return res.json()
+}
+
+// require_elevated_parent server-side (P8) — revoking a device is exactly
+// the class of consequential, hard-to-undo-by-retrying action step-up
+// exists for. ElevationPrompt.tsx (App.tsx) handles the 403 this can
+// return the same way it handles every other elevation-gated call; this
+// function needs no awareness of that itself.
+export async function revokeDevice(token: string, deviceId: string): Promise<DeviceInfo> {
+  const res = await fetch(`${BASE}/admin/devices/${encodeURIComponent(deviceId)}/revoke`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Failed to revoke device')
+  }
+  return res.json()
 }
 
 // Recovery PIN/code enrollment (the "something you know" leg of account
@@ -299,7 +378,8 @@ export async function* streamTutorChat(
   signal?: AbortSignal,
   drawingImageDataUrl?: string | null,
   timeOfDay?: TimeOfDay | null,
-  localDate?: string | null
+  localDate?: string | null,
+  sessionId?: string | null
 ): AsyncGenerator<StreamChunk> {
   // The debug panel is the only way a report like "greeting doesn't match
   // the time of day" or "wrong week's poem" can actually be diagnosed
@@ -320,6 +400,10 @@ export async function* streamTutorChat(
       drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
       local_time_of_day: timeOfDay ?? null,
       local_date: localDate ?? null,
+      // Keys this sitting's mastery estimate when the deployment is set to
+      // keep no profile between sessions (see the backend's
+      // retain_mastery_profiles). Ignored entirely otherwise.
+      session_id: sessionId ?? null,
     }),
     signal,
   })
@@ -446,6 +530,20 @@ export async function setAIProvider(token: string, provider: AIProviderName | nu
   return data
 }
 
+/** Chooses which configured adapter is tried first if primary errors —
+ *  only meaningful with 3+ adapters configured. Pass `null` to clear the
+ *  override and revert to whichever adapter is next in the env order. */
+export async function setAIProviderSecondary(token: string, provider: AIProviderName | null): Promise<AIProviderStatus> {
+  const res = await fetch(`${BASE}/admin/ai-provider/secondary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ provider }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || 'Could not switch the failover AI provider')
+  return data
+}
+
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {
   const res = await fetch(`${BASE}/admin/status`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -459,6 +557,14 @@ export async function fetchStudentUsage(token: string, studentName: string): Pro
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(`Failed to load usage for ${studentName}`)
+  return res.json()
+}
+
+export async function fetchAgenticLoopStats(token: string, days: number): Promise<AgenticLoopStats> {
+  const res = await fetch(`${BASE}/admin/agentic-loop-stats?days=${encodeURIComponent(days)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Failed to load tool-loop stats')
   return res.json()
 }
 
@@ -529,7 +635,8 @@ export async function fetchSessionSummary(
   config: SessionConfig,
   history: ChatMessage[],
   subjectsCompleted: Subject[],
-  durationMinutes: number
+  durationMinutes: number,
+  sessionId?: string | null
 ): Promise<string> {
   const res = await fetch(`${BASE}/tutor/summary`, {
     method: 'POST',
@@ -542,6 +649,9 @@ export async function fetchSessionSummary(
       conversation_history: history,
       subjects_completed: subjectsCompleted,
       duration_minutes: durationMinutes,
+      // Lets the summary report (and then release) this session's mastery
+      // estimate on deployments that keep no profile between sessions.
+      session_id: sessionId ?? null,
     }),
   })
   if (!res.ok) throw new Error('Failed to generate summary')
@@ -585,7 +695,7 @@ export async function emailSessionSummary(
 // persisted server-side beyond that one email. See
 // homeschool-api/routers/feedback.py.
 
-export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other' | 'onboarding'
+export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other' | 'onboarding' | 'beta_survey'
 
 /** Checked before showing the feedback button at all, so it never appears
  *  only to fail on submit on a deployment where FEEDBACK_EMAIL isn't set. */
@@ -659,7 +769,7 @@ export async function fetchLearnerBehaviorCheck(
 export async function fetchMasteryProfileSummary(
   token: string,
   studentName: string,
-  subjectArea: 'mathematics' | 'composition' | 'phonics' = 'mathematics'
+  subjectArea: 'mathematics' | 'composition' | 'phonics' | 'language_exposure' | 'literacy' = 'mathematics'
 ): Promise<MasteryProfileSummary | null> {
   const res = await fetch(
     `${BASE}/diagnostic/${encodeURIComponent(studentName)}/summary?subject_area=${subjectArea}`,
@@ -667,6 +777,79 @@ export async function fetchMasteryProfileSummary(
   )
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to load the ${subjectArea} mastery summary for ${studentName}`)
+  return res.json()
+}
+
+/**
+ * The work ledger: what this student has actually finished. Distinct from
+ * fetchMasteryProfileSummary above, which reports inferred mastery.
+ */
+export async function fetchStudentActivity(
+  token: string,
+  studentName: string,
+  sinceDays = 90,
+): Promise<WorkLedger> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/activity?since_days=${sinceDays}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) throw new Error(`Failed to load the work ledger for ${studentName}`)
+  return res.json()
+}
+
+export interface SubjectCoverage {
+  stale_after_days: number
+  subjects: Array<{
+    subject: string
+    label: string
+    last_taught: string | null
+    days_since: number | null
+    needs_attention: boolean
+  }>
+  note: string
+}
+
+/**
+ * Which scheduled subjects are actually getting taught. Answers a question
+ * a parent could not previously ask — a subject with nothing to show for it
+ * might never have been scheduled, or might have been scheduled for six
+ * weeks and opened twice. Reports the SCHEDULE, never the child.
+ */
+export async function fetchSubjectCoverage(
+  token: string,
+  studentName: string,
+): Promise<SubjectCoverage | null> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/coverage`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (res.status === 404) return null
+  if (!res.ok) return null
+  return res.json()
+}
+
+/**
+ * The same ledger across the parent's own students, keyed by skill. Used
+ * to arrange peer teaching from evidence of completed work — never to rank
+ * children, which is why the payload has no per-student total.
+ */
+export async function fetchPodActivity(
+  token: string,
+  studentNames: string[],
+  sinceDays = 90,
+): Promise<PodWorkRoster> {
+  // One repeated `students=` parameter per name, NOT a comma-joined list:
+  // student_name is free text a parent types (max 50 chars, no character
+  // restriction), so a comma in a name would have split it into two
+  // students that don't exist and silently returned a short roster.
+  const params = new URLSearchParams()
+  for (const name of studentNames) params.append('students', name)
+  params.set('since_days', String(sinceDays))
+  const res = await fetch(
+    `${BASE}/diagnostic/pod/activity?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) throw new Error('Failed to load the pod work roster')
   return res.json()
 }
 

@@ -9,6 +9,7 @@ Functions:
   search_books(query)                       -> full-text search across title/author/tags
   get_catalog_note(year, subject)           -> brief context note for the AI subject prompt
   get_catechism_note(grade)                 -> Faith and Life grade-level orientation for `saints`
+  get_bible_translation_permission(code)    -> sourced copyright-permission data for a translation
 """
 
 import json
@@ -23,6 +24,7 @@ _DATA_DIR = Path(__file__).parent.parent / "data" / "catalog"
 _VISUAL_AIDS_FILE = Path(__file__).parent.parent / "data" / "visual_aids.json"
 _CATECHISM_FILE = Path(__file__).parent.parent / "data" / "catechism" / "faith_and_life.json"
 _COMPOSER_CATALOG_FILE = Path(__file__).parent.parent / "data" / "composer_catalog.json"
+_BIBLE_PERMISSIONS_FILE = Path(__file__).parent.parent / "data" / "bible_translations" / "copyright_permissions.json"
 
 # _CATALOG: year (int) -> {"year": int, "description": str, "books": list[dict]}
 _CATALOG: dict[int, dict] = {}
@@ -38,6 +40,10 @@ _CATECHISM: dict[str, dict] = {}
 
 # _COMPOSER_WORKS: work id (str) -> composer/work entry dict (see data/composer_catalog.json)
 _COMPOSER_WORKS: dict[str, dict] = {}
+
+# _BIBLE_PERMISSIONS: translation code (str, e.g. "ESV") -> {"publisher": str,
+# "free_quote_verses" or "free_quote_words": int, "conditions": str, "source": str, ...}
+_BIBLE_PERMISSIONS: dict[str, dict] = {}
 
 
 def _load_catalog() -> None:
@@ -120,10 +126,32 @@ def _load_composer_works() -> None:
         log.warning("Failed to load composer catalog file %s: %s", _COMPOSER_CATALOG_FILE, exc)
 
 
+def _load_bible_permissions() -> None:
+    """Load the researched, sourced Bible-translation copyright-permission
+    data. See data/bible_translations/copyright_permissions.json's own
+    _comment for the sourcing standard and what this is/isn't (a licensing
+    policy's stated numbers, never the translations' own copyrighted
+    text)."""
+    if not _BIBLE_PERMISSIONS_FILE.exists():
+        log.info(
+            "Bible translation permissions file not found: %s — _bible_translation_note "
+            "won't have real per-publisher figures", _BIBLE_PERMISSIONS_FILE,
+        )
+        return
+    try:
+        with _BIBLE_PERMISSIONS_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        _BIBLE_PERMISSIONS.update(data.get("translations", {}))
+        log.info("Bible translation permissions loaded: %d translations", len(_BIBLE_PERMISSIONS))
+    except (json.JSONDecodeError, KeyError) as exc:
+        log.warning("Failed to load Bible translation permissions file: %s", exc)
+
+
 _load_catalog()
 _load_visual_aids()
 _load_catechism()
 _load_composer_works()
+_load_bible_permissions()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -205,8 +233,17 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
     books = get_books(year, subject)
     spine_books = [b for b in books if b.get("type") == "spine"]
     supplemental_books = [b for b in books if b.get("type") == "supplemental"]
+    # "reference" is a real third type in the catalog (5 entries — the
+    # Handbook of Nature Study across several years), and it used to be
+    # dropped on the floor here: only spine/supplemental were collected, so
+    # a year whose ONLY entry for a subject was a reference book returned
+    # None and the subject silently fell back to grade-agnostic guidance.
+    # That was exactly the case for nature_study in Years 4-7 — a book was
+    # sitting in the catalog for each of them and never reached the prompt.
+    # Found by tests/test_catalog_coverage.py.
+    reference_books = [b for b in books if b.get("type") == "reference"]
 
-    if not spine_books and not supplemental_books:
+    if not spine_books and not supplemental_books and not reference_books:
         return None
 
     lines = [f"Mater Amabilis Year {year} — {subject.replace('_', ' ').title()} books:"]
@@ -222,6 +259,13 @@ def get_catalog_note(year: int | None, subject: str | None) -> str | None:
             f"{b['title']}" for b in supplemental_books[:3]
         )
         lines.append(f"Supplemental: {titles}")
+
+    if reference_books:
+        # Named distinctly from core/supplemental: a reference is something
+        # the parent consults and draws from, not something the child reads
+        # straight through, and Bede should treat it that way.
+        titles = ", ".join(f"{b['title']}" for b in reference_books[:3])
+        lines.append(f"Reference (for the parent to draw on, not read aloud whole): {titles}")
 
     return " ".join(lines)
 
@@ -294,3 +338,18 @@ def get_catechism_note(grade: str | None) -> str | None:
         f"Faith and Life Grade {grade} — \"{entry['book_title']}\" ({entry['theme']}). "
         f"This grade's topics include: {topics}."
     )
+
+
+def get_bible_translation_permission(translation: str) -> dict | None:
+    """
+    Return the researched, sourced copyright-permission entry for a
+    copyrighted Bible translation code (e.g. "ESV", "NABRE") — see
+    data/bible_translations/copyright_permissions.json. Returns None for a
+    public-domain translation (KJV, Douay-Rheims — not in this file at
+    all) or an unrecognized code, same "caller skips gracefully" contract
+    as get_catechism_note(). Raw dict, not prose — services/ai_service.py's
+    _bible_translation_note is what turns this into prompt text.
+    """
+    if not translation:
+        return None
+    return _BIBLE_PERMISSIONS.get(translation.strip())

@@ -6,12 +6,26 @@ name: Backend regression tests
 # production-regression.yml since it needs a real Docker daemon and takes
 # much longer.
 #
-# A pip-audit vulnerability-gate step used to run here, hard-failing the
-# build on any known CVE in a dependency. Removed along with
-# .github/dependabot.yml (see that deletion's commit) — it had no
-# remaining companion (Dependabot's own auto-PRs are off), so a CVE with
-# no fix in hand yet blocked every unrelated PR indefinitely instead of
-# just being visible.
+# pip-audit runs as a HARD gate here, mirroring frontend-tests.yml's
+# `npm audit --audit-level=high`. See that file's header for the full
+# history: this gate was deleted in #296 alongside its npm counterpart,
+# on a premise that did not hold up, and is restored together with
+# .github/dependabot.yml so it has the auto-fix companion it was missing.
+# A red gate means upgrade the pin, or record an unreachability argument
+# in .github/audit-allowlist.json — never delete the step.
+#
+# Dependencies are installed from the hash-locked requirements.lock.txt /
+# requirements-dev.lock.txt (pip-compile --generate-hashes), not the
+# floor-pinned requirements.in / requirements-dev.in directly — so what
+# this job actually tests is byte-for-byte what a fresh install produces,
+# not whatever the resolver happens to pick that day. See
+# docs/SECURITY.md's closed-gap entry and homeschool-api/requirements.in's
+# own header. The lockfile-freshness job below is what keeps the lockfile
+# from silently drifting out of sync with the .in files the way other
+# config in this repo already has (see CLAUDE.md's "Thirty settings never
+# reached the container" incident) — a red lockfile-freshness check means
+# re-run homeschool-api/scripts/check_lockfile_freshness.sh --fix and
+# commit the result.
 on:
   push:
     branches: [main]
@@ -19,13 +33,9 @@ on:
       - 'homeschool-api/**'
       - 'scripts/setup_wizard/**'
       - 'scripts/trust_service/**'
+      - 'scripts/mcp_server/**'
       - '.github/workflows/test.yml'
   pull_request:
-    paths:
-      - 'homeschool-api/**'
-      - 'scripts/setup_wizard/**'
-      - 'scripts/trust_service/**'
-      - '.github/workflows/test.yml'
   workflow_dispatch:
 
 # No job here writes to the repo, comments on a PR, or creates a release —
@@ -34,21 +44,110 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Anything that is not a pull_request (push to main,
+          # workflow_dispatch) runs the full set — the skip is a PR-only
+          # optimisation, and failing open here costs CI minutes rather than
+          # coverage.
+          if [ -z "$BASE_SHA" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Paths outside homeschool-api/ are named here because a test in it
+          # reads them, and without the name a change to only that file
+          # computes relevant=false, skips api-tests, and never runs the guard
+          # on the one kind of change it exists for:
+          #   docs/DECISIONS.md          tests/test_decision_register.py
+          #   docs/RETENTION_POLICY.md   tests/test_coppa_compliance.py
+          #   docs/INFORMATION_SECURITY_POLICY.md, docs/DATA_RETENTION.md   ditto
+          #   demo/public/privacy.html   ditto (the public disclosure the
+          #                              policies must agree with)
+          #   scripts/build_pages_site.sh, render.yaml                      ditto
+          if git diff --name-only "$BASE_SHA" HEAD \
+               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/index\.html|site/_headers|wrangler\.jsonc|docs/DECISIONS\.md|docs/PRICING_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|render\.yaml|\.github/workflows/test\.yml)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
   api-tests:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install dependencies
         working-directory: homeschool-api
-        run: pip install -r requirements-dev.txt
+        # From the hash-locked lockfile, not requirements-dev.in directly —
+        # see this file's header.
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Audit dependencies for known vulnerabilities
+        working-directory: homeschool-api
+        # Hard gate — see this file's header. Both lockfiles are audited: a
+        # dev-only CVE still runs on this runner against this repo's code.
+        # Audited against the LOCKFILE (exact pinned versions), not the
+        # floor-pinned .in files, since the lockfile is what's actually
+        # installed above. IGNORE_ARGS is built from
+        # .github/audit-allowlist.json's recorded, justified exceptions —
+        # see that file for what's listed and why. Anything not listed
+        # there still fails this gate; upgrade the pin, or add a new
+        # entry with a real reason.
+        run: |
+          pip install pip-audit
+          IGNORE_ARGS=$(python3 -c "
+          import json
+          with open('../.github/audit-allowlist.json') as f:
+              data = json.load(f)
+          ids = [e['id'] for e in data.get('python', [])]
+          print(' '.join(f'--ignore-vuln {i}' for i in ids))
+          ")
+          pip-audit -r requirements.lock.txt $IGNORE_ARGS
+          pip-audit -r requirements-dev.lock.txt $IGNORE_ARGS
       - name: Run tests
         working-directory: homeschool-api
         run: python -m pytest tests/ -v
 
+  lockfile-freshness:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    # Fails if requirements.lock.txt / requirements-dev.lock.txt no longer
+    # match what `pip-compile --generate-hashes` produces from the current
+    # requirements.in / requirements-dev.in — the guard against the exact
+    # shape of silent drift CLAUDE.md's "Thirty settings never reached the
+    # container" incident describes: a file that looks maintained but
+    # isn't actually checked against its own source of truth.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Check lockfiles are up to date with requirements*.in
+        working-directory: homeschool-api
+        # bash scripts/... rather than ./scripts/... — deliberately does not
+        # depend on the executable bit surviving whatever wrote this file to
+        # the repo (GitHub's Contents API, which some non-git write paths go
+        # through, does not preserve it), matching the convention already
+        # used for scripts/build_github_pages_redirect.sh elsewhere in this
+        # repo's workflows.
+        run: bash scripts/check_lockfile_freshness.sh
+
   demo-concurrency-test:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     # Separate from api-tests above (which stays fast/no-DB, per the comment
     # at the top of this file): boots a real uvicorn subprocess against a
     # real Postgres to exercise proxy-header handling at the ASGI-server
@@ -72,13 +171,13 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install dependencies
         working-directory: homeschool-api
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.lock.txt
       - name: Run the demo concurrency scaling test
         working-directory: homeschool-api
         env:
@@ -86,10 +185,12 @@ jobs:
         run: python -m pytest tests/test_demo_concurrency.py -v
 
   wizard-tests:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install pytest
@@ -99,10 +200,12 @@ jobs:
         run: python -m pytest test_wizard.py -v
 
   trust-service-tests:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install pytest and segno
@@ -110,3 +213,23 @@ jobs:
       - name: Run tests
         working-directory: scripts/trust_service
         run: python -m pytest test_trust_service.py -v
+
+  mcp-server-tests:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    # scripts/mcp_server/ runs on a PARENT's own machine, not in the Bede
+    # container, so it has its own requirements file and the API image never
+    # grows an MCP dependency. Same shape as the wizard/trust-service jobs
+    # above.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: scripts/mcp_server
+        run: pip install -r requirements.txt pytest pytest-asyncio
+      - name: Run tests
+        working-directory: scripts/mcp_server
+        run: python -m pytest test_bede_tools.py test_server.py -v

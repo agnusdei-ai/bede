@@ -11,6 +11,15 @@ Key hierarchy (the plaintext key material never leaves memory):
 
 On-wire envelope (same format as before, now stored in DB columns):
   MAGIC(4) | VERSION(1) | NONCE(16) | TAG(16) | CIPHERTEXT(n)
+
+MASTER_SECRET rotation (see rotate_master_secret() below and
+scripts/rotate_master_secret.py) only ever re-wraps DATA_KEY — DATA_KEY
+itself, and everything encrypted under it, never changes. That's what makes
+rotation cheap: no user data is touched, only the one encryption_config
+row holding the wrapped DATA_KEY. This used to be undocumented as a
+possibility at all; docs/INCIDENT_RESPONSE.md's "Critical" severity entry
+for a leaked MASTER_SECRET now points here instead of treating rotation as
+unconditionally destructive.
 """
 
 import asyncio
@@ -26,34 +35,153 @@ from Crypto.Random import get_random_bytes
 log = logging.getLogger(__name__)
 
 _MAGIC = b"SAGE"
-_VERSION = 1
+
+# v1: no associated data. Everything written before AAD binding existed.
+# v2: the envelope header AND a caller-supplied context string are bound
+#     into the GCM tag as associated data — see aad_for() and
+#     docs/DATA_CLASSIFICATION.md.
+#
+# Both are readable forever; _aes_decrypt dispatches on the version byte in
+# the blob it was handed, so a migrated read path transparently handles rows
+# written before the change. v1 is never *written* again once a call site is
+# migrated — a row upgrades itself the next time it's written, with no bulk
+# rewrite and no migration script. Deliberate: changing the envelope across
+# ~50 call sites in 15 modules as a flag-day would be the riskiest possible
+# way to ship a security improvement, since a botched migration makes a
+# family's data permanently unreadable.
+# v3: AAD-bound AND encrypted under a per-student key rather than DATA_KEY
+#     directly — see core/student_keys.py. Destroying that student's key
+#     makes every v3 ciphertext of theirs permanently unopenable, which is
+#     what makes deletion cryptographic rather than a storage-layer promise.
+_VERSION_LEGACY_NO_AAD = 1
+_VERSION_AAD = 2
+_VERSION_STUDENT_KEY = 3
+_VERSION = _VERSION_AAD   # default for writes with no explicit key
+
 _HEADER_SIZE = 4 + 1 + 16 + 16   # magic + version + nonce + tag
 _PBKDF2_ITERS = 600_000
 
 _DATA_KEY: Optional[bytes] = None
 
 
+def aad_for(table: str, column: str, row_key: str) -> bytes:
+    """
+    Builds the associated-data string binding a ciphertext to its location.
+
+    Without this, a ciphertext proves only "encrypted by whoever holds
+    DATA_KEY" — not where it belongs. Since one DATA_KEY covers every column
+    in every table, blobs are freely interchangeable: someone with database
+    write access can copy student A's bookmark_enc into student B's row and
+    it decrypts cleanly, no tag failure, no signal. Binding table/column/row
+    makes that swap fail authentication.
+
+    row_key is whatever uniquely identifies the row in practice — a primary
+    key, or the student_name the row is scoped to.
+
+    IT MUST BE STABLE FOR THE LIFE OF THE ROW. If it changes, that row can
+    never be decrypted again — the original associated data is gone and
+    there is no way to recover it. student_name is acceptable because no
+    code path mutates it on an existing row: routers/pod.py's
+    save_pod_configs matches on the name and creates a NEW row for a
+    different one, so a "rename" never rewrites an existing row's key. A
+    mutable display field would not be acceptable.
+
+    That property is now load-bearing for decryptability. Adding a rename
+    feature later as an UPDATE on student_name would silently render every
+    AAD-bound row for that student permanently unreadable. A rename must be
+    implemented as decrypt-under-old-key then re-encrypt-under-new. See
+    docs/DATA_CLASSIFICATION.md's feasibility section, and
+    tests/test_encryption.py::test_row_key_stability_is_load_bearing_for_
+    decryptability, which exists to make that failure loud in CI rather
+    than in a family's database.
+    """
+    return f"bede/v2/{table}/{column}/{row_key}".encode("utf-8")
+
+
+# Convenience wrappers for the two row-key shapes that recur across the
+# codebase, so call sites don't each hand-assemble the same strings (and so a
+# typo in one becomes a decryption failure at that call site rather than a
+# silently different binding).
+def student_aad(table: str, column: str, student_name: str, *scope: str) -> bytes:
+    """Row key for a student-scoped table. Extra `scope` parts are appended
+    for composite primary keys — e.g. lesson_bookmarks is (student_name,
+    subject), mastery_profiles is (student_name, subject_area).
+
+    For tables whose real primary key is an autoincrement id that does not
+    exist at insert time (session_transcripts, narration_assessments,
+    diagnostic_evidence_log, api_usage_events), the student_name is used
+    alone. That blocks the attack that matters — moving one student's record
+    into another student's history, or into a different table or column —
+    and leaves swaps between two rows of the SAME student in the SAME column
+    undetected. Binding the id would require a two-phase insert (write,
+    read back the id, re-encrypt, update), which trades a real correctness
+    and failure-mode risk for a marginal threat. Documented in
+    docs/DATA_CLASSIFICATION.md rather than left implicit."""
+    return aad_for(table, column, "/".join((student_name, *scope)))
+
+
 # ── Low-level AES-GCM ────────────────────────────────────────────────────────
 
-def _aes_encrypt(plaintext: bytes, key: bytes) -> bytes:
+def _aes_encrypt(
+    plaintext: bytes,
+    key: bytes,
+    aad: Optional[bytes] = None,
+    version: Optional[int] = None,
+) -> bytes:
+    """Writes a v2 (AAD-bound) envelope when `aad` is supplied, v1 otherwise.
+
+    `version` overrides that choice — used to stamp v3 when the caller
+    encrypted under a per-student key, so the read path knows which key to
+    resolve without having to guess.
+
+    The header (magic + version) is itself bound into the tag for v2, closing
+    the separate malleability issue: in v1 those five bytes sit outside the
+    authenticated data, so flipping the version byte is undetectable until it
+    fails a range check. For v2 it's a tag failure like any other tamper."""
+    if version is None:
+        version = _VERSION_AAD if aad is not None else _VERSION_LEGACY_NO_AAD
+    header = _MAGIC + struct.pack("B", version)
     nonce = get_random_bytes(16)
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=16)
+    if aad is not None:
+        cipher.update(header + aad)
     ciphertext, tag = cipher.encrypt_and_digest(plaintext)
-    return _MAGIC + struct.pack("B", _VERSION) + nonce + tag + ciphertext
+    return header + nonce + tag + ciphertext
 
 
-def _aes_decrypt(blob: bytes, key: bytes) -> bytes:
+def _aes_decrypt(blob: bytes, key: bytes, aad: Optional[bytes] = None) -> bytes:
+    """
+    Dispatches on the blob's own version byte, not on whether the caller
+    passed `aad` — that's what makes migration incremental.
+
+    - A v1 blob decrypts without AAD. If the caller supplied one, it is
+      ignored, because there is nothing bound in the tag to check it
+      against. This is the legacy path and the only reason it's permitted
+      is that rows written before the migration are still live.
+    - A v2 blob REQUIRES the exact AAD it was written with. A caller that
+      passes nothing, or the wrong context, gets a tag failure — not a
+      silent success. That asymmetry is the whole point: v2 can never be
+      downgraded to an unauthenticated read by omitting an argument.
+    """
     if len(blob) < _HEADER_SIZE + 1:
         raise ValueError("Encrypted blob too short")
     if blob[:4] != _MAGIC:
         raise ValueError("Bad magic — not a SAGE-encrypted value")
     version = struct.unpack("B", blob[4:5])[0]
-    if version != _VERSION:
+    if version not in (_VERSION_LEGACY_NO_AAD, _VERSION_AAD, _VERSION_STUDENT_KEY):
         raise ValueError(f"Unsupported encryption version {version}")
     nonce = blob[5:21]
     tag   = blob[21:37]
     ciphertext = blob[37:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=16)
+    if version in (_VERSION_AAD, _VERSION_STUDENT_KEY):
+        if aad is None:
+            raise ValueError(
+                "This value was written with context binding (v2) but no "
+                "associated data was supplied to decrypt it — the call site "
+                "needs the same aad_for(...) used when it was written."
+            )
+        cipher.update(blob[:5] + aad)
     return cipher.decrypt_and_verify(ciphertext, tag)
 
 
@@ -147,25 +275,134 @@ async def initialize_encryption(master_secret: str, db) -> None:
 
 # ── Public encrypt/decrypt (called after initialize_encryption) ──────────────
 
-def encrypt(plaintext: bytes) -> bytes:
-    """Encrypt bytes with DATA_KEY. Raises if called before initialization."""
+def encrypt(plaintext: bytes, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> bytes:
+    """Encrypt bytes with DATA_KEY. Raises if called before initialization.
+
+    Pass `aad=aad_for(table, column, row_key)` to bind the ciphertext to its
+    location (writes a v2 envelope). Omitting it writes a v1 envelope with no
+    binding — still supported so unmigrated call sites keep working, but new
+    code should always supply one. See docs/DATA_CLASSIFICATION.md."""
     if _DATA_KEY is None:
         raise RuntimeError("Encryption not initialised — call initialize_encryption() at startup")
-    return _aes_encrypt(plaintext, _DATA_KEY)
+    if key is not None:
+        # Per-student key -> stamp v3 so the read path knows to resolve that
+        # student's key rather than reaching for DATA_KEY.
+        if aad is None:
+            raise ValueError("A per-student key requires an aad — see core/student_keys.py")
+        return _aes_encrypt(plaintext, key, aad, version=_VERSION_STUDENT_KEY)
+    return _aes_encrypt(plaintext, _DATA_KEY, aad)
 
 
-def decrypt(blob: bytes) -> bytes:
-    """Decrypt bytes with DATA_KEY."""
+def decrypt(blob: bytes, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> bytes:
+    """Decrypt bytes with DATA_KEY.
+
+    Must be given the same `aad` the value was written with if it's a v2
+    envelope; v1 envelopes ignore it. Dispatch is on the blob's own version
+    byte, so this is safe to call with an aad against data written before
+    the call site was migrated."""
     if _DATA_KEY is None:
         raise RuntimeError("Encryption not initialised")
-    return _aes_decrypt(blob, _DATA_KEY)
+    # Dispatch on the blob's own version, never on what the caller happened
+    # to pass: a v1/v2 row predates per-student keys and must still open
+    # under DATA_KEY even when the caller now has a student key in hand.
+    if blob[4:5] == struct.pack("B", _VERSION_STUDENT_KEY):
+        if key is None:
+            raise ValueError(
+                "This value is encrypted under a per-student key but none was "
+                "supplied — the call site needs core.student_keys.get_existing(). "
+                "If the student's key was destroyed, this data is intentionally "
+                "unrecoverable (crypto-shredded)."
+            )
+        return _aes_decrypt(blob, key, aad)
+    return _aes_decrypt(blob, _DATA_KEY, aad)
 
 
-def encrypt_json(obj: dict | list) -> bytes:
+def encrypt_json(obj: dict | list, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> bytes:
     import json
-    return encrypt(json.dumps(obj, separators=(",", ":")).encode("utf-8"))
+    return encrypt(json.dumps(obj, separators=(",", ":")).encode("utf-8"), aad, key)
 
 
-def decrypt_json(blob: bytes) -> dict | list:
+def decrypt_json(blob: bytes, aad: Optional[bytes] = None, key: Optional[bytes] = None) -> dict | list:
     import json
-    return json.loads(decrypt(blob).decode("utf-8"))
+    return json.loads(decrypt(blob, aad, key).decode("utf-8"))
+
+
+# ── MASTER_SECRET rotation ───────────────────────────────────────────────────
+
+async def rotate_master_secret(old_master_secret: str, new_master_secret: str, db) -> None:
+    """
+    Re-wraps the stored DATA_KEY under a new MASTER_SECRET. DATA_KEY itself
+    never changes, so every row already encrypted under it — student
+    configs, transcripts, voice profiles, everything — stays valid with
+    zero rewriting. Only the one encryption_config row holding the wrapped
+    DATA_KEY is touched.
+
+    This is the crypto half only. It does not read or write .env/the
+    deployment's secrets store, and it does not affect any already-running
+    process (which keeps its in-memory DATA_KEY and keeps serving requests
+    on the old KEK derivation until it next restarts). The operator is
+    responsible for updating MASTER_SECRET and restarting afterward — see
+    scripts/rotate_master_secret.py, the CLI wrapper meant to actually be
+    run, and docs/INCIDENT_RESPONSE.md's rotation procedure for the full
+    sequence including that step.
+
+    Raises ValueError if there's nothing to rotate yet, or if
+    old_master_secret does not actually unwrap the stored DATA_KEY (wrong
+    secret, or it's actually the new one) — aborts without writing anything
+    in either case. Raises RuntimeError (also without writing) if the
+    freshly re-wrapped blob fails its own round-trip check, which should
+    never happen and would indicate a bug in this function rather than bad
+    input.
+    """
+    from sqlalchemy import select
+    from core.database import EncryptionConfig
+
+    result = await db.execute(select(EncryptionConfig).where(EncryptionConfig.key == "device_salt"))
+    salt_row = result.scalar_one_or_none()
+    if salt_row is None:
+        raise ValueError(
+            "No device_salt found in encryption_config — nothing has been "
+            "encrypted yet on this deployment, so there's nothing to rotate."
+        )
+    device_salt = salt_row.value
+
+    result = await db.execute(select(EncryptionConfig).where(EncryptionConfig.key == "data_key"))
+    key_row = result.scalar_one_or_none()
+    if key_row is None:
+        raise ValueError(
+            "No data_key found in encryption_config — nothing has been "
+            "encrypted yet on this deployment, so there's nothing to rotate."
+        )
+
+    old_kek = _derive_kek(old_master_secret, device_salt)
+    try:
+        data_key = _aes_decrypt(key_row.value, old_kek)
+    except Exception as exc:
+        raise ValueError(
+            "Could not unwrap the stored DATA_KEY with the supplied OLD "
+            "master secret. Check it's actually the value currently set as "
+            "MASTER_SECRET — not the new one, and not a typo."
+        ) from exc
+    finally:
+        old_kek = b"\x00" * len(old_kek)  # best-effort — see initialize_encryption's identical caveat
+
+    new_kek = _derive_kek(new_master_secret, device_salt)
+    try:
+        rewrapped = _aes_encrypt(data_key, new_kek)
+        # Round-trip verify BEFORE committing: decrypt what we're about to
+        # store and confirm it's byte-identical to the DATA_KEY we started
+        # with, so a bug here fails loudly rather than silently writing a
+        # wrapper that decrypts to the wrong thing (or nothing).
+        if _aes_decrypt(rewrapped, new_kek) != data_key:
+            raise RuntimeError(
+                "Round-trip verification failed after re-wrapping — refusing "
+                "to write. No change was made; the old wrapping is still in "
+                "place and the deployment is unaffected."
+            )
+    finally:
+        new_kek = b"\x00" * len(new_kek)
+        data_key = b"\x00" * len(data_key)
+
+    key_row.value = rewrapped
+    await db.commit()
+    log.info("MASTER_SECRET rotation: DATA_KEY re-wrapped successfully")

@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bede — Fall Launch, September 30</title>
+<meta name="description" content="Classical education for the whole family. Comprehension, compassion, conscience. Bede's Fall Launch opens September 30.">
+<style>
+  /* Three colours only, per the launch brief — now drawn from agnusdei.ai's
+     own tokens rather than a parallel set, since this page is one click from
+     the demo and the marketing site and had been carrying the old palette:
+       ink    #1c2438  (--ink: headings, rules, the recessed FAQ block)
+       gilt   #b8860b  (--gilt: decorative rules and marks ONLY — 3.0:1 on
+                        vellum, below the 4.5:1 text minimum, so it is never
+                        used for type. #7d4f00 is the accessible gold for
+                        text, at 6.5:1.)
+       vellum #faf6ec  (--vellum: page ground)
+     Body type is a deeper ink (#090f21) rather than a fourth colour.
+     See docs/VISUAL_IDENTITY.md; the app's ramps carry the same tokens.
+
+     No webfonts: site/_headers sets `font-src 'self'` and
+     `style-src 'self' 'unsafe-inline'`, so Google Fonts would be blocked
+     outright. The Cinzel feel is carried by uppercase + wide tracking on a
+     serif face, the Playfair feel by the Palatino/Georgia stack that
+     privacy.html already uses. Self-hosting the real faces is a follow-up
+     (both are SIL OFL, and `font-src 'self'` permits it). */
+  :root {
+    --ink: #1c2438;
+    --ink-deep: #090f21;
+    --gilt: #b8860b;
+    --gilt-text: #7d4f00;
+    --rule: #e0d6c1;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #faf6ec;
+    color: var(--ink-deep);
+    font-family: 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    font-size: 18px;
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Each rule below owns ONE axis, and that is load-bearing rather than
+     stylistic. `.wrap` (a class) and `section` (an element) both used the
+     `padding` shorthand, so `.wrap`'s horizontal gutter also set vertical
+     padding to 0 and — being a class — beat `section { padding: 56px 0 }`
+     outright. Every `<section class="wrap">` therefore had NO vertical
+     rhythm, and the gaps that survived were incidental margins from whatever
+     the last child happened to be. The same collision ran the other way for
+     `.hero` and `.cta`, whose own shorthands are declared after `.wrap` and
+     zeroed the side gutter, so their text ran to the screen edge on a phone.
+     Measured at 390px: three of four sections at 0px vertical padding, and
+     0px between every top-level block. Keep horizontal here and vertical in
+     the section rules; do not merge either back into a shorthand. */
+  .wrap { max-width: 940px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+  h1, h2, h3 {
+    font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.25;
+  }
+  h2 { font-size: 1.35rem; margin: 0 0 8px; text-wrap: balance; }
+  h3 { font-size: 1rem; letter-spacing: 0.06em; margin: 0 0 8px; }
+  p { margin: 0 0 16px; text-wrap: pretty; }
+  a { color: var(--ink); }
+
+  /* A short gold rule used as the section mark. Decorative only —
+     aria-hidden where it appears as an element. */
+  .rule { width: 64px; height: 2px; background: var(--gilt); border: 0; margin: 24px auto; }
+  .rule-left { margin-left: 0; margin-right: 0; }
+
+  /* ── Hero ─────────────────────────────────────────────── */
+  /* vertical only — the side gutter is .wrap's (see above) */
+  .hero { text-align: center; padding-top: 64px; padding-bottom: 8px; }
+  .hero h1 { text-wrap: balance; }
+  .hero h1 {
+    font-size: clamp(3rem, 12vw, 5.5rem);
+    letter-spacing: 0.18em;
+    margin: 0 0 10px;
+    /* Optical correction: letter-spacing adds trailing space on the last
+       glyph, which visually pushes a centred word left. */
+    text-indent: 0.18em;
+  }
+  .hero .lede { font-size: 1.35rem; color: var(--ink); margin: 0 0 6px; }
+  .hero .virtues {
+    font-size: 0.95rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--gilt-text); margin: 0 0 24px; text-indent: 0.22em;
+  }
+  .launch-date {
+    display: inline-block; border: 2px solid var(--gilt);
+    text-decoration: none;
+    padding: 8px 20px; font-size: 0.9rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink); text-indent: 0.16em;
+  }
+  .subhead {
+    max-width: 640px; margin: 32px auto 0; text-align: center;
+    font-size: 1.2rem; line-height: 1.6;
+  }
+  .trust {
+    max-width: 660px; margin: 32px auto 0; text-align: center;
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    padding: 16px 0; font-size: 1rem; color: var(--ink);
+  }
+
+  /* ── Sections ─────────────────────────────────────────── */
+  /* vertical only — the side gutter is .wrap's (see above) */
+  section { padding-top: 56px; padding-bottom: 56px; }
+  .section-head { text-align: center; margin-bottom: 32px; }
+
+  /* ── Product cards ────────────────────────────────────── */
+  .cards { display: grid; gap: 20px; grid-template-columns: 1fr; }
+  .card { border: 1px solid var(--rule); border-top: 3px solid var(--gilt); padding: 24px 22px; }
+  .card p { margin: 0; font-size: 1rem; }
+  .card .role {
+    font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gilt-text); margin: 0 0 10px; text-indent: 0.14em;
+  }
+
+  /* ── Pricing ──────────────────────────────────────────── */
+  .price-intro { text-align: center; margin-bottom: 8px; font-size: 1.2rem; color: var(--ink); }
+
+  .price-sub { text-align: center; margin-bottom: 32px; color: var(--gilt-text); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; text-indent: 0.08em; }
+  .tiers { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
+  .tier { border: 1px solid var(--rule); padding: 24px 22px; position: relative; }
+  .tier.featured { border: 2px solid var(--ink); }
+  .tier .flag {
+    position: absolute; top: -11px; left: 22px; background: var(--ink); color: #faf6ec;
+    font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 3px 12px; text-indent: 0.14em;
+    font-family: Georgia, serif;
+  }
+  .tier .amount { font-size: 2rem; color: var(--ink); font-weight: 700; margin: 6px 0 2px; }
+  .tier .amount .per { font-size: 0.95rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  /* "from" must not inherit the 2rem figure size — at full size it takes a
+     line of its own and the co-op card reads as broken beside the three
+     fixed-price ones. */
+  .tier .amount .from { font-size: 0.95rem; font-weight: 400; }
+  /* "Custom pricing" is this tier's price, not a qualifier on one, so it
+     keeps the figure's weight without the 2rem size a numeral needs. */
+  .tier .amount .custom { font-size: 1.3rem; font-weight: 700; }
+  .tier p { margin: 0; font-size: 0.98rem; }
+  .tier .alt { margin-top: 4px; color: var(--gilt-text); }
+  .tier .includes { margin: 14px 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
+  .tier .includes li { padding: 4px 0 4px 18px; position: relative; }
+  /* Decorative gold mark, not a list bullet — the <ul> already carries the
+     list semantics, so this is hidden from the accessibility tree. */
+  .tier .includes li::before {
+    content: '\2022'; color: var(--gilt); position: absolute; left: 2px;
+  }
+
+  /* The per-child table is the figure worth publishing, since per-family
+     pricing is what inverts against every per-student comparable. */
+  .effective-head { text-align: center; margin: 40px 0 0; }
+  .effective {
+    border-collapse: collapse; margin: 16px auto 0; width: 100%; max-width: 460px;
+    font-size: 1rem;
+  }
+  .effective caption {
+    caption-side: bottom; padding-top: 12px; font-size: 0.9rem; color: #3a4358;
+  }
+  .effective th, .effective td {
+    border-bottom: 1px solid var(--rule); padding: 10px 14px; text-align: left;
+  }
+  .effective thead th {
+    font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gilt-text); text-indent: 0.12em;
+  }
+  /* The money column's header aligns with the figures under it — a
+     left-set header over right-set figures leaves the table's spine
+     hanging. text-indent compensates LEFT-edge tracking, so it must go
+     when the cell is right-aligned. */
+  .effective th:last-child, .effective td:last-child {
+    text-align: right; text-indent: 0;
+  }
+  .effective tbody th { font-weight: 400; }
+  .effective td { text-align: right; color: var(--ink); font-weight: 700; }
+  /* Georgia's tabular lining figures stack the decimal points; Palatino's
+     proportional figures don't, and this column is arithmetic. */
+  .effective td, .effective tbody th {
+    font-family: Georgia, serif; font-variant-numeric: tabular-nums;
+  }
+  .effective .highlight { background: #f1e7d2; }
+  /* The highlight band is framed in gold on BOTH edges — bottom via its
+     own cells, top via the preceding row's bottom border (border-collapse
+     resolves shared edges to one line, so styling the entering edge from
+     above is the reliable way in). */
+  .effective .highlight th, .effective .highlight td { border-bottom-color: var(--gilt); }
+  .effective .pre-highlight th, .effective .pre-highlight td { border-bottom-color: var(--gilt); }
+  .price-notes { margin-top: 32px; border-left: 3px solid var(--gilt); padding: 8px 0 8px 20px; }
+  .price-notes p { margin: 0 0 8px; font-size: 1rem; }
+  .price-notes p:last-child { margin-bottom: 0; }
+
+  /* ── Guidance + sports ────────────────────────────────── */
+  /* Full wrap width, not a narrower centred column: at 720px inside a 940px
+     wrap these two headings sat indented from the card and tier grids above
+     them, which reads as a mistake rather than as emphasis. Measure is held
+     by the paragraph instead. */
+  .plain p { font-size: 1.05rem; max-width: 660px; line-height: 1.75; }
+  .plain-pair { display: grid; gap: 48px; grid-template-columns: 1fr; }
+
+  /* ── FAQ (recessed navy block, deliberately outside the body) ── */
+  .faq { background: var(--ink); color: #faf6ec; padding: 56px 0; margin-top: 20px; }
+  .faq h2, .faq h3 { color: #faf6ec; }
+  .faq .section-head p { color: #e0d6c1; }
+  .faq details {
+    border-bottom: 1px solid rgba(255,255,255,0.22);
+    padding: 4px 0;
+  }
+  .faq summary {
+    cursor: pointer; padding: 18px 0; font-size: 1.05rem; color: #faf6ec;
+    font-family: Georgia, serif; list-style: none;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after {
+    content: '+'; color: var(--gilt); font-size: 1.5rem; line-height: 1; flex: none;
+    align-self: flex-start; margin-top: 2px;
+  }
+  .faq details[open] summary::after { content: '\2212'; }
+  .faq summary:focus-visible { outline: 2px solid var(--gilt); outline-offset: 3px; }
+  .faq .answer { padding: 0 40px 20px 0; color: #e0d6c1; font-size: 1rem; max-width: 700px; line-height: 1.75; }
+  .faq .answer p { margin: 0 0 12px; }
+  .faq .answer p:last-child { margin-bottom: 0; }
+
+  /* ── Final CTA ────────────────────────────────────────── */
+  /* vertical only — the side gutter is .wrap's (see above) */
+  .cta { text-align: center; padding-top: 56px; padding-bottom: 64px; }
+  .cta p { max-width: 620px; margin-left: auto; margin-right: auto; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 26px; }
+  .btn {
+    display: inline-block; padding: 15px 30px; font-size: 0.92rem;
+    letter-spacing: 0.12em; text-transform: uppercase; text-indent: 0.12em;
+    text-decoration: none; font-family: Georgia, serif; border: 2px solid var(--ink);
+    /* 48px min target — comfortably above the 44px floor. */
+    min-height: 48px;
+  }
+  .btn-primary { background: var(--ink); color: #faf6ec; }
+  .btn-primary:hover { background: var(--ink-deep); }
+  .btn-secondary { background: #faf6ec; color: var(--ink); }
+  .btn-secondary:hover { background: #f1e7d2; }
+  .btn:focus-visible { outline: 3px solid var(--gilt); outline-offset: 3px; }
+  .cta .fallback { margin-top: 20px; font-size: 0.9rem; color: #3a4358; }
+
+  footer { border-top: 1px solid var(--rule); padding: 26px 0 44px; text-align: center; font-size: 0.85rem; color: #3a4358; }
+  footer a { margin: 0 10px; }
+
+  /* Skip link — visible on focus only. */
+  .skip {
+    position: absolute; left: -9999px; top: 0;
+    background: var(--ink); color: #faf6ec; padding: 12px 18px; z-index: 10;
+  }
+  .skip:focus { left: 0; }
+
+  @media (min-width: 720px) {
+    .cards { grid-template-columns: repeat(3, 1fr); }
+    .tiers { grid-template-columns: repeat(2, 1fr); }
+    /* Three cards in two columns would strand one alone on the second row.
+       The Family Membership takes the full first row instead. */
+    .tiers .featured { grid-column: 1 / -1; }
+  }
+  @media (min-width: 1000px) {
+    .tiers .featured { grid-column: auto; }
+  }
+  @media (min-width: 1000px) {
+    /* Three tiers, and the Family Membership carries the includes list, so it
+       takes the extra column rather than sitting cramped beside two short
+       cards. */
+    .tiers { grid-template-columns: 1.4fr 1fr 1fr; }
+    .plain-pair { grid-template-columns: 1fr 1fr; }
+    /* Reserve two heading lines in every tier so the three amounts share
+       one baseline — the featured card's h3 wraps, the others don't. */
+    .tier h3 { min-height: 2.6em; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to main content</a>
+
+<main id="main">
+
+  <!-- ── Hero ────────────────────────────────────────────── -->
+  <header class="hero wrap">
+    <h1>Bede</h1>
+    <p class="lede">Classical education for the whole family.</p>
+    <p class="virtues">Comprehension&nbsp;&middot; Compassion&nbsp;&middot;&nbsp;Conscience</p>
+    <p><a class="launch-date" href="#cta-heading">Fall Launch: September&nbsp;30</a></p>
+
+    <p class="subhead">
+      Raise children who understand deeply, care for others, and learn to
+      choose well.
+    </p>
+
+    <p class="trust">
+      Technology that knows its place. Parents lead. Bede assists.
+      Books and real life still come first.
+    </p>
+  </header>
+
+  <!-- ── What you get ────────────────────────────────────── -->
+  <section class="wrap" aria-labelledby="products-heading">
+    <div class="section-head">
+      <h2 id="products-heading">What a membership includes</h2>
+      <hr class="rule" aria-hidden="true">
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <p class="role">Bede</p>
+        <h3>Socratic AI Tutor</h3>
+        <p>Asks questions instead of handing over answers, one child at a time.</p>
+      </article>
+
+      <article class="card">
+        <p class="role">Locuto</p>
+        <h3>Secure Messaging</h3>
+        <p>Private messaging for families and co-ops. No public feeds.</p>
+      </article>
+
+      <article class="card">
+        <p class="role">Family Portal</p>
+        <h3>Parent Command Center</h3>
+        <p>Where you set each child's plan and see what they actually finished.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── Pricing ─────────────────────────────────────────── -->
+  <section class="wrap" aria-labelledby="pricing-heading">
+    <div class="section-head">
+      <h2 id="pricing-heading">Membership</h2>
+      <hr class="rule" aria-hidden="true">
+    </div>
+
+    <p class="price-intro">One price. No per-child fees.</p>
+    <p class="price-sub">Up to six children</p>
+
+    <div class="tiers">
+      <article class="tier featured">
+        <p class="flag">Family Membership</p>
+        <h3>Everything, for your household</h3>
+        <p class="amount">$199<span class="per">/month</span></p>
+        <p class="alt">or <strong>$2,149/year</strong> &mdash; save $239</p>
+        <ul class="includes">
+          <li>Bede Tutor</li>
+          <li>Locuto messaging</li>
+          <li>Family Portal</li>
+          <li>Parent tools and oversight</li>
+          <li>Verified access</li>
+        </ul>
+      </article>
+
+      <article class="tier">
+        <h3>Co-op Membership</h3>
+        <p class="amount"><span class="from">from</span> $149<span class="per">/family/month</span></p>
+        <p>Ten-family minimum.</p>
+      </article>
+
+      <article class="tier">
+        <h3>Network Partnership</h3>
+        <p class="amount"><span class="custom">Custom pricing</span></p>
+        <p>Schools and organizations.</p>
+      </article>
+    </div>
+
+    <h3 class="effective-head" id="effective-heading">What that works out to</h3>
+    <table class="effective" aria-labelledby="effective-heading">
+      <caption>Family Membership at $199 per month, divided by household size.</caption>
+      <thead>
+        <tr><th scope="col">Children</th><th scope="col">Per child, per month</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">1 child</th><td>$199</td></tr>
+        <tr class="pre-highlight"><th scope="row">2 children</th><td>$99.50</td></tr>
+        <tr class="highlight"><th scope="row">3 children</th><td>$66.33</td></tr>
+        <tr><th scope="row">4 children</th><td>$49.75</td></tr>
+        <tr><th scope="row">5 or 6</th><td>Even less</td></tr>
+      </tbody>
+    </table>
+
+    <div class="price-notes">
+      <p>Bede Classical Core is included with every membership.</p>
+      <p>Publisher curriculum editions are available separately.</p>
+    </div>
+  </section>
+
+  <!-- ── Human guidance + sports: companions (the people / the
+       activities), two-up at desktop so neither strands as a lone stub
+       against an empty right half. ── -->
+  <section class="wrap plain-pair" aria-label="Human guidance, sports and activities">
+    <div class="plain">
+      <h2 id="guidance-heading">Human guidance</h2>
+      <hr class="rule rule-left" aria-hidden="true">
+      <p>
+        Every member family receives onboarding help, live family office
+        hours, co-op leader support, and responses within two business days.
+        It is one membership, so there is no support&nbsp;tier to buy&nbsp;up&nbsp;into.
+      </p>
+    </div>
+    <div class="plain">
+      <h2 id="sports-heading">Sports and activities</h2>
+      <hr class="rule rule-left" aria-hidden="true">
+      <p>
+        Sports are not the core Bede program. Through the Co-op Portal,
+        trusted families may coordinate local leagues, clubs, and lessons.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── FAQ — recessed navy block, outside the main body ──── -->
+<aside class="faq" aria-labelledby="faq-heading">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="faq-heading">Questions parents ask</h2>
+      <hr class="rule" aria-hidden="true">
+      <p>A few honest answers for thoughtful homeschool parents.</p>
+    </div>
+
+    <details>
+      <summary>Does Bede replace the parent?</summary>
+      <div class="answer">
+        <p>
+          No, and it is built so that it cannot. You choose the subjects, set
+          the pace, and decide what your children study. Bede tutors within
+          the plan you set and reports back to you. The parent is the teacher;
+          Bede is the assistant who sits with one child while you work with
+          another.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Is this just more screen time?</summary>
+      <div class="answer">
+        <p>
+          Sessions are short by design, with breaks built in and a daily
+          limit you control. Much of the work happens off the screen
+          entirely &mdash; reading real books, narrating aloud, writing and
+          drawing by hand, and going outside to observe.
+        </p>
+        <p>
+          The summer program is deliberately the least screen-based part of
+          the year: children go out, look closely, and come back to tell Bede
+          what they saw.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Is this an AI school?</summary>
+      <div class="answer">
+        <p>
+          No. There is no enrollment, no accreditation, no classroom, and no
+          teacher of record. You are homeschooling. Bede is a tool you bring
+          to the work you are already doing, the way you would bring a
+          curriculum or a tutor.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>What is included?</summary>
+      <div class="answer">
+        <p>
+          Every membership includes all three: <strong>Bede</strong>, the
+          Socratic tutor; <strong>Locuto</strong>, secure messaging for your
+          family and co-op; and the <strong>Family Portal</strong>, where you
+          plan the year and see how it is going. Parent tools, oversight, and
+          verified access come with all of it. One membership covers up to six
+          children in your household, at one price.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Is curriculum included?</summary>
+      <div class="answer">
+        <p>
+          Bede Classical Core is included &mdash; a full classical scope
+          across the subjects Bede teaches. If your family already uses a
+          particular publisher, Bede works alongside it, and publisher
+          curriculum editions are available separately.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>What about sports and extracurriculars?</summary>
+      <div class="answer">
+        <p>
+          These are not part of the core program and we do not run them.
+          The Co-op Portal is where trusted families coordinate local
+          leagues, clubs, lessons, and other opportunities among themselves.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>How does verified access work?</summary>
+      <div class="answer">
+        <p>
+          Locuto and the Co-op Portal are closed communities, not public
+          feeds. Access is granted by the co-op or family that invited you,
+          and can be withdrawn by them. There is no open directory, no
+          discovery, and no way for a stranger to reach your children.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>When does Bede launch?</summary>
+      <div class="answer">
+        <p>
+          <strong>September&nbsp;30.</strong> Founding Family access opens
+          ahead of that date to families on the Fall Launch list.
+        </p>
+      </div>
+    </details>
+  </div>
+</aside>
+
+<!-- ── Final CTA ───────────────────────────────────────── -->
+<section class="cta wrap" aria-labelledby="cta-heading">
+  <h2 id="cta-heading">Still wondering if Bede belongs at your table?</h2>
+  <hr class="rule" aria-hidden="true">
+  <p>
+    Join the Fall Launch list and we&rsquo;ll help you choose the right path
+    for your family.
+  </p>
+
+  <div class="buttons">
+    <!-- Root-relative: site/ is served at the domain root and the demo at
+         /bede/, so this reaches the home page's own lead form. -->
+    <a class="btn btn-primary" href="/#request-a-call">Join Fall Launch List</a>
+    <!-- Relative: resolves to /bede/ in production and / in local dev,
+         matching demo/vite.config.ts's `base: './'` convention. -->
+    <a class="btn btn-secondary" href="./">Try Bede Demo</a>
+  </div>
+
+  <p class="fallback">
+    Prefer email? Write to
+    <a href="mailto:sales@agnusdei.ai?subject=Bede%20Fall%20Launch%20list">sales@agnusdei.ai</a>.
+  </p>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a href="./">Bede Demo</a>
+    <a href="./privacy.html">Privacy Notice</a>
+    <a href="mailto:sales@agnusdei.ai">Contact</a>
+    <p style="margin-top:14px;">Agnus Dei Technologies &mdash; agnusdei.ai</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,253 @@
+name: Demo watchdog
+
+# Drives the public demo's real first user journey in a real browser, and
+# on failure hands the evidence to an agent that proposes a repair.
+#
+# WHY THIS EXISTS
+#
+# On 2026-08-04 the demo was unusable for hours while every existing signal
+# said healthy: Render showed "Deployed ✓" (its health check could not
+# fail), and keep-demo-warm.yml's `curl /health` returned 200 throughout.
+# Neither could have caught it. curl is not a browser — it does not
+# evaluate Content-Security-Policy, does not send an Origin header, and
+# does not enforce CORS, and the failure lived entirely in those layers.
+# The demo was fine by every measurement being taken and completely broken
+# for every visitor.
+#
+# This workflow measures the thing that actually matters: can someone use
+# the demo. It is the only check in this repository that fails for the same
+# reason a visitor would.
+#
+# ── A DELIBERATE DEPARTURE, STATED PLAINLY ────────────────────────────────────
+#
+# Every other workflow here is `permissions: contents: read`, and
+# adversarial-probe.yml argues at length for `workflow_dispatch` only:
+# "a human deliberately decides ... it never fires unattended". This one is
+# scheduled AND writes. That inversion was requested explicitly by the
+# repository owner, and is bounded rather than open:
+#
+#   * The agent CANNOT MERGE. It opens a pull request and stops. The
+#     site/demo human sign-off rule is not suspended for automation.
+#   * The agent's writable surface is an allowlist of deployment-header
+#     files (.github/agent-prompts/demo-repair.md). The constitution,
+#     auth/encryption, moderation and safeguarding code, every test, and
+#     this workflow itself are explicitly off-limits. An unattended agent
+#     with commit rights over child-safety code is precisely the insider-
+#     compromise surface this product is supposed to defend against, and
+#     no amount of convenience justifies it.
+#   * `pull-requests: write` + `contents: write` are the minimum for
+#     "open a PR on a branch". It cannot push to main: that requires
+#     branch protection to remain in place, which is enforced on the
+#     GitHub side, not here.
+#
+# If those bounds ever need widening, widen them in a reviewed diff — not
+# by loosening the prompt.
+#
+# ── WHEN THIS WORKFLOW GOES RED AND THE DEMO IS FINE ──────────────────
+#
+# On 2026-08-06 every leg of this workflow reported failure for four hours
+# while the demo was perfectly healthy. GitHub's hosted runner pool simply
+# never assigned a runner: the jobs sat queued for 1-2 hours each and were
+# then cancelled unstarted. Recognise that shape before investigating the
+# demo, because it looks identical to an outage in the notification email:
+#
+#   * the job conclusion is `cancelled`, not `failure`
+#   * `runner_id` is 0 and `runner_name` is empty on the job's API record
+#   * there are NO logs at all — not a failing step, no step ever ran
+#   * the queued times are ragged (1h4m, 1h9m, 2h4m), not a round timeout
+#   * an unrelated workflow is cancelled in the same window — that day it
+#     was keep-demo-warm.yml, whose entire job is one `curl`
+#
+# Nothing in this repository can fix that; it is GitHub capacity. What this
+# file does about it is refuse to make it worse: ONE runner request per
+# tick instead of three (see the `check` job below), a real
+# `timeout-minutes` on both jobs, and a `check` that is superseded by the
+# next tick rather than wedging the group behind a run that never started.
+#
+# The `repair` gate is already correct for this case and needs no change:
+# it requires `needs.check.result == 'failure'`, and a starved job is
+# `cancelled`, so the agent stayed skipped throughout. Keep it that way —
+# never widen that condition to `!= 'success'`, or a GitHub capacity blip
+# becomes an unattended agent editing deployment headers for no reason.
+
+on:
+  schedule:
+    # Every 30 minutes. Frequent enough that an outage is caught in one
+    # school period rather than one school day; infrequent enough that a
+    # flapping backend does not open a PR every few minutes.
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      repair:
+        description: 'Attempt an automated repair if the check fails'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Concurrency is per-job rather than workflow-wide, because the two jobs
+# want opposite things and a single group cannot give both.
+#
+# The property worth protecting is "never two repair AGENTS at once" — two
+# agents on the same outage would race and open duplicate PRs. That is a
+# statement about `repair`, and it is enforced on `repair` below.
+#
+# Applying it to the whole workflow also serialised the CHECK, which is
+# actively wrong for a watchdog: a check that has not finished has told us
+# nothing, and holding the group with it only delays the next observation.
+# During the 2026-08-06 starvation above, a run that never started held the
+# group for two hours. The newest reading is the only one with any value,
+# so `check` is superseded rather than queued behind.
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # The green path is ~45 seconds. Without this the default cap is six
+    # hours, so a genuinely hung page load — a plausible shape for a broken
+    # demo — would burn an afternoon before reporting anything.
+    timeout-minutes: 15
+    concurrency:
+      # A newer tick supersedes an older check. In practice this can only
+      # ever cancel a job that never got a runner: ticks are 30 minutes
+      # apart and a real check takes under a minute, with `timeout-minutes`
+      # above bounding the hung case well inside that gap.
+      group: demo-watchdog-check
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright (chromium only)
+        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+
+      # Every device profile in ONE job, deliberately — this was a
+      # three-leg matrix until 2026-08-06.
+      #
+      # The coverage is identical: the journey itself takes two or three
+      # seconds per device, and the ~35 seconds of Playwright install
+      # dominated each leg. Three legs therefore paid that install three
+      # times and, far more importantly, made three separate runner
+      # requests every half hour — 144 a day — for about eight seconds of
+      # actual work. Runner requests are exactly what was not being granted
+      # during the starvation described at the top of this file, so asking
+      # for a third as many is the one lever this repository actually has.
+      # Wall-clock is unchanged (~45s) because the legs were never the
+      # slow part.
+      #
+      # Emulated, not real hardware — see synthetic_journey.mjs's PROFILES
+      # comment. galaxy-a10 is the 360x760 floor: a realistic school
+      # device, and the profile most likely to expose a control that is
+      # off-screen or too small to hit.
+      - name: Run the synthetic journey on every device profile
+        id: journey
+        env:
+          # The live demo. Falls back to the canonical domain so the check
+          # still runs if the repo variable was never set — a watchdog that
+          # silently no-ops is worse than no watchdog.
+          DEMO_URL: ${{ vars.DEMO_PUBLIC_URL || 'https://agnusdei.ai/bede/' }}
+        run: |
+          # No `set -e` for the whole step: one device failing must never
+          # stop the others being checked and reported. That was the
+          # matrix's `fail-fast: false`, and it is preserved here by
+          # accumulating into `overall` rather than exiting early.
+          set +e
+          overall=0
+          for device in desktop galaxy-a10 android-tablet; do
+            report="journey-report-$device.json"
+            DEVICE_PROFILE="$device" node scripts/synthetic_journey.mjs "$DEMO_URL" > "$report"
+            code=$?
+            [ "$code" -eq 0 ] || overall=1
+
+            # Always surface the report in the job log, pass or fail — the
+            # point is visibility, and a green run that printed nothing
+            # teaches nobody anything.
+            cat "$report"
+
+            # Read the device name back out of the report rather than
+            # echoing the loop variable, so the heading says exactly what
+            # was emulated and cannot drift from PROFILES. Both reads
+            # tolerate an unwritable report: a process that died before
+            # emitting JSON is a real outcome to report, not a reason to
+            # take the remaining devices down with it.
+            name=$(node -pe "try{require('./$report').device}catch(e){'$device'}")
+            summary=$(node -pe "try{require('./$report').summary||'no summary'}catch(e){'the check produced no readable report'}")
+            {
+              echo "### Demo watchdog — $name"
+              echo ""
+              if [ "$code" -eq 0 ]; then
+                echo "**Result:** ✅ the demo works"
+              else
+                echo "**Result:** ❌ the demo is broken"
+              fi
+              echo ""
+              echo "$summary"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+          # The job's own result is what the repair gate reads.
+          exit $overall
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          # One artifact holding every device's report. The per-device
+          # filenames are what the repair prompt names, so a failure on the
+          # 360px phone and a pass on desktop stays legible as "broken only
+          # when small" rather than collapsing into one file.
+          name: journey-reports
+          path: journey-report-*.json
+
+  repair:
+    needs: check
+    # `always()` so this evaluates even though `check` failed — without it
+    # the whole point (repair on failure) never runs.
+    if: always() && needs.check.result == 'failure' && (github.event_name == 'schedule' || inputs.repair)
+    runs-on: ubuntu-latest
+    # An agent reading a report and opening a PR, with a hard stop. This is
+    # the job that spends money and holds write permissions, so it does not
+    # get the 6-hour default.
+    timeout-minutes: 30
+    concurrency:
+      # THE constraint this workflow's header promises: never two repair
+      # agents at once. `cancel-in-progress: false` so a repair that is
+      # already talking to the API is never killed by the next tick's
+      # check; a second repair waits, and a third supersedes the waiting
+      # one, which is the correct outcome for one ongoing outage.
+      group: demo-watchdog-repair
+      cancel-in-progress: false
+    permissions:
+      contents: write        # to push a branch — NOT to push to main
+      pull-requests: write   # to open the PR
+      issues: write          # to report a cause that lives outside the repo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          # Every device's report, not one — a failure on the 360px phone
+          # and a pass on desktop is a real and common shape, and the agent
+          # needs both to tell "broken" from "broken only when small".
+          #
+          # Unpacked into the working directory, so the files land at the
+          # paths .github/agent-prompts/demo-repair.md actually tells the
+          # agent to read. Under the old three-artifact layout they arrived
+          # one directory deep and that instruction was already wrong.
+          name: journey-reports
+          path: .
+
+      - name: Repair
+        # NOTE: not verifiable from the authoring sandbox (no network to
+        # GitHub's action registry). If this action name or version is
+        # wrong the job fails loudly at startup rather than silently
+        # skipping — confirm on the first real run.
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1
+        with:
+          anthropic_api_key: ${{ secrets.WATCHDOG_API_KEY }}
+          # A dedicated key, never shared with adversarial-probe.yml or any
+          # deployment — so its spend is attributable and it can be revoked
+          # on its own. Same reasoning that file already documents.
+          prompt_file: .github/agent-prompts/demo-repair.md

@@ -6,7 +6,7 @@ FROM python:3.12-slim
 # gcc + python3-dev: webrtcvad (a transitive dep of resemblyzer, not
 # faster-whisper) has no prebuilt wheel for this platform and compiles a C
 # extension at install time — without a compiler, `pip install -r
-# requirements.txt` below fails outright. This was never caught before now
+# requirements.in` below fails outright. This was never caught before now
 # because this image had never actually been built end-to-end until
 # production-regression.yml's first real run (this sandbox has the Docker
 # CLI but no daemon to build with).
@@ -17,8 +17,50 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd --no-create-home --shell /bin/false sage
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# requirements.in is this image's human-edited, floor-pinned source of
+# intent — renamed from requirements.txt when hash-locked, reproducible
+# dependency resolution was added (docs/SECURITY.md's closed-gap entry).
+# CI (.github/workflows/test.yml) installs from the hash-verified
+# requirements.lock.txt/requirements-dev.lock.txt instead, for
+# reproducibility; this image intentionally keeps installing from the
+# floor-pinned source so the CPU-only torch trick just below (which relies
+# on resemblyzer's `torch` dependency being satisfied by whatever's
+# already installed, not a hash-pinned exact build) keeps working
+# unchanged.
+COPY requirements.in .
+# Install PyTorch's CPU-only build FIRST, before requirements.in.
+# resemblyzer (voice_auth.py's speaker-embedding library — see
+# requirements.in's own comment) has a hard `torch` dependency that isn't
+# declared here directly, so without this step pip resolves it from the
+# DEFAULT PyPI index, which serves the full CUDA-bundled wheel — measured
+# directly via `pip download torch`: 526.6MB, versus PyTorch's own
+# well-documented CPU-only build at roughly a third of that — even though
+# this container has no GPU (cap_drop: ALL, no device passthrough) and runs
+# entirely on CPU. Once torch is already installed here, the requirements.in
+# install below sees resemblyzer's `torch>=1.0.1` as already satisfied and
+# does not reinstall it — the standard, documented workaround for this exact
+# class of problem. This is what actually makes faster-whisper's own
+# "drops the PyTorch runtime, for a meaningfully smaller/faster Docker
+# build" framing (see that dependency's comment below) true at the WHOLE
+# image level, not just for the transcription path alone — without this,
+# resemblyzer would have silently undone that saving by several times over.
+#
+# Pinned, not floating. This line installs from a SECOND package index
+# (download.pytorch.org) outside the one the rest of requirements.in
+# resolves against, so it is its own supply-chain surface and the only
+# dependency here with no version constraint at all — an unpinned `torch`
+# means two builds of the same commit can ship different runtime code,
+# which also makes the pip-audit gate in .github/workflows/test.yml a
+# statement about whatever happened to be latest at build time rather
+# than about what this image actually contains. Bump deliberately.
+#
+# 2.13.0 is the current stable release, which is what the unpinned form
+# already resolved to — this freezes today's behavior rather than moving
+# it. production-regression.yml's `docker compose up -d --build` is what
+# actually proves the pin exists on the CPU index; it could not be checked
+# from the authoring sandbox, whose egress proxy blocks download.pytorch.org.
+RUN pip install --no-cache-dir torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir -r requirements.in
 
 # Pre-download the faster-whisper fallback-STT model weights into the image
 # at build time. The api container below runs read_only:true in production

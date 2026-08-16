@@ -1,0 +1,140 @@
+name: Adversarial persona probe (manual)
+
+# CI scaffolding around scripts/adversarial_probe.py — see that script's own
+# docstring for why it is NOT a scheduled or push-triggered workflow:
+# "Deliberately does NOT run in CI or pytest — it costs real money and
+# calls a live external API on demand only." This workflow doesn't change
+# that intent, it just makes running it a one-click action instead of a
+# local `cd homeschool-api && python3 scripts/adversarial_probe.py`, so
+# re-testing after a model swap, a persona/constitution change, or a new
+# provider being wired up doesn't depend on someone remembering the exact
+# local incantation.
+#
+# workflow_dispatch ONLY — no `schedule:`, no `push:`/`pull_request:`
+# trigger. A human deliberately decides to spend the money and probe a
+# live model every time this runs; it never fires unattended. This is the
+# correct middle ground between "manual-only, easy to forget" and
+# "automatic, silently spends money and calls a live API without anyone
+# deciding to" — the second of those is not what "wired up and ready"
+# should mean here, and would go against both the script's own stated
+# design intent and the broader principle that live testing against a
+# real target needs an explicit, authorized decision each time (see
+# docs/environment-pentests/README.md's authorization section, which
+# applies the same reasoning to the infrastructure-testing surface this
+# workflow's sibling covers).
+#
+# Does NOT run against a real family's deployment or real student data —
+# it calls services.ai_service.stream_tutor_response() directly against a
+# throwaway student ("Alex") on an ephemeral, CI-only Postgres instance
+# that's destroyed when the job ends. The only thing genuinely "live" here
+# is the call to the AI provider itself.
+on:
+  workflow_dispatch: {}
+
+# No job here writes to the repo, comments on a PR, or creates a release —
+# it uploads a build artifact (not a repo write) and nothing else. See
+# production-regression.yml's identical note for why this is called out
+# explicitly whenever a workflow also handles a real secret.
+permissions:
+  contents: read
+
+env:
+  # A SEPARATE, narrowly-scoped API key — deliberately never the same key
+  # as production-regression.yml's throwaway ANTHROPIC_API_KEY (that one
+  # never needs to be real; this one makes genuine, billable calls to a
+  # live model) and never a real deployment's key. Generate a
+  # dedicated key for this workflow specifically, so it can be rotated or
+  # revoked independent of anything else, and so its usage/spend is
+  # separately attributable if it's ever misused or leaked.
+  ANTHROPIC_API_KEY: ${{ secrets.ADVERSARIAL_PROBE_API_KEY }}
+  # Throwaway, CI-only values — not production secrets, never used outside
+  # this ephemeral job, PRODUCTION is deliberately left unset so none of
+  # core/config.py's production-only validators engage (nothing here is
+  # meant to exercise those; docs/environment-pentests/ covers that
+  # surface). Long enough to satisfy the length floors regardless, so a
+  # future change enabling PRODUCTION=true here doesn't immediately break.
+  SECRET_KEY: adversarial-probe-ci-secret-key-throwaway-value-only
+  MASTER_SECRET: adversarial-probe-ci-master-secret-throwaway-value-only
+  PARENT_PASSWORD: throwaway-ci-password
+  CHILD_PIN: "481937"
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/bede_adversarial_probe
+  BEDE_ADAPTER_ORDER: anthropic
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bede_adversarial_probe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: homeschool-api
+        # From the hash-locked lockfile — see docs/SECURITY.md's closed-gap
+        # entry and requirements.in's own header comment.
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+
+      - name: Fail loudly if no probe API key is configured
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error title=Missing ADVERSARIAL_PROBE_API_KEY::This workflow needs a dedicated ANTHROPIC_API_KEY in the ADVERSARIAL_PROBE_API_KEY repository secret — see this file's own header comment for why it must be a separate key. Nothing was called; no money was spent."
+            exit 1
+          fi
+
+      - name: Bootstrap database and encryption (mirrors main.py's lifespan)
+        working-directory: homeschool-api
+        # Same two steps main.py's lifespan runs before anything else can
+        # touch the DB or call encrypt()/decrypt(): create the schema, then
+        # derive and persist DATA_KEY. scripts/adversarial_probe.py's own
+        # main() does neither (it assumes an already-running app's
+        # lifespan already did this) — done here, once, as a distinct step
+        # so a bootstrap failure is unambiguous in the Actions UI rather
+        # than showing up as a confusing failure inside the probe step.
+        run: |
+          python3 -c "
+          import asyncio
+          from core.database import create_tables, AsyncSessionLocal
+          from core.encryption import initialize_encryption
+          from core.config import settings
+
+          async def main():
+              await create_tables()
+              async with AsyncSessionLocal() as db:
+                  await initialize_encryption(settings.master_secret, db)
+
+          asyncio.run(main())
+          "
+
+      - name: Run the adversarial probe against the live model
+        working-directory: homeschool-api
+        run: python3 scripts/adversarial_probe.py
+
+      - name: Upload probe transcript
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: adversarial-probe-transcript-${{ github.run_id }}
+          path: docs/adversarial-probes/probe-*.json
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Adversarial probe run complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "Transcript uploaded as a build artifact (90-day retention), not auto-committed." >> "$GITHUB_STEP_SUMMARY"
+          echo "A human reviews it and decides what belongs in docs/adversarial-probes/ and docs/SECURITY.md's findings log — same review-before-record convention as scripts/export_interaction_signals.py." >> "$GITHUB_STEP_SUMMARY"

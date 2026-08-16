@@ -1,0 +1,13 @@
+# Dependencies for Bede's MCP server (scripts/mcp_server/server.py) ONLY.
+#
+# Deliberately separate from homeschool-api/requirements.txt: this process
+# runs on the parent's own machine, not in the Bede container, so the API
+# image never grows an MCP dependency it would not use. bede_tools.py — the
+# part with the logic and the tests — needs only httpx, which the API already
+# depends on.
+#
+# 2.x specifically: server.py is written against the MCPServer/add_tool API,
+# which replaced 1.x's decorator-based low-level Server. A 1.x install fails
+# at import with AttributeError rather than degrading, so the floor is real.
+mcp>=2.0.0,<3
+httpx>=0.28.1

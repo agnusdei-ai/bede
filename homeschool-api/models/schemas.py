@@ -1,5 +1,5 @@
 from pydantic import model_validator, BaseModel, EmailStr, Field
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 from enum import Enum
 from datetime import date
 
@@ -13,6 +13,94 @@ class GradeStage(str, Enum):
 # Valid grade values a visitor can pick, in display order — mirrors
 # services/ai_service.py's _GRADE_DESCRIPTORS keys.
 VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+
+# Bible translations a parent can pick for SessionConfig.bible_translation,
+# in display order — deliberately spans both Protestant and Catholic
+# editions (see docs/CONSTITUTION.md's non-negotiable rule that Bede never
+# rules on a family's beliefs), same reasoning behind Subject.scripture
+# existing as a sibling to Subject.saints rather than one Bible-content
+# module assuming a single tradition's preferred text. Mirrored in
+# homeschool-tutor/src/pages/ParentSetup.tsx's own copy of this list, same
+# duplication convention as VALID_GRADES/DEMO_GRADES above.
+BIBLE_TRANSLATIONS = [
+    "KJV", "NKJV", "ESV", "NIV", "NASB", "NLT", "CSB",
+    "RSV-CE", "NABRE", "NRSV-CE", "Douay-Rheims",
+]
+
+# Of BIBLE_TRANSLATIONS above, these two are the ones actually in the public
+# domain: KJV (in the US and virtually every jurisdiction that matters here)
+# and the Challoner-revision Douay-Rheims (predates any modern copyright).
+# Every other option — NKJV, ESV, NIV, NASB, NLT, CSB, RSV-CE, NABRE, NRSV-CE
+# — is a modern, actively copyrighted translation owned by its own publisher
+# (Crossway, Biblica, the Lockman Foundation, Tyndale, Holman, the USCCB for
+# NABRE, and so on). Bede was never given a verified, licensed copy of any of
+# those texts to quote from — only whatever it happened to learn during
+# training, which is neither guaranteed accurate nor something this app has
+# a license to reproduce at length. services/ai_service.py's
+# _bible_translation_note treats the two groups differently for exactly that
+# reason: freely favor wording for a public-domain translation, but default
+# to paraphrase (never presenting invented or uncertain wording as an exact
+# quotation) for a copyrighted one — the same "never fabricate certainty"
+# rule the constitution already states, applied here to text Bede cannot
+# verify it has permission or accurate memory to reproduce.
+PUBLIC_DOMAIN_BIBLE_TRANSLATIONS = {"KJV", "Douay-Rheims"}
+
+# What actually HELPS a particular child, in the parent's own words — never
+# what is "wrong" with them. Quick-pick suggestions only; a family's own
+# wording outside this list is kept exactly as typed (see
+# SessionConfig.learning_support).
+#
+# Every entry names a change to HOW a lesson is delivered, never to WHAT is
+# taught or the standard the work is held to. That distinction is the whole
+# design: an accommodation removes an obstacle between a child and the
+# material, and a lowered expectation removes the material. See
+# services/ai_service.py's _learning_support_note.
+LEARNING_SUPPORT_SUGGESTIONS = [
+    "More time to answer",
+    "Shorter passages at a time",
+    "Answer out loud instead of writing",
+    "Read the passage aloud to them",
+    "Break tasks into one step at a time",
+    "Frequent short breaks",
+    "Repeat instructions before starting",
+    "Say numbers and letters clearly, one at a time",
+]
+
+# Curriculum publishers commonly used alongside Bede by classical/Christian
+# homeschool families, offered as quick-pick suggestions for
+# SessionConfig.curriculum_resources — NOT a closed enum (a family's own
+# entry outside this list is kept as-is, same "suggestion, not allowlist"
+# treatment as faith_tradition). Deliberately spans several different
+# subjects rather than one (Memoria Press/Classical Academic Press: Latin
+# & classical method; Well-Trained Mind Press: general classical method;
+# Institute for Excellence in Writing: writing; RightStart Mathematics:
+# math; Logic of English: phonics/spelling) since a family may already use
+# several of these for different subjects at once. Mirrored in
+# homeschool-tutor/src/types/index.ts, same duplication convention as
+# BIBLE_TRANSLATIONS above.
+CURRICULUM_RESOURCE_SUGGESTIONS = [
+    "Memoria Press", "Classical Academic Press", "Well-Trained Mind Press",
+    "Institute for Excellence in Writing", "RightStart Mathematics", "Logic of English",
+]
+
+# Character-virtue quick-pick suggestions for SessionConfig.character_virtues
+# — NOT a closed enum, same "suggestion, not allowlist" treatment as
+# CURRICULUM_RESOURCE_SUGGESTIONS/faith_tradition above; a family's or
+# school's own entry outside this list is kept exactly as typed. This
+# particular eight-virtue list and order was supplied by a parent from
+# their own charter-school character-formation program; kept general here
+# (courage, humility, wonder, honesty, gratitude, perseverance, and
+# kindness recur across many classical/character-education frameworks, not
+# proprietary to any one program) so any family can use these quick-picks
+# regardless of which school, co-op, or program they belong to. See
+# services/ai_service.py's _character_virtues_note for the framing rules —
+# occasional, natural, and never a rating of the child, the same standing
+# refusal that keeps LearnerBehaviorCheck's counters from ever becoming a
+# measure of a child's faith engagement, applied here to character.
+CHARACTER_VIRTUE_SUGGESTIONS = [
+    "Courage", "Humility", "Wonder", "Attentiveness",
+    "Honesty", "Gratitude", "Perseverance", "Kindness",
+]
 
 
 def grade_to_stage(grade: str) -> GradeStage:
@@ -59,6 +147,16 @@ class CompanionMode(str, Enum):
 # the parent's chosen topics (up to 3 per area per term) — see
 # SessionConfig.term_mastery_topics and services/ai_service.py's
 # _term_outcomes_note.
+#
+# Mastery-cycle window (SessionConfig.mastery_cycle_days). The default is
+# four ACTUAL weeks — calendar days, not days school happened — which is
+# also what the learner's guarantee is written against. TRAVEL_* bound the
+# range a travelling family may widen it to; a family not travelling gets
+# the default and no choice to make.
+DEFAULT_MASTERY_CYCLE_DAYS = 28
+TRAVEL_MASTERY_CYCLE_MIN_DAYS = 21   # 3 weeks
+TRAVEL_MASTERY_CYCLE_MAX_DAYS = 42   # 6 weeks
+
 CORE_AREAS = {
     "phonics_language":    "Phonics & Language",
     "mathematics":         "Math",
@@ -81,7 +179,11 @@ class Subject(str, Enum):
     language_arts = "language_arts"     # Narration, copywork, grammar
     science = "science"                 # Botany, zoology, earth science
     art_music = "art_music"             # Composer & artist study
-    saints = "saints"                   # Saints, catechism, virtue formation
+    saints = "saints"                   # Saints, catechism, virtue formation (Catholic-tradition module)
+    scripture = "scripture"             # Bible heroes, memory verses, doctrine — denominationally-configurable
+    latin = "latin"                     # Latin rooted in the shared Christian vocabulary — see services/latin_catalog.py
+    greek = "greek"                     # Koine Greek, the New Testament's own language — see services/greek_catalog.py
+    logic = "logic"                     # Reasoning — 3-5 informal, 6-8 formal; NEVER K-2, see services/logic_catalog.py
     free_study = "free_study"           # Child-directed exploration
 
 
@@ -95,6 +197,21 @@ SUBJECT_DURATIONS = {
     Subject.science: 20,
     Subject.art_music: 15,
     Subject.saints: 15,
+    Subject.scripture: 15,
+    # Deliberately the shortest block in the curriculum. A Latin session is
+    # a handful of words met properly, not a class period — and at K-2 it
+    # is purely oral (see services/latin_catalog.py's _STAGE_METHOD), where
+    # ten minutes is already generous.
+    Subject.latin: 10,
+    # Same 10 minutes as Latin, and for the same reason — a few words or
+    # letters met properly, not a class period. A family running both gets
+    # 20 minutes of classical language a day, which is already more than
+    # most K-8 homeschool days give it.
+    Subject.greek: 10,
+    # Longer than the language blocks: a single argument judged properly
+    # needs the student to reason out loud, be wrong, and be walked back
+    # through it. That doesn't compress the way a vocabulary word does.
+    Subject.logic: 15,
     Subject.free_study: 20,
 }
 
@@ -108,6 +225,10 @@ SUBJECT_LABELS = {
     Subject.science: "Science",
     Subject.art_music: "Art & Music",
     Subject.saints: "Saints & Catechism",
+    Subject.scripture: "Scripture & Bible Study",
+    Subject.latin: "Latin & Christian Foundations",
+    Subject.greek: "Greek & New Testament Foundations",
+    Subject.logic: "Logic",
     Subject.free_study: "Free Study",
 }
 
@@ -115,6 +236,42 @@ SUBJECT_LABELS = {
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
+
+
+class LessonResume(BaseModel):
+    """
+    One subject's "pick up where we left off" note, written by the parent
+    before the day's session — the curriculum director telling Bede exactly
+    where they and the child stopped, so the subject resumes mid-thread
+    instead of opening as though the material were new.
+
+    `subject` is a Subject enum member, which is the whole enforcement of
+    "if it isn't a subject Bede teaches, it can't be introduced": a note can
+    only ever attach to one of the subjects in the curriculum, never to
+    an arbitrary parent-invented topic. SessionConfig's validator narrows
+    that further to subjects actually scheduled for this student today.
+
+    The free-text fields are parent-supplied context, so they take the same
+    route every other parent field does — services/ai_service.py's
+    _sanitize_parent_field (HTML, injection phrasing, credential shapes) on
+    the way into the prompt, and no authority over Bede's rules once there
+    (see _lesson_resume_note).
+    """
+    subject: Subject
+    # Where the last lesson actually stopped — the one required field; a
+    # resume note with nothing to resume from is just noise in the prompt.
+    stopped_at: str = Field(..., min_length=1, max_length=300)
+    # What the parent wants taken up next, if they have something specific
+    # in mind. Left unset, Bede decides the next step itself.
+    next_step: Optional[str] = Field(default=None, max_length=300)
+    # Where the child struggled last time, so Bede can slow down there
+    # rather than rediscovering the difficulty from scratch.
+    sticking_point: Optional[str] = Field(default=None, max_length=300)
+    # ISO date (YYYY-MM-DD) of the lesson being resumed, so Bede can tell a
+    # thread picked up this morning from one dropped three weeks ago. Kept a
+    # string rather than a date so config dicts stay JSON-serializable for
+    # encrypt_json (core/encryption.py).
+    recorded_on: Optional[str] = Field(default=None, max_length=10)
 
 
 SUBJECT_CORE_AREAS.update({
@@ -156,6 +313,73 @@ class SessionConfig(BaseModel):
     lesson_focus: Optional[str] = None       # Parent's note for today
     faith_emphasis: Optional[str] = None     # Scripture or virtue focus
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
+    # Optional, short label for the family's own church tradition (e.g.
+    # "Baptist", "Non-denominational", "Catholic", "Eastern Orthodox") — sets
+    # framing guidance for Scripture & Bible Study / Saints & Catechism
+    # content (see services/ai_service.py's _faith_tradition_note), never a
+    # basis to rule on the family's beliefs (docs/CONSTITUTION.md). A real
+    # parent sets this directly in ParentSetup.tsx's optional "session
+    # context" panel, shown only once Scripture or Saints is enabled for
+    # that student — their own subject selection already signals which
+    # module applies, this just refines the framing within it. The public
+    # demo populates it via its own optional intake note instead (see
+    # DemoCodeRequest.faith_tradition and CLAUDE.md's "Continuing Mastery
+    # (demo)" section), since the demo shows both faith subjects to every
+    # visitor regardless of background.
+    faith_tradition: Optional[str] = Field(default=None, max_length=60)
+    # Parent's preferred Bible translation (see BIBLE_TRANSLATIONS above),
+    # so Bede's own quoting/paraphrasing of Scripture in Scripture & Bible
+    # Study, Saints & Catechism, and Morning Time aligns with the wording
+    # the family already reads at home, rather than defaulting to whichever
+    # translation Bede's own training happens to favor. Set alongside
+    # faith_tradition in ParentSetup.tsx's optional "session context" panel
+    # (see services/ai_service.py's _bible_translation_note). Not a closed
+    # enum here — an unrecognized value is simply not one of the picker's
+    # options, and the field is free enough to still be forward-compatible
+    # with a translation added to BIBLE_TRANSLATIONS later without a schema
+    # change.
+    bible_translation: Optional[str] = Field(default=None, max_length=40)
+    # Curriculum publishers/resources the family already uses alongside
+    # Bede (see CURRICULUM_RESOURCE_SUGGESTIONS above) — up to 6 short
+    # entries, cleaned/deduped by _validate_curriculum_resources below, same
+    # "cap + clean, never reject" convention term_mastery_topics already
+    # uses. Framing guidance only (see services/ai_service.py's
+    # _curriculum_resources_note): Bede aligns terminology/approach where
+    # it naturally overlaps with a named resource's own known method, but
+    # never claims to reproduce that publisher's specific proprietary
+    # lesson content — unlike data/catechism/faith_and_life.json, there is
+    # no sourced, verified scope-and-sequence backing these names, so
+    # treating them as anything beyond a name to align tone with would risk
+    # fabricating claims about content Bede was never actually given.
+    curriculum_resources: List[str] = Field(default_factory=list)
+    # A family's or school's own character-formation framework — the
+    # virtues they want Bede to notice and weave into ordinary subject
+    # dialogue (see CHARACTER_VIRTUE_SUGGESTIONS above and
+    # services/ai_service.py's _character_virtues_note). Framing guidance
+    # only, like curriculum_resources — and, like learning_support, never
+    # a metric: see _character_virtues_note for why Bede never scores,
+    # tracks, or tells a child which virtue they did or didn't show in a
+    # moment. Same "clean, never reject" convention as
+    # curriculum_resources/learning_support above; capped higher (12)
+    # since a family may list both a school's own named program (commonly
+    # six to eight virtues) and a few of their own.
+    character_virtues: List[str] = Field(default_factory=list)
+    # What helps THIS child, stated by the parent — never inferred by Bede,
+    # and never a diagnosis. See LEARNING_SUPPORT_SUGGESTIONS above and
+    # services/ai_service.py's _learning_support_note for the governing
+    # rules; docs/PARENT_SETUP.md for how it is put to a parent.
+    #
+    # WHY PARENT-DECLARED AND NOT INFERRED. Deciding a child needs support
+    # is a judgment about that child, and the two ways to reach it are a
+    # qualified evaluator or the parent who lives with them. Bede is
+    # neither. It can notice a pattern and say so (see the reading-strands
+    # observation in docs/PARENT_SETUP.md), but the standing decision about
+    # what a child needs is not one this software makes — the same
+    # authority_order the constitution states, where the parent is the
+    # child's primary educator.
+    #
+    # Same "clean, never reject" convention as curriculum_resources above.
+    learning_support: List[str] = Field(default_factory=list)
     voice_required: bool = True              # False for mute students (PIN-only auth)
 
     # The session's hard stop, in minutes — on by default and there by
@@ -205,6 +429,36 @@ class SessionConfig(BaseModel):
     # assess_narration's term_topic fields.
     term_mastery_topics: dict[str, list[str]] = Field(default_factory=dict)
 
+    # ── Mastery cycle — how often the parent gets an honest read ──────────
+    # A term (9-12 weeks) is too coarse to answer "is this on track?", and
+    # the learner's guarantee is written in 30 days, so there was nothing
+    # between today's session summary and the whole term. This is that
+    # middle cadence.
+    #
+    # It bounds the LOOKING, never the child's work. Deliberately a ROLLING
+    # window rather than a numbered sprint with a start date: there is no
+    # boundary to hit, nothing resets, nothing rolls over, and no velocity
+    # can be computed across cycles. "In the last N days, did this move" is
+    # the only question it can answer — which is the question a parent
+    # actually has, and is safe to ask about a child in a way "did they
+    # finish on time" is not. Nothing here is ever shown to a child (see
+    # Progress.tsx, parent-only, same posture as the work ledger).
+    #
+    # 28 ACTUAL days — calendar days, not days school happened. A family
+    # that travels can't fit the usual evidence into 28 calendar days, so
+    # travel_mode unlocks a longer window (3-6 weeks) to let the same
+    # evidence accumulate. It lengthens the window; it does not pause a
+    # clock, and it does not change one thing about how the child is taught.
+    travel_mode: bool = False
+    mastery_cycle_days: int = Field(default=DEFAULT_MASTERY_CYCLE_DAYS)
+
+    # ── "Meet me where I am" — resuming an interrupted lesson ─────────────
+    # At most one note per subject (later duplicates win; see the validator),
+    # and only for subjects actually scheduled for this student today —
+    # anything else is dropped rather than rejected, so a parent trimming
+    # today's subject list never gets a save error over a stale note.
+    lesson_resume: List[LessonResume] = Field(default_factory=list, max_length=len(Subject))
+
     @model_validator(mode="after")
     def _validate_term(self):
         max_term = 3 if self.term_schedule == TermSchedule.trimester else 4
@@ -218,6 +472,113 @@ class SessionConfig(BaseModel):
             if kept:
                 cleaned[area] = kept
         self.term_mastery_topics = cleaned
+
+        # Mastery-cycle window, same "clean, never reject" shape as above.
+        # Travel mode is what UNLOCKS the choice — with it off there is only
+        # one honest answer (28 actual days, what the guarantee is written
+        # against), so a stale or hand-crafted value is corrected rather
+        # than 422'd. With it on the parent picks, and we clamp to 3-6
+        # weeks: under three there isn't room for evidence to accumulate,
+        # over six it stops being a cadence and becomes the term again.
+        if not self.travel_mode:
+            self.mastery_cycle_days = DEFAULT_MASTERY_CYCLE_DAYS
+        else:
+            self.mastery_cycle_days = max(
+                TRAVEL_MASTERY_CYCLE_MIN_DAYS,
+                min(TRAVEL_MASTERY_CYCLE_MAX_DAYS, self.mastery_cycle_days),
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_curriculum_resources(self):
+        """Trims, drops empties, dedupes case-insensitively (keeping the
+        first-seen casing), and caps at 6 — the same "clean, never reject"
+        shape _validate_term applies to term_mastery_topics, so a client
+        sending a slightly malformed list never gets a 422 over a field
+        this low-stakes."""
+        seen: dict[str, str] = {}
+        for entry in self.curriculum_resources or []:
+            cleaned = entry.strip()[:60] if entry else ""
+            if cleaned and cleaned.lower() not in seen:
+                seen[cleaned.lower()] = cleaned
+        self.curriculum_resources = list(seen.values())[:6]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_character_virtues(self):
+        """Same clean-never-reject shape as _validate_curriculum_resources
+        above — capped at 12 rather than 6, since a family may list both a
+        school's own named program (commonly six to eight virtues) and a
+        few of their own."""
+        seen: dict[str, str] = {}
+        for entry in self.character_virtues or []:
+            cleaned = entry.strip()[:40] if entry else ""
+            if cleaned and cleaned.lower() not in seen:
+                seen[cleaned.lower()] = cleaned
+        self.character_virtues = list(seen.values())[:12]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_learning_support(self):
+        """Same clean-never-reject shape as _validate_curriculum_resources
+        above, and for a sharper reason: a parent describing what helps
+        their child is the last person who should meet a 422 over
+        whitespace."""
+        seen: dict[str, str] = {}
+        for entry in self.learning_support or []:
+            cleaned = entry.strip()[:80] if entry else ""
+            if cleaned and cleaned.lower() not in seen:
+                seen[cleaned.lower()] = cleaned
+        self.learning_support = list(seen.values())[:8]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_logic_stage(self):
+        """Logic is not a K-2 subject, and this is where that is actually
+        enforced rather than assumed.
+
+        Formal reasoning before the Logic stage is the premature
+        abstraction classical education specifically warns against — a
+        Grammar-stage child is gathering the world, not auditing it. The UI
+        never offers the card to a K-2 student and services/logic_catalog.py
+        renders nothing for that stage, but neither of those is a
+        server-side guarantee: a hand-rolled request, a saved config from
+        before a student's stage was corrected downward, or a future client
+        bug would all sail past them.
+
+        "Clean, never reject" — the same shape _validate_term and
+        _validate_curriculum_resources use. A parent who somehow submits
+        this gets a config without it, not a 422 they can't act on. It runs
+        BEFORE _validate_lesson_resume deliberately, so a resume note
+        attached to the dropped subject is filtered out by that validator
+        in the same pass rather than surviving as an orphan.
+
+        Dropping this can in principle leave `subjects` empty (a K-2 config
+        naming logic and nothing else). That is a state the UI cannot
+        produce and the parent can immediately fix by picking subjects —
+        strictly better than honoring a subject the child shouldn't be
+        sitting.
+        """
+        if self.grade_stage == GradeStage.foundations and Subject.logic in self.subjects:
+            self.subjects = [s for s in self.subjects if s != Subject.logic]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_lesson_resume(self):
+        """One resume note per scheduled subject.
+
+        A note for a subject the child isn't doing today can only confuse
+        Bede's opener (it would never be read) or, worse, smuggle context
+        into a subject the parent has since dropped — so those are filtered
+        out here rather than trusted from the client. Duplicates collapse to
+        the last one given, which is what a form that appends edits produces.
+        """
+        scheduled = set(self.subjects)
+        by_subject: dict[Subject, LessonResume] = {}
+        for entry in self.lesson_resume:
+            if entry.subject in scheduled:
+                by_subject[entry.subject] = entry
+        self.lesson_resume = list(by_subject.values())
         return self
 
 
@@ -252,6 +613,13 @@ class TutorRequest(BaseModel):
     # runs in a different timezone, e.g. UTC). None for older clients /
     # the sandbox, in which case the catalogs fall back to date.today().
     local_date: Optional[date] = None
+    # Minted client-side at startSession() (sessionStore.ts) and sent with
+    # every turn. Used ONLY as the key for a session-scoped mastery
+    # estimate when settings.retain_mastery_profiles is False — see
+    # services/diagnostic_session.py for why the key must be the session
+    # rather than the student. Absent from older clients and the sandbox,
+    # in which case there is simply nothing to accumulate into.
+    session_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class NarrationUploadRequest(BaseModel):
@@ -294,6 +662,37 @@ class SandboxDemoChatRequest(BaseModel):
     custom_instructions: str = Field(default="", max_length=4000)
 
 
+class ElevationRequest(BaseModel):
+    """Step-up to management-plane privilege (P8, core/elevation.py).
+
+    The parent re-presents the password they already used to log in, plus a
+    TOTP code if one is enrolled. Deliberately not a second, separate
+    "admin password" — one more secret for a family to lose is a worse
+    trade than re-typing the one they already know."""
+    password: str
+    totp_code: str = ""
+
+
+class ElevationResponse(BaseModel):
+    elevated: bool
+    expires_at: str
+    # Echoed so the frontend can schedule its own re-prompt rather than
+    # discovering the expiry by getting a 403 mid-action.
+    ttl_seconds: int
+
+
+class DeviceInfo(BaseModel):
+    """One row from core/device_registry.py — see DeviceRecord's own
+    docstring for what this does and does not prove."""
+    device_id: str
+    first_seen_at: str
+    last_seen_at: str
+    last_role: str
+    last_user_agent: str
+    revoked: bool
+    revoked_at: Optional[str] = None
+
+
 class LoginRequest(BaseModel):
     role: Literal["parent", "child", "demo_code"]
     credential: str   # password for parent, PIN for child, generated code for demo_code
@@ -305,17 +704,41 @@ class LoginRequest(BaseModel):
     # core.deps.require_auth's returned payload. See services/ai_service.py's
     # _locale_directive and services/prayer_catalog.py for where it's read.
     locale: str = "en"
+    # P9 device revocation (core/device_registry.py, docs/DEVICE_IDENTITY_
+    # DESIGN.md's Option C) — a UUID the browser generates once and persists
+    # in localStorage, identifying this physical device across logins.
+    # Optional and parent/child-only: a caller driving the API directly (or
+    # an older client) that omits this simply gets no device tracking for
+    # that login, never a rejected one. Never sent for demo_code — that
+    # role is anonymous and already carries its own one-time-code identity.
+    # max_length matches DeviceRecord.device_id's String(64) column exactly
+    # — without this, an oversized value would reach the DB unvalidated and
+    # fail as an unhandled DataError (500) instead of a clean 422 here.
+    device_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class DemoCodeRequest(BaseModel):
     """Optional personalization for a demo session — see POST /auth/demo-code.
-    Both fields are optional; omitting either keeps the operator's configured
-    DEMO_STUDENT_NAME/DEMO_GRADE default for that field. student_name is
-    sanitized server-side (see routers/tutor.py's _demo_session_config) since
-    it's the one new piece of free text an anonymous visitor can put in front
-    of the model."""
+    All fields are optional; omitting any keeps the operator's configured
+    DEMO_STUDENT_NAME/DEMO_GRADE default for that field (current_unit and
+    faith_tradition simply stay unset). student_name, current_unit, and
+    faith_tradition are sanitized server-side (see routers/auth.py's
+    create_demo_code) since they're free text an anonymous visitor can put
+    in front of the model. current_unit is a short "what are we already
+    covering at home" note (e.g. "reading Farmer Boy together", "our own
+    Ancient Egypt unit") — see core/database.py's DemoCodeUnitNote and
+    CLAUDE.md's "Continuing Mastery (demo)" section. faith_tradition is a
+    short, optional label for the visiting family's own church tradition
+    (e.g. "Baptist", "Catholic", "Non-denominational") — since the demo
+    shows every subject, including both Scripture & Bible Study and Saints
+    & Catechism, regardless of the visitor's own background (unlike a real
+    family, who simply enables the module that fits their own church), this
+    lets Bede frame that content consistently with the family's tradition
+    rather than assuming one. See core/database.py's DemoCodeFaithNote."""
     student_name: Optional[str] = Field(None, min_length=1, max_length=50)
     grade: Optional[str] = Field(None, max_length=2)
+    current_unit: Optional[str] = Field(None, max_length=200)
+    faith_tradition: Optional[str] = Field(None, max_length=60)
 
 
 class DemoCodeResponse(BaseModel):
@@ -405,6 +828,10 @@ class SessionSummaryRequest(BaseModel):
     conversation_history: List[ChatMessage]
     subjects_completed: List[Subject]
     duration_minutes: int
+    # Same value TutorRequest carries. Only meaningful when the deployment
+    # keeps no mastery profile between sessions, where the summary is the
+    # ONE moment the session's estimate is reported before being released.
+    session_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class EmailSummaryRequest(BaseModel):
@@ -447,8 +874,23 @@ class FeedbackRequest(BaseModel):
     same contract; just a distinct subject-line prefix (see
     services/email_service.py's _feedback_prefix) so it doesn't read like
     ordinary in-use feedback.
+
+    "beta_survey" is the beta period's structured instrument — a whole set
+    of questions rather than one remark — and is the ONE category with more
+    than one delivery channel: the two hosted pages on the marketing site
+    (site/survey/, site/educators/) and the in-app BetaSurveyModal all post
+    under it, deliberately, so their answers pool into a single pile in the
+    operator's inbox instead of three that have to be merged by hand. Which
+    channel a given response came from is carried in the message body's own
+    leading tag line, not in the category. The questions themselves, and
+    the rules governing what a survey here may and may not ask (never rate
+    a child, never ask about a child's faith), live in docs/BETA_SURVEY.md,
+    which is the source of truth all three channels are checked against.
     """
-    category: Literal["cx", "ux", "content_quality", "plans", "other", "beta_close", "onboarding"]
+    category: Literal[
+        "cx", "ux", "content_quality", "plans", "other",
+        "beta_close", "onboarding", "beta_survey",
+    ]
     message: str = Field(..., min_length=1, max_length=2000)
     rating: Optional[int] = Field(None, ge=1, le=5)
     contact_email: Optional[EmailStr] = None
@@ -560,14 +1002,85 @@ class UsageSummary(BaseModel):
     estimated_cost_usd:   float
     by_model:             List[ModelUsage]
 
-class RecordSkillEvidenceInput(BaseModel):
+class AgenticLoopStats(BaseModel):
+    """
+    Best-effort analytics for stream_tutor_response's bounded tool_result
+    loop (services/ai_service.py's _MAX_TOOL_LOOP_ROUNDS) — how often a
+    turn actually takes more than one model round-trip, and the added
+    latency/cost that implies. See core/api_usage.py's get_loop_stats for
+    how "which rows belong to one turn" is approximated (a timestamp-gap
+    heuristic, not an exact stored value) — every field here inherits
+    that same approximation, which is why this is a trend view, not a
+    bill or an audit record.
+    """
+    window_days:                    int
+    turns_analyzed:                 int
+    multi_round_turns:              int
+    multi_round_pct:                float
+    avg_rounds_per_turn:            float
+    max_rounds_seen:                int
+    round_distribution:             Dict[int, int]
+    avg_added_latency_seconds:      float
+    max_added_latency_seconds:      float
+    extra_round_estimated_cost_usd: float
+
+
+# How a completed piece of work is scored. Three dimensions, all optional
+# and all about the WORK PRODUCT rather than about the child — that
+# distinction is the whole design (see services/diagnostic/activity.py).
+# Scoring what a student produced is ordinary assessment; scoring what a
+# student IS would be a claim this app has no standing to make.
+#
+# Every scale's floor is a real, respectable outcome. There is no "poor"
+# quality and no "slow" pace, because an attempt that failed is never
+# logged as completed work in the first place, and because a child who
+# works deliberately is not thereby working worse.
+WORK_QUALITY_LEVELS = ("adequate", "proficient", "exemplary")
+
+# Did this piece of work go beyond the task as set? This is the dimension
+# that actually surfaces initiative — a student who answered the question
+# and one who answered it and then asked a better one have produced
+# different work, and only this field can tell them apart.
+WORK_DISTINCTION_LEVELS = ("expected", "noteworthy", "original")
+
+# Observed pace. Deliberately non-pejorative at both ends: "deliberate" is
+# a description, not a deficiency, and a child is never shown any of this.
+WORK_SPEED_LEVELS = ("deliberate", "steady", "brisk")
+
+
+class WorkScoreFields(BaseModel):
+    """
+    The three optional scoring dimensions shared by every silent evidence
+    tool. Optional throughout: Bede fills them when it genuinely observed
+    enough to judge, and omits them otherwise. A missing score is honest;
+    an invented one is not.
+    """
+    quality:     Optional[Literal["adequate", "proficient", "exemplary"]] = None
+    distinction: Optional[Literal["expected", "noteworthy", "original"]] = None
+    speed:       Optional[Literal["deliberate", "steady", "brisk"]] = None
+
+
+class RecordSkillEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_skill_evidence tool's
     input (Phase 3). Never leaves the server; not part of any response body."""
     probe_id:   str = Field(..., max_length=80)
     outcome:    Literal["correct", "partial", "incorrect", "hint_dependent"]
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
-class RecordPhonicsEvidenceInput(BaseModel):
+class RecordLiteracyEvidenceInput(WorkScoreFields):
+    """Server-side validation of the silent record_literacy_evidence tool's
+    input — see services/diagnostic/literacy.py (reading and spelling,
+    grades 3-8). Never leaves the server; not part of any response body.
+    `domain` isn't validated against literacy.DOMAINS here for the same
+    reason RecordPhonicsEvidenceInput doesn't: a Literal would require
+    importing the diagnostic package into the schema module, and
+    literacy.apply_evidence already degrades an unrecognized domain to a
+    true no-op, so a hallucinated value is harmless — just unpersisted."""
+    domain:  str = Field(..., max_length=60)
+    outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+
+class RecordPhonicsEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_phonics_evidence tool's
     input — see services/diagnostic/phonics.py. Never leaves the server;
     not part of any response body. domain isn't validated against
@@ -577,3 +1090,13 @@ class RecordPhonicsEvidenceInput(BaseModel):
     so a hallucinated value is harmless, just unpersisted."""
     domain:  str = Field(..., max_length=40)
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+class RecordLanguageEvidenceInput(WorkScoreFields):
+    """Server-side validation of the silent record_language_evidence tool's
+    input — see services/diagnostic/language_exposure.py. Never leaves the
+    server; not part of any response body. language isn't validated against
+    language_exposure.LANGUAGES here, same reasoning as
+    RecordPhonicsEvidenceInput's domain field above: apply_evidence already
+    degrades an unrecognized language to a true no-op."""
+    language: str = Field(..., max_length=40)
+    outcome:  Literal["correct", "partial", "incorrect", "hint_dependent"]

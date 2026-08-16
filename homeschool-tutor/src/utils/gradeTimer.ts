@@ -49,6 +49,42 @@ export function effectiveSessionCap(configured: number | null | undefined): numb
   return Math.min(MAX_SESSION_CAP_MINUTES, Math.max(MIN_SESSION_CAP_MINUTES, configured ?? DEFAULT_SESSION_CAP_MINUTES))
 }
 
+// ── Intent vs. capacity ──────────────────────────────────────────────────
+//
+// The session cap is WALL-CLOCK time, but a parent picking subjects is
+// budgeting INSTRUCTION time, and the mandatory 60/10 rhythm means those
+// two numbers are never the same. A 120-minute cap holds 110 minutes of
+// instruction, not 120; a 185-minute plan needs a 215-minute cap, not 185.
+//
+// Before these helpers that arithmetic existed nowhere: ParentSetup showed
+// a subject-minutes total and a cap field side by side with nothing
+// reconciling them, so the default "Full Daily Plan" quietly scheduled 185
+// minutes of subjects into a 120-minute cap and the timer simply hard-stopped
+// wherever the child happened to be. For a mastery-based outcome the intent
+// and the capacity have to be stated, and equal, on purpose.
+
+/** How many minutes of actual instruction fit inside a wall-clock cap,
+ *  after the mandatory break each hour. */
+export function studyMinutesWithinCap(capMinutes: number): number {
+  const cap = effectiveSessionCap(capMinutes)
+  const cycle = SESSION_STUDY_MINUTES + SESSION_BREAK_MINUTES
+  const wholeCycles = Math.floor(cap / cycle)
+  const remainder = cap % cycle
+  return wholeCycles * SESSION_STUDY_MINUTES + Math.min(remainder, SESSION_STUDY_MINUTES)
+}
+
+/** The wall-clock cap required to actually deliver this much instruction —
+ *  the exact inverse of studyMinutesWithinCap. Used to derive each preset's
+ *  cap from its own subject list, so the two can never drift apart again. */
+export function capForStudyMinutes(studyMinutes: number): number {
+  if (studyMinutes <= 0) return MIN_SESSION_CAP_MINUTES
+  const breaks = Math.floor((studyMinutes - 1) / SESSION_STUDY_MINUTES)
+  return Math.min(
+    MAX_SESSION_CAP_MINUTES,
+    Math.max(MIN_SESSION_CAP_MINUTES, studyMinutes + breaks * SESSION_BREAK_MINUTES),
+  )
+}
+
 export interface TimerConfig {
   blockMinutes: number
   breakMinutes: number
@@ -69,6 +105,48 @@ export function getTimerConfig(grade: string, sessionCapMinutes?: number | null)
         isYounger: false,
         totalCapMinutes: effectiveSessionCap(sessionCapMinutes),
       }
+}
+
+// ── Suggested breaks for K-3 ─────────────────────────────────────────────
+//
+// A younger child's attention is shorter, but it is not uniformly shorter:
+// some 6-year-olds genuinely settle into 40 minutes, and stopping them dead
+// at 20 wastes the best stretch of their morning. So the 20-minute rhythm is
+// OFFERED rather than imposed — a dismissible suggestion at the 20- and
+// 40-minute marks of each study block, which the child (or the parent beside
+// them) can wave off with one tap.
+//
+// The 60-minute break stays mandatory for every grade, exactly as before.
+// Nothing here can extend a study block past an hour, raise the session cap,
+// or dismiss a mandatory break; suggestions live strictly INSIDE the hour
+// that the mandatory rhythm already governs.
+export const SUGGESTED_BREAK_INTERVAL_MINUTES = 20
+
+export interface SuggestedBreak {
+  /** 1 = the 20-minute mark, 2 = the 40-minute mark. */
+  mark: number
+  /** Stable identity for "this one has already been waved off". Includes the
+   *  cycle index so each hour's marks are independent — waving off the 20-
+   *  minute suggestion before the first mandatory break must not silently
+   *  wave off the one in the hour after it. */
+  key: string
+}
+
+/**
+ * The suggestion (if any) owed at this moment. Pure — takes the session's
+ * own PhaseInfo so it can never disagree with the mandatory rhythm it sits
+ * inside.
+ *
+ * Returns null for grades 4-8 (their pacing IS the 60/10 cycle), during any
+ * mandatory break or once concluded, and for the first 20 minutes of each
+ * study block.
+ */
+export function getSuggestedBreak(phase: PhaseInfo, isYounger: boolean): SuggestedBreak | null {
+  if (!isYounger || phase.phase !== 'study') return null
+  const studyElapsedSecs = SESSION_STUDY_MINUTES * 60 - phase.remainingSecs
+  const mark = Math.floor(studyElapsedSecs / (SUGGESTED_BREAK_INTERVAL_MINUTES * 60))
+  if (mark < 1) return null
+  return { mark, key: `${phase.cycleIndex}:${mark}` }
 }
 
 export type Phase = 'study' | 'break' | 'concluded'

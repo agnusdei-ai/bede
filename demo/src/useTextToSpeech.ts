@@ -1,12 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { speakViaBackend } from './api'
 import { logDebug } from './debugBus'
+import i18n from './i18n'
 
 // Tries the backend's OpenAI TTS voice first (same one production uses) —
 // both demo tiers always supply a real token, since both are
-// backend-mediated. Falls back to browser speech if the backend request
-// fails or isn't configured. Bede's persona is historically male — voice
-// selection prefers a male voice, never gender-ambiguous or female.
+// backend-mediated. Falls back to browser speech ONLY when TTS is
+// genuinely unconfigured on this deployment — a reasonable zero-config
+// default in that case. Real Bede audio that was fetched but blocked from
+// playing by the browser's own autoplay policy deliberately does NOT fall
+// back: a real report showed a browser that kept blocking audio.play()
+// swapping to the jarring, robotic browser default voice on every single
+// turn for the whole session — worse than staying silent for that one
+// line while armAutoReUnlock (below) self-heals the block on the next
+// real tap. Bede's persona is historically male — voice selection prefers
+// a male voice, never gender-ambiguous or female.
 
 // Confirmed-female voices that carry no gender word in their name at all
 // — the exact case priority 4 below ("not explicitly labeled female") was
@@ -68,27 +76,56 @@ const KNOWN_MALE_VOICE_NAMES = new Set([
   'Google US English Male',
 ])
 
-export function pickBestVoice(): SpeechSynthesisVoice | null {
+// Spanish TTS engines almost never put "male"/"female" in a voice name, so
+// the substring heuristics above find nothing to work with. These are exact
+// names shipped by common engines for Spanish male voices — the same
+// approach KNOWN_MALE_VOICE_NAMES takes for English, kept deliberately
+// short and conservative rather than guessing at every OEM's catalogue.
+const KNOWN_SPANISH_MALE_VOICE_NAMES = new Set([
+  'Jorge', 'Diego', 'Juan', 'Carlos', 'Javier',
+  'Microsoft Pablo - Spanish (Spain)',
+  'Microsoft Raul - Spanish (Mexico)',
+  'Microsoft Jorge - Spanish (Spain)',
+  'Google español',
+  'Google español de Estados Unidos',
+])
+
+/**
+ * Pick Bede's browser-fallback voice for a given language.
+ *
+ * `langPrefix` was previously hardcoded to English throughout, which meant a
+ * Spanish session fell back to an English voice reading Spanish text —
+ * audibly wrong, and the reason this takes a parameter now. Pass the
+ * session's own locale (i18n.language), not the device's.
+ */
+export function pickBestVoice(langPrefix = 'en'): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
+  const inLang = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().startsWith(langPrefix)
   const priorities = [
-    (v: SpeechSynthesisVoice) => KNOWN_MALE_VOICE_NAMES.has(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'en' && KNOWN_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'es' && KNOWN_SPANISH_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'en' && v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => inLang(v) && isMaleVoiceName(v.name),
     // Many Android/OEM TTS engines (Samsung's included) expose English
     // voices with no gender word in the name at all — nothing above can
     // match those. Rather than falling straight through to "just take the
     // first English voice" (which might be the one explicitly labeled
     // female), prefer any voice that ISN'T explicitly female first — an
     // unlabeled voice is a better bet than a confirmed-wrong one.
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && !isFemaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en'),
+    (v: SpeechSynthesisVoice) => inLang(v) && !isFemaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => inLang(v),
   ]
   for (const check of priorities) {
     const match = voices.find(check)
     if (match) return match
   }
-  return voices[0] ?? null
+  // English keeps its old last-resort "any voice at all" — that behaviour is
+  // long-standing and safe for English text. For any other language a
+  // wrong-language voice is worse than none: returning null leaves
+  // utterance.voice unset, so the engine picks from utterance.lang itself
+  // rather than reading Spanish aloud in an English voice.
+  return langPrefix === 'en' ? (voices[0] ?? null) : null
 }
 
 // Chrome — especially on Android — returns an EMPTY array from getVoices()
@@ -141,8 +178,8 @@ function waitForVoicesReady(): Promise<void> {
   return voicesReadyPromise
 }
 
-export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
-  return waitForVoicesReady().then(() => pickBestVoice())
+export function resolveVoice(langPrefix = 'en'): Promise<SpeechSynthesisVoice | null> {
+  return waitForVoicesReady().then(() => pickBestVoice(langPrefix))
 }
 
 // One <audio> element, reused for every turn's backend TTS playback rather
@@ -154,10 +191,54 @@ export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
 // element that was blessed by a real play() at login is the standard
 // mitigation for that class of platform quirk (desktop Chrome and iOS
 // Safari don't need it, but reusing one element costs nothing there either).
+// Short preview of a line for the debug overlay's ring buffer — enough to
+// tell two utterances apart, or to spot the SAME one spoken twice, without
+// flooding the buffer. Bede's own generated speech, never the child's input.
+function ttsPreview(text: string): string {
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > 42 ? `${flat.slice(0, 42)}…` : flat
+}
+
 let sharedAudioEl: HTMLAudioElement | null = null
 function getSharedAudioElement(): HTMLAudioElement {
   if (!sharedAudioEl) sharedAudioEl = new Audio()
   return sharedAudioEl
+}
+
+const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+
+// Real report: the login-time unlockSpeechForSession() call below is
+// supposed to permanently bless sharedAudioEl for the rest of the tab
+// (once ANY play() succeeds on an element, later programmatic play()
+// calls on that SAME element are allowed indefinitely, gesture or not —
+// the whole reason a shared singleton element exists at all). In
+// practice a family reported audio.play() being rejected as
+// autoplay-blocked on EVERY subsequent turn, not just an occasional one —
+// meaning the initial unlock itself wasn't taking, or wasn't durable,
+// on their device/browser. Rather than staying permanently blocked for
+// the rest of the session once that happens, arm a one-shot retry that
+// re-primes the same element on the very next genuine user gesture
+// anywhere on the page (a subject switch, a mic tap, anything) — cheap
+// and self-healing, instead of requiring a full reload to recover.
+let reUnlockArmed = false
+function armAutoReUnlock() {
+  if (reUnlockArmed) return
+  reUnlockArmed = true
+  const retry = () => {
+    document.removeEventListener('pointerdown', retry, true)
+    reUnlockArmed = false
+    try {
+      const audio = getSharedAudioElement()
+      const wasPlaying = !audio.paused
+      if (wasPlaying) return // don't stomp audio that's actually mid-playback right now
+      audio.src = SILENT_WAV_DATA_URI
+      audio.volume = 0
+      audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
+    } catch {
+      // best-effort — this is a background recovery attempt, never worth surfacing
+    }
+  }
+  document.addEventListener('pointerdown', retry, true)
 }
 
 /**
@@ -184,7 +265,7 @@ export function unlockSpeechForSession() {
   }
   try {
     const audio = getSharedAudioElement()
-    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.src = SILENT_WAV_DATA_URI
     audio.volume = 0
     audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
   } catch {
@@ -229,14 +310,26 @@ export function useTextToSpeech(speakToken: string | null = null) {
     audioRef.current = audio
     let played = false
     await new Promise<void>((resolve) => {
-      audio.onended = () => resolve()
-      audio.onerror = () => resolve()
+      audio.onended = () => {
+        logDebug(`TTS backend playback ENDED gen=${myGeneration}`)
+        resolve()
+      }
+      audio.onerror = () => {
+        logDebug(`TTS backend playback ERROR gen=${myGeneration}`)
+        resolve()
+      }
       audio.src = url
       audio.play()
-        .then(() => { played = true })
+        // Two STARTs with no ENDED between them means two clips overlapping
+        // on the shared element — a doubled/"reverby" Bede.
+        .then(() => { played = true; logDebug(`TTS backend playback STARTED gen=${myGeneration}`) })
         .catch((err) => {
-          // autoplay-blocked or decode error — playback never started
+          // autoplay-blocked or decode error — playback never started.
+          // Arm a self-healing retry for the next real tap rather than
+          // staying silently blocked for the rest of the session — see
+          // armAutoReUnlock's own comment.
           logDebug(`backend TTS audio.play() rejected: ${err instanceof Error ? err.message : String(err)}`)
+          armAutoReUnlock()
           resolve()
         })
     })
@@ -248,9 +341,19 @@ export function useTextToSpeech(speakToken: string | null = null) {
   const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return }
-      resolveVoice().then((voice) => {
+      // The session's locale, not the device's — same rule the speech
+      // recognition language already follows (see SocraticChat/App).
+      const langPrefix = i18n.language === 'es' ? 'es' : 'en'
+      resolveVoice(langPrefix).then((voice) => {
         if (generationRef.current !== myGeneration) { resolve(); return }
+        // A STARTED here while a backend clip is still playing is the
+        // two-different-voices-at-once case, directly.
+        logDebug(`TTS browser fallback STARTED gen=${myGeneration} voice=${voice?.name ?? 'default'}`)
         const utterance = new SpeechSynthesisUtterance(text)
+        // Always set, even when no voice matched: it is what lets the
+        // engine choose a Spanish voice of its own rather than reading
+        // Spanish text with whatever default it would otherwise use.
+        utterance.lang = langPrefix === 'es' ? 'es-MX' : 'en-GB'
         if (voice) utterance.voice = voice
         utterance.rate = 0.88
         utterance.pitch = 0.92
@@ -281,6 +384,7 @@ export function useTextToSpeech(speakToken: string | null = null) {
       audioRef.current = null
     }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    logDebug(`TTS stop() gen=${generationRef.current}`)
     setIsSpeaking(false)
   }, [])
 
@@ -292,20 +396,32 @@ export function useTextToSpeech(speakToken: string | null = null) {
     if (!clean) return
     generationRef.current += 1
     const myGeneration = generationRef.current
+    // First thing to check for any "Bede said it twice" report: this line
+    // appearing twice for one turn means the duplication is upstream in the
+    // turn-stream consumer, not in playback below.
+    logDebug(`TTS speak() gen=${myGeneration} text="${ttsPreview(clean)}"`)
     setIsSpeaking(true)
     const { spoke, configured, fetchedAudio } = await playBackendVoice(clean, myGeneration)
-    // Two distinct failure classes get different treatment:
-    //  - the backend request itself failed (network hiccup, nothing
-    //    configured) — stay silent for this one line rather than jarringly
-    //    switching to a different, lower-quality voice mid-conversation.
-    //  - real audio bytes came back but this browser refused to play them
-    //    (confirmed on a Samsung Android tablet: Chrome can silently block
-    //    audio.play() outside a fresh gesture) — that has nothing to do
-    //    with backend configuration, so browser speech is strictly better
-    //    than the total silence this used to produce.
-    if (!spoke && (fetchedAudio || !configured) && generationRef.current === myGeneration) {
-      logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
-      await speakViaBrowser(clean, myGeneration)
+    // Bede's voice has no fallback to the browser's own default voice when
+    // real audio bytes actually came back — real report: on a browser that
+    // keeps blocking audio.play() (autoplay policy), that fallback meant
+    // every single turn audibly swapped to a jarring, robotic-sounding
+    // default voice, over and over, for the whole session — worse than the
+    // rare total silence it was meant to avoid. fetchedAudio true means
+    // Bede's real voice line exists and was simply blocked from playing
+    // this once; armAutoReUnlock (called from playBackendVoice's own
+    // play() rejection handler above) is the actual fix for THAT —
+    // self-healing on the next real tap, not swapping voices. The one case
+    // that still falls back is the genuinely different one: TTS was never
+    // configured at all, where the browser's own voice is a reasonable
+    // zero-config default rather than a mid-session bait-and-switch.
+    if (generationRef.current === myGeneration) {
+      if (!spoke && !configured) {
+        logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
+        await speakViaBrowser(clean, myGeneration)
+      } else if (!spoke && fetchedAudio) {
+        logDebug(`TTS blocked but configured — staying silent for this line rather than falling back: fetchedAudio=${fetchedAudio}`)
+      }
     }
     if (generationRef.current === myGeneration) setIsSpeaking(false)
   }, [playBackendVoice, speakViaBrowser])

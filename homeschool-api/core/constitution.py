@@ -2,7 +2,10 @@
 Bede's Constitution — the immutable, tamper-evident foundational layer
 governing Bede's persona, ethics, and limits (Faith/Hope/Love, the seven
 gifts of the Holy Spirit, the three dimensions of human formation, the
-non-negotiable rules). See docs/CONSTITUTION.md for the human-readable
+moral law — the Ten Commandments and Christ's two great commandments,
+scoped to Bede's OWN conduct rather than content it teaches or a basis to
+judge a child's or family's beliefs — and the non-negotiable rules). See
+docs/CONSTITUTION.md for the human-readable
 version and constitution/bede.constitution.json for the canonical,
 digest-pinned source this module verifies.
 
@@ -37,7 +40,7 @@ _CONSTITUTION_PATH = Path(__file__).resolve().parent.parent / "constitution" / "
 # never hand-edited just to make verification pass. Any change here must
 # ship in the same reviewed commit as the (permitted) file change that
 # produced it, per docs/CONSTITUTION.md's "Change control" section.
-_PINNED_SHA256 = "c60c1bb94d7e68e9827b723c23f6e9d97e457a3814074a003da23fae32a3f1e2"
+_PINNED_SHA256 = "69589cbc17164937c8edb5ca9325f4643a6ef0f6eebe02c99fa36c8fc156d116"
 
 _REQUIRED_VIRTUE_NAMES = ("Faith", "Hope", "Love")
 _REQUIRED_GIFT_NAMES = (
@@ -45,6 +48,8 @@ _REQUIRED_GIFT_NAMES = (
 )
 _REQUIRED_FORMATION_NAMES = ("Comprehension", "Compassion", "Conscience")
 _REQUIRED_LOOP_STEPS = 10
+_REQUIRED_COMMANDMENT_COUNT = 10
+_REQUIRED_GREAT_COMMANDMENT_COUNT = 2
 
 
 class ConstitutionIntegrityError(RuntimeError):
@@ -120,6 +125,23 @@ def _validate_structure(data: dict) -> None:
 
     if "required_change_control" not in data.get("amendment_policy", {}):
         raise ConstitutionIntegrityError("amendment_policy.required_change_control is missing")
+
+    moral_law = data.get("moral_law", {})
+    commandments = moral_law.get("commandments", [])
+    if len(commandments) != _REQUIRED_COMMANDMENT_COUNT:
+        raise ConstitutionIntegrityError(
+            f"moral_law.commandments must be exactly {_REQUIRED_COMMANDMENT_COUNT} entries, got {len(commandments)}"
+        )
+    great_commandments = moral_law.get("great_commandments", [])
+    if len(great_commandments) != _REQUIRED_GREAT_COMMANDMENT_COUNT:
+        raise ConstitutionIntegrityError(
+            f"moral_law.great_commandments must be exactly {_REQUIRED_GREAT_COMMANDMENT_COUNT} entries, "
+            f"got {len(great_commandments)}"
+        )
+    if "spiritual advisor" not in moral_law.get("function", "") and "priest" not in moral_law.get("function", ""):
+        raise ConstitutionIntegrityError(
+            "moral_law.function is missing the limit that Bede is not a spiritual advisor/priest substitute"
+        )
 
 
 def _load_and_verify(path: Path = _CONSTITUTION_PATH, expected_digest: str = _PINNED_SHA256) -> Any:

@@ -72,6 +72,20 @@ interface SessionState {
   subjectStart: number
   displayMessages: DisplayMessage[]
   isStreaming: boolean
+  // Bede speaking aloud, or the mic capturing/transcribing. Lives in the
+  // store only so AppShell — which sits above the router and cannot see
+  // SocraticChat's local state — can tell "listening to a passage" apart
+  // from "abandoned tab" when deciding whether to log the session out.
+  // See utils/idleTimeout.ts.
+  voiceActive: boolean
+  // Identifies this sitting for the duration of the session. Only used
+  // when the deployment keeps no mastery profile between sessions, where
+  // it keys the in-memory estimate — see the backend's
+  // services/diagnostic_session.py for why the key must be the session
+  // rather than the student. Deliberately NOT in `partialize` below: a
+  // reload starts a new session, and a new session should start from a
+  // fresh estimate rather than resurrecting the old one.
+  sessionId: string | null
   sessionStartedAt: Date | null
   subjectStartedAt: Date | null
   subjectsCompleted: Subject[]
@@ -96,10 +110,20 @@ interface SessionState {
   nextSubject: () => void
   endSession: () => void
   setStreaming: (v: boolean) => void
+  setVoiceActive: (v: boolean) => void
 }
 
 let msgIdCounter = 0
 const nextId = () => `msg-${++msgIdCounter}`
+
+/** Opaque, per-sitting. randomUUID needs a secure context, which every
+ *  real deployment has (Caddy terminates TLS) — the fallback keeps a
+ *  plain-HTTP LAN test from crashing rather than being a security
+ *  property, since this value identifies a session and nothing else. */
+const newSessionId = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
 /**
  * Derive API-format ChatMessage[] from a displayMessages slice. Excludes
@@ -155,6 +179,7 @@ export const useSessionStore = create<SessionState>()(
       podStudents: [],
       displayMessages: [],
       subjectStart: 0,
+      sessionId: null,
       sessionStartedAt: null,
       subjectStartedAt: null,
       currentSubjectIndex: 0,
@@ -174,6 +199,8 @@ export const useSessionStore = create<SessionState>()(
   subjectStart: 0,
   displayMessages: [],
   isStreaming: false,
+  voiceActive: false,
+  sessionId: null,
   sessionStartedAt: null,
   subjectStartedAt: null,
   subjectsCompleted: [],
@@ -194,6 +221,7 @@ export const useSessionStore = create<SessionState>()(
     }
     const now = new Date()
     set({
+      sessionId: newSessionId(),
       sessionStartedAt: now,
       subjectStartedAt: now,
       timeOfDay: deriveTimeOfDay(now),
@@ -331,6 +359,7 @@ export const useSessionStore = create<SessionState>()(
   },
 
       setStreaming: (v) => set({ isStreaming: v }),
+      setVoiceActive: (v) => set({ voiceActive: v }),
     }),
     {
       name: 'agnus-dei-session',

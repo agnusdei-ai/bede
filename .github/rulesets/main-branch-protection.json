@@ -1,0 +1,83 @@
+{
+  "_comment": [
+    "Release quality gate for main. Import via GitHub → Settings → Rules →",
+    "Rulesets → New ruleset → Import a ruleset, or apply with:",
+    "  gh api -X POST /repos/agnusdei-ai/bede/rulesets --input .github/rulesets/main-branch-protection.json",
+    "",
+    "Branch protection is NOT repo-as-code on GitHub — this file is the",
+    "reviewable source of truth, but importing it is a manual admin action and",
+    "editing this file alone changes nothing. Confirm with:",
+    "  gh api /repos/agnusdei-ai/bede/rulesets",
+    "",
+    "THE POINT OF strict_required_status_checks_policy: it is 'require branches",
+    "to be up to date before merging'. Without it, two PRs that each pass CI",
+    "alone can break main together — which is exactly what happened on",
+    "2026-08-03, when #364 added an endpoint and #366 added the guard table",
+    "requiring every endpoint to have an entry. Neither PR's CI could see the",
+    "other. main went red on the merge.",
+    "",
+    "NO BYPASS ACTORS, deliberately. An earlier draft carried an",
+    "`actor_id: 5` RepositoryRole entry meant to be \"repository admin\" —",
+    "written from memory rather than checked. A wrong id there fails in the",
+    "worse direction than it looks: rather than erroring, it can grant",
+    "standing bypass to a role nobody chose, leaving a gate that reports as",
+    "enforced and is not. An empty list has no such ambiguity — the rule",
+    "applies to everyone, including the owner.",
+    "",
+    "That is also the right posture for a quality gate. An emergency merge",
+    "stays possible by disabling this ruleset, which is a visible act with",
+    "an audit trail rather than a permanent exemption nobody re-reads.",
+    "",
+    "PREREQUISITE, and it is not optional: every workflow named below must",
+    "START on every pull request. A required check that never runs leaves the",
+    "PR blocked forever on 'Expected — waiting for status to be reported', not",
+    "merged as passing. Both workflows previously carried a paths: filter on",
+    "their pull_request trigger, so a docs-only PR would have been permanently",
+    "unmergeable. They now always start and skip their heavy jobs internally —",
+    "a SKIPPED job satisfies a required check, a job that never ran does not.",
+    "Do not re-add a pull_request paths: filter to a workflow listed here."
+  ],
+  "name": "main release quality gate",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["~DEFAULT_BRANCH"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "api-tests" },
+          { "context": "demo-concurrency-test" },
+          { "context": "wizard-tests" },
+          { "context": "trust-service-tests" },
+          { "context": "homeschool-tutor-tests" },
+          { "context": "demo-tests" }
+        ]
+      }
+    }
+  ],
+  "bypass_actors": []
+}

@@ -9,8 +9,19 @@
       "subject": "living_books",
       "type": "spine",
       "difficulty": 5,
-      "terms": [1, 2, 3],
-      "concept_tags": ["french-revolution", "sacrifice", "justice", "resurrection", "social-upheaval", "redemption"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "french-revolution",
+        "sacrifice",
+        "justice",
+        "resurrection",
+        "social-upheaval",
+        "redemption"
+      ],
       "anti_twaddle": true,
       "notes": "Dickens at his most sweeping and morally serious. Pairs directly with this term's French history. 'Was Sydney Carton's sacrifice a waste, or the most meaningful thing he ever did?'"
     },
@@ -21,8 +32,16 @@
       "subject": "living_books",
       "type": "supplemental",
       "difficulty": 4,
-      "terms": [1],
-      "concept_tags": ["mystery", "reasoning", "evidence", "fear", "deduction"],
+      "terms": [
+        1
+      ],
+      "concept_tags": [
+        "mystery",
+        "reasoning",
+        "evidence",
+        "fear",
+        "deduction"
+      ],
       "anti_twaddle": true,
       "notes": "Holmes's method is entirely about evidence over assumption — good pairing for a year emphasizing evidence-based writing. 'What clue did Holmes notice that everyone else dismissed?'"
     },
@@ -33,8 +52,19 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 5,
-      "terms": [1, 2, 3],
-      "concept_tags": ["biography", "virtue", "ancient-greece", "ancient-rome", "leadership", "rhetoric"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "biography",
+        "virtue",
+        "ancient-greece",
+        "ancient-rome",
+        "leadership",
+        "rhetoric"
+      ],
       "anti_twaddle": true,
       "notes": "Continuing the long rotation. The student should now argue for or against a leader's choices with real textual evidence, not just describe them."
     },
@@ -45,8 +75,18 @@
       "subject": "history",
       "type": "spine",
       "difficulty": 5,
-      "terms": [1, 2, 3],
-      "concept_tags": ["french-revolution", "napoleon", "european-history", "revolution", "monarchy"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "french-revolution",
+        "napoleon",
+        "european-history",
+        "revolution",
+        "monarchy"
+      ],
       "anti_twaddle": true,
       "notes": "Ties directly to A Tale of Two Cities this term. 'What made the Revolution's ideals curdle into the Terror?'"
     },
@@ -57,8 +97,18 @@
       "subject": "saints",
       "type": "spine",
       "difficulty": 4,
-      "terms": [1, 2, 3],
-      "concept_tags": ["saints", "faith", "church-history", "courage", "conviction"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "saints",
+        "faith",
+        "church-history",
+        "courage",
+        "conviction"
+      ],
       "anti_twaddle": true,
       "notes": "Continuing the rotation. 'How did this person's faith hold up under real pressure to recant?'"
     },
@@ -69,8 +119,18 @@
       "subject": "science",
       "type": "spine",
       "difficulty": 4,
-      "terms": [1, 2, 3],
-      "concept_tags": ["microbiology", "scientific-method", "perseverance", "biography", "medicine"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "microbiology",
+        "scientific-method",
+        "perseverance",
+        "biography",
+        "medicine"
+      ],
       "anti_twaddle": true,
       "notes": "Pasteur's patient, repeated experiments against skepticism from the scientific establishment of his day. 'What kept Pasteur going when others dismissed his evidence?'"
     },
@@ -81,16 +141,29 @@
       "subject": "nature_study",
       "type": "reference",
       "difficulty": 2,
-      "terms": [1, 2, 3],
-      "concept_tags": ["nature-journal", "observation", "reference", "outdoor-study"],
+      "terms": [
+        1,
+        2,
+        3
+      ],
+      "concept_tags": [
+        "nature-journal",
+        "observation",
+        "reference",
+        "outdoor-study"
+      ],
       "anti_twaddle": true,
       "notes": "Continuing as a reference for whatever the student encounters outdoors."
     }
   ],
   "subject_plans": {
-    "mathematics": "Grade 7 scope (Common Core domains 7.RP, 7.NS, 7.EE, 7.G, 7.SP): proportional relationships and unit rates; operations with all rational numbers, including negative fractions and decimals; multi-step algebraic expressions and equations; scale drawings, angle relationships, circles, and surface area/volume; an introduction to probability and sampling. Mater Amabilis approach: 'is there another way to see this?' stays ahead of speed.",
     "art_music": "Composer: Pyotr Ilyich Tchaikovsky — dramatic, narrative orchestral and ballet music (the 1812 Overture ties directly to this year's Napoleonic-era history). Artist: Eugène Delacroix — Romantic, dramatic historical painting (Liberty Leading the People connects straight to the French Revolution unit). Poet: John Keats — rich, sensory Romantic-era verse, a natural pairing with Tchaikovsky and Delacroix's shared era and emotional register.",
+    "greek": "Year 7 scope (grade 7) — translation and judgment. The student renders short passages they have not seen before, using only vocabulary and forms already met, and compares their version with a printed translation; the differences are the lesson, not the errors. Aletheia is opened up by its own parts this year — a- (not) plus lethe (forgetting), truth as un-forgetting, which is also where English gets lethargy. Martyria and basileia join. The student can explain why an inflected language can order its words as English cannot. Everything in this year is the shared inheritance of all Christian traditions — the Greek New Testament, the theological virtues, and the ordinary vocabulary of the faith — so a Protestant, Catholic, or Orthodox family can teach it in full. Introduce nothing specific to one tradition here (devotion to the saints or to Mary, the sacraments, prayers for the dead, icons, a particular church's authority or structure), and take no position on which Greek manuscript tradition is correct: every text supplied reads the same in both. Send any doctrinal question that divides Christian traditions to the family's own pastor, priest, or minister. All Greek quoted must come from the verbatim block supplied in the session — never recited from memory, never composed — and always shown with its transliteration and English.",
     "language_arts": "Grade 7: sustained multi-paragraph essays are expected, and the student takes first steps into persuasive/argumentative writing that must cite evidence from the text, not just assert an opinion. Literary vocabulary expands (foreshadowing, symbolism, tone). Grammar instruction shifts toward sentence variety and style rather than rules in isolation.",
-    "morning_time": "Scripture with real theological discussion, a hymn or folk song, and Keats for poetry. Connect to the French Revolution unit when it fits, and invite a brief spoken or written response rather than passive listening."
+    "latin": "Year 7 scope (grade 7) — translation and judgment. The student translates short passages they have not seen before, using only vocabulary and forms already met, and compares their rendering with a printed translation — the differences are the lesson, not the errors. Humilitas, Testamentum, and Evangelium join the vocabulary, each opened up by its own parts (evangelium as good news; testamentum as covenant, and why a translator might choose either English word). The student can explain why an inflected language can put its words in an order English cannot. Everything in this year is the shared inheritance of all Christian traditions — the Vulgate, the theological virtues, and the ordinary vocabulary of the faith — so a family of any Christian tradition can teach it in full. Introduce nothing specific to one tradition here (devotion to the saints or to Mary, the sacraments, prayers for the dead, a particular church's authority or structure); a family that wants that has Saints & Catechism as its own subject. Send any doctrinal question that divides Christian traditions to the family's own pastor, priest, or minister. All Latin quoted must come from the verbatim block supplied in the session — never recited from memory, never composed.",
+    "logic": "Year 7 scope (grade 7) — the two great mistakes, and the first fallacies. Affirming the consequent and denying the antecedent, both worked slowly, since between them they account for most everyday bad reasoning. Then the named informal fallacies: ad hominem, straw man, false dilemma, circular reasoning. One per session, always with the student explaining what went wrong rather than just naming it — a student who can say \"straw man\" but cannot say what was misrepresented has learned a label, not a lesson. Logic serves truth and charity, never winning an argument: teach the student to test their own reasoning first and to state the strongest version of the other side fairly before criticizing it. Never coach a child in arguing against their own parents' instructions or authority — a disagreement at home belongs to the family, not to a logic lesson. Do not rule on political, moral, or religious questions however logically they are framed; teach the form with neutral examples and send the substance to the student's own parents and their own pastor, priest, or minister. Declining to rule is not the same as calling the matter unsettled: say that it belongs to their family and their church, which teach something definite about it, rather than that thoughtful people disagree. On a political question reasonable people genuinely do differ and you may say so; on a moral or religious one do not characterize the landscape at all, because presenting a settled conviction of theirs as a live dispute takes a side while appearing not to. Work only from the arguments supplied in the session — never invent a syllogism or a fallacy example, since an invalid argument can look perfectly sound and the student cannot yet catch that.",
+    "mathematics": "Grade 7 scope — pre-algebra completed, Algebra I begun: proportional relationships, unit rates, scale drawings and similar figures; operations with all rational numbers; the laws of integer exponents; multi-step equations, equations with variables on both sides, and rearranging a formula to solve for a chosen variable; solving and graphing linear inequalities; factoring linear expressions; angle relationships and surface area; probability, including compound events. Deliberately ahead of a conventional grade-7 scope: a preparatory-school student finishes Algebra I in grade 8, which means the algebra has to start here. Mater Amabilis approach: 'is there another way to see this?' stays ahead of speed.",
+    "morning_time": "Scripture with real theological discussion, a hymn or folk song, and Keats for poetry. Connect to the French Revolution unit when it fits, and invite a brief spoken or written response rather than passive listening.",
+    "scripture": "Year 7 scope — the early Church and the letters: Pentecost; the first community in Acts; Stephen; the conversion of Saul; the missionary journeys; the Jerusalem council; Paul's imprisonment and voyage to Rome. Romans and 1 Corinthians read for their argument, not verse by verse; James on faith and works; Hebrews on Christ as high priest. Charlotte Mason approach: ask what problem a letter is answering before asking what it teaches — the occasion explains the argument. Canon and translation are the family's own: follow whatever Bible they are reading and never assert that one tradition's canon, chapter ordering, or translation is the correct one. Teach the narrative and the moral law the text plainly states; leave denomination-specific doctrine — sacramental theology, church governance, a particular catechism's structure — to the family's own pastor, priest, or minister."
   }
 }

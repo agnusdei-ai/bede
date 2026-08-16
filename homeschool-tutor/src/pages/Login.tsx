@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
 import { Globe, Lock, User, Star, Mic } from 'lucide-react'
 import { login, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
@@ -10,6 +10,8 @@ import ParentMfaVerification from '../components/ParentMfaVerification'
 import AccountRecovery from '../components/AccountRecovery'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
 import type { VerifyResult } from '../services/voiceApi'
+import { safeReturnTo } from '../utils/safeRedirect'
+import { LOGOUT_NOTICE_KEYS, takeLogoutNotice, type LogoutReason } from '../utils/logoutNotice'
 
 type Phase = 'login' | 'voice-verify' | 'parent-mfa' | 'account-recovery'
 
@@ -38,6 +40,18 @@ export default function Login() {
     fetchAvailableLocales().then(setAvailableLocales)
   }, [])
 
+  // Consumed in an effect rather than a useState initializer on purpose:
+  // StrictMode double-invokes render (and therefore lazy initializers) in
+  // development, which would take the notice on the first pass and get null
+  // on the second — the message would vanish in dev and work in production,
+  // the worst way for this to be wrong. An effect double-runs too, but the
+  // `if (reason)` guard makes the second run a no-op instead of a clear.
+  const [logoutNotice, setLogoutNotice] = useState<LogoutReason | null>(null)
+  useEffect(() => {
+    const reason = takeLogoutNotice()
+    if (reason) setLogoutNotice(reason)
+  }, [])
+
   const chooseLocale = (code: string) => {
     setSelectedLocale(code)
     i18n.changeLanguage(code)
@@ -46,14 +60,30 @@ export default function Login() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  // ?returnTo=/session?student=emma — preserved through the auth redirect
+  // ?returnTo=/session?student=emma — preserved through the auth redirect.
+  //
+  // NEVER navigate to this raw. It is an attacker-controllable query
+  // parameter on the public login URL, and every navigate() below fires
+  // AFTER setAuth() — an unvalidated value hands a just-authenticated
+  // parent or child to an off-site page at the moment they are most
+  // primed to trust it. safeReturnTo() enforces "single in-app absolute
+  // path or use the fallback"; see utils/safeRedirect.ts for the full
+  // reasoning and the react-router advisory class it does not rely on the
+  // router to have fixed.
   const returnTo = searchParams.get('returnTo') ?? ''
 
-  // Extract student name from the returnTo URL if present
+  // Resolved once, here, so no call site can accidentally reintroduce a
+  // raw decodeURIComponent(returnTo). Both roles' fallbacks are applied
+  // at the call sites below, which know which one they want.
+  const parentTarget = safeReturnTo(returnTo, '/setup')
+  const childTarget = safeReturnTo(returnTo, '/session')
+
+  // Extract student name from the returnTo URL if present. Read off the
+  // VALIDATED path rather than the raw parameter — a value we refused to
+  // navigate to has no business seeding a student lookup either.
   const studentFromUrl = (() => {
-    if (!returnTo) return ''
     try {
-      const inner = new URLSearchParams(decodeURIComponent(returnTo).split('?')[1] ?? '')
+      const inner = new URLSearchParams(childTarget.split('?')[1] ?? '')
       return inner.get('student') ?? ''
     } catch {
       return ''
@@ -84,7 +114,7 @@ export default function Login() {
           return
         }
         setAuth(result.accessToken, 'parent', selectedLocale)
-        navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
+        navigate(parentTarget)
         return
       }
 
@@ -97,7 +127,7 @@ export default function Login() {
           if (config.voice_required === false) {
             // Mute student or accessibility mode — skip voice check entirely
             setAuth(token, 'child')
-            navigate(decodeURIComponent(returnTo))
+            navigate(childTarget)
             return
           }
         } catch {
@@ -116,12 +146,12 @@ export default function Login() {
 
   const handleVoiceVerified = (_result: VerifyResult) => {
     setAuth(pendingToken, 'child', selectedLocale)
-    navigate(returnTo ? decodeURIComponent(returnTo) : '/session')
+    navigate(childTarget)
   }
 
   const handleMfaVerified = (result: LoginResult) => {
     setAuth(result.accessToken, 'parent', selectedLocale)
-    navigate(returnTo ? decodeURIComponent(returnTo) : '/setup')
+    navigate(parentTarget)
   }
 
   if (phase === 'parent-mfa') {
@@ -140,7 +170,7 @@ export default function Login() {
 
   if (phase === 'voice-verify') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100">
+      <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100">
         <VoiceVerification
           studentName={knownStudentName || 'Student'}
           token={pendingToken}
@@ -164,7 +194,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -219,6 +249,20 @@ export default function Login() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Why you're looking at this screen, when nobody asked to be.
+            Placed ABOVE the form and styled amber rather than red: it's an
+            explanation of something already finished, not a complaint about
+            the credential they haven't typed yet. The red box further down
+            is for that, and the two must never be mistaken for each other. */}
+        {logoutNotice && (
+          <div
+            role="status"
+            className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5"
+          >
+            {t(LOGOUT_NOTICE_KEYS[logoutNotice])}
           </div>
         )}
 

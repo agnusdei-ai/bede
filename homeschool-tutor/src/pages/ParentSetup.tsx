@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
-import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle, BookMarked, X } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode } from '../types'
-import { SUBJECTS, CORE_AREAS } from '../types'
+import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
+import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS, CHARACTER_VIRTUE_SUGGESTIONS, LEARNING_SUPPORT_SUGGESTIONS } from '../types'
+import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
+import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
+import DeviceSettings from '../components/DeviceSettings'
 import LicenseSettings from '../components/LicenseSettings'
 import AIProviderSettings from '../components/AIProviderSettings'
+import AgenticLoopInsights from '../components/AgenticLoopInsights'
 import { listVoiceProfiles } from '../services/voiceApi'
-import { fetchSystemStatus, isFeedbackEnabled, savePodConfigs, type SystemStatus } from '../services/api'
+import { fetchSystemStatus, isFeedbackEnabled, listPodConfigs, savePodConfigs, type SystemStatus } from '../services/api'
 import BetaIntakeModal from '../components/BetaIntakeModal'
 
 // label is a numeric grade range, not a translated word — same across
@@ -22,6 +26,48 @@ const GRADE_STAGES: Array<{ label: string; value: GradeStage; descriptionKey: st
   { label: '6–8', value: '6-8', descriptionKey: 'parentSetup.stageDescRhetoric', emoji: '🎓' },
 ]
 
+// One "pick up where we left off" row in the form. `subject` is '' until the
+// parent picks one, and the picker only ever offers subjects already
+// selected for this student — a resume note can never introduce a topic
+// outside what Bede teaches (the backend enforces the same thing; see
+// models/schemas.py's SessionConfig._validate_lesson_resume).
+interface ResumeForm {
+  subject: Subject | ''
+  stopped_at: string
+  next_step: string
+  sticking_point: string
+  recorded_on: string
+}
+
+const blankResume = (): ResumeForm => ({
+  subject: '',
+  stopped_at: '',
+  next_step: '',
+  sticking_point: '',
+  recorded_on: '',
+})
+
+// Subjects a family opts INTO, never receives by default. Everything else
+// is the Mater Amabilis core rotation that "Full Daily Plan" has always
+// meant. The classical languages and Logic are real electives most
+// families won't run: auto-selecting them would silently add 35 minutes to
+// every new student's day and put Latin in front of a family that never
+// asked for it, which is the opposite of the opt-in promise those subjects
+// are documented with. `free_study` was already excluded for its own
+// reasons and keeps that behavior.
+const ELECTIVE_SUBJECTS: Subject[] = ['latin', 'greek', 'logic', 'free_study']
+const DEFAULT_SUBJECTS: Subject[] = SUBJECTS
+  .filter((s) => !ELECTIVE_SUBJECTS.includes(s.id))
+  .map((s) => s.id)
+
+// Logic is the app's only stage-gated subject: formal reasoning before the
+// Logic stage is the premature abstraction classical education warns
+// against, so a K-2 student is never offered the card. The backend drops
+// it independently (SessionConfig._validate_logic_stage) — this is the
+// UI's half of that gate, not the whole of it.
+const subjectsForStage = (stage: GradeStage) =>
+  SUBJECTS.filter((s) => s.id !== 'logic' || stage !== 'K-2')
+
 // A "start here" preset, not a lock — picking one fills in selected_subjects
 // and session_cap_minutes as sensible defaults; both remain freely editable
 // afterward via their own controls below. Meets a family where they are:
@@ -32,6 +78,10 @@ const GRADE_STAGES: Array<{ label: string; value: GradeStage; descriptionKey: st
 // See models/schemas.py's CompanionMode for the backend-side rationale —
 // full_plan also changes nothing about Bede's own tutoring prompt; the
 // other two lightly reframe it (services/ai_service.py's _companion_mode_note).
+// Minutes of instruction a subject list actually asks for.
+const studyMinutesFor = (subjects: Subject[]) =>
+  subjects.reduce((acc, id) => acc + (SUBJECT_MAP[id]?.durationMin ?? 0), 0)
+
 const COMPANION_MODES: Array<{
   value: CompanionMode
   labelKey: string
@@ -40,29 +90,42 @@ const COMPANION_MODES: Array<{
   subjects: Subject[]
   sessionCapMinutes: number
 }> = [
+  // Mathematics is in EVERY preset, deliberately. It is foundational, and
+  // it is also the only subject carrying Bede's full diagnostic engine
+  // (services/diagnostic/) — a family on a lighter preset was previously
+  // getting no math and therefore no real mastery signal at all, which
+  // made "mastery-based outcome" untrue for exactly the families most
+  // likely to need the reassurance.
+  //
+  // Every cap below is DERIVED from its own subject list rather than typed
+  // in, so intent and capacity are equal by construction. Before this they
+  // were independent literals and had silently diverged: full_plan asked
+  // for 185 minutes of subjects inside a 120-minute cap.
   {
     value: 'book_companion',
     labelKey: 'parentSetup.companionModeBookCompanion',
     descriptionKey: 'parentSetup.companionModeBookCompanionDesc',
     emoji: '📖',
-    subjects: ['living_books', 'morning_time'],
-    sessionCapMinutes: 60,
+    subjects: ['living_books', 'morning_time', 'mathematics'],
+    sessionCapMinutes: capForStudyMinutes(studyMinutesFor(['living_books', 'morning_time', 'mathematics'])),
   },
   {
     value: 'guided',
     labelKey: 'parentSetup.companionModeGuided',
     descriptionKey: 'parentSetup.companionModeGuidedDesc',
     emoji: '🧭',
-    subjects: ['living_books', 'morning_time', 'language_arts', 'nature_study'],
-    sessionCapMinutes: 90,
+    subjects: ['living_books', 'morning_time', 'mathematics', 'language_arts', 'nature_study'],
+    sessionCapMinutes: capForStudyMinutes(
+      studyMinutesFor(['living_books', 'morning_time', 'mathematics', 'language_arts', 'nature_study']),
+    ),
   },
   {
     value: 'full_plan',
     labelKey: 'parentSetup.companionModeFullPlan',
     descriptionKey: 'parentSetup.companionModeFullPlanDesc',
     emoji: '🗓️',
-    subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
-    sessionCapMinutes: 120,
+    subjects: DEFAULT_SUBJECTS,
+    sessionCapMinutes: capForStudyMinutes(studyMinutesFor(DEFAULT_SUBJECTS)),
   },
 ]
 
@@ -79,6 +142,19 @@ interface StudentForm {
   lesson_focus: string
   faith_emphasis: string
   current_unit: string
+  faith_tradition: string
+  bible_translation: string
+  // Comma-separated in the form, same convention as term_topics; parsed to
+  // string[] on save (up to 6 — see models/schemas.py's
+  // _validate_curriculum_resources).
+  curriculum_resources: string
+  // Comma-separated, same editing convention as curriculum_resources above
+  // (up to 12 — see models/schemas.py's _validate_character_virtues). A
+  // family's or school's own character-formation program.
+  character_virtues: string
+  // Comma-separated, same editing convention as curriculum_resources and
+  // term_topics above. What the parent says helps this child.
+  learning_support: string
   voice_required: boolean
   appearance_locked: boolean
   session_cap_minutes: number
@@ -87,8 +163,20 @@ interface StudentForm {
   eye_rest_break_minutes: number
   term_schedule: TermSchedule
   current_term: number
+  // Mastery-cycle window — how far back Progress looks when saying whether
+  // a term topic moved. travel_mode is what unlocks changing it; see
+  // models/schemas.py and utils/masteryCycle.ts for why it is a rolling
+  // window rather than a sprint.
+  travel_mode: boolean
+  mastery_cycle_days: number
   // Comma-separated per area in the form; parsed to string[] on save.
   term_topics: Record<CoreArea, string>
+  // Where each interrupted subject left off — see ResumeForm above.
+  lesson_resume: ResumeForm[]
+  // Not editable here: this is the child's own mute/unmute choice for
+  // Bede's narration (PATCH /pod/configs/{name}/voice-narration). Carried
+  // through the form only so re-saving the pod doesn't silently reset it.
+  voice_narration_enabled: boolean
   expandedContext: boolean
   showEnrollment: boolean
 }
@@ -99,25 +187,86 @@ const blankStudent = (): StudentForm => ({
   grade_stage: '3-5',
   sex: '',
   companion_mode: 'full_plan',
-  selected_subjects: SUBJECTS.filter((s) => s.id !== 'free_study').map((s) => s.id),
+  selected_subjects: DEFAULT_SUBJECTS,
   lesson_focus: '',
   faith_emphasis: '',
   current_unit: '',
+  faith_tradition: '',
+  bible_translation: '',
+  curriculum_resources: '',
+  character_virtues: '',
+  learning_support: '',
   voice_required: true,
   appearance_locked: false,
-  session_cap_minutes: 120,
+  // Derived from DEFAULT_SUBJECTS, not a literal — a new student's session
+  // must actually hold the plan they're given. A saved config keeps
+  // whatever the parent chose (see formFromConfig's own fallback).
+  session_cap_minutes: capForStudyMinutes(studyMinutesFor(DEFAULT_SUBJECTS)),
   screen_time_limit_enabled: false,
   screen_time_limit_minutes: 90,
   eye_rest_break_minutes: 30,
   term_schedule: 'trimester',
   current_term: 1,
+  travel_mode: false,
+  mastery_cycle_days: DEFAULT_MASTERY_CYCLE_DAYS,
   term_topics: {
     phonics_language: '', mathematics: '', reading_literature: '',
     science: '', writing_composition: '',
   },
+  lesson_resume: [],
+  voice_narration_enabled: true,
   expandedContext: false,
   showEnrollment: false,
 })
+
+// Rebuilds the form from a config already saved on the server, so a parent
+// coming back the next day edits their existing plan — and last session's
+// resume notes — instead of retyping the pod from a blank page.
+const formFromConfig = (c: SessionConfig): StudentForm => {
+  const blank = blankStudent()
+  return {
+    ...blank,
+    student_name: c.student_name,
+    grade: c.grade,
+    grade_stage: c.grade_stage,
+    sex: c.sex ?? '',
+    selected_subjects: c.subjects,
+    lesson_focus: c.lesson_focus ?? '',
+    faith_emphasis: c.faith_emphasis ?? '',
+    current_unit: c.current_unit ?? '',
+    faith_tradition: c.faith_tradition ?? '',
+    bible_translation: c.bible_translation ?? '',
+    curriculum_resources: (c.curriculum_resources ?? []).join(', '),
+    character_virtues: (c.character_virtues ?? []).join(', '),
+    learning_support: (c.learning_support ?? []).join(', '),
+    voice_required: c.voice_required ?? true,
+    appearance_locked: c.appearance_locked ?? false,
+    session_cap_minutes: c.session_cap_minutes ?? 120,
+    screen_time_limit_enabled: c.screen_time_limit_minutes != null,
+    screen_time_limit_minutes: c.screen_time_limit_minutes ?? 90,
+    eye_rest_break_minutes: c.eye_rest_break_minutes ?? 30,
+    term_schedule: c.term_schedule ?? 'trimester',
+    current_term: c.current_term ?? 1,
+    travel_mode: c.travel_mode ?? false,
+    mastery_cycle_days: c.mastery_cycle_days ?? DEFAULT_MASTERY_CYCLE_DAYS,
+    term_topics: {
+      ...blank.term_topics,
+      ...Object.fromEntries(
+        CORE_AREAS.map(({ id }) => [id, (c.term_mastery_topics?.[id] ?? []).join(', ')]),
+      ),
+    },
+    lesson_resume: (c.lesson_resume ?? []).map((r) => ({
+      subject: r.subject,
+      stopped_at: r.stopped_at,
+      next_step: r.next_step ?? '',
+      sticking_point: r.sticking_point ?? '',
+      recorded_on: r.recorded_on ?? '',
+    })),
+    voice_narration_enabled: c.voice_narration_enabled ?? true,
+    // Already-filled context shouldn't hide behind a collapsed toggle.
+    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition || c.bible_translation || c.curriculum_resources?.length || c.character_virtues?.length || c.learning_support?.length),
+  }
+}
 
 export default function ParentSetup() {
   const { t } = useTranslation()
@@ -145,6 +294,20 @@ export default function ParentSetup() {
       .then(setSystemStatus)
       .catch(() => setStatusError(true))
     isFeedbackEnabled().then(setFeedbackEnabled)
+    // Load the pod the parent already saved, so this page opens on their
+    // existing plan (resume notes included) rather than a blank form. The
+    // functional update is the guard against clobbering anything typed
+    // while the request was in flight; failure just leaves the blank form.
+    listPodConfigs(token)
+      .then((configs) => {
+        if (!configs.length) return
+        setStudents((prev) =>
+          prev.length === 1 && !prev[0].student_name.trim() && !prev[0].grade.trim()
+            ? configs.map(formFromConfig)
+            : prev,
+        )
+      })
+      .catch(() => {})
   }, [token])
 
   const isEnrolled = (name: string) =>
@@ -193,6 +356,11 @@ export default function ParentSetup() {
       lesson_focus: s.lesson_focus.trim() || undefined,
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
+      faith_tradition: s.faith_tradition.trim() || undefined,
+      bible_translation: s.bible_translation.trim() || undefined,
+      curriculum_resources: s.curriculum_resources.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 6),
+      character_virtues: s.character_virtues.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 12),
+      learning_support: s.learning_support.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 8),
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
       companion_mode: s.companion_mode,
@@ -201,12 +369,31 @@ export default function ParentSetup() {
       eye_rest_break_minutes: Math.max(30, s.eye_rest_break_minutes),
       term_schedule: s.term_schedule,
       current_term: Math.min(s.current_term, s.term_schedule === 'trimester' ? 3 : 4),
+      travel_mode: s.travel_mode,
+      // The backend validator is the authority here (it forces the default
+      // back when travel mode is off, and clamps to 3-6 weeks when it is on);
+      // sending the form value unmodified keeps one source of truth.
+      mastery_cycle_days: s.mastery_cycle_days,
       term_mastery_topics: Object.fromEntries(
         CORE_AREAS.map(({ id }) => [
           id,
           s.term_topics[id].split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3),
         ]).filter(([, topics]) => (topics as string[]).length > 0),
       ),
+      voice_narration_enabled: s.voice_narration_enabled,
+      // Only complete rows for a subject this student is actually doing
+      // today — a half-filled row is dropped rather than saved as an empty
+      // resume note. The backend re-checks both (schemas.py).
+      lesson_resume: s.lesson_resume
+        .filter((r): r is ResumeForm & { subject: Subject } =>
+          !!r.subject && !!r.stopped_at.trim() && s.selected_subjects.includes(r.subject as Subject))
+        .map((r): LessonResume => ({
+          subject: r.subject,
+          stopped_at: r.stopped_at.trim().slice(0, 300),
+          next_step: r.next_step.trim().slice(0, 300) || undefined,
+          sticking_point: r.sticking_point.trim().slice(0, 300) || undefined,
+          recorded_on: r.recorded_on || undefined,
+        })),
     }))
     // Capture BEFORE savePodConfigs/setPodStudents below overwrite it — this
     // is the one moment that can tell "first pod this family has ever
@@ -313,8 +500,10 @@ export default function ParentSetup() {
         </div>
 
         <ParentSecuritySettings token={token!} />
+        <DeviceSettings token={token!} />
         <LicenseSettings token={token!} />
         <AIProviderSettings token={token!} />
+        <AgenticLoopInsights token={token!} />
 
         {/* Student cards */}
         <div className="space-y-4">
@@ -325,7 +514,6 @@ export default function ParentSetup() {
               student={student}
               total={students.length}
               isEnrolled={isEnrolled(student.student_name.trim())}
-              token={token!}
               requireSex={requireSex}
               onUpdate={(patch) => update(i, patch)}
               onToggleSubject={(id) => toggleSubject(i, id)}
@@ -398,7 +586,6 @@ interface StudentCardProps {
   student: StudentForm
   total: number
   isEnrolled: boolean
-  token: string
   requireSex: boolean
   onUpdate: (patch: Partial<StudentForm>) => void
   onToggleSubject: (id: Subject) => void
@@ -407,16 +594,36 @@ interface StudentCardProps {
 }
 
 function StudentCard({
-  index, student, total, isEnrolled, token, requireSex,
+  index, student, total, isEnrolled, requireSex,
   onUpdate, onToggleSubject, onEnrolled, onRemove,
 }: StudentCardProps) {
   const { t } = useTranslation()
+  // Both the grid and the minutes total read from this, so a student moved
+  // down to K-2 after picking Logic stops showing it AND stops being
+  // billed 15 minutes for a subject the backend will drop on save.
+  const availableSubjects = subjectsForStage(student.grade_stage)
   const totalMin = student.selected_subjects.reduce((acc, s) => {
-    const info = SUBJECTS.find((x) => x.id === s)
+    const info = availableSubjects.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
   }, 0)
+  // Intent vs. capacity, reconciled in front of the parent rather than left
+  // for the timer to resolve by hard-stopping mid-subject. `totalMin` is
+  // instruction time; the cap is wall-clock and includes the mandatory break
+  // each hour, so the two are never directly comparable — see
+  // studyMinutesWithinCap in utils/gradeTimer.ts.
+  const availableStudyMin = studyMinutesWithinCap(student.session_cap_minutes)
+  const overSubscribedBy = Math.max(0, totalMin - availableStudyMin)
+  const capNeededForPlan = capForStudyMinutes(totalMin)
 
   const label = student.student_name.trim() || t('parentSetup.studentFallbackLabel', { n: index + 1 })
+
+  const addResume = () => onUpdate({ lesson_resume: [...student.lesson_resume, blankResume()] })
+  const removeResume = (ri: number) =>
+    onUpdate({ lesson_resume: student.lesson_resume.filter((_, k) => k !== ri) })
+  const updateResume = (ri: number, patch: Partial<ResumeForm>) =>
+    onUpdate({
+      lesson_resume: student.lesson_resume.map((r, k) => (k === ri ? { ...r, ...patch } : r)),
+    })
 
   return (
     <div className="bg-white rounded-xl border border-navy-100 shadow-sm overflow-hidden">
@@ -544,23 +751,47 @@ function StudentCard({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">{t('parentSetup.subjects')}</label>
-            <span className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: totalMin })}</span>
+            <span className={`text-xs ${overSubscribedBy > 0 ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
+              {t('parentSetup.minutesShort', { count: totalMin })} / {t('parentSetup.minutesShort', { count: availableStudyMin })}
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {SUBJECTS.map((s) => {
+          {overSubscribedBy > 0 && (
+            <div className="mb-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+              <p className="text-xs text-amber-800">
+                {t('parentSetup.subjectsOverCap', {
+                  over: overSubscribedBy,
+                  cap: student.session_cap_minutes,
+                  needed: capNeededForPlan,
+                })}
+              </p>
+            </div>
+          )}
+          {/* Single column, not a 2-up grid: several labels (Greek & New
+              Testament Foundations, Latin & Christian Foundations, Scripture
+              & Bible Study) don't fit a half-width card on one line, and
+              wrapping to two lines read as unpolished. Full width comfortably
+              fits every current label on one line; truncate + title remain
+              as a safety net for a future label that doesn't. The left
+              border is each subject's own color from SUBJECTS, matching
+              agnusdei.ai's curriculum color binder — see that field's own
+              comment in types/index.ts. */}
+          <div className="grid grid-cols-1 gap-1.5">
+            {availableSubjects.map((s) => {
               const active = student.selected_subjects.includes(s.id)
               return (
                 <button
                   key={s.id}
                   onClick={() => onToggleSubject(s.id)}
-                  className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-left transition-all hover:scale-[1.03] active:scale-[0.97] ${
+                  style={{ borderLeftColor: s.color, borderLeftWidth: '4px' }}
+                  className={`flex items-center gap-2 rounded-xl border-2 pl-2 pr-3 py-2 text-left transition-all hover:scale-[1.02] active:scale-[0.98] min-w-0 ${
                     active ? 'border-navy-400 bg-navy-50 shadow-sm' : 'border-gray-200 bg-white opacity-50'
                   }`}
                 >
                   <s.Icon size={16} className="flex-shrink-0 text-current" />
-                  <div>
-                    <div className="text-xs font-medium text-gray-800">{s.label}</div>
-                    <div className="text-xs text-gray-400">{t('parentSetup.minutesShort', { count: s.durationMin })}</div>
+                  <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                    <span className="text-xs font-medium text-gray-800 truncate" title={s.label}>{s.label}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{t('parentSetup.minutesShort', { count: s.durationMin })}</span>
                   </div>
                 </button>
               )
@@ -788,6 +1019,164 @@ function StudentCard({
               {t('parentSetup.termTopicsHelp')}
             </p>
           </div>
+
+          {/* Travel mode — the ONLY control over the mastery-cycle window.
+              With it off there is exactly one honest window (28 actual
+              days, what the guarantee is written against), so a family that
+              doesn't travel is never asked to pick a number. Turning it on
+              is the parent saying "our weeks aren't regular", and the
+              choice appears then and only then. This changes nothing about
+              how the child is taught — it widens how far back Progress
+              looks so the same evidence has room to accumulate. */}
+          <div className="pt-3 border-t border-gray-200">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={student.travel_mode}
+                onChange={(e) => onUpdate({
+                  travel_mode: e.target.checked,
+                  // Coming home resets the window, so a parent never has to
+                  // remember what it used to be. Mirrors the backend
+                  // validator, which does the same thing authoritatively.
+                  mastery_cycle_days: e.target.checked ? student.mastery_cycle_days : DEFAULT_MASTERY_CYCLE_DAYS,
+                })}
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="text-sm font-medium text-gray-700">{t('parentSetup.travelMode')}</span>
+                <span className="block text-xs text-gray-500 mt-0.5">{t('parentSetup.travelModeHelp')}</span>
+              </span>
+            </label>
+            {student.travel_mode && (
+              <div className="mt-2 flex items-center gap-2 pl-6">
+                <label htmlFor={`cycle-${student.student_name}`} className="text-xs text-gray-600">
+                  {t('parentSetup.masteryWindowLabel')}
+                </label>
+                <select
+                  id={`cycle-${student.student_name}`}
+                  value={student.mastery_cycle_days}
+                  onChange={(e) => onUpdate({ mastery_cycle_days: Number(e.target.value) })}
+                  className="input !w-auto text-xs py-1.5"
+                >
+                  {[21, 28, 35, 42].map((d) => (
+                    <option key={d} value={d}>{t('parentSetup.weeksN', { n: d / 7 })}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pick up where we left off — the parent tells Bede where an
+            interrupted lesson stopped, so the subject resumes mid-thread
+            instead of opening as though it were new. A note can only ever
+            attach to a subject chosen above; there's no free-text topic
+            field, by design. */}
+        <div className="p-3 bg-gray-50 rounded-xl space-y-3">
+          <div>
+            <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+              <BookMarked size={14} className="text-navy-500" /> {t('parentSetup.resumeTitle')}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">{t('parentSetup.resumeHelp')}</p>
+          </div>
+
+          {student.lesson_resume.map((entry, ri) => {
+            const takenElsewhere = student.lesson_resume
+              .filter((_, k) => k !== ri)
+              .map((r) => r.subject)
+            // The row's own subject stays in the list even if it was later
+            // deselected above, so the parent can see what it points at
+            // rather than the select silently blanking.
+            const options = [
+              ...student.selected_subjects.filter((s) => !takenElsewhere.includes(s)),
+              ...(entry.subject && !student.selected_subjects.includes(entry.subject)
+                ? [entry.subject]
+                : []),
+            ]
+            const notScheduled = !!entry.subject && !student.selected_subjects.includes(entry.subject)
+            return (
+              <div key={ri} className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={entry.subject}
+                    onChange={(e) => updateResume(ri, { subject: e.target.value as Subject | '' })}
+                    className="input !w-auto flex-1 text-xs py-1.5"
+                  >
+                    <option value="">{t('parentSetup.resumeChooseSubject')}</option>
+                    {options.map((s) => (
+                      <option key={s} value={s}>{SUBJECT_MAP[s].label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={entry.recorded_on}
+                    onChange={(e) => updateResume(ri, { recorded_on: e.target.value })}
+                    title={t('parentSetup.resumeDate')}
+                    className="input !w-auto text-xs py-1.5"
+                  />
+                  <button
+                    onClick={() => removeResume(ri)}
+                    title={t('parentSetup.resumeRemove')}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                {notScheduled && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                    {t('parentSetup.resumeSubjectNotScheduled')}
+                  </p>
+                )}
+
+                <div>
+                  <label className="label text-xs">{t('parentSetup.resumeStoppedAt')}</label>
+                  <textarea
+                    value={entry.stopped_at}
+                    onChange={(e) => updateResume(ri, { stopped_at: e.target.value })}
+                    placeholder={t('parentSetup.resumeStoppedAtPlaceholder')}
+                    rows={2}
+                    maxLength={300}
+                    className="input text-xs resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label text-xs">{t('parentSetup.resumeNextStep')}</label>
+                    <input
+                      type="text"
+                      value={entry.next_step}
+                      onChange={(e) => updateResume(ri, { next_step: e.target.value })}
+                      placeholder={t('parentSetup.resumeNextStepPlaceholder')}
+                      maxLength={300}
+                      className="input text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-xs">{t('parentSetup.resumeStickingPoint')}</label>
+                    <input
+                      type="text"
+                      value={entry.sticking_point}
+                      onChange={(e) => updateResume(ri, { sticking_point: e.target.value })}
+                      placeholder={t('parentSetup.resumeStickingPointPlaceholder')}
+                      maxLength={300}
+                      className="input text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {student.lesson_resume.length < student.selected_subjects.length && (
+            <button
+              onClick={addResume}
+              className="flex items-center gap-1.5 text-xs font-medium text-navy-600 hover:text-navy-800"
+            >
+              <Plus size={13} /> {t('parentSetup.resumeAdd')}
+            </button>
+          )}
+          <p className="text-xs text-gray-400">{t('parentSetup.resumeOnlyChosenSubjects')}</p>
         </div>
 
         {/* Optional context — collapsed by default */}
@@ -821,6 +1210,152 @@ function StudentCard({
                   className="input"
                 />
               </div>
+              {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')) && (
+                <div>
+                  <label className="label">{t('parentSetup.faithTradition')}</label>
+                  <input
+                    type="text"
+                    value={student.faith_tradition}
+                    onChange={(e) => onUpdate({ faith_tradition: e.target.value })}
+                    placeholder={t('parentSetup.faithTraditionPlaceholder')}
+                    maxLength={60}
+                    className="input"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">{t('parentSetup.faithTraditionHint')}</p>
+                </div>
+              )}
+              {/* Latin is included here but deliberately NOT in the church-tradition
+                  gate above: the subject quotes Scripture in English alongside its
+                  Vulgate text, so the translation preference applies — but its content
+                  is the shared Christian inheritance by design, so it never needs a
+                  denominational label to teach. See services/latin_catalog.py. */}
+              {(student.selected_subjects.includes('scripture') || student.selected_subjects.includes('saints')
+                || student.selected_subjects.includes('morning_time')
+                || student.selected_subjects.includes('latin')
+                || student.selected_subjects.includes('greek')) && (
+                <div>
+                  <label className="label">{t('parentSetup.bibleTranslation')}</label>
+                  <select
+                    value={student.bible_translation}
+                    onChange={(e) => onUpdate({ bible_translation: e.target.value })}
+                    className="input bg-white cursor-pointer"
+                  >
+                    <option value="">{t('parentSetup.bibleTranslationDefault')}</option>
+                    {BIBLE_TRANSLATIONS.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">{t('parentSetup.bibleTranslationHint')}</p>
+                </div>
+              )}
+              {/* What helps this child. Placed directly above the
+                  curriculum-resources field because they are the same kind of
+                  thing — context a parent supplies about how the day should
+                  run — and deliberately NOT near anything that looks like an
+                  assessment. Bede never infers this and never names a reason
+                  for it; see the backend's _learning_support_note. */}
+              <div>
+                <label className="label">{t('parentSetup.learningSupport')}</label>
+                <input
+                  type="text"
+                  value={student.learning_support}
+                  onChange={(e) => onUpdate({ learning_support: e.target.value })}
+                  placeholder={t('parentSetup.learningSupportPlaceholder')}
+                  className="input"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {LEARNING_SUPPORT_SUGGESTIONS.map((name) => {
+                    const already = student.learning_support
+                      .split(',').map((r) => r.trim().toLowerCase()).includes(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={already}
+                        onClick={() => onUpdate({
+                          learning_support: [student.learning_support, name].filter(Boolean).join(', '),
+                        })}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          already
+                            ? 'bg-sage-50 border-sage-200 text-sage-500 cursor-default'
+                            : 'bg-white border-sage-200 text-sage-700 hover:bg-sage-50 cursor-pointer'
+                        }`}
+                      >
+                        {already ? `✓ ${name}` : `+ ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.learningSupportHint')}</p>
+              </div>
+              <div>
+                <label className="label">{t('parentSetup.curriculumResources')}</label>
+                <input
+                  type="text"
+                  value={student.curriculum_resources}
+                  onChange={(e) => onUpdate({ curriculum_resources: e.target.value })}
+                  placeholder={t('parentSetup.curriculumResourcesPlaceholder')}
+                  className="input"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {CURRICULUM_RESOURCE_SUGGESTIONS.map((name) => {
+                    const already = student.curriculum_resources
+                      .split(',').map((r) => r.trim().toLowerCase()).includes(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={already}
+                        onClick={() => onUpdate({
+                          curriculum_resources: [student.curriculum_resources, name].filter(Boolean).join(', '),
+                        })}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          already
+                            ? 'bg-navy-50 border-navy-200 text-navy-400 cursor-default'
+                            : 'bg-white border-navy-200 text-navy-600 hover:bg-navy-50 cursor-pointer'
+                        }`}
+                      >
+                        {already ? `✓ ${name}` : `+ ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.curriculumResourcesHint')}</p>
+              </div>
+              <div>
+                <label className="label">{t('parentSetup.characterVirtues')}</label>
+                <input
+                  type="text"
+                  value={student.character_virtues}
+                  onChange={(e) => onUpdate({ character_virtues: e.target.value })}
+                  placeholder={t('parentSetup.characterVirtuesPlaceholder')}
+                  className="input"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {CHARACTER_VIRTUE_SUGGESTIONS.map((name) => {
+                    const already = student.character_virtues
+                      .split(',').map((r) => r.trim().toLowerCase()).includes(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={already}
+                        onClick={() => onUpdate({
+                          character_virtues: [student.character_virtues, name].filter(Boolean).join(', '),
+                        })}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          already
+                            ? 'bg-gold-50 border-gold-200 text-gold-500 cursor-default'
+                            : 'bg-white border-gold-200 text-gold-700 hover:bg-gold-50 cursor-pointer'
+                        }`}
+                      >
+                        {already ? `✓ ${name}` : `+ ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.characterVirtuesHint')}</p>
+              </div>
               <div>
                 <label className="label">{t('parentSetup.noteForBede')}</label>
                 <textarea
@@ -843,15 +1378,6 @@ function StudentCard({
           onClose={() => onUpdate({ showEnrollment: false })}
         />
       )}
-    </div>
-  )
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white rounded-xl border border-navy-100 shadow-sm p-5">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">{title}</h2>
-      {children}
     </div>
   )
 }

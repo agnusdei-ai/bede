@@ -1,7 +1,7 @@
 {
   "codeScreen": {
     "titleSuffix": ", a Socratic tutor",
-    "tagline": "Unlocking each learner's potential",
+    "tagline": "He asks the questions. Your child does the thinking.",
     "subtitle": "One click. No account or key needed.",
     "learnerName": "Learner's name",
     "optional": "(optional)",
@@ -10,6 +10,10 @@
     "gradeDefault": "Use the default (grade 4)",
     "kindergarten": "Kindergarten",
     "gradeN": "Grade {{n}}",
+    "currentUnit": "Continuing a lesson from home?",
+    "currentUnitPlaceholder": "e.g. reading Farmer Boy together, our own Ancient Egypt unit",
+    "faithTradition": "Your family's church tradition?",
+    "faithTraditionPlaceholder": "e.g. Baptist, Catholic, non-denominational",
     "privacyNotice": "Your conversation is never stored. <privacyLink>Privacy Notice</privacyLink>",
     "generateCode": "Generate my code",
     "wakingUp": "Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.",
@@ -20,7 +24,8 @@
     "whyBedeSocraticTitle": "A Socratic dialogue engine",
     "whyBedeSocraticDesc": "Bede asks patient, well-paced questions instead of handing over answers.",
     "whyBedeFamilyTitle": "Built for real families",
-    "whyBedeFamilyDesc": "From the kitchen table to a small co-op — encrypted, and built for children on purpose."
+    "whyBedeFamilyDesc": "From the kitchen table to a small co-op — encrypted, and built for children on purpose.",
+    "faithTraditionHelp": "Only used to frame Scripture and Saints lessons for this one session. Skip it and nothing changes."
   },
   "chatScreen": {
     "withName": "with {{name}}",
@@ -38,9 +43,77 @@
     "micHoldListening": "Listening… let go when you're done",
     "micPermissionDenied": "I can't hear you — this browser has blocked the microphone. You can still type your answer, or check the browser's microphone permission for this site.",
     "micUnavailable": "I can't hear you right now — something's wrong with the microphone. You can still type your answer instead.",
+    "micNetworkUnavailable": "I can't hear you right now — we lost the connection for a moment. Try holding the mic again, or type your answer instead.",
     "micNoSpeechHeard": "I didn't quite catch that. Try holding the mic and talking a bit closer, or type your answer instead.",
     "sendMessage": "Send",
-    "removeDrawing": "Remove drawing"
+    "removeDrawing": "Remove drawing",
+    "voiceModeToggleTooltip": "Switch between press-and-hold and hands-free voice",
+    "voiceModeContinuous": "Voice on",
+    "voiceModeHold": "Hold to talk",
+    "voiceModeStoodDown": "I'll stop listening for now — press and hold the microphone whenever you're ready to talk again.",
+    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime."
+  },
+  "canvas": {
+    "cancel": "Cancel",
+    "undo": "Undo",
+    "undoTitle": "Undo last stroke",
+    "redo": "Redo",
+    "newPage": "New page",
+    "newPageTitle": "Put this page away and start a fresh one",
+    "save": "Save",
+    "saveTitle": "Save this drawing to your device",
+    "print": "Print",
+    "printTitle": "Print this paper",
+    "done": "Done",
+    "doneTitle": "Send drawing",
+    "paperHeading": "Paper",
+    "paperTitle": "{{name}} paper",
+    "paperStyle": {
+      "composition": "Composition",
+      "graph": "Graph",
+      "dots": "Dots",
+      "staff": "Staff",
+      "journal": "Journal",
+      "blank": "Blank"
+    },
+    "tool": {
+      "pen": "Pen",
+      "eraser": "Eraser"
+    },
+    "brush": {
+      "thin": "Thin brush",
+      "medium": "Medium brush",
+      "thick": "Thick brush"
+    },
+    "ink": {
+      "ink": "Ink",
+      "black": "Black",
+      "red": "Red",
+      "orange": "Orange",
+      "gold": "Gold",
+      "green": "Green",
+      "sky": "Sky",
+      "purple": "Purple",
+      "brown": "Brown"
+    },
+    "paperColor": {
+      "parchment": "Parchment",
+      "white": "White",
+      "sunshine": "Sunshine",
+      "rose": "Rose",
+      "sage": "Sage",
+      "sky": "Sky",
+      "slate": "Slate"
+    },
+    "moreColors": "More colors",
+    "nearlyFull": "This page is nearly full. You can save it to your device any time.",
+    "pageFull": "This page has grown too big for me to keep. It will be gone when you go back to me, so save it to your device first if you want to keep it, then start a fresh page.",
+    "storageUnavailable": "I can't keep this page on this device. It will be gone when you go back to me, so save it to your device first if you want to keep it.",
+    "confirmNewPage": "Start a fresh page? This one will be gone.",
+    "saveToDevice": "Save to my device",
+    "saveFirst": "Save it first",
+    "startFresh": "Start a fresh page",
+    "neverMind": "Never mind"
   },
   "header": {
     "askBede": "Ask Bede",
@@ -50,6 +123,13 @@
     "feedback": "Feedback",
     "feedbackTooltip": "Tell us what's working and what isn't",
     "finishDemoTooltip": "Finish the demo and optionally get Bede's notes by email"
+  },
+  "continuingMastery": {
+    "heading": "Continuing Mastery",
+    "followingOwnLesson": "Following your own lesson: {{unit}}",
+    "resume": "Resume →",
+    "inProgress_one": "{{count}} subject in progress",
+    "inProgress_other": "{{count}} subjects in progress"
   },
   "sessionPaused": {
     "greatWorkToday": "Great work today!",
@@ -125,6 +205,10 @@
     "science": "Science",
     "art_music": "Art & Music",
     "saints": "Saints & Catechism",
+    "scripture": "Scripture & Bible Study",
+    "latin": "Latin & Christian Foundations",
+    "greek": "Greek & New Testament Foundations",
+    "logic": "Logic",
     "free_study": "Free Study"
   },
   "breakActivities": [
@@ -153,9 +237,26 @@
     "betaNotice": "This is a public beta — please read this first.",
     "bullet1": "<strong>Your conversation is never stored.</strong> Nothing you or your learner says is saved, ever.",
     "bullet2": "<strong>Anonymized patterns may be reviewed</strong> — which teaching techniques were used, never what was said — to help us improve Bede.",
-    "bullet3": "<strong>Name and grade personalize this session</strong> — kept up to 6 hours (sooner if you log out), then deleted automatically. Never part of any permanent record.",
+    "bullet2Ledger": "<strong>What your learner finishes is shown back to you during the session</strong> — which skill was worked, how much help it took, and what Bede noticed about the work. Never what was said. Like everything else here, it's kept only for this session and deleted when you log out.",
+    "bullet3": "<strong>What you tell us on the next screen personalizes this session</strong> — name, grade, anything you're already learning at home, and (if you choose to share it) your family's church tradition. Every field is optional. All of it is kept up to 6 hours (sooner if you log out), then deleted automatically. Never part of any permanent record.",
+    "bullet3Faith": "<strong>Church tradition is optional and treated with extra care.</strong> It's used only so Bede frames Scripture and Saints lessons consistently with your own tradition instead of assuming one — never to categorize or profile your family. Leave it blank and the demo works exactly the same.",
     "bullet4": "<strong>Feedback is optional.</strong> Parents/guardians may leave an email for follow-up — we never ask a child for their own.",
     "readPrivacyNotice": "Read the full Privacy Notice, including our COPPA parental notice",
     "agree": "I understand and agree — let's begin"
+  },
+  "workLedger": {
+    "heading": "What's been done",
+    "totalFinished": "{{count}} finished",
+    "times": "{{count}}×",
+    "onTheirOwn": "{{count}} on their own",
+    "afterANudge": "{{count}} after a nudge",
+    "together": "{{count}} worked through together",
+    "oneToShow": "{{count}} one to show",
+    "wentFurther": "{{count}} went further",
+    "theirOwnIdea": "{{count}} their own idea",
+    "cameEasily": "{{count}} came easily",
+    "tookItFurther": "{{count}} took it further",
+    "initiative": "Where you can see initiative: {{notes}}.",
+    "caveat": "This counts pieces of work, not your learner — and only what Bede genuinely saw. It's kept just for this session and deleted when you log out."
   }
 }

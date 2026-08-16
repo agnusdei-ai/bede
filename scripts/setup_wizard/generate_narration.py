@@ -29,7 +29,8 @@ AUDIO_DIR = Path(__file__).resolve().parent / "audio"
 # talk to, not a generic narrator.
 _TTS_MODEL = "gpt-4o-mini-tts"
 _TTS_VOICE = "fable"
-_TTS_INSTRUCTIONS = "Speak as an elderly, warm, unhurried Southern English monk."
+_TTS_INSTRUCTIONS = "Speak as an elderly, warm, unhurried Southern English monk with clear, distinct diction."
+_TTS_SPEED = 0.9
 _TTS_URL = "https://api.openai.com/v1/audio/speech"
 
 # Keep this list short and purposeful — one line to greet, one to close.
@@ -54,6 +55,7 @@ def synthesize(text: str, api_key: str) -> bytes:
         "input": text,
         "instructions": _TTS_INSTRUCTIONS,
         "response_format": "wav",
+        "speed": _TTS_SPEED,
     }
     import json
 

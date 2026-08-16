@@ -3,7 +3,12 @@ from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import List
 
-from core.pin_policy import MIN_PIN_LENGTH, pin_is_strong
+from core.pin_policy import (
+    MIN_PIN_LENGTH,
+    PUBLISHED_EXAMPLE_PINS,
+    WEAK_PLACEHOLDER_SECRETS,
+    pin_is_strong,
+)
 
 # Placeholder RESEND_FROM_ADDRESS — example.com can never be a verified
 # sending domain in a real Resend account, so a deployment left on this
@@ -30,6 +35,13 @@ MIN_PASSWORD_LENGTH = 8
 SUPPORTED_LOCALES = {
     "es": "Spanish (Español)",
 }
+
+# Which speech-to-text backends services/transcription.py knows how to route
+# to. See Settings.transcription_provider's own comment for what picking one
+# actually means for a deployment (it is a privacy and memory decision, not a
+# tuning knob) and Settings.reject_unusable_transcription_provider for why a
+# value outside this set fails at boot rather than at the first mic press.
+TRANSCRIPTION_PROVIDERS = {"local", "openai"}
 
 
 class Settings(BaseSettings):
@@ -120,20 +132,37 @@ class Settings(BaseSettings):
     # model that accepts `instructions` below — that's what actually lets us
     # steer character/delivery rather than just picking a fixed preset voice.
     openai_tts_model: str = "gpt-4o-mini-tts"
-    # OpenAI's preset voices are fixed timbres, not custom-designed — "fable"
-    # is the one OpenAI itself describes as having a British storyteller
-    # quality, the closest preset starting point for Bede. Not independently
-    # verified against real audio; try "onyx" (deeper, American) too.
+    # OpenAI's preset voices are fixed timbres, not custom-designed —
+    # "fable" (OpenAI's own "British storyteller" description) is the
+    # closest preset starting point for Bede and the one real listening
+    # feedback has actually confirmed as preferred. A brief switch to
+    # "onyx" (deeper/more resonant on paper) was tried and reverted: real
+    # listening found it read as higher-pitched and less like Bede than
+    # "fable" — a preset's on-paper description doesn't reliably predict
+    # how it actually sounds, so don't re-tune this from the docstring
+    # alone; test in a real session (docs/VOICE_SETUP.md) first.
     openai_tts_voice: str = "fable"
-    # gpt-4o-mini-tts-only: steers delivery style/character in plain English.
-    # This is the main lever for actually sounding like "a specific monk,"
-    # not just a voice — no equivalent exists for tts-1/tts-1-hd.
+    # gpt-4o-mini-tts-only: steers delivery style/character in plain
+    # English. This is the main lever for actually sounding like "a
+    # specific monk," not just a voice — no equivalent exists for
+    # tts-1/tts-1-hd. Explicit about PACE specifically (distinct,
+    # unhurried, clear) since that was the real complaint that prompted
+    # this wording — "warm and unhurried" alone wasn't concrete enough to
+    # reliably slow the delivery down; openai_tts_speed below is the
+    # harder, API-level lever for the same goal, since instructions is
+    # only ever a soft steer.
     openai_tts_instructions: str = (
         "Speak as Bede, an elderly Benedictine monk from Southern England. "
-        "Warm, unhurried, and deliberately thoughtful — the quiet, measured "
-        "cadence of someone used to contemplation and reading aloud, never "
-        "brisk or robotic. Gentle authority, softly spoken."
+        "Warm and gentle, but speak at a slow, deliberate, unhurried pace with clear, distinct diction — "
+        "leave real space between phrases, never rushed or run together. The quiet, measured cadence of "
+        "someone used to contemplation and reading aloud, never brisk or robotic. Gentle authority, softly "
+        "spoken."
     )
+    # OpenAI TTS's own speed parameter (0.25-4.0, API default 1.0) — a hard
+    # lever on pacing, unlike `instructions` above which is only ever a
+    # soft steer the model can drift from. Slightly under 1.0 is what
+    # actually delivers "unhurried and clear" reliably, turn after turn.
+    openai_tts_speed: float = 0.9
 
     # ── Post-session diagnostic email (optional) ─────────────────────────────
     # Lets a parent (or a demo visitor) get Bede's end-of-session notes
@@ -164,9 +193,52 @@ class Settings(BaseSettings):
     # above (a family's own address) — reuses the same Resend setup. Leave
     # unset to disable the feature entirely (POST /feedback returns 404).
     feedback_email: str = ""
+    # Where a "plans" category submission goes instead of feedback_email — a
+    # real lead asking about pricing or an onboarding call (site/index.html's
+    # #request-a-call form, and the demo's own quota-exceeded "interested in
+    # plans" prompt) isn't ordinary product feedback and shouldn't land in
+    # the same inbox as a bug report. Leave unset and every category,
+    # "plans" included, keeps going to feedback_email like before — this is
+    # additive, not a second thing to configure.
+    sales_email: str = ""
 
     # ── Auth ───────────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min"
+    # Optional independent secret for the public demo's identity domain
+    # (core/identity.py, P10). Left empty, the demo's signing key is derived
+    # from secret_key — domain-separated, so a demo token can never be
+    # replayed as a parent token, but not key-isolated. Set this on the
+    # public demo instance, where the operator holds third parties' data and
+    # a SECRET_KEY compromise should not also reach family deployments.
+    demo_secret_key: str = ""
+    # Accept tokens issued before identity domains existed (no domain header,
+    # signed with raw secret_key) until they expire. Self-limiting — no new
+    # ones are ever issued — and exists so deploying P10 doesn't sign every
+    # family out mid-lesson. Safe to set false immediately.
+    legacy_token_grace: bool = True
+    # How long a management-plane elevation lasts (core/elevation.py, P8).
+    # Absolute from the moment of elevation, not a sliding window on use — a
+    # sliding window would let one password entry hold administrator rights
+    # for the whole session as long as someone kept clicking.
+    elevation_ttl_minutes: int = 10
+    # Whether the elevation is actually ENFORCED on the management plane.
+    #
+    # Defaults ON as of 2026-08-04. It shipped OFF for a deliberate, temporary
+    # reason — the backend half was complete and tested, but homeschool-
+    # tutor's API client called these endpoints from ~30 separate raw
+    # fetch() sites with no interceptor, so a parent opening Parent Setup
+    # would have gotten an unexplained error on every management action.
+    # ElevationPrompt.tsx (mounted once at the app root, next to
+    # GlobalAuthInterceptor) closes that gap: it wraps window.fetch, catches
+    # the 403 an unelevated call returns, prompts for the password (+ TOTP if
+    # enrolled), and retries the original request once — no individual call
+    # site needs to know elevation exists. With it on, an operator upgrading
+    # an existing self-hosted deployment sees one new prompt the first time
+    # they open the audit log or a similar management action, then nothing
+    # again for elevation_ttl_minutes. Set this false to opt back out — e.g.
+    # a deployment driving the API directly with no frontend at all. GET
+    # /admin/status reports the current posture either way.
+    elevation_enforced: bool = True
     algorithm: str = "HS256"
     # Parent sessions: up to 8h (full school day). Child: 4h (single session).
     access_token_expire_minutes: int = 480
@@ -233,6 +305,57 @@ class Settings(BaseSettings):
     # narration assessments, no session records, no audit-logged content.
     sandbox_pin: str = ""
 
+    # ── External MCP servers, for the parent sandbox ONLY ─────────────────────
+    # Lets a parent connect their own MCP servers (a book library, a file
+    # server) so Bede can consult them while the parent is testing ideas in
+    # "Ask Bede". OFF by default and deliberately hard to turn on by accident:
+    # BOTH the flag and a non-empty server list are required.
+    #
+    # This is the only place in Bede where content from outside this process
+    # can reach model context, which is why it is confined to the parent
+    # sandbox and can never reach a child's tutoring session. That confinement
+    # is structural, not a setting: TUTOR_TOOLS contains only internal-trust
+    # tools (services/tool_registry.py), and stream_sandbox_response takes
+    # external tools as an explicit per-call argument that only the
+    # parent-authenticated route passes. See services/mcp_client.py and
+    # docs/MCP.md.
+    mcp_external_enabled: bool = False
+    # JSON list of {"name": "...", "url": "..."} — an MCP server speaking the
+    # Streamable HTTP transport, reachable from the API container. Bede never
+    # spawns a subprocess for this: the API container runs read_only with
+    # cap_drop ALL, and launching arbitrary local commands from it would be a
+    # far larger change to the deployment's threat model than an outbound HTTP
+    # call to an address the parent named.
+    mcp_external_servers: str = ""
+    mcp_external_timeout_seconds: float = 10.0
+
+    # ── Locuto local-IPC listener (services/locuto_ipc/) ──────────────────────
+    # Bede's half of a proposed on-device connector to agnusdei-ai/locuto's
+    # own client — see docs/LOCUTO_CONNECTOR_DECISIONS.md and Locuto's
+    # docs/bede-ipc-spec.md (the single canonical wire spec; nothing in this
+    # codebase duplicates it). ON by default — Bede is meant to interoperate
+    # with a paired Locuto installation out of the box, and the listener's
+    # own v1 registers zero capabilities (see capabilities.py), so a
+    # deployment that never pairs with Locuto is unaffected either way: the
+    # socket accepts a handshake but every real capability is refused.
+    # Still a real, deliberate switch a deployer can set to `false` at
+    # install time (or any time after, restart required — see below) to
+    # disable the listener outright. Runs as its own separate process
+    # (`python -m services.locuto_ipc`), not inside the main FastAPI app;
+    # a False value here means that process never binds the socket, which
+    # is also this listener's kill-switch (bede-ipc-spec.md §7) — see
+    # services/locuto_ipc/server.py's own docstring for why this is
+    # restart-based rather than live, and for why the process stays up
+    # (rather than exiting) while disabled.
+    locuto_ipc_enabled: bool = True
+    # bede-ipc-spec.md §2: a Unix domain socket, never TCP even on loopback.
+    # Default path sits under the api container's one writable location
+    # (docker-compose.yml's `/tmp:size=64m,mode=1777` tmpfs) — a real
+    # household deployment bind-mounts this directory to a host-visible
+    # path so a native Locuto process can reach it; see docker-compose.yml's
+    # own comment on the locuto-ipc service for the full reasoning.
+    locuto_ipc_socket_path: str = "/tmp/bede-locuto/locuto.sock"
+
     # ── Parent MFA: FIDO2 security key (YubiKey, etc.) + TOTP ─────────────────
     # Empty rp_id disables WebAuthn entirely (same "empty = disabled" pattern
     # as DEMO_PIN) — a family only needs to set these if they want to enroll a
@@ -263,6 +386,35 @@ class Settings(BaseSettings):
     voice_threshold_high: float = 0.82    # auto-pass
     voice_threshold_medium: float = 0.68  # parent override available
 
+    # ── Speech-to-text backend (services/transcription.py) ───────────────────
+    # "local" runs faster-whisper in this process — the default, and the only
+    # correct answer for a family's self-hosted instance, where the entire
+    # point is that a child's voice never leaves the LAN. "openai" sends the
+    # audio to OpenAI's transcription API instead.
+    #
+    # This is NOT a speed or accuracy knob, it is a deployment-shape one, and
+    # it exists because of a measured memory failure. faster-whisper's
+    # ctranslate2 backend opportunistically imports torch the moment torch is
+    # present in the environment, and torch costs ~480MB of RSS on import
+    # alone — measured at 642MB warmed against Render's 512MB free-tier web
+    # service cap, which OOM-killed bede-demo-api and took every in-flight
+    # voice session down with it (see docs/DEMO_HOSTING.md's memory section
+    # and docs/VOICE_SETUP.md). On "openai" nothing here ever imports
+    # faster_whisper, so torch never loads and that entire cost disappears.
+    #
+    # The public demo already sends the conversation to OpenAI and already
+    # uses OpenAI for TTS, so on THAT deployment local transcription was
+    # buying a privacy property the deployment does not claim. A self-hosted
+    # family's instance does claim it, which is why the default stays "local"
+    # and a deployment has to opt in by name. Switching this is a disclosure
+    # change wherever the deployment publishes one — see
+    # docs/VENDOR_DATA_FLOW.md.
+    transcription_provider: str = "local"
+    # Which OpenAI transcription model to use when transcription_provider is
+    # "openai". gpt-4o-mini-transcribe is the cheap, fast one and is more than
+    # adequate for short child utterances; whisper-1 is the older endpoint.
+    openai_transcription_model: str = "gpt-4o-mini-transcribe"
+
     # ── Speech-to-text concurrency (services/transcription.py) ───────────────
     # faster-whisper's CPU inference is itself internally multi-threaded
     # (CTranslate2 uses all available cores by default for one call) — running
@@ -280,6 +432,28 @@ class Settings(BaseSettings):
     # runs on; a deployment with real CPU headroom (more cores, a bigger
     # instance) can raise it to let genuinely-concurrent turns from different
     # tablets overlap. See docs/VOICE_SETUP.md's transcription-delay section.
+    # faster-whisper model size for voice input. "base" is a fine CPU default
+    # for English; "small" is materially better for Spanish (and other
+    # non-English locales) at roughly 3x the compute. Deployments teaching in
+    # Spanish should consider setting WHISPER_MODEL_SIZE=small — see
+    # docs/VOICE_SETUP.md. Valid: tiny, base, small, medium, large-v3.
+    whisper_model_size: str = "base"
+    # Decoding strategy. faster-whisper's own default is 5 (beam search);
+    # 1 is greedy and several times faster, which matters because every
+    # partial pass re-transcribes the whole buffer (faster-whisper has no
+    # incremental mode). Raise it only if accuracy is the complaint and
+    # latency is not.
+    whisper_beam_size: int = 1
+    # Skip silence instead of decoding it. Off by default on purpose: VAD can
+    # clip a child who answers quietly, and losing a word is worse than
+    # waiting for it. See docs/VOICE_SETUP.md.
+    whisper_vad_filter: bool = False
+    # Stop computing live partial transcripts once a hold passes this many
+    # seconds of audio. Every pass re-transcribes the whole buffer, so
+    # partials get quadratically more expensive the longer a child talks,
+    # while also getting staler. 0 disables the cap (always compute partials).
+    voice_partial_max_seconds: float = 25.0
+
     voice_transcription_max_concurrency: int = 1
 
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
@@ -293,6 +467,30 @@ class Settings(BaseSettings):
     # DiagnosticEvidenceLog stays empty and session summaries fall back to
     # not mentioning skill growth at all (no data to report it from).
     diagnostic_evidence_log_enabled: bool = True
+
+    # Whether a child's mastery estimate is kept between sessions.
+    #
+    # True (the default, and today's behaviour byte for byte) stores the
+    # encrypted vector in MasteryProfile, so the estimate accumulates
+    # across weeks and the Progress page can show a term's picture.
+    #
+    # False runs the same diagnostic and reports the same summary, but
+    # holds the estimate in memory for the session only
+    # (services/diagnostic_session.py) and never writes it down. Nothing
+    # describing the child survives the sitting.
+    #
+    # This is a deployment-wide privacy posture rather than a per-child
+    # setting, deliberately: it should be a property of the software a
+    # family installed, not a checkbox to remember for each student, and
+    # one sibling having a retained psychological profile while another
+    # does not is a hard thing to explain and an easy thing to get wrong.
+    #
+    # The trade is real and is not hidden: an estimate becomes reliable
+    # through accumulation, and a single sitting produces evidence in
+    # roughly the same range as CALIBRATION_THRESHOLD itself, so families
+    # on this setting will see "still getting to know your learner" more
+    # often. See docs/diagnostic/EPHEMERAL_DIAGNOSTIC_SPEC.md.
+    retain_mastery_profiles: bool = True
 
     # ── Demo interaction-pattern analysis (optional) ──────────────────────────
     # On by default for demo sessions only (never parent/child production) —
@@ -318,12 +516,24 @@ class Settings(BaseSettings):
     # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
     license_key: str = ""
 
-    _WEAK_SECRETS = {
-        "dev-secret-CHANGE-IN-PRODUCTION-must-be-32-chars-min",
-        "change-me-parent",
-        "change-me-master-secret-32-chars-min",
-        "0000",
-    }
+    # Both sets now live in core/pin_policy.py rather than here, because the
+    # setup wizard has to enforce exactly the same rule at the moment a
+    # parent types a value, and it cannot import this module (it runs in a
+    # pydantic-free container). While these lists lived here alone, the
+    # wizard accepted the published example PIN, wrote it to .env, and the
+    # API then refused to boot on it — see that module's docstring.
+    _WEAK_SECRETS = WEAK_PLACEHOLDER_SECRETS
+
+    # Kept separate from _WEAK_SECRETS (which is also checked against
+    # SECRET_KEY/PARENT_PASSWORD/MASTER_SECRET) rather than merged into it:
+    # "602656" isn't inherently weak as a general secret — pin_is_strong()
+    # alone would happily accept it, since it's a real, non-sequential,
+    # non-repeating 6-digit PIN. It's a liability specifically as a PIN,
+    # because it was this repo's own published sample value. A shared set
+    # would have also rejected it as a perfectly reasonable
+    # PARENT_PASSWORD/SECRET_KEY/MASTER_SECRET, which there's no security
+    # reason to do.
+    _WEAK_CHILD_PINS = PUBLISHED_EXAMPLE_PINS
 
     # SECRET_KEY/MASTER_SECRET: matches the dev-default placeholders' own
     # "-32-chars-min" naming — SECRET_KEY signs every JWT (core/security.py),
@@ -390,26 +600,26 @@ class Settings(BaseSettings):
                 f"PARENT_PASSWORD must be at least {MIN_PASSWORD_LENGTH} characters — "
                 "the same minimum setup.sh and the setup wizard already enforce interactively"
             )
-        if self.child_pin in self._WEAK_SECRETS:
+        if self.child_pin in self._WEAK_SECRETS or self.child_pin in self._WEAK_CHILD_PINS:
             problems.append("CHILD_PIN is set to the default dev value")
         elif not pin_is_strong(self.child_pin):
             problems.append(
                 f"CHILD_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
+                "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes"
             )
         if self.demo_pin and not pin_is_strong(self.demo_pin):
             problems.append(
                 f"DEMO_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN — "
+                "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes — "
                 "it's shared with the public, so it deserves the same bar as CHILD_PIN"
             )
         if self.sandbox_pin and not pin_is_strong(self.sandbox_pin):
             problems.append(
                 f"SANDBOX_PIN must be {MIN_PIN_LENGTH}+ digits and not an easily-guessable pattern "
                 "— no sequential run (123456, 654321), repeated block (111111, 123123, 121212), "
-                "or palindrome (669966). Repeated digits are fine otherwise, e.g. 602656 is a good PIN"
+                "or palindrome (669966). Repeated digits are fine otherwise, so long as the PIN isn't one of those shapes"
             )
         if self.master_secret in self._WEAK_SECRETS:
             problems.append("MASTER_SECRET is set to the default dev value")
@@ -493,6 +703,31 @@ class Settings(BaseSettings):
                 "Production mode is enabled but API docs are not disabled — set "
                 "DISABLE_API_DOCS=true (otherwise /docs, /redoc, and /openapi.json "
                 "are publicly reachable, exposing the full internal API schema)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def reject_unusable_transcription_provider(self) -> "Settings":
+        """Fail fast on a transcription backend that cannot possibly work,
+        rather than booting clean and failing on the first child who presses
+        the mic. Two ways to get this wrong: a typo in the value (which would
+        otherwise silently fall through to whichever branch the code checks
+        last), and naming "openai" with no OPENAI_API_KEY set. The second is
+        the one that matters — the whole reason to select this backend is
+        that the local model is deliberately never loaded on that deployment,
+        so there is nothing left to fall back to, and a silent fallback would
+        reintroduce the ~480MB import this setting exists to avoid. Checked
+        regardless of production mode, since a broken mic is exactly as
+        broken on a dev instance."""
+        if self.transcription_provider not in TRANSCRIPTION_PROVIDERS:
+            raise ValueError(
+                f"TRANSCRIPTION_PROVIDER must be one of {sorted(TRANSCRIPTION_PROVIDERS)} "
+                f"(got {self.transcription_provider!r})"
+            )
+        if self.transcription_provider == "openai" and not self.openai_api_key:
+            raise ValueError(
+                "TRANSCRIPTION_PROVIDER=openai requires OPENAI_API_KEY — there is no local "
+                "model loaded on this setting to fall back to (see docs/VOICE_SETUP.md)"
             )
         return self
 

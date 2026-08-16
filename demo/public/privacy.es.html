@@ -7,32 +7,36 @@
 <style>
   body {
     font-family: Georgia, 'Times New Roman', serif;
-    color: #2d3142;
+    color: #1c2438;
     max-width: 680px;
     margin: 0 auto;
     padding: 32px 20px 64px;
     line-height: 1.6;
-    background: #fdfbf7;
+    background: #faf6ec;
   }
   h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 26px; margin-bottom: 4px; }
   h2 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 18px; margin-top: 36px; }
-  .sub { color: #6b7280; font-size: 14px; margin-top: 0; }
+  .sub { color: #4d4a42; font-size: 14px; margin-top: 0; }
   table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-  th { color: #1e3a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e0d6c1; vertical-align: top; }
+  th { color: #1c2438; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
   .callout {
-    background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
-    padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #92400e;
+    background: #fff6e5; border: 1px solid #e0b84a; border-radius: 10px;
+    padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #7d4f00;
   }
-  a { color: #1e3a8a; }
-  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  /* agnusdei.ai's own inline-link idiom (site.css `.lede a`): ink with a
+     gilt underline, so a link is legible as a link without introducing a
+     colour the palette does not have. */
+  a { color: #1c2438; text-decoration: underline;
+      text-decoration-color: #b8860b; text-underline-offset: 3px; }
+  code { background: #f1e7d2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
   .back { display: inline-block; margin-top: 32px; font-size: 14px; }
 </style>
 </head>
 <body>
 
 <h1>Aviso de Privacidad — Demo Pública Beta</h1>
-<p class="sub">Aplica únicamente a la demo pública gratuita de este dominio. Última actualización: 2026-07-14.</p>
+<p class="sub">Aplica únicamente a la demo pública gratuita de este dominio. Última actualización: 2026-08-03.</p>
 
 <p>
   Esta página cubre únicamente la <strong>demo pública beta</strong> — la versión que cualquiera
@@ -47,7 +51,8 @@
   <strong>En resumen:</strong> nunca almacenamos la conversación en sí. Sí almacenamos, brevemente,
   el nombre/grado que proporciones de manera opcional y señales estructurales anonimizadas sobre
   cómo se desarrolló la sesión (qué herramientas se usaron, cuántos turnos, qué materias) — nunca
-  lo que realmente se dijo. Los comentarios son completamente opcionales, y nunca le pedimos a un
+  lo que realmente se dijo. Si usas el micrófono, tu audio se envía a OpenAI para transcribirlo
+  a texto solo para ese turno, y no lo almacenamos nosotros ni ellos. Los comentarios son completamente opcionales, y nunca le pedimos a un
   niño su propio correo electrónico.
 </div>
 
@@ -60,11 +65,21 @@
     <td>Hasta 6 horas, o de inmediato si cierras sesión. Nunca se agrega a un registro permanente.</td>
   </tr>
   <tr>
+    <td>Un registro del trabajo terminado durante esta sesión</td>
+    <td>Le muestra lo que su estudiante realmente completó: qué destreza, cuánta ayuda necesitó y qué observó Bede sobre el trabajo. Nunca lo que se dijo.</td>
+    <td>Hasta 6 horas, o de inmediato si cierra la sesión. Nunca se añade a un registro permanente.</td>
+  </tr>
+  <tr>
     <td>La conversación en sí</td>
-    <td>Se envía en tiempo real a la API de Claude de Anthropic para que Bede pueda generar sus respuestas</td>
+    <td>Se envía en tiempo real a OpenAI, nuestro proveedor principal de IA para esta demo, para que Bede pueda generar sus respuestas. Si OpenAI no está disponible brevemente, el mismo turno se reintenta automáticamente con nuestro proveedor de respaldo configurado &mdash; Mistral por defecto, o Claude (Anthropic) si hemos configurado ese como respaldo en su lugar.</td>
     <td><strong>Nunca almacenada por nosotros, bajo ninguna circunstancia.</strong> Existe de nuestro lado
-      solo mientras dura la sesión en vivo. Anthropic la procesa como nuestro proveedor de servicios
+      solo mientras dura la sesión en vivo. Cada proveedor la procesa como nuestro proveedor de servicios
       para generar las respuestas de Bede y no la utiliza para entrenar sus modelos.</td>
+  </tr>
+  <tr>
+    <td>Tu voz, si usas el micrófono <em>(opcional)</em></td>
+    <td>Se envía al servicio de transcripción de OpenAI para convertirla en texto, de modo que Bede pueda responder a lo que dijiste; la voz hablada de Bede se genera con el servicio de texto a voz de OpenAI</td>
+    <td><strong>Nunca almacenada</strong>, ni por nosotros ni por OpenAI. Pasa por nuestro servidor hacia OpenAI solo para ese turno y luego se descarta. OpenAI la procesa como nuestro proveedor de servicios y no la utiliza para entrenar sus modelos.</td>
   </tr>
   <tr>
     <td>Señales anonimizadas de patrones de interacción — qué herramientas de enseñanza se activaron, número de turnos, qué materias se visitaron/completaron</td>
@@ -80,6 +95,11 @@
     <td>Correo electrónico de contacto <em>(opcional, solo padre/tutor)</em></td>
     <td>Para dar seguimiento si nos lo has pedido</td>
     <td>Solo se recopila si decides compartirlo activamente — nunca se escribe en ninguna base de datos, se usa una sola vez para responder.</td>
+  </tr>
+  <tr>
+    <td>Una obra de arte para el estudio de imágenes <em>(solo Arte y Música)</em></td>
+    <td>Para mostrar la pintura de la que Bede está hablando</td>
+    <td>No se recopila ni se almacena nada. Esto es lo único que tu navegador solicita fuera de nuestros propios servidores: cuando Bede muestra una pintura, tu navegador le pide a Wikipedia el resumen de ese artículo y carga la imagen desde Wikimedia. No se envía nada de lo que tú o tu hijo hayan escrito, ni nada sobre la sesión — pero, como al visitar cualquier sitio web, Wikipedia y Wikimedia pueden ver tu dirección IP y qué artículo se solicitó. Guardamos el título de la obra en lugar de una copia de la imagen, por eso se solicita en el momento de mostrarla.</td>
   </tr>
 </table>
 
@@ -111,10 +131,23 @@
   <li><strong>Nombre y nivel de grado</strong> <em>(opcional)</em> — usado únicamente para
     personalizar la sesión en curso, se conserva por un máximo de 6 horas, y nunca se incorpora
     a un perfil persistente.</li>
-  <li><strong>La conversación en sí</strong>, transmitida en tiempo real a nuestro proveedor de
-    IA, Anthropic, para que Bede pueda generar sus respuestas de tutoría — nunca almacenada por
-    nosotros y nunca utilizada por nosotros ni, según los términos de Anthropic, por Anthropic
-    para entrenar modelos.</li>
+  <li><strong>Un registro del trabajo terminado durante la sesión</strong>: qué destreza se
+    trabajó, cuánta ayuda necesitó y qué observó Bede sobre el trabajo en sí (por ejemplo, que una
+    narración quedó para mostrar de ejemplo, o que un paso fue más allá de lo que se pedía). Se le
+    muestra en pantalla durante la sesión para que vea lo que su estudiante realmente hizo. Nunca
+    incluye nada de lo que se dijo, se guarda durante el mismo plazo de un máximo de 6 horas que
+    los campos anteriores y se borra de inmediato si cierra la sesión. Nunca se convierte en un
+    perfil permanente, y nunca es una nota, una puntuación ni un juicio sobre su hijo.</li>
+  <li><strong>La conversación en sí</strong>, transmitida en tiempo real a nuestros proveedores de
+    IA, OpenAI (principal) y, solo si OpenAI no está disponible brevemente, nuestro respaldo
+    configurado — Mistral por defecto, o Claude (Anthropic) si hemos configurado ese en su lugar —
+    para que Bede pueda generar sus respuestas de tutoría. Nunca almacenada por nosotros y nunca
+    utilizada por ninguno de estos proveedores para entrenar sus modelos, según sus propios
+    términos.</li>
+  <li><strong>Tu voz, si usas el micrófono</strong> <em>(opcional)</em> — el audio pasa por
+    nuestro servidor hacia el servicio de transcripción de OpenAI para convertirlo en texto, y no
+    se almacena más allá de ese turno ni por nosotros ni por OpenAI. La voz hablada de Bede se
+    genera como audio con el servicio de texto a voz de OpenAI.</li>
   <li><strong>Señales anonimizadas de patrones de interacción</strong> (qué herramientas de
     enseñanza se usaron, cuántos turnos, qué materias) — vinculadas de forma criptográfica para
     que no puedan rastrearse hasta tu hijo o hija, y que nunca incluyen lo que realmente se
@@ -139,7 +172,11 @@
 <p>Usamos la información descrita arriba únicamente para:</p>
 <ul>
   <li>Personalizar la única sesión de tutoría en curso.</li>
-  <li>Generar las respuestas de tutoría de Bede (a través de la API de Claude de Anthropic).</li>
+  <li>Generar las respuestas de tutoría de Bede y su voz hablada (a través de OpenAI, con un
+    respaldo configurado — Mistral por defecto, o Claude/Anthropic en su lugar — solo para
+    respuestas de texto, si OpenAI no está disponible brevemente).</li>
+  <li>Transcribir el audio de tu micrófono a texto, a través de OpenAI, para que Bede
+    pueda responder a él.</li>
   <li>Entender, de forma agregada y anonimizada, qué patrones de enseñanza funcionan bien, para
     poder mejorar a Bede.</li>
   <li>Responder a un padre, madre o tutor que nos lo haya solicitado.</li>
@@ -148,10 +185,12 @@
 <h3 style="font-size:15px;margin-top:20px;">Divulgación a terceros</h3>
 <p>
   No vendemos la información de tu hijo o hija, y no la usamos para publicidad. La compartimos
-  únicamente con los proveedores de servicios que hacen posible la demo — Anthropic (para
-  generar las respuestas de Bede) y Resend (para enviar un correo de comentarios opcional) —
-  cada uno de los cuales está limitado contractual y técnicamente a usarla solo para ese
-  propósito. También podríamos divulgar información si la ley lo exige o para proteger la
+  únicamente con los proveedores de servicios que hacen posible la demo — OpenAI (para generar
+  las respuestas de Bede y su voz hablada), nuestro proveedor de respaldo de texto configurado
+  (Mistral por defecto, o Claude/Anthropic si hemos configurado ese en su lugar, usado solo si
+  OpenAI no está disponible brevemente) y Resend (para enviar un correo de comentarios
+  opcional) — cada uno de los cuales está limitado contractual y técnicamente a usarla solo para
+  ese propósito. También podríamos divulgar información si la ley lo exige o para proteger la
   seguridad de alguien.
 </p>
 
@@ -193,8 +232,14 @@
   EE. UU. Las preguntas sobre este aviso, o sobre tus datos (o los de tu hijo o hija)
   específicamente, pueden enviarse a <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.
 </p>
+<p>
+  Para el inventario técnico detrás de este aviso — cada cookie, cada dato de
+  almacenamiento del navegador, y cada servicio externo que contacta este dominio,
+  incluyendo el sitio de mercadeo fuera de esta demo — consulta
+  <a href="/privacy/">Privacidad y Divulgación de Datos</a> (en inglés).
+</p>
 
-<p style="font-size:13px;color:#6b7280;margin-top:28px;">
+<p style="font-size:13px;color:#4d4a42;margin-top:28px;">
   Esta traducción al español se generó con ayuda de IA y aún está pendiente de revisión por un
   hablante nativo. El texto en inglés (<a href="./privacy.html">privacy.html</a>) es la versión
   de referencia en caso de cualquier discrepancia.

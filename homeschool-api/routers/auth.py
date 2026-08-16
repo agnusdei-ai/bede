@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Optional
 import hmac
@@ -6,16 +7,24 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import parent_lockout
+from core import child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
 from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
-from core.deps import require_auth
+from core.deps import require_auth, require_parent
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
-from models.schemas import DemoCodeRequest, DemoCodeResponse, LoginRequest, TokenResponse, VALID_GRADES
+from models.schemas import (
+    DemoCodeRequest,
+    DemoCodeResponse,
+    ElevationRequest,
+    ElevationResponse,
+    LoginRequest,
+    TokenResponse,
+    VALID_GRADES,
+)
 from services import mfa_service
 from services.ai_service import _sanitize_parent_field
 
@@ -35,22 +44,41 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     automatically. Each code is independent, so unlike the shared-PIN trial
     this once had, concurrent visitors never collide with each other.
 
-    `req` is optional and both its fields are optional — an older client (or
+    `req` is optional and all its fields are optional — an older client (or
     one that doesn't want to personalize) can still POST with no body at all,
-    same as before. student_name is sanitized here (HTML/prompt-injection
-    stripping, same as a parent's lesson_focus/faith_emphasis notes) since
-    it's the one new piece of free text an anonymous visitor puts in front of
-    the model; grade is checked against VALID_GRADES rather than sanitized,
-    since anything outside that small allowlist is silently ignored (falls
-    back to the operator's configured DEMO_GRADE) rather than trusted as text.
+    same as before. student_name and current_unit are sanitized here (HTML/
+    prompt-injection stripping, same as a parent's lesson_focus/
+    faith_emphasis notes) since they're free text an anonymous visitor puts
+    in front of the model; grade is checked against VALID_GRADES rather than
+    sanitized, since anything outside that small allowlist is silently
+    ignored (falls back to the operator's configured DEMO_GRADE) rather than
+    trusted as text.
+
+    current_unit is the "what are we already covering at home" note behind
+    the demo's Continuing Mastery card (see core/database.py's
+    DemoCodeUnitNote and CLAUDE.md's "Continuing Mastery (demo)" section) —
+    threaded into the demo's SessionConfig.current_unit exactly like a real
+    parent's own field, so Bede can anchor on material the family brought in
+    from outside the built-in curriculum.
+
+    faith_tradition is the visiting family's own optional church-tradition
+    label (e.g. "Baptist", "Catholic") — threaded into
+    SessionConfig.faith_tradition the same way, so Bede can frame Scripture
+    & Bible Study / Saints & Catechism content consistently with that
+    tradition even though the demo shows both modules to every visitor
+    (see core/database.py's DemoCodeFaithNote).
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
 
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
+    current_unit = _sanitize_parent_field(req.current_unit if req else None, max_len=200)
+    faith_tradition = _sanitize_parent_field(req.faith_tradition if req else None, max_len=60)
 
-    code = await generate_code(student_name=student_name, grade=grade)
+    code = await generate_code(
+        student_name=student_name, grade=grade, current_unit=current_unit, faith_tradition=faith_tradition,
+    )
     if code is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -88,6 +116,30 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     # someone from getting into their own session.
     locale = req.locale if req.locale == settings.locale else "en"
 
+    def _reject_if_device_revoked(role: str) -> None:
+        """P9 device revocation (core/device_registry.py). Called ONLY after
+        this role's credential has already verified successfully — never
+        before. An earlier version checked this first, reasoning that it
+        would avoid burning a parent_lockout/child_throttle attempt on a
+        login that was never going to succeed anyway. That reasoning was
+        wrong: it made this endpoint a pre-authentication oracle, since a
+        caller submitting the right device_id with ANY (or no valid)
+        credential would learn whether that device is revoked without ever
+        proving they hold it. Checking only after a genuinely correct
+        password/PIN closes that — a wrong credential now always gets the
+        same "Invalid credentials" response regardless of whether the
+        device happens to be revoked, indistinguishable either way."""
+        if not req.device_id or not device_registry.is_revoked(req.device_id):
+            return
+        log_event_nowait(
+            AuditEvent.DEVICE_LOGIN_BLOCKED, role=role, success=False,
+            detail="login refused — this device was revoked", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This device's access was revoked — please contact the parent",
+        )
+
     if req.role == "parent":
         locked_until = await parent_lockout.check_locked(db)
         if locked_until is not None:
@@ -110,6 +162,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
                 )
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         await parent_lockout.record_success(db)
+        _reject_if_device_revoked("parent")
         cv = current_credentials_version()
 
         # Password alone isn't enough once a security key or TOTP app is
@@ -118,13 +171,17 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # routers/mfa.py), not a real parent session.
         methods = await mfa_service.enrolled_methods(db)
         if methods:
-            # locale carries through the pending token so the FINAL token
-            # (issued by routers/mfa.py once the second factor completes)
-            # can re-embed it — the parent picked their language once, at
-            # this password step, and MFA completing a moment later
-            # shouldn't silently reset it back to English.
+            # locale (and, likewise, device_id) carries through the pending
+            # token so the FINAL token (issued by routers/mfa.py once the
+            # second factor completes) can re-embed it — the parent picked
+            # their language once, and this device was already identified,
+            # at this password step; MFA completing a moment later
+            # shouldn't silently reset either.
+            pending_payload = {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv}
+            if req.device_id:
+                pending_payload["device_id"] = req.device_id
             pending_token = create_access_token(
-                {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv},
+                pending_payload,
                 fingerprint=fp,
                 expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
             )
@@ -134,8 +191,22 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
         if not hmac.compare_digest(req.credential, settings.child_pin):
+            # Escalating delay, not a lockout — see core/child_throttle.py
+            # for why copying parent_lockout's fixed-threshold refusal here
+            # would have closed a brute-force gap by opening an easier
+            # availability one (any sibling who knows the threshold could
+            # end a lesson before it starts). The first few failures cost
+            # nothing, so a child mistyping their own PIN notices no
+            # difference; sustained guessing gets expensive regardless of
+            # how many source addresses it comes from, which is the gap the
+            # per-IP rate limiter alone can't close on a LAN.
+            delay = child_throttle.record_failure()
+            if delay:
+                await asyncio.sleep(delay)
             log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False, **ctx)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        child_throttle.record_success()
+        _reject_if_device_revoked("child")
         expires = timedelta(minutes=settings.child_token_expire_minutes)
     elif req.role == "demo_code":
         # No static secret to compare against — the credential is a code
@@ -160,6 +231,14 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # MFA enrolled (the MFA branch above already embedded cv on its own
         # pending token and returned early).
         token_data["cv"] = cv
+    if req.role in ("parent", "child") and req.device_id:
+        # touch() only runs at the point a REAL, usable token is issued —
+        # never for the transient parent_pending token above, which isn't
+        # a completed login yet. The MFA-required parent path instead
+        # touches in routers/mfa.py's _issue_parent_token, the equivalent
+        # point once the second factor completes.
+        token_data["device_id"] = req.device_id
+        await device_registry.touch(db, req.device_id, req.role, ctx["user_agent"])
 
     # demo_code tokens skip IP+UA fingerprint binding (parent/child keep it
     # unchanged). Real bug this fixes: a demo visitor's IP legitimately
@@ -215,8 +294,121 @@ async def validate_token(
     return {"role": payload.get("role"), "valid": True}
 
 
+@router.post("/elevate", response_model=ElevationResponse)
+async def elevate(
+    req: ElevationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(require_parent),
+):
+    """Step up to management-plane privilege for a short window (P8).
+
+    Being logged in as the parent is the ordinary account identity. Reading
+    the audit log, repointing the AI provider, changing an authentication
+    factor, or permanently destroying a student's data additionally requires
+    this — a recent, explicit, time-boxed re-authentication. See
+    core/elevation.py for the reasoning and core/policy.py's
+    _REQUIRES_ELEVATION for exactly which actions are covered.
+
+    What it defends against is a *stolen session* rather than a stolen
+    password: a token lifted from a tab left open on a shared device, or
+    replayed by an XSS payload. None of those carry the password, and all of
+    them are the realistic ones for a LAN appliance.
+
+    SECOND FACTOR. A TOTP code is required when TOTP is enrolled. WebAuthn
+    is deliberately NOT required here even when it is enrolled, and that is
+    a real gap rather than a decision: verifying a security key needs a
+    challenge/response round trip, so it needs its own endpoint pair the way
+    login has. A WebAuthn-only deployment therefore elevates on the password
+    alone — still strictly stronger than the nothing that came before, and
+    tracked as the next step on P8.
+    """
+    ctx = audit_from_request(request)
+    jti = auth.get("jti")
+
+    if not jti:
+        # A parent token issued before P8 existed. It has no session id to
+        # key a grant to, so it cannot be elevated at all — and inventing
+        # one here would key the grant to something the token doesn't
+        # actually carry. Re-login mints a token that does.
+        log_event_nowait(
+            AuditEvent.ELEVATION_DENIED, role="parent", success=False,
+            detail="token predates privileged access — no session id", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Please log in again before performing this action",
+        )
+
+    if not await verify_parent_password(db, req.password):
+        # Shares parent_lockout with the login path deliberately: an
+        # attacker holding a live session must not get an unthrottled
+        # password oracle just because they are already authenticated.
+        await parent_lockout.record_failure(db)
+        log_event_nowait(
+            AuditEvent.ELEVATION_DENIED, role="parent", success=False,
+            detail="wrong password", **ctx,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect",
+        )
+
+    methods = await mfa_service.enrolled_methods(db)
+    if "totp" in methods:
+        if not req.totp_code or not await mfa_service.verify_totp_login(db, req.totp_code):
+            log_event_nowait(
+                AuditEvent.ELEVATION_DENIED, role="parent", success=False,
+                detail="missing or invalid second factor", **ctx,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Enter the current code from your authenticator app",
+            )
+
+    await parent_lockout.record_success(db)
+    expires = await elevation.grant(db, jti)
+    log_event_nowait(
+        AuditEvent.ELEVATION_GRANTED, role="parent", success=True,
+        detail=f"privileged access for {settings.elevation_ttl_minutes} min", **ctx,
+    )
+    return ElevationResponse(
+        elevated=True,
+        expires_at=expires.isoformat(),
+        ttl_seconds=settings.elevation_ttl_minutes * 60,
+    )
+
+
+@router.delete("/elevate")
+async def drop_elevation(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(require_parent),
+):
+    """End privileged access early — "I'm done administering".
+
+    Not required (the grant expires on its own) but the right thing to offer
+    a parent stepping away from a shared machine, and cheap."""
+    dropped = await elevation.drop(db, auth.get("jti"))
+    if dropped:
+        log_event_nowait(
+            AuditEvent.ELEVATION_DROPPED, role="parent", success=True,
+            **audit_from_request(request),
+        )
+    return {"elevated": False, "was_elevated": dropped}
+
+
+@router.get("/elevate")
+async def elevation_status(
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(require_parent),
+):
+    """Whether this session currently holds privileged access, so the
+    frontend can show the state rather than probing with a real action."""
+    return {"elevated": await elevation.is_elevated(db, auth.get("jti"))}
+
+
 @router.post("/logout")
-async def logout(request: Request, auth: dict = Depends(require_auth)):
+async def logout(request: Request, db: AsyncSession = Depends(get_db), auth: dict = Depends(require_auth)):
     """
     Explicit logout. For the demo_code role this immediately deletes the
     code server-side, so the token stops working right away instead of
@@ -228,5 +420,12 @@ async def logout(request: Request, auth: dict = Depends(require_auth)):
     ctx = audit_from_request(request)
     if auth.get("role") == "demo_code":
         await end_code_session(auth.get("code", ""))
+    # A parent token is a stateless JWT that stays valid until it expires,
+    # so "logged out" is a client-side claim. The elevation is the one piece
+    # of this session that IS server-side state, and leaving it behind would
+    # mean a token recovered after logout came back still holding
+    # management-plane privilege.
+    if auth.get("role") == "parent":
+        await elevation.drop(db, auth.get("jti"))
     log_event_nowait(AuditEvent.AUTH_SUCCESS, role=auth.get("role"), success=True, detail="logout", **ctx)
     return {"success": True}

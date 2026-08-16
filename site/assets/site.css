@@ -1,0 +1,1380 @@
+/* Shared stylesheet for agnusdei.ai — index.html and faq/index.html.
+   Extracted from index.html's inline <style> when the FAQ moved to its
+   own page, so the two cannot drift apart. No build step: this file is
+   served as-is, same as the pages that link it. */
+
+/* ──────────────────────────────────────────────────────────────────
+   Palette — drawn from the things this education is actually made of
+   rather than a generic brand ramp: iron-gall ink, a fern in a nature
+   notebook, foxed paper, the gilt on a cloth book spine, and madder,
+   the old plant dye. Warmer and more muted than the previous olive/
+   navy pair, so photographs sit on top of it without clashing.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --ink: #1c2438;
+  --ink-soft: #3a4358;
+  --fern: #47613f;
+  --fern-deep: #33482d;
+  --vellum: #faf6ec;
+  --vellum-deep: #f1e7d2;
+  --gilt: #b8860b;
+  --gilt-light: #e0b84a;
+  --madder: #8c3b2e;
+  --prose: #4d4a42;
+
+  /* ────────────────────────────────────────────────────────────────
+     PHOTOGRAPH SLOTS — see site/assets/photos/README.md.
+     Each is `none` until a real photograph is dropped in, and every
+     band below has a solid colour fallback underneath, so the page is
+     complete and correct with all three unset (which is how it ships
+     today). To activate one, replace `none` with:
+
+         url('/assets/photos/hero.jpg')
+
+     and nothing else needs to change — the wash, crop, and text
+     contrast are already handled by the band it belongs to.
+
+     Use real photographs only. No AI-generated imagery.
+     ──────────────────────────────────────────────────────────────── */
+  --photo-hero: none;
+  --photo-curriculum: none;
+  --photo-closing: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--vellum);
+  color: var(--ink);
+  font-family: Georgia, Cambria, 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* .band and .band-curriculum are shared page-chrome classes — every one
+   of site/index.html, site/faq/index.html, and site/feedback/index.html
+   reuses them for its own page-head and body wrapper. Their SHARED rule
+   below has to stay the original light wash, or the navy treatment
+   below meant only for the home page's hero and curriculum grid leaks
+   into the other two pages' headers and body text, which were never
+   designed for it. index.html opts in with its own extra class instead
+   (.hero-band on the hero wrapper; the curriculum grid already carries
+   a second class, .curriculum, unique to it). */
+.band {
+  background-color: var(--vellum);
+  background-image:
+    linear-gradient(180deg, rgba(250, 246, 236, 0.88), rgba(241, 231, 210, 0.92)),
+    var(--photo-hero);
+  background-size: cover;
+  background-position: center;
+}
+
+.band-curriculum {
+  background-color: var(--vellum-deep);
+  background-image:
+    linear-gradient(180deg, rgba(241, 231, 210, 0.90), rgba(241, 231, 210, 0.94)),
+    var(--photo-curriculum);
+  background-size: cover;
+  background-position: center;
+}
+
+/* The closing band is the one place type sits on a dark ground on every
+   page that has one — a photograph would still show through as
+   texture, never as something competing with the words. */
+.band-closing {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(180deg, rgba(28, 36, 56, 0.82), rgba(28, 36, 56, 0.88)),
+    var(--photo-closing);
+  background-size: cover;
+  background-position: center;
+  color: var(--vellum);
+}
+
+/* The home page's own dark ground — same navy as .band-closing, on the
+   founder's preference for that contrast and the gold accents it sets
+   off. Scoped so it touches ONLY index.html: .hero-band is a class
+   found nowhere else, and .curriculum.band-curriculum requires BOTH
+   classes, which only index.html's actual subject grid carries — the
+   FAQ and feedback pages' own .band-curriculum wrapper has no
+   .curriculum class alongside it. */
+.hero-band,
+.curriculum.band-curriculum {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(180deg, rgba(28, 36, 56, 0.82), rgba(28, 36, 56, 0.88)),
+    var(--photo-hero);
+  background-size: cover;
+  background-position: center;
+  color: var(--vellum);
+}
+
+.curriculum.band-curriculum {
+  background-image:
+    linear-gradient(180deg, rgba(28, 36, 56, 0.82), rgba(28, 36, 56, 0.88)),
+    var(--photo-curriculum);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem 3rem;
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+img.emblem {
+  width: 112px;
+  height: auto;
+  margin-bottom: 1.25rem;
+}
+
+h1 {
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+}
+
+/* h1 is also the FAQ page's plain-background title, so the hero's own
+   light-on-navy override is scoped here rather than changing the bare
+   h1 rule above. */
+.hero h1 { color: var(--vellum); }
+
+p.motto {
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+  font-weight: bold;
+  color: var(--gilt-light);
+  margin: 0 0 1rem;
+}
+
+/* Left-aligned, not centred, even though .hero centres everything else.
+   Centred text is right for a display line and wrong for a paragraph: every
+   line starts and ends in a different place, so the eye has to re-find the
+   left edge on each one. This runs to six lines on a phone, where the cost
+   is worst. Matches the house style set when justified prose was reverted
+   to left-aligned for the same readability reason. The BLOCK stays centred
+   in the hero — only the text inside it is aligned. */
+p.mission {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: rgba(250, 246, 236, 0.85);
+  margin: 0 0 2rem;
+  text-align: left;
+}
+
+/* A quiet panel on the dark ground, the same restrained translucency as
+   .guarantee/.limit below — not the brighter card look .card uses
+   elsewhere, since this sits directly on the band rather than as one
+   card among several. */
+/* Grid, not flex-wrap, and that is the point rather than a preference.
+   Three items in a wrapping flex row do not fit the hero's 42rem at
+   desktop width, so they broke 2 + 1 and the third pillar sat centred and
+   alone on its own row — the same orphaned-block look this panel is meant
+   to avoid. A grid has no orphan row by construction: three columns, or
+   one, and nothing in between. */
+.pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin: 0 0 2.5rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(224, 184, 74, 0.3);
+}
+
+@media (max-width: 640px) {
+  .pillars {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* Same reasoning as p.mission: the heading and its two or three lines of
+   copy align to a shared left edge, so the three pillars read as a row of
+   columns rather than three separately-centred clouds. The pillars as a
+   GROUP stay centred within the panel. */
+/* No flex-basis or max-width any more — the grid above owns the sizing,
+   and a max-width here would leave uneven gaps inside equal columns. */
+.pillar {
+  text-align: left;
+}
+
+.pillar h3 {
+  font-family: Georgia, serif;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gilt-light);
+  margin: 0 0 0.35rem;
+}
+
+.pillar p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(250, 246, 236, 0.85);
+  margin: 0;
+}
+
+img.bede-portrait {
+  display: block;
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--gilt);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  margin: 0 auto 1rem;
+}
+
+.cta {
+  display: inline-block;
+  background: var(--fern);
+  color: var(--vellum);
+  text-decoration: none;
+  font-family: Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 0.85rem 2.25rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.cta.gilt {
+  background: var(--gilt-light);
+  color: var(--ink);
+}
+
+.cta-sub {
+  margin: 0.75rem 0 2.25rem;
+  font-size: 0.85rem;
+  color: #635f54;
+}
+
+.video-wrap {
+  width: 100%;
+  max-width: 36rem;
+  margin: 0 0 2.5rem;
+  position: relative;
+  aspect-ratio: 16 / 9; /* used for the placeholder and any future landscape video */
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* The placeholder is already dark navy (below) — on the hero's own navy
+   ground it would otherwise vanish into the band around it with nothing
+   but the shadow to mark its edge. */
+.hero .video-wrap { border: 1px solid rgba(224, 184, 74, 0.3); }
+
+.video-wrap.vertical {
+  max-width: 20rem;
+  aspect-ratio: 9 / 16; /* for a YouTube Shorts style vertical video */
+}
+
+.video-wrap iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Click-to-play facade. Nothing is requested from YouTube until the
+   visitor actually asks for it — which matters on a page whose whole
+   argument is that your data stays where you put it. It also keeps a
+   third-party frame off the critical path for everyone who never
+   presses play. The real iframe replaces this on click.
+
+   Deliberately no thumbnail image: fetching one would mean a request
+   to YouTube on load, which is the exact thing this avoids. */
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  /* Dark rather than parchment: at 9:16 this is a tall panel, and on a
+     parchment page a tall parchment rectangle reads as something that
+     failed to load. Dark reads as a video. */
+  background: var(--ink);
+  color: rgba(250, 246, 236, 0.9);
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  padding: 1rem;
+}
+
+.video-placeholder[disabled] { cursor: default; }
+
+.video-placeholder span {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  background: var(--gilt-light);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  padding-left: 0.2rem; /* optically centre the triangle in the circle */
+  transition: transform 0.15s ease;
+}
+
+.video-placeholder:hover:not([disabled]) span { transform: scale(1.06); }
+
+.video-placeholder:focus-visible {
+  outline: 3px solid var(--gilt);
+  outline-offset: -3px;
+}
+
+.video-placeholder p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.video-placeholder small {
+  font-size: 0.75rem;
+  font-style: normal;
+  color: rgba(250, 246, 236, 0.7);
+  max-width: 16rem;
+  line-height: 1.5;
+}
+
+section {
+  padding: 3.25rem 1.5rem;
+}
+
+.inner {
+  max-width: 58rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.eyebrow {
+  font-family: Georgia, serif;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fern-deep);
+  margin: 0 0 0.5rem;
+}
+
+.band-closing .eyebrow, .curriculum.band-curriculum .eyebrow, .founder .eyebrow { color: var(--gilt-light); }
+
+h2 {
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  color: var(--ink);
+  margin: 0 0 0.75rem;
+}
+
+.band-closing h2, .curriculum.band-curriculum h2 { color: var(--vellum); }
+
+p.lede {
+  font-size: 1rem;
+  color: var(--prose);
+  max-width: 36rem;
+  margin: 0 auto 2rem;
+  line-height: 1.65;
+}
+
+.band-closing p.lede, .curriculum.band-curriculum p.lede { color: rgba(250, 246, 236, 0.82); }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  text-align: left;
+}
+
+/* Four-card sections get a wider minimum so they settle into a tidy
+   2x2 rather than a 3+1 with one card stranded on its own row. */
+.card-grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.7);
+  border-left: 4px solid var(--fern);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.card h3 {
+  font-family: Georgia, serif;
+  font-size: 1.02rem;
+  color: var(--ink);
+  margin: 0 0 0.25rem;
+}
+
+.card p {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #55534b;
+  margin: 0;
+}
+
+/* Curriculum tab colours — one per subject, like the colored divider
+   tabs in a school binder, so the fourteen subjects read as distinct at
+   a glance instead of one undifferentiated green list. Fourteen hues
+   evenly spaced around the wheel (360/14 = 25.7° apart, identical
+   saturation and lightness) so none repeats and the list reads as one
+   continuous spectrum — every subject its own colour, the way every
+   learner is their own person. Muted well below full strength so they
+   sit like the plates in an old botanical folio rather than like
+   highlighter ink. Scoped to .curriculum: the other .card-grid
+   instances on the page aren't subject lists and keep the plain fern
+   border.
+
+   Written as hsl() rather than hex so the even spacing is checkable in
+   the code itself — the hues are the only thing that varies, and adding
+   a subject means respacing this list, not appending to it. The 38%/36%
+   pair is the same saturation and lightness the earlier hex palette
+   used (hsl(0, 38%, 36%) is exactly #7f3939), so the tabs keep the
+   folio-plate weight they already had. Order matches the subject order
+   in the card grid above, which in turn matches the app's own. */
+.curriculum .card:nth-child(1)  { border-left-color: hsl(0, 38%, 36%); }     /* Morning Time */
+.curriculum .card:nth-child(2)  { border-left-color: hsl(25.7, 38%, 36%); }  /* Living Books */
+.curriculum .card:nth-child(3)  { border-left-color: hsl(51.4, 38%, 36%); }  /* Mathematics */
+.curriculum .card:nth-child(4)  { border-left-color: hsl(77.1, 38%, 36%); }  /* Nature Study */
+.curriculum .card:nth-child(5)  { border-left-color: hsl(102.9, 38%, 36%); } /* History & Geography */
+.curriculum .card:nth-child(6)  { border-left-color: hsl(128.6, 38%, 36%); } /* Language Arts */
+.curriculum .card:nth-child(7)  { border-left-color: hsl(154.3, 38%, 36%); } /* Science */
+.curriculum .card:nth-child(8)  { border-left-color: hsl(180, 38%, 36%); }   /* Art & Music */
+.curriculum .card:nth-child(9)  { border-left-color: hsl(205.7, 38%, 36%); } /* Saints & Catechism */
+.curriculum .card:nth-child(10) { border-left-color: hsl(231.4, 38%, 36%); } /* Scripture & Bible Study */
+.curriculum .card:nth-child(11) { border-left-color: hsl(257.1, 38%, 36%); } /* Latin & Christian Foundations */
+.curriculum .card:nth-child(12) { border-left-color: hsl(282.9, 38%, 36%); } /* Greek & New Testament Foundations */
+.curriculum .card:nth-child(13) { border-left-color: hsl(308.6, 38%, 36%); } /* Logic */
+.curriculum .card:nth-child(14) { border-left-color: hsl(334.3, 38%, 36%); } /* Free Study */
+
+.founder blockquote {
+  margin: 0 0 0.75rem;
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: rgba(250, 246, 236, 0.9);
+}
+
+.founder cite {
+  font-style: normal;
+  font-size: 0.85rem;
+  color: var(--gilt-light);
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  text-align: left;
+}
+
+.compare-col {
+  padding: 1.75rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.compare-col.after {
+  background: rgba(71, 97, 63, 0.07);
+  border-left: 1px solid var(--vellum-deep);
+}
+
+.compare-col h3 {
+  font-family: Georgia, serif;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 1.1rem;
+}
+
+.compare-col.before h3 { color: var(--madder); }
+.compare-col.after h3 { color: var(--fern-deep); }
+
+.compare-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.compare-col li {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--prose);
+}
+
+.compare-col li strong {
+  display: block;
+  font-family: Georgia, serif;
+  color: var(--ink);
+  margin-bottom: 0.15rem;
+}
+
+/* Rows of small labels — used for the Bible translations Bede will match
+   its wording to. Split into two labeled groups (Protestant / Catholic
+   editions) rather than one 11-item flex-wrap list: at a narrow width
+   that single row wraps unevenly (5/4/2 on a phone), and flexbox centers
+   each wrapped line independently, so it reads as a ragged staircase
+   rather than a tidy block. Two shorter, meaningfully-grouped rows wrap
+   far less often, and when they do it still reads as organized rather
+   than accidental. */
+.pill-group {
+  margin: 0 0 1.1rem;
+}
+
+.pill-group:last-child {
+  margin-bottom: 1.75rem;
+}
+
+.pill-label {
+  font-family: Georgia, serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8c887c;
+  margin: 0 0 0.5rem;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pill {
+  font-family: Georgia, serif;
+  font-size: 0.82rem;
+  color: var(--fern-deep);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--vellum-deep);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+}
+
+/* Body copy — deliberately left-aligned (ragged-right), not justified.
+   A prior pass tried text-align: justify with hyphens: auto to avoid the
+   classic huge-gap problem, and hyphenation did stop the worst cases —
+   but justify still varies inter-word spacing line to line to hit a
+   flush right edge, which is inherent to how browsers justify text, not
+   something hyphenation fully removes. Rendering these paragraphs at
+   several widths (768px down to 480px) showed it plainly: some lines
+   sit at normal spacing, others visibly wider, an unevenness a careful
+   reader notices even without a single dramatic gap. Left-aligned text
+   keeps word-spacing constant on every line, which is why it's the
+   standard choice on Khan Academy and virtually every other site with
+   real body copy — justification is mainly a print convention, built for
+   a fixed page width and a typesetting engine far more sophisticated
+   than a browser's. */
+.limit,
+.guarantee p,
+.faq details p {
+  text-align: left;
+}
+
+/* .inner centres everything, which is right for a two-line lede sitting
+   under a heading and wrong the moment a paragraph runs long: centred text
+   is ragged on BOTH edges, so the eye has to hunt for where each line
+   starts. Add `flow` to a lede that is genuinely several sentences of
+   argument rather than a caption, and it gets a narrow measure and
+   left-aligned text rather than the centred look short ledes use. */
+.lede.flow {
+  text-align: left;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Where Bede deliberately stops. Set apart from the cards so it reads
+   as a promise rather than another feature. */
+.limit {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.4rem;
+  border-left: 4px solid var(--gilt);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--prose);
+}
+
+.band-closing .limit {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(250, 246, 236, 0.85);
+}
+
+/* FAQ — plain <details>/<summary>, no JavaScript. Everything the page
+   used to say in full is still here, one question at a time, so the
+   page above can stay short without the detail being lost. */
+.faq {
+  max-width: 44rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.faq details {
+  border-bottom: 1px solid rgba(28, 36, 56, 0.12);
+}
+
+/* Group labels. Twenty-one questions in one undifferentiated column is
+   a list nobody reads to the end of; seven labelled runs of two to five
+   are scannable. */
+.faq-group {
+  margin: 2.25rem 0 0;
+  padding-bottom: 0.5rem;
+  font-family: Georgia, serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--fern-deep);
+  border-bottom: 1px solid rgba(28, 36, 56, 0.12);
+}
+
+.faq-group:first-child { margin-top: 0; }
+
+.faq summary {
+  cursor: pointer;
+  padding: 0.95rem 2.25rem 0.95rem 0;
+  position: relative;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  list-style: none;
+}
+
+/* Suppress the default disclosure triangle in both engines, so the
+   custom +/- on the right is the only marker. */
+.faq summary::-webkit-details-marker { display: none; }
+
+.faq summary::after {
+  content: '+';
+  position: absolute;
+  right: 0.35rem;
+  top: 0.8rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--fern);
+}
+
+.faq details[open] summary::after { content: '\2212'; }
+
+.faq summary:hover { color: var(--fern-deep); }
+
+.faq details p {
+  margin: 0 0 1rem;
+  padding-right: 2.25rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--prose);
+}
+
+.fineprint {
+  max-width: 44rem;
+  margin: 1.75rem auto 0;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  /* Small text, so it needs to clear 4.5:1 against the band it sits on
+     (#f1e7d2) rather than fading to a decorative grey. This is 5.2:1. */
+  color: #635f54;
+  text-align: left;
+}
+
+.workflow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--vellum-deep);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  margin: 0 0 2.5rem;
+}
+
+.workflow-step {
+  flex: 1 1 12rem;
+  max-width: 15rem;
+  padding: 0 1rem;
+}
+
+.workflow-step strong {
+  display: block;
+  font-family: Georgia, serif;
+  color: var(--ink);
+  margin-bottom: 0.3rem;
+}
+
+.workflow-step span {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #55534b;
+}
+
+.workflow-arrow {
+  color: var(--fern);
+  font-weight: bold;
+  font-size: 1.4rem;
+  padding: 0 0.5rem;
+}
+
+/* The guarantee. Given its own frame on the dark band because it is the
+   page's one binding commercial promise, and a promise that is easy to
+   skim past is worth nothing. */
+.guarantee {
+  max-width: 40rem;
+  margin: 0 auto 2rem;
+  padding: 1.5rem 1.75rem;
+  text-align: left;
+  border: 1px solid rgba(224, 184, 74, 0.45);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.guarantee h3 {
+  margin: 0 0 0.6rem;
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: 1.15rem;
+  color: var(--gilt-light);
+}
+
+.guarantee p {
+  margin: 0 0 0.75rem;
+  font-size: 0.94rem;
+  line-height: 1.7;
+  color: rgba(250, 246, 236, 0.88);
+}
+
+.guarantee p:last-child { margin-bottom: 0; }
+
+.guarantee p a {
+  color: var(--gilt-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Inline links inside body text (the membership section's pointer at the
+   launch page is the first) — a browser-default blue is the one color the
+   palette never uses. Ink on light ground; the dark bands (.band-closing,
+   .curriculum, .founder — everywhere color is set to vellum) get vellum
+   with the same gilt underline instead, or the link vanishes into the
+   ground it sits on. */
+.lede a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--gilt);
+  text-underline-offset: 3px;
+}
+.band-closing .lede a,
+.curriculum .lede a,
+.founder .lede a {
+  color: var(--vellum);
+  text-decoration-color: var(--gilt-light);
+}
+
+.cta-sub.light {
+  color: rgba(250, 246, 236, 0.72);
+  margin: 0.9rem 0 0;
+}
+
+.cta-sub.light a {
+  color: var(--gilt-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A .form-block placed inside a dark section (currently: the home page's
+   "Request a call" form, .band-closing) needs its own light-on-dark
+   palette. .form-block's shared rules above hardcode --ink (dark) for
+   labels/hints/notes because every OTHER form on this site (feedback,
+   survey, educators) sits inside a light .band-curriculum section, where
+   that's correct. Scoped here rather than changed at the source, so
+   fixing the one dark-section form can't silently darken labels on the
+   three light-section ones. */
+.band-closing .form-block {
+  border-color: rgba(250, 246, 236, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.band-closing .field > legend,
+.band-closing .field > label.q {
+  color: var(--vellum);
+}
+
+/* Hints and fine print were --gilt-light here, which put two full
+   paragraphs of gold on the page: gold is this site's accent — the CTA,
+   the guarantee's border, the one thing a visitor's eye should be pulled
+   to — so spending it on a hint made the quietest copy on the page shout,
+   and the note under the button competed with the button. Muted vellum
+   instead, with gold kept for the LINKS inside them, which is the one
+   thing there worth clicking. */
+.band-closing .field .hint {
+  color: rgba(250, 246, 236, 0.6);
+}
+
+.band-closing .form-note {
+  color: rgba(250, 246, 236, 0.58);
+  border-top-color: rgba(250, 246, 236, 0.14);
+}
+
+.band-closing .field:has(~ .field) {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.band-closing .form-note a {
+  color: var(--gilt-light);
+}
+
+/* On the dark band a 75%-white input (the shared rule above, correct on
+   the three light-section forms) renders as a flat pale-grey slab whose
+   dark 18%-ink border vanishes into it — it reads as a DISABLED control
+   rather than a field waiting for an answer, which was the single worst
+   thing about this form. A lifted dark fill with a light edge reads as
+   enterable, and matches how every other panel on this band is built
+   (`.limit`, `.guarantee`: white at low alpha over the navy). */
+.band-closing .form-block input[type="text"],
+.band-closing .form-block input[type="email"],
+.band-closing .form-block select,
+.band-closing .form-block textarea {
+  color: var(--vellum);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(250, 246, 236, 0.24);
+}
+
+/* The same chevron in vellum — the ink one is invisible on this band, and
+   a dropdown with no arrow does not read as a dropdown at all. */
+.band-closing .form-block select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23faf6ec' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+}
+
+/* An <option> is painted by the OS, not the page: on most platforms the
+   list pops up in the system's own light chrome, so vellum-on-vellum text
+   would be unreadable in the one moment the control is actually being
+   used. Set back to ink explicitly. */
+.band-closing .form-block select option {
+  color: var(--ink);
+  background: var(--vellum);
+}
+
+.band-closing .choices label {
+  color: rgba(250, 246, 236, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(250, 246, 236, 0.2);
+}
+
+.band-closing .choices label:hover {
+  border-color: rgba(224, 184, 74, 0.55);
+}
+
+/* Gold rather than fern for the selected tile here: fern is a dark green
+   and all but disappears against the navy, where gold is this band's own
+   accent and is what every other emphasis on it already uses. */
+.band-closing .choices label:has(input:checked) {
+  color: var(--vellum);
+  background: rgba(224, 184, 74, 0.16);
+  border-color: var(--gilt-light);
+}
+
+.band-closing .choices input {
+  accent-color: var(--gilt);
+}
+
+/* Same measurement on the dark side: 0.42 alpha over the field colour
+   above is 3.1:1, 0.62 is 4.8:1. */
+.band-closing .form-block ::placeholder {
+  color: rgba(250, 246, 236, 0.62);
+}
+
+/* Autofill repaints the field with the browser's own near-white and a
+   dark text colour it picks itself, which on this band lands back at the
+   pale slab the rules above exist to avoid. There is no supported way to
+   set the background directly; a long inset shadow in the field's own
+   colour is the standard way to cover it. */
+.band-closing .form-block input:-webkit-autofill {
+  -webkit-text-fill-color: var(--vellum);
+  -webkit-box-shadow: 0 0 0 100px #232c42 inset;
+  caret-color: var(--vellum);
+}
+
+/* Five short assurances under the form. Each is now a bordered chip, and
+   the border is doing a job the previous version needed leading emoji to
+   do: giving each item an edge so the row reads as five distinct items
+   rather than one run of grey text. Those emoji were the change worth
+   making here — a lock, a house, a cross, books, a key, all rendered by
+   whatever font the visitor's OS ships, at whatever size and in whatever
+   palette it chose. On iOS the cross arrives as a white glyph in a filled
+   PURPLE rounded box, which is simply a colour this site does not
+   contain; against Georgia and a hand-mixed ink/vellum/gilt palette a row
+   of platform emoji is the one element that looks borrowed. An outlined
+   chip is quieter, identical on every device, and needs no glyph.
+   Chips wrap into a centred block whose rows stay evenly spaced, so the
+   old failure mode (items centring individually and landing at different
+   left edges) cannot occur — there is no leading icon left to misalign,
+   and each chip carries its own boundary. */
+/* The row itself is `.pill-row` and each item a `.pill` in the markup, so
+   this contributes only the spacing above it (which was an inline style
+   on the element until now) and the dark-band repaint below. Reusing the
+   existing component rather than describing a second chip here is the
+   point: a bordered pill row already exists on this page for the Bible
+   translations, and two chip styles a few sections apart would drift the
+   moment either is touched. */
+.notes {
+  margin-top: 2.5rem;
+}
+
+/* `.pill`'s own colours are for a light section. On the closing band the
+   same component needs the treatment every other panel here already uses
+   — white at low alpha over the navy, a light hairline edge. */
+.band-closing .pill {
+  color: rgba(250, 246, 236, 0.82);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(250, 246, 236, 0.22);
+}
+
+@media (max-width: 640px) {
+  .workflow-strip {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .workflow-step {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .workflow-arrow {
+    transform: rotate(90deg);
+  }
+}
+
+footer {
+  padding: 2.25rem 1.5rem 2rem;
+  font-size: 0.8rem;
+  color: #9a968c;
+  border-top: 1px solid var(--vellum-deep);
+  width: 100%;
+  text-align: center;
+}
+
+/* Two deliberate rows — a link line, then copyright — rather than the
+   old single wrapped paragraph broken by a <br>, whose only vertical
+   rhythm was that tag's own line-height. A link row can wrap to two
+   lines on a narrow phone width, so its own line-height (not a margin
+   sized for one line) is what keeps that wrap readable; the gap down to
+   the copyright line is a real margin instead. */
+/* A flex row with a real gap, rather than links separated by literal
+   &middot; and &nbsp; in the markup. Those separators are inline text, so
+   a wrap could break the row immediately AFTER one — leaving a dot
+   stranded at the end of the first line and the next link starting the
+   second, which is exactly what happened at phone widths ("Feedback ·"
+   then "Co-ops · Privacy"). Flex gap cannot strand, since there is
+   nothing between the items to strand. */
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.4rem;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.footer-copyright {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.beta-banner {
+  background: var(--ink);
+  color: var(--vellum);
+  text-align: center;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.9rem;
+}
+
+.beta-banner strong {
+  color: var(--gilt-light);
+}
+
+.beta-banner a {
+  color: var(--vellum);
+  text-decoration-color: var(--gilt-light);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+/* ── faq/index.html only ─────────────────────────────────────────────────
+   The FAQ has its own page rather than a section on the home page, so it
+   needs a compact header and a way back. Everything else it uses — bands,
+   .faq, .fineprint, .cta — is shared with the home page above. */
+.page-head {
+  padding: 2.75rem 1.5rem 2.25rem;
+  text-align: center;
+}
+
+.backlink {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  font-family: Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--fern-deep);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(51, 72, 45, 0.35);
+  padding-bottom: 1px;
+}
+
+.backlink:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+.page-head h1 { margin-bottom: 0.75rem; }
+
+.page-head .lede { margin-bottom: 0; }
+
+/* Footer links — the FAQ's only route in from the home page, so they need
+   to read as links rather than as more grey small print. */
+footer a {
+  color: var(--fern-deep);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(51, 72, 45, 0.3);
+}
+
+footer a:hover { color: var(--ink); }
+
+/* ── feedback/index.html ─────────────────────────────────────────────────
+   The marketing site is static — no backend, and the product's own
+   POST /feedback is behind require_auth, so an anonymous visitor has
+   nothing to post to. This form therefore assembles a readable email and
+   hands it to the visitor's mail client. No third-party form service,
+   which would put a tracker on the one page arguing that nothing leaves
+   your house. */
+/* A form is a PANEL, not loose fields on the page ground. Before this it
+   was `max-width` and nothing else, so on the home page the "Request a
+   call" fields floated directly on the closing band — flush to both
+   screen edges on a phone, with only faint hairlines between them — while
+   `.guarantee`, sitting immediately above it in the same column, was a
+   bordered card. Two adjacent things at the same level of importance,
+   one of them enclosed and one not, is what reads as unfinished rather
+   than as a design.
+   The measurements are `.guarantee`'s own (0.75rem radius, ~1.75rem
+   padding) so the two stack as siblings; only the border colour differs,
+   because gold there carries the commercial promise and would be noise
+   here. */
+.form-block {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.9rem;
+  text-align: left;
+  border: 1px solid rgba(28, 36, 56, 0.14);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* The panel is what encloses the fields now, so the padding that used to
+   substitute for an edge would only push the first label away from it. */
+@media (max-width: 640px) {
+  .form-block {
+    padding: 1.15rem 1.15rem 1.35rem;
+  }
+}
+
+/* "Rule under every field that is followed by another" — which is a bug
+   fix, not a restyling. The rule used to be `.field:last-of-type
+   { border-bottom: 0 }`, and `:last-of-type` means "last sibling of this
+   ELEMENT type", not "last field". These forms mix both: a question with
+   radio or checkbox options is a `<fieldset class="field">`, a plain text
+   question a `<div class="field">`. On the feedback and survey pages that
+   matched the last fieldset AND the last div — and the last fieldset sits
+   in the MIDDLE of the form, so one separator was missing halfway down
+   every long form, which reads as sloppiness and had nothing to do with
+   where the form actually ends.
+   `:has(~ .field)` asks the question that was actually meant — is another
+   field still to come — and cannot be fooled by tag names, marker classes,
+   or a question being added, removed, or reordered.
+   Deliberately a BOTTOM rule: the obvious inversion, `.field + .field`
+   with `border-top`, needs no `:has()` and was tried first, but a
+   `<legend>` is laid over its fieldset's own top border, so on every
+   fieldset the line ran along the heading and out to the edge rather than
+   sitting above it. A bottom border has no such interaction.
+   Where `:has()` is unsupported the fields simply have no separators —
+   the panel and the spacing still carry the grouping, so the fallback is
+   a plainer form rather than a broken one. */
+.field {
+  margin: 0 0 1.3rem;
+  padding: 0;
+  border: 0;
+}
+
+.field:has(~ .field) {
+  padding-bottom: 1.3rem;
+  border-bottom: 1px solid rgba(28, 36, 56, 0.1);
+}
+
+.field > legend,
+.field > label.q {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0 0 0.35rem;
+  padding: 0;
+}
+
+.field .hint {
+  display: block;
+  font-size: 0.83rem;
+  line-height: 1.55;
+  color: #635f54;
+  margin: 0 0 0.85rem;
+}
+
+/* A <fieldset> brings a border and horizontal margins of its own that a
+   <div> does not; both are cleared so the two kinds of field are the same
+   shape. The separator itself comes from `.field:has(~ .field)` above,
+   which is what lets these two element types be interchangeable here. */
+fieldset.field {
+  border: 0;
+  margin-inline: 0;
+}
+
+/* Options are CARDS, not a bare control with a word beside it. The old
+   version was a wrapped flex row of `☐ Morning Time` pairs: on a phone the
+   only reliable target was the box itself, about 13px across, and the rows
+   ran together so it took reading to see where one option ended and the
+   next began. Each option is now its own bordered tile filling the column,
+   so the whole thing is tappable and the group reads as a set of choices
+   at a glance.
+   A grid rather than wrapped flex: `auto-fit` with a minimum gives equal
+   columns that resolve to ONE full-width column on a phone and three
+   inside the panel on a desktop, without a breakpoint and without the
+   ragged last row a flex wrap leaves. */
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+/* For a genuinely long list (the fifteen subjects), a narrower minimum
+   pairs them up on a phone instead of running fifteen full-width tiles
+   down the screen. */
+.choices.compact {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.choices label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  /* 44px is Apple's own minimum touch target and the floor the app's
+     canvas toolbar already holds to. */
+  min-height: 44px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--prose);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(28, 36, 56, 0.14);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.choices label:hover {
+  border-color: rgba(71, 97, 63, 0.5);
+}
+
+/* The native control stays VISIBLE rather than being replaced by a styled
+   box. That is what makes the selected state safe: where `:has()` is
+   unsupported the tile simply does not tint, and the radio or checkbox
+   itself still shows what is chosen. Hiding the input first and painting
+   the state only in CSS would make an unsupported selector mean "no
+   visible answer at all". */
+.choices label:has(input:checked) {
+  border-color: var(--fern);
+  background: rgba(71, 97, 63, 0.1);
+  color: var(--ink);
+}
+
+/* Focus belongs on the tile, not just the 13px control inside it, so
+   keyboard position is as obvious as pointer position. */
+.choices label:has(input:focus-visible) {
+  outline: 2px solid var(--gilt);
+  outline-offset: 1px;
+}
+
+.choices input {
+  flex: none;
+  accent-color: var(--fern);
+}
+
+/* Option icons — the "what would you like to know" tiles. Inline SVG
+   drawn in currentColor, NOT emoji: the assurance row under this form was
+   just moved off emoji for the reason that applies twice over here, that
+   the glyph is whatever the visitor's OS ships (on iOS one of them arrives
+   as a white mark in a filled purple box). These inherit the tile's own
+   colour, so they darken with the text when the tile is selected. */
+.choices svg {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  opacity: 0.75;
+}
+
+.choices label:has(input:checked) svg {
+  opacity: 1;
+}
+
+.form-block input[type="text"],
+.form-block input[type="email"],
+.form-block select,
+.form-block textarea {
+  width: 100%;
+  font-family: Georgia, Cambria, serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background-color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(28, 36, 56, 0.18);
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.7rem;
+}
+
+/* A dropdown is the right control wherever the answer is one of a known
+   short list — it is one tap on a phone (the OS picker does the rest)
+   against a sentence the visitor has to compose and we then have to
+   interpret. Given one, it should not look like the browser's default:
+   `appearance: none` plus a chevron drawn as an inline SVG data URI, which
+   `img-src 'self' data:` in site/_headers already permits — no image file,
+   no extra request. The right padding reserves the chevron's space so a
+   long option cannot run underneath it. `min-height` matches the option
+   tiles' touch target. */
+.form-block select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  padding-right: 2.3rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%231c2438' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 0.7rem;
+  cursor: pointer;
+}
+
+.form-block textarea { min-height: 5.5rem; resize: vertical; }
+
+.form-block input:focus-visible,
+.form-block select:focus-visible,
+.form-block textarea:focus-visible {
+  outline: 2px solid var(--gilt);
+  outline-offset: 1px;
+}
+
+/* Placeholder text is text, and on these forms it is sometimes the only
+   statement of what a field wants ("e.g. two, grades 2 and 5" is the home
+   page's only note on that field's expected shape). Measured against the
+   composited field background rather than guessed: #8a857a reaches only
+   3.6:1 there — below WCAG AA, and dimmer than the browser default it
+   replaces, which is the wrong direction for a change made on purpose.
+   #7a7568 is 4.5:1. */
+.form-block ::placeholder {
+  color: #7a7568;
+  opacity: 1; /* Firefox dims placeholders further on its own. */
+}
+
+/* The feedback form's submit control is a <button>, so the call-to-action
+   rules above are element-agnostic (.cta, not a.cta) and this only resets
+   what a button brings of its own. */
+button.cta {
+  border: 0;
+  cursor: pointer;
+}
+
+/* Fine print, and it has to look like fine print. It is the last child of
+   every .form-block, so a rule above it separates it from the button
+   rather than leaving a paragraph of body copy hanging off the end of the
+   form with nothing marking the change of register. */
+.form-note {
+  max-width: 40rem;
+  margin: 1.35rem auto 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(28, 36, 56, 0.1);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #635f54;
+  text-align: left;
+}
+
+.form-note code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+
+/* Privacy & data-disclosure page (/privacy/, formerly /trackers/ — see
+   site/trackers/index.html's redirect stub) — a plain inventory table
+   and callout note, styled to this site's own palette rather than a
+   separate inline stylesheet (compare demo/public/privacy.html, which
+   carries its own because a Vite-built app has no shared CSS entry the
+   marketing site's build reaches). */
+.tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0 2rem;
+  font-size: 0.9rem;
+}
+
+.tracker-table th,
+.tracker-table td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--vellum-deep);
+  vertical-align: top;
+}
+
+.tracker-table th {
+  color: var(--fern-deep);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tracker-table td code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.tracker-note {
+  background: rgba(184, 134, 11, 0.08);
+  border: 1px solid rgba(184, 134, 11, 0.35);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.tracker-note strong {
+  color: var(--ink);
+}

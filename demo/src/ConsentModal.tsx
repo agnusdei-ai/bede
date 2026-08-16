@@ -43,10 +43,35 @@ export default function ConsentModal({ onAgree }: { onAgree: () => void }) {
               <Trans i18nKey="consent.bullet2" components={{ strong: <strong className="text-gray-800" /> }} />
             </span>
           </li>
+          {/* The work ledger belongs to the same category as bullet2 — what
+              was DONE, never what was said — so it sits directly under it
+              rather than as a separate promise elsewhere. Stated plainly
+              because it is the one thing the demo now keeps that a visitor
+              would not already expect from "your conversation is never
+              stored". See homeschool-api's DemoCodeActivityLog. */}
+          <li className="flex gap-2.5">
+            <span className="text-navy-400 font-bold shrink-0">•</span>
+            <span>
+              <Trans i18nKey="consent.bullet2Ledger" components={{ strong: <strong className="text-gray-800" /> }} />
+            </span>
+          </li>
           <li className="flex gap-2.5">
             <span className="text-navy-400 font-bold shrink-0">•</span>
             <span>
               <Trans i18nKey="consent.bullet3" components={{ strong: <strong className="text-gray-800" /> }} />
+            </span>
+          </li>
+          {/* Church tradition gets its own bullet rather than being folded
+              into bullet3's list of optional fields. It is the one intake
+              field that says something about a family's religious beliefs —
+              a special category under GDPR Art. 9 and analogous rules — so
+              a visitor should see what it is used for, and that skipping it
+              costs them nothing, BEFORE they reach the screen asking for
+              it, not buried in the full privacy notice behind a link. */}
+          <li className="flex gap-2.5">
+            <span className="text-navy-400 font-bold shrink-0">•</span>
+            <span>
+              <Trans i18nKey="consent.bullet3Faith" components={{ strong: <strong className="text-gray-800" /> }} />
             </span>
           </li>
           <li className="flex gap-2.5">

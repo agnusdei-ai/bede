@@ -1,19 +1,45 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
+import WorkLedger from '../components/WorkLedger'
+import SubjectCoverage from '../components/SubjectCoverage'
+import MasteryOverview from '../components/MasteryOverview'
+import type { MasteryArea } from '../components/MasteryOverview'
+import PodWorkRoster from '../components/PodWorkRoster'
+import BetaSurveyModal from '../components/BetaSurveyModal'
+import { useBetaSurvey } from '../hooks/useBetaSurvey'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
-import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary } from '../types'
+import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
+import type { SubjectCoverage as SubjectCoverageData } from '../services/api'
+import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
 import {
   fetchNarrationAssessments,
   fetchLearnerProfile,
   fetchLearnerBehaviorCheck,
   fetchMasteryProfileSummary,
   fetchStudentUsage,
+  fetchStudentActivity,
+  fetchSubjectCoverage,
+  fetchPodActivity,
   buildLearnerProfile,
+  isFeedbackEnabled,
 } from '../services/api'
+
+/**
+ * How much recorded narration a student needs before this page offers the
+ * parent the beta survey (see BetaSurveyModal.tsx and docs/BETA_SURVEY.md).
+ *
+ * Three sessions' worth of assessed narration, roughly. Deliberately not
+ * one: the survey's first question asks how many days Bede was actually
+ * used, and asking it of a family who tried it once produces a first
+ * impression filed alongside findings from families who used it for a
+ * month. Deliberately not ten either, since the beta is short and a bar
+ * that high would mean nobody is ever asked.
+ */
+const MIN_ASSESSMENTS_BEFORE_SURVEY = 3
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,94 +131,6 @@ function ScoreBar({ score }: { score: number }) {
 
 // ── Math mastery bar — 0-1 probability, colored by level ────────────────────
 
-function MasteryBar({ probability, level }: { probability: number; level: MasteryProfileSummary['domains'][number]['level'] }) {
-  const color = level === 'secure' ? 'bg-emerald-400' : level === 'developing' ? 'bg-amber-400' : 'bg-red-300'
-  return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${Math.round(probability * 100)}%` }} />
-      </div>
-      <span className="text-xs text-gray-500 tabular-nums w-10 text-right shrink-0">
-        {Math.round(probability * 100)}%
-      </span>
-    </div>
-  )
-}
-
-/**
- * Real, persisted (mastery_profiles table) math diagnostic — see
- * homeschool-api/services/diagnostic. Reflects the student's WHOLE
- * history with Bede, not a single session, unlike the public demo's own
- * single-session preview of the same engine. Silent to the child the
- * entire time it's being built (record_skill_evidence never touches the
- * SSE stream) — this is the first and only place any of it becomes
- * visible, and only to a parent (this page is require_parent-gated).
- */
-// Subject-agnostic mastery-snapshot card — math and composition (see
-// homeschool-api/services/diagnostic/composition.py) both render through
-// this one component, since MasteryProfileSummary's shape is deliberately
-// the same for either (domains/gaps/next_steps/calibration). Only the
-// title/empty-state/calibration copy differs, passed in as already-
-// translated strings so this component carries no i18n-key knowledge of
-// its own.
-function MasterySnapshot({
-  studentName, summary, loading, title, noDataText, calibrationText,
-}: {
-  studentName: string
-  summary: MasteryProfileSummary | null
-  loading: boolean
-  title: string
-  noDataText: string
-  calibrationText: string
-}) {
-  const { t } = useTranslation()
-  if (loading) return null
-
-  if (!summary) {
-    return (
-      <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1.5">{title}</h2>
-        <p className="text-xs text-gray-500">{noDataText}</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-700">{title}</h2>
-        <span className="text-xs text-gray-400">
-          {t('progress.observation', { count: summary.evidence_count })}
-        </span>
-      </div>
-      {summary.calibration && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-          {calibrationText}
-        </p>
-      )}
-      <div className="space-y-3 mb-4">
-        {summary.domains.map((d) => (
-          <div key={d.domain}>
-            <p className="text-xs font-semibold text-navy-700 mb-1">{d.domain}</p>
-            <MasteryBar probability={d.average_probability} level={d.level} />
-          </div>
-        ))}
-      </div>
-      {summary.gaps.length > 0 && (
-        <div className="mb-2">
-          <p className="text-xs font-semibold text-gray-700 mb-1">{t('progress.gapsToFocusOn')}</p>
-          <p className="text-xs text-gray-500">{summary.gaps.map((s) => s.label).join(', ')}</p>
-        </div>
-      )}
-      {summary.next_steps.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-gray-700 mb-1">{t('progress.suggestedNextSteps')}</p>
-          <p className="text-xs text-gray-500">{summary.next_steps.map((s) => s.label).join(', ')}</p>
-        </div>
-      )}
-    </div>
-  )
-}
 
 /**
  * This deployment is BYOK (bring your own Anthropic API key) — Bede
@@ -481,6 +419,19 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
     return best
   }
 
+  // The rolling mastery-cycle window (see utils/masteryCycle.ts). The status
+  // chip above answers "where is this now" and never decays; this answers
+  // the different question a parent actually asks between term reports —
+  // "did it move lately" — which the all-time high-water mark structurally
+  // cannot. Deliberately no deadline and no target attached: it bounds how
+  // far back we look, not how fast a child has to be.
+  const windowDays = config.mastery_cycle_days ?? DEFAULT_MASTERY_CYCLE_DAYS
+  const window = describeWindow(windowDays)
+  const windowLabel = t(
+    window.unit === 'week' ? 'progress.cycleWindowWeeks' : 'progress.cycleWindowDays',
+    { count: window.value },
+  )
+
   return (
     <div className="bg-white rounded-2xl border border-sage-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
@@ -489,6 +440,11 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
           {termWord} {config.current_term ?? 1}
         </span>
       </div>
+      {/* The window is stated plainly rather than left implicit — a parent
+          reading "moved" needs to know what it was measured against. */}
+      <p className="text-[11px] text-gray-400 -mt-2 mb-4">
+        {t('progress.cycleWindowCaption', { window: windowLabel })}
+      </p>
       <div className="space-y-4">
         {CORE_AREAS.map(({ id, label }) => {
           const areaTopics = topics[id]
@@ -496,6 +452,15 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
           const statuses = areaTopics.map((t) => ({ topic: t, status: statusFor(t) }))
           const mastered = statuses.filter((s) => s.status === 'mastered').length
           const untouched = statuses.filter((s) => s.status === 'not_started').length
+          // Topics that HAVE been started but produced nothing inside the
+          // window. Deliberately excludes never-started ones — those are
+          // already reported as "not yet started" and saying it twice would
+          // read as two problems. This is a finding about the plan (the
+          // subject isn't coming up often enough), never about the child,
+          // and the copy says so.
+          const quiet = statuses.filter(
+            (s) => s.status !== 'not_started' && readCycle(assessments, s.topic, windowDays).outcome === 'no_evidence',
+          ).length
           return (
             <div key={id}>
               <div className="flex items-center justify-between mb-1.5">
@@ -507,17 +472,37 @@ function TermOutcomes({ config, assessments }: { config?: SessionConfig; assessm
                       {t('progress.notYetStarted', { count: untouched })}
                     </span>
                   )}
+                  {quiet > 0 && (
+                    <span className="ml-2 text-gray-500">
+                      {t('progress.cycleQuiet', { count: quiet, window: windowLabel })}
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="space-y-1">
-                {statuses.map(({ topic, status }) => (
-                  <div key={topic} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-600 truncate">{topic}</span>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TOPIC_STATUS_STYLE[status].cls}`}>
-                      {t(TOPIC_STATUS_STYLE[status].labelKey)}
-                    </span>
-                  </div>
-                ))}
+                {statuses.map(({ topic, status }) => {
+                  const cycle = readCycle(assessments, topic, windowDays)
+                  return (
+                    <div key={topic} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-600 truncate">{topic}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {/* Only movement earns a mark. "Held" is a normal,
+                            healthy outcome and putting a chip on it would
+                            read as a flag; "no evidence" is reported in the
+                            area summary above as a note about the plan, not
+                            beside the child's topic as if it were a score. */}
+                        {cycle.outcome === 'moved' && (
+                          <span className="text-[10px] font-medium text-sage-700">
+                            {t('progress.cycleMoved')}
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${TOPIC_STATUS_STYLE[status].cls}`}>
+                          {t(TOPIC_STATUS_STYLE[status].labelKey)}
+                        </span>
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
@@ -647,6 +632,11 @@ export default function Progress() {
   const [masterySummary, setMasterySummary] = useState<MasteryProfileSummary | null>(null)
   const [compositionSummary, setCompositionSummary] = useState<MasteryProfileSummary | null>(null)
   const [phonicsSummary, setPhonicsSummary] = useState<MasteryProfileSummary | null>(null)
+  const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
+  const [literacySummary, setLiteracySummary] = useState<MasteryProfileSummary | null>(null)
+  const [workLedger, setWorkLedger] = useState<WorkLedgerData | null>(null)
+  const [coverage, setCoverage] = useState<SubjectCoverageData | null>(null)
+  const [podRoster, setPodRoster] = useState<PodWorkRosterData | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -657,6 +647,57 @@ export default function Progress() {
   // an older student rather than showing a card that can never have data.
   const activeStudentIsFoundations =
     podStudents.find((s) => s.student_name === activeStudent)?.grade_stage === 'K-2'
+  // Reading & spelling is the other half of that gate: phonics owns K-2
+  // decoding, services/diagnostic/literacy.py owns grades 3-8, and the two
+  // never overlap. Skip the fetch for a K-2 student rather than showing a
+  // card that can never have data — same reasoning as phonics above.
+  const activeStudentIsBeyondFoundations = !activeStudentIsFoundations
+
+  // The rows of the unified mastery card, in a FIXED pedagogical order —
+  // foundational first, never sorted by how well the child is doing. A list
+  // that reshuffles as a child improves is a ranking of their own subjects.
+  //
+  // Phonics and literacy are the two halves of one gate (phonics owns K-2
+  // decoding, literacy owns 3-8) and never both appear; an area that can
+  // never have data for this student is left out entirely rather than shown
+  // permanently empty.
+  const masteryAreas: MasteryArea[] = [
+    {
+      key: 'mathematics',
+      label: t('mastery.areaMathematics'),
+      summary: masterySummary,
+      noDataText: t('progress.noMathMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 }),
+    },
+    ...(activeStudentIsFoundations ? [{
+      key: 'phonics',
+      label: t('mastery.areaPhonics'),
+      summary: phonicsSummary,
+      noDataText: t('progress.noPhonicsMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 }),
+    }] : []),
+    ...(activeStudentIsBeyondFoundations ? [{
+      key: 'literacy',
+      label: t('mastery.areaLiteracy'),
+      summary: literacySummary,
+      noDataText: t('progress.noLiteracyMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.literacyMasteryCalibration', { name: activeStudent, count: literacySummary?.evidence_count ?? 0 }),
+    }] : []),
+    {
+      key: 'composition',
+      label: t('mastery.areaComposition'),
+      summary: compositionSummary,
+      noDataText: t('progress.noCompositionMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 }),
+    },
+    {
+      key: 'language_exposure',
+      label: t('mastery.areaLanguage'),
+      summary: languageSummary,
+      noDataText: t('progress.noLanguageMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 }),
+    },
+  ]
 
   useEffect(() => {
     if (!token || !activeStudent) return
@@ -668,6 +709,11 @@ export default function Progress() {
     setMasterySummary(null)
     setCompositionSummary(null)
     setPhonicsSummary(null)
+    setLanguageSummary(null)
+    setLiteracySummary(null)
+    setWorkLedger(null)
+    setCoverage(null)
+    setPodRoster(null)
     setUsage(null)
 
     Promise.all([
@@ -679,22 +725,77 @@ export default function Progress() {
       activeStudentIsFoundations
         ? fetchMasteryProfileSummary(token, activeStudent, 'phonics')
         : Promise.resolve(null),
+      fetchMasteryProfileSummary(token, activeStudent, 'language_exposure'),
+      activeStudentIsBeyondFoundations
+        ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
+        : Promise.resolve(null),
+      fetchStudentActivity(token, activeStudent),
+      fetchSubjectCoverage(token, activeStudent),
+      // The pod roster is about the whole pod, not the active student —
+      // fetched once here rather than per-student so switching students
+      // doesn't refetch identical data.
+      podStudents.length > 1
+        ? fetchPodActivity(token, podStudents.map((s) => s.student_name))
+        : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, lit, act, cov, pod, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
         setMasterySummary(m)
         setCompositionSummary(c)
         setPhonicsSummary(ph)
+        setLanguageSummary(lang)
+        setLiteracySummary(lit)
+        setWorkLedger(act)
+        setCoverage(cov)
+        setPodRoster(pod)
         setUsage(u)
       })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : t('progress.failedToLoadProgress'))
       })
       .finally(() => setLoading(false))
-  }, [token, activeStudent, activeStudentIsFoundations])
+  }, [token, activeStudent, activeStudentIsFoundations, activeStudentIsBeyondFoundations])
+
+  // ── The beta survey prompt ────────────────────────────────────────────
+  // Asked here rather than mid-session for two reasons: a parent on this
+  // page has come to look at how their children are doing, which is the
+  // frame the survey's own questions sit in, and a child must never meet
+  // it — this page is already parent-only.
+  //
+  // Gated on real evidence rather than on time or on visit count: the
+  // survey asks what Bede did to a family's teaching, and a family whose
+  // children have not narrated to it yet has no answer to give. Narration
+  // assessments are written by Bede itself during a session, so a non-empty
+  // history means the product was genuinely used, not merely opened.
+  const { due: surveyDue, close: closeSurvey, defer: deferSurvey } = useBetaSurvey()
+  const hasRealUsage = assessments.length >= MIN_ASSESSMENTS_BEFORE_SURVEY
+  // Whether the modal is on screen, tracked separately from whether the
+  // survey is still due. They come apart the moment a parent submits:
+  // answering records "never ask again" immediately (so closing the tab
+  // from the thank-you screen still counts), but the modal has to stay up
+  // to show that thank-you and its link to the longer survey.
+  const [surveyOpen, setSurveyOpen] = useState(false)
+  const surveyOfferedRef = useRef(false)
+
+  useEffect(() => {
+    // Checked only once the gate is otherwise open, so a deployment with no
+    // FEEDBACK_EMAIL configured is never asked about at all — and so a
+    // parent who has already answered costs no request either.
+    if (!surveyDue || !hasRealUsage || surveyOfferedRef.current || loading) return
+    let cancelled = false
+    isFeedbackEnabled().then((enabled) => {
+      if (cancelled || !enabled) return
+      // A ref, not state: this must stay true after answering flips
+      // surveyDue false, or the effect would re-fire and reopen the modal
+      // on the next render.
+      surveyOfferedRef.current = true
+      setSurveyOpen(true)
+    })
+    return () => { cancelled = true }
+  }, [surveyDue, hasRealUsage, loading])
 
   return (
     <div className="min-h-screen bg-parchment-50 p-4 md:p-8">
@@ -772,38 +873,29 @@ export default function Progress() {
               config={podStudents.find((s) => s.student_name === activeStudent)}
               assessments={assessments}
             />
-            <MasterySnapshot
-              studentName={activeStudent}
-              summary={masterySummary}
-              loading={loading}
-              title={t('progress.mathMasterySnapshotTitle')}
-              noDataText={t('progress.noMathMasteryData', { name: activeStudent })}
-              calibrationText={t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 })}
-            />
-            <MasterySnapshot
-              studentName={activeStudent}
-              summary={compositionSummary}
-              loading={loading}
-              title={t('progress.compositionMasterySnapshotTitle')}
-              noDataText={t('progress.noCompositionMasteryData', { name: activeStudent })}
-              calibrationText={t('progress.compositionMasteryCalibration', { name: activeStudent, count: compositionSummary?.evidence_count ?? 0 })}
-            />
-            {activeStudentIsFoundations && (
-              <MasterySnapshot
-                studentName={activeStudent}
-                summary={phonicsSummary}
-                loading={loading}
-                title={t('progress.phonicsMasterySnapshotTitle')}
-                noDataText={t('progress.noPhonicsMasteryData', { name: activeStudent })}
-                calibrationText={t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 })}
-              />
-            )}
+            {/* One picture instead of five near-identical cards — see
+                MasteryOverview.tsx for why the fragmentation was worth
+                removing rather than restyling. Every area's own detail is
+                still here, one tap into its row. */}
+            <MasteryOverview areas={masteryAreas} loading={loading} studentName={activeStudent} />
+            <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
+            <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
+            {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />
             <ConceptCoverage assessments={assessments} />
           </div>
         )}
       </div>
+
+      {surveyOpen && token && (
+        <BetaSurveyModal
+          token={token}
+          onAnswered={closeSurvey}
+          onClose={() => { closeSurvey(); setSurveyOpen(false) }}
+          onDefer={() => { deferSurvey(); setSurveyOpen(false) }}
+        />
+      )}
     </div>
   )
 }

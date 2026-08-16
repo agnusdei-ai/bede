@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beta survey for parents &mdash; Agnus Dei Technologies</title>
+  <meta name="description" content="For families using Bede in the beta: whether the method is working, what it did to your teaching day, and what a year should cost. Five minutes, anonymous unless you want a reply." />
+  <link rel="canonical" href="https://agnusdei.ai/survey/" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/assets/site.css" />
+</head>
+<body>
+  <div class="beta-banner">
+    <strong>Public beta now open.</strong> Free to use through August 31. Every homeschooling family welcome.
+  </div>
+
+  <div class="band">
+    <section class="page-head">
+      <div class="inner" style="max-width: 44rem;">
+        <a class="backlink" href="/">&larr; Agnus Dei Technologies</a>
+        <h1>The beta survey</h1>
+        <p class="lede">
+          About five minutes. It asks three things: whether the teaching
+          is actually working for your children, what Bede did to your own
+          day, and what a year of this should cost. Nothing here asks you
+          to rate your child. Skip anything you would rather not answer,
+          and leave the last two boxes blank to stay anonymous.
+        </p>
+        <p class="lede">
+          If what you have is a bug or something confusing, the
+          <a href="/feedback/">feedback form</a> is the better place for
+          it and we read those first.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="band-curriculum">
+    <div class="inner">
+      <!-- method="post" is a safety net, not a route: nothing here
+           accepts a POST. feedback-form.js intercepts submit and sends the
+           answers itself, but if that script ever fails to load or parse,
+           the button falls through to a NATIVE submit of this form.
+           Without a method that is a GET to this same static page, which
+           puts every answered field - name, email, and long free-text
+           answers - into the query string, and so into browser history
+           and any URL-logging intermediary. As a POST the same failure
+           loses the answers instead of publishing them, and the mailto
+           line in the note below is already on screen as the way to send
+           them. Keeping type="submit" on the button preserves
+           Enter-to-submit and the browser's own required-field
+           validation. -->
+      <form class="form-block" id="feedback-form"
+            method="post"
+            data-category="beta_survey"
+            data-tag="[Beta parent survey]"
+            data-mail-subject="Bede beta survey">
+
+        <fieldset class="field">
+          <legend>How many school days has your child actually used Bede?</legend>
+          <span class="hint">Everything below reads differently depending on this answer, so it is the one question worth being exact about.</span>
+          <div class="choices">
+            <label><input type="radio" name="days_used" value="Fewer than 3" /> Fewer than 3</label>
+            <label><input type="radio" name="days_used" value="About a week" /> About a week</label>
+            <label><input type="radio" name="days_used" value="Two to four weeks" /> Two to four weeks</label>
+            <label><input type="radio" name="days_used" value="More than a month" /> More than a month</label>
+            <label><input type="radio" name="days_used" value="We stopped using it" /> We stopped using it</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="stopped">If you stopped, or nearly did, what caused it?</label>
+          <span class="hint">The most useful answer on this page comes from a family it did not work for. Please be blunt.</span>
+          <textarea id="stopped" name="stopped"></textarea>
+        </div>
+
+        <fieldset class="field">
+          <legend>Which grade bands are you teaching?</legend>
+          <div class="choices">
+            <label><input type="checkbox" name="stages" value="K-2" /> K&ndash;2</label>
+            <label><input type="checkbox" name="stages" value="3-5" /> 3&ndash;5</label>
+            <label><input type="checkbox" name="stages" value="6-8" /> 6&ndash;8</label>
+            <label><input type="checkbox" name="stages" value="Older" /> Older than 8th</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>How many of your children are using it?</legend>
+          <div class="choices">
+            <label><input type="radio" name="children" value="1" /> 1</label>
+            <label><input type="radio" name="children" value="2" /> 2</label>
+            <label><input type="radio" name="children" value="3" /> 3</label>
+            <label><input type="radio" name="children" value="4 or more" /> 4 or more</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>What happened to your own teaching time?</legend>
+          <span class="hint">The honest promise here is hours, not enthusiasm. If Bede costs you time, that outweighs everything else on this page.</span>
+          <div class="choices">
+            <label><input type="radio" name="parent_time" value="Gave me real time back" /> Gave me real time back</label>
+            <label><input type="radio" name="parent_time" value="About the same" /> About the same</label>
+            <label><input type="radio" name="parent_time" value="Cost me time" /> Cost me time</label>
+            <label><input type="radio" name="parent_time" value="Too early to say" /> Too early to say</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>When your child narrates to Bede, what Bede does with it is:</legend>
+          <span class="hint">Measured against you, because you are the real alternative. A tutor that is merely good is not obviously worth having.</span>
+          <div class="choices">
+            <label><input type="radio" name="vs_parent" value="Better than I would have done" /> Better than I would have</label>
+            <label><input type="radio" name="vs_parent" value="About what I would have done" /> About the same as me</label>
+            <label><input type="radio" name="vs_parent" value="Worse than I would have done" /> Worse than I would have</label>
+            <label><input type="radio" name="vs_parent" value="Have not watched closely enough" /> Not watched closely enough</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Has Bede ever said something you had to correct?</legend>
+          <span class="hint">One credible report here matters more to us than every other answer on this page combined.</span>
+          <div class="choices">
+            <label><input type="radio" name="accuracy" value="No" /> No</label>
+            <label><input type="radio" name="accuracy" value="Yes, something small" /> Yes, something small</label>
+            <label><input type="radio" name="accuracy" value="Yes, something that mattered" /> Yes, something that mattered</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="accuracy_detail">If yes, what was it?</label>
+          <textarea id="accuracy_detail" name="accuracy_detail"></textarea>
+        </div>
+
+        <fieldset class="field">
+          <legend>Does your child go back to it willingly?</legend>
+          <div class="choices">
+            <label><input type="radio" name="willingness" value="Asks for it" /> Asks for it</label>
+            <label><input type="radio" name="willingness" value="Goes without complaint" /> Goes without complaint</label>
+            <label><input type="radio" name="willingness" value="Has to be told" /> Has to be told</label>
+            <label><input type="radio" name="willingness" value="Resists it" /> Resists it</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>How is the Socratic questioning landing?</legend>
+          <span class="hint">Bede asks rather than tells, and backs off to a hint after a round or two. We would rather hear that it frustrates your child than not hear it.</span>
+          <div class="choices">
+            <label><input type="radio" name="socratic" value="About right" /> About right</label>
+            <label><input type="radio" name="socratic" value="Too hard / frustrating" /> Too hard, frustrating</label>
+            <label><input type="radio" name="socratic" value="Too easy" /> Too easy</label>
+            <label><input type="radio" name="socratic" value="Too many questions" /> Too many questions</label>
+            <label><input type="radio" name="socratic" value="Have not seen enough yet" /> Not seen enough yet</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Which one subject is doing the most work for you?</legend>
+          <div class="choices compact">
+            <label><input type="radio" name="best_subject" value="Morning Time" /> Morning Time</label>
+            <label><input type="radio" name="best_subject" value="Living Books" /> Living Books</label>
+            <label><input type="radio" name="best_subject" value="Mathematics" /> Mathematics</label>
+            <label><input type="radio" name="best_subject" value="Nature Study" /> Nature Study</label>
+            <label><input type="radio" name="best_subject" value="History & Geography" /> History &amp; Geography</label>
+            <label><input type="radio" name="best_subject" value="Language Arts" /> Language Arts</label>
+            <label><input type="radio" name="best_subject" value="Science" /> Science</label>
+            <label><input type="radio" name="best_subject" value="Art & Music" /> Art &amp; Music</label>
+            <label><input type="radio" name="best_subject" value="Saints & Catechism" /> Saints &amp; Catechism</label>
+            <label><input type="radio" name="best_subject" value="Scripture & Bible Study" /> Scripture &amp; Bible Study</label>
+            <label><input type="radio" name="best_subject" value="Latin & Christian Foundations" /> Latin</label>
+            <label><input type="radio" name="best_subject" value="Greek & New Testament Foundations" /> Greek</label>
+            <label><input type="radio" name="best_subject" value="Logic" /> Logic</label>
+            <label><input type="radio" name="best_subject" value="Free Study" /> Free Study</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Which would you turn off tomorrow?</legend>
+          <div class="choices compact">
+            <label><input type="radio" name="worst_subject" value="None" /> None of them</label>
+            <label><input type="radio" name="worst_subject" value="Morning Time" /> Morning Time</label>
+            <label><input type="radio" name="worst_subject" value="Living Books" /> Living Books</label>
+            <label><input type="radio" name="worst_subject" value="Mathematics" /> Mathematics</label>
+            <label><input type="radio" name="worst_subject" value="Nature Study" /> Nature Study</label>
+            <label><input type="radio" name="worst_subject" value="History & Geography" /> History &amp; Geography</label>
+            <label><input type="radio" name="worst_subject" value="Language Arts" /> Language Arts</label>
+            <label><input type="radio" name="worst_subject" value="Science" /> Science</label>
+            <label><input type="radio" name="worst_subject" value="Art & Music" /> Art &amp; Music</label>
+            <label><input type="radio" name="worst_subject" value="Saints & Catechism" /> Saints &amp; Catechism</label>
+            <label><input type="radio" name="worst_subject" value="Scripture & Bible Study" /> Scripture &amp; Bible Study</label>
+            <label><input type="radio" name="worst_subject" value="Latin & Christian Foundations" /> Latin</label>
+            <label><input type="radio" name="worst_subject" value="Greek & New Testament Foundations" /> Greek</label>
+            <label><input type="radio" name="worst_subject" value="Logic" /> Logic</label>
+            <label><input type="radio" name="worst_subject" value="Free Study" /> Free Study</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Does the Progress page tell you anything you did not already know?</legend>
+          <span class="hint">"Have not opened it" is a real answer and we would rather know.</span>
+          <div class="choices">
+            <label><input type="radio" name="progress_value" value="Yes, regularly" /> Yes, regularly</label>
+            <label><input type="radio" name="progress_value" value="Once or twice" /> Once or twice</label>
+            <label><input type="radio" name="progress_value" value="No" /> No</label>
+            <label><input type="radio" name="progress_value" value="Have not opened it" /> Have not opened it</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Do the faith modules fit your family?</legend>
+          <span class="hint">Scripture &amp; Bible Study and Saints &amp; Catechism are separate subjects on purpose. Tell us if that split gets your tradition wrong.</span>
+          <div class="choices">
+            <label><input type="radio" name="faith" value="Fits well" /> Fits well</label>
+            <label><input type="radio" name="faith" value="Close, but not quite" /> Close, not quite</label>
+            <label><input type="radio" name="faith" value="Does not fit our tradition" /> Does not fit ours</label>
+            <label><input type="radio" name="faith" value="We do not use the faith subjects" /> We do not use them</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>What do you spend in a year on the things Bede would replace or reduce?</legend>
+          <span class="hint">Curriculum, tutoring, subscriptions, workbooks. A rough figure is fine. We ask this before asking about price, on purpose.</span>
+          <div class="choices">
+            <label><input type="radio" name="current_spend" value="Under $200" /> Under $200</label>
+            <label><input type="radio" name="current_spend" value="$200-500" /> $200&ndash;500</label>
+            <label><input type="radio" name="current_spend" value="$500-1,000" /> $500&ndash;1,000</label>
+            <label><input type="radio" name="current_spend" value="$1,000-2,500" /> $1,000&ndash;2,500</label>
+            <label><input type="radio" name="current_spend" value="More than $2,500" /> More than $2,500</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="substitute">If Bede stopped working tomorrow, what would you do instead?</label>
+          <span class="hint">Whatever you name here is our real competition, and it is probably not another AI.</span>
+          <textarea id="substitute" name="substitute"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="q" for="price_cheap">Per month, for your whole family: at what price would you question the quality?</label>
+          <span class="hint">Four short questions about price, and then we are nearly done. Rough numbers are fine.</span>
+          <input type="text" id="price_cheap" name="price_cheap" inputmode="numeric" placeholder="e.g. $5" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="price_bargain">At what price would it be a bargain?</label>
+          <input type="text" id="price_bargain" name="price_bargain" inputmode="numeric" placeholder="e.g. $20" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="price_expensive">At what price does it start to feel expensive, but still worth it?</label>
+          <input type="text" id="price_expensive" name="price_expensive" inputmode="numeric" placeholder="e.g. $45" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="price_no">At what price would you not buy it at all?</label>
+          <input type="text" id="price_no" name="price_no" inputmode="numeric" placeholder="e.g. $80" />
+        </div>
+
+        <fieldset class="field">
+          <legend>Which shape fits your family best?</legend>
+          <div class="choices">
+            <label><input type="radio" name="packaging" value="Per child, per month" /> Per child, per month</label>
+            <label><input type="radio" name="packaging" value="One flat family price" /> One flat family price</label>
+            <label><input type="radio" name="packaging" value="One-time purchase, self-hosted" /> One-time purchase</label>
+            <label><input type="radio" name="packaging" value="Through our co-op" /> Through our co-op</label>
+            <label><input type="radio" name="packaging" value="No opinion" /> No opinion</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Would you rather run it yourself or have us host it?</legend>
+          <span class="hint">Bede is built to run on your own computer, which is why your children's data never reaches us. That is only worth something if you actually want it.</span>
+          <div class="choices">
+            <label><input type="radio" name="hosting" value="Run it on our own computer" /> On our own computer</label>
+            <label><input type="radio" name="hosting" value="You host it" /> You host it</label>
+            <label><input type="radio" name="hosting" value="Whichever is cheaper" /> Whichever is cheaper</label>
+            <label><input type="radio" name="hosting" value="Do not know what this means" /> Not sure what this means</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label class="q" for="coop">Do you belong to a co-op, or know one that might want this?</label>
+          <span class="hint">Optional, and it genuinely helps. We would rather be introduced than turn up cold.</span>
+          <input type="text" id="coop" name="coop" placeholder="Co-op name, or the name of someone who runs one" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="name">Your name, if you would like a reply</label>
+          <span class="hint">Optional. Leave both blank and this stays anonymous.</span>
+          <input type="text" id="name" name="name" autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="email">Email for a reply</label>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+
+        <fieldset class="field">
+          <legend>Would you talk to us for twenty minutes?</legend>
+          <div class="choices">
+            <label><input type="radio" name="call" value="Yes" /> Yes</label>
+            <label><input type="radio" name="call" value="No" /> No</label>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="cta">Send my answers &rarr;</button>
+        <p class="form-note" id="form-note">
+          This goes straight to us and nowhere else: no form service,
+          no analytics, no tracker. Your answers are emailed to our own inbox
+          and not stored on a server. If we cannot be reached, your own email
+          program opens with the answers filled in instead, so nothing you
+          typed is lost. Either way you can write to
+          <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> directly.
+        </p>
+      </form>
+    </div>
+  </section>
+
+  <section class="band-closing">
+    <div class="inner" style="max-width: 40rem;">
+      <p class="eyebrow">Co-ops</p>
+      <h2>Do you help run a co-op?</h2>
+      <p class="lede">
+        There is a separate set of questions for the people who run co-ops:
+        who decides, who would host it, and what would have to be true
+        before you put an AI tutor in front of your member families.
+      </p>
+      <a class="cta gilt" href="/educators/">The co-op survey &rarr;</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/bede/">Demo</a>
+      <a href="/#request-a-call">Schedule Onboarding</a>
+      <a href="/feedback/">Feedback</a>
+      <a href="/educators/">Co-ops</a>
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+  </footer>
+
+  <script src="/assets/api-base.js"></script>
+  <script src="/assets/feedback-form.js"></script>
+</body>
+</html>

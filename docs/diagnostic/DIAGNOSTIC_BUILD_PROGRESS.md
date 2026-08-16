@@ -15,7 +15,7 @@
 | 2 — Persistence | done (3/3 units) | user sign-off received ("Yes") — proceed to Phase 3 |
 | 3 — Loop integration | done (3/3 units) | — |
 | 4 — Parent surface | done (2/2 units) | real parent/child mastery summary shipped (#73), reusing the demo's existing `routers/diagnostic.py` file rather than a new one |
-| 5 — Validation & tuning | not started | — |
+| 5 — Validation & tuning | 5.2 done, 5.1 blocked | 5.2 merged; 5.1 needs a live stack — see below |
 
 **Current status:** Phase 4 complete. #73 (a concurrent session, merged same day as this entry) shipped the real, persistent parent-facing mastery summary: `GET /diagnostic/{student_name}/summary` (require_parent-gated, distinct from the demo-only `GET /summary`), a new `services.diagnostic.get_mastery_summary` read path, and a "Math Mastery Snapshot" section in `Progress.tsx` — math evidence `record_skill_evidence` had been silently writing to `mastery_profiles` since Phase 3 was, until this, never actually visible to a real parent. This entry's own session independently built the identical feature in parallel (not yet pushed) and dropped it once #73's merge was discovered, keeping only two small, genuinely additive fixes on top of #73's version: (1) `get_mastery_summary` had no try/except around `decrypt_json` — reproduced for real (a corrupted row raised `ValueError: Encrypted blob too short` straight out of the function) before fixing it to degrade to `None`/404 like `process_evidence`'s own established convention; (2) the summary-view-building logic (domain rollup, per-skill views, gaps/next-steps) was independently duplicated in both `services/diagnostic_demo.py` and #73's `services/diagnostic/__init__.py` — extracted into a shared `mastery.build_summary_view()` used by both. Next: Phase 5 (validation/tuning) whenever a live session is available, or extending the skill map to non-math domains (writing, logic) per §13 of the design doc — a separate, explicitly scoped follow-up already discussed with the user.
 
@@ -61,8 +61,127 @@
 
 | Unit | Deliverable | Realizes | Real check | Status |
 |---|---|---|---|---|
-| 5.1 | end-to-end real math session | S1–S9 | evidence flows; vector moves; child sees nothing | `[ ]` |
-| 5.2 | tune slip/guess, calibration N, thresholds | — | converges across multi-session corpus | `[ ]` |
+| 5.1 | end-to-end real math session | S1–S9 | evidence flows; vector moves; child sees nothing | `[ ]` **blocked — needs a live stack** |
+| 5.2 | tune slip/guess, calibration N, thresholds | — | converges across multi-session corpus | `[x]` — `tests/diagnostic/test_convergence.py`, 11 cases |
+
+### 5.1 — why it is blocked, not skipped
+
+The check is "a real Claude-driven math session." That needs an API key, a
+live Postgres, and a running stack; this environment has none of the three
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DATABASE_URL` all unset). It is not
+something a test can stand in for — the whole point is that real evidence
+comes from Bede's judgement of a real child's answer, which no simulator
+models. Per the build loop's own rule ("if a check can't be made runnable,
+the gate is a documented decision recorded in the progress file"), this is
+that record. 5.2 did not depend on it and was completed independently.
+
+**What 5.1 still has to answer, and 5.2 cannot:** whether `record_skill_evidence`
+fires often enough in a real 20-minute block to reach the evidence volumes
+this tuning assumes. `test_one_sitting_decides_only_a_fraction_of_the_map`
+pins the estimator's behaviour at 4 evidence points; nothing yet establishes
+that a real session produces 4 rather than 1.
+
+### 5.2 — what was found and changed
+
+**A defect the tuning pass surfaced before it could tune anything:**
+`mastery.bayesian_update` never passed `params` to
+`cdm.update_attribute_posteriors`. The slip/guess values Phase 5 exists to
+tune were unreachable from the code path that used them — always
+`CdmParams`' own defaults. Threading `params` through is what made the unit
+possible at all.
+
+**The measurement.** `tests/diagnostic/test_convergence.py` generates students
+with a known, prerequisite-closed knowledge state, samples answers from the
+DINA response model, runs the real engine, and scores its verdicts against
+the truth. Phase 1's acceptance test could not do this: it feeds all-correct
+evidence, so it proves direction and can never catch a wrong "secure."
+
+**The finding.** Accuracy was not uniform across children, and the bias ran
+the wrong way — the child who knew least got the least accurate picture:
+
+| student truly knows | false-secure @ guess 0.20 | @ guess 0.25 |
+|---|---|---|
+| 15% of the map | 9.3% | 4.9% |
+| 50% of the map | 3.0% | 1.7% |
+| 85% of the map | 0.8% | 0.5% |
+
+Structural, not a bug: `guess` is P(correct \| not mastered), so understating
+it mis-credits lucky answers, and a struggling child produces far more
+not-mastered attempts to mis-credit.
+
+**The change.** `mastery.TUNED_PARAMS = CdmParams(slip=0.10, guess=0.25)`.
+0.25 is the knee — every step past it buys much less (4.9% → 4.8% → 4.5% at
+0.30/0.35) for the same steady coverage loss. `slip` unchanged at 0.10.
+
+**Rejected alternative, recorded so it is not re-proposed:** raising the
+"secure" cutoff from 0.80 to 0.85 cut more false-secures but cost twice the
+coverage, and under a world messier than the engine assumes it made overall
+accuracy WORSE for middle and advanced students (85.0% → 77.5%).
+
+**`CALIBRATION_THRESHOLD` was measured and left alone.** Design doc §8.3
+flagged it `[to verify final N]` and `mastery.py` called it untuned. Sweeping
+1 → 20 moved accuracy by 0.3pp and coverage by 0.4pp. The placeholder was
+harmless, and the knob is not the lever it was assumed to be — its influence
+washes out because it only weights the first N of ~30 updates. Left at 5;
+this is now a measured decision rather than an open flag.
+
+### Phase 5.3 — a grade is not evidence (cold-start priors)
+
+Prompted by re-asking whether `CALIBRATION_THRESHOLD = 5`, set against a
+42-skill map, still held for the 95-skill one. It does. The measurement
+found something else instead.
+
+**A brand-new 6-8 student's profile reported 24 of 95 skills as Mastered
+before Bede had asked a single question.** `new_vector` seeded a below-band
+skill at `0.5 + 0.2 × distance`, reaching **0.90** at two bands down —
+above the 0.80 secure cutoff. The software was asserting mastery from a
+birth date.
+
+That is the false-secure error, the one this project bounds most tightly,
+because it sends a household *past* a gap: the next lesson builds on sand
+and nobody knows why it collapsed.
+
+| band 6-8, one sitting (20 observations) | before | after |
+|---|---|---|
+| false-secure, struggling cohort | 13.1% | **1.9%** |
+| false-secure, middle | 5.9% | 0.6% |
+| accuracy on committed verdicts, struggling | 70.0% | **92.2%** |
+| skills decided, struggling | 45.1% | 31.6% |
+| false-gap, struggling | 0.5% | 0.6% |
+
+The lost coverage was largely *wrong* — accuracy on what remains rose 22
+points. False-gap, the feared cost, did not materialise.
+
+**The fix is narrower than the first attempt.** An initial version capped
+below-band priors at 0.65 and broke `test_next_steps_band_leak.py`
+immediately: `kst.fringe`'s `prereq_hi` is 0.65, so dropping to it made
+every unprobed earlier-band prerequisite block its dependents — a 3-5
+student's entire "next steps" list collapsed to the two K-2 skills with no
+prerequisites at all, which is the exact defect that file was written for.
+
+The prior has to sit inside a genuinely narrow window: **above `prereq_hi`
+(0.65)** so it doesn't block, **below the secure cutoff (0.80)** so a grade
+alone never reports Mastered. 0.70 — where the one-band-down prior always
+was. So the change is only the two-bands-down case, and only band 6-8 is
+affected at all, which is the band that showed the damage.
+
+Both edges are now pinned by
+`test_the_below_band_prior_stays_inside_its_window`, reading `prereq_hi`
+off `fringe`'s own signature rather than restating it.
+
+**Nothing a family already has is touched.** Priors apply at cold start and
+at `ensure_complete`'s backfill of skills that didn't exist when the row
+was written; they are never re-applied to a stored probability. And the
+threshold is read at render time and forward-weighted at write time, never
+retroactive. No reset, no recompute, no re-test — asserted by
+`test_retuning_never_touches_a_vector_a_family_already_has` and
+`test_the_calibration_threshold_is_read_time_and_write_forward_only`.
+
+**The threshold, re-swept on the 95-skill map:** 3 → 20 moves a struggling
+6-8 child's false-secure 1.7% → 3.8% and accuracy 92.2% → 90.0% while
+coverage rises 30% → 42%. No free move, and 5 sits near the knee. Left at
+5 again — the priors moved that same rate by 11 points, so the threshold
+was never where the problem was.
 
 ---
 

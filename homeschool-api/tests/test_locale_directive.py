@@ -105,7 +105,7 @@ def test_spanish_locale_adds_a_reminder_to_the_start_greeting_rule():
 
 def test_spanish_locale_adds_a_reminder_to_the_prayer_rule():
     prompt = _build_static_prompt(_config(), "es")
-    assert 'short, freshly adapted prayer — in Spanish (Español), not English' in prompt
+    assert 'quoted VERBATIM — in Spanish (Español), not English' in prompt
 
 
 def test_settings_rejects_an_unsupported_locale_value():

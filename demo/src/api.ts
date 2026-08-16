@@ -13,14 +13,17 @@ export type GradeStage = 'K-2' | '3-5' | '6-8'
 
 export const SUBJECTS = [
   'morning_time', 'living_books', 'mathematics', 'nature_study', 'history',
-  'language_arts', 'science', 'art_music', 'saints', 'free_study',
+  'language_arts', 'science', 'art_music', 'saints', 'scripture', 'latin', 'greek', 'logic', 'free_study',
 ] as const
 export type Subject = typeof SUBJECTS[number]
 
 export const SUBJECT_LABELS: Record<Subject, string> = {
   morning_time: 'Morning Time', living_books: 'Living Books', mathematics: 'Mathematics',
   nature_study: 'Nature Study', history: 'History & Geography', language_arts: 'Language Arts',
-  science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism', free_study: 'Free Study',
+  science: 'Science', art_music: 'Art & Music', saints: 'Saints & Catechism',
+  scripture: 'Scripture & Bible Study', latin: 'Latin & Christian Foundations',
+  greek: 'Greek & New Testament Foundations', logic: 'Logic',
+  free_study: 'Free Study',
 }
 
 export interface ChatMessage {
@@ -82,6 +85,7 @@ export interface SessionConfig {
   lesson_focus?: string | null
   faith_emphasis?: string | null
   current_unit?: string | null
+  faith_tradition?: string | null
   voice_required?: boolean
   screen_time_limit_minutes?: number | null
   eye_rest_break_minutes?: number
@@ -122,8 +126,11 @@ export function decodeExpiry(token: string): number | null {
  *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
 export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
 
-export async function generateDemoCode(studentName?: string, grade?: string): Promise<string> {
-  const hasBody = (studentName && studentName.trim()) || grade
+export async function generateDemoCode(
+  studentName?: string, grade?: string, currentUnit?: string, faithTradition?: string,
+): Promise<string> {
+  const hasBody = (studentName && studentName.trim()) || grade || (currentUnit && currentUnit.trim())
+    || (faithTradition && faithTradition.trim())
   const res = await fetch(`${apiBase()}/auth/demo-code`, {
     method: 'POST',
     ...(hasBody && {
@@ -131,6 +138,8 @@ export async function generateDemoCode(studentName?: string, grade?: string): Pr
       body: JSON.stringify({
         student_name: studentName?.trim() || undefined,
         grade: grade || undefined,
+        current_unit: currentUnit?.trim() || undefined,
+        faith_tradition: faithTradition?.trim() || undefined,
       }),
     }),
   })
@@ -274,11 +283,24 @@ export async function startVoiceStream(token: string, language = 'en'): Promise<
   return data.session_id as string
 }
 
-/** Uploads the FULL audio captured so far (not a delta) — the server always
- *  re-transcribes the whole growing buffer, matching how useVoiceRecorder.ts
- *  already accumulates one continuous PCM capture per hold. Throws on
- *  failure; the caller decides whether a single dropped chunk is worth
- *  surfacing (the next chunk a few seconds later carries everything anyway). */
+/** Uploads a DELTA — only what was captured since the caller's last upload,
+ *  as raw headerless PCM (see useVoiceRecorder.ts's snapshotPcmDelta and
+ *  audioUtils.ts's encodePcm16). The server appends deltas into one growing
+ *  buffer and wraps it in a WAV header once, at transcription time (see
+ *  homeschool-api/services/streaming_transcription.py's push_chunk/
+ *  _wav_from_pcm16) — it tells this apart from the legacy whole-buffer
+ *  upload by sniffing for a RIFF header, so an older client still works
+ *  against a newer server.
+ *
+ *  The 'chunk.wav' filename below is sent unconditionally regardless of
+ *  which protocol the payload actually is; the server does not use it to
+ *  decide which path to take, only routers/voice.py's own upload-size and
+ *  container/extension allowlist check reads it.
+ *
+ *  Throws on failure. Unlike the old whole-buffer protocol, a dropped delta
+ *  is genuinely lost unless the caller holds and resends it — see
+ *  useHybridVoiceInput.ts's pendingPartsRef, which prepends a failed upload
+ *  to the next one rather than assuming a later chunk will cover it. */
 export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob): Promise<void> {
   const form = new FormData()
   form.append('audio', wavBlob, 'chunk.wav')
@@ -637,6 +659,57 @@ async function diagnosticQuotaError(res: Response): Promise<DiagnosticPreviewQuo
   return new DiagnosticPreviewQuotaExceededError(
     body.detail || "You've reached the diagnostic preview limit for this demo."
   )
+}
+
+/** One completed activity, aggregated per skill — the same shape the real
+ *  app's Progress page renders (homeschool-api's
+ *  services/diagnostic/activity.summarize_records builds both). */
+export interface DemoWorkLedgerSkill {
+  skill_id: string
+  label: string
+  subject_area: string
+  completed: number
+  unaided: number
+  with_a_hint: number
+  with_help: number
+  scored: number
+  quality: { adequate: number; proficient: number; exemplary: number }
+  distinction: { expected: number; noteworthy: number; original: number }
+  speed: { deliberate: number; steady: number; brisk: number }
+  last_worked: string | null
+}
+
+export interface DemoWorkLedger {
+  student_name: string
+  since_days: number
+  total: number
+  skills: DemoWorkLedgerSkill[]
+  initiative: {
+    scored_activities: number
+    exemplary: number
+    beyond_the_task: number
+    brisk: number
+    standout_skills: { skill_id: string; label: string }[]
+  }
+}
+
+/**
+ * What this demo session has actually finished so far.
+ *
+ * Deliberately NOT quota-gated the way fetchDiagnosticSummary above is —
+ * see routers/diagnostic.py's get_demo_activity. This reads the visitor's
+ * own work from minutes ago; charging a preview use for it would be
+ * charging for the receipt. 404 (nothing completed yet) returns null so
+ * the caller renders nothing rather than an empty card.
+ */
+export async function fetchDemoActivity(token: string): Promise<DemoWorkLedger | null> {
+  const res = await fetch(`${apiBase()}/diagnostic/demo/activity`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 404) return null
+  if (res.status === 401) throw new TrialSessionEndedError('This demo session has ended.')
+  if (!res.ok) return null
+  return res.json()
 }
 
 export async function fetchDiagnosticSummary(token: string): Promise<MasteryProfileSummary | null> {

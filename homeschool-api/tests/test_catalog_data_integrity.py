@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from models.schemas import GradeStage, Subject
+from models.schemas import BIBLE_TRANSLATIONS, PUBLIC_DOMAIN_BIBLE_TRANSLATIONS, GradeStage, Subject
 from services import catalog_service
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
@@ -142,3 +142,50 @@ def test_every_composer_work_has_all_three_stage_notes():
         assert not missing, f"composer work {entry['id']!r} missing stage_notes for {missing}"
         for stage, note in stage_notes.items():
             assert note, f"composer work {entry['id']!r} has an empty stage_notes[{stage!r}]"
+
+
+# ── Bible translation copyright permissions ─────────────────────────────────
+
+def _load_bible_permissions_raw() -> dict:
+    path = _DATA_DIR / "bible_translations" / "copyright_permissions.json"
+    return json.loads(path.read_text(encoding="utf-8")).get("translations", {})
+
+
+def test_every_copyrighted_translation_has_a_permissions_entry():
+    copyrighted = [t for t in BIBLE_TRANSLATIONS if t not in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS]
+    entries = _load_bible_permissions_raw()
+    for translation in copyrighted:
+        assert translation in entries, f"no copyright_permissions.json entry for {translation!r}"
+
+
+def test_no_stray_entries_for_public_domain_translations():
+    entries = _load_bible_permissions_raw()
+    for translation in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS:
+        assert translation not in entries, (
+            f"{translation!r} is public domain (PUBLIC_DOMAIN_BIBLE_TRANSLATIONS) and shouldn't have a "
+            "copyright_permissions.json entry at all"
+        )
+
+
+def test_every_permissions_entry_has_required_non_empty_fields():
+    required = ("publisher", "conditions", "source")
+    for code, entry in _load_bible_permissions_raw().items():
+        for field in required:
+            assert entry.get(field), f"{code!r} missing/empty {field!r}"
+        assert entry["source"].startswith("https://"), f"{code!r}'s source isn't a real URL: {entry['source']!r}"
+        has_verses = "free_quote_verses" in entry
+        has_words = "free_quote_words" in entry
+        assert has_verses != has_words, (
+            f"{code!r} must have exactly one of free_quote_verses/free_quote_words, not both or neither"
+        )
+
+
+def test_get_bible_translation_permission_returns_none_for_public_domain():
+    for translation in PUBLIC_DOMAIN_BIBLE_TRANSLATIONS:
+        assert catalog_service.get_bible_translation_permission(translation) is None
+
+
+def test_get_bible_translation_permission_returns_data_for_copyrighted():
+    permission = catalog_service.get_bible_translation_permission("ESV")
+    assert permission is not None
+    assert permission["publisher"] == "Crossway"

@@ -93,6 +93,11 @@ async def test_end_session_on_unknown_code_is_a_no_op():
 
 
 async def test_record_message_has_no_cap():
+    # record_message() itself is pure counting — enforcement lives in
+    # has_message_quota() below, which callers must check first (see
+    # routers/tutor.py's chat()/routers/sandbox.py's demo_chat()). 200 is
+    # comfortably under _MAX_MESSAGES_PER_CODE (400) so this still exercises
+    # record_message with no quota interaction at all.
     code = await demo_code_session.generate_code()
     for _ in range(200):
         assert await demo_code_session.record_message(code) is True
@@ -100,6 +105,49 @@ async def test_record_message_has_no_cap():
 
 async def test_record_message_rejects_unknown_code():
     assert await demo_code_session.record_message("000000") is False
+
+
+# ── has_message_quota / _MAX_MESSAGES_PER_CODE (OWASP LLM10) ────────────────
+
+async def test_has_message_quota_true_under_cap():
+    code = await demo_code_session.generate_code()
+    for _ in range(10):
+        await demo_code_session.record_message(code)
+    assert await demo_code_session.has_message_quota(code) is True
+
+
+async def test_has_message_quota_false_once_cap_is_reached():
+    demo_code_session._MAX_MESSAGES_PER_CODE = 3
+    try:
+        code = await demo_code_session.generate_code()
+        for _ in range(3):
+            assert await demo_code_session.has_message_quota(code) is True
+            assert await demo_code_session.record_message(code) is True
+        assert await demo_code_session.has_message_quota(code) is False
+        # A caller that (incorrectly) called record_message anyway must
+        # still work — has_message_quota is what gates, not record_message.
+        assert await demo_code_session.record_message(code) is True
+        assert await demo_code_session.has_message_quota(code) is False
+    finally:
+        demo_code_session._MAX_MESSAGES_PER_CODE = 400
+
+
+async def test_has_message_quota_false_for_unknown_code():
+    assert await demo_code_session.has_message_quota("000000") is False
+
+
+async def test_has_message_quota_false_for_evicted_code():
+    from datetime import datetime, timedelta, timezone
+    from core.database import AsyncSessionLocal, DemoCodeSession
+
+    async with AsyncSessionLocal() as db:
+        db.add(DemoCodeSession(
+            code="222222",
+            created_at=datetime.now(timezone.utc) - timedelta(seconds=demo_code_session._CODE_TTL_SECONDS + 60),
+        ))
+        await db.commit()
+
+    assert await demo_code_session.has_message_quota("222222") is False
 
 
 async def test_claim_email_send_allows_first_then_blocks_second():
@@ -124,3 +172,41 @@ async def test_get_personalization_defaults_to_none_when_not_provided():
 
 async def test_get_personalization_unknown_code_returns_none_none():
     assert await demo_code_session.get_personalization("000000") == (None, None)
+
+
+# ── current_unit (DemoCodeUnitNote) — Continuing Mastery's "outside" note ────
+
+async def test_get_current_unit_round_trips():
+    code = await demo_code_session.generate_code(current_unit="Reading Farmer Boy together")
+    assert await demo_code_session.get_current_unit(code) == "Reading Farmer Boy together"
+
+
+async def test_get_current_unit_none_when_not_provided():
+    code = await demo_code_session.generate_code()
+    assert await demo_code_session.get_current_unit(code) is None
+
+
+async def test_get_current_unit_unknown_code_returns_none():
+    assert await demo_code_session.get_current_unit("000000") is None
+
+
+async def test_end_session_deletes_the_unit_note_too():
+    code = await demo_code_session.generate_code(current_unit="Our own Ancient Egypt unit")
+    await demo_code_session.end_session(code)
+    assert await demo_code_session.get_current_unit(code) is None
+
+
+async def test_generate_code_cleans_up_stale_unit_notes():
+    from datetime import datetime, timedelta, timezone
+    from core.database import AsyncSessionLocal, DemoCodeUnitNote
+
+    async with AsyncSessionLocal() as db:
+        db.add(DemoCodeUnitNote(
+            code="111111", note="stale",
+            created_at=datetime.now(timezone.utc) - timedelta(seconds=demo_code_session._CODE_TTL_SECONDS + 60),
+        ))
+        await db.commit()
+
+    await demo_code_session.generate_code()
+
+    assert await demo_code_session.get_current_unit("111111") is None

@@ -156,6 +156,168 @@ _SKILLS: tuple[Skill, ...] = (
        GradeBand.SIX_8, ("ee.two_step_equations", "rp.unit_rate")),
     _s("fn.linear_functions", "Works with linear functions", "Functions",
        GradeBand.SIX_8, ("fn.function_concept",)),
+
+    # ══════════════════════════════════════════════════════════════════════
+    # PREPARATORY-SCHOOL EXTENSION
+    #
+    # The original 42 skills tracked a conventional public-school K-8 scope.
+    # Held against what an independent/classical preparatory school actually
+    # expects, the top of the map stopped roughly at two-step equations and
+    # a first look at linear functions — while a prep-school 8th grader is
+    # normally FINISHING ALGEBRA I. (Singapore's Dimensions Math 7-8, which
+    # classical and prep schools commonly use, covers pre-algebra plus
+    # Algebra I with an introduction to geometry across those two years.)
+    #
+    # Everything below is ADDITIVE. Not one existing skill id, label, band,
+    # or prerequisite tuple changed — stored MasteryProfile vectors
+    # reference these ids by name, so renaming or removing one would orphan
+    # a real family's history. New skills are backfilled into an existing
+    # vector at their cold-start prior by mastery.ensure_complete().
+    #
+    # The three bands now target:
+    #   K-2  — number sense deep enough to carry multiplication later
+    #          (number bonds, skip counting, equal groups), not just
+    #          counting and adding.
+    #   3-5  — the arithmetic a prep school assumes is finished before
+    #          pre-algebra: order of operations, factors and primes,
+    #          all four decimal operations, division of fractions.
+    #   6-8  — genuine Algebra I: multi-step and literal equations,
+    #          inequalities, systems, exponent laws, radicals, polynomial
+    #          arithmetic, factoring, quadratics by factoring, slope and
+    #          slope-intercept form, plus the Pythagorean theorem and
+    #          transformational geometry.
+    # ══════════════════════════════════════════════════════════════════════
+
+    # ── K-2: number sense that multiplication will later stand on ─────────
+    _s("cc.skip_count_2_5_10", "Skip counts by 2s, 5s, and 10s", "Counting & Cardinality",
+       GradeBand.K_2, ("cc.rote_count_20",)),
+    _s("cc.number_bonds", "Decomposes a number into parts (number bonds)",
+       "Counting & Cardinality", GradeBand.K_2, ("cc.count_objects_20",)),
+    _s("oa.fact_fluency_20", "Recalls addition and subtraction facts within 20 fluently",
+       "Operations & Algebraic Thinking", GradeBand.K_2, ("oa.subtract_within_20",)),
+    _s("oa.even_odd", "Distinguishes even and odd numbers", "Operations & Algebraic Thinking",
+       GradeBand.K_2, ("cc.skip_count_2_5_10",)),
+    _s("oa.arrays_equal_groups", "Sees equal groups and arrays as repeated addition",
+       "Operations & Algebraic Thinking", GradeBand.K_2,
+       ("oa.add_within_20", "cc.skip_count_2_5_10")),
+    _s("oa.one_step_word_problems", "Solves one-step word problems",
+       "Operations & Algebraic Thinking", GradeBand.K_2,
+       ("oa.subtract_within_20", "cc.number_bonds")),
+    _s("nbt.compare_three_digit", "Compares three-digit numbers",
+       "Number & Operations in Base Ten", GradeBand.K_2,
+       ("nbt.place_value_tens", "cc.compare_quantities")),
+    _s("md.money", "Counts and makes amounts of money", "Measurement & Data",
+       GradeBand.K_2, ("nbt.add_within_100", "cc.skip_count_2_5_10")),
+    _s("md.measure_mass_capacity", "Measures mass and capacity", "Measurement & Data",
+       GradeBand.K_2, ("md.measure_length",)),
+    _s("fr.halves_fourths", "Partitions shapes into halves and fourths",
+       "Number & Operations — Fractions", GradeBand.K_2,
+       ("geo.classify_shapes_by_attributes",)),
+    _s("geo.compose_shapes", "Composes and decomposes shapes", "Geometry",
+       GradeBand.K_2, ("geo.identify_shapes",)),
+
+    # ── 3-5: the arithmetic pre-algebra assumes is already finished ───────
+    _s("oa.order_of_operations", "Applies the order of operations",
+       "Operations & Algebraic Thinking", GradeBand.THREE_5,
+       ("oa.multiplication_facts", "oa.division_facts")),
+    _s("oa.factors_multiples", "Finds factors and multiples",
+       "Operations & Algebraic Thinking", GradeBand.THREE_5, ("oa.division_facts",)),
+    _s("oa.primes_composites", "Identifies primes and composites, and factors fully",
+       "Operations & Algebraic Thinking", GradeBand.THREE_5, ("oa.factors_multiples",)),
+    _s("oa.multi_step_word_problems", "Solves multi-step word problems",
+       "Operations & Algebraic Thinking", GradeBand.THREE_5,
+       ("oa.one_step_word_problems", "nbt.standard_multiplication")),
+    _s("nbt.rounding_estimation", "Rounds and estimates to check reasonableness",
+       "Number & Operations in Base Ten", GradeBand.THREE_5, ("nbt.place_value_hundreds",)),
+    _s("nbt.decimal_operations", "Adds, subtracts, multiplies, and divides decimals",
+       "Number & Operations in Base Ten", GradeBand.THREE_5,
+       ("nbt.place_value_decimals", "nbt.long_division")),
+    _s("fr.compare_fractions", "Compares and orders fractions",
+       "Number & Operations — Fractions", GradeBand.THREE_5, ("fr.equivalent_fractions",)),
+    _s("fr.mixed_numbers", "Converts between mixed numbers and improper fractions",
+       "Number & Operations — Fractions", GradeBand.THREE_5, ("fr.add_subtract_fractions",)),
+    _s("fr.divide_fractions", "Divides fractions", "Number & Operations — Fractions",
+       GradeBand.THREE_5, ("fr.multiply_fractions",)),
+    _s("md.angle_measure", "Measures and draws angles", "Measurement & Data",
+       GradeBand.THREE_5, ("geo.classify_shapes_by_attributes",)),
+    _s("md.volume_rectangular", "Finds the volume of a rectangular prism",
+       "Measurement & Data", GradeBand.THREE_5, ("md.area_perimeter",)),
+    _s("md.line_plots", "Represents data on a line plot", "Measurement & Data",
+       GradeBand.THREE_5, ("md.read_bar_graphs", "fr.unit_fractions")),
+    _s("geo.classify_2d_hierarchy", "Classifies two-dimensional figures in a hierarchy",
+       "Geometry", GradeBand.THREE_5, ("geo.classify_shapes_by_attributes", "md.angle_measure")),
+
+    # ── 6-8: genuine Algebra I ────────────────────────────────────────────
+    _s("ns.absolute_value", "Understands absolute value", "The Number System",
+       GradeBand.SIX_8, ("ns.integers",)),
+    _s("ns.exponent_laws", "Applies the laws of integer exponents", "The Number System",
+       GradeBand.SIX_8, ("ns.rational_operations", "oa.order_of_operations")),
+    _s("ns.square_cube_roots", "Evaluates square and cube roots", "The Number System",
+       GradeBand.SIX_8, ("ns.exponent_laws",)),
+    _s("ns.scientific_notation", "Works in scientific notation", "The Number System",
+       GradeBand.SIX_8, ("ns.exponent_laws", "nbt.decimal_operations")),
+    _s("ns.irrational_numbers", "Distinguishes rational from irrational numbers",
+       "The Number System", GradeBand.SIX_8, ("ns.square_cube_roots",)),
+
+    _s("rp.proportional_relationships", "Recognizes and uses proportional relationships",
+       "Ratios & Proportional Relationships", GradeBand.SIX_8, ("rp.unit_rate",)),
+    _s("rp.scale_similar_figures", "Uses scale drawings and similar figures",
+       "Ratios & Proportional Relationships", GradeBand.SIX_8,
+       ("rp.proportional_relationships",)),
+
+    _s("ee.distributive_expand", "Expands expressions using the distributive property",
+       "Expressions & Equations", GradeBand.SIX_8, ("ee.evaluate_expressions",)),
+    _s("ee.multi_step_equations", "Solves multi-step equations", "Expressions & Equations",
+       GradeBand.SIX_8, ("ee.two_step_equations", "ee.distributive_expand")),
+    _s("ee.variables_both_sides", "Solves equations with variables on both sides",
+       "Expressions & Equations", GradeBand.SIX_8, ("ee.multi_step_equations",)),
+    _s("ee.literal_equations", "Rearranges a formula to solve for a chosen variable",
+       "Expressions & Equations", GradeBand.SIX_8, ("ee.multi_step_equations",)),
+    _s("ee.inequalities", "Solves and graphs linear inequalities", "Expressions & Equations",
+       GradeBand.SIX_8, ("ee.multi_step_equations",)),
+    _s("ee.factor_expressions", "Factors linear and simple quadratic expressions",
+       "Expressions & Equations", GradeBand.SIX_8,
+       ("ee.distributive_expand", "oa.primes_composites")),
+    _s("ee.polynomial_arithmetic", "Adds, subtracts, and multiplies polynomials",
+       "Expressions & Equations", GradeBand.SIX_8,
+       ("ee.factor_expressions", "ns.exponent_laws")),
+    _s("ee.quadratic_by_factoring", "Solves quadratic equations by factoring",
+       "Expressions & Equations", GradeBand.SIX_8,
+       ("ee.polynomial_arithmetic", "ns.square_cube_roots")),
+    _s("ee.systems_of_equations", "Solves systems of linear equations",
+       "Expressions & Equations", GradeBand.SIX_8,
+       ("ee.variables_both_sides", "fn.linear_functions")),
+
+    _s("fn.slope", "Finds and interprets slope as a rate of change", "Functions",
+       GradeBand.SIX_8, ("fn.linear_functions", "rp.proportional_relationships")),
+    _s("fn.slope_intercept_form", "Writes and graphs a line in slope-intercept form",
+       "Functions", GradeBand.SIX_8, ("fn.slope", "geo.coordinate_plane")),
+    _s("fn.compare_functions", "Compares functions given in different representations",
+       "Functions", GradeBand.SIX_8, ("fn.slope_intercept_form",)),
+    _s("fn.linear_modeling", "Models a real situation with a linear function",
+       "Functions", GradeBand.SIX_8, ("fn.slope_intercept_form",)),
+
+    _s("geo.angle_relationships", "Uses angle relationships to find unknown angles",
+       "Geometry", GradeBand.SIX_8, ("md.angle_measure",)),
+    _s("geo.pythagorean", "Applies the Pythagorean theorem", "Geometry",
+       GradeBand.SIX_8, ("ns.square_cube_roots", "geo.area_of_polygons")),
+    _s("geo.transformations", "Performs and describes transformations", "Geometry",
+       GradeBand.SIX_8, ("geo.coordinate_plane",)),
+    _s("geo.congruence_similarity", "Reasons about congruence and similarity", "Geometry",
+       GradeBand.SIX_8, ("geo.transformations", "rp.scale_similar_figures")),
+    _s("geo.surface_area", "Finds the surface area of solids", "Geometry",
+       GradeBand.SIX_8, ("geo.area_of_polygons", "md.volume_rectangular")),
+
+    _s("sp.scatter_plots", "Reads and constructs scatter plots", "Statistics & Probability",
+       GradeBand.SIX_8, ("geo.coordinate_plane", "sp.data_distribution")),
+    _s("sp.line_of_best_fit", "Fits and interprets a line of best fit",
+       "Statistics & Probability", GradeBand.SIX_8,
+       ("sp.scatter_plots", "fn.slope_intercept_form")),
+    _s("sp.two_way_tables", "Interprets two-way tables", "Statistics & Probability",
+       GradeBand.SIX_8, ("sp.data_distribution",)),
+    _s("sp.compound_probability", "Computes probabilities of compound events",
+       "Statistics & Probability", GradeBand.SIX_8,
+       ("sp.basic_probability", "fr.multiply_fractions")),
 )
 
 SKILL_MAP: dict[str, Skill] = {s.id: s for s in _SKILLS}

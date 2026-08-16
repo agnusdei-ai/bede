@@ -7,12 +7,23 @@ AES-256-GCM encrypted by core/encryption.py before it reaches the driver.
 Startup sequence (main.py lifespan):
   1. create_tables()          — idempotent CREATE TABLE IF NOT EXISTS
   2. initialize_encryption()  — reads/writes encryption_config rows
+
+DATABASE_URL is not hard-coded to PostgreSQL: every table already carries
+`.with_variant(Integer(), "sqlite")` on its autoincrement primary key
+specifically so the real test suite can run this exact schema against
+`sqlite+aiosqlite://` (18 test files do, via Base.metadata.create_all()),
+and _build_engine() below needs no dialect branching — SQLAlchemy's async
+SQLite pool accepts the same pool_size/max_overflow kwargs the Postgres
+path does. This is proposed-but-undecided infrastructure for a
+resource-constrained single-device host (see
+docs/MOBILE_HOSTING_DECISIONS.md), not a supported production target —
+PostgreSQL remains the only officially documented choice
+(docs/PRODUCTION_SETUP.md).
 """
 
 from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 
-from fastapi import Depends
 from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -115,6 +126,131 @@ class AuditLog(Base):
         nullable=False,
     )
     event_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class StudentKey(Base):
+    """One random data key per student, wrapped under DATA_KEY.
+
+    Every encrypted column belonging to a student is encrypted under their
+    key rather than DATA_KEY directly, so destroying this single row
+    crypto-shreds all of their stored data at once — live rows, dead tuples
+    awaiting VACUUM, WAL segments, and every backup taken while the key
+    existed. See core/student_keys.py for the full reasoning, and
+    docs/DATA_CLASSIFICATION.md for how it fits the tier model.
+
+    Deliberately NOT cascaded by a foreign key: services/student_deletion.py
+    destroys the key explicitly in the same transaction as the row deletes,
+    so the ordering and the failure mode are visible in code rather than
+    implied by schema."""
+    __tablename__ = "student_keys"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    wrapped_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PrivilegedElevation(Base):
+    """A time-boxed grant of management-plane privilege to one session.
+
+    P8: being logged in as the parent is the ordinary account identity;
+    doing something on the management plane (reading the audit log,
+    repointing the AI provider, weakening MFA, crypto-shredding a student)
+    additionally requires an explicit, recent re-authentication. This row is
+    that grant.
+
+    Keyed on the token's `jti`, so the grant belongs to one session rather
+    than to "the parent" — a second device logged in at the same time does
+    not inherit it.
+
+    Deliberately in the database rather than in process memory, and this is
+    the point rather than an implementation detail: an in-memory grant would
+    be invisible to sibling replicas, so the same session would be elevated
+    on the replica that granted it and not on the next one a load balancer
+    picked. The failure mode is worse than it sounds — an operator would see
+    privileged actions intermittently rejected and reasonably conclude the
+    step-up was broken, and the natural fix (make it sticky) is worse than
+    the bug. See docs/DEPLOYMENT_TOPOLOGY.md."""
+    __tablename__ = "privileged_elevations"
+
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+
+
+class DeviceRecord(Base):
+    """P9 (docs/ARCHITECTURE_PRINCIPLES.md), Option C from
+    docs/DEVICE_IDENTITY_DESIGN.md — a REVOCATION mechanism, deliberately not
+    a cryptographic identity. `device_id` is a UUID the browser generates
+    once and persists in localStorage (not sessionStorage — it must survive
+    a closed tab/browser restart, since it identifies the physical device
+    rather than one login), sent at `POST /auth/login` and embedded as a
+    JWT claim from then on.
+
+    THE PROPERTY THIS BUYS: "revoke that lost tablet" becomes real. Before
+    this, the only levers were changing PARENT_PASSWORD or CHILD_PIN, both
+    of which sign out the WHOLE family. core/deps.py's per-request check
+    against core/device_registry.py's cached revoked set means a revoked
+    device stops working on its very next request, not just at its next
+    login — the same "next-request, not immediate" trade
+    core/parent_credential.py's credentials_version already makes, for the
+    same multi-replica-staleness reason (see that module's docstring).
+
+    THE PROPERTY THIS DOES NOT BUY: `device_id` is client-asserted, not
+    cryptographically proven — an attacker who steals a token gets its
+    device_id too, so this defends against a KNOWN-lost device (a parent
+    revoking the tablet they know is missing), not an attacker impersonating
+    a device that was never reported lost. A genuine per-device keypair
+    (docs/DEVICE_IDENTITY_DESIGN.md's Option A) is the deferred, harder
+    follow-up for the parent role specifically — still not built, and
+    deliberately so; see that document's own "Why Option A stopped here".
+
+    Deliberately NOT role-scoped: one physical tablet is commonly used by
+    both the parent (setting up the day) and a child (the lesson itself),
+    so `last_role`/`last_seen_at` are simply overwritten by whichever login
+    happens most recently, rather than the table carrying one row per
+    (device, role) pair.
+
+    No separate "who revoked this" column: a device can only ever be
+    revoked by an elevated parent (`core/deps.py`'s `require_elevated_parent`
+    — this is a single-tenant app, so there is exactly one identity that
+    could), and that action is already durably recorded independently of
+    this table, in the encrypted audit log (`AuditEvent.DEVICE_REVOKED`,
+    `core/audit.py`) — the same place every other security-relevant action
+    in this app is recorded, rather than duplicating a narrower copy here.
+    """
+    __tablename__ = "device_records"
+
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+    # 'parent' | 'child' — whichever role most recently logged in from this
+    # device. Not encrypted: no more sensitive than AuditLog's own role
+    # column, and this table exists specifically to be listed back to the
+    # parent in plain form.
+    last_role: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Truncated — this is a display label ("Safari on iPad"), not a forensic
+    # record; AuditLog is where a full audit trail already lives.
+    last_user_agent: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    revoked: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class VoiceProfile(Base):
@@ -233,6 +369,47 @@ class LearnerBehaviorCheck(Base):
     count_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
 
+class LessonBookmark(Base):
+    """
+    Where a student left off in ONE subject, as of the end of their last
+    session — the piece that lets a new day pick a lesson back up mid-
+    thread instead of restarting cold, regardless of what topic the parent
+    happens to have typed into SessionConfig.lesson_focus/current_unit
+    today (see CLAUDE.md's "Lesson continuity (bookmarks)" section).
+
+    Deliberately internal-only, never surfaced in the parent UI: this is
+    NOT a tracked signal like LearnerBehaviorCheck's per-style counters —
+    there's nothing here to measure or score, just a short factual resume
+    point Bede reads back into its own prompt. The same "no black-box
+    signal about my kid" instinct that shaped LearnerBehaviorCheck and the
+    phonics/language check-ins argues for the opposite conclusion here:
+    the note is plain prose, generated by the same model the parent
+    already trusts to write their session summary, and the parent's own
+    lesson_focus/current_unit always outranks it (see
+    services/ai_service.py's _bookmark_note) — there is no separate
+    metric being computed about the child, so there is nothing to hide OR
+    to expose. bookmark_enc holds encrypt_json({"note": str}); note is a
+    1-2 sentence factual resume point ("We were partway through the fall
+    of Rome; the child had identified the frontier problem but hadn't
+    reached the economic factors yet."), never a suggestion or judgment.
+    updated_at drives the "fade" behavior in _bookmark_note: an old
+    bookmark is phrased as "a while back" rather than "last time" instead
+    of ever being deleted outright — a lapsed family should never feel
+    like Bede silently lost their place.
+    """
+    __tablename__ = "lesson_bookmarks"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    subject: Mapped[str] = mapped_column(String(50), primary_key=True)
+    bookmark_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class MasteryProfile(Base):
     """
     Per-student CDM/IRT/KST mastery vector for a subject area (K-8 math
@@ -267,10 +444,22 @@ class DiagnosticEvidenceLog(Base):
     services.diagnostic.mastery.MasteryUpdate exactly. Never a
     transcript, never the child's words, never probe prose — the same
     privacy class as NarrationAssessment (derived scores, not raw
-    content). Opt-in and off by default
-    (settings.diagnostic_evidence_log_enabled) — the strictest reading of
-    "never persist raw evidence"; when disabled, only MasteryProfile is
-    written and this table stays empty.
+    content).
+
+    Governed by settings.diagnostic_evidence_log_enabled, which is ON by
+    default. This docstring previously said "opt-in and off by default",
+    which was true only for Phases 1-4: the flag was flipped to True once
+    the end-of-session "Math Skill Growth" before/after report
+    (services.diagnostic.get_session_growth) needed real deltas to read
+    back — see docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §5.3, which
+    records that change. The stale wording mattered more than a typo
+    normally would: a deployer reading this model to decide what their
+    database holds would have concluded nothing was written here.
+
+    Turning the flag off is still supported and is the strictest reading
+    of privacy constraint P3 — when disabled, only MasteryProfile is
+    written, this table stays empty, and session summaries omit skill
+    growth entirely rather than reporting it from nothing.
     """
     __tablename__ = "diagnostic_evidence_log"
 
@@ -294,6 +483,62 @@ class DiagnosticEvidenceLog(Base):
         nullable=False,
     )
     delta_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class SkillActivityLog(Base):
+    """
+    An append-only record of WORK ACTUALLY DONE — one row per completed
+    learning activity, per student, per skill.
+
+    DELIBERATELY NOT PSYCHOMETRIC, and that is the whole point of it
+    existing alongside MasteryProfile rather than inside it. MasteryProfile
+    and DiagnosticEvidenceLog hold inferred latent ability: "this child has
+    a 0.47 probability of having mastered multi-digit multiplication" — a
+    claim ABOUT THE CHILD. This table holds only what happened: "on this
+    date, in Mathematics, a multi-digit multiplication task was completed
+    unaided." A parent reads facts and draws their own conclusion; nothing
+    here classifies the child, ranks them, or estimates a trait they carry.
+
+    That distinction is what makes this table safe to read across a pod.
+    "Who has done this work" is an ordinary thing for a self-managed team
+    to know and is how one member comes to help another; "who is better at
+    this" is a ranking of children, which this project does not build (see
+    CLAUDE.md's standing constraint). A completion count can support the
+    first without ever producing the second, because it never aggregates
+    into a score.
+
+    `detail_enc` holds encrypt_json({"skill_id", "label", "assistance",
+    "subject"}) — the same derived-not-raw privacy class as
+    NarrationAssessment and DiagnosticEvidenceLog. Never the child's words,
+    never a transcript, never the task's prose.
+
+    `assistance` is the only qualitative field, and it is factual rather
+    than evaluative: unaided / with_a_hint / with_help. It records how the
+    work went, not how able the child is.
+    """
+    __tablename__ = "skill_activity_log"
+
+    # Same BigInteger-with-SQLite-variant reasoning as
+    # DiagnosticEvidenceLog above — this table is exercised by real inserts
+    # under the SQLite test engine and needs the variant to autoincrement.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    subject_area: Mapped[str] = mapped_column(String(30), index=True, nullable=False)
+    skill_id: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -575,6 +820,135 @@ class DemoCodeSession(Base):
     email_sent: Mapped[bool] = mapped_column(nullable=False, default=False)
 
 
+class DemoCodeUnitNote(Base):
+    """
+    Optional, parent-provided one-line note on what the family is already
+    covering outside Bede's own built-in curriculum (a book, a unit) — set
+    once at POST /auth/demo-code alongside student_name/grade, and threaded
+    into the demo's SessionConfig.current_unit exactly like a real parent's
+    current_unit field (see docs/PARENT_SETUP.md's companion_mode section).
+    This lets the demo show the same "Bede anchors on what the family
+    brought in, not just its own curriculum" behavior the real app offers,
+    rather than only ever demonstrating Bede's bundled subject content. See
+    CLAUDE.md's "Continuing Mastery (demo)" section.
+
+    A standalone table rather than a new column on DemoCodeSession: this
+    codebase's startup only ever runs CREATE TABLE IF NOT EXISTS (core/
+    database.py's create_tables(), no ALTER TABLE migration path), so a new
+    table is the only way to add this to an already-running deployment
+    without a manual schema change.
+
+    Same TTL/eviction convention as DemoCodeSession: no expiry column,
+    core/demo_code_session.py filters on created_at at read/write time and
+    opportunistically deletes rows past the same cutoff. Plaintext, not
+    encrypted — same convention as DemoCodeSession's own student_name/grade
+    (a demo topic, not a real family's identity); sanitized (HTML/prompt-
+    injection/credential stripping) both at write time (routers/auth.py)
+    and again by _build_subject_prompt's existing current_unit handling
+    (services/ai_service.py), for defense in depth on public, anonymous
+    input.
+    """
+    __tablename__ = "demo_code_unit_notes"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    note: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
+class DemoCodeFaithNote(Base):
+    """
+    Optional, parent-provided label for the visiting family's own church
+    tradition (e.g. "Baptist", "Catholic", "Non-denominational") — set once
+    at POST /auth/demo-code alongside student_name/current_unit, and
+    threaded into the demo's SessionConfig.faith_tradition exactly like
+    DemoCodeUnitNote does for current_unit.
+
+    Exists because the demo deliberately shows every subject
+    (routers/tutor.py's _demo_session_config: `subjects=list(Subject)`),
+    including both Scripture & Bible Study and Saints & Catechism side by
+    side, regardless of the visitor's own background — unlike a real
+    family, who simply enables whichever of those two modules fits their
+    own church (see CLAUDE.md's Subject enum comments). This lets Bede
+    frame that content consistently with the family's own tradition
+    (services/ai_service.py's _faith_tradition_note) instead of assuming
+    one, without hiding either module from the demo's curriculum showcase.
+
+    Standalone table for the same reason as DemoCodeUnitNote: this
+    codebase's startup only ever runs CREATE TABLE IF NOT EXISTS (no ALTER
+    TABLE path), so a new table is the only way to add this to an
+    already-running deployment. Same TTL/eviction convention as
+    DemoCodeUnitNote: no expiry column, core/demo_code_session.py filters
+    on created_at at read/write time and opportunistically deletes rows
+    past the same cutoff. Plaintext, not encrypted — a self-described
+    tradition, not a real family's identity, same convention as
+    DemoCodeSession's own student_name/grade; sanitized both at write time
+    (routers/auth.py) and again by _build_subject_prompt's handling
+    (services/ai_service.py).
+    """
+    __tablename__ = "demo_code_faith_notes"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    tradition: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
+class DemoCodeActivityLog(Base):
+    """
+    The public demo's own work ledger — what the visitor actually finished
+    during this one demo session.
+
+    DELIBERATELY NOT SkillActivityLog, and the difference is the whole
+    point. That table is a permanent, per-student record a family builds
+    over months; this one lives exactly as long as the demo code does and
+    is gone the moment it expires or the visitor logs out. A demo visitor
+    is anonymous and their `student_name` is whatever they typed at the
+    code screen, so it is not isolated from a real family's — writing them
+    into the same table would be both a broken promise and a collision.
+
+    WHY THIS IS COMPATIBLE WITH "your conversation is never stored". What
+    is kept here is derived and structural, in exactly the category the
+    consent screen already carves out: which skill was worked, how much
+    help it took, and what Bede noticed about the work. Never the child's
+    words, never a transcript, never the task's prose — the same
+    derived-not-raw class as DemoCodeSession.mastery_vector_enc beside it,
+    encrypted for the same reason and evicted on the same schedule.
+
+    ONE ROW PER CODE, not one per activity: `activities_enc` holds an
+    encrypted JSON list, appended to under read-modify-write. A demo
+    session produces a few dozen entries at most, so the simpler shape
+    wins — and it keeps eviction to a single DELETE alongside
+    DemoCodeUnitNote/DemoCodeFaithNote rather than a range scan.
+    core/demo_code_session.py caps the list length.
+
+    Standalone table for the same reason as those two siblings: startup
+    only ever runs CREATE TABLE IF NOT EXISTS (no ALTER TABLE path), so a
+    new table is the only way to ship this to an already-running
+    deployment. Same TTL/eviction convention as well — no expiry column,
+    core/demo_code_session.py filters on created_at at read time and
+    deletes past the same cutoff.
+    """
+    __tablename__ = "demo_code_activity_logs"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    activities_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
 class DiagnosticPreviewUse(Base):
     """
     Postgres-backed replacement for core/diagnostic_preview_quota.py's old
@@ -667,18 +1041,22 @@ class DemoInteractionSignal(Base):
 
 class AIProviderOverride(Base):
     """
-    Single row (key="primary") that, when present, picks which already-
-    CONFIGURED AI adapter (services/adapters/) serves as primary — same "DB
-    value wins over the env default, live, no restart" precedent
-    core/license_state.py and core/parent_credential.py already established
-    for LICENSE_KEY/PARENT_PASSWORD, applied here to
+    Up to two rows (key="primary", key="secondary") that, when present,
+    pick which already-CONFIGURED AI adapters (services/adapters/) serve
+    as primary and, optionally, the first failover tried if primary errors
+    — same "DB value wins over the env default, live, no restart"
+    precedent core/license_state.py and core/parent_credential.py already
+    established for LICENSE_KEY/PARENT_PASSWORD, applied here to
     BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER (core/config.py) for the same
     reason: those are plain env-loaded Settings read once at process
     startup, so switching providers (e.g. a degraded local Ollama model,
-    want Mistral instead) used to mean an .env edit and a restart. See
-    core/provider_state.py, the only module that reads/writes this table,
-    and services/adapters/router.py's FailoverClient, which consults the
-    in-process cache on every request.
+    want Mistral instead, or picking Claude over Mistral as backup) used
+    to mean an .env edit and a restart. See core/provider_state.py, the
+    only module that reads/writes this table, and services/adapters/
+    router.py's FailoverClient, which consults the in-process cache on
+    every request. `key` was always a String primary key rather than a
+    hardcoded singleton specifically so a second row could be added later
+    without a schema change — this is that second row.
 
     Deliberately narrow: this table only ever stores the NAME of an adapter
     that is already configured elsewhere (real credentials in
@@ -686,7 +1064,8 @@ class AIProviderOverride(Base):
     picking a provider with no credentials configured before it ever
     reaches this table, and services/adapters/router.py's
     provider_state.effective_order() silently ignores a stored name that
-    is no longer configured (falls back to the env order) rather than
+    is no longer configured, unknown, or (for secondary) identical to
+    primary (falls back to the env order for that slot) rather than
     breaking service.
     """
     __tablename__ = "ai_provider_override"

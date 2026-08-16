@@ -391,6 +391,20 @@ Single source of truth: `core/config.py`'s `SUPPORTED_LOCALES` dict. A
 English — a family that thinks they configured Spanish should never
 discover Bede is still speaking English to their child.
 
+That guarantee had a hole underneath it for the whole life of this feature,
+and it is worth recording because the validation above is what made it
+invisible. `docker-compose.yml`'s `api` service lists the environment
+variables it passes one by one, and `LOCALE` was never on the list, so a
+family who set `LOCALE=es` in `.env` had it dropped before the container
+ever saw it. Startup validation cannot reject a value that never arrived:
+the API booted happily on the `en` default, `GET /auth/locales` reported
+English only, the login toggle never rendered, and Bede spoke English —
+the exact outcome the paragraph above promises will never happen. Fixed by
+passing `LOCALE` through, wiring the frontend's `VITE_LOCALE` build arg
+from the same value, and adding
+`tests/test_compose_settings_passthrough.py`, which fails when any setting
+either `.env.example` documents is missing from that list.
+
 | Code | Language | Status |
 |------|----------|--------|
 | `es` | Spanish (Español) | Login-time toggle + backend directive shipped; `Login.tsx` translated; rest of UI pending |

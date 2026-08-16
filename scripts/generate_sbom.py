@@ -4,7 +4,7 @@ Regenerates docs/sbom/backend.cdx.json and docs/sbom/frontend.cdx.json —
 CycloneDX 1.5 software bills of material for Bede's two dependency trees.
 
 Deliberately hand-rolled rather than shelling out to `cyclonedx-py` /
-`@cyclonedx/cyclonedx-npm`: this only needs to read requirements.txt and
+`@cyclonedx/cyclonedx-npm`: this only needs to read requirements.in and
 package-lock.json, which are already committed and don't require a live
 `pip install` / `npm install` (network access, matching Python/Node
 versions, etc.) just to produce a bill of materials. If a real
@@ -27,7 +27,7 @@ _REQ_LINE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*>=\s*([
 
 
 def _parse_requirements(path: Path, scope: str) -> list[dict]:
-    """requirements.txt here uses lower-bound-only pins (see CLAUDE.md /
+    """requirements.in here uses lower-bound-only pins (see CLAUDE.md /
     docs/SECURITY.md) — there is no single "the" installed version, so the
     declared floor is recorded as `version`, with a note field making that
     explicit rather than implying it's an exact resolved version the way
@@ -105,9 +105,9 @@ def main() -> None:
     SBOM_DIR.mkdir(parents=True, exist_ok=True)
 
     backend_components = _parse_requirements(
-        ROOT / "homeschool-api" / "requirements.txt", scope="required",
+        ROOT / "homeschool-api" / "requirements.in", scope="required",
     ) + _parse_requirements(
-        ROOT / "homeschool-api" / "requirements-dev.txt", scope="optional",
+        ROOT / "homeschool-api" / "requirements-dev.in", scope="optional",
     )
     backend_bom = _bom("homeschool-api", "unversioned", backend_components)
     (SBOM_DIR / "backend.cdx.json").write_text(json.dumps(backend_bom, indent=2) + "\n")

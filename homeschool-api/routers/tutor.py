@@ -8,15 +8,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.audit import AuditEvent, audit_from_request, log_event
+from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
+    get_current_unit as get_demo_current_unit,
+    get_faith_tradition as get_demo_faith_tradition,
     get_personalization as get_demo_personalization,
+    has_message_quota as demo_code_has_message_quota,
     record_message as demo_code_record_message,
 )
-from core.deps import require_auth, require_parent
+from core.deps import require_auth, require_email_summary, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import (
     EmailSummaryRequest,
@@ -34,6 +37,7 @@ from services.ai_service import (
     _redact_credentials,
     _sanitize_parent_field,
     check_safeguarding,
+    demo_quota_response,
     generate_session_summary,
     moderation_redirect_response,
     safeguarding_response,
@@ -44,7 +48,7 @@ from services.document_extraction import extract_narration_text, UnsupportedNarr
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
-from services.voice_synthesis import synthesis_configured, synthesize_speech
+from services.voice_synthesis import AUDIO_MEDIA_TYPE, synthesis_configured, synthesize_speech
 
 log = logging.getLogger(__name__)
 
@@ -88,10 +92,32 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     term_schedule is pinned to quarterly (4 terms) rather than the default
     trimester (3) specifically so _demo_current_term's 1-4 range lines up
     with the full picture-study artist rotation, not just its first three.
+
+    current_unit is the other optional per-code personalization (see
+    DemoCodeRequest.current_unit and CLAUDE.md's "Continuing Mastery
+    (demo)" section) — a visitor's own "what we're already covering at
+    home" note, threaded straight into SessionConfig.current_unit exactly
+    like a real parent's field. It already gets the same
+    _sanitize_parent_field pass every current_unit does in
+    _build_subject_prompt (services/ai_service.py), on top of the
+    sanitization applied once at /auth/demo-code — belt and suspenders on
+    public, anonymous input.
+
+    faith_tradition is a third optional per-code personalization (see
+    DemoCodeRequest.faith_tradition and core/database.py's
+    DemoCodeFaithNote) — the visiting family's own church tradition,
+    threaded into SessionConfig.faith_tradition so Bede can frame Scripture
+    & Bible Study / Saints & Catechism content consistently with it, since
+    `subjects=list(Subject)` below means every demo visitor sees both
+    modules regardless of their own background.
     """
     student_name, grade = (None, None)
+    current_unit = None
+    faith_tradition = None
     if code:
         student_name, grade = await get_demo_personalization(code)
+        current_unit = await get_demo_current_unit(code)
+        faith_tradition = await get_demo_faith_tradition(code)
     return SessionConfig(
         student_name=student_name or settings.demo_student_name,
         grade=grade or settings.demo_grade,
@@ -100,6 +126,8 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         voice_required=False,
         term_schedule=TermSchedule.quarterly,
         current_term=_demo_current_term(code),
+        current_unit=current_unit,
+        faith_tradition=faith_tradition,
     )
 
 
@@ -130,9 +158,17 @@ async def chat(
         req.session_config = await _demo_session_config(auth.get("code"))
         db = None
 
+    demo_quota_exceeded = False
     if is_demo_code:
-        # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
-        await demo_code_record_message(auth.get("code", ""))
+        demo_code = auth.get("code", "")
+        # The actual LLM10 enforcement point (see core/demo_code_session.py's
+        # _MAX_MESSAGES_PER_CODE) — checked BEFORE record_message increments,
+        # so an over-quota turn is never double-counted and never reaches
+        # stream_tutor_response below, i.e. no model call is spent refusing it.
+        if await demo_code_has_message_quota(demo_code):
+            await demo_code_record_message(demo_code)
+        else:
+            demo_quota_exceeded = True
 
     # Fire-and-forget — log_event() runs in its own independent DB session
     # and already swallows its own failures (see core/audit.py), so there's
@@ -170,6 +206,19 @@ async def chat(
         ))
 
     async def event_generator():
+        if demo_quota_exceeded:
+            await log_event(
+                AuditEvent.RATE_LIMITED,
+                role=role,
+                student_name=req.session_config.student_name,
+                success=False,
+                detail="demo_message_quota",
+                **audit_from_request(request),
+            )
+            yield json.dumps({'type': 'text', 'content': demo_quota_response(auth.get("locale", "en"))})
+            yield json.dumps({'type': 'done'})
+            return
+
         # Deterministic safeguarding check — bypasses LLM entirely for crisis
         # signals, free and zero-latency, so it runs before paying for a
         # moderation classification call at all.
@@ -262,6 +311,7 @@ async def chat(
                     local_date=req.local_date,
                     locale=auth.get("locale", "en"),
                     role=role,
+                    session_id=req.session_id,
                     **audit_from_request(request),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,
@@ -272,13 +322,33 @@ async def chat(
                 "Tutor stream stalled past %.0fs for %s — closing with a recoverable error",
                 STREAM_STALL_TIMEOUT_SECONDS, req.session_config.student_name,
             )
+            # See core/audit.py's AI_BACKEND_FAILURE / _GLOBAL_ANOMALY_EVENTS —
+            # a repeated pattern here (pooled across every device, not just
+            # this one) is what actually tells a parent/operator Bede's AI
+            # backend is unhealthy, rather than that surfacing only as a
+            # string of individually-unremarkable "try again" replies with
+            # nobody watching. Fire-and-forget: must not delay the error
+            # response the child is waiting on.
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE,
+                role=role, student_name=req.session_config.student_name,
+                success=False, detail=f"cause=stall subject={req.current_subject.value}",
+                **audit_from_request(request),
+            )
             yield json.dumps({
                 'type': 'text',
                 'content': "Sorry, that took too long to come through. Could you try sending that again?",
             })
             yield json.dumps({'type': 'done'})
-        except Exception:
+        except Exception as exc:
             log.exception("Tutor stream failed mid-turn for %s", req.session_config.student_name)
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE,
+                role=role, student_name=req.session_config.student_name,
+                success=False,
+                detail=f"cause=exception subject={req.current_subject.value} error={type(exc).__name__}",
+                **audit_from_request(request),
+            )
             yield json.dumps({
                 'type': 'text',
                 'content': "Something went wrong on my end. Could you try sending that again?",
@@ -339,7 +409,7 @@ async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     headers = {"X-TTS-Configured": str(synthesis_configured())}
     if audio is None:
         return Response(status_code=204, headers=headers)
-    return Response(content=audio, media_type="audio/wav", headers=headers)
+    return Response(content=audio, media_type=AUDIO_MEDIA_TYPE, headers=headers)
 
 
 @router.post("/summary")
@@ -365,25 +435,29 @@ async def session_summary(
 async def email_summary(
     req: EmailSummaryRequest,
     request: Request,
-    auth: dict = Depends(require_auth),
+    auth: dict = Depends(require_email_summary),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Generate the same end-of-session summary as /summary, then email it once
     to a parent-supplied address via Resend — never shown to the child, never
     written anywhere (see services/email_service.py). Available to the parent
-    role and the scoped public demo role; child and parent_pending are not
-    parents, so they're rejected here the same way /summary rejects them by
-    only depending on require_parent.
+    role and the scoped public demo role; a child may not send mail to an
+    arbitrary address, and the transient roles aren't parents either.
+
+    That restriction used to be an inline `role not in ("parent",
+    "demo_code")` check in this function body — a real authorization
+    decision living outside the dependency layer, invisible to anyone
+    auditing authorization by reading core/deps.py. It's now the
+    "tutor.email_summary" action in core/policy.py's table, enforced by
+    require_email_summary.
 
     The demo role is additionally capped to exactly one send per session
     (core/demo_code_session.claim_email_send) — the public demo shouldn't
     let one visitor spam an address or run up the operator's Resend usage.
+    That cap is a quota, not an authorization decision, so it stays here.
     """
     role = auth.get("role")
-    if role not in ("parent", "demo_code"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this action")
-
     if role == "demo_code":
         # Never trust client-supplied session_config for the demo role —
         # only the transcript/subjects it already streamed are real; mirrors /chat.

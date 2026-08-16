@@ -6,13 +6,19 @@ docs/VOICE_SETUP.md's "server-side streaming transcription" section.
 Replaces browser-native SpeechRecognition as the primary voice-input path.
 The client always captures raw mic audio locally (services/transcription.py's
 existing faster-whisper backend, already proven reliable — see
-useVoiceRecorder.ts) and periodically POSTs the growing buffer here; each
-push re-transcribes it and the result is pushed onto a per-session queue the
-SSE endpoint drains. This sidesteps WebKit's SpeechRecognition entirely — the
-source of essentially every voice-pipeline bug fought this session (audio
-session races, instant native failures, stall detection) — at the cost of
-periodic (not true word-by-word) partial results, since faster-whisper has no
-native incremental-streaming mode.
+useVoiceRecorder.ts) and periodically POSTs only what it captured since its
+last upload — a delta, as raw headerless PCM, not the whole growing buffer
+(that was the original design; see push_chunk's own docstring for why it
+changed and how an older client uploading the whole buffer still works
+against this server). Each push re-transcribes the accumulated audio and the
+result is pushed onto a per-session queue the SSE endpoint drains. This
+sidesteps WebKit's SpeechRecognition entirely — the source of essentially
+every voice-pipeline bug fought this session (audio session races, instant
+native failures, stall detection) — at the cost of periodic (not true
+word-by-word) partial results, since faster-whisper has no native
+incremental-streaming mode, and every pass re-transcribes the accumulated
+audio from the start rather than resuming (see VOICE_PARTIAL_MAX_SECONDS in
+core/config.py for how that cost is bounded on a long hold).
 
 Sessions are per-process, in-memory only, never persisted to disk or a
 database — same "never stored anywhere" privacy property as the one-shot
@@ -29,7 +35,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Optional
 
-from services.transcription import transcribe_audio
+from core.config import settings
+from services.transcription import partial_passes_are_affordable, transcribe_audio
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +44,28 @@ log = logging.getLogger(__name__)
 # (useHybridVoiceInput.ts) — this is a backstop for a session that never
 # calls /finish at all (a crashed tab, a dropped connection), not a normal
 # turn's own timing.
+# The delta protocol carries bare int16 samples with no container, so this
+# module owns the one place that gives them one. Fixed at 16kHz mono because
+# useVoiceRecorder.ts resamples to exactly that before uploading, and
+# services/transcription.py reads via soundfile, which needs a real container
+# rather than loose samples.
+_PCM_SAMPLE_RATE = 16000
+_PCM_BYTES_PER_SAMPLE = 2
+
+
+def _wav_from_pcm16(pcm: bytes) -> bytes:
+    """Wrap raw 16kHz mono int16 PCM in a minimal 44-byte WAV header."""
+    import struct
+
+    byte_rate = _PCM_SAMPLE_RATE * _PCM_BYTES_PER_SAMPLE
+    return b"".join((
+        b"RIFF", struct.pack("<I", 36 + len(pcm)), b"WAVEfmt ",
+        struct.pack("<IHHIIHH", 16, 1, 1, _PCM_SAMPLE_RATE, byte_rate,
+                    _PCM_BYTES_PER_SAMPLE, 8 * _PCM_BYTES_PER_SAMPLE),
+        b"data", struct.pack("<I", len(pcm)), pcm,
+    ))
+
+
 _SESSION_TTL_SECONDS = 180.0
 _SWEEP_INTERVAL_SECONDS = 60.0
 
@@ -54,7 +83,14 @@ class _Session:
     # that never passed an owner (this file's own test suite) keeps working
     # unchanged — "" on both sides still compares equal.
     owner: str = ""
+    # Legacy path: a complete WAV of everything captured so far, replaced on
+    # every push. Still supported so an older client keeps working — see
+    # push_chunk.
     audio: bytes = b""
+    # Delta path: raw 16kHz mono int16 PCM, APPENDED to on every push. The
+    # client sends only what it captured since its last upload, which is what
+    # keeps a long hold from re-uploading the whole recording over and over.
+    pcm: bytearray = field(default_factory=bytearray)
     finished: bool = False
     last_touched: float = field(default_factory=time.monotonic)
     # Set whenever push_chunk/finish_session update state the worker loop
@@ -64,6 +100,26 @@ class _Session:
     new_audio: asyncio.Event = field(default_factory=asyncio.Event)
     queue: "asyncio.Queue[dict]" = field(default_factory=asyncio.Queue)
     worker: Optional[asyncio.Task] = None
+    # True from the moment one events() call attaches until it detaches (see
+    # events() below). Guards against a SECOND concurrent events() call for
+    # the same session — reported live from the demo under real mobile
+    # network conditions: a client that has already sent its final chunk and
+    # a successful /finish still sees its own, still-open events() stream
+    # come back with "unknown or expired session" moments later, even though
+    # the session plainly still existed (finish_session() just found it).
+    # Deployment was confirmed pinned to a single instance, which rules out
+    # cross-instance session loss (the previously-diagnosed cause this
+    # module's docstring and CLAUDE.md describe). The only other way
+    # _discard() can run out from under a session that's still mid-turn is a
+    # SECOND events() attach for the same id racing the first on the same
+    # asyncio.Queue — whichever of the two consumers happens to receive the
+    # queue's "done" item tears the session down in its own finally block,
+    # discarding it out from under the other. A retried HTTP request for the
+    # same logical GET (a mobile network/proxy retrying what looks like a
+    # stalled connection under poor signal — exactly the conditions in the
+    # reported trace) is the most likely way a second attach happens; this
+    # guards the outcome regardless of what triggers it.
+    active_reader: bool = False
 
 
 _sessions: dict[str, _Session] = {}
@@ -89,7 +145,20 @@ def push_chunk(session_id: str, audio_bytes: bytes, owner: str = "") -> bool:
     session = _sessions.get(session_id)
     if session is None or session.finished or session.owner != owner:
         return False
-    session.audio = audio_bytes
+    # Two wire protocols, told apart by the container rather than by a flag,
+    # so an older client and a newer one can both talk to this server.
+    #
+    # A RIFF header means the legacy whole-buffer upload: the client re-sent
+    # everything it has captured so far, so replace. That is O(N^2) bandwidth
+    # over a hold — 8.3MB of upload for a 40-second answer — which is exactly
+    # what the delta path below exists to stop.
+    #
+    # No header means raw int16 PCM at _PCM_SAMPLE_RATE: only what was
+    # captured since the client's last upload, so append.
+    if audio_bytes[:4] == b"RIFF":
+        session.audio = audio_bytes
+    else:
+        session.pcm.extend(audio_bytes)
     session.last_touched = time.monotonic()
     session.new_audio.set()
     return True
@@ -112,9 +181,69 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
     while True:
         await session.new_audio.wait()
         session.new_audio.clear()
-        audio_snapshot = session.audio
         is_finished = session.finished
+        if not is_finished and not partial_passes_are_affordable():
+            # A metered transcription backend bills per pass and re-uploads
+            # the whole growing buffer each time, so a preview that is
+            # discarded the moment the final pass lands is not worth several
+            # extra billed requests per turn — see that helper's own comment.
+            #
+            # Checked BEFORE building the snapshot below, deliberately.
+            # _wav_from_pcm16(bytes(session.pcm)) copies the entire growing
+            # buffer — at 16kHz 16-bit that is ~32KB per second of audio,
+            # twice over (the bytes() copy and the WAV it wraps), on every
+            # chunk tick. Doing that and then discarding it would cost, at a
+            # roomful of concurrent sessions, tens of megabytes of pure
+            # allocation churn every few seconds on an instance chosen for
+            # having little memory to spare. Skipping the pass has to mean
+            # skipping the work that feeds it, not just the request.
+            #
+            # The FINAL pass is untouched, here as below: what actually
+            # reaches Bede never depends on this.
+            log.debug(
+                "streaming_transcription: session=%s skipping partial (metered backend)",
+                session_id,
+            )
+            continue
+        # Whichever protocol this session's client is speaking. The delta
+        # path is preferred when there is any PCM at all; a session only ever
+        # uses one, since the client does not mix them.
+        audio_snapshot = _wav_from_pcm16(bytes(session.pcm)) if session.pcm else session.audio
         text = ""
+        # faster-whisper has no incremental mode, so EVERY pass re-transcribes
+        # the whole buffer from the start. Across a long hold that is O(N^2)
+        # decode work — a 40-second answer costs roughly 220 seconds of audio
+        # decoded — and it is the dominant reason a long answer feels slow to
+        # transcribe. (The delta-upload change fixed the same shape on the
+        # network, not this.)
+        #
+        # Partials exist only to show the child a live "we heard you" preview,
+        # and a partial computed over 60 seconds of audio is both expensive and
+        # stale by the time it lands. So past a threshold, stop paying for them
+        # and let the buffer ride to the final pass. The FINAL pass is never
+        # skipped — correctness of what actually reaches Bede never depends on
+        # this.
+        if audio_snapshot and not is_finished and settings.voice_partial_max_seconds > 0:
+            # Correct for BOTH wire protocols a session might be running —
+            # len(session.pcm) alone is only right for the delta path. A
+            # legacy whole-buffer (RIFF) client never touches session.pcm at
+            # all (see push_chunk above), so that length is always 0 on that
+            # path, which silently disabled this cap for exactly the client
+            # this module's own docstring promises stays fully supported —
+            # a stale browser tab still running the pre-delta bundle during
+            # or just after a rolling deploy. Both protocols produce 16kHz
+            # mono 16-bit PCM (useVoiceRecorder.ts resamples to this before
+            # encoding either way — see _wav_from_pcm16's own comment), so a
+            # plain 44-byte WAV header subtraction is valid for the legacy
+            # path too.
+            pcm_len = len(session.pcm) if session.pcm else max(0, len(session.audio) - 44)
+            seconds = pcm_len / (_PCM_SAMPLE_RATE * _PCM_BYTES_PER_SAMPLE)
+            if seconds > settings.voice_partial_max_seconds:
+                log.debug(
+                    "streaming_transcription: session=%s skipping partial at %.1fs of audio",
+                    session_id, seconds,
+                )
+                continue
         if audio_snapshot:
             # Elapsed-time log — previously the only visibility into this
             # pipeline was client-side (DebugOverlay), which can show a
@@ -154,6 +283,16 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
     if session is None or session.owner != owner:
         yield {"type": "error", "message": "unknown or expired session"}
         return
+    if session.active_reader:
+        # A second, concurrent events() attach for a session that already has
+        # one — see _Session.active_reader's own comment for what this
+        # guards against. Ending here, without touching the queue or calling
+        # _discard, leaves the FIRST (real) reader entirely undisturbed: it
+        # keeps consuming the queue on its own and remains the one that
+        # eventually tears the session down normally, via 'done' or its own
+        # disconnect.
+        return
+    session.active_reader = True
     try:
         while True:
             item = await session.queue.get()
@@ -161,7 +300,32 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
             if item.get("type") == "done":
                 break
     finally:
-        _sessions.pop(session_id, None)
+        _discard(session_id)
+
+
+def _discard(session_id: str) -> None:
+    """Drop a session AND stop the worker that belongs to it.
+
+    Popping the dict alone is not enough, and that was a real leak. A worker
+    parked on `new_audio.wait()` is referenced by the event loop and holds
+    `session` as an argument, so removing the dict entry collects nothing:
+    the task waits forever and the whole PCM buffer stays reachable through
+    it. At 16kHz 16-bit that is ~32KB per second of audio pinned per
+    abandoned turn, for the life of the process.
+
+    The completion path was always fine — `_worker_loop` returns after
+    queuing `done`. What leaked was every session that ended any OTHER way:
+    a consumer disconnecting mid-turn (a child navigating away, a tablet
+    dropping the SSE connection — routine even on good WiFi) and anything
+    the sweeper reclaimed. Reported from the demo as voice becoming
+    unreliable after roughly ten turns.
+    """
+    session = _sessions.pop(session_id, None)
+    if session is None:
+        return
+    worker = session.worker
+    if worker is not None and not worker.done():
+        worker.cancel()
 
 
 def _ensure_sweeper() -> None:
@@ -180,4 +344,5 @@ async def _sweep_loop() -> None:
         stale_ids = [sid for sid, s in _sessions.items() if now - s.last_touched > _SESSION_TTL_SECONDS]
         for sid in stale_ids:
             log.warning("streaming_transcription: sweeping abandoned session %s", sid)
-            _sessions.pop(sid, None)
+            # Via _discard, not a bare pop: the worker has to go with it.
+            _discard(sid)

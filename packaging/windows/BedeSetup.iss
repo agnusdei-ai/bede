@@ -29,6 +29,11 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={localappdata}\Bede
 DefaultGroupName=Bede
 DisableProgramGroupPage=no
+; Docker Desktop (chain-installed by Setup-Bede.ps1) requires 64-bit Windows
+; 10/11 — genuine 32-bit Windows can't run Bede at all regardless of what
+; this installer itself would allow. Refusing up front here is more honest
+; than letting the wizard open and fail confusingly partway through.
+ArchitecturesAllowed=x64compatible
 ; Per-user install (no admin prompt for the shell itself) — Setup-Bede.ps1
 ; requests elevation on its own, only for the one step that needs it
 ; (installing Docker Desktop), and only when Docker Desktop isn't already

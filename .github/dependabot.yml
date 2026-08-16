@@ -1,0 +1,55 @@
+version: 2
+
+# Security-update PRs ONLY — deliberately not routine version bumps.
+#
+# This file has been through both failure modes, and this config is the
+# resolution of the tension between them:
+#
+#   #285 deleted it because routine version-update PRs caused real damage
+#   (react/react-dom bumped as half a pair in #267/#250, a breaking
+#   tailwindcss major merged with no migration in #254/#266). That
+#   complaint was about VERSION updates, and it was correct.
+#
+#   #296 then deleted the `npm audit`/`pip-audit` CI gates, reasoning that
+#   with Dependabot gone there was no auto-fix companion left, so a red
+#   gate would block PRs forever. That left the repo with zero
+#   vulnerability monitoring across three ecosystems — no Dependabot, no
+#   audit gates, no SCA of any kind.
+#
+# Both deletions treated "version updates" and "security updates" as one
+# thing. They are not, and Dependabot separates them: `open-pull-requests-
+# limit: 0` switches OFF routine version-update PRs while leaving
+# security-advisory PRs enabled. That is exactly the shape this repo
+# wants — #285's noise never comes back, and the restored audit gates in
+# test.yml / frontend-tests.yml get the auto-fix companion whose absence
+# was #296's stated reason for removing them.
+#
+# So: no weekly upgrade churn, no half-bumped peer pairs, no surprise
+# majors. A PR appears here only when a dependency this repo actually
+# ships has a published security advisory.
+updates:
+  - package-ecosystem: "pip"
+    directory: "/homeschool-api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "npm"
+    directory: "/homeschool-tutor"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "npm"
+    directory: "/demo"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+
+  # Pinned action versions are a supply-chain surface of their own — a
+  # compromised or yanked action tag runs with this workflow's token.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0

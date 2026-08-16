@@ -431,6 +431,10 @@ class DiagnosticEvidenceLog(Base):
 
 A config flag (`settings.diagnostic_evidence_log_enabled`) governs whether this table is written at all; when off, only `MasteryProfile` is updated and the deltas are discarded — the strictest reading of P3. **Update:** shipped `False` for Phase 1-4 per the reasoning above; flipped to default `True` once the end-of-session before/after "Math Skill Growth" report (`services.diagnostic.get_session_growth`, called from `services/ai_service.py`'s `generate_session_summary`) needed real deltas to read back — that report is exactly the auditability payoff this section argued the middle path was for. Still opt-out via the same flag, and still never a transcript.
 
+> **The ORM docstring lagged this decision by four phases.** `DiagnosticEvidenceLog` in `core/database.py` still described itself as "opt-in and off by default" long after the flip recorded above, so a deployer reading the model to decide what their database actually holds would have concluded the table stayed empty. Corrected, with the history kept in the docstring rather than silently overwritten. Worth noting as a pattern: a decision recorded in a design doc but not carried into the code it describes is invisible exactly where someone goes looking for it.
+
+> **A further position on retention is specified but not built** — see [EPHEMERAL_DIAGNOSTIC_SPEC.md](EPHEMERAL_DIAGNOSTIC_SPEC.md), which proposes retiring the retained *psychometric claim* (`MasteryProfile` and this table) while keeping the work ledger's *events*, on the grounds that the first is the kind of record that follows a person and the second is not. It also documents what that costs: a session-scoped estimate lands close to `CALIBRATION_THRESHOLD`, so the privacy position is bought with statistical power. Nothing in it is live.
+
 ### 5.4 How they fit alongside `StudentConfig`
 
 `StudentConfig` (verified: `String(100)` PK `student_name`, `config_enc` BYTEA) is the per-student config keyed by name. `MasteryProfile` keys on the *same* `student_name` string (no FK — the codebase uses none; single-family app, `student_name` is the natural key everywhere: `VoiceProfile`, `NarrationAssessment`, `LearnerProfile`, `SessionTranscript` all do this). The diagnostic tables sit as peers, exactly like `NarrationAssessment`/`LearnerProfile` do today.
@@ -929,6 +933,83 @@ ordered rather than probability-sorted `next_steps`) — a future extension
 should keep asking which of the three actual shapes fits, rather than
 assuming a fourth is needed by default.
 
+### 13.3 Language exposure — a fourth shape, deliberately NOT a language app (implemented)
+
+Language exposure (`services/diagnostic/language_exposure.py`) is the third
+lighter-weight extension on `MasteryProfile`. It is explicitly **not** a
+foreign-language-instruction subject or a Duolingo-style vocabulary trainer
+— see that module's own docstring for the "setting the stage, not
+Duolingo" framing. It exists to build a coarse, honest, per-language-family
+signal from brief foreign-language moments Bede already has natural
+openings for in History, Saints, and Art & Music content, so a parent has
+real evidence — not a guess — about how readily their child picks up and
+recalls a foreign word or phrase, useful later if they're weighing whether
+and when to start formal instruction in a particular language.
+
+Structurally, this borrows phonics' single-domain-per-call update shape
+(`apply_evidence(vector, language, outcome, ...)` touches exactly one of
+six languages per call, mirroring one teach-then-recall moment being
+evidence for one language, not all of them) but composition's `next_steps`
+ordering (sorted by probability, least-confident first) rather than
+phonics' fixed developmental walk — **languages have no real prerequisite
+order** the way phonics' phonemic-awareness-before-blending sequence does,
+so sorting by confidence is the honest choice here, not an oversight.
+
+- **`LANGUAGES`** — `latin`, `greek`, `french`, `italian`, `german`,
+  `spanish`. Not arbitrary: grounded in what the bundled Mater Amabilis
+  curriculum (`data/catalog/year1-8.json`) actually surfaces — Latin/Greek
+  from Roman/Greek history and myth, French from the Year 7 French
+  Revolution unit and French artists/composers (Delacroix, Monet), Italian
+  from Renaissance art and Italian composers (Vivaldi), German from the
+  Austro-German composer sequence running through nearly every year
+  (Mozart, Haydn, Bach, Schubert, Beethoven), and Spanish from the app's
+  own existing Guadalupe/Juan Diego saints content (`_guadalupe_note`,
+  `services/ai_service.py`) and the many Spanish-speaking saints in the CM
+  saints rotation.
+- **Three subjects, every grade stage** — `_language_checkin_note` gates on
+  `subject in (Subject.history, Subject.saints, Subject.art_music)` with
+  **no** grade-stage restriction, the opposite gating shape from phonics'
+  single-subject/K-2-only gate. This was a deliberate scope decision (not
+  Morning Time, where the existing prayer/poetry catalogs already own
+  verbatim-text fidelity for a different reason) made explicitly with the
+  product owner before implementation, alongside the "tied to whatever the
+  lesson is studying" language strategy and the "all grade stages, K-8"
+  decision — CM tradition often starts language work younger than the
+  Logic stage, and light exposure carries none of formal instruction's
+  cognitive-load concerns.
+- **Genuinely opportunistic, unlike phonics' guaranteed check-in** —
+  phonics' prompt picks one of six always-available domains every
+  session; a language moment depends entirely on whether today's actual
+  content offers one (a Rome-focused History session does, a Reformation
+  one studied without a composer/artist tie-in might not). The prompt
+  (`_language_checkin_note`) is explicit that Bede must never invent an
+  opening that isn't genuinely there — a stricter honesty requirement
+  than any other check-in note in this codebase.
+- **Gated twice, not once** — the same defensive belt-and-braces pattern as
+  phonics: `_record_language_evidence` independently re-checks `subject in
+  (history, saints, art_music)` before ever calling
+  `language_exposure.process_evidence`, a code-level backstop to the
+  prompt-level gate, not a substitute for it.
+- **Calibration threshold** — `CALIBRATION_THRESHOLD = 3`, phonics' value
+  reused rather than composition's lower one: evidence here is
+  opportunistic across three subjects (potentially faster than phonics'
+  single-subject gate in practice) but each individual moment is still as
+  content-dependent as phonics', never guaranteed.
+- **No demo-mode backend** — same reasoning as composition/phonics: the
+  demo has no persistent per-student history across sessions to build a
+  calibrated read from.
+
+Four purpose-built shapes now exist on top of the same composite-PK table:
+math's full DAG, composition's flat simultaneous-domain blend sorted by
+probability, phonics' single-domain-per-call blend with a fixed
+developmental `next_steps` order, and language exposure's single-domain-
+per-call blend sorted by probability (composition's ordering rule, applied
+to phonics' update shape) — genuinely a hybrid of the two prior lighter
+engines, not a wholly new fourth pattern. A future extension should keep
+asking which of these shapes — or which combination of their two
+independent axes (update-call shape × next_steps ordering rule) — actually
+fits, rather than assuming something new is needed by default.
+
 ---
 
 ## 14. Open-Standards Appendix
@@ -1003,3 +1084,57 @@ All references are to published methods; no third-party code (EduCAT, mirt, CDM 
 - Frontend precedents: `App.tsx` `/progress` route (83–90), `services/api.ts` `fetchLearnerProfile` (422–432), `pages/Progress.tsx`.
 - Grade bands: `models/schemas.py::GradeStage` (7–11), `grade_to_stage` (18–31); timer split `utils/gradeTimer.ts::getTimerConfig` (38–44).
 - Demo `db=None`: `routers/tutor.py::chat` (92).
+
+### Correction: `fringe`'s prerequisite threshold (found by live session run)
+
+`kst.fringe` originally required every prerequisite at `hi` (0.8) — the same
+floor `mastery._MASTERY_LEVELS` uses for "secure". That silently broke next-step
+selection for every student above K-2: `new_vector` cold-starts a below-band
+skill at 0.7 on the stated presumption that earlier bands are "very likely
+already mastered", and 0.7 < 0.8, so every unprobed lower-band prerequisite
+blocked its dependents. A 3-5 student's entire fringe was the two K-2 skills
+with no prerequisites at all, and no amount of 3-5 evidence could change it.
+
+`prereq_hi` (0.65) now answers "is the ground solid enough to build on"
+separately from `hi`'s "is this mastered". It sits between the same-band prior
+(0.5, still gates — that is KST's whole point) and the below-band prior (0.7,
+presumed solid). A lower-band skill actually probed and missed falls well under
+it and still blocks.
+
+`cat.py`'s adaptive probe selection consumes the same `fringe()`, so this was
+steering probe choice as well as the parent report. Regression coverage:
+`tests/diagnostic/test_next_steps_band_leak.py`.
+
+### Preparatory-school scope (skill map 42 → 95)
+
+The original map tracked a conventional public-school K-8 scope. Measured against
+what an independent/classical preparatory school expects, the top of the map
+stopped at two-step equations and a first look at linear functions — while a
+prep-school 8th grader is normally **finishing Algebra I** (Singapore's Dimensions
+Math 7-8, common in classical and prep schools, covers pre-algebra plus Algebra I
+with an introduction to geometry across those two years).
+
+Bands now target:
+
+| Band | Scope |
+|---|---|
+| K-2 (24) | Number sense deep enough to carry multiplication later — number bonds, skip counting, equal groups/arrays, money, halves and fourths — not counting and adding alone. |
+| 3-5 (28) | What pre-algebra assumes is already finished — order of operations, factors/multiples/primes, all four decimal operations, dividing fractions, mixed numbers, angle measure, volume of a prism. |
+| 6-8 (43) | Genuine Algebra I — multi-step, literal and both-sides equations; inequalities; systems; exponent laws; radicals; scientific notation; irrationals; polynomial arithmetic; factoring; quadratics by factoring; slope and slope-intercept form; Pythagorean theorem; transformations, similarity and surface area; scatter plots and line of best fit. |
+
+**The extension is strictly additive.** No existing skill id, label, band, or
+prerequisite tuple changed. `MasteryProfile` stores `encrypt_json({skill_id:
+probability})`, so those ids are the only link to a family's accumulated history
+and there is no migration path for an encrypted blob — renaming one would orphan
+real data silently. `tests/diagnostic/test_prep_school_scope.py` pins all 42
+original ids.
+
+**`mastery.ensure_complete()` is what makes growing the map safe.** Every stored
+vector predates the new ids. Nothing crashed on that, which is the danger:
+`aggregate_for_parent`, `build_summary_view` and `kst.fringe` all iterate the
+VECTOR rather than the map, so the new skills would simply have been invisible —
+never rolled up, never offered as a next step, never probed — for exactly the
+families who had used Bede longest. Both load paths now backfill against the
+current map (band-aware on the write path, neutral 0.5 on the render path, which
+has no grade to hand). Skills retired from the map are dropped rather than
+lingering in a rollup.

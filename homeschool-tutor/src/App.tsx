@@ -1,6 +1,8 @@
-import { Suspense, lazy, useEffect } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Suspense, lazy } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router'
 import AppShell from './guards/AppShell'
+import ElevationPrompt from './components/ElevationPrompt'
+import GlobalAuthInterceptor from './components/GlobalAuthInterceptor'
 import ErrorBoundary from './components/ErrorBoundary'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
@@ -19,7 +21,7 @@ const TutorSession = lazy(() => import('./pages/TutorSession'))
 
 function RouteFallback() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-faith-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-madder-100 flex items-center justify-center">
       <div className="text-center">
         <AgnusDeiMark className="w-16 h-16 mx-auto mb-4 animate-pulse-soft" />
         <p className="text-sage-600 font-display text-lg font-semibold">
@@ -28,33 +30,6 @@ function RouteFallback() {
       </div>
     </div>
   )
-}
-
-function GlobalAuthInterceptor() {
-  const navigate = useNavigate()
-  const logout = useSessionStore((s) => s.logout)
-
-  useEffect(() => {
-    const originalFetch = window.fetch.bind(window)
-
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args)
-      if (response.status === 401) {
-        const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
-        if (url.startsWith('/api/') || url.includes(window.location.host)) {
-          logout()
-          navigate('/', { replace: true })
-        }
-      }
-      return response
-    }
-
-    return () => {
-      window.fetch = originalFetch
-    }
-  }, [logout, navigate])
-
-  return null
 }
 
 function RequireAuth({
@@ -85,6 +60,7 @@ export default function App() {
       <ErrorBoundary>
         <AppShell>
           <GlobalAuthInterceptor />
+          <ElevationPrompt />
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Login />} />

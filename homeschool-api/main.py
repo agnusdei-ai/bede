@@ -3,15 +3,21 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from core import constitution, license_state, parent_credential, provider_state
+from core import constitution, device_registry, elevation, identity, license_state, parent_credential, provider_state
+from core.audit import AuditEvent, log_event
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
-from core.middleware import ExfiltrationGuard, LicenseGateMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+from core.middleware import (
+    ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
@@ -31,27 +37,34 @@ async def _warm_voice_models():
     package/model isn't installed, and all of them stay lazy anyway — this
     task just fires them early, off the event loop, without delaying boot.
 
-    Resemblyzer speaker verification is skipped entirely on a demo
-    deployment (settings.is_demo_deployment): core/deps.py's require_parent
-    and require_real_user both reject the "demo_code" role outright, and
-    /voice/enroll, /voice/verify, and /voice/override are the ONLY callers
-    of services/voice_auth.py's encoder — so on this deployment shape the
-    model is structurally unreachable by any request that can ever occur,
-    and preloading it is pure waste on principle.
+    Two skips here, and together they are what keeps torch out of this
+    process entirely — which is the only thing that actually moves the
+    memory number.
 
-    Don't overestimate what this alone saves, though: measured directly,
-    skipping it only trims ~30MB of live RSS (642MB vs 674MB, both fully
-    warmed). The dominant memory cost — PyTorch, ~480MB just to import —
-    loads regardless, because ctranslate2 (services/transcription.py's
-    faster-whisper backend, which the demo DOES need for its STT fallback)
-    opportunistically imports torch itself whenever it's installed in the
-    environment, and torch is a hard dependency of resemblyzer either way.
-    So this process still sits close to Render's free-tier 512MB web-service
-    memory limit even with this skip in place — see docs/DEMO_HOSTING.md
-    for the actual mitigation (a larger Render plan) for a real "exceeded
-    its memory limit" OOM incident on bede-demo-api. A family's self-hosted
-    instance never sets DEMO_PIN, so this leaves real voice biometric child
-    authentication completely untouched there.
+    Resemblyzer speaker verification is skipped on a demo deployment
+    (settings.is_demo_deployment): core/deps.py's require_parent and
+    require_real_user both reject the "demo_code" role outright, and
+    /voice/enroll, /voice/verify, and /voice/override are the ONLY callers
+    of services/voice_auth.py's encoder — so on that deployment shape the
+    model is structurally unreachable by any request that can ever occur.
+
+    Whisper is skipped whenever speech-to-text isn't running in this process
+    at all (services/transcription.py's uses_local_model — see
+    settings.transcription_provider). That skip is the load-bearing one.
+    Measured directly, skipping resemblyzer ALONE only trimmed ~30MB of live
+    RSS (642MB vs 674MB, both fully warmed): the dominant cost is PyTorch at
+    ~480MB just to import, and ctranslate2 (faster-whisper's backend) pulls
+    torch in itself whenever torch is present in the environment, so as long
+    as the local Whisper model was still being loaded, torch loaded too and
+    the process stayed over Render's free-tier 512MB web-service limit. It
+    was OOM-killed there for real (see docs/DEMO_HOSTING.md's memory
+    section), and because services/streaming_transcription.py holds its
+    sessions in memory in a single process, every restart took every
+    in-flight child's voice turn down with it.
+
+    A family's self-hosted instance sets neither DEMO_PIN nor
+    TRANSCRIPTION_PROVIDER, so both models still preload exactly as before
+    and real voice biometric child authentication is untouched.
     """
     from services import transcription, voice_auth, voice_synthesis
 
@@ -59,7 +72,13 @@ async def _warm_voice_models():
     try:
         if not settings.is_demo_deployment:
             await loop.run_in_executor(None, voice_auth.preload)
-        await loop.run_in_executor(None, transcription.preload)
+        if transcription.uses_local_model():
+            await loop.run_in_executor(None, transcription.preload)
+        else:
+            log.info(
+                "Speech-to-text runs on the '%s' backend — skipping the local Whisper warm-up",
+                settings.transcription_provider,
+            )
         await voice_synthesis.preload()
         log.info("Voice model warm-up finished")
     except Exception:
@@ -67,6 +86,56 @@ async def _warm_voice_models():
 
 
 _DATA_PURGE_INTERVAL_SECONDS = 6 * 60 * 60  # every 6 hours
+
+
+def _log_security_posture() -> None:
+    """One line per posture setting, every boot.
+
+    These are the settings whose wrong value is invisible: a step-up that is
+    configured off looks exactly like one that is on until somebody attempts
+    a privileged action, and a legacy-token grace that nobody ever turned off
+    looks exactly like one that was never needed. Neither fails, neither
+    logs, and neither shows up in a test. The only thing that surfaces them
+    is saying so at startup — GET /admin/status reports the same facts for
+    anyone who would rather query than read logs.
+
+    Warnings, not errors: every one of these has a legitimate reason to be
+    in its weaker state (a deployment driving the API directly, with no
+    frontend to prompt; the upgrade was an hour ago; this is a family
+    instance with no demo role). Refusing to boot over a defensible choice
+    is how operators learn to work around startup checks.
+    """
+    if settings.elevation_enforced:
+        log.info("Privileged access: step-up ENFORCED (%d min)", settings.elevation_ttl_minutes)
+    else:
+        log.warning(
+            "Privileged access: step-up NOT enforced — a parent session holds "
+            "management-plane rights for its full lifetime. This is off by "
+            "explicit configuration (the default is enforced); set "
+            "ELEVATION_ENFORCED=true to turn it back on. See docs/SECURITY.md."
+        )
+
+    if settings.legacy_token_grace:
+        log.warning(
+            "Auth: LEGACY_TOKEN_GRACE is on — JWTs issued before identity domains "
+            "existed are still accepted. Needed only for the first deploy after "
+            "upgrading; set LEGACY_TOKEN_GRACE=false once every pre-upgrade token "
+            "has expired (8h max)."
+        )
+
+    # Only meaningful where the demo role is actually reachable. On a family
+    # instance there is no demo token to isolate, so saying anything would be
+    # noise an operator learns to skip past.
+    if settings.demo_pin:
+        if identity.demo_key_is_independent():
+            log.info("Identity domains: demo signing key is INDEPENDENT of SECRET_KEY ✓")
+        else:
+            log.warning(
+                "Identity domains: demo signing key is DERIVED from SECRET_KEY. Tokens are "
+                "still domain-separated (a demo token cannot be replayed as a parent token), "
+                "but a SECRET_KEY compromise yields both. Set DEMO_SECRET_KEY on an "
+                "internet-facing demo instance."
+            )
 
 
 async def _periodic_data_purge():
@@ -93,6 +162,66 @@ async def _periodic_data_purge():
                 log.info("Periodic data purge: removed %d expired demo interaction-signal row(s)", deleted)
         except Exception:
             log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
+
+        # Expired privileged-access grants (core/elevation.py). Hygiene, not
+        # a security control — is_elevated() checks the timestamp, so an
+        # expired row is already inert. Without this the table grows by one
+        # row per elevation forever on an appliance nobody prunes. Kept in
+        # its own try so a failure here can't stop the retention sweep above,
+        # which is the one with an actual policy behind it.
+        try:
+            async with AsyncSessionLocal() as db:
+                await elevation.purge_expired(db)
+        except Exception:
+            log.warning("Elevation purge failed — will retry next interval", exc_info=True)
+
+
+_LOCAL_HEALTH_CHECK_INTERVAL_SECONDS = 10 * 60  # every 10 minutes
+
+
+async def _periodic_local_health_check():
+    """
+    Proactively catches a dead/never-started local (self-hosted vLLM/Ollama)
+    model server, instead of only discovering it when a child's real turn
+    fails — see CLAUDE.md's "AI backend failure alerting" section for the
+    reactive half of this (AuditEvent.AI_BACKEND_FAILURE, fired from every
+    real streaming call site on a stall or exception). That reactive path
+    still catches a single-provider deployment going down, but only after a
+    child sits through several slow, failing turns first; this task is
+    purely about detecting it faster, ideally before any child ever hits it.
+
+    services.adapters.router.check_local_adapter_reachable() does the actual
+    work and the scoping: only pings when `local` is BOTH configured and
+    currently the live primary (honoring any DB override) — a cloud
+    provider's uptime is already caught fast by real traffic plus
+    FailoverClient's own circuit breaker, so pinging one here would just
+    spend tokens proving what a real turn already proves. Returns None
+    (nothing to check) rather than True/False in that case, which is why
+    the check below is `is False`, not `not result`.
+
+    Reuses the exact same AuditEvent.AI_BACKEND_FAILURE / pooled-anomaly
+    path a real failed turn already feeds (core/audit.py's
+    _GLOBAL_ANOMALY_EVENTS) — same threshold, same alert email — rather
+    than inventing a second, parallel signal a parent would have to learn
+    to recognize separately. `detail`'s `cause=health_check` distinguishes
+    a proactive catch from a real-turn failure in the audit log, nothing
+    more.
+    """
+    from services.adapters.router import check_local_adapter_reachable
+
+    while True:
+        await asyncio.sleep(_LOCAL_HEALTH_CHECK_INTERVAL_SECONDS)
+        try:
+            result = await check_local_adapter_reachable()
+            if result is False:
+                log.warning("Periodic health check: local AI adapter is unreachable")
+                await log_event(
+                    AuditEvent.AI_BACKEND_FAILURE,
+                    success=False,
+                    detail="cause=health_check adapter=local",
+                )
+        except Exception:
+            log.warning("Periodic local-adapter health check failed — will retry next interval", exc_info=True)
 
 
 @asynccontextmanager
@@ -122,9 +251,25 @@ async def lifespan(app: FastAPI):
           cache from the DB — same precedent again, applied to WHICH
           configured adapter serves as primary (services/adapters/router.py
           consults this cache on every tutoring turn).
+      5c. Sync core/device_registry.py's in-process revoked-device cache
+          from the DB (P9) — core/deps.py checks this on every
+          parent/child request carrying a device_id claim.
       6. Kick off the voice-model warm-up in the background (non-blocking).
       7. Start the periodic data-retention purge loop (non-blocking) — see
          docs/DATA_RETENTION.md.
+      7b. Start the periodic credentials_version and device-revocation
+          cache refresh loops (non-blocking) — bounds multi-replica
+          staleness for each; see core/parent_credential.py's docstring
+          for the full argument. (provider_state has no periodic loop —
+          it only ever changes via an explicit parent action, so a
+          startup sync is sufficient; credentials_version and device
+          revocation both change via a path a *different* session
+          — an attacker's stolen one — needs to stop trusting quickly.)
+      7c. Start the periodic local-adapter health-check loop
+          (non-blocking) — proactively catches a dead/never-started local
+          model server rather than only discovering it via a child's
+          failed real turn; see _periodic_local_health_check's own
+          docstring and CLAUDE.md's "AI backend failure alerting" section.
     Shutdown:
       8. Dispose the database connection pool cleanly.
       9. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
@@ -147,23 +292,58 @@ async def lifespan(app: FastAPI):
             await parent_credential.refresh_from_db(db)
         async with AsyncSessionLocal() as db:
             await provider_state.refresh_from_db(db)
-    except RuntimeError as exc:
-        log.critical("FATAL: %s", exc)
+        async with AsyncSessionLocal() as db:
+            await device_registry.refresh_from_db(db)
+    # SQLAlchemyError/OSError alongside RuntimeError because the steps above
+    # are mostly DATABASE steps, and a database that cannot be reached raises
+    # neither a RuntimeError nor anything else this once caught: create_tables()
+    # surfaces asyncpg's failure as sqlalchemy.exc.OperationalError, and a DNS
+    # failure on the DB host can arrive as a bare socket.gaierror (OSError).
+    # Both escaped this handler entirely, so the one boot failure most likely
+    # to happen in production — "Postgres is unreachable" — produced an
+    # unhandled traceback out of the lifespan instead of the single, greppable
+    # "FATAL:" line this block exists to give an operator. Diagnosing a live
+    # outage on 2026-08-04 is what surfaced it.
+    except (RuntimeError, SQLAlchemyError, OSError) as exc:
+        log.critical("FATAL: %s: %s", type(exc).__name__, exc)
         sys.exit(1)
+
+    _log_security_posture()
 
     warmup_task = asyncio.create_task(_warm_voice_models())
     purge_task = asyncio.create_task(_periodic_data_purge())
+    # Bounds how long a running replica can keep honouring a token that a
+    # SIBLING replica already invalidated by a password change or recovery.
+    # A no-op cost on a single-instance deployment (which is what both
+    # supported topologies are today) and the thing that stops "change your
+    # password to end a takeover" from being quietly false under
+    # replication — see core/parent_credential.py and
+    # docs/DEPLOYMENT_TOPOLOGY.md.
+    credentials_refresh_task = asyncio.create_task(parent_credential.periodic_refresh())
+    # Same multi-replica-staleness bound as credentials_refresh_task above,
+    # applied to P9's revoked-device set (core/device_registry.py) instead
+    # of credentials_version.
+    device_refresh_task = asyncio.create_task(device_registry.periodic_refresh())
+    # Proactively catches a dead/never-started local model server instead of
+    # only discovering it via a child's failed real turn — see that
+    # function's own docstring and CLAUDE.md's "AI backend failure
+    # alerting" section.
+    local_health_check_task = asyncio.create_task(_periodic_local_health_check())
 
     yield
 
     warmup_task.cancel()
     purge_task.cancel()
+    credentials_refresh_task.cancel()
+    device_refresh_task.cancel()
+    local_health_check_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")
 
-    from services import email_service, voice_synthesis
+    from services import email_service, transcription, voice_synthesis
     await voice_synthesis.aclose_http_client()
+    await transcription.aclose_http_client()
     await email_service.aclose_http_client()
     log.info("Pooled HTTP clients closed")
 
@@ -179,16 +359,38 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.api_docs_enabled else None,
 )
 
-# ── Middleware (applied in reverse declaration order) ─────────────────────────
-# Outermost → GZip → SecurityHeaders → ExfiltrationGuard → RateLimit → CORS → routes
+# ── Middleware ──────────────────────────────────────────────────────────────
+# Starlette builds the ASGI stack from `app.user_middleware` by wrapping
+# outward: `add_middleware` inserts each new entry at the FRONT of that list
+# (see Starlette's `Starlette.add_middleware`), and `build_middleware_stack`
+# then wraps the router in `reversed(user_middleware)` order. Net effect:
+# the LAST `add_middleware()` call becomes the OUTERMOST layer — first to
+# see the request, LAST to touch the response before it leaves the process.
 #
-# GZip is outermost so it compresses the final response body after
-# ExfiltrationGuard has already scanned/rebuilt it. Starlette's GZipMiddleware
-# auto-excludes text/event-stream by content-type, so /tutor/chat's SSE stream
-# passes through uncompressed and unbuffered, same as before.
+# Declared here so the *last* call is GZip, making it genuinely outermost:
+#   request  →  GZip → LicenseGate → CORS → RateLimit → ExfiltrationGuard → SecurityHeaders → InstanceIdHeader → routes
+#   response ←  GZip ← LicenseGate ← CORS ← RateLimit ← ExfiltrationGuard ← SecurityHeaders ← InstanceIdHeader ← routes
+#
+# ExfiltrationGuard must inspect the PLAINTEXT response body — the whole
+# point of _BLOCKED_PATTERNS is scanning for leaked key material — so it has
+# to run before GZip compresses anything. An earlier ordering had GZip added
+# FIRST, which (by the same front-insert/reversed-wrap rule) made GZip the
+# INNERMOST layer instead of the outermost one: it compressed the response
+# before ExfiltrationGuard ever saw it, so every _BLOCKED_PATTERNS check
+# silently stopped matching on any response >= minimum_size sent with
+# `Accept-Encoding: gzip` (i.e. every browser) — the guard was scanning gzip
+# magic bytes, not the JSON it was written to inspect. See
+# tests/test_middleware.py's test_exfiltration_guard_still_scans_a_gzip_
+# eligible_response_in_the_assembled_stack for the regression coverage; that
+# test builds the real multi-middleware stack specifically because the
+# per-middleware unit tests above it can't see an ordering bug like this one.
+#
+# GZipMiddleware auto-excludes text/event-stream by content-type, so
+# /tutor/chat's SSE stream passes through uncompressed and unbuffered
+# regardless of where GZip sits in the stack.
 
-app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(InstanceIdHeaderMiddleware)
 app.add_middleware(ExfiltrationGuard)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
@@ -197,12 +399,26 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+    # Without this, a cross-origin response (the demo frontend on Cloudflare
+    # Pages calling bede-demo-api.onrender.com) carries X-Bede-Instance over
+    # the wire, but fetch()'s Headers object silently drops any header not
+    # CORS-safelisted or explicitly exposed here — res.headers.get() would
+    # return null forever and InstanceIdHeaderMiddleware's whole point would
+    # be invisible to the one place meant to read it. Same-origin deployments
+    # (self-hosted behind Caddy/nginx) are unaffected either way; this only
+    # matters for the demo's split-origin setup.
+    expose_headers=["X-Bede-Instance"],
 )
-# Innermost (declared last): the license gate — when an unlicensed
-# production instance is in "license required" mode, only login/MFA and
-# the license endpoints pass; everything else gets a clear 403. Inside
-# CORS so gated responses still carry CORS headers the browser can read.
+# When an unlicensed production instance is in "license required" mode,
+# only login/MFA and the license endpoints pass; everything else gets a
+# clear 403. Added before GZip (so still wrapped BY GZip, i.e. compressed
+# on the way out) and after CORS (so a gated response still carries CORS
+# headers) — unchanged from the original relative ordering of these two.
 app.add_middleware(LicenseGateMiddleware)
+# Added LAST: outermost layer, compresses only after every other middleware
+# — including ExfiltrationGuard's scan — has already run. See the ordering
+# note above.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
@@ -220,7 +436,47 @@ app.include_router(feedback.router)
 app.include_router(diagnostic.router)
 
 
+# Bounds the probe itself. Without a timeout, a connection that hangs rather
+# than refusing (a half-open socket, a saturated network path) would hang the
+# health check too, and the platform would read "no response" — which is the
+# right verdict, but reached by stalling a worker rather than by answering.
+_HEALTH_DB_TIMEOUT_SECONDS = 3.0
+
+
 @app.get("/health")
-async def health():
-    """Public health check — no sensitive information returned."""
-    return {"status": "ok"}
+async def health(response: Response):
+    """Readiness check — whether this instance can actually serve, not just
+    whether the process is running. No sensitive information returned.
+
+    Deliberately NOT an unconditional `{"status": "ok"}` any more. This is
+    the path `render.yaml`'s `healthCheckPath` points at, and a health check
+    that cannot fail reports a dead service as healthy. Every real endpoint
+    here needs the database — there is no in-memory fallback, see
+    core/database.py — so an instance that cannot reach Postgres cannot
+    serve a single request. The old version returned 200 anyway: the
+    platform dashboard stayed green, nothing alerted, and a live outage on
+    2026-08-04 was diagnosed for an hour with "Deployed ✓" on screen the
+    whole time, which is precisely the evidence that ruled the database out
+    early and wrongly.
+
+    The tradeoff is stated rather than hidden. Returning 503 while the
+    database is unreachable means the platform may restart this instance or
+    stop routing to it, and if the fault is at the database end a restart
+    will not fix it. That is intended. A service that can answer nothing
+    should fail visibly rather than sit green absorbing requests it can only
+    drop — the failure mode this exists to close is the silent one, and
+    trading it for a loud one is the whole point.
+    """
+    try:
+        async with asyncio.timeout(_HEALTH_DB_TIMEOUT_SECONDS):
+            async with AsyncSessionLocal() as db:
+                await db.execute(text("SELECT 1"))
+    except Exception as exc:
+        # Logged at WARNING with the exception type, because the platform
+        # only records "health check failed" — the reason (timeout vs.
+        # refused vs. auth) is the part an operator actually needs, and this
+        # is the only place it gets written down.
+        log.warning("Health check FAILED — database unreachable: %s: %s", type(exc).__name__, exc)
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "degraded", "database": "unreachable"}
+    return {"status": "ok", "database": "ok"}

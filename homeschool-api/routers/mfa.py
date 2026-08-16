@@ -22,7 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
-from core.deps import require_mfa_pending, require_parent
+from core import device_registry
+from core.deps import require_elevated_parent, require_mfa_pending, require_parent
 from core.middleware import compute_fingerprint
 from core.parent_credential import set_parent_password_override, verify_parent_password
 from core.security import create_access_token
@@ -59,7 +60,7 @@ async def status_(db: AsyncSession = Depends(get_db), _: dict = Depends(require_
 # ── Enrollment (requires a full parent session) ──────────────────────────────
 
 @router.post("/webauthn/register/options")
-async def webauthn_register_options(db: AsyncSession = Depends(get_db), _: dict = Depends(require_parent)):
+async def webauthn_register_options(db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
     try:
         return json.loads(await mfa_service.build_registration_options(db))
     except ValueError as e:
@@ -71,7 +72,7 @@ async def webauthn_register_verify(
     req: WebAuthnRegisterVerifyRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
 ):
     try:
         await mfa_service.verify_and_store_registration(db, json.dumps(req.credential), req.nickname)
@@ -83,14 +84,14 @@ async def webauthn_register_verify(
 
 
 @router.delete("/webauthn/{key_id}")
-async def webauthn_delete(key_id: int, db: AsyncSession = Depends(get_db), _: dict = Depends(require_parent)):
+async def webauthn_delete(key_id: int, db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
     if not await mfa_service.delete_security_key(db, key_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Security key not found")
     return {"success": True}
 
 
 @router.post("/totp/enroll")
-async def totp_enroll(db: AsyncSession = Depends(get_db), _: dict = Depends(require_parent)):
+async def totp_enroll(db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
     """Generates a new secret — the plaintext secret and otpauth:// URI are
     only ever returned from this one call; only the encrypted form is stored."""
     secret, uri = await mfa_service.enroll_totp(db)
@@ -102,7 +103,7 @@ async def totp_confirm(
     req: TotpConfirmRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
 ):
     if not await mfa_service.confirm_totp(db, req.code):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect code — check your authenticator app and try again")
@@ -111,7 +112,7 @@ async def totp_confirm(
 
 
 @router.delete("/totp")
-async def totp_disable(db: AsyncSession = Depends(get_db), _: dict = Depends(require_parent)):
+async def totp_disable(db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
     await mfa_service.disable_totp(db)
     return {"success": True}
 
@@ -127,7 +128,7 @@ async def recovery_pin_enroll(
     req: RecoveryPinEnrollRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
 ):
     """The favored option — a parent-CHOSEN, memorable PIN, same strength
     floor as CHILD_PIN. Clears any enrolled recovery code."""
@@ -146,7 +147,7 @@ async def recovery_pin_enroll(
 async def recovery_pin_disable(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
 ):
     await parent_recovery.revoke_recovery_pin(db)
     await log_event(
@@ -160,7 +161,7 @@ async def recovery_pin_disable(
 async def recovery_code_enroll(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
 ):
     """The alternative to a recovery PIN — a longer, machine-generated
     code for a parent who'd rather have a stronger secret than a
@@ -179,7 +180,7 @@ async def recovery_code_enroll(
 async def recovery_code_disable(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_parent),
+    _: dict = Depends(require_elevated_parent),
 ):
     await parent_recovery.revoke_recovery_code(db)
     await log_event(
@@ -220,19 +221,27 @@ async def change_password(
 
 # ── Completing a pending login (requires "parent_pending", not full parent) ─
 
-def _issue_parent_token(request: Request, locale: str = "en", cv: int | None = None) -> str:
-    """locale comes from the pending token's own claim (see routers/auth.py's
-    login()) — the parent picked their language at the password step, and
-    completing MFA a moment later shouldn't silently reset it to English.
-    cv likewise carries through from the pending token (core/deps.py's
-    credentials_version check) rather than being re-read here — the pending
-    token was only issued because it already matched at the password step
-    a moment earlier."""
+async def _issue_parent_token(
+    db: AsyncSession, request: Request, locale: str = "en", cv: int | None = None, device_id: str | None = None,
+) -> str:
+    """locale/cv/device_id all come from the pending token's own claims
+    (see routers/auth.py's login()) — the parent picked their language,
+    already matched the current password, and this device was already
+    identified at the password step; completing MFA a moment later
+    shouldn't silently reset any of them.
+
+    touch()'s the device registry here (P9, core/device_registry.py) rather
+    than in auth.py's login() — this is the point a REAL, usable parent
+    token is actually issued for the MFA-required path, matching the
+    equivalent point in login() for the no-MFA-enrolled path."""
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
     payload = {"sub": "parent", "role": "parent", "locale": locale}
     if cv is not None:
         payload["cv"] = cv
+    if device_id:
+        payload["device_id"] = device_id
+        await device_registry.touch(db, device_id, "parent", ctx["user_agent"])
     return create_access_token(
         payload,
         fingerprint=fp,
@@ -260,7 +269,7 @@ async def webauthn_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="webauthn login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Security key verification failed")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="webauthn login", **ctx)
-    token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
+    token = await _issue_parent_token(db, request, pending.get("locale", "en"), pending.get("cv"), pending.get("device_id"))
     return TokenResponse(access_token=token, role="parent")
 
 
@@ -276,5 +285,5 @@ async def totp_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="totp login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect or reused code")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="totp login", **ctx)
-    token = _issue_parent_token(request, pending.get("locale", "en"), pending.get("cv"))
+    token = await _issue_parent_token(db, request, pending.get("locale", "en"), pending.get("cv"), pending.get("device_id"))
     return TokenResponse(access_token=token, role="parent")

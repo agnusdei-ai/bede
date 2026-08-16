@@ -34,8 +34,13 @@ databases:
     # guard, so a mismatch here (e.g. this file still saying `free` after
     # a dashboard upgrade) fails every single sync with
     # "databases[0].plan cannot downgrade database from X to Y" until
-    # corrected — exactly what happened before this comment was added.
-    plan: basic-256mb
+    # corrected — exactly what happened before this comment was added,
+    # and then AGAIN on 2026-08-04, when the dashboard read Pro-4gb while
+    # this line still said basic-256mb. The comment above was already
+    # right; what it lacked was anything that FAILS when the two drift, so
+    # it drifted again. Treat a plan change in the dashboard as a change
+    # that must be mirrored here in the same sitting.
+    plan: pro-4gb
     databaseName: bede_demo
     user: bede
 
@@ -43,7 +48,17 @@ services:
   - type: web
     name: bede-demo-api
     runtime: docker
-    plan: free
+    # Upgraded Free → Pro in the dashboard on 2026-08-04. Mirrored here the
+    # same day, and the mirroring is not cosmetic: unlike the database plan
+    # above (where Render REFUSES a downgrade and fails the sync loudly), a
+    # web service plan is applied as written. Leaving `free` here while the
+    # dashboard says Pro means the next successful Blueprint sync silently
+    # downgrades the running service back to Free — undoing the upgrade with
+    # no error anywhere. The two mismatches were also coupled: syncs were
+    # already failing on the database plan, so this one sat harmless and
+    # invisible until that was fixed, at which point it would have fired.
+    # Fixing either alone was the trap; they had to move together.
+    plan: pro
     rootDir: homeschool-api
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
@@ -57,11 +72,16 @@ services:
           property: connectionString
 
       # Secrets — set these in Render's dashboard after the first deploy.
-      # ANTHROPIC_API_KEY is left declared for legacy/optional use (see
-      # docs/PROVIDER_ADAPTERS.md), but this deployment does NOT depend on it —
-      # BEDE_ADAPTER_ORDER below boots this demo on OpenAI/Mistral instead,
-      # since Render has no GPU for the self-hosted "local" adapter and this
-      # demo should not assume Anthropic access is available.
+      # ANTHROPIC_API_KEY is OPTIONAL — this deployment does not require it
+      # to boot (BEDE_ADAPTER_ORDER below already has OpenAI as primary and
+      # Mistral as the default failover), but it's listed in the order
+      # below as a SECOND, selectable failover option: fill this in and
+      # Claude becomes available as a failover choice via
+      # core/provider_state.py's live secondary-adapter override (see
+      # routers/admin.py's POST /admin/ai-provider/secondary and
+      # docs/PROVIDER_ADAPTERS.md) without any further deploy. Leave it
+      # blank and nothing changes — an unconfigured adapter is simply
+      # invisible to that override, exactly as before.
       - key: ANTHROPIC_API_KEY
         sync: false
       # Doubles as both OpenAI TTS (services/voice_synthesis.py) and the
@@ -75,20 +95,27 @@ services:
       - key: MISTRAL_API_KEY
         sync: false
       # Cloud-first boot order for this Render demo/dev deployment: OpenAI
-      # primary, Mistral secondary/fallback. Deliberately excludes "local"
-      # (Render has no GPU to run vLLM/Qwen3-Coder) and does not require
-      # "anthropic" to be configured at all — this demo boots and serves
-      # fully on OpenAI+Mistral. Because services/ai_service.py's `_client`
-      # resolves via router.resolve_with_failover() (not the plain
-      # get_default_client()), this is LIVE failover, not just a boot-time
-      # preference: if OpenAI errors (auth/rate-limit/connection failure) on
-      # a request, that request automatically retries against Mistral before
-      # any content streams back, with a ~60s circuit-breaker cooldown on
-      # the failed provider.
+      # primary, Mistral the DEFAULT failover, Anthropic a third, optional
+      # candidate — present in the order so it's a legitimate choice for
+      # core/provider_state.py's live secondary override the moment
+      # ANTHROPIC_API_KEY above is filled in, without changing this file or
+      # redeploying. Deliberately excludes "local" (Render has no GPU to run
+      # vLLM/Qwen3-Coder) and does not require "anthropic" to be configured
+      # at all — this demo boots and serves fully on OpenAI+Mistral with
+      # that key left blank, unchanged from before. Because
+      # services/ai_service.py's `_client` resolves via
+      # router.resolve_with_failover() (not the plain get_default_client()),
+      # this is LIVE failover, not just a boot-time preference: if OpenAI
+      # errors (auth/rate-limit/connection failure) on a request, that
+      # request automatically retries against whichever adapter is second
+      # in the effective order (Mistral by default, or Claude if an
+      # operator has picked it via the secondary override) before any
+      # content streams back, with a ~60s circuit-breaker cooldown on the
+      # failed provider.
       # A family's self-hosted production instance should instead follow the
       # docs/PROVIDER_ADAPTERS.md default (local,anthropic) or its own choice.
       - key: BEDE_ADAPTER_ORDER
-        value: openai,mistral
+        value: openai,mistral,anthropic
       # Neither of these was ever declared here before — without them,
       # services/email_service.py's email_configured() is False, which
       # silently no-ops the post-session summary email, the distress alert,
@@ -116,6 +143,21 @@ services:
         generateValue: true
       - key: MASTER_SECRET
         generateValue: true
+      # Independent signing key for this instance's DEMO identity domain
+      # (homeschool-api/core/identity.py). Tokens are always domain-separated
+      # — a demo token can never be replayed as a parent token — but without
+      # this both domain keys derive from SECRET_KEY above, which is
+      # separation without isolation.
+      #
+      # This deployment is exactly the case that wants isolation: it is
+      # internet-facing, multi-tenant, and operated for strangers rather than
+      # by them, so a SECRET_KEY compromise here should not reach any family
+      # deployment. Generated rather than `sync: false` — nobody needs to
+      # know its value, and a key nobody has to handle is a key nobody
+      # leaks. GET /admin/status reports whether it is independent or
+      # derived, so this can be confirmed after deploy rather than assumed.
+      - key: DEMO_SECRET_KEY
+        generateValue: true
       - key: PARENT_PASSWORD
         generateValue: true
 
@@ -127,6 +169,14 @@ services:
       # secrets manually after the first deploy).
       - key: FEEDBACK_EMAIL
         value: info@agnusdei.ai
+      # Where a "plans" submission goes instead — a real lead asking about
+      # pricing or an onboarding call (site/index.html's #request-a-call
+      # form, and this demo's own quota-exceeded "interested in plans"
+      # prompt), not ordinary product feedback. Same non-secret, same
+      # RESEND_API_KEY/RESEND_FROM_ADDRESS dependency as FEEDBACK_EMAIL
+      # above — see services/email_service.py's _recipient_for.
+      - key: SALES_EMAIL
+        value: sales@agnusdei.ai
 
       # Fixed, non-secret settings.
       - key: DEMO_STUDENT_NAME
@@ -143,6 +193,28 @@ services:
       # section for verification steps and how to turn it back off.
       - key: LOCALE
         value: es
+      # Speech-to-text runs at OpenAI on THIS deployment, not in this
+      # process. Not a quality or speed decision — a memory one, and the
+      # direct fix for a real, repeated failure: faster-whisper's
+      # ctranslate2 backend imports torch (~480MB of RSS on import alone)
+      # whenever torch is present, which put this service at 642MB warmed
+      # against the free plan's 512MB cap. Render OOM-killed it, and because
+      # services/streaming_transcription.py keeps its sessions in memory in
+      # a single process, every restart destroyed every child's in-flight
+      # voice turn — surfacing in the browser as `startVoiceStream failed:
+      # Load failed` and a mic that appeared broken. On this setting nothing
+      # imports faster_whisper at all, so torch never loads.
+      #
+      # Deliberately NOT the default in core/config.py, and never right for
+      # a family's self-hosted instance: local transcription is exactly what
+      # keeps a child's voice on their own LAN. This demo already sends the
+      # whole conversation to OpenAI's chat models and already uses OpenAI
+      # for TTS, so it was paying that 480MB for a privacy property it does
+      # not claim. Disclosed in demo/public/privacy.html (both languages),
+      # docs/RETENTION_POLICY.md and docs/VENDOR_DATA_FLOW.md — keep those
+      # in step with this value.
+      - key: TRANSCRIPTION_PROVIDER
+        value: openai
       # A browser's CORS Origin header is always scheme://host[:port] with
       # NO path — even though the demo itself is served from
       # https://agnusdei-ai.github.io/bede/, the Origin it sends is just
@@ -157,17 +229,22 @@ services:
       # Cloudflare Worker's own default preview domain, needed until a
       # candidate domain's nameservers are pointed at Cloudflare.
       #
-      # agnusdei.io is live on the same Worker (Custom Domain, nameservers
-      # on Cloudflare) as of the 2026-07 beta launch — agnusdei.ai's
-      # transfer was mid-flight at the same time and its registrar had its
-      # DNS/nameserver controls locked for the duration, so .io became the
-      # interim beta domain rather than waiting on .ai. Once .ai's transfer
-      # clears and it's attached to the Worker too, decide whether both stay
-      # live (add a canonical link tag to avoid duplicate-content SEO) or
-      # .io gets a redirect rule to .ai — either way, drop whichever
-      # candidate domain doesn't end up in use, and drop the
-      # agnusdei-ai.github.io and workers.dev fallbacks once the custom
-      # domain(s) are confirmed working, to keep this list minimal again.
+      # agnusdei.io was live on the same Worker (Custom Domain, nameservers
+      # on Cloudflare) as of the 2026-07 beta launch, as the interim beta
+      # domain while agnusdei.ai's transfer was mid-flight and its registrar
+      # had DNS/nameserver controls locked for the duration. That transfer
+      # has since cleared (2026-08-04): agnusdei.ai is now attached to the
+      # same Worker too, and is the intended long-term brand domain (each
+      # page carries a <link rel="canonical"> pointing at it), but a
+      # redirect from .io was deliberately NOT set up — both domains stay
+      # genuinely live on purpose, so a domain-specific failure on .ai
+      # (its zone, its cert, anything scoped to that one hostname) doesn't
+      # take .io down with it, and so .io keeps somewhere real to actually
+      # point AT if it's ever repointed to a second, independent Worker
+      # for true redundancy against the current single-Worker shared fate
+      # (see docs/DEMO_HOSTING.md's "Interim beta domain: agnusdei.io"
+      # section for the full reasoning). Both domains' CORS entries here
+      # stay live and needed, not a cleanup candidate.
       - key: CORS_ORIGINS
         value: https://agnusdei-ai.github.io,https://agnusdei.ai,https://www.agnusdei.ai,https://agnusdei.io,https://www.agnusdei.io,https://bede.ai,https://www.bede.ai,https://bede.agnusdei.workers.dev
       - key: DISABLE_API_DOCS
@@ -176,5 +253,10 @@ services:
         value: "true"
       - key: OPENAI_TTS_MODEL
         value: gpt-4o-mini-tts
+      # OPENAI_TTS_INSTRUCTIONS/OPENAI_TTS_SPEED are deliberately NOT pinned
+      # here, so this demo inherits core/config.py's own defaults for both —
+      # see that file's openai_tts_voice/openai_tts_instructions/
+      # openai_tts_speed docstrings for the "fable" + slower-pace tuning
+      # history.
       - key: OPENAI_TTS_VOICE
         value: fable

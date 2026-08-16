@@ -23,10 +23,13 @@ from core.database import (
     DiagnosticEvidenceLog,
     LearnerBehaviorCheck,
     LearnerProfile,
+    LessonBookmark,
     MasteryProfile,
     NarrationAssessment,
     SessionTranscript,
+    SkillActivityLog,
     StudentConfig,
+    StudentKey,
     VoiceProfile,
 )
 from routers.pod import delete_student_config
@@ -60,7 +63,13 @@ _next_id = iter(range(1, 100_000))
 
 
 async def _seed_all_tables(db, student_name: str):
+    from core import student_keys
     from core.encryption import encrypt_json
+
+    # Give the student a data key too, so the shred is actually exercised
+    # rather than counted as a no-op: this is the row whose destruction is
+    # what makes the deletion reach backups and dead tuples.
+    await student_keys.get_or_create(db, student_name)
 
     now = datetime.now(timezone.utc)
     db.add(StudentConfig(student_name=student_name, config_enc=encrypt_json({"a": 1})))
@@ -74,6 +83,7 @@ async def _seed_all_tables(db, student_name: str):
     ))
     db.add(LearnerProfile(student_name=student_name, session_count=3, profile_enc=encrypt_json({"a": 1})))
     db.add(LearnerBehaviorCheck(student_name=student_name, count_enc=encrypt_json({"count": 2})))
+    db.add(LessonBookmark(student_name=student_name, subject="history", bookmark_enc=encrypt_json({"note": "left off at Rome"})))
     db.add(MasteryProfile(
         student_name=student_name, subject_area="mathematics",
         evidence_count=1, profile_enc=encrypt_json({"a": 1}),
@@ -85,6 +95,10 @@ async def _seed_all_tables(db, student_name: str):
     db.add(SessionTranscript(
         id=next(_next_id), student_name=student_name, session_date=now, subjects="mathematics",
         duration_minutes=20, transcript_enc=encrypt_json({"a": 1}),
+    ))
+    db.add(SkillActivityLog(
+        student_name=student_name, subject_area="mathematics", skill_id="oa.division_facts",
+        completed_at=now, detail_enc=encrypt_json({"skill_id": "oa.division_facts"}),
     ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     await db.commit()
@@ -98,10 +112,13 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("narration_assessments", NarrationAssessment),
         ("learner_profile", LearnerProfile),
         ("learner_behavior_check", LearnerBehaviorCheck),
+        ("lesson_bookmarks", LessonBookmark),
+        ("skill_activity_log", SkillActivityLog),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),
         ("api_usage_events", ApiUsageEvent),
+        ("data_key_shredded", StudentKey),
     ):
         result = await db.execute(select(model).where(model.student_name == student_name))
         counts[label] = len(result.scalars().all())
@@ -111,7 +128,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
 # ── services.student_deletion.delete_all_student_data ────────────────────────
 
 @pytest.mark.asyncio
-async def test_deletes_every_row_across_all_nine_tables(db_session):
+async def test_deletes_every_row_across_every_per_student_table(db_session):
     await _seed_all_tables(db_session, "Emma")
     before = await _row_counts_for(db_session, "Emma")
     assert all(n > 0 for n in before.values()), f"seeding didn't actually populate every table: {before}"

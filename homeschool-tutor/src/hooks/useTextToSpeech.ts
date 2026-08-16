@@ -1,13 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { logDebug } from './debugBus'
+import i18n from '../i18n'
 
 /**
  * Bede's spoken voice.
  *
  * Tries the backend's OpenAI TTS first (services/voice_synthesis.py on the
  * server — a warm, dedicated male monk voice). Falls back to the browser's
- * built-in speechSynthesis when the backend isn't configured or the request
- * fails, so voice output never breaks the session.
+ * built-in speechSynthesis ONLY when TTS is genuinely unconfigured on this
+ * deployment (no OPENAI_API_KEY) — a reasonable zero-config default in that
+ * case. Real Bede audio that was fetched but blocked from playing by the
+ * browser's own autoplay policy is deliberately NOT covered by that
+ * fallback: a real report showed a browser that kept blocking audio.play()
+ * swapping to the jarring, robotic browser default voice on every single
+ * turn for the whole session — worse than staying silent for that one line
+ * while armAutoReUnlock (below) self-heals the block on the next real tap.
  *
  * Bede's persona is historically male (the Venerable Bede) — voice selection
  * in both paths prefers a male voice, never a gender-ambiguous or female one.
@@ -73,29 +80,59 @@ const KNOWN_MALE_VOICE_NAMES = new Set([
   'Google US English Male',
 ])
 
-export function pickBestVoice(): SpeechSynthesisVoice | null {
+// Spanish TTS engines almost never put "male"/"female" in a voice name, so
+// the substring heuristics above find nothing to work with. These are exact
+// names shipped by common engines for Spanish male voices — the same
+// approach KNOWN_MALE_VOICE_NAMES takes for English, kept deliberately
+// short and conservative rather than guessing at every OEM's catalogue.
+const KNOWN_SPANISH_MALE_VOICE_NAMES = new Set([
+  'Jorge', 'Diego', 'Juan', 'Carlos', 'Javier',
+  'Microsoft Pablo - Spanish (Spain)',
+  'Microsoft Raul - Spanish (Mexico)',
+  'Microsoft Jorge - Spanish (Spain)',
+  'Google español',
+  'Google español de Estados Unidos',
+])
+
+/**
+ * Pick Bede's browser-fallback voice for a given language.
+ *
+ * `langPrefix` was previously hardcoded to English throughout, which meant a
+ * Spanish session fell back to an English voice reading Spanish text —
+ * audibly wrong, and the reason this takes a parameter now. Pass the
+ * session's own locale (i18n.language), not the device's.
+ */
+export function pickBestVoice(langPrefix = 'en'): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
 
+  const inLang = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().startsWith(langPrefix)
+
   const priorities = [
-    (v: SpeechSynthesisVoice) => KNOWN_MALE_VOICE_NAMES.has(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'en' && KNOWN_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'es' && KNOWN_SPANISH_MALE_VOICE_NAMES.has(v.name),
+    (v: SpeechSynthesisVoice) => langPrefix === 'en' && v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => inLang(v) && isMaleVoiceName(v.name),
     // Many Android/OEM TTS engines (Samsung's included) expose English
     // voices with no gender word in the name at all — nothing above can
     // match those. Rather than falling straight through to "just take the
     // first English voice" (which might be the one explicitly labeled
     // female), prefer any voice that ISN'T explicitly female first — an
     // unlabeled voice is a better bet than a confirmed-wrong one.
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && !isFemaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => v.lang.startsWith('en'),
+    (v: SpeechSynthesisVoice) => inLang(v) && !isFemaleVoiceName(v.name),
+    (v: SpeechSynthesisVoice) => inLang(v),
   ]
 
   for (const check of priorities) {
     const match = voices.find(check)
     if (match) return match
   }
-  return voices[0] ?? null
+  // English keeps its old last-resort "any voice at all" — that behaviour is
+  // long-standing and safe for English text. For any other language a
+  // wrong-language voice is worse than none: returning null leaves
+  // utterance.voice unset, so the engine picks from utterance.lang itself
+  // rather than reading Spanish aloud in an English voice.
+  return langPrefix === 'en' ? (voices[0] ?? null) : null
 }
 
 // Chrome — especially on Android — returns an EMPTY array from getVoices()
@@ -148,8 +185,8 @@ function waitForVoicesReady(): Promise<void> {
   return voicesReadyPromise
 }
 
-export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
-  return waitForVoicesReady().then(() => pickBestVoice())
+export function resolveVoice(langPrefix = 'en'): Promise<SpeechSynthesisVoice | null> {
+  return waitForVoicesReady().then(() => pickBestVoice(langPrefix))
 }
 
 // One <audio> element, reused for every turn's backend TTS playback rather
@@ -162,10 +199,55 @@ export function resolveVoice(): Promise<SpeechSynthesisVoice | null> {
 // real play() at login is the standard mitigation for that class of
 // platform quirk (desktop Chrome and iOS Safari don't need it, but reusing
 // one element costs nothing there either).
+// Short preview of a line for the debug overlay's ring buffer (100 entries,
+// see debugBus.ts) — enough to tell two utterances apart, or to spot the
+// SAME utterance queued twice, without flooding the buffer with full
+// paragraphs. This is Bede's own generated speech, never the child's input.
+function ttsPreview(text: string): string {
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > 42 ? `${flat.slice(0, 42)}…` : flat
+}
+
 let sharedAudioEl: HTMLAudioElement | null = null
 function getSharedAudioElement(): HTMLAudioElement {
   if (!sharedAudioEl) sharedAudioEl = new Audio()
   return sharedAudioEl
+}
+
+const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+
+// Real report: the login-time unlockSpeechForSession() call below is
+// supposed to permanently bless sharedAudioEl for the rest of the tab
+// (once ANY play() succeeds on an element, later programmatic play()
+// calls on that SAME element are allowed indefinitely, gesture or not —
+// the whole reason a shared singleton element exists at all). In
+// practice a family reported audio.play() being rejected as
+// autoplay-blocked on EVERY subsequent turn, not just an occasional one —
+// meaning the initial unlock itself wasn't taking, or wasn't durable,
+// on their device/browser. Rather than staying permanently blocked for
+// the rest of the session once that happens, arm a one-shot retry that
+// re-primes the same element on the very next genuine user gesture
+// anywhere on the page (a subject switch, a mic tap, anything) — cheap
+// and self-healing, instead of requiring a full reload to recover.
+let reUnlockArmed = false
+function armAutoReUnlock() {
+  if (reUnlockArmed) return
+  reUnlockArmed = true
+  const retry = () => {
+    document.removeEventListener('pointerdown', retry, true)
+    reUnlockArmed = false
+    try {
+      const audio = getSharedAudioElement()
+      const wasPlaying = !audio.paused
+      if (wasPlaying) return // don't stomp audio that's actually mid-playback right now
+      audio.src = SILENT_WAV_DATA_URI
+      audio.volume = 0
+      audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
+    } catch {
+      // best-effort — this is a background recovery attempt, never worth surfacing
+    }
+  }
+  document.addEventListener('pointerdown', retry, true)
 }
 
 /**
@@ -191,7 +273,7 @@ export function unlockSpeechForSession() {
   }
   try {
     const audio = getSharedAudioElement()
-    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.src = SILENT_WAV_DATA_URI
     audio.volume = 0
     audio.play().then(() => { audio.pause(); audio.volume = 1.0 }).catch(() => { audio.volume = 1.0 })
   } catch {
@@ -266,14 +348,27 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       audioRef.current = audio
       let played = false
       await new Promise<void>((resolve) => {
-        audio.onended = () => resolve()
-        audio.onerror = () => resolve()
+        audio.onended = () => {
+          logDebug(`TTS backend playback ENDED gen=${myGeneration}`)
+          resolve()
+        }
+        audio.onerror = () => {
+          logDebug(`TTS backend playback ERROR gen=${myGeneration}`)
+          resolve()
+        }
         audio.src = url
         audio.play()
-          .then(() => { played = true })
+          // Two STARTs without an ENDED between them means two clips are
+          // overlapping on the shared element — that is what a doubled or
+          // "reverby" Bede sounds like.
+          .then(() => { played = true; logDebug(`TTS backend playback STARTED gen=${myGeneration}`) })
           .catch((err) => {
-            // autoplay-blocked or decode error — playback never started
+            // autoplay-blocked or decode error — playback never started.
+            // Arm a self-healing retry for the next real tap rather than
+            // staying silently blocked for the rest of the session — see
+            // armAutoReUnlock's own comment.
             logDebug(`backend TTS audio.play() rejected: ${err instanceof Error ? err.message : String(err)}`)
+            armAutoReUnlock()
             resolve()
           })
       })
@@ -288,15 +383,31 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
   const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
     return new Promise((resolve) => {
       if (!isSupported) { resolve(); return }
-      resolveVoice().then((voice) => {
+      // The session's locale, not the device's — same rule the speech
+      // recognition language already follows (see SocraticChat/App).
+      const langPrefix = i18n.language === 'es' ? 'es' : 'en'
+      resolveVoice(langPrefix).then((voice) => {
         if (generationRef.current !== myGeneration) { resolve(); return }
         const utterance = new SpeechSynthesisUtterance(text)
+        // Always set, even when no voice matched: it is what lets the
+        // engine choose a Spanish voice of its own rather than reading
+        // Spanish text with whatever default it would otherwise use.
+        utterance.lang = langPrefix === 'es' ? 'es-MX' : 'en-GB'
         if (voice) utterance.voice = voice
         utterance.rate = 0.88     // slightly slower for children
         utterance.pitch = 0.92    // slightly lower — a warm, older male voice
         utterance.volume = 1.0
-        utterance.onend = () => resolve()
-        utterance.onerror = () => resolve()
+        utterance.onend = () => {
+          logDebug(`TTS browser fallback ENDED gen=${myGeneration}`)
+          resolve()
+        }
+        utterance.onerror = () => {
+          logDebug(`TTS browser fallback ERROR gen=${myGeneration}`)
+          resolve()
+        }
+        // A STARTED here while a backend clip is still playing is the
+        // two-different-voices-at-once case, directly.
+        logDebug(`TTS browser fallback STARTED gen=${myGeneration} voice=${voice?.name ?? 'default'}`)
         window.speechSynthesis.speak(utterance)
       })
     })
@@ -315,6 +426,8 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     const cleanText = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '')
     const myGeneration = generationRef.current
 
+    logDebug(`TTS processQueue start gen=${myGeneration} remaining=${queueRef.current.length} text="${ttsPreview(cleanText)}"`)
+
     if (cleanText.trim() && !stoppedRef.current) {
       const { spoke, configured, fetchedAudio } = await speakViaBackend(cleanText, myGeneration)
       // A stop() while this call was in flight (fetching, or actually
@@ -330,19 +443,26 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       // "two Bedes talking at once" class of bug generationRef exists to
       // prevent.
       if (generationRef.current === myGeneration) {
-        // Two distinct failure classes get different treatment:
-        //  - the /tutor/speak request itself failed (network hiccup, backend
-        //    error, nothing configured) — stay silent for this one line
-        //    rather than jarringly switching to a different, lower-quality
-        //    voice mid-conversation (the original rule this fallback follows).
-        //  - real audio bytes came back but this browser refused to play
-        //    them (confirmed on a Samsung Android tablet: Chrome can
-        //    silently block audio.play() outside a fresh gesture) — that has
-        //    nothing to do with backend configuration, so browser speech is
-        //    strictly better than the total silence this used to produce.
-        if (!spoke && (fetchedAudio || !configured) && !stoppedRef.current) {
+        // Bede's voice has no fallback to the browser's own default voice
+        // when real audio bytes actually came back — real report: on a
+        // browser that keeps blocking audio.play() (autoplay policy), that
+        // fallback meant every single turn audibly swapped to a jarring,
+        // robotic-sounding default voice, over and over, for the whole
+        // session — worse than the rare total silence it was meant to
+        // avoid. fetchedAudio true means Bede's real voice line exists and
+        // was simply blocked from playing this once; armAutoReUnlock
+        // (called from speakViaBackend's own play() rejection handler
+        // above) is the actual fix for THAT — self-healing on the next
+        // real tap, not swapping voices. The one case that still falls
+        // back is the genuinely different one: TTS was never configured
+        // at all (no OPENAI_API_KEY on this deployment), where the
+        // browser's own voice is a reasonable zero-config default rather
+        // than a mid-session bait-and-switch.
+        if (!spoke && !configured && !stoppedRef.current) {
           logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
           await speakViaBrowser(cleanText, myGeneration)
+        } else if (!spoke && fetchedAudio) {
+          logDebug(`TTS blocked but configured — staying silent for this line rather than falling back: fetchedAudio=${fetchedAudio}`)
         }
       }
     }
@@ -363,10 +483,15 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     if (!enabled || !text.trim()) return
     stoppedRef.current = false
     queueRef.current.push(text.trim())
+    // The first thing to check for any "Bede said it twice" report: if this
+    // line appears twice for one turn, the duplication is upstream in
+    // consumeTurnStream, not in playback below.
+    logDebug(`TTS speak() queued depth=${queueRef.current.length} gen=${generationRef.current} speaking=${speakingRef.current} text="${ttsPreview(text)}"`)
     processQueue()
   }, [enabled, processQueue])
 
   const stop = useCallback(() => {
+    logDebug(`TTS stop() gen=${generationRef.current}->${generationRef.current + 1} wasSpeaking=${speakingRef.current} queued=${queueRef.current.length}`)
     stoppedRef.current = true
     generationRef.current += 1
     queueRef.current = []

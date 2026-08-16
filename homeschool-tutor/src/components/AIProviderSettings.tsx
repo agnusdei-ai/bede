@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BadgeCheck, ChevronDown, ChevronUp, CircleSlash, Cpu, Loader2 } from 'lucide-react'
-import { fetchAIProviderStatus, setAIProvider } from '../services/api'
+import { fetchAIProviderStatus, setAIProvider, setAIProviderSecondary } from '../services/api'
 import type { AIProviderName, AIProviderStatus } from '../types'
 
 const LABELS: Record<AIProviderName, string> = {
@@ -17,8 +17,13 @@ const LABELS: Record<AIProviderName, string> = {
  * restart (homeschool-api/core/provider_state.py — same "DB value wins
  * over env" precedent LicenseSettings.tsx already uses for the license
  * key). Meant for e.g. moving off a degraded local model onto a cloud
- * provider without touching the server. Renders nothing if fewer than two
- * providers are configured — nothing to switch between.
+ * provider without touching the server. Renders nothing if NO provider is
+ * configured (a different, broken-deployment problem this card isn't
+ * about). With exactly one configured, there's nothing to switch between
+ * yet, so a lighter nudge renders instead of the full switcher below —
+ * see the reliability gap this closes: before this, a family running a
+ * single provider for months had no ongoing prompt to ever add a backup,
+ * since this component used to render nothing at all in that case.
  */
 export default function AIProviderSettings({ token }: { token: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -30,7 +35,26 @@ export default function AIProviderSettings({ token }: { token: string }) {
     fetchAIProviderStatus(token).then(setStatus).catch(() => setStatus(null))
   }, [token])
 
-  if (status === undefined || status === null || status.configured.length < 2) return null
+  if (status === undefined || status === null || status.configured.length === 0) return null
+
+  if (status.configured.length === 1) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 px-5 py-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+          <Cpu size={16} className="text-navy-500" /> AI Provider
+          <span className="text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
+            {LABELS[status.configured[0]]}
+          </span>
+        </p>
+        <p className="text-xs text-gray-500 mt-2">
+          Only one AI provider is configured right now. If it goes down — a local model server
+          crashing, a revoked cloud API key — Bede has nothing to automatically fail over to.
+          Adding a second provider, even just as a backup, lets Bede keep working on its own. See
+          docs/PROVIDER_ADAPTERS.md for how to set one up.
+        </p>
+      </div>
+    )
+  }
 
   const handleSelect = async (provider: AIProviderName) => {
     setBusy(true)
@@ -51,6 +75,30 @@ export default function AIProviderSettings({ token }: { token: string }) {
       setStatus(await setAIProvider(token, null))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not revert to the default provider')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleSelectSecondary = async (provider: AIProviderName) => {
+    setBusy(true)
+    setError('')
+    try {
+      setStatus(await setAIProviderSecondary(token, provider))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not switch the failover provider')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleClearSecondary = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      setStatus(await setAIProviderSecondary(token, null))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not revert the failover provider')
     } finally {
       setBusy(false)
     }
@@ -113,6 +161,45 @@ export default function AIProviderSettings({ token }: { token: string }) {
             >
               <CircleSlash size={12} /> Revert to this deployment's default order
             </button>
+          )}
+
+          {status.configured.length >= 3 && (
+            <div className="pt-2 border-t border-gray-100 space-y-1.5">
+              <p className="text-xs text-gray-500">
+                With three or more providers configured, pick which one is tried first if{' '}
+                {status.primary ? LABELS[status.primary] : 'the primary'} errors out — e.g. Claude or
+                Mistral as backup, whichever this family prefers.
+              </p>
+              {status.configured
+                .filter((name) => name !== status.primary)
+                .map((name) => {
+                  const isSecondary = status.secondary === name
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => handleSelectSecondary(name)}
+                      disabled={busy || isSecondary}
+                      className={`w-full flex items-center justify-between text-sm rounded-lg px-3 py-2 text-left transition-colors ${
+                        isSecondary
+                          ? 'bg-navy-50 border border-navy-200 text-navy-800'
+                          : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                      } disabled:cursor-default`}
+                    >
+                      <span>{LABELS[name]}</span>
+                      {isSecondary && <BadgeCheck size={14} className="text-navy-500" />}
+                    </button>
+                  )
+                })}
+              {status.secondary_override && (
+                <button
+                  onClick={handleClearSecondary}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 underline"
+                >
+                  <CircleSlash size={12} /> Revert failover to this deployment's default order
+                </button>
+              )}
+            </div>
           )}
 
           {busy && <p className="text-xs text-gray-400 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Switching…</p>}

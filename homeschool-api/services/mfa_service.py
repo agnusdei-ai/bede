@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.database import ParentSecurityKey, ParentTotpConfig
-from core.encryption import decrypt_json, encrypt_json
+from core.encryption import aad_for, decrypt_json, encrypt_json
 from core.mfa_challenge import (
     mark_totp_step_used,
     pop_authenticate_challenge,
@@ -67,6 +67,25 @@ async def enrolled_methods(db: AsyncSession) -> list[str]:
     return methods
 
 
+# ── Context binding (docs/DATA_CLASSIFICATION.md, Tier 2) ────────────────────
+# Authentication secrets. Both tables migrated to the v2 (AAD-bound)
+# envelope; reads still accept v1 blobs written before the migration, and
+# each row upgrades itself on its next write.
+#
+# parent_security_keys has an autoincrement id that does not exist at insert
+# time, and build_registration_options reads the column alone without the
+# row, so there is no per-row identifier available on either side. Bound to a
+# constant table scope instead: that blocks moving a credential blob into a
+# different table or column, and leaves swaps BETWEEN the same parent's own
+# two security keys undetected -- a negligible residual, since both belong to
+# the same principal and either one already authenticates them.
+_WEBAUTHN_AAD = aad_for("parent_security_keys", "credential_enc", "parent")
+
+
+def _totp_aad(key: str = "totp") -> bytes:
+    return aad_for("parent_totp_config", "secret_enc", key)
+
+
 # ── WebAuthn: registration (enrolling a new key) ─────────────────────────────
 
 async def build_registration_options(db: AsyncSession) -> str:
@@ -76,7 +95,7 @@ async def build_registration_options(db: AsyncSession) -> str:
     existing = await db.execute(select(ParentSecurityKey.credential_enc))
     exclude = []
     for (blob,) in existing.all():
-        cred = decrypt_json(blob)
+        cred = decrypt_json(blob, _WEBAUTHN_AAD)
         exclude.append(PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred["credential_id"])))
 
     options = webauthn.generate_registration_options(
@@ -113,7 +132,7 @@ async def verify_and_store_registration(db: AsyncSession, credential_json: str, 
     }
     db.add(ParentSecurityKey(
         nickname=nickname.strip() or "Security key",
-        credential_enc=encrypt_json(record),
+        credential_enc=encrypt_json(record, _WEBAUTHN_AAD),
     ))
     await db.commit()
 
@@ -135,7 +154,7 @@ async def build_authentication_options(db: AsyncSession) -> str | None:
         return None
 
     allow = [
-        PublicKeyCredentialDescriptor(id=base64url_to_bytes(decrypt_json(blob)["credential_id"]))
+        PublicKeyCredentialDescriptor(id=base64url_to_bytes(decrypt_json(blob, _WEBAUTHN_AAD)["credential_id"]))
         for (blob,) in rows
     ]
     options = webauthn.generate_authentication_options(
@@ -163,7 +182,7 @@ async def verify_authentication(db: AsyncSession, credential_json: str) -> bool:
     target_row = None
     target_cred = None
     for row in result.scalars().all():
-        cred = decrypt_json(row.credential_enc)
+        cred = decrypt_json(row.credential_enc, _WEBAUTHN_AAD)
         if cred["credential_id"] == raw_id:
             target_row, target_cred = row, cred
             break
@@ -183,7 +202,7 @@ async def verify_authentication(db: AsyncSession, credential_json: str) -> bool:
         return False
 
     target_cred["sign_count"] = verification.new_sign_count
-    target_row.credential_enc = encrypt_json(target_cred)
+    target_row.credential_enc = encrypt_json(target_cred, _WEBAUTHN_AAD)
     await db.commit()
     return True
 
@@ -199,10 +218,10 @@ async def enroll_totp(db: AsyncSession) -> tuple[str, str]:
 
     existing = await get_totp_config(db)
     if existing:
-        existing.secret_enc = encrypt_json({"secret": secret})
+        existing.secret_enc = encrypt_json({"secret": secret}, _totp_aad())
         existing.confirmed = False
     else:
-        db.add(ParentTotpConfig(key="totp", secret_enc=encrypt_json({"secret": secret}), confirmed=False))
+        db.add(ParentTotpConfig(key="totp", secret_enc=encrypt_json({"secret": secret}, _totp_aad()), confirmed=False))
     await db.commit()
     return secret, uri
 
@@ -214,7 +233,7 @@ async def confirm_totp(db: AsyncSession, code: str) -> bool:
     config = await get_totp_config(db)
     if not config:
         return False
-    secret = decrypt_json(config.secret_enc)["secret"]
+    secret = decrypt_json(config.secret_enc, _totp_aad(config.key))["secret"]
     totp = pyotp.TOTP(secret)
     if not totp.verify(code, valid_window=1):
         return False
@@ -227,7 +246,7 @@ async def verify_totp_login(db: AsyncSession, code: str) -> bool:
     config = await get_totp_config(db)
     if not config or not config.confirmed:
         return False
-    secret = decrypt_json(config.secret_enc)["secret"]
+    secret = decrypt_json(config.secret_enc, _totp_aad(config.key))["secret"]
     totp = pyotp.TOTP(secret)
     step = int(totp.timecode(__import__("datetime").datetime.now()))
     if totp_step_already_used(step):

@@ -1,15 +1,16 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
   isFeedbackEnabled, submitFeedback, extractNarrationText,
-  fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales,
+  fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales, fetchDemoActivity,
   TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
   type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
+  type DemoWorkLedger,
 } from './api'
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
@@ -18,6 +19,8 @@ import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import DebugOverlay from './DebugOverlay'
 import { logDebug } from './debugBus'
+import { useVoiceModePreference } from './useVoiceModePreference'
+import { createHoldHandlers } from './holdGesture'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
 // visits never open, and keeping it out of the entry bundle makes first
 // paint lighter for everyone. It loads the moment the pencil is tapped
@@ -28,6 +31,7 @@ import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
 import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
+import { clearPage as clearCanvasPage } from './canvasPersistence'
 import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
 import VisualAidCard from './VisualAidCard'
@@ -84,7 +88,22 @@ function toApiMessage(m: DisplayMessage): ChatMessage | null {
 // working with the English default for those, while CodeScreen's own call
 // site passes t to translate both the network-error message and its fallback.
 function friendlyErrorMessage(err: unknown, fallback: string, t?: TFunction): string {
+  // Record the real error BEFORE substituting a friendly one. This function
+  // deliberately replaces a precise signal with a reassuring guess, which is
+  // right for a child on a tablet and actively harmful for whoever has to
+  // diagnose it: on 2026-08-04 a CSP misconfiguration surfaced here as "it
+  // may be waking up after being idle", the original TypeError was dropped
+  // on the floor, and the resulting hunt cost hours. The friendly text
+  // below is unchanged — this only stops the truth being discarded on the
+  // way to it. See diagnostics.ts.
+  const e = err as Error
+  logDebug(`error→friendly ${e?.name ?? typeof err}: ${e?.message ?? String(err)}`)
   if (err instanceof TypeError) {
+    // A bare TypeError from fetch means no response was received at all —
+    // CSP block, CORS rejection, DNS failure, or genuinely offline. The
+    // wording below guesses "idle backend" because that was the common
+    // case on Render's free tier; it is a guess, not a diagnosis, and the
+    // CSP/fetch lines in the debug panel are what distinguish them.
     return t ? t('common.networkError') : "Could not reach the server. It may be waking up after being idle. Wait a few seconds and try again."
   }
   return err instanceof Error ? err.message : fallback
@@ -190,6 +209,19 @@ function clearChatState(code: string): void {
 // tab closes, same lifetime as every other piece of demo session state.
 const NAME_STORAGE_KEY = 'bede-demo-student-name'
 const GRADE_STORAGE_KEY = 'bede-demo-grade'
+// The optional "what are we already covering at home" note behind the
+// Continuing Mastery card (see ChatScreen's continuingMastery section below
+// and CLAUDE.md's "Continuing Mastery (demo)") — same session-only
+// persistence lifetime as name/grade above.
+const UNIT_STORAGE_KEY = 'bede-demo-current-unit'
+// Optional label for the visiting family's own church tradition (e.g.
+// "Baptist", "Catholic", "Non-denominational") — threaded to
+// SessionConfig.faith_tradition (routers/tutor.py's _demo_session_config)
+// so Bede can frame Scripture & Bible Study / Saints & Catechism content
+// consistently with it, since the demo shows both modules to every
+// visitor regardless of background. Same session-only persistence
+// lifetime as the fields above.
+const FAITH_STORAGE_KEY = 'bede-demo-faith-tradition'
 // Chosen at CodeScreen's own language toggle, per visit — mirrors
 // homeschool-tutor's per-login model (docs/LOCALIZATION.md) but the demo has
 // no persisted auth store to restore from, so sessionStorage fills that role
@@ -214,6 +246,8 @@ export function CodeScreen({ onLoggedIn }: {
   const [error, setError] = useState('')
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(NAME_STORAGE_KEY) ?? '')
   const [grade, setGrade] = useState(() => sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '')
+  const [currentUnit, setCurrentUnit] = useState(() => sessionStorage.getItem(UNIT_STORAGE_KEY) ?? '')
+  const [faithTradition, setFaithTradition] = useState(() => sessionStorage.getItem(FAITH_STORAGE_KEY) ?? '')
   // Shown when code generation runs long — almost always the demo backend
   // waking from its idle sleep, not a failure. Naming what's happening
   // keeps a visitor from abandoning a spinner that WILL finish.
@@ -265,10 +299,12 @@ export function CodeScreen({ onLoggedIn }: {
     setError('')
     const slowTimer = setTimeout(() => setSlowHint(true), 2500)
     try {
-      const code = await generateDemoCode(studentName, grade)
+      const code = await generateDemoCode(studentName, grade, currentUnit, faithTradition)
       const { token } = await loginWithCode(code, selectedLocale)
       if (studentName.trim()) sessionStorage.setItem(NAME_STORAGE_KEY, studentName.trim())
       if (grade) sessionStorage.setItem(GRADE_STORAGE_KEY, grade)
+      if (currentUnit.trim()) sessionStorage.setItem(UNIT_STORAGE_KEY, currentUnit.trim())
+      if (faithTradition.trim()) sessionStorage.setItem(FAITH_STORAGE_KEY, faithTradition.trim())
       onLoggedIn(token, code)
     } catch (err) {
       setError(friendlyErrorMessage(err, t('codeScreen.couldNotStartSession'), t))
@@ -291,8 +327,37 @@ export function CodeScreen({ onLoggedIn }: {
         for the localStorage flag this checks/sets. */}
     <div
       ref={formContainerRef}
-      className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
+      className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
     >
+      {/* Fall Launch banner. Deliberately ABOVE the demo card and outside
+          it: this screen's job is "try Bede now", and the launch offer is
+          a separate errand. No pricing here — the full table lives on
+          launch.html so the learner form stays the only thing to fill in.
+
+          Relative href, not "/launch.html": demo/vite.config.ts uses
+          `base: './'` and scripts/build_pages_site.sh nests demo/dist under
+          publish/bede/, so the deployed page is /bede/launch.html. A
+          root-relative link would 404 in production.
+
+          Stateless by design — no dismiss flag, so it adds no browser
+          storage key and nothing to declare in site/privacy/index.html's
+          inventory (see demo/src/privacyInventory.test.ts). */}
+      <a
+        href="./launch.html"
+        className="w-full max-w-sm block rounded-xl border border-gold-300 bg-white/80 px-4 py-3 text-center shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-navy-400"
+      >
+        <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
+          Fall Launch: September 30
+        </span>
+        <span className="mt-0.5 block text-xs text-navy-700">
+          Founding Family access opening soon.{' '}
+          {/* Arrow outside the underlined span — an underlined arrow reads
+              as a typo, not an affordance. */}
+          <span className="font-medium text-navy-600 underline">Learn more</span>
+          <span className="font-medium text-navy-600"> →</span>
+        </span>
+      </a>
+
       <div className={`bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 transition-opacity ${!hasConsented ? 'opacity-40' : ''}`}>
         {/* Language toggle — only rendered when this deployment offers one */}
         {availableLocales.length > 0 && (
@@ -373,6 +438,56 @@ export function CodeScreen({ onLoggedIn }: {
                 <option key={g} value={g}>{g === 'K' ? t('codeScreen.kindergarten') : t('codeScreen.gradeN', { n: g })}</option>
               ))}
             </select>
+          </div>
+          {/* Optional — the "outside the built-in curriculum" note behind
+              the Continuing Mastery card (ChatScreen below): a book or unit
+              the family is already covering at home, so Bede can anchor its
+              questions on that instead of only ever demonstrating its own
+              bundled curriculum. Threaded straight through to
+              SessionConfig.current_unit (see routers/tutor.py's
+              _demo_session_config), exactly like a real parent's own field. */}
+          <div>
+            <label htmlFor="student-unit" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              {t('codeScreen.currentUnit')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
+            </label>
+            <input
+              id="student-unit"
+              type="text"
+              value={currentUnit}
+              onChange={(e) => setCurrentUnit(e.target.value)}
+              maxLength={200}
+              placeholder={t('codeScreen.currentUnitPlaceholder')}
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+          </div>
+          {/* Optional — the visiting family's own church tradition, so Bede
+              can frame Scripture & Bible Study / Saints & Catechism content
+              consistently with it rather than assuming one. The demo shows
+              both modules to every visitor regardless of background (unlike
+              a real family, who simply enables whichever module fits their
+              own church) — see DemoCodeRequest.faith_tradition. */}
+          <div>
+            <label htmlFor="student-faith-tradition" className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1">
+              {t('codeScreen.faithTradition')} <span className="font-normal normal-case text-gray-400">{t('codeScreen.optional')}</span>
+            </label>
+            <input
+              id="student-faith-tradition"
+              type="text"
+              value={faithTradition}
+              onChange={(e) => setFaithTradition(e.target.value)}
+              maxLength={60}
+              placeholder={t('codeScreen.faithTraditionPlaceholder')}
+              aria-describedby="student-faith-tradition-help"
+              className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-400"
+            />
+            {/* Stated at the field itself, not only on the consent screen
+                before it. This is the one intake field touching religious
+                belief, and the moment a visitor is deciding whether to type
+                into it is the moment the purpose and the "skipping costs
+                you nothing" both need to be visible. */}
+            <p id="student-faith-tradition-help" className="mt-1 text-xs text-gray-400">
+              {t('codeScreen.faithTraditionHelp')}
+            </p>
           </div>
         </div>
 
@@ -493,6 +608,12 @@ const BREAK_INACTIVITY_LOGOUT_MS = 5 * 60 * 1000
 interface ChatScreenProps {
   displayName: string
   subjects: readonly Subject[]
+  // The optional "what are we already covering at home" note set at
+  // CodeScreen (see UNIT_STORAGE_KEY above) — server-resolved onto
+  // SessionConfig.current_unit (routers/tutor.py's _demo_session_config)
+  // and surfaced here for the Continuing Mastery card's own framing line,
+  // so a visitor sees Bede is actually aware of the material they typed in.
+  currentUnit?: string | null
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
   // Only used for POST /tutor/extract-narration (see handleNarrationFile
   // below) — runChat already has its own token baked in via closure.
@@ -520,7 +641,333 @@ interface ChatScreenProps {
   sessionStartedAt: number
 }
 
-function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+// The demo's work ledger — what this visitor has actually finished in this
+// sitting. The REAL card (homeschool-tutor's WorkLedger.tsx) is a full
+// Progress-page panel; this is its compact sibling, because a demo is a
+// chat screen and not a dashboard. Same data, same refusals, same words.
+//
+// WHY THE DEMO GETS THIS WHEN IT GETS NO MASTERY HISTORY. The ledger
+// records events, not an estimate, so its first entry is as true as its
+// two-hundredth — nothing about a fifteen-minute session makes showing it
+// dishonest, which is exactly the property that makes it the honest thing
+// to show a visitor. Reads from the demo code's own TTL'd blob
+// (homeschool-api's DemoCodeActivityLog), deleted on logout and gone
+// within 6 hours regardless.
+//
+// A DISCLOSURE, NOT AN INLINE LIST, for the same reason ContinuingMasteryCard
+// below is one — and this card had the worse version of that problem. Its
+// list grows with every distinct skill worked, which is unbounded and
+// climbs for as long as the visitor keeps going; an inline version would
+// eat the chat exactly the way thirteen subject rows did on a 390x844
+// phone. The closed state is one constant-height row that advertises the
+// count; the open state floats over the chat and scrolls, so there is no
+// row cap and nothing is hidden.
+//
+// Every rule the real card follows holds here: no bars, no percentages,
+// nothing averaged; only the notable end of each scale earns a note, and a
+// note that would read zero is not rendered at all, because the floors are
+// real outcomes rather than deficiencies.
+function DemoWorkLedgerCard({ ledger }: { ledger: DemoWorkLedger | null }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  // Same Escape-closes-and-restores-focus contract as the sibling card, so
+  // a keyboard user is never stranded inside either panel.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const empty = !ledger || ledger.total === 0
+  useEffect(() => {
+    if (empty) setOpen(false)
+  }, [empty])
+
+  if (!ledger || ledger.total === 0) return null
+
+  const s = ledger.initiative
+  const initiative = s.exemplary + s.beyond_the_task + s.brisk
+
+  return (
+    <div className="mt-2 relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="demo-work-ledger-panel"
+        className="w-full flex items-center gap-1.5 border-l-[3px] border-sage-400 bg-sage-50/70 hover:bg-sage-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400"
+      >
+        <CheckCircle2 size={13} className="text-sage-600 flex-shrink-0" aria-hidden="true" />
+        <span className="font-display font-bold text-gray-800">{t('workLedger.heading')}</span>
+        <span className="text-gray-600 truncate">{t('workLedger.totalFinished', { count: ledger.total })}</span>
+        {open
+          ? <ChevronUp size={14} className="text-sage-600 flex-shrink-0 ml-auto" aria-hidden="true" />
+          : <ChevronDown size={14} className="text-sage-600 flex-shrink-0 ml-auto" aria-hidden="true" />}
+      </button>
+
+      {open && (
+        <>
+          {/* Dismiss-on-tap-outside, same plain fixed sibling the other
+              card uses — no capture-phase ordering to reason about, and it
+              cannot fire on the tap that opened the panel. */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            id="demo-work-ledger-panel"
+            className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-sage-200 rounded-xl shadow-xl px-3 py-2.5 max-h-[50vh] overflow-y-auto animate-fade-in"
+          >
+            <ul className="flex flex-col gap-2">
+              {ledger.skills.map((skill) => {
+                const notes = [
+                  skill.quality.exemplary > 0 && t('workLedger.oneToShow', { count: skill.quality.exemplary }),
+                  skill.distinction.noteworthy > 0 && t('workLedger.wentFurther', { count: skill.distinction.noteworthy }),
+                  skill.distinction.original > 0 && t('workLedger.theirOwnIdea', { count: skill.distinction.original }),
+                  skill.speed.brisk > 0 && t('workLedger.cameEasily', { count: skill.speed.brisk }),
+                ].filter(Boolean) as string[]
+                return (
+                  <li key={skill.skill_id} className="text-xs leading-snug">
+                    <div className="flex items-baseline gap-2">
+                      {/* min-w-0 for the same reason as the sibling card:
+                          a flex child won't shrink below its longest word
+                          otherwise, and these labels are full sentences. */}
+                      <span className="font-semibold text-gray-700 flex-1 min-w-0">{skill.label}</span>
+                      <span className="text-gray-500 tabular-nums flex-shrink-0">
+                        {t('workLedger.times', { count: skill.completed })}
+                      </span>
+                    </div>
+                    <div className="text-gray-500">
+                      {[
+                        skill.unaided > 0 && t('workLedger.onTheirOwn', { count: skill.unaided }),
+                        skill.with_a_hint > 0 && t('workLedger.afterANudge', { count: skill.with_a_hint }),
+                        skill.with_help > 0 && t('workLedger.together', { count: skill.with_help }),
+                      ].filter(Boolean).join(' · ')}
+                      {notes.length > 0 && <span className="text-sage-700"> · {notes.join(' · ')}</span>}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            {/* Only ever reports a presence. A row of zeros under a heading
+                about initiative would be a verdict on the child, which a
+                caveat underneath does not undo — see WorkLedger.tsx. */}
+            {initiative > 0 && (
+              <p className="mt-2 text-xs text-sage-800 leading-snug">
+                {t('workLedger.initiative', {
+                  notes: [
+                    s.exemplary > 0 && t('workLedger.oneToShow', { count: s.exemplary }),
+                    s.beyond_the_task > 0 && t('workLedger.tookItFurther', { count: s.beyond_the_task }),
+                    s.brisk > 0 && t('workLedger.cameEasily', { count: s.brisk }),
+                  ].filter(Boolean).join(' · '),
+                })}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-gray-500 leading-snug">{t('workLedger.caveat')}</p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+
+// Surfaces lesson continuity in the demo — see CLAUDE.md's "Continuing
+// Mastery (demo)" section. Two things it can show, either independently:
+// (1) the parent-provided currentUnit note (an "outside the built-in
+// curriculum" book/unit the family is already covering — see CodeScreen's
+// currentUnit field above), so a visitor sees Bede is actually anchoring on
+// what they typed, not just its own bundled subjects; (2) a "resume" row
+// per subject already touched this sitting, sourced from the REAL last
+// exchange in that subject (subjectLastExchange, built in runStream above)
+// rather than a synthesized summary — there's no per-subject LLM bookmark
+// call available client-side for the demo the way the real app's
+// LessonBookmark has server-side. Renders nothing when there's neither.
+//
+// This card lives in the <header>, which is `shrink-0` above a `flex-1`
+// chat body — so every row it renders inline is a row taken away from the
+// conversation, permanently, with no scroll of its own to absorb it. The
+// demo hands every visitor all fourteen subjects (_demo_session_config
+// sets subjects=list(Subject)), so the original always-expanded list grew
+// to thirteen rows of unclamped free text: measured at 875px on a 390x844
+// phone, taller than the entire viewport, with the chat pushed off screen
+// entirely. Reported from a real session at three subjects, where it had
+// already taken better than half the screen.
+//
+// So the list is not inline any more. It is a DISCLOSURE: a one-line
+// trigger that always costs the same ~34px no matter how much of the demo
+// has been explored, opening a panel that floats OVER the chat rather than
+// displacing it. Two consequences worth keeping:
+//
+//   - The closed state is a constant, and a small one. Continuity is
+//     advertised ("3 subjects in progress") without being paid for in
+//     screen space until someone actually wants it.
+//   - The open state is unbounded and scrolls, so there is no row cap and
+//     nothing is hidden. An earlier cut of this fix capped the inline list
+//     at three rows and told the visitor where the rest had gone; a panel
+//     with its own scroll makes both the cap and that apology unnecessary,
+//     which is strictly simpler than explaining a limit.
+//
+// TAP, NOT HOVER, and that is not a detail. Bede's learners are on their
+// own tablets and this demo is opened on phones (the report that prompted
+// this came from one). Hover does not exist on touch: a hover-opened panel
+// either never opens, or gets synthesized into a first tap that only
+// reveals and a second that activates — the "double-tap to follow a link"
+// trap. It is also invisible to keyboard and screen-reader users. Nothing
+// else in this demo opens on hover, and this should not be first.
+// `hover:` styling on the trigger is fine and present; hover as the way IN
+// is not.
+
+// Exported for ContinuingMasteryCard.test.tsx — same reason CodeScreen is.
+export function ContinuingMasteryCard({ currentUnit, subjects, activeSubject, subjectLastExchange, onResume }: {
+  currentUnit?: string | null
+  subjects: readonly Subject[]
+  activeSubject: Subject
+  subjectLastExchange: Partial<Record<Subject, { childText?: string; bedeText: string; updatedAt: number }>>
+  onResume: (s: Subject) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  // Most recently touched first, NOT Subject-enum order: this answers
+  // "where was I just now", and enum order would put Morning Time at the
+  // top of a list whose newest entry is Logic.
+  const touched = subjects
+    .filter((s) => s !== activeSubject && subjectLastExchange[s])
+    .sort((a, b) => subjectLastExchange[b]!.updatedAt - subjectLastExchange[a]!.updatedAt)
+
+  // Escape closes and hands focus back to the trigger, so a keyboard user
+  // is never stranded inside the panel. Bound only while open.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // The panel's contents are the reason to open it, so if the last subject
+  // in it becomes the active one there is nothing left to show — close
+  // rather than leaving an empty panel floating over the chat.
+  useEffect(() => {
+    if (touched.length === 0) setOpen(false)
+  }, [touched.length])
+
+  if (!currentUnit && touched.length === 0) return null
+
+  const unitNote = currentUnit ? t('continuingMastery.followingOwnLesson', { unit: currentUnit }) : null
+
+  // Nothing touched yet: the unit note is a single short line and has no
+  // growth problem of its own, so it stays inline. Hiding "Bede is reading
+  // what you typed" behind a tap would cost the demo its best early moment
+  // to save nothing.
+  if (touched.length === 0) {
+    return (
+      <div className="mt-2 border-l-[3px] border-gold-400 bg-gold-50/70 rounded-r-xl px-3 py-2 animate-fade-in">
+        <p className="text-xs text-gray-600 leading-snug">{unitNote}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-2 relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="continuing-mastery-panel"
+        className="w-full flex items-center gap-1.5 border-l-[3px] border-gold-400 bg-gold-50/70 hover:bg-gold-100/70 rounded-r-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-700"
+      >
+        <GraduationCap size={13} className="text-gold-600 flex-shrink-0" aria-hidden="true" />
+        <span className="font-display font-bold text-gray-800">{t('continuingMastery.heading')}</span>
+        <span className="text-gray-600 truncate">{t('continuingMastery.inProgress', { count: touched.length })}</span>
+        {open
+          ? <ChevronUp size={14} className="text-gold-600 flex-shrink-0 ml-auto" aria-hidden="true" />
+          : <ChevronDown size={14} className="text-gold-600 flex-shrink-0 ml-auto" aria-hidden="true" />}
+      </button>
+
+      {open && (
+        <>
+          {/* Dismiss-on-tap-outside. A plain fixed sibling rather than a
+              document listener: no capture-phase ordering to reason about,
+              and it cannot fire on the same tap that opened the panel.
+              aria-hidden + no role, so it adds nothing for a screen reader
+              — Escape and the trigger are the accessible ways out. */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            id="continuing-mastery-panel"
+            className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gold-200 rounded-xl shadow-xl px-3 py-2.5 max-h-[50vh] overflow-y-auto animate-fade-in"
+          >
+            {unitNote && <p className="text-xs text-gray-600 mb-2 leading-snug">{unitNote}</p>}
+            {/* No row cap: the panel floats over the chat and scrolls, so
+                length costs nothing the conversation has to pay for. */}
+            <ul className="flex flex-col gap-2">
+              {touched.map((s) => {
+                const entry = subjectLastExchange[s]!
+                const excerpt = entry.bedeText.length > 100 ? entry.bedeText.slice(0, 100).trimEnd() + '…' : entry.bedeText
+                return (
+                  <li key={s} className="flex items-start gap-2 text-xs leading-snug">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sage-500 mt-1 flex-shrink-0" aria-hidden="true" />
+                    {/* min-w-0 so the clamped excerpt can actually shrink —
+                        a flex child defaults to min-width:auto and would
+                        refuse to go narrower than its longest word, which
+                        is how a long subject name pushes Resume off the
+                        row. */}
+                    <span className="flex-1 min-w-0 text-gray-700">
+                      <span className="font-semibold block">{t(`subjects.${s}`, SUBJECT_LABELS[s])}</span>
+                      <span className="text-gray-500 line-clamp-2">{excerpt}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { onResume(s); setOpen(false) }}
+                      className="text-gold-700 font-semibold hover:text-gold-800 underline flex-shrink-0"
+                    >
+                      {t('continuingMastery.resume')}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Continuous "Voice on" mode's circuit breaker — falls back to hold-to-talk
+// after this many consecutive mic failures rather than looping silently.
+const MAX_CONSECUTIVE_VOICE_FAILURES = 3
+// Defense-in-depth against a rapid restart loop (the exact failure class the
+// earlier "voice mode" bred by restarting on a bare timer) — even though the
+// auto-start effect is driven by state transitions, not a timer, this floor
+// guarantees consecutive auto-starts are never closer together than this.
+const MIN_MS_BETWEEN_AUTO_STARTS = 800
+// How many turns in a row may end with nobody speaking before continuous mode
+// stands down to hold-to-talk.
+//
+// Necessary because the endpoint is what makes silence CHEAP to detect: the
+// mic now gives up after 12s instead of 120s, so without a stop condition an
+// empty room would re-arm the mic, open a streaming session and tear it down
+// again five times a minute, indefinitely. Three is enough to be sure the
+// visitor has actually gone rather than paused between thoughts, and standing
+// down is the honest response — hold-to-talk still works the instant they
+// come back and press it.
+const MAX_CONSECUTIVE_SILENT_TURNS = 3
+
+function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
@@ -578,6 +1025,25 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   )
   const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>(() => restored?.subjectsCompleted ?? [])
   const [messages, setMessages] = useState<DisplayMessage[]>(() => restored?.messages ?? [])
+  // Continuing Mastery card's data source (see the JSX below, right after
+  // the subject picker): the real last exchange in each subject the visitor
+  // has already touched THIS sitting, not a synthesized summary — there's
+  // no per-subject LLM bookmark call available client-side the way the real
+  // app's LessonBookmark has server-side (services/ai_service.py's
+  // generate_session_summary), so "the actual last thing Bede asked" is the
+  // honest, real-content substitute. In-memory only (not persisted to
+  // sessionStorage, unlike `messages` above) — a reload losing this is an
+  // acceptable gap, matching openerFired's own not-fully-restored posture
+  // just above; messages here also aren't tagged with which subject they
+  // belong to, so there'd be nothing reliable to rebuild it from anyway.
+  // The demo's own work ledger, refreshed after each completed turn — the
+  // silent recording tools emit no SSE chunk (deliberately: a child must
+  // not see them fire), so there is nothing to react to in the stream and
+  // a re-read afterwards is the only way to know one landed.
+  const [workLedger, setWorkLedger] = useState<DemoWorkLedger | null>(null)
+  const [subjectLastExchange, setSubjectLastExchange] = useState<
+    Partial<Record<Subject, { childText?: string; bedeText: string; updatedAt: number }>>
+  >({})
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
@@ -622,15 +1088,62 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
   // 'en-US' default — a Spanish session transcribed as English produces
   // garbled transcripts regardless of how well the rest of the UI is
   // translated. Propagates through to the server's Whisper language hint.
-  const { isListening, isTranscribing, interim, isSupported: sttSupported, startHold, release, stop: stopListening, micError, clearMicError } =
+  // Continuous "Voice on" — opt-in, OFF by default for every visitor, and
+  // per-device rather than per-session (see useVoiceModePreference.ts). The
+  // restart is driven by an explicit state transition (Bede's turn actually
+  // finishing), never a bare timer — the specific difference from the
+  // earlier "voice mode" that bred recurring audio bugs.
+  const { setMode: setVoiceMode, isContinuous } = useVoiceModePreference()
+  const consecutiveVoiceFailuresRef = useRef(0)
+  const consecutiveSilentTurnsRef = useRef(0)
+  const lastAutoStartRef = useRef(0)
+  // send() is defined further down (after useHybridVoiceInput, which needs
+  // onFinal above it) — this ref lets continuous mode's onFinal call the
+  // CURRENT send() without a forward-reference error. Same pattern
+  // useHybridVoiceInput.ts itself uses for releaseRef.
+  const sendRef = useRef<(overrideMsg?: string) => void>(() => {})
+
+  const { isListening, isTranscribing, interim, isSupported: sttSupported, start, startHold, release, stop: stopListening, micError, clearMicError, prewarm, cancelPrewarm } =
     useHybridVoiceInput({
       token,
       language: i18n.language === 'es' ? 'es-MX' : 'en-US',
+      // Continuous mode has no explicit release — this is what ends its
+      // turns. Deliberately tied to isContinuous rather than always on: in
+      // hold-to-talk the visitor's own finger is the endpoint, and silence
+      // detection there would cut them off mid-hold. See endpointing.ts.
+      endpointOnSilence: isContinuous,
+      // Silence is not a failure — see the hook's own comment on why it must
+      // not route through micError. It is only worth acting on when it
+      // REPEATS, which means they have gone rather than paused.
+      onSilentTimeout: () => {
+        consecutiveSilentTurnsRef.current += 1
+        logDebug(`continuous voice: silent turn ${consecutiveSilentTurnsRef.current}/${MAX_CONSECUTIVE_SILENT_TURNS}`)
+        if (consecutiveSilentTurnsRef.current < MAX_CONSECUTIVE_SILENT_TURNS) return
+        consecutiveSilentTurnsRef.current = 0
+        setVoiceMode('hold')
+        setMessages((prev) => [...prev, {
+          id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t('chatScreen.voiceModeStoodDown')}`,
+        }])
+      },
       // A walkie-talkie release used to send the moment a transcript was
       // final — now it's held for review instead (see pendingVoiceTranscript
       // above): the child can see exactly what was heard and Send or Cancel
-      // rather than it going to Bede sight-unseen.
-      onFinal: (transcript) => setPendingVoiceTranscript(transcript),
+      // rather than it going to Bede sight-unseen. Continuous "Voice on"
+      // mode is the one exception — the whole point is hands-free, so it
+      // sends straight through (via sendRef) instead of waiting for a review
+      // tap that would defeat the purpose.
+      onFinal: (transcript) => {
+        if (isContinuous) {
+          logDebug(`continuous voice onFinal — auto-sending text="${transcript}"`)
+          consecutiveVoiceFailuresRef.current = 0
+          // They are demonstrably here — a run of silent turns before this
+          // was pauses, not absence.
+          consecutiveSilentTurnsRef.current = 0
+          sendRef.current(transcript)
+        } else {
+          setPendingVoiceTranscript(transcript)
+        }
+      },
     })
 
   // Surface the one mic failure that used to be completely silent: a denied
@@ -642,10 +1155,36 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     const micErrorKey =
       micError === 'permission-denied' ? 'chatScreen.micPermissionDenied'
       : micError === 'no-speech-heard' ? 'chatScreen.micNoSpeechHeard'
+      : micError === 'network' ? 'chatScreen.micNetworkUnavailable'
       : 'chatScreen.micUnavailable'
-    setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t(micErrorKey)}` }])
+    const content = `⚠️ ${t(micErrorKey)}`
+    setMessages((prev) => {
+      // Whatever is wrong with the mic is usually still wrong on the next
+      // press, so an unguarded append stacks the same warning again and
+      // again — a real trace had a dropped connection produce one identical
+      // bubble per attempt, burying the conversation under its own error
+      // message. Only suppress an immediate repeat: once Bede or the child
+      // has said anything since, the same warning is new information again
+      // rather than a duplicate.
+      if (prev[prev.length - 1]?.content === content) return prev
+      return [...prev, { id: `err-${Date.now()}`, role: 'system', content }]
+    })
     clearMicError()
-  }, [micError, clearMicError, t])
+    // In continuous mode this also feeds the circuit breaker: a denied
+    // permission falls back to hold-to-talk immediately (no amount of
+    // retrying will fix a blocked permission), and
+    // MAX_CONSECUTIVE_VOICE_FAILURES other failures in a row does the same,
+    // rather than auto-restarting into the same failure indefinitely.
+    if (!isContinuous) return
+    consecutiveVoiceFailuresRef.current += 1
+    if (micError === 'permission-denied' || consecutiveVoiceFailuresRef.current >= MAX_CONSECUTIVE_VOICE_FAILURES) {
+      consecutiveVoiceFailuresRef.current = 0
+      setVoiceMode('hold')
+      setMessages((prev) => [...prev, {
+        id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${t('chatScreen.voiceModeFallbackMessage')}`,
+      }])
+    }
+  }, [micError, clearMicError, t, isContinuous, setVoiceMode])
 
   // Word-level diff of the live interim transcript, called unconditionally
   // (rules of hooks) even though it's only rendered while isListening &&
@@ -709,8 +1248,91 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     release()
   }
 
+  // Pointer wiring with capture — see holdGesture.ts. Without it, a finger
+  // drifting off this small button fired pointerleave -> holdEnd and ended
+  // the recording mid-sentence. State and callbacks live in refs so one
+  // gesture survives the re-renders startHold() itself triggers.
+  const holdGestureStateRef = useRef({ active: false, captured: false })
+  const holdStartRef = useRef(holdStart)
+  const holdEndRef = useRef(holdEnd)
+  holdStartRef.current = holdStart
+  holdEndRef.current = holdEnd
+  const holdHandlersRef = useRef<ReturnType<typeof createHoldHandlers> | null>(null)
+  if (holdHandlersRef.current === null) {
+    holdHandlersRef.current = createHoldHandlers(
+      {
+        onStart: (e) => holdStartRef.current(e),
+        onEnd: (e) => holdEndRef.current(e),
+      },
+      holdGestureStateRef.current,
+    )
+  }
+  const holdHandlers = holdHandlersRef.current
+
   const awaitingChildTurn =
     !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
+
+  // Open the microphone BEFORE the child presses, not at the press — see
+  // useVoiceRecorder.ts's own prewarm() comment for why a cold getUserMedia()
+  // call issued synchronously at press-time (holdStart -> startHold ->
+  // recorder.startRecording()) already fires as early as a press-time call
+  // can, and so cannot by itself close the gap between "the child starts
+  // talking" and "the mic is actually capturing." A real debug trace showed
+  // transcripts missing their first few words for exactly this reason.
+  //
+  // awaitingChildTurn is the existing "it is genuinely their turn to speak"
+  // signal, so prewarming as soon as it becomes true buys back however long
+  // getUserMedia() itself takes (anywhere from ~0ms to several hundred ms)
+  // before the child ever touches the button. prewarm()/cancelPrewarm() are
+  // read via refs rather than the effect's own dependency array: both are
+  // recreated on every render of useHybridVoiceInput (their own getStream
+  // dependency isn't referentially stable), so depending on them directly
+  // would re-run this effect — and reopen the mic — on every render while
+  // still mid-turn.
+  const prewarmRef = useRef(prewarm)
+  const cancelPrewarmRef = useRef(cancelPrewarm)
+  useEffect(() => {
+    prewarmRef.current = prewarm
+    cancelPrewarmRef.current = cancelPrewarm
+  })
+  useEffect(() => {
+    if (!sttSupported || !awaitingChildTurn) return
+    prewarmRef.current()
+    // Cleanup fires the instant awaitingChildTurn goes false again — either
+    // the child pressed (recorder.startRecording() has already, synchronously,
+    // claimed the prewarmed stream by the time this runs, so cancelPrewarm()
+    // here is a safe no-op) or Bede started speaking/streaming again without
+    // the child ever pressing (a real prewarmed stream that genuinely needs
+    // releasing).
+    return () => cancelPrewarmRef.current()
+  }, [sttSupported, awaitingChildTurn])
+
+  // Continuous "Voice on": once it is genuinely the visitor's turn (the same
+  // awaitingChildTurn signal the hold-to-talk mic's own idle styling uses),
+  // start listening on its own — no press required. Driven entirely by
+  // awaitingChildTurn's own state transitions (which already require
+  // isStreaming/isSpeaking/isListening/isTranscribing/sessionPaused to all be
+  // settled), never a bare timer — the specific difference from the earlier
+  // "voice mode" that auto-restarted on an interval and bred recurring audio
+  // bugs. MIN_MS_BETWEEN_AUTO_STARTS is defense-in-depth against a
+  // rapid-restart loop even so, and the two circuit breakers above stand the
+  // mode down rather than looping into the same failure forever.
+  //
+  // The turn ends on trailing silence (endpointOnSilence, passed above), so
+  // unlike the app before utils/endpointing.ts landed, nothing here holds the
+  // mic open to the 120s ceiling waiting for a release that never comes.
+  const startRef = useRef(start)
+  useEffect(() => { startRef.current = start })
+  useEffect(() => {
+    if (!isContinuous || !sttSupported) return
+    if (!awaitingChildTurn) return
+    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    const now = Date.now()
+    if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
+    lastAutoStartRef.current = now
+    logDebug('continuous voice mode — auto-starting listening for the visitor\'s turn')
+    startRef.current()
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
 
   // The live interim transcript, the "transcribing…" indicator, and the
   // voice-review confirm/cancel card (below) are all rendered inside the
@@ -778,6 +1400,17 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     }
     // Everything this turn has already said — duplicate-suppression reference.
     let turnText = ''
+    // Pictures this turn has already rendered. The server is the real fix
+    // for repeated cards (see homeschool-api's shown_aid_ids), and this is
+    // the same guarantee restated where the rendering actually happens —
+    // `tool` chunks have had isDuplicateUtterance below since the beginning
+    // and `visual_aid` chunks never had anything.
+    //
+    // Per TURN, exactly like the server's, and for the same reason: picture
+    // study is look → put away → narrate, so re-showing a picture in a
+    // LATER turn is the method working. A set that outlived the turn would
+    // silently break that, which is worse than the bug it prevents.
+    const shownAidIds = new Set<string>()
     try {
       for await (const chunk of runChat(subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
         if (chunk.type === 'text') {
@@ -799,8 +1432,16 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             speechSegments.push(chunk.content)
             turnText += ' ' + chunk.content
           }
-        } else if (chunk.type === 'visual_aid') {
-          setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
+        } else if (chunk.type === 'visual_aid' && chunk.visualAid) {
+          // `&& chunk.visualAid` matches SocraticChat.tsx's own guard, and
+          // is load-bearing now in a way it wasn't before: the previous
+          // code only PASSED this object along, so a malformed chunk was
+          // harmless, whereas the dedupe below reads `.id` off it and
+          // would throw. These two files are meant to mirror each other.
+          if (!shownAidIds.has(chunk.visualAid.id)) {
+            shownAidIds.add(chunk.visualAid.id)
+            setMessages((prev) => [...prev, { id: `aid-${Date.now()}-${Math.random()}`, role: 'assistant', content: '', visualAid: chunk.visualAid }])
+          }
         } else if (chunk.type === 'subject_complete') {
           flushPendingSpeech()
           setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: chunk.content, tool: 'subject_complete' }])
@@ -812,6 +1453,26 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
         }
       }
       flushPendingSpeech()
+      // Continuing Mastery card's data source — see subjectLastExchange's
+      // own declaration above. Recorded for every completed turn in this
+      // subject, including the silent [START]/[CONTINUE] sentinels (in
+      // which case childText stays unset and the card just shows Bede's
+      // side) — a real turn always has SOME reply text once we reach here.
+      // Best-effort and deliberately unawaited-for-correctness: a ledger
+      // that lags one turn is fine, a turn that fails because the ledger
+      // did is not.
+      fetchDemoActivity(token).then(setWorkLedger).catch(() => {})
+      const bedeReply = (fullText || turnText).trim()
+      if (bedeReply) {
+        setSubjectLastExchange((prev) => ({
+          ...prev,
+          [subject]: {
+            childText: childMessage === '[START]' || childMessage === IDLE_CONTINUE_SENTINEL ? undefined : childMessage,
+            bedeText: bedeReply,
+            updatedAt: Date.now(),
+          },
+        }))
+      }
       // Fire-and-forget, deliberately not awaited: isSpeaking (a separate,
       // independently-tracked state from useTextToSpeech) already gates the
       // mic/turn-coordination effects below on its own, so nothing else
@@ -907,6 +1568,8 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: fullMsg }])
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
+  // Keep continuous mode's onFinal pointing at the CURRENT send().
+  sendRef.current = send
 
   // Voice review: the child presses Send on the transcript they were just
   // shown, or Cancel to discard it — nothing reaches Bede without one of
@@ -976,7 +1639,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           top-3 right-3, 36px) so this header's own trailing content never
           renders underneath it — the collapsed icon-only button still
           covers a real corner of the viewport, not just page content. */}
-      <header className="bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
+      {/* relative z-30: the Continuing Mastery panel is absolutely
+          positioned inside this header and floats DOWN over the chat body
+          below. The chat wrapper is itself `relative` and carries a z-10
+          break overlay, so without a stacking context above it here, a
+          panel painted from earlier markup would render underneath the
+          conversation it is supposed to cover. */}
+      <header className="relative z-30 bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
         <div className="flex items-center gap-3">
           <img
             src={`${import.meta.env.BASE_URL}bede-icon.webp`}
@@ -1060,6 +1729,14 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             {subjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
           </select>
         </div>
+        <ContinuingMasteryCard
+          currentUnit={currentUnit}
+          subjects={subjects}
+          activeSubject={subject}
+          subjectLastExchange={subjectLastExchange}
+          onResume={setSubject}
+        />
+        <DemoWorkLedgerCard ledger={workLedger} />
       </header>
 
       {/* Chat body + input share one relative wrapper so the mandatory
@@ -1188,15 +1865,28 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
           <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
+          {/* Hold-to-talk vs. hands-free "Voice on" — the preference lives in
+              useVoiceModePreference.ts. Defaults to hold-to-talk for every
+              visitor; tapping this only switches the PREFERENCE, never
+              starts/stops listening itself. */}
           {sttSupported && (
             <button
-              onPointerDown={holdStart}
-              onPointerUp={holdEnd}
-              onPointerLeave={holdEnd}
-              onPointerCancel={holdEnd}
+              onClick={() => setVoiceMode(isContinuous ? 'hold' : 'continuous')}
+              title={t('chatScreen.voiceModeToggleTooltip')}
+              aria-label={isContinuous ? t('chatScreen.voiceModeContinuous') : t('chatScreen.voiceModeHold')}
+              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 ${
+                isContinuous ? 'bg-navy-500 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'
+              }`}
+            >
+              <Radio size={18} />
+            </button>
+          )}
+          {sttSupported && (
+            <button
+              {...holdHandlers}
               disabled={isStreaming || sessionPaused || isTranscribing}
               title={isTranscribing ? t('chatScreen.transcribing') : (isListening ? t('chatScreen.micHoldListening') : t('chatScreen.micHoldToTalk'))}
-              className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
+              className={`p-3 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 touch-none select-none ${isListening ? 'bg-gradient-to-br from-navy-400 to-sage-500 text-white ring-4 ring-sage-200/60 animate-pulse-soft' : awaitingChildTurn ? 'bg-sage-500 text-white animate-pulse-soft ring-2 ring-sage-300' : 'bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40'}`}
             >
               {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
             </button>
@@ -1224,6 +1914,13 @@ function ChatScreen({ displayName, subjects, runChat, token, code, speakToken, h
             onCancel={() => setShowCanvas(false)}
             subject={subject}
             gradeStage={demoGradeStage()}
+            // Whose page this is, for as long as this demo session lasts.
+            // The canvas unmounts every time the visitor goes back to the
+            // chat, so without this the drawing would go with it (see
+            // canvasPersistence.ts). Same session code the chat history
+            // above is already kept under, and like it, kept in this tab
+            // only - nothing here reaches the server.
+            persistKey={code}
           />
         </Suspense>
       )}
@@ -1291,7 +1988,7 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (n: n
               // Brand gold, matching FeedbackModal's own stars for the
               // identical rating widget — Tailwind's default amber read as
               // a different, off-brand yellow next to it.
-              className={n <= value ? 'fill-gold-400 text-gold-500' : 'text-gray-300'}
+              className={n <= value ? 'fill-gold-400 text-gold-500' : 'text-gray-500'}
             />
           </button>
         ))}
@@ -1414,7 +2111,7 @@ function DemoSummaryScreen({ token, config, sessionState, durationMinutes, feedb
   return (
     // Gradient background matches CodeScreen/SessionEndedScreen — this used
     // to be the only end-state screen with a flat fill instead.
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <Sparkles size={32} className="mx-auto mb-3 text-navy-500" />
@@ -2092,7 +2789,7 @@ function FeedbackModal({ token, onClose, initialCategory = 'cx' }: {
                       aria-label={`${n} star${n > 1 ? 's' : ''}`}
                       className="p-0.5"
                     >
-                      <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-300'} />
+                      <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-500'} />
                     </button>
                   ))}
                 </div>
@@ -2185,6 +2882,11 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   const handleLogout = () => {
     logout(token) // fire-and-forget — invalidates server-side immediately
     clearChatState(code)
+    // The drawing goes at the same moment the conversation does. Logging
+    // out is the visitor saying they are finished; leaving their page
+    // behind for the next person on a shared device would contradict both
+    // that and the chat state cleared on the line above.
+    clearCanvasPage(code)
     onLogout()
   }
 
@@ -2226,6 +2928,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
       <ChatScreen
         displayName={config.student_name}
         subjects={config.subjects}
+        currentUnit={config.current_unit}
         runChat={runChat}
         token={token}
         code={code}
@@ -2272,7 +2975,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
 function SessionEndedScreen({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation()
   return (
-    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-navy-50 to-gold-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg border border-navy-100 w-full max-w-sm p-8 text-center">
         <KeyRound size={32} className="text-navy-400 mx-auto mb-3" />
         <h1 className="text-xl font-display font-bold text-gray-800 mb-2">{t('sessionEnded.title')}</h1>

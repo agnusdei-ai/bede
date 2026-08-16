@@ -62,6 +62,27 @@ class AuditEvent:
     TOOL_INVOKED             = "tool.invoked"
     TOOL_CALL_SUPPRESSED     = "tool.call_suppressed"
     ADVERSARIAL_DETECTED     = "adversarial.detected"
+    AGENTIC_LOOP_CAPPED      = "agentic.loop_capped"
+    AI_BACKEND_FAILURE       = "ai_backend.failure"
+    # An external MCP tool ran (services/mcp_client.py). Distinct from
+    # TOOL_INVOKED on purpose: this is the ONLY event in the system marking a
+    # moment when content from outside this process entered model context, and
+    # collapsing it into ordinary tool use would make that indistinguishable
+    # from Bede consulting its own catalog. Parent sandbox only — never a
+    # child's session — so any occurrence at all is worth being able to find.
+    EXTERNAL_TOOL_INVOKED    = "tool.external_invoked"
+    # P8 privileged access. ELEVATION_GRANTED is the one a parent should be
+    # able to scan for: it marks every window in which someone held
+    # management-plane rights on this deployment.
+    ELEVATION_GRANTED        = "elevation.granted"
+    ELEVATION_DENIED         = "elevation.denied"
+    ELEVATION_DROPPED        = "elevation.dropped"
+    # P9 device revocation (core/device_registry.py). DEVICE_LOGIN_BLOCKED
+    # covers both a blocked login attempt AND a per-request rejection of an
+    # already-issued token — either way, someone is trying to use a device
+    # a parent has explicitly revoked.
+    DEVICE_REVOKED           = "device.revoked"
+    DEVICE_LOGIN_BLOCKED     = "device.login_blocked"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -80,6 +101,11 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     AuditEvent.AUTH_FAILURE: (5, 600),
     AuditEvent.TOKEN_FINGERPRINT_MISMATCH: (3, 600),
     AuditEvent.ACCESS_DENIED: (8, 600),
+    # Repeated failed step-ups mean someone holding a live parent session is
+    # guessing at the password. Tighter than AUTH_FAILURE's threshold
+    # because reaching this at all requires an already-authenticated
+    # session, so the benign explanation ("I mistyped") runs out sooner.
+    AuditEvent.ELEVATION_DENIED: (3, 600),
     AuditEvent.VOICE_VERIFY_FAIL: (5, 600),
     AuditEvent.SUSPICIOUS_REQUEST: (1, 1),  # ExfiltrationGuard hits are alert-worthy on their own
     # 3 in 10 min, not 1 — a single moderation flag is routine (a blocked
@@ -92,6 +118,13 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # sit well above that while still catching a scripted abuse pattern
     # or a jailbroken model stuck calling tools in a loop across turns.
     AuditEvent.TOOL_INVOKED: (40, 600),
+    # Far tighter than TOOL_INVOKED's 40. External MCP tools are parent-
+    # sandbox-only, capped at 4 per turn, and reach outside this process for
+    # their content — so a sustained run of them is either a parent working
+    # hard in the sandbox or something using that path to pull external text
+    # into Bede repeatedly, and the second is worth surfacing early. 12 in 10
+    # minutes sits above a real exploratory session without hiding a pattern.
+    AuditEvent.EXTERNAL_TOOL_INVOKED: (12, 600),
     # A single trip of stream_tutor_response's own per-turn tool-call cap
     # (see _MAX_TOOL_CALLS_PER_TURN) is already anomalous by construction —
     # one legitimate turn has never needed this many tool calls — so it
@@ -104,23 +137,62 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # since jailbreak_intent/social_engineering specifically never block a
     # turn on their own and would otherwise generate no other alert signal.
     AuditEvent.ADVERSARIAL_DETECTED: (3, 600),
+    # A device a parent explicitly revoked (P9, core/device_registry.py)
+    # trying repeatedly to log in or continue an already-issued session is
+    # exactly the pattern a parent wants to know about — same tight
+    # threshold as ELEVATION_DENIED, for the same reason: reaching this at
+    # all means someone is actively trying to use hardware that was already
+    # reported lost or compromised.
+    AuditEvent.DEVICE_LOGIN_BLOCKED: (3, 600),
+    # Unlike every rule above — all keyed per-IP, since they're about ONE
+    # actor's behavior — a failing AI backend (local model down, API key
+    # revoked, every configured provider rate-limited) affects the whole
+    # household identically regardless of which device happens to trip it
+    # first. 3 different children on 3 different tablets each hitting one
+    # failure would never individually cross a per-IP threshold even
+    # though the backend is clearly broken. See _GLOBAL_ANOMALY_EVENTS
+    # below — this rule's count is pooled across every IP instead.
+    AuditEvent.AI_BACKEND_FAILURE: (3, 600),
 }
 _ANOMALY_ALERT_COOLDOWN_SECONDS = 1800  # don't re-alert the same (ip, event) pattern for 30 min
+
+from core.encryption import aad_for
+
+_AUDIT_AAD = aad_for("audit_log", "event_enc", "audit")
+
+# Events whose anomaly count is pooled across every caller instead of
+# tracked per-IP (see AI_BACKEND_FAILURE's own comment above) — a
+# reliability signal about the deployment as a whole, not a security
+# pattern from one actor. _GLOBAL_ANOMALY_KEY is a fixed placeholder, not
+# a real IP, used only to key these events' shared window.
+_GLOBAL_ANOMALY_EVENTS = frozenset({AuditEvent.AI_BACKEND_FAILURE})
+_GLOBAL_ANOMALY_KEY = "*"
 
 _anomaly_windows: dict[tuple[str, str], list[float]] = {}
 _anomaly_last_alert: dict[tuple[str, str], float] = {}
 
 
 def _check_anomaly(event: str, ip: str) -> Optional[int]:
-    """Returns the occurrence count if `event` from `ip` just crossed its
-    threshold (and isn't still in cooldown from a prior alert on the same
-    pattern), else None. Not async / has no side effects beyond its own
-    module-level dicts — safe to call synchronously from log_event()."""
+    """Returns the occurrence count if `event` just crossed its threshold
+    (and isn't still in cooldown from a prior alert on the same pattern),
+    else None. Not async / has no side effects beyond its own module-level
+    dicts — safe to call synchronously from log_event().
+
+    For a per-IP rule, "just crossed its threshold" means from that one
+    `ip`; ip="unknown"/"" is skipped outright since there's no actor to
+    attribute a pattern to. For a rule in _GLOBAL_ANOMALY_EVENTS, `ip` is
+    ignored for bucketing purposes (including "unknown", which many
+    internal callers pass by default — see AI_BACKEND_FAILURE call sites)
+    since the whole point is pooling occurrences across every caller.
+    """
     rule = _ANOMALY_RULES.get(event)
-    if rule is None or ip in ("unknown", ""):
+    if rule is None:
+        return None
+    is_global = event in _GLOBAL_ANOMALY_EVENTS
+    if not is_global and ip in ("unknown", ""):
         return None
     threshold, window = rule
-    key = (ip, event)
+    key = (_GLOBAL_ANOMALY_KEY if is_global else ip, event)
     now = time.monotonic()
 
     last_alert = _anomaly_last_alert.get(key)
@@ -143,14 +215,30 @@ async def _fire_anomaly_alert(event: str, ip: str, count: int) -> None:
     """Fire-and-forget: records the alert itself in the audit log (so the
     alert is part of the durable trail, not just implied by the events that
     triggered it) and best-effort emails the parent — same pattern as
-    ai_service.py's safeguarding alert."""
-    from services.email_service import security_alert_configured, send_security_alert
+    ai_service.py's safeguarding alert.
 
+    AI_BACKEND_FAILURE gets its own email (send_backend_failure_alert) —
+    reusing the security-alert template's "unusual activity"/"from
+    address" copy for a reliability problem would be actively misleading
+    (there IS no single culprit address here, see _GLOBAL_ANOMALY_EVENTS
+    above), so this is a genuinely different notice, not a reskin.
+    """
+    from services.email_service import (
+        security_alert_configured,
+        send_backend_failure_alert,
+        send_security_alert,
+    )
+
+    is_global = event in _GLOBAL_ANOMALY_EVENTS
     await log_event(
         AuditEvent.ANOMALY_ALERT, ip=ip, success=True,
-        detail=f"{event} x{count} from {ip}",
+        detail=f"{event} x{count}" if is_global else f"{event} x{count} from {ip}",
     )
-    if security_alert_configured():
+    if not security_alert_configured():
+        return
+    if event == AuditEvent.AI_BACKEND_FAILURE:
+        await send_backend_failure_alert(count)
+    else:
         await send_security_alert(event, ip, count)
 
 
@@ -189,7 +277,15 @@ async def log_event(
         entry["detail"] = detail[:500]
 
     try:
-        blob = encrypt(json.dumps(entry, separators=(",", ":")).encode())
+        # Tier 4 — docs/DATA_CLASSIFICATION.md. audit_log has an
+        # autoincrement id unavailable at insert and is deliberately NOT
+        # student-scoped (the log must outlive any student deletion), so
+        # this binds table and column only. That blocks moving an audit
+        # payload into a different table or column; reordering rows within
+        # the log stays undetected, which is acceptable because an attacker
+        # with the DB write access needed to do it can also just delete or
+        # insert audit rows outright — AAD was never the control for that.
+        blob = encrypt(json.dumps(entry, separators=(",", ":")).encode(), _AUDIT_AAD)
         async with AsyncSessionLocal() as db:
             db.add(AuditLog(event_enc=blob))
             await db.commit()
@@ -243,7 +339,7 @@ async def read_audit_log(db, limit: int = 100) -> list[dict]:
     entries = []
     for row in rows:
         try:
-            entry = json.loads(decrypt(row.event_enc))
+            entry = json.loads(decrypt(row.event_enc, _AUDIT_AAD))
             entries.append({k: v for k, v in entry.items() if k in safe_fields})
         except Exception:
             entries.append({"_corrupt": True})

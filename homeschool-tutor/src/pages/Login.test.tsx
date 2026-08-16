@@ -6,7 +6,7 @@
  * choice on the login POST itself, not just cosmetically.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { fetchAvailableLocales, login } = vi.hoisted(() => ({
@@ -20,6 +20,7 @@ vi.mock('../services/api', async (importOriginal) => {
 })
 
 import i18n from '../i18n'
+import { setLogoutNotice } from '../utils/logoutNotice'
 import Login from './Login'
 
 function renderLogin() {
@@ -33,6 +34,7 @@ function renderLogin() {
 beforeEach(() => {
   fetchAvailableLocales.mockReset()
   login.mockReset()
+  sessionStorage.clear()
 })
 
 afterEach(() => {
@@ -100,5 +102,63 @@ describe('Login language toggle', () => {
     fireEvent.click(screen.getByText('Continue →'))
 
     await waitFor(() => expect(login).toHaveBeenCalledWith('child', '602656', 'en'))
+  })
+})
+
+describe('why you are looking at this screen', () => {
+  // The whole reason utils/logoutNotice.ts exists: an automated logout used
+  // to drop someone here with no explanation, which mid-lesson reads as the
+  // app having crashed.
+  it('says so, in words, after an inactivity logout', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    setLogoutNotice('inactivity')
+    renderLogin()
+
+    await waitFor(() => expect(screen.queryByText(/Logged out due to inactivity/i)).not.toBeNull())
+  })
+
+  it('distinguishes a break logout from an ordinary one', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    setLogoutNotice('break-inactivity')
+    renderLogin()
+
+    // Different situation, different sentence — docs/CHILD_GUIDE.md promises
+    // the child this specific rule, so the notice has to match it.
+    await waitFor(() => expect(screen.queryByText(/during your break/i)).not.toBeNull())
+    expect(screen.queryByText(/Logged out due to inactivity/i)).toBeNull()
+  })
+
+  it('shows nothing at all on an ordinary visit to the login screen', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    renderLogin()
+
+    await waitFor(() => expect(fetchAvailableLocales).toHaveBeenCalled())
+    expect(screen.queryByText(/Logged out/i)).toBeNull()
+    expect(screen.queryByText(/session ended/i)).toBeNull()
+  })
+
+  it('does not re-accuse on the next visit', async () => {
+    // Sign in after being timed out, come back later: the notice is spent.
+    // A message that reappears is worse than none, because it claims
+    // something that isn't true this time.
+    fetchAvailableLocales.mockResolvedValue([])
+    setLogoutNotice('inactivity')
+    renderLogin()
+    await waitFor(() => expect(screen.queryByText(/Logged out due to inactivity/i)).not.toBeNull())
+
+    cleanup()
+    renderLogin()
+    await waitFor(() => expect(fetchAvailableLocales).toHaveBeenCalled())
+    expect(screen.queryByText(/Logged out due to inactivity/i)).toBeNull()
+  })
+
+  it('is translated, not left as a raw key', async () => {
+    fetchAvailableLocales.mockResolvedValue([{ code: 'es', name: 'Spanish (Español)' }])
+    setLogoutNotice('inactivity')
+    i18n.changeLanguage('es')
+    renderLogin()
+
+    await waitFor(() => expect(screen.queryByText(/por inactividad/i)).not.toBeNull())
+    expect(screen.queryByText(/common\.loggedOut/)).toBeNull()
   })
 })

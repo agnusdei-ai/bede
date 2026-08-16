@@ -103,3 +103,29 @@ def test_every_visual_aid_has_required_non_empty_fields():
         assert entry["subject"] in _VALID_SUBJECTS, (
             f"visual aid {entry['id']!r} has subject {entry['subject']!r}, not a real Subject enum value"
         )
+
+
+# ── Composer catalog ─────────────────────────────────────────────────────
+
+def _load_composer_works_raw() -> list[dict]:
+    raw = json.loads((_DATA_DIR / "composer_catalog.json").read_text(encoding="utf-8"))
+    return raw.get("composer_works", [])
+
+
+def test_composer_work_ids_are_unique():
+    entries = _load_composer_works_raw()
+    ids = [e["id"] for e in entries]
+    assert len(ids) == len(set(ids)), "duplicate id in data/composer_catalog.json"
+
+
+def test_every_composer_work_has_required_non_empty_fields():
+    required = (
+        "id", "subject", "composer", "composer_dates", "work_title", "movement",
+        "era", "forces", "composer_bio", "listening_notes",
+    )
+    for entry in _load_composer_works_raw():
+        for field in required:
+            assert entry.get(field), f"composer work {entry.get('id', '?')!r} missing/empty {field!r}"
+        assert entry["subject"] in _VALID_SUBJECTS, (
+            f"composer work {entry['id']!r} has subject {entry['subject']!r}, not a real Subject enum value"
+        )

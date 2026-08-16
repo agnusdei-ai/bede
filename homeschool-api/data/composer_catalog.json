@@ -1,0 +1,41 @@
+{
+  "_comment": "Composer / music-listening catalog for art_music — the Mater Amabilis practice of one composer studied at a time, alongside picture study (see data/visual_aids.json). Metadata and original descriptive listening notes only, never audio itself: Bede has no audio output and must never claim to be playing music (see services/ai_service.py's _get_composer_context, which says so explicitly in the prompt). Composer/work facts (dates, instrumentation, movement order, publication history) verified via Wikipedia and IMSLP entries for each RV-numbered work before being written here — see docs/CONTENT_CONTRIBUTING.md's sourcing standard. All three works are Baroque-era compositions by Antonio Vivaldi (public domain; he died in 1741), chosen for a calm, steady, plucked/bowed-string character well suited to quiet-focus listening alongside handwriting/composition work.",
+  "composer_works": [
+    {
+      "id": "vivaldi_rv93_ii_largo",
+      "subject": "art_music",
+      "composer": "Antonio Vivaldi",
+      "composer_dates": "1678-1741",
+      "work_title": "Lute Concerto in D major, RV 93",
+      "movement": "II. Largo",
+      "era": "Baroque (composed c. 1730-1731)",
+      "forces": "solo lute (often played on classical guitar today), two violins, and basso continuo",
+      "composer_bio": "Antonio Vivaldi was a Venetian Baroque composer, virtuoso violinist, and Catholic priest, nicknamed \"Il Prete Rosso\" (the Red Priest) for his red hair. For much of his career he taught violin and composed for the Ospedale della Pieta, a Venetian charitable institution for orphaned and abandoned girls, famous for its resident orchestra and choir. He wrote over 500 concertos; his best-known work today is The Four Seasons.",
+      "listening_notes": "The quiet middle movement of a three-movement concerto (Allegro giusto - Largo - Allegro). The plucked lute's soft, delicate tone sits over a steady, gently pulsing string accompaniment — listen for how the soloist and strings answer each other in short phrases, almost like a calm conversation."
+    },
+    {
+      "id": "vivaldi_rv45_i_largo",
+      "subject": "art_music",
+      "composer": "Antonio Vivaldi",
+      "composer_dates": "1678-1741",
+      "work_title": "Cello Sonata in B-flat major, RV 45",
+      "movement": "I. Largo",
+      "era": "Baroque (one of nine cello sonatas Vivaldi wrote; six, including this one, were published in Paris in 1740)",
+      "forces": "solo cello and basso continuo (traditionally cello with harpsichord)",
+      "composer_bio": "Antonio Vivaldi was a Venetian Baroque composer, virtuoso violinist, and Catholic priest, nicknamed \"Il Prete Rosso\" (the Red Priest) for his red hair. For much of his career he taught violin and composed for the Ospedale della Pieta, a Venetian charitable institution for orphaned and abandoned girls, famous for its resident orchestra and choir. He wrote over 500 concertos; his best-known work today is The Four Seasons.",
+      "listening_notes": "A spare, two-voice texture: the cello's singing melody over the harpsichord's steady, walking bass line. Listen for how the cello's line rises and falls like a sentence being spoken, and how the two instruments never crowd each other."
+    },
+    {
+      "id": "vivaldi_rv532_ii_andante",
+      "subject": "art_music",
+      "composer": "Antonio Vivaldi",
+      "composer_dates": "1678-1741",
+      "work_title": "Concerto for 2 Mandolins in G major, RV 532",
+      "movement": "II. Andante",
+      "era": "Baroque",
+      "forces": "two solo mandolins, strings, and basso continuo",
+      "composer_bio": "Antonio Vivaldi was a Venetian Baroque composer, virtuoso violinist, and Catholic priest, nicknamed \"Il Prete Rosso\" (the Red Priest) for his red hair. For much of his career he taught violin and composed for the Ospedale della Pieta, a Venetian charitable institution for orphaned and abandoned girls, famous for its resident orchestra and choir. He wrote over 500 concertos; his best-known work today is The Four Seasons.",
+      "listening_notes": "The quiet middle movement of a three-movement concerto (Allegro - Andante - Allegro), one of Vivaldi's rare works featuring the plucked mandolin as soloist — here, a pair of them. Listen for how the two mandolins trade short, repeating phrases back and forth, almost like a musical conversation, over a light string accompaniment."
+    }
+  ]
+}

@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 _DATA_DIR = Path(__file__).parent.parent / "data" / "catalog"
 _VISUAL_AIDS_FILE = Path(__file__).parent.parent / "data" / "visual_aids.json"
 _CATECHISM_FILE = Path(__file__).parent.parent / "data" / "catechism" / "faith_and_life.json"
+_COMPOSER_CATALOG_FILE = Path(__file__).parent.parent / "data" / "composer_catalog.json"
 
 # _CATALOG: year (int) -> {"year": int, "description": str, "books": list[dict]}
 _CATALOG: dict[int, dict] = {}
@@ -34,6 +35,9 @@ _VISUAL_AIDS: dict[str, dict] = {}
 
 # _CATECHISM: grade (str, e.g. "1".."8") -> {"book_title": str, "theme": str, "topics": list[str]}
 _CATECHISM: dict[str, dict] = {}
+
+# _COMPOSER_WORKS: work id (str) -> composer/work entry dict (see data/composer_catalog.json)
+_COMPOSER_WORKS: dict[str, dict] = {}
 
 
 def _load_catalog() -> None:
@@ -95,9 +99,31 @@ def _load_catechism() -> None:
         log.warning("Failed to load catechism file %s: %s", _CATECHISM_FILE, exc)
 
 
+def _load_composer_works() -> None:
+    """Load the curated composer/music-listening catalog for art_music's
+    'one composer at a time' study. See data/composer_catalog.json's own
+    _comment for scope — metadata and original listening notes only, no
+    audio."""
+    if not _COMPOSER_CATALOG_FILE.exists():
+        log.info(
+            "Composer catalog file not found: %s — art_music won't get composer-study context",
+            _COMPOSER_CATALOG_FILE,
+        )
+        return
+    try:
+        with _COMPOSER_CATALOG_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        for entry in data.get("composer_works", []):
+            _COMPOSER_WORKS[entry["id"]] = entry
+        log.info("Composer catalog loaded: %d entries", len(_COMPOSER_WORKS))
+    except (json.JSONDecodeError, KeyError) as exc:
+        log.warning("Failed to load composer catalog file %s: %s", _COMPOSER_CATALOG_FILE, exc)
+
+
 _load_catalog()
 _load_visual_aids()
 _load_catechism()
+_load_composer_works()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -217,6 +243,19 @@ def get_visual_aid(visual_aid_id: str) -> dict | None:
     model-supplied id (or any other field it invents) straight to the client.
     """
     return _VISUAL_AIDS.get(visual_aid_id)
+
+
+def get_composer_works(subject: str) -> list[dict]:
+    """
+    Return curated composer/music-listening entries (see
+    data/composer_catalog.json) — only "art_music" has entries today.
+    Used by ai_service._get_composer_context() to give Bede real,
+    sourced facts about the composer/work of the week instead of
+    reciting details from model memory (the same reasoning behind
+    services/poetry_catalog.py's verbatim text — a model can misstate a
+    date or an instrumentation detail it wasn't given verbatim).
+    """
+    return [w for w in _COMPOSER_WORKS.values() if w.get("subject") == subject]
 
 
 def get_subject_plan(year: int | None, subject: str) -> str | None:

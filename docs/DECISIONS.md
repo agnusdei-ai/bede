@@ -384,6 +384,22 @@ that only fires on human error. That is a security-posture trade rather than
 a tidy-up, which is why it went to the founder instead of being taken in
 passing.
 
+**Not a performance concern — a monitoring artifact (2026-08-16).** Recorded
+because the investigation was opened and closed the same day, and would
+otherwise be opened again. This job appeared to run 20+ minutes on one commit
+and 7 on another with byte-identical lockfiles, which read as alarming
+variance in the live resolve and as a real cost against this entry's decision.
+It was not. GitHub's check-runs API returned stale `in_progress` readings for
+several minutes after each job had already finished, and the step-level
+`get_workflow_job` endpoint reached for as a second opinion returned stale
+data too. The true durations were **6.5 and 9 minutes** — ordinary variance.
+
+Two things follow. The wall-clock cost of comparing against a live resolve is
+not currently a reason to revisit this entry; the decision stands on the
+reasoning above, unchanged. And a duration read off the GitHub API mid-run is
+not evidence — take timings from `completed_at - started_at` after the job
+reports, never from how long a status has appeared to be pending.
+
 
 ---
 
@@ -438,3 +454,43 @@ Portal, oversight and verified access bundle-only, keep the tiers nested, cap
 the visible menu at four, and keep the bundle discount modest. Nothing on
 `site/` changes until the ruling. `docs/PRICING_RESEARCH.md` §6 states what
 beta responses would change it.
+
+---
+
+## 14. `[PRODUCT]` Peer-device capability wire schema (iOS↔Android multi-device)
+
+**Status:** open · needs: a joint schema negotiation between both repos'
+owners — a two-sided design decision, not a solo implementation task
+
+**Opened** because `services/locuto_ipc/capabilities.py`'s `CAPABILITIES = {}`
+has no agreed wire schema in either repo, and `agnusdei-ai/locuto`'s
+`docs/bede-ipc-spec.md` §4 forbids one side inventing it unilaterally. A
+capability negotiation format is an interface contract between two codebases;
+one side authoring it alone is the silent scope-widening this project refuses
+elsewhere.
+
+**What it blocks:** a second physical device acting as a peer for multi-device
+testing. It does **not** block single-device client-path testing, which is
+ready — see `docs/PRODUCTION_SETUP.md`'s tablet setup and the `/trust`
+onboarding page.
+
+**What closing it requires:**
+
+- A joint schema negotiation between both repos' owners.
+- Named capability fields, a versioning strategy, and a rule for what a peer
+  does when it receives a capability it does not recognise — reject cleanly or
+  degrade, the same degrade-and-disclose discipline applied elsewhere in this
+  codebase rather than an unstated default.
+- Test coverage proving **both** the known-capability and unknown-capability
+  paths behave as specified.
+
+**Stop condition, stated because the obvious one is wrong.** This entry closes
+when the schema is agreed in both repos, implemented, and the
+unknown-capability path is proven by test — **not** when `CAPABILITIES` stops
+being empty. An empty dict with an unagreed schema behind it is not the same
+thing as a real, negotiated contract, and a populated dict without one is
+worse: it looks finished.
+
+**Related:** `docs/LOCUTO_CONNECTOR_DECISIONS.md` holds the connector's own
+pre-implementation packets; this entry carries the state, per this register's
+own design-document-points-here rule.

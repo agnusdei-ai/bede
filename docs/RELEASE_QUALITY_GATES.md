@@ -136,3 +136,40 @@ existing `^7.25.0` range, so no dependency change was needed.
 It does not stop a change that is wrong on its own — that is what the tests
 are for. It stops a change that is right on its own and wrong in
 combination, which is the failure that no single PR's CI can see.
+
+---
+
+## Platform verification log — observed, not inferred
+
+**This is a log, not a gate.** Nothing here blocks a merge. It records which
+platforms Bede's client path has actually been *run on* versus which it is
+merely expected to work on, so "we think it works" and "someone watched it
+work" stay distinguishable. That distinction disappears silently otherwise,
+and the first person to discover it is a family.
+
+**Why a log rather than a gate.** Nothing in the client is pinned to an OS
+version, and every platform-sensitive path is feature-detected rather than
+version-checked — `navigator.audioSession` (iOS/iPadOS 17+) is behind a
+capability check with a try/catch, `getUserMedia` is called inside a real user
+gesture, `h-dvh` degrades to ordinary viewport height where unsupported. So a
+new OS build is not presumed broken, and blocking a release on hardware nobody
+owns would be theatre. What is owed instead is an honest record.
+
+**The rule:** an entry moves from *expected* to *verified* only when someone
+ran it on that build and watched the flow. A passing test suite does not move
+an entry — jsdom evaluates no CSS, no media queries and no referrer policy,
+so an entire class of platform behaviour is structurally invisible to it (see
+`HandwritingCanvas.tsx`'s `short:sr-only` fix and
+`tests/test_youtube_embed_referrer.py`, both of which needed a real browser).
+
+| Platform | Status | Note |
+| --- | --- | --- |
+| iOS/iPadOS 15.8 | verified | Older iPad, `.mobileconfig` install path |
+| iOS 26.6 | **expected, not yet observed** | iPhone 15. No WebKit change flagged in that release note that touches this; feature detection is the defence against version drift. Close this the first time someone runs a real session on that build. |
+| Android tablet | expected | Chrome/WebView; the CA install path differs (Settings → Security → Install a certificate) and is documented in `docs/PRODUCTION_SETUP.md`. |
+
+**Multi-device peer testing is not on this table**, and its absence is not an
+untested-platform note. It is blocked on an unbuilt protocol — see
+`docs/DECISIONS.md` entry 14. A verification log records what has not been
+*observed*; entry 14 records what has not been *built*. Recording the second
+as though it were the first would suggest a device could be tested today.

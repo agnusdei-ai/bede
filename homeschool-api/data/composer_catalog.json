@@ -1,5 +1,5 @@
 {
-  "_comment": "Composer / music-listening catalog for art_music — the Mater Amabilis practice of one composer studied at a time, alongside picture study (see data/visual_aids.json). Metadata and original descriptive listening notes only, never audio itself: Bede has no audio output and must never claim to be playing music (see services/ai_service.py's _get_composer_context, which says so explicitly in the prompt). Composer/work facts (dates, instrumentation, movement order, publication history) verified via Wikipedia and IMSLP entries for each RV-numbered work before being written here — see docs/CONTENT_CONTRIBUTING.md's sourcing standard. All three works are Baroque-era compositions by Antonio Vivaldi (public domain; he died in 1741), chosen for a calm, steady, plucked/bowed-string character well suited to quiet-focus listening alongside handwriting/composition work.",
+  "_comment": "Composer / music-listening catalog for art_music — the Mater Amabilis practice of one composer studied at a time, alongside picture study (see data/visual_aids.json). Metadata and original descriptive listening notes only, never audio itself: Bede has no audio output and must never claim to be playing music (see services/ai_service.py's _get_composer_context, which says so explicitly in the prompt). Composer/work facts (dates, instrumentation, movement order, publication history) verified via Wikipedia and IMSLP entries for each RV-numbered work before being written here — see docs/CONTENT_CONTRIBUTING.md's sourcing standard. All three works are Baroque-era compositions by Antonio Vivaldi (public domain; he died in 1741), chosen for a calm, steady, plucked/bowed-string character well suited to quiet-focus listening alongside handwriting/composition work. `stage_notes` gives each work a genuinely different discussion depth per GradeStage (models/schemas.py) — foundations/K-2 stays purely concrete and sensory, core_mastery/3-5 adds structure and 'why' reasoning, independent/6-8 adds vocabulary, history, and cross-work comparison — mirroring services/ai_service.py's own _STAGE_GUIDANCE tiers (Grammar/Logic/Rhetoric) rather than presenting one fixed adult-level note to every grade.",
   "composer_works": [
     {
       "id": "vivaldi_rv93_ii_largo",
@@ -11,7 +11,12 @@
       "era": "Baroque (composed c. 1730-1731)",
       "forces": "solo lute (often played on classical guitar today), two violins, and basso continuo",
       "composer_bio": "Antonio Vivaldi was a Venetian Baroque composer, virtuoso violinist, and Catholic priest, nicknamed \"Il Prete Rosso\" (the Red Priest) for his red hair. For much of his career he taught violin and composed for the Ospedale della Pieta, a Venetian charitable institution for orphaned and abandoned girls, famous for its resident orchestra and choir. He wrote over 500 concertos; his best-known work today is The Four Seasons.",
-      "listening_notes": "The quiet middle movement of a three-movement concerto (Allegro giusto - Largo - Allegro). The plucked lute's soft, delicate tone sits over a steady, gently pulsing string accompaniment — listen for how the soloist and strings answer each other in short phrases, almost like a calm conversation."
+      "listening_notes": "The quiet middle movement of a three-movement concerto (Allegro giusto - Largo - Allegro). The plucked lute's soft, delicate tone sits over a steady, gently pulsing string accompaniment — listen for how the soloist and strings answer each other in short phrases, almost like a calm conversation.",
+      "stage_notes": {
+        "foundations": "Keep it simple and physical: does the music feel fast or slow? Can the child tap the steady beat with a hand? Notice the soft, plucked sound of the lute — what does it remind them of?",
+        "core_mastery": "Point out that a small group of instruments is playing together — see if the child can tell when the lute plays alone versus when the violins join in. Ask why the composer might have chosen a slow (Largo) tempo here instead of a fast one.",
+        "independent": "Introduce basso continuo — the Baroque-era harmonic foundation (here, harpsichord-and-bass-style support) that underlies the whole piece — and ask the child to listen for the lute and violins trading short phrases back and forth (imitation). Discuss why Vivaldi, himself a violin virtuoso, might have chosen to feature the lute, an instrument he didn't play."
+      }
     },
     {
       "id": "vivaldi_rv45_i_largo",
@@ -23,7 +28,12 @@
       "era": "Baroque (one of nine cello sonatas Vivaldi wrote; six, including this one, were published in Paris in 1740)",
       "forces": "solo cello and basso continuo (traditionally cello with harpsichord)",
       "composer_bio": "Antonio Vivaldi was a Venetian Baroque composer, virtuoso violinist, and Catholic priest, nicknamed \"Il Prete Rosso\" (the Red Priest) for his red hair. For much of his career he taught violin and composed for the Ospedale della Pieta, a Venetian charitable institution for orphaned and abandoned girls, famous for its resident orchestra and choir. He wrote over 500 concertos; his best-known work today is The Four Seasons.",
-      "listening_notes": "A spare, two-voice texture: the cello's singing melody over the harpsichord's steady, walking bass line. Listen for how the cello's line rises and falls like a sentence being spoken, and how the two instruments never crowd each other."
+      "listening_notes": "A spare, two-voice texture: the cello's singing melody over the harpsichord's steady, walking bass line. Listen for how the cello's line rises and falls like a sentence being spoken, and how the two instruments never crowd each other.",
+      "stage_notes": {
+        "foundations": "Ask: is this a big group of instruments, or just a couple? Can the child hum along with the cello's tune? Does it sound like a happy story or a calm, quiet one?",
+        "core_mastery": "Point out there are only two instruments here — a cello (melody) and a harpsichord (accompaniment). Ask the child to follow the cello's up-and-down melodic line the way they'd follow a spoken sentence, noticing where it rises and falls.",
+        "independent": "Introduce the term 'sonata' and the slow-fast-slow-fast movement pattern typical of a Baroque church sonata. Ask the child to describe the harpsichord's steady, stepwise 'walking bass' and how it differs in character from the cello's more expressive melody above it."
+      }
     },
     {
       "id": "vivaldi_rv532_ii_andante",
@@ -35,7 +45,12 @@
       "era": "Baroque",
       "forces": "two solo mandolins, strings, and basso continuo",
       "composer_bio": "Antonio Vivaldi was a Venetian Baroque composer, virtuoso violinist, and Catholic priest, nicknamed \"Il Prete Rosso\" (the Red Priest) for his red hair. For much of his career he taught violin and composed for the Ospedale della Pieta, a Venetian charitable institution for orphaned and abandoned girls, famous for its resident orchestra and choir. He wrote over 500 concertos; his best-known work today is The Four Seasons.",
-      "listening_notes": "The quiet middle movement of a three-movement concerto (Allegro - Andante - Allegro), one of Vivaldi's rare works featuring the plucked mandolin as soloist — here, a pair of them. Listen for how the two mandolins trade short, repeating phrases back and forth, almost like a musical conversation, over a light string accompaniment."
+      "listening_notes": "The quiet middle movement of a three-movement concerto (Allegro - Andante - Allegro), one of Vivaldi's rare works featuring the plucked mandolin as soloist — here, a pair of them. Listen for how the two mandolins trade short, repeating phrases back and forth, almost like a musical conversation, over a light string accompaniment.",
+      "stage_notes": {
+        "foundations": "Ask: can the child hear two of the same instrument playing? Do they sound like they're taking turns, almost talking to each other? Is the music loud or soft?",
+        "core_mastery": "Point out the two mandolins trade short, repeated phrases back and forth. Ask the child to listen for an 'echo' — one mandolin playing something, and the other answering with something similar.",
+        "independent": "Discuss why the mandolin — a plucked instrument rarely featured as a soloist in the Baroque era — was an unusual choice for Vivaldi. Ask the child to compare how these two soloists trading phrases differs from the single lute soloist in RV 93, if that work came up earlier this term."
+      }
     }
   ]
 }

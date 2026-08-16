@@ -1479,6 +1479,15 @@ def _get_composer_context(subject: Subject, config: SessionConfig, today: "date 
     teach FROM, not a substitute for the family's own recording, and a
     child hearing "let's listen together" with no sound playing would be a
     real, confusing product bug.
+
+    Which WORK comes up doesn't vary by grade (all three current pieces are
+    equally suitable listening for any age) — but the DEPTH of discussion
+    does, via each entry's stage_notes (data/composer_catalog.json), keyed
+    by GradeStage the same three-way split _STAGE_GUIDANCE already uses
+    elsewhere (Grammar/foundations stays concrete and sensory; Logic/
+    core_mastery adds structure and "why"; Rhetoric/independent adds
+    vocabulary, history, and cross-work comparison) — so this genuinely
+    evolves with the child instead of handing every grade the same note.
     """
     if subject != Subject.art_music:
         return ""
@@ -1495,6 +1504,9 @@ def _get_composer_context(subject: Subject, config: SessionConfig, today: "date 
 
         week = (today or date.today()).isocalendar()[1]
         work = term_works[(week + config.current_term - 1) % len(term_works)]
+        # GradeStage member NAMES ("foundations"/"core_mastery"/"independent")
+        # are the stage_notes keys — not .value ("K-2"/"3-5"/"6-8").
+        stage_note = work.get("stage_notes", {}).get(config.grade_stage.name) or work["listening_notes"]
 
         term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
         return f"""
@@ -1508,6 +1520,8 @@ This week: "{work['work_title']}", {work['movement']} ({work['era']}), scored fo
 {work['composer_bio']}
 
 {work['listening_notes']}
+
+For this child's stage: {stage_note}
 
 You have no audio output and cannot play this or any recording — never say or imply that you are
 playing music or that you and the child are listening together right now. If the family has this

@@ -131,6 +131,20 @@ it's playing music. Which composer is featured rotates by term
 as picture study's `_TERM_ARTISTS`); which of that composer's works comes
 up rotates weekly off the calendar, same mechanism as poetry/prayer below.
 
+`listening_notes` is one general note shared by every grade; `stage_notes`
+is where grade-by-grade progression actually lives — three required keys,
+one per `GradeStage` **member name** (`foundations`/`core_mastery`/
+`independent` — not the enum's `"K-2"`/`"3-5"`/`"6-8"` *value*, which
+`_get_composer_context` deliberately does not key by), each pitched at
+that stage's depth the same way `_STAGE_GUIDANCE` already frames every
+subject: foundations stays concrete and sensory (fast/slow, loud/soft,
+"can you tap the beat?"), core_mastery adds structure and "why" ("why a
+slow tempo here?"), independent adds vocabulary, history, and comparison
+across the term's other works. The same piece is used at every stage —
+the depth of what Bede asks about it is what evolves, not the piece
+itself, since a Baroque chamber movement's tempo/character doesn't need
+gating by grade the way, say, sensitive book content might.
+
 ```json
 {
   "id": "vivaldi_rv93_ii_largo",      // unique — mirrors visual_aids.json's id convention
@@ -142,7 +156,12 @@ up rotates weekly off the calendar, same mechanism as poetry/prayer below.
   "era": "Baroque (composed c. 1730-1731)",
   "forces": "solo lute (often played on classical guitar today), two violins, and basso continuo",
   "composer_bio": "...",              // shared verbatim across a composer's entries
-  "listening_notes": "..."            // original prose Bede teaches from — not a quoted source
+  "listening_notes": "...",           // original prose Bede teaches from — not a quoted source
+  "stage_notes": {                    // REQUIRED — all three GradeStage member names, all non-empty
+    "foundations": "...",             // K-2: concrete, sensory
+    "core_mastery": "...",            // 3-5: structure, "why"
+    "independent": "..."              // 6-8: vocabulary, history, comparison
+  }
 }
 ```
 
@@ -197,7 +216,11 @@ same review bar as anything else in that file.
 the rest of the backend test suite) and checks, across every catalog file:
 every book/visual-aid/composer-work ID is globally unique, every entry has
 its required fields non-empty, every `subject` value is a real `Subject`
-enum member, and every catechism grade key is a plausible `"1"`–`"8"` string. It exists
-so a future content PR — from you, or a future Claude Code session — fails
-loudly in CI on a malformed entry instead of silently shipping a broken
-lookup.
+enum member, every catechism grade key is a plausible `"1"`–`"8"` string,
+and every composer-work entry has all three `stage_notes` (`foundations`/
+`core_mastery`/`independent`) present and non-empty — so a content PR that
+adds a work but forgets one grade band's discussion depth fails in CI
+instead of silently falling back to the generic `listening_notes` for that
+stage. It exists so a future content PR — from you, or a future Claude
+Code session — fails loudly in CI on a malformed entry instead of silently
+shipping a broken lookup.

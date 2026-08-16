@@ -270,6 +270,13 @@ music is playing. Which composer is featured follows the same **Term**
 dropdown as picture study; which of that composer's pieces comes up
 rotates weekly on its own, same as the poem and prayer above.
 
+The same piece comes up regardless of your child's grade, but how Bede
+talks about it grows with them, the same way it already paces every other
+subject to your child's stage: a K-2 child gets simple, physical questions
+("does it feel fast or slow? can you tap the beat?"), a 3rd-5th grader
+starts noticing structure and asking why, and a 6th-8th grader gets real
+vocabulary, historical context, and comparisons across the term's pieces.
+
 **Composition is encouraged, never required.** At least once per session,
 Bede invites your child to spend about ten minutes on a piece of their own
 handwritten work — a written narration, a nature journal entry, math worked

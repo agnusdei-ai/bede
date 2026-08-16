@@ -162,41 +162,45 @@ so an entire class of platform behaviour is structurally invisible to it (see
 `HandwritingCanvas.tsx`'s `short:sr-only` fix and
 `tests/test_youtube_embed_referrer.py`, both of which needed a real browser).
 
-### Minimum supported version — a policy floor, not an observation
+### No version floor — support tracks Apple's own catalog
 
-**iOS/iPadOS 15.6 is the minimum supported version** (stated 2026-08-16).
-Below it, Bede is not supported on that device; no claim is made either way
-about whether it happens to work.
+**There is no minimum OS version.** A fixed floor was briefly recorded here
+(iOS/iPadOS 15.6, 2026-08-16) and is **superseded** — see `docs/DECISIONS.md`
+entry 16.
 
-This is a **different kind of statement** from every row in the table below,
-and the two are deliberately not merged. A support floor is a decision about
-what this project will stand behind. A verified row is a report that someone
-watched it work. They can disagree in both directions, and here they do: the
-floor is 15.6 and the lowest version actually observed is 15.8, so **15.6 and
-15.7 are supported but unobserved**. Collapsing the two would either
-overclaim (calling 15.6 verified when nobody has run it) or underclaim
-(refusing support for versions we intend to support).
+What replaces it is a rule rather than a number: Bede supports the OS versions
+**the platform vendor itself still supports**. Apple's own currently-supported
+list is the reference, so the set moves when Apple moves it, without anyone
+here restating a version. That is what keeps this open-ecosystem rather than
+anchored to whatever hardware happened to be on a desk when a number was
+written down.
 
-**Why 15.6 specifically is not recorded here** — the version was set by
-decision, not derived from a WebKit feature this codebase can point at. If
-there is a concrete reason (an API floor, a device generation, a customer
-commitment), it belongs beside the number; a floor whose rationale is lost
-cannot be revisited later without redoing the work that set it.
+**Why a number was the wrong instrument.** A named floor ages in one
+direction only: it accumulates legacy commitments and never sheds them, so a
+version chosen once quietly becomes a promise about hardware the vendor has
+itself stopped supporting. That is a bias toward legacy devices dressed as a
+compatibility guarantee, and it competes directly with staying current with
+what Apple actually ships.
 
-**Nothing in the code enforces this, and that is the decision rather than an
-omission** (ruled 2026-08-16). There is no version gate, no user-agent sniff,
-and none should be added — see `docs/DECISIONS.md` entry 15. A device below
-the floor is not turned away; it runs, and each capability it lacks degrades
-on its own feature check.
+**Nothing in the code enforces any of this, and that is deliberate** (see
+`docs/DECISIONS.md` entry 15). There is no version gate and no user-agent
+sniff; a device outside the supported set is not turned away, it runs and each
+capability it lacks degrades on its own feature check. Removing the floor
+therefore changes what this project *says*, not what any device *does*.
 
 Verified rather than assumed: the only reads of `navigator.userAgent` in
 either frontend are the diagnostic log lines in `hooks/diagnostics.ts` and its
 demo mirror. Nothing anywhere branches on a platform or a version.
 
+**The table below records observations, never commitments.** A row saying a
+version was run on is a report that someone watched it work, and it implies no
+undertaking to keep supporting it. Old entries are kept because deleting a
+true observation would be erasing a fact — but they are not promises, and they
+are not ordered to suggest one.
+
 | Platform | Status | Note |
 | --- | --- | --- |
-| iOS/iPadOS 15.6 | supported, not observed | The stated floor — see above. |
-| iOS/iPadOS 15.8 | verified | Older iPad, `.mobileconfig` install path. Lowest version actually run on. |
+| iOS/iPadOS 15.8 | observed (historical) | An older iPad, `.mobileconfig` install path. A past observation, not a support commitment — see above. |
 | iOS 26.6 | **expected, not yet observed** | iPhone 15. No WebKit change flagged in that release note that touches this; feature detection is the defence against version drift. Close this the first time someone runs a real session on that build. |
 | Android tablet | expected | Chrome/WebView; the CA install path differs (Settings → Security → Install a certificate) and is documented in `docs/PRODUCTION_SETUP.md`. |
 

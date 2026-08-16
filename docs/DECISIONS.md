@@ -577,3 +577,46 @@ question is moot — there is no longer a number needing one.
 relabelled as historical observations rather than support statements, because
 deleting a true observation would be erasing a fact rather than removing a
 commitment.
+
+---
+
+## 17. `[PRODUCT]` Whether Bede ships releases, or delivers continuously from `main`
+
+**Status:** open · needs: a founder ruling — it decides how every existing
+family receives updates, so it is not a tidy-up
+
+**Today's answer is "continuously from `main`", by default rather than by
+decision.** That is what this entry exists to convert into a choice.
+`docs/RELEASE_QUALITY_GATES.md`'s opening section states the mechanics and
+the evidence; in short, all four Bede services are `build:` rather than
+`image:`, nothing is published to a registry, and `make update` is
+`git pull` plus a rebuild. A family runs whatever `main` was when they typed
+it. No tag has ever been cut, there is no `CHANGELOG`, and the `1.0.0` in both
+`package.json` files is read by nothing.
+
+**Continuous-from-`main` is a legitimate choice for this product**, not an
+oversight to correct on sight. There is no registry to publish to, no binary
+to sign for most of the stack, and a self-hosted family rebuilding from source
+gets fixes the day they land. The cost is that there is **no moment between
+merged and shipped** — no staging period in which anything could be caught —
+which is why the merge gate is a release gate here and why the periodic proofs
+listed in that document are load-bearing rather than nice to have.
+
+**Tagged releases would cost more than a tag.** `make update` would have to
+check out a tag rather than pull `main`, which changes the update path for
+every family already running Bede. Cutting tags *without* that change is the
+option to refuse outright: it produces a version number nothing reads, which
+is the "config that looks maintained but silently isn't" failure this
+repository has shipped twice — the 22 settings `docker-compose.yml` never
+passed through, and `DiagnosticEvidenceLog`'s docstring contradicting its
+design doc for four phases.
+
+**What would make tagging worth it**, so the ruling has something to weigh:
+a support conversation needing "which version are you on" to be answerable;
+a paid tier whose licence terms reference a release; a change that cannot be
+rolled forward safely and needs families held back; or an installer
+distribution where the artifact and the source can drift.
+
+**Related:** the `1.0.0` in both `package.json` files should either start
+meaning something or be recognised as decorative under whichever model wins —
+today it is neither read nor updated.

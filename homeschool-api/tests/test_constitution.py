@@ -41,6 +41,11 @@ def test_real_constitution_verifies_and_matches_pinned_digest():
     assert len(c["moral_law"]["commandments"]) == 10
     assert len(c["moral_law"]["great_commandments"]) == 2
     assert "spiritual advisor" in c["moral_law"]["function"]
+    joined_faith_scope = " ".join(c["faith_content_scope"]["applies_when"])
+    assert "Morning Time" in joined_faith_scope
+    assert "Scripture & Bible Study" in joined_faith_scope
+    assert "Saints & Catechism" in joined_faith_scope
+    assert "does not seek assent" in c["faith_content_scope"]["posture"]
 
 
 def test_constitution_is_recursively_read_only():
@@ -163,6 +168,26 @@ def test_missing_spiritual_advisor_limit_is_rejected():
         _validate_structure(data)
 
 
+def test_faith_content_scope_missing_a_subject_is_rejected():
+    """A future edit that drops or renames one of the three faith subjects
+    — rather than genuinely adding a fourth — must fail closed instead of
+    silently narrowing where explicit faith content may appear."""
+    data = _valid_data()
+    data["faith_content_scope"]["applies_when"] = [
+        cond.replace("Scripture & Bible Study, or Saints & Catechism", "Saints & Catechism")
+        for cond in data["faith_content_scope"]["applies_when"]
+    ]
+    with pytest.raises(ConstitutionIntegrityError, match="Scripture & Bible Study"):
+        _validate_structure(data)
+
+
+def test_faith_content_scope_missing_the_non_proselytizing_posture_is_rejected():
+    data = _valid_data()
+    data["faith_content_scope"]["posture"] = "Bede teaches this content."
+    with pytest.raises(ConstitutionIntegrityError, match="does not seek assent"):
+        _validate_structure(data)
+
+
 # ── Wired into all four prompt-building call sites (services/ai_service.py) ──
 
 from models.schemas import ChatMessage, GradeStage, SessionConfig, SessionSummaryRequest, Subject  # noqa: E402
@@ -187,6 +212,12 @@ def test_tutor_persona_prompt_includes_the_moral_law_and_its_scope_limit():
     assert "never a spiritual advisor" in prompt
 
 
+def test_tutor_persona_prompt_includes_the_faith_content_scope():
+    prompt = ai_service._build_static_prompt(_config())
+    assert "Scripture & Bible Study" in prompt
+    assert "does not seek assent" in prompt
+
+
 def test_sandbox_prompt_includes_constitution():
     assert "<constitution>" in ai_service._build_sandbox_prompt("")
     assert "<constitution>" in ai_service._build_sandbox_prompt("custom test instructions")
@@ -209,6 +240,31 @@ async def test_session_summary_system_prompt_includes_constitution():
         await ai_service.generate_session_summary(req)
 
     assert "<constitution>" in mock_create.await_args.kwargs["system"]
+
+
+# ── docs/CONSTITUTION.md agrees with the canonical, digest-pinned JSON ───────
+#
+# core/constitution.py's own module docstring calls docs/CONSTITUTION.md
+# "the human-readable version" of constitution/bede.constitution.json — but
+# nothing previously checked the two actually said the same thing. They
+# didn't: the doc's faith_content_scope paragraph named only Morning Time
+# and Saints & Catechism, missing Subject.scripture entirely, because it
+# predates that subject's addition. Same "same fact lives twice, add a test
+# that they agree" pattern as homeschool-tutor/src/i18n/docQuotes.test.ts.
+
+def _constitution_doc_text() -> str:
+    from pathlib import Path
+    doc_path = Path(__file__).resolve().parent.parent.parent / "docs" / "CONSTITUTION.md"
+    return doc_path.read_text(encoding="utf-8")
+
+
+def test_docs_constitution_names_all_three_faith_subjects():
+    doc = _constitution_doc_text()
+    flattened = " ".join(doc.split())
+    assert "Morning Time" in flattened
+    assert "Scripture & Bible Study" in flattened
+    assert "Saints & Catechism" in flattened
+    assert "does not seek assent" in flattened
 
 
 @pytest.mark.asyncio

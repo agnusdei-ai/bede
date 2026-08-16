@@ -183,9 +183,15 @@ there is a concrete reason (an API floor, a device generation, a customer
 commitment), it belongs beside the number; a floor whose rationale is lost
 cannot be revisited later without redoing the work that set it.
 
-Nothing in the code enforces this. It is a statement of intent, and the
-feature-detection posture described above is what actually determines
-behaviour on any given build.
+**Nothing in the code enforces this, and that is the decision rather than an
+omission** (ruled 2026-08-16). There is no version gate, no user-agent sniff,
+and none should be added — see `docs/DECISIONS.md` entry 15. A device below
+the floor is not turned away; it runs, and each capability it lacks degrades
+on its own feature check.
+
+Verified rather than assumed: the only reads of `navigator.userAgent` in
+either frontend are the diagnostic log lines in `hooks/diagnostics.ts` and its
+demo mirror. Nothing anywhere branches on a platform or a version.
 
 | Platform | Status | Note |
 | --- | --- | --- |

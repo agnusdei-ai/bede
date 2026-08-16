@@ -83,6 +83,25 @@ CURRICULUM_RESOURCE_SUGGESTIONS = [
     "Institute for Excellence in Writing", "RightStart Mathematics", "Logic of English",
 ]
 
+# Character-virtue quick-pick suggestions for SessionConfig.character_virtues
+# — NOT a closed enum, same "suggestion, not allowlist" treatment as
+# CURRICULUM_RESOURCE_SUGGESTIONS/faith_tradition above; a family's or
+# school's own entry outside this list is kept exactly as typed. This
+# particular eight-virtue list and order was supplied by a parent from
+# their own charter-school character-formation program; kept general here
+# (courage, humility, wonder, honesty, gratitude, perseverance, and
+# kindness recur across many classical/character-education frameworks, not
+# proprietary to any one program) so any family can use these quick-picks
+# regardless of which school, co-op, or program they belong to. See
+# services/ai_service.py's _character_virtues_note for the framing rules —
+# occasional, natural, and never a rating of the child, the same standing
+# refusal that keeps LearnerBehaviorCheck's counters from ever becoming a
+# measure of a child's faith engagement, applied here to character.
+CHARACTER_VIRTUE_SUGGESTIONS = [
+    "Courage", "Humility", "Wonder", "Attentiveness",
+    "Honesty", "Gratitude", "Perseverance", "Kindness",
+]
+
 
 def grade_to_stage(grade: str) -> GradeStage:
     """Maps a grade string to its Mater Amabilis-aligned stage (see
@@ -333,6 +352,18 @@ class SessionConfig(BaseModel):
     # treating them as anything beyond a name to align tone with would risk
     # fabricating claims about content Bede was never actually given.
     curriculum_resources: List[str] = Field(default_factory=list)
+    # A family's or school's own character-formation framework — the
+    # virtues they want Bede to notice and weave into ordinary subject
+    # dialogue (see CHARACTER_VIRTUE_SUGGESTIONS above and
+    # services/ai_service.py's _character_virtues_note). Framing guidance
+    # only, like curriculum_resources — and, like learning_support, never
+    # a metric: see _character_virtues_note for why Bede never scores,
+    # tracks, or tells a child which virtue they did or didn't show in a
+    # moment. Same "clean, never reject" convention as
+    # curriculum_resources/learning_support above; capped higher (12)
+    # since a family may list both a school's own named program (commonly
+    # six to eight virtues) and a few of their own.
+    character_virtues: List[str] = Field(default_factory=list)
     # What helps THIS child, stated by the parent — never inferred by Bede,
     # and never a diagnosis. See LEARNING_SUPPORT_SUGGESTIONS above and
     # services/ai_service.py's _learning_support_note for the governing
@@ -471,6 +502,20 @@ class SessionConfig(BaseModel):
             if cleaned and cleaned.lower() not in seen:
                 seen[cleaned.lower()] = cleaned
         self.curriculum_resources = list(seen.values())[:6]
+        return self
+
+    @model_validator(mode="after")
+    def _validate_character_virtues(self):
+        """Same clean-never-reject shape as _validate_curriculum_resources
+        above — capped at 12 rather than 6, since a family may list both a
+        school's own named program (commonly six to eight virtues) and a
+        few of their own."""
+        seen: dict[str, str] = {}
+        for entry in self.character_virtues or []:
+            cleaned = entry.strip()[:40] if entry else ""
+            if cleaned and cleaned.lower() not in seen:
+                seen[cleaned.lower()] = cleaned
+        self.character_virtues = list(seen.values())[:12]
         return self
 
     @model_validator(mode="after")

@@ -689,6 +689,24 @@ break every hour for every child, but it will not tell you that your
    phonogram approach), but it never claims to know or reproduce that
    publisher's actual lesson content, since Bede was never given their
    materials to draw from.
+
+   Right below it is a **Character Virtues Your School Emphasizes** field:
+   also always available, also not tied to any one subject. If your
+   family belongs to a school, co-op, or program with its own named
+   character-formation framework, type in (or click a quick-pick chip for)
+   the virtues it emphasizes — Courage, Humility, Wonder, Attentiveness,
+   Honesty, Gratitude, Perseverance, Kindness are offered as a starting
+   point, but this is not a closed list; type your own if your program
+   names different ones. Bede will occasionally connect what's already
+   being studied to one of these — a historical figure's Courage, the
+   Wonder a discovery invites — the way it already does for faith
+   connections, when a lesson genuinely offers a natural opening. It is a
+   lens for talking about the material, never a rating of your child:
+   Bede does not score, track, or tell your child whether they personally
+   showed one of these virtues in a given moment, and this list is
+   entirely separate from Bede's own constitution (the theological virtues
+   and gifts of the Holy Spirit that govern Bede's own conduct — see
+   `docs/CONSTITUTION.md`).
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child). This makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`

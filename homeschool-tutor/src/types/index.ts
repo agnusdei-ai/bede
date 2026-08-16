@@ -54,6 +54,14 @@ export interface SessionConfig {
   // panel; Bede aligns terminology/approach where it naturally overlaps,
   // never claiming to reproduce a named publisher's actual content.
   curriculum_resources?: string[]
+  // A family's or school's own character-formation framework — the virtues
+  // Bede should notice and occasionally weave into subject dialogue (see
+  // CHARACTER_VIRTUE_SUGGESTIONS below). Mirrors the backend's
+  // SessionConfig.character_virtues; see the backend's
+  // _character_virtues_note for the governing rules — framing only, never
+  // a rating of the child, and never the same thing as the constitution's
+  // own theological virtues.
+  character_virtues?: string[]
   // What the PARENT says helps this child — never inferred by Bede, never a
   // diagnosis. Mirrors the backend's SessionConfig.learning_support; see
   // LEARNING_SUPPORT_SUGGESTIONS below and the backend's
@@ -171,6 +179,14 @@ export const LEARNING_SUPPORT_SUGGESTIONS = [
 export const CURRICULUM_RESOURCE_SUGGESTIONS = [
   'Memoria Press', 'Classical Academic Press', 'Well-Trained Mind Press',
   'Institute for Excellence in Writing', 'RightStart Mathematics', 'Logic of English',
+] as const
+
+// Quick-pick suggestions for SessionConfig.character_virtues — mirrors
+// homeschool-api/models/schemas.py's CHARACTER_VIRTUE_SUGGESTIONS. Not a
+// closed list — a family's or school's own entry is kept as typed.
+export const CHARACTER_VIRTUE_SUGGESTIONS = [
+  'Courage', 'Humility', 'Wonder', 'Attentiveness',
+  'Honesty', 'Gratitude', 'Perseverance', 'Kindness',
 ] as const
 
 // Foundational core areas tracked term-by-term — mirrors

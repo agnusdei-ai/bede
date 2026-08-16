@@ -1734,6 +1734,67 @@ def _curriculum_resources_note(config: SessionConfig) -> str:
     )
 
 
+def _character_virtues_note(config: SessionConfig) -> str:
+    """
+    A family's or school's own character-formation framework
+    (SessionConfig.character_virtues — see CHARACTER_VIRTUE_SUGGESTIONS in
+    models/schemas.py for the seed list ParentSetup.tsx offers as quick
+    picks; a family's own free-text entry outside that list is honored the
+    same way). Session-long framing, like _curriculum_resources_note —
+    these virtues aren't specific to any one subject, so this belongs in
+    the static block rather than being gated to a Subject.
+
+    THIS IS A FRAMING LENS FOR SUBJECT CONTENT, NOT A BEHAVIOURAL
+    EVALUATION OF THE CHILD. Bede is told to occasionally connect what's
+    already being studied to one of these virtues in age-appropriate
+    Socratic terms (how a scientist showed Perseverance, what Wonder a
+    discovery invites) — never every turn, never recited as a checklist,
+    never forced into a lesson it doesn't naturally fit.
+
+    THE RULE THIS NOTE EXISTS TO PROTECT: Bede never rates, scores,
+    tracks, or tells a child whether they are or aren't displaying one of
+    these virtues in a given moment. That would turn a family's character
+    framework into exactly the kind of black-box judgment of a child this
+    app has repeatedly refused to build elsewhere — see CLAUDE.md's
+    standing rule against ever measuring a child's spiritual engagement
+    (docs/CONSTITUTION.md), and services/diagnostic/activity.py's own
+    refusal to emit a rating, level, or score for anything it observes.
+    Character is not a subject-mastery skill with evidence to log; there
+    is no record_virtue_evidence tool, and there must never be one.
+
+    DELIBERATELY A DIFFERENT NAMESPACE FROM THE CONSTITUTION'S OWN
+    THEOLOGICAL VIRTUES. The constitution (docs/CONSTITUTION.md) already
+    names Faith, Hope, and Love and the seven gifts of the Holy Spirit as
+    governing BEDE'S OWN conduct — this note is not that, and never
+    presents a family's/school's own character list as though it were
+    drawn from or equivalent to the constitution's theological framework.
+    A family may set both a school's named virtues here and, separately,
+    enable connect_to_faith through Morning Time/Scripture/Saints; the two
+    are independent and neither one substitutes for the other.
+
+    Sanitized like every other parent-supplied free-text field
+    (_sanitize_parent_field) — it sits in the cached static block for the
+    whole session, which is exactly the class of field that rule exists for.
+    """
+    virtues = [_sanitize_parent_field(v, max_len=40) for v in (config.character_virtues or [])]
+    virtues = [v for v in virtues if v]
+    if not virtues:
+        return ""
+    joined = ", ".join(virtues)
+    return (
+        f"\n\nThis family/school wants you to notice and weave in these character virtues: {joined}. "
+        "When a lesson genuinely offers a natural opening — a historical figure's Courage, a "
+        "scientist's Perseverance, the Wonder a discovery invites, the Honesty a story's character "
+        "shows — name the connection briefly in your own Socratic voice and let the child think about "
+        "it, the way you already do for faith connections. Do this occasionally, never every turn, and "
+        "never force a virtue into content it doesn't naturally fit. Never turn this into a checklist "
+        "you recite, and never rate, score, track, or tell the child whether they personally are or "
+        "aren't showing one of these virtues right now — that is not a judgment this software makes "
+        "about a child, in this or any other form. This list is separate from your own constitution's "
+        "theological virtues and gifts of the Holy Spirit — never present the two as the same thing."
+    )
+
+
 def _constitution_preamble() -> str:
     """
     Renders Bede's verified, tamper-evident constitution (core/constitution.py)
@@ -1947,7 +2008,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_learning_support_note(config)}{_curriculum_resources_note(config)}
+{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_learning_support_note(config)}{_curriculum_resources_note(config)}{_character_virtues_note(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \

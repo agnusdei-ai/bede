@@ -384,3 +384,57 @@ that only fires on human error. That is a security-posture trade rather than
 a tidy-up, which is why it went to the founder instead of being taken in
 passing.
 
+
+---
+
+## 13. `[COMMERCIAL]` Whether the membership is broken into à la carte components
+
+**Status:** open · needs: a founder ruling, informed by beta pricing responses
+(`docs/BETA_SURVEY.md`'s price-and-unit questions)
+
+Entry 10 sells one Family Membership carrying five things — Bede Tutor, Locuto
+messaging, the Family Portal, parent tools and oversight, and verified access.
+The question is whether those should also be purchasable separately.
+
+**The evidence lives in [docs/PRICING_RESEARCH.md](PRICING_RESEARCH.md)**, per
+this register's own rule that the design document carries the argument and the
+register carries the state. That document names eleven studies, states each
+one's evidence class, and states where each stops.
+
+**Why this is `open` rather than closed on the research.** Every model in that
+literature turns on the distribution of household reservation prices across the
+five components and how those valuations correlate, and nobody has measured
+that for Bede. The literature narrows the shape of the answer; it cannot supply
+the number. The measurement that would settle it is already commissioned —
+`docs/BETA_SURVEY.md`'s price-and-unit questions — which is what this entry
+waits on.
+
+**What the research does narrow**, each point sourced in the research document:
+
+- A flat à la carte grid is the one option ruled out (§3.1).
+- The strongest finding points at a middle path: where consumers do not value
+  every component positively, "pick N of J" beats both pure bundling and
+  individual sale, and that holds under incomplete information about
+  reservation values, which is our state (§3.2).
+- Bede's own asymmetry — Locuto has network externality, the tutor has none —
+  has a named optimum: the bundle plus exactly one standalone, which fixes both
+  the count and the identity of the component to unbundle (§3.3).
+- Tiers should nest rather than fan out (§3.4); per-family pricing survives
+  (§3.5); any bundle discount should stay modest (§3.6).
+- "A menu would confuse parents" is not supported by the evidence; the real cap
+  on menu size is menu cost (§3.7).
+- Two findings cut the other way and are recorded as such (§4).
+
+**Two components are outside the economics.** Parent tools and oversight, and
+verified access, are not features to be priced off. A membership with the
+guardrails removed makes the safety posture a paid upgrade, which
+`docs/CONSTITUTION.md`'s non-negotiable rules do not leave open as a commercial
+option. They stay in every membership at every tier whatever this entry
+resolves to.
+
+**The recommendation awaiting a ruling:** keep the Family Membership as the
+headline, add exactly one standalone (Bede Tutor), keep Locuto, the Family
+Portal, oversight and verified access bundle-only, keep the tiers nested, cap
+the visible menu at four, and keep the bundle discount modest. Nothing on
+`site/` changes until the ruling. `docs/PRICING_RESEARCH.md` §6 states what
+beta responses would change it.

@@ -4,10 +4,15 @@ governing Bede's persona, ethics, and limits (Faith/Hope/Love, the seven
 gifts of the Holy Spirit, the three dimensions of human formation, the
 moral law — the Ten Commandments and Christ's two great commandments,
 scoped to Bede's OWN conduct rather than content it teaches or a basis to
-judge a child's or family's beliefs — and the non-negotiable rules). See
-docs/CONSTITUTION.md for the human-readable
-version and constitution/bede.constitution.json for the canonical,
-digest-pinned source this module verifies.
+judge a child's or family's beliefs — and the non-negotiable rules).
+faith_content_scope is a technical-representation clarification of the
+7th non-negotiable rule (added under amendment_policy.technical_
+representation, not a substance change — see the field's own "clarifies"
+key): it names WHEN explicit faith content belongs in a lesson (Morning
+Time, Scripture & Bible Study, Saints & Catechism, a sincere question, or
+real context), not whether it may exist. See docs/CONSTITUTION.md for the
+human-readable version and constitution/bede.constitution.json for the
+canonical, digest-pinned source this module verifies.
 
 Verified once, at import time — the same fail-fast convention core/config.py
 already uses for settings = Settings(). Any module that imports this one is
@@ -40,7 +45,7 @@ _CONSTITUTION_PATH = Path(__file__).resolve().parent.parent / "constitution" / "
 # never hand-edited just to make verification pass. Any change here must
 # ship in the same reviewed commit as the (permitted) file change that
 # produced it, per docs/CONSTITUTION.md's "Change control" section.
-_PINNED_SHA256 = "69589cbc17164937c8edb5ca9325f4643a6ef0f6eebe02c99fa36c8fc156d116"
+_PINNED_SHA256 = "268017aa24b976ea3f6a5da3aeb622626ffff856407730e90e2c8277ab03dba9"
 
 _REQUIRED_VIRTUE_NAMES = ("Faith", "Hope", "Love")
 _REQUIRED_GIFT_NAMES = (
@@ -50,6 +55,14 @@ _REQUIRED_FORMATION_NAMES = ("Comprehension", "Compassion", "Conscience")
 _REQUIRED_LOOP_STEPS = 10
 _REQUIRED_COMMANDMENT_COUNT = 10
 _REQUIRED_GREAT_COMMANDMENT_COUNT = 2
+# The three faith subjects that exist today — Subject.morning_time,
+# Subject.scripture, Subject.saints in models/schemas.py, using their exact
+# SUBJECT_LABELS strings. _validate_structure checks each name is present
+# somewhere in faith_content_scope.applies_when (a list of condition
+# sentences, not a list of bare subject names), so a future edit that drops
+# or renames one of the three — rather than genuinely adding a fourth faith
+# subject — fails this check instead of silently narrowing scope.
+_REQUIRED_FAITH_CONTENT_SUBJECTS = ("Morning Time", "Scripture & Bible Study", "Saints & Catechism")
 
 
 class ConstitutionIntegrityError(RuntimeError):
@@ -141,6 +154,20 @@ def _validate_structure(data: dict) -> None:
     if "spiritual advisor" not in moral_law.get("function", "") and "priest" not in moral_law.get("function", ""):
         raise ConstitutionIntegrityError(
             "moral_law.function is missing the limit that Bede is not a spiritual advisor/priest substitute"
+        )
+
+    faith_scope = data.get("faith_content_scope", {})
+    applies_when = faith_scope.get("applies_when", [])
+    joined_conditions = " ".join(applies_when)
+    missing_subjects = [s for s in _REQUIRED_FAITH_CONTENT_SUBJECTS if s not in joined_conditions]
+    if len(applies_when) < 4 or missing_subjects:
+        raise ConstitutionIntegrityError(
+            "faith_content_scope.applies_when must name all three faith subjects "
+            f"{_REQUIRED_FAITH_CONTENT_SUBJECTS}, missing {missing_subjects}"
+        )
+    if "does not seek assent" not in faith_scope.get("posture", ""):
+        raise ConstitutionIntegrityError(
+            "faith_content_scope.posture is missing the 'does not seek assent' non-proselytizing limit"
         )
 
 

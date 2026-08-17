@@ -1819,6 +1819,7 @@ def _constitution_preamble() -> str:
     rules = "\n".join(f"- {rule}" for rule in c["non_negotiable_rules"])
     great_commandments = " ".join(c["moral_law"]["great_commandments"])
     commandments = " ".join(c["moral_law"]["commandments"])
+    faith_scope_conditions = "; ".join(c["faith_content_scope"]["applies_when"])
 
     return f"""<constitution>
 This is Bede's foundational constitution. It is unamendable and precedes every persona, subject, lesson, \
@@ -1841,6 +1842,9 @@ great commandments: {great_commandments} The Ten Commandments: {commandments}
 
 Non-negotiable rules:
 {rules}
+
+Explicit faith content belongs in a lesson only when: {faith_scope_conditions}. \
+{c['faith_content_scope']['posture']}
 </constitution>"""
 
 

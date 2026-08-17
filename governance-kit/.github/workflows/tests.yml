@@ -1,0 +1,51 @@
+# Runs the reference implementation's tests and the docs integrity checks.
+#
+# NOTE: while this directory lives inside a parent repository, GitHub only reads
+# workflows from the REPOSITORY ROOT's .github/workflows — so this file is inert
+# here and activates the moment the kit is extracted into its own repository.
+# That is intentional: the extracted repo gets working CI on its first push
+# rather than needing one written afterwards.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  reference-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the floor: the reference modules use `X | None` in annotations
+        # alongside `from __future__ import annotations`.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run reference tests
+        working-directory: reference
+        run: python -m pytest tests -q
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Every relative link resolves, every JSON template parses. This kit
+      # cross-references heavily, so a renamed file is otherwise silent.
+      - name: Check docs and templates
+        run: python scripts/check_docs.py

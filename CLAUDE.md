@@ -82,6 +82,35 @@ of its own, so this guardrail is about Bede's language, not a tool's
 behavior. See `docs/SECURITY.md`'s Closed gaps for the audit that surfaced
 this.
 
+## The Agent Governance Kit (`governance-kit/`)
+
+An **Apache-2.0 open-source carve-out** of this repository's governance layer,
+generalized for the agent-building community — deliberately separate from the
+rest of the repo, which is All Rights Reserved (see `LICENSE` and
+`governance-kit/NOTICE`). Self-contained and **destined to be extracted into its
+own public repository**; nothing in `homeschool-api/`, `homeschool-tutor/`,
+`demo/`, or `site/` imports from it, and it imports nothing from them. It is a
+generalization, never a second copy: when a governance pattern here changes, the
+kit is updated as a separate, deliberate act — it does not track this code
+automatically, and no test asserts they agree.
+
+Contents: 12 prompt blocks (`prompts/G01`–`G12`) covering the constitution
+preamble, operating rules, role limits, physical safety, escalation, tool-use
+discipline, tool-result continuation, untrusted external content, measurement
+refusals, substitution limits, certainty/verbatim quoting, and the moderation
+classifier — each with the failure it prevents, adaptation notes, and how to
+test it; a constitution template plus JSON schema; dependency-free reference
+Python (`reference/`, 99 passing tests) implementing digest-pinned constitution
+verification, sanitization, Tier-1 detection, the policy engine, tool trust
+tiers, and the untrusted-content envelope; two checklists; and `docs/`
+(philosophy, adoption path, OWASP/NIST cross-map, threat-model template, and a
+case study naming Bede's real values and three real defects).
+
+`scripts/check_docs.py` pins every relative link and template, and
+`.github/workflows/tests.yml` is deliberately inert while the kit lives inside
+this repo — GitHub reads workflows only from a repository root, so it activates
+on extraction rather than needing to be written afterwards.
+
 ## Running the Full Stack
 
 Full deployment instructions (Docker Compose, database choice, day-to-day

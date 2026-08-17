@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agnusdei.ai/schemas/agent-constitution/v1",
+  "title": "Agent Constitution",
+  "description": "Structural schema for a digest-pinned agent constitution. This validates SHAPE only. It cannot validate that your values are the right values, that your rules are genuinely non-negotiable, or that your authority order is correct -- those need a human, which is what the change-control process is for. See prompts/G01-constitution-preamble.md.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "constitution_id",
+    "source",
+    "authority_order",
+    "non_negotiable_rules",
+    "amendment_policy"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "constitution_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9._-]+\\.v[0-9]+$",
+      "description": "Stable identifier, verified in code. Prevents a different valid constitution being swapped in wholesale."
+    },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+
+    "source": {
+      "type": "object",
+      "required": ["purpose"],
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 20,
+          "description": "What the agent is for and, explicitly, what it must not replace."
+        }
+      }
+    },
+
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "function"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "function": {
+            "type": "string",
+            "minLength": 20,
+            "description": "What this value OBLIGES, in behavioral terms. A value with no stated obligation is decoration."
+          }
+        }
+      }
+    },
+
+    "values_scope": {
+      "type": "object",
+      "description": "Required in spirit if your values derive from a particular tradition.",
+      "properties": { "function": { "type": "string", "minLength": 20 } }
+    },
+
+    "authority_order": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Highest first. The agent itself goes last. This is the field that decides conflicts between legitimate inputs."
+    },
+
+    "non_negotiable_rules": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "type": "string", "minLength": 10 },
+      "description": "Only rules you would ship a broken build rather than weaken. Two are load-bearing in every domain and cannot be checked by this schema: an anti-override rule enumerating its channels, and an escalation rule naming a human destination. Check those in code -- see reference/constitution.py's REQUIRED_RULE_KEYWORDS."
+    },
+
+    "clarifications": {
+      "type": "object",
+      "description": "Scope narrowing that creates no new permission. Each entry should state which rule it clarifies.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "clarifies": { "type": "string" },
+          "applies_when": { "type": "array", "items": { "type": "string" } },
+          "posture": { "type": "string" }
+        }
+      }
+    },
+
+    "amendment_policy": {
+      "type": "object",
+      "required": ["required_change_control"],
+      "properties": {
+        "foundational_values": { "type": "string" },
+        "technical_representation": { "type": "string" },
+        "runtime_behavior": { "type": "string" },
+        "required_change_control": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string" },
+          "description": "The steps a substantive change must pass. Include re-pinning the digest in the SAME commit -- a lone re-pin commit is the shape of an unreviewed governance change."
+        }
+      }
+    }
+  }
+}

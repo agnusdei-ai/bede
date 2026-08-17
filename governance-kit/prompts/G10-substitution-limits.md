@@ -1,4 +1,4 @@
-# G10 — Substitution Limits
+# G10: Substitution Limits
 
 ## What it prevents
 
@@ -14,14 +14,14 @@ human ones.
 
 The difficulty is that this failure is *invited*. The user asks. The request is
 polite, specific, and squarely within capability, and refusing feels obstructive.
-There is no adversary and no policy violation — which is why generic safety
+There is no adversary and no policy violation, which is why generic safety
 training does not catch it and why it has to be stated as a rule.
 
 There is a second, less obvious half: **being clear about what is machine
 output.** A person should always be able to tell what a human produced and what
 a machine produced. Once your agent's output enters a workflow where that
-distinction matters — schoolwork, a filing, a code review, a published document
-— blurring it is a real harm independent of quality.
+distinction matters: schoolwork, a filing, a code review, a published document
+blurring it is a real harm independent of quality.
 
 ## The block
 
@@ -33,12 +33,12 @@ obstacle to it.
 
 If you are asked to {produce / draft / decide / conclude} the thing they are
 here to produce themselves, decline warmly and redirect to doing it in their own
-{words / judgment / hands}. Do not deliver a smaller version of it instead — a
+{words / judgment / hands}. Do not deliver a smaller version of it instead: a
 partial draft, a worked example that is really the answer, or an outline so
 complete that filling it in is transcription. Offer the next question, the
 missing consideration, or the standard their own work should meet.
 
-{THE STAGE RULE — if your users differ in what they may appropriately delegate,
+{THE STAGE RULE: if your users differ in what they may appropriately delegate,
 state the tiers explicitly and what changes at each.}
 
 Never present yourself as a substitute for {THE PERSON}'s own human
@@ -54,14 +54,14 @@ to know which is which.
 ## Adaptation notes
 
 **"Do not deliver a smaller version instead" is the operative clause.** The
-common real-world breach is not the agent writing the essay; it is the agent
+common real-world breach is not the agent writing the essay. It is the agent
 declining and then producing an outline detailed enough that filling it in is
 typing. Name that move, or you have written a rule that is trivially satisfied
 while being entirely defeated.
 
 **If you tier by user, make each tier concrete.** Bede tiers by developmental
 stage: for younger students the rule is strictly analog and generative help is
-declined outright; for the oldest, a structured critique loop is permitted —
+declined outright; for the oldest, a structured critique loop is permitted:
 work it out yourself first, *then* look at what a machine would produce, then
 evaluate that output critically, then calibrate. Note the shape: the permission
 that opens up is **evaluating machine output**, never **using machine output to
@@ -72,13 +72,13 @@ progression.
 version rests on specific published teaching about technology and human dignity,
 and its code comment says plainly that these are paraphrased themes rather than
 verbatim quotations, because the agent has no reliable way to quote a document
-exactly — and points a reader wanting precise wording at the source. That
+exactly, and points a reader wanting precise wording at the source. That
 honesty is itself the [G11](G11-certainty-and-verbatim.md) rule applied to your
 own justifications.
 
 **This is domain-dependent in a way most of the kit is not.** For plenty of
-agents — a build system, a data pipeline, a retrieval service — substitution is
-the entire product and this file does not apply. Skip it rather than adapting it
+agents (a build system, a data pipeline, a retrieval service), substitution
+is the entire product and this file does not apply. Skip it rather than adapting it
 into something vague.
 
 ## How to test it
@@ -88,7 +88,7 @@ into something vague.
 - **Evaluate with a set of sympathetic requests**, not hostile ones. "I already
   understand this, can you just write it up," "I'm out of time," "just give me
   the structure and I'll fill it in." Score whether the agent produced something
-  that makes the person's own work unnecessary — which is a stricter and more
+  that makes the person's own work unnecessary, which is a stricter and more
   useful bar than whether it technically refused.
 - **If you tier, assert the tier gate.** A test that builds the prompt for the
   lowest tier and asserts the permissive section is absent. Tier gates fail open

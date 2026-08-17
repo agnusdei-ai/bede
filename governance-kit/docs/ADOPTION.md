@@ -1,7 +1,7 @@
 # Adoption Path
 
 Ordered by value per hour, not by topic. Stopping after any phase leaves you
-better off than when you started — that is deliberate, because most teams will
+better off than when you started. That is deliberate, because most teams will
 stop somewhere.
 
 Total for all four phases: roughly a week of one engineer's time for a system
@@ -9,7 +9,7 @@ that already exists.
 
 ---
 
-## Phase 0 — Answer three questions (30 minutes, no code)
+## Phase 0: Answer three questions (30 minutes, no code)
 
 Do not skip this. Every decision downstream depends on the answers, and teams
 that skip it end up adopting controls that do not fit their risk.
@@ -17,7 +17,7 @@ that skip it end up adopting controls that do not fit their risk.
 **1. Who is harmed if this agent is wrong, and can they tell?**
 
 The second half matters more. An agent advising an expert who can spot a bad
-answer is a different risk class from one advising someone who cannot — a child,
+answer is a different risk class from one advising someone who cannot: a child,
 a patient, a novice, anyone under time pressure. If your users cannot evaluate
 the output, fluency is a hazard rather than a feature, and
 [G11](../prompts/G11-certainty-and-verbatim.md) moves up your list.
@@ -27,7 +27,7 @@ the output, fluency is a hazard rather than a feature, and
 Walk it through concretely. Is there a secret in context? Can a tool result
 carry an instruction? Can the agent take an action with side effects? If the
 honest answer is "not much," you can tune detection toward far fewer false
-positives — and you should, because every false positive is a real user blocked.
+positives, and you should, because every false positive is a real user blocked.
 If the answer includes anything with side effects, [G06](../prompts/G06-tool-use-discipline.md)
 and [G08](../prompts/G08-untrusted-content-envelope.md) are your priority and
 nothing else comes close.
@@ -35,30 +35,30 @@ nothing else comes close.
 **3. What does this agent compute about a person, and who sees it?**
 
 If the answer is "nothing," skip [G09](../prompts/G09-measurement-refusals.md)
-entirely. If it stores anything — a score, a profile, a preference, a summary —
+entirely. If it stores anything (a score, a profile, a preference, a summary),
 read it first, because that is the pattern teams most often wish they had
 adopted before their data model set.
 
-Write the answers down. They are the beginning of your threat model — see
+Write the answers down. They are the beginning of your threat model: see
 [`THREAT_MODEL_TEMPLATE.md`](THREAT_MODEL_TEMPLATE.md).
 
 ---
 
-## Phase 1 — The constitution (half a day)
+## Phase 1: The constitution (half a day)
 
-The highest-leverage single change available, because it converts your values
+The single biggest change available, because it converts your values
 from prose anyone can edit into an artifact with change control.
 
 1. Copy `templates/constitution.template.json` into your project and fill it in.
    Budget most of your time on `authority_order` and `non_negotiable_rules`; the
    rest is scaffolding.
 2. Copy `reference/constitution.py`. Set the path, `EXPECTED_ID`, and your
-   structural requirements. **Delete the `try/except` at the bottom** — a failed
+   structural requirements. **Delete the `try/except` at the bottom**: a failed
    verification must be fatal in your deployment.
 3. Pin the digest: `python pin_digest.py constitution.json`.
 4. Call the loader at process start, before serving traffic.
 5. Render the preamble into **every** prompt that shapes behavior. Grep for
-   every place you build a system prompt — the summarizer and the internal tools
+   every place you build a system prompt: the summarizer and the internal tools
    are the ones people miss.
 6. Add the four tests from [G01](../prompts/G01-constitution-preamble.md), and
    verify each by breaking it.
@@ -68,7 +68,7 @@ asserts the preamble reaches every prompt builder you have.
 
 ---
 
-## Phase 2 — Prompt blocks (one to two days)
+## Phase 2: Prompt blocks (one to two days)
 
 Add in this order. Each is independent, so ship them one at a time.
 
@@ -94,19 +94,19 @@ fails if any block disappears.
 
 ---
 
-## Phase 3 — The detection pipeline (two to three days)
+## Phase 3: The detection pipeline (two to three days)
 
 Only worth doing after Phase 2, since the prompt blocks are what a redirected
 turn falls back on.
 
-1. **Tier 1** — copy `reference/adversarial_detection.py`. Extend the patterns
+1. **Tier 1**: copy `reference/adversarial_detection.py`. Extend the patterns
    for your domain. Read the note on why social engineering has no Tier-1
    pattern before adding one.
-2. **Tier 2** — take the classifier prompt from
+2. **Tier 2**: take the classifier prompt from
    [G12](../prompts/G12-moderation-classifier.md), adapt the categories, wire it
    to the client you already have. Do not add a vendor. 3-second timeout,
    `temperature=0`, **fail open**.
-3. **Policy** — copy `reference/policy_engine.py`. Set your blocking and
+3. **Policy**: copy `reference/policy_engine.py`. Set your blocking and
    audit-only sets from G12's table, and argue about the assignment now rather
    than during an incident.
 4. **Wire the order**: Tier 1 and safeguarding patterns *before* the model call;
@@ -120,7 +120,7 @@ has a test per category-and-confidence combination.
 
 ---
 
-## Phase 4 — The agent loop (two to three days, only if you have tools)
+## Phase 4: The agent loop (two to three days, only if you have tools)
 
 1. Copy `reference/tool_registry.py`. Declare every tool with its trust tier.
 2. Add the test that **every tool in the user-facing registry is internal**.
@@ -129,7 +129,7 @@ has a test per category-and-confidence combination.
    you will ship an API error on a real user turn.
 4. Add [G07](../prompts/G07-tool-result-continuation.md) if any tool is
    reactable.
-5. If you consume external content, copy `reference/external_content.py` — and
+5. If you consume external content, copy `reference/external_content.py`, and
    make the confinement decision from
    [G08](../prompts/G08-untrusted-content-envelope.md) *before* you build the
    feature, not after.
@@ -149,7 +149,7 @@ behavior.
   rarely the story.
 - **Re-read your threat model when you add a feature that persists text.** The
   replay question is a required review item, not a judgment call.
-- **When you find a new failure, add the guard and verify it by breaking it** —
+- **When you find a new failure, add the guard and verify it by breaking it**,
   then consider contributing it back.
 
 ---

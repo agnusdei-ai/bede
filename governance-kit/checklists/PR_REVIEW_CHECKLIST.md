@@ -1,7 +1,7 @@
 # PR Review Checklist
 
 For reviewing a change to an agent that already has governance in place. Short
-on purpose — a checklist nobody finishes is a checklist nobody reads.
+on purpose: a checklist nobody finishes is a checklist nobody reads.
 
 ---
 
@@ -10,7 +10,7 @@ on purpose — a checklist nobody finishes is a checklist nobody reads.
 - [ ] **Does this add a prompt-building path?** If yes, does the constitution
       preamble reach it? This is how a fifth prompt ends up ungoverned.
 - [ ] **Does this persist text the model wrote or a user influenced?** If yes,
-      is it replayed into prompt context later — and is it sanitized on both
+      is it replayed into prompt context later, and is it sanitized on both
       paths? Provenance is not the test; replay is.
 - [ ] **Does this delete or reword any guardrail prose?** Guardrail text is
       removed by otherwise-correct refactors and no functional test goes red.
@@ -20,7 +20,7 @@ on purpose — a checklist nobody finishes is a checklist nobody reads.
 
 ## If it adds a tool
 
-- [ ] Trust tier declared, and `internal` is actually true — where does the
+- [ ] Trust tier declared, and `internal` is actually true: where does the
       result come from?
 - [ ] Registered **and** has a dispatch branch (the set-equality test still
       passes)
@@ -41,7 +41,7 @@ on purpose — a checklist nobody finishes is a checklist nobody reads.
 ## If it touches the constitution
 
 - [ ] Substance genuinely unchanged, or the full change-control process ran
-- [ ] Digest re-pinned **in this same commit** — a lone re-pin commit is the
+- [ ] Digest re-pinned **in this same commit**: a lone re-pin commit is the
       shape of an unreviewed governance change
 - [ ] Structural validator updated if the required shape changed
 - [ ] A written reason is in the PR body, not just the commit message
@@ -70,7 +70,7 @@ on purpose — a checklist nobody finishes is a checklist nobody reads.
 
 **1. What would have to be true for this to be wrong?**
 
-Not "is this correct" — the author already believes it is. Ask what assumption
+Not "is this correct": the author already believes it is. Ask what assumption
 it rests on, then check whether that assumption is written down anywhere.
 
 **2. If this fails silently, how would anyone find out?**

@@ -1,4 +1,4 @@
-# G09 — Measurement Refusals
+# G09: Measurement Refusals
 
 ## What it prevents
 
@@ -13,7 +13,7 @@ Four distinct failures:
 
 **Measuring what you have no standing to measure.** Some things are legible to
 an agent and still not its business. Bede's standing rule is that a child's
-spiritual engagement is never scored, counted, or tracked — governed
+spiritual engagement is never scored, counted, or tracked: governed
 qualitatively, by rule, while other dimensions carry real per-item counters. The
 rule is written into the project's own contribution guidelines: if a future
 change proposes a "faith engagement" signal, that is out of scope, raise it as a
@@ -22,14 +22,14 @@ explicitly, because the reason it never gets built is that nobody wrote down
 that it should not be.
 
 **A blank looking like a low score.** If your agent scores work only when it
-genuinely observed enough to score it — which it should — then unscored items
+genuinely observed enough to score it, which it should: then unscored items
 must remain visibly distinct from badly-scored ones. Bede's UI shipped a version
 where a skill scored honestly at every floor rendered *identically* to work the
 agent had never judged at all, and another where a student with no notable
 observations rendered "0 exemplary · 0 beyond the task · 0 brisk" under the
 heading **Signs of initiative**. Three zeros under that heading is a verdict on
 a child, and a caveat underneath does not undo it. The fix: report a presence,
-never an absence — render only the non-zero counts, and state the scored count
+never an absence: render only the non-zero counts, and state the scored count
 alongside the unscored one so both halves are always visible.
 
 **A roster becoming a ranking.** An API can refuse to emit a ranking and a UI
@@ -43,7 +43,7 @@ a person from a skill they have not worked rather than listing them at zero.
 is why the refusals must be *in the data*. If you expose your observations
 through an API, an MCP server, or any interface a model consumes, that model can
 manufacture a ranking the data does not contain simply by summing. So the
-refusal has to travel in the tool description the model actually reads — and you
+refusal has to travel in the tool description the model actually reads, and you
 need a test asserting the sentence is still there.
 
 ## The block
@@ -53,7 +53,7 @@ Prompt text for an agent that records observations about a person:
 ```text
 <what_you_noticed_about_the_work>
 When you record an observation, you may also say what you noticed about the
-WORK — optionally, and only where you genuinely saw enough to say it.
+WORK, optionally, and only where you genuinely saw enough to say it.
 
 YOU ARE A GUIDE, NOT THE DECIDER. {THE ACCOUNTABLE HUMAN} decides. You describe
 what you saw, the way one adult describes a piece of work to the person
@@ -65,8 +65,8 @@ person, never against what someone at this stage "should" be doing, never
 against how this same person did last time. Those comparisons are not yours to
 make.
 
-{DIMENSION} — {what it means}
-  {floor}    {a real, good outcome — never a deficiency}
+{DIMENSION}: {what it means}
+  {floor}    {a real, good outcome: never a deficiency}
   {middle}   {...}
   {top}      {...}
 
@@ -99,7 +99,7 @@ can turn off: setting the deployment to non-retaining drops the claim and keeps
 the events, because an event record is not a judgment.
 
 **A missed attempt writes no row.** Bede's work ledger does not record failed
-attempts — that would make it a record of failures. Struggle is captured by the
+attempts; that would make it a record of failures. Struggle is captured by the
 estimator, which is the thing designed to represent it.
 
 **Emit distributions, never averages.** A mean over an ordinal scale invents
@@ -113,8 +113,8 @@ grade wearing different words.
 reshuffles as someone improves is a ranking of their own attributes.
 
 **Say what the data does not mean, in the payload.** Bede's coverage endpoint
-carries the refusal inside the response body — *"not a measure of interest,
-engagement, or effort… says nothing about the person"* — and a test scans the
+carries the refusal inside the response body: *"not a measure of interest,
+engagement, or effort… says nothing about the person"*, and a test scans the
 payload for `engagement`, `motivation`, `effort`, `score`.
 
 ## Adaptation notes

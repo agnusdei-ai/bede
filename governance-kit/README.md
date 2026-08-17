@@ -5,7 +5,7 @@ experimented on.**
 
 This is a portable package of governance prompts, enforcement patterns, and
 reference code, extracted from a production agent that tutors children. It is
-framework-agnostic — nothing here depends on a particular SDK, model vendor, or
+framework-agnostic: nothing here depends on a particular SDK, model vendor, or
 orchestration library. You can adopt one file or all of it.
 
 Licensed under Apache 2.0. Use it, fork it, ship it in a commercial product.
@@ -54,7 +54,7 @@ cp governance-kit/templates/constitution.template.json your_project/constitution
 # 2. Fill in constitution.json for your domain, then pin its digest
 python your_project/governance/pin_digest.py your_project/constitution.json
 
-# 3. Verify at import time — this raises if the file was tampered with
+# 3. Verify at import time: this raises if the file was tampered with
 python -c "from governance.constitution import load_constitution; load_constitution()"
 
 # 4. Run the reference tests
@@ -70,7 +70,7 @@ It is ordered by value-per-hour, not by topic.
 live in a separate, digest-pinned file, verified for both integrity and
 *structure* at process start. A missing or modified constitution prevents the
 agent from starting at all. It is rendered into every prompt that shapes
-behavior — not just the main one. See [`prompts/G01`](prompts/G01-constitution-preamble.md)
+behavior, not just the main one. See [`prompts/G01`](prompts/G01-constitution-preamble.md)
 and [`reference/constitution.py`](reference/constitution.py).
 
 **2. Structural guarantees beat policy guarantees.** "We tell the model not to"
@@ -82,7 +82,7 @@ one. Only the second kind survives a model you did not train. See
 
 **3. Detection is facts; policy is meaning.** A regex tier and a classifier tier
 both emit *what they saw*. One pure function decides what it means. This is why
-you can tune false-positive tolerance per category — and why some categories are
+you can tune false-positive tolerance per category, and why some categories are
 audited but never block alone. See [`reference/policy_engine.py`](reference/policy_engine.py).
 
 **4. Sanitize anything that gets replayed.** "User text is transient, so we
@@ -93,7 +93,7 @@ into tomorrow's prompt, you have built a stored injection vector. See
 [`reference/sanitization.py`](reference/sanitization.py).
 
 **5. Refuse to measure what you have no standing to measure.** The hardest
-governance problem is not the agent doing something forbidden — it is the agent
+governance problem is not the agent doing something forbidden: it is the agent
 computing a number that quietly becomes a verdict about a person. A blank must
 not look like a low score. A roster must not become a ranking. And the refusal
 has to travel in the tool description the model actually reads, because a
@@ -127,6 +127,6 @@ less likely to read it.
 
 ## Provenance
 
-Extracted from [Bede](https://agnusdei.ai) — a self-hosted, LAN-deployed
+Extracted from [Bede](https://agnusdei.ai); a self-hosted, LAN-deployed
 Socratic tutoring agent. Bede is proprietary; this directory is not. See
 [`NOTICE`](NOTICE).

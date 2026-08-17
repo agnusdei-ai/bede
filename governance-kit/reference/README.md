@@ -47,12 +47,12 @@ free of a vendor SDK.
 
 Three files have placeholders you must fill in before they do anything useful:
 
-- `constitution.py` — `CONSTITUTION_PATH`, `PINNED_SHA256`, `EXPECTED_ID`,
+- `constitution.py`: `CONSTITUTION_PATH`, `PINNED_SHA256`, `EXPECTED_ID`,
   `REQUIRED_VALUE_NAMES`. **Delete the `try/except` at the bottom.** It exists
   so the kit imports standalone; in your deployment a failed verification must
   be fatal.
-- `tool_registry.py` — replace `_SPECS` with your own tools, and tune the two
+- `tool_registry.py`: replace `_SPECS` with your own tools, and tune the two
   caps.
-- `adversarial_detection.py` — the patterns are a starting point. Extend them
+- `adversarial_detection.py`: the patterns are a starting point. Extend them
   for your domain, and re-read the note about why social engineering has no
   Tier-1 pattern before adding one.

@@ -2,10 +2,10 @@
 
 Twelve governance blocks. Each file has the same four sections:
 
-1. **What it prevents** — the concrete failure, not a category name.
-2. **The block** — drop-in text with `{PLACEHOLDERS}` you substitute.
-3. **Adaptation notes** — what to change for your domain, and what not to.
-4. **How to test it** — how you verify the guardrail is still there.
+1. **What it prevents**: the concrete failure, not a category name.
+2. **The block**: drop-in text with `{PLACEHOLDERS}` you substitute.
+3. **Adaptation notes**: what to change for your domain, and what not to.
+4. **How to test it**: how you verify the guardrail is still there.
 
 ## Index
 
@@ -70,7 +70,7 @@ Order matters more than people expect, and the reasoning is not aesthetic:
    model reasons from when the two conflict.
 3. **Tool discipline adjacent to the tool schemas.** The model reads the prose
    description next to each schema more reliably than a rule 900 lines up.
-4. **Language, locale, and formatting directives last** — closest to generation.
+4. **Language, locale, and formatting directives last**: closest to generation.
 
 ## Prompt caching
 

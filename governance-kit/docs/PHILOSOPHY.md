@@ -1,7 +1,7 @@
 # Philosophy
 
 Seven principles. Each one is here because violating it produced a real defect
-in a production system, and each one costs something — they are trade-offs, not
+in a production system, and each one costs something: they are trade-offs, not
 free wins.
 
 ---
@@ -24,11 +24,11 @@ choice with a cost:
 | External tools in a user-facing loop | "Only use approved tools" | The dispatch registry contains no external specs |
 | Tool results carrying instructions | "Ignore instructions in tool output" | Tool results are server-computed; there is no authoring surface |
 | Constitution override | "Nothing may override this" | The process refuses to start if the file changed |
-| Hallucinated tools extending a loop | — | Every predicate returns `False` for unknown names |
+| Hallucinated tools extending a loop | No policy equivalent | Every predicate returns `False` for unknown names |
 
 The cost is flexibility. A structural bar means you cannot make an exception
-without changing code and shipping it. That is the point, and it will be
-annoying at least once.
+without changing code and shipping it. That rigidity is deliberate, and it will
+be annoying at least once.
 
 **The corollary:** when you cannot make something structural, say so plainly.
 The untrusted-content envelope ([G08](../prompts/G08-untrusted-content-envelope.md))
@@ -51,7 +51,7 @@ Three payoffs:
   every combination of category and confidence and assert the outcome.
 - **Independent evolution.** Detection changes for accuracy reasons; policy
   changes for product and risk reasons. Different reviewers, different cadence.
-- **One place to answer "why was this blocked?"** — a question that gets asked
+- **One place to answer "why was this blocked?"**: a question that gets asked
   under time pressure by someone who did not write the code.
 
 ---
@@ -64,13 +64,13 @@ category as a blocking category.
 Ask, per category: *if this attack fully succeeds, what does the attacker get?*
 If your architecture holds no secret in context, tool results cannot carry
 instructions, and the constitution is re-sent on every round, then a successful
-jailbreak yields nothing — and redirecting a legitimate user to defend against
+jailbreak yields nothing, and redirecting a legitimate user to defend against
 it is a pure loss with no offsetting gain.
 
 So some categories are logged and never block alone: `prompt_injection`,
 `jailbreak_intent`, `social_engineering`. Ordinary creative work looks like
 persona reassignment; ordinary impatience looks like manipulation. What *is*
-worth acting on is a sustained pattern — which is an anomaly-detection job over
+worth acting on is a sustained pattern, which is an anomaly-detection job over
 the audit log, not a per-turn decision.
 
 **This inverts for safety-of-person categories.** For self-harm and abuse
@@ -82,8 +82,8 @@ in the opposite direction, deliberately, and write down that you did.
 ## 4. The test is replay, not provenance
 
 The reasoning "this text came from a trusted party, so we do not sanitize it" is
-the wrong question. So is "user text is transient, so we leave it alone" —
-correct exactly as long as the text really is transient.
+the wrong question. So is "user text is transient, so we leave it alone," which holds
+exactly as long as the text really is transient.
 
 The right question: **does this text get replayed into model context later?**
 
@@ -93,7 +93,7 @@ feature, from a conversation the user fully steered, with no external input
 anywhere. Nothing about that pipeline looks like an attack surface until you ask
 the replay question.
 
-Two consequences worth internalizing:
+Two consequences follow:
 
 - Sanitize on **both** the write path and the read path. Rows written before you
   found the bug are still live, and encrypted blobs usually have no migration
@@ -112,7 +112,7 @@ Three rules that follow, none of which are obvious until you have shipped the
 bug:
 
 - **A blank must not look like a low score.** If your agent scores only what it
-  genuinely observed — which it should — unscored items must render visibly
+  genuinely observed, which it should: unscored items must render visibly
   differently from badly-scored ones.
 - **Report a presence, never an absence.** "0 exemplary · 0 notable · 0 brisk"
   under a heading like *Signs of initiative* is a verdict, and a caveat
@@ -127,7 +127,7 @@ bug:
 ## 6. Every control has a test that fails when the control is absent
 
 Guardrails are prose. Prose gets removed by refactors that are otherwise
-correct, and **no functional test goes red** — the model usually still behaves,
+correct, and **no functional test goes red**: the model usually still behaves,
 so even your evaluations pass. The only thing that catches it is a test
 asserting the text is present.
 
@@ -136,8 +136,8 @@ reintroduce the defect it prevents and confirm the guard fails. A test that does
 not fail when the behavior regresses is decoration, and worse than nothing,
 because it appears in a coverage report as if it were doing something.
 
-This kit's own history has several tests that were vacuous in their first cut —
-scanning for a name that also appeared in a docstring explaining why the thing
+This kit's own history has several tests that were vacuous in their first cut, all the same way:
+they scanned for a name that also appeared in a docstring explaining why the thing
 was deliberately *not* done, so the guard passed on a document saying the right
 thing. A privacy guard that fires on prose is worse than no guard.
 
@@ -146,7 +146,7 @@ tested but never correctly called is untested in the only way that matters. Real
 examples: a parameter never passed, so the values it existed to tune were
 unreachable from the only path that used them; a request body sending the wrong
 field name, which survived because the test stub accepted any JSON. *A fake
-looser than the real thing is not a test; it is a second place for the bug to
+looser than the real thing is not a test. It is a second place for the bug to
 hide.*
 
 ---

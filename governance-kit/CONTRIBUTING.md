@@ -8,7 +8,7 @@ failure.**
 That is the whole bar, and it is deliberately hard to clear. Patterns that sound
 prudent but have never caught anything make a checklist longer and an engineer
 less likely to finish reading it. Every item here costs the attention of everyone
-who adopts the kit, so the question is not "is this a good idea" — it is "is this
+who adopts the kit, so the question is not "is this a good idea" but "is this
 worth the attention it will consume."
 
 If you have a pattern you believe in but have not yet seen fail, open an issue
@@ -20,21 +20,21 @@ it first.
 For a **new prompt block** (`prompts/GNN-name.md`), follow the existing four
 sections:
 
-1. **What it prevents** — the concrete failure, with the sequence of events.
+1. **What it prevents**: the concrete failure, with the sequence of events.
    Not a category name. "Prompt injection" is a category; "a summarizer wrote a
    sentence from a conversation the user steered and replayed it into every
    future session" is a failure.
-2. **The block** — drop-in text with `{PLACEHOLDERS}`. It must work for someone
+2. **The block**: drop-in text with `{PLACEHOLDERS}`. It must work for someone
    whose domain is nothing like yours.
-3. **Adaptation notes** — what to change, and specifically **what not to
+3. **Adaptation notes**: what to change, and specifically **what not to
    change** and why. The load-bearing clause is usually the one that reads as
    redundant.
-4. **How to test it** — including how to verify the test by breaking the thing
+4. **How to test it**: including how to verify the test by breaking the thing
    it guards.
 
 For **reference code**, no third-party dependencies. Standard library only.
 These modules must be importable from anywhere in a process, including code that
-runs before a framework is initialized — that is what lets the constitution
+runs before a framework is initialized. That is what lets the constitution
 loader verify at import time.
 
 For a **fix**, say in the PR body that you verified it by reintroducing the
@@ -74,7 +74,7 @@ a dependency.
 If you find a vulnerability in the reference code, or a bypass in a pattern
 here, do not open a public issue. Email **security@agnusdei.ai**.
 
-A bypass in a documented pattern is genuinely valuable — the patterns claim to
+A bypass in a documented pattern is genuinely valuable: the patterns claim to
 prevent specific failures, and a demonstration that one does not is exactly the
 kind of correction this kit is built to absorb. It will be credited unless you
 prefer otherwise.

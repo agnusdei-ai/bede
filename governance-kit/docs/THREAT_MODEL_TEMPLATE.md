@@ -5,7 +5,7 @@ project, and its job is to make the rest of your decisions obvious.
 
 **The non-goals section is the most valuable part.** A threat model without
 explicit non-goals is a wish list, and every security claim you make is
-unbounded — which means it is unfalsifiable, which means it is not a claim.
+unbounded, which means it is unfalsifiable, which means it is not a claim.
 
 ---
 
@@ -40,7 +40,7 @@ ones that are not attackers.
 | Curious legitimate user | Anything a normal session allows | To see what happens | Usually nothing; occasionally a real finding |
 | Hostile user | Same, deliberately | Bypass, extraction, harm to another user | Depends entirely on §4 |
 | Compromised content source | Author text your agent retrieves | Speak in your agent's voice | Whatever your confinement decision allows |
-| Malicious operator | Full config access | Repurpose the agent | Everything — accept this and say so |
+| Malicious operator | Full config access | Repurpose the agent | Everything: accept this and say so |
 | Network attacker | Observe or modify traffic | Credentials, content | |
 
 **The curious legitimate user belongs in the table.** Most boundary-testing is
@@ -65,7 +65,7 @@ effects, that is your highest priority and the prompt library is secondary.
 ## 5. Non-goals
 
 State plainly what you are **not** defending against, and why. Each one is a
-decision, not an omission — write the reason.
+decision, not an omission: write the reason.
 
 > *Examples:*
 > - **A malicious operator.** They control the configuration and the
@@ -96,7 +96,7 @@ a legitimate user?**
 ## 7. What is already correctly segmented
 
 Credit what holds, so a later reader does not "improve" it. If your untrusted
-loop cannot reach external tools, write that down here — otherwise someone will
+loop cannot reach external tools, write that down here: otherwise someone will
 helpfully unify the two registries.
 
 ## 8. Where this document is used
@@ -112,7 +112,7 @@ is a document, not a control.
 Re-read this document when you:
 
 - Add a tool, especially one with side effects
-- **Persist any text the model wrote or the user influenced** — the replay
+- **Persist any text the model wrote or the user influenced**: the replay
   question
 - Add a content source your users can influence
 - Change who your users are, or add a population who cannot evaluate the output

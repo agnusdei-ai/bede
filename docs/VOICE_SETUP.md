@@ -676,6 +676,37 @@ across overlapping passes. See `tests/test_transcription.py` for the
 regression coverage (proves passes are actually serialized, and that the
 concurrency cap is configurable, not hardcoded).
 
+**Live-HTTP concurrency measurement, closing part of the earlier "not
+directly measured" gap.** `tests/test_transcription.py` proves the
+semaphore serializes calls; it never measures WHAT that serialization
+actually costs a real child waiting on the "Transcribing…" spinner, over
+the real HTTP/SSE wire the client actually uses. `scripts/
+voice_latency_probe.py` does: it drives N concurrent simulated voice calls
+against a real running instance, using the exact same wire behavior as
+`useHybridVoiceInput.ts` (raw 16kHz PCM deltas every
+`CHUNK_UPLOAD_INTERVAL_MS`, not the legacy RIFF path), and measures
+release→final latency — the same number `useHybridVoiceInput.ts`'s own
+`processingMs` reports client-side. Run with `services/transcription.py`'s
+`_transcribe_sync` swapped for a controllable artificial delay (real
+faster-whisper/torch isn't installable in every dev sandbox — see that
+script's own docstring), so real inference *quality* isn't exercised, but
+the actual code path under test — `transcribe_audio()`'s semaphore
+acquire, `run_in_executor` dispatch, and everything in
+`services/streaming_transcription.py` around it — runs completely
+unmodified. Two runs at `--concurrency 1 3 5`, `--hold-seconds 8`,
+confirm the fix does what it claims: at the default concurrency of 1,
+release→final latency for N concurrent calls grows additively with N
+(each call queues fully behind the others' total work — no thrashing, no
+non-terminating pile-up, every call still completes), and every observed
+number matched the architecture's own math exactly (including
+reproducing the documented "final pass stuck behind an in-flight
+partial" case at concurrency 1 itself). Raising
+`VOICE_TRANSCRIPTION_MAX_CONCURRENCY` to match the concurrent load
+collapses that additive latency back to the single-call baseline — the
+calls genuinely overlap instead of queuing, confirming the configurable
+escape hatch for a deployment with real CPU headroom also works as
+documented, not just as intended.
+
 ## Troubleshooting (historical): the microphone stopped working after a browser update
 
 The section below predates the server-side-streaming rewrite above and

@@ -4,12 +4,11 @@ Copyright 2026 Agnus Dei Technologies, LLC
 This product includes software and prose developed by
 Agnus Dei Technologies, LLC (https://agnusdei.ai).
 
-The patterns, prompts, and reference implementations in this directory were
-extracted and generalized from Bede, a production Socratic tutoring agent for
-children. Bede itself is proprietary and is NOT covered by this license; only
-the contents of this directory are released under Apache License 2.0.
+The patterns, prompts, and reference implementations here were generalized from
+governance work on production agent systems. That originating code is
+proprietary and is NOT covered by this license; only the contents of this
+package are released under Apache License 2.0.
 
-Where a file quotes Bede's own text as a worked example, that quotation is
-included under this same license for the purpose of illustrating the pattern.
-The name "Bede", the Bede persona, and associated marks remain trademarks of
-Agnus Dei Technologies, LLC and are not licensed for use in derivative works.
+The incidents described in docs/FIELD_NOTES.md are drawn from real production
+defects. Systems, domains, and identifying detail are omitted deliberately: what
+is offered is the shape of each failure and the control that answers it.

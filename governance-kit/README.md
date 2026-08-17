@@ -4,9 +4,10 @@
 experimented on.**
 
 This is a portable package of governance prompts, enforcement patterns, and
-reference code, extracted from a production agent that tutors children. It is
-framework-agnostic: nothing here depends on a particular SDK, model vendor, or
-orchestration library. You can adopt one file or all of it.
+reference code, drawn from production systems where being wrong has a cost
+someone else pays. It is framework-agnostic: nothing here depends on a
+particular SDK, model vendor, or orchestration library. You can adopt one file
+or all of it.
 
 Licensed under Apache 2.0. Use it, fork it, ship it in a commercial product.
 
@@ -20,11 +21,11 @@ It does not survive contact with a real user population, because a system prompt
 is a request and an agent under adversarial pressure treats requests as
 negotiable.
 
-The patterns here come from a system where getting it wrong means a specific
-child gets hurt, so the design question was never "does this feel safe" but
-"what still holds when the model is wrong, the classifier is down, the user is
-hostile, and nobody is watching." That constraint produced a set of techniques
-that generalize well past the original domain:
+These patterns come from systems where the users could not evaluate the output
+and no support team was watching, so the design question was never "does this
+feel safe" but "what still holds when the model is wrong, the classifier is
+down, the user is hostile, and nobody is looking." That constraint produces
+techniques that transfer to any agent carrying real consequences:
 
 - Rules the agent **structurally cannot** override, verified at process start.
 - Detection separated from policy, so either can change without the other.
@@ -42,7 +43,7 @@ that generalize well past the original domain:
 | [`templates/`](templates/) | A constitution template + JSON schema you fill in for your own domain |
 | [`reference/`](reference/) | Dependency-free Python implementing the enforcement layer (constitution verification, sanitization, two-tier detection, policy engine, tool trust registry, untrusted-content envelope) with tests |
 | [`checklists/`](checklists/) | An agent hardening checklist and a PR review checklist |
-| [`docs/`](docs/) | The philosophy, a 90-minute adoption path, a framework cross-map (OWASP LLM Top 10 / NIST AI RMF), a threat-model template, and the case study |
+| [`docs/`](docs/) | The philosophy, a 90-minute adoption path, a framework cross-map (OWASP LLM Top 10 / NIST AI RMF), a threat-model template, and field notes on five production defects |
 
 ## Quickstart
 
@@ -113,10 +114,12 @@ summarizing it. See [`prompts/G09`](prompts/G09-measurement-refusals.md).
 - **Not a substitute for red-teaming.** These are the deterministic and
   architectural defenses. Live adversarial probing against your actual persona
   is separate work that this makes cheaper, not unnecessary.
-- **Not domain-neutral by accident.** The original system is a Catholic
-  classical tutor for children. The prompts here are generalized, and
-  [`docs/CASE_STUDY_BEDE.md`](docs/CASE_STUDY_BEDE.md) shows the real filled-in
-  versions so you can see what a fully committed instance looks like.
+- **Not a set of rules you can adopt without thinking.** Every block here has
+  placeholders you must fill in for your own domain, and several have a
+  "what not to change" note because the load-bearing clause is usually the one
+  that reads as redundant.
+- **Not theoretical.** [`docs/FIELD_NOTES.md`](docs/FIELD_NOTES.md) records five
+  defects that shipped in production and the pattern each one produced.
 
 ## Contributing
 
@@ -127,6 +130,5 @@ less likely to read it.
 
 ## Provenance
 
-Extracted from [Bede](https://agnusdei.ai); a self-hosted, LAN-deployed
-Socratic tutoring agent. Bede is proprietary; this directory is not. See
-[`NOTICE`](NOTICE).
+Generalized from governance work on production agent systems. The originating
+code is proprietary; this package is not. See [`NOTICE`](NOTICE).

@@ -9,37 +9,37 @@ failures that persist in otherwise well-built systems, because in each one the
 model's output is *fluent, plausible, and unverifiable by the person reading
 it*.
 
-**Misquotation of texts that must be exact.** Scripture, statute, licensed
-standards, contract language, a company policy, a poem. A model reproducing a
+**Misquotation of texts that must be exact.** Statute, licensed standards,
+contract language, a religious text, a company policy, a poem. A model reproducing a
 long passage from memory will get most of it right and subtly alter some of it,
 and a subtle alteration is worse than a refusal because it carries the authority
-of a quotation. Bede's answer is a **verbatim catalog**: pre-reviewed texts
-stored as data, with a prompt instruction to quote the provided text exactly and
-never to compose or paraphrase one. An earlier design had the agent "freshly
-adapt" a prayer each day: a model improvising devotional wording daily, with no
-human ever reviewing the actual words. That was removed, and the rule is now
-uniform: select and quote, never invent.
+of a quotation. The answer is a **verbatim catalog**: pre-reviewed texts stored
+as data, with a prompt instruction to quote the provided text exactly and never
+to compose or paraphrase one. One system's earlier design had the agent "freshly
+adapt" such a passage each day, which meant a model improvising the wording of
+something consequential daily with no human ever reviewing the actual words.
+That was removed in favour of a uniform rule: select and quote, never invent.
 
-**The pleasant, universally repeated, false attribution.** Bede teaches *ora et
-labora* and states plainly that the motto appears nowhere in the Rule of St.
-Benedict (it is a 19th-century coinage), and supplies a genuine line from the
-Rule to quote instead. Every field has these. A model will reproduce the folklore
-version confidently, because its training data is mostly people repeating it.
-When you find one in your domain, encode the correction rather than relying on
-the model to know better.
+**The pleasant, universally repeated, false attribution.** Nearly every field
+has a famous line confidently attributed to a founder who never wrote it, often
+coined centuries later by someone else entirely. A model will reproduce the
+folklore version confidently, because its training data is mostly people
+repeating it. The fix is to state the correction plainly in your content and
+supply a genuine line to quote instead. When you find one in your domain, encode
+the correction rather than relying on the model to know better.
 
-**Presenting a recollection as a verified copy.** Bede supports several
-copyrighted translations of Scripture. Research into each publisher's actual
-stated permissions found the limits generous: far beyond anything one response
-would approach, so licensing turned out not to be the binding constraint. The
-binding constraint was accuracy: the system holds no verified licensed copy of
-those texts to check its own memory against, so it *cannot guarantee* its
-recollection of a specific edition's exact wording. The resulting instruction is
-to paraphrase by default, keep direct quotation to a line or two it is genuinely
-confident about, always cite chapter and verse so the family can check, and
-never present uncertain wording as though it were that edition's precise text.
-The honest reason and the assumed reason were different, and
-finding out required actually looking.
+**Presenting a recollection as a verified copy.** One production system supports
+several copyrighted editions of a reference text. Research into each publisher's
+actual stated permissions found the limits generous, far beyond anything a single
+response would approach, so licensing turned out not to be the binding
+constraint. The binding constraint was accuracy: the system holds no verified
+licensed copy of those editions to check its own memory against, so it *cannot
+guarantee* its recollection of a specific edition's exact wording. The resulting
+instruction is to paraphrase by default, keep direct quotation to a line or two
+it is genuinely confident about, always cite the precise reference so the user
+can check, and never present uncertain wording as that edition's exact text. The
+honest reason and the assumed reason were different, and finding out required
+actually looking.
 
 ## The block
 
@@ -85,13 +85,13 @@ whole subject. State that the restriction covers literal wording only.
 paraphrase is what converts an unverifiable claim into a checkable one, and it
 costs nothing.
 
-**Record what you actually verified, and when.** Bede's Latin catalog states in
-its own header that every text was checked against published editions at
-authoring time, and that a sibling catalog's texts originally came from model
-knowledge because a reference source was not reachable during that build: later
-partially cross-checked. That is uncomfortable to write down and it is the only
-way a later reader can tell which content has been verified. A document that
-does not say it looked has not looked, as far as anyone else can tell.
+**Record what you actually verified, and when.** State in each catalog's own
+header whether its entries were checked against published sources at authoring
+time, or came from model knowledge because a source was not reachable during
+that build. One production catalog says exactly that about a sibling file, which
+is uncomfortable to write down and is the only way a later reader can tell which
+content has been verified. A document that does not say it looked has not
+looked, as far as anyone else can tell.
 
 ## How to test it
 

@@ -59,22 +59,21 @@ declining and then producing an outline detailed enough that filling it in is
 typing. Name that move, or you have written a rule that is trivially satisfied
 while being entirely defeated.
 
-**If you tier by user, make each tier concrete.** Bede tiers by developmental
-stage: for younger students the rule is strictly analog and generative help is
-declined outright; for the oldest, a structured critique loop is permitted:
-work it out yourself first, *then* look at what a machine would produce, then
+**If you tier by user, make each tier concrete.** One workable tiering runs by
+expertise: for novices the rule is strict and generative help is declined
+outright; for the most advanced, a structured critique loop is permitted. Work
+it out yourself first, *then* look at what a machine would produce, then
 evaluate that output critically, then calibrate. Note the shape: the permission
 that opens up is **evaluating machine output**, never **using machine output to
-do the work**. That distinction generalizes to any domain with a novice-to-expert
-progression.
+do the work**. That distinction generalizes to any domain with a
+novice-to-expert progression.
 
-**Ground the rule in something, and be honest about the grounding.** Bede's
-version rests on specific published teaching about technology and human dignity,
-and its code comment says plainly that these are paraphrased themes rather than
-verbatim quotations, because the agent has no reliable way to quote a document
-exactly, and points a reader wanting precise wording at the source. That
-honesty is itself the [G11](G11-certainty-and-verbatim.md) rule applied to your
-own justifications.
+**Ground the rule in something, and be honest about the grounding.** If your
+version rests on a published source, say in the code comment whether you are
+paraphrasing its themes or quoting it, and point a reader wanting precise
+wording at the source itself. An agent has no reliable way to quote a document
+exactly from memory. That honesty is the [G11](G11-certainty-and-verbatim.md)
+rule applied to your own justifications.
 
 **This is domain-dependent in a way most of the kit is not.** For plenty of
 agents (a build system, a data pipeline, a retrieval service), substitution

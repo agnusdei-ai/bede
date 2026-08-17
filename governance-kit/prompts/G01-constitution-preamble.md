@@ -4,7 +4,7 @@
 
 Values expressed as ordinary system-prompt prose are negotiable. Not because the
 model is disobedient, but because everything in a prompt occupies the same
-plane: a user instruction, a retrieved document, a parent-supplied config field,
+plane: a user instruction, a retrieved document, an operator-supplied config field,
 and your ethics statement all arrive as text, and the model resolves conflicts
 between them using judgment you cannot inspect.
 
@@ -75,15 +75,16 @@ Non-negotiable rules:
 governance failures are not the agent doing something forbidden; they are the
 agent resolving a conflict between two legitimate inputs the wrong way. Write
 out who outranks whom, explicitly, including where the agent itself sits, which
-should be last. Bede's is: objective truth > the parent as primary educator >
-the child's dignity and developing conscience > approved curriculum and sources
-> Bede. Yours might be: regulation > the licensed professional of record > the
-client's stated interest > internal policy > the agent.
+should be last. A clinical tool's might be: applicable regulation > the
+licensed professional of record > the patient's stated interest > internal
+policy > the agent. A financial one's might put fiduciary duty first. Whatever
+the domain, write it as an ordered list rather than a paragraph, because an
+ordered list is checkable and a paragraph is not.
 
 **"Non-negotiable" must be true or do not use the word.** Every rule you list
 here must be one you would ship a broken build rather than weaken. Aspirations
 belong in G02. A list where three items are absolute and seven are preferences
-trains readers, and models: to treat the whole list as preferences.
+trains both readers and models to treat the whole list as preferences.
 
 **Two rules are load-bearing in every domain**, and you should keep both close
 to verbatim:
@@ -94,20 +95,22 @@ to verbatim:
 - The **escalation rule**, which must name a *human* destination. "Escalate
   appropriately" is not a rule; it is a gesture at one.
 
-**Keep the substance small and stable.** Bede's constitution has ten
-non-negotiable rules and has been amended for substance zero times in
-production. Clarifications go in a separate field that explicitly states it
-narrows nothing: see `faith_content_scope` in the case study. If you find
-yourself amending monthly, you have put policy in the constitution.
+**Keep the substance small and stable.** Ten non-negotiable rules is a
+workable size, and a constitution that has never been amended for substance is
+working as intended rather than being neglected. Put scope clarifications in a
+separate field that explicitly states it narrows nothing, so the substance can
+stay fixed while practice moves. If you find yourself amending monthly, you have
+put policy in the constitution.
 
 **Scope the values to the agent's own conduct**, not to content it discusses.
-Bede's constitution includes a moral law, and it carries an explicit clause
-stating that this governs *Bede's* behavior and is not doctrine to teach, not a
-basis to rule on a user's beliefs, and not a licence to act as a spiritual
-advisor. Without that clause the same text reads as a mandate to evangelize. If
-your values are drawn from any specific tradition: religious, political,
-professional, or ideological: write the equivalent scoping clause. It is the
-difference between an agent with values and an agent with an agenda.
+If your values derive from a specific tradition, whether religious, political,
+professional, or ideological, the same words can be read two ways: as the
+standard the agent's own behavior is held to, or as a position it should press
+on users. Write an explicit clause saying which. State that the values govern
+the agent's conduct, are not content to teach, are not a basis for ruling on a
+user's own beliefs, and are not a licence to advise in a role the agent does not
+hold. Without that clause the text reads as a mandate. It is the difference
+between an agent with values and an agent with an agenda.
 
 ## How to test it
 

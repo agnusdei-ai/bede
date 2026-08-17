@@ -59,11 +59,11 @@ marked external. That test is the control; the tier is just how you express it.
 
 **2. Two independent caps.**
 
-- `MAX_TOOL_CALLS_PER_TURN` (Bede: 6); spans every round combined, never
+- `MAX_TOOL_CALLS_PER_TURN` (6 is a reasonable default); spans every round combined, never
   resets per round. A call past the cap is **dropped silently**: never executed,
   never rendered, the user's turn never interrupted. Log it as its own audit
   event and alert on it, because hitting this cap is either a bug or an attack.
-- `MAX_TOOL_LOOP_ROUNDS` (Bede: 3); how many model round-trips one response may
+- `MAX_TOOL_LOOP_ROUNDS` (3 is a reasonable default); how many model round-trips one response may
   take. Independent of and subordinate to the call cap.
 
 One subtlety that bites everyone: if you suppress a `tool_use` block for
@@ -84,9 +84,9 @@ did, and it is what turns "something weird happened" into an answerable question
 
 **5. Guard against within-turn repetition.** A successful reactable call buys
 extra rounds, and those rounds re-send the *cached* system block, so any
-"already done this" state computed once per turn is stale by round 2. Bede's
-visual-aid tool showed the same image three times in one turn for exactly this
-reason. Track it turn-scoped in the dispatch branch, and answer a repeat
+"already done this" state computed once per turn is stale by round 2. In one
+production system a lookup tool returned the same item three times in a single
+turn for exactly this reason. Track it turn-scoped in the dispatch branch, and answer a repeat
 honestly (`{"found": true, "already_shown": true}`) rather than suppressing it
 silently or faking a miss, which sends the model hunting for a different id to
 fix a failure that never happened.
@@ -123,8 +123,8 @@ belongs in the tool's own description.
 signal effort. If any of your tools writes data, that tendency is a data-quality
 problem as well as a cost one.
 
-**Silent tools need an explicit contract.** Bede has four tools that emit
-nothing to the user at all: they persist a record and return nothing. Mark them
+**Silent tools need an explicit contract.** Some tools emit nothing to the user
+at all: they persist a record and return nothing. Mark them
 in the registry and test the contract, or someone will "fix" one by making it
 return a status and change its behavior for every caller.
 

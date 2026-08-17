@@ -12,9 +12,10 @@ continuing to help.
 
 There are three sub-failures worth separating:
 
-**Detection that runs only in one language.** Bede's safeguarding patterns were
-English-only while the product shipped a live Spanish locale. A Spanish-speaking
-child's actual distress language would not have matched anything. This is a
+**Detection that runs only in one language.** In one production system the
+crisis patterns were English-only while the product shipped a second live
+locale. A user writing distress in that second language would not have matched
+anything. This is a
 predictable defect in any regex-based crisis detector, and it is invisible in
 testing because your test cases are written in your language. Note the fix: the
 Spanish patterns are checked *unconditionally*, not gated behind the configured
@@ -50,10 +51,11 @@ Then stop. Do not resume the task in the same session.
 </escalation>
 ```
 
-Bede's fixed text, as a shape reference:
+A worked example, as a shape reference:
 
-> "I hear you. Please find a parent or a trusted adult right now: your safety
-> matters most. You can stop this session and go to them."
+> "I hear you. Please find someone you trust and talk to them right now. Your
+> safety matters more than anything we were doing here. You can stop this and go
+> to them."
 
 Four properties, all deliberate: it *believes them* first, it names a **specific
 human**, it gives a **concrete action**, and it does not diagnose, reassure, or
@@ -84,25 +86,26 @@ for the pattern structure and
 **Enumerate your languages, then check them all unconditionally.** If your
 product can be used in a language, crisis detection must exist in that language,
 and it must not be gated behind a configured locale. Translate the *categories*
-rather than the idioms: Bede's Spanish set deliberately excludes ambiguous
-phrases that also mean something ordinary, because a crisis detector that
-misfires on lesson content gets disabled by whoever is on call.
+rather than the idioms, and exclude ambiguous phrases that also mean something
+ordinary in that language. A crisis detector that misfires on routine content
+gets disabled by whoever is on call.
 
 **Localize the response too.** A crisis is the worst possible moment to hand
 someone a reply in a language they read less fluently than the one they just
 reached for. Fall back to your primary language for locales you have not
 translated: a correct response in the wrong language beats no response.
 
-**Name a real destination for your users.** "A trusted adult" is right for a
-child. For an employee-facing agent it may be a named internal function; for a
-consumer product, a specific hotline. Get this reviewed by someone who actually
-knows your user population. Do not put a generic crisis line in a workplace tool
-and consider it handled.
+**Name a real destination for your users.** "Someone you trust" suits a general
+consumer product. An employee-facing agent may need a named internal function; a
+clinical one, an on-call clinician; a product used by minors, a specific
+guardian or hotline. Get this reviewed by someone who actually knows your user
+population. Do not drop a generic crisis line into a workplace tool and consider
+it handled.
 
-**Separate crisis from ordinary content moderation.** Bede has two responses:
-the escalation text above, and a much gentler redirect for a user who was
-testing a boundary rather than in danger ("Let's keep our time focused on
-today's subject: what would you like to explore next?"). Using crisis framing
+**Separate crisis from ordinary content moderation.** Carry two responses: the
+escalation text above, and a much gentler redirect for a user who was testing a
+boundary rather than in danger ("Let's keep this focused on what you came here
+for. What would you like to look at next?"). Using crisis framing
 for a boundary test is both inaccurate and needlessly alarming, and it teaches
 users that the escalation response is noise.
 

@@ -13,8 +13,8 @@ content, you have built a filter with a documented bypass.
 Three further design failures live in the same file:
 
 **A taxonomy so broad it blocks ordinary use.** If your categories are stated
-without their exclusions, an eight-year-old asking the tutor to "pretend to be a
-dragon" for a literature lesson gets classified as prompt injection. The
+without their exclusions, a user asking the agent to "answer as the villain would"
+for a creative-writing task gets classified as prompt injection. The
 exclusion clauses are not softening; they are what makes the category usable.
 
 **A classifier that fails closed.** Auxiliary safety infrastructure must never
@@ -94,20 +94,20 @@ successful jailbreak yields nothing (there is no secret in your context, your
 tool results cannot carry instructions, and your constitution is re-sent on
 every round), then redirecting a legitimate user to defend against it is a pure
 loss. What is worth acting on is a *sustained pattern*, which is an anomaly-
-detection job, not a per-turn one. Bede alerts an accountable human at 3 flags in
-10 minutes from one source.
+detection job, not a per-turn one. Alerting an accountable human at 3 flags in
+10 minutes from one source is a workable starting threshold.
 
 ## Cost and latency
 
-**Reuse the client and model you already have.** Bede classifies with the same
-adapter-resolved client and the same small model it uses for summarization: no
-new service, no new vendor, no new data recipient, no new account. Adding a
-dedicated moderation vendor means a new party receiving every user message,
-which is a disclosure change and, for a self-hosted product, a broken promise.
+**Reuse the client and model you already have.** Classify with the same client
+and the same small model you already use for summarization: no new service, no
+new vendor, no new data recipient, no new account. Adding a dedicated moderation
+vendor means a new party receiving every user message, which is a disclosure
+change and, for a self-hosted or privacy-promising product, a broken promise.
 
-**Add categories to the call you are already making.** Bede's four
-adversarial-resilience categories were added to the existing per-turn
-classification. Zero additional latency and zero additional cost.
+**Add categories to the call you are already making.** The four
+adversarial-resilience categories above can go into an existing per-turn
+classification call. Zero additional latency and zero additional cost.
 
 **Bound it.** 3-second timeout, ~100 max tokens, `temperature=0`. On timeout,
 proceed.

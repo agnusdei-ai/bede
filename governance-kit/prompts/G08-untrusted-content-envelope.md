@@ -25,13 +25,13 @@ influence what gets indexed.
 user-facing loop dispatches only from a registry of internal tools, so external
 tools are unreachable from it: not discouraged, unreachable.
 
-**Your own persisted summaries.** This is the one that gets people, and it got
-Bede. The reasoning "user chat text is transient, so we do not sanitize it" is
-correct exactly as long as the text really is transient. Bede added a feature
-where a summarizer wrote one sentence per subject recording where a lesson
+**Your own persisted summaries.** This is the one that gets people. The
+reasoning "user chat text is transient, so we do not sanitize it" is correct
+exactly as long as the text really is transient. One production system added a
+continuity feature where a summarizer wrote one sentence recording where a task
 stopped, stored it, and replayed it into the next session's prompt. Both halves
 of the assumption broke at once: the sentence was written from a conversation
-the child fully steered, and it was replayed into prompt context every future
+the user fully steered, and it was replayed into prompt context every future
 session. A stored injection vector, built out of a continuity feature, with no
 new external input at all.
 
@@ -40,11 +40,11 @@ replays it into prompt context needs input sanitization, regardless of whether
 the original text came from a "trusted" party.** The test is not provenance. The
 test is whether the text is replayed.
 
-Note the second-order consequence. Bede sanitizes on **both** the write path and
-the read path, deliberately redundant, because rows written before the fix
-are still live in deployed databases and there is no migration path for encrypted
-blobs. When you find a stored-injection bug, sanitizing new writes fixes the
-future and leaves the past in place.
+Note the second-order consequence. Sanitize on **both** the write path and the
+read path, deliberately redundant, because rows written before the fix are still
+live in deployed databases and encrypted blobs typically have no migration path.
+When you find a stored-injection bug, sanitizing new writes fixes the future and
+leaves the past in place.
 
 ## The block
 
@@ -82,26 +82,26 @@ through, in order:
 5. **Envelope it**, as above.
 6. **Audit it as its own event.** Not folded into your general tool-call event.
    "Outside content entered model context" must stay separately countable, with
-   its own, much tighter, anomaly threshold. Bede alerts at 12 external
-   invocations in 10 minutes against 40 for internal ones.
+   its own, much tighter, anomaly threshold. Alerting at 12 external
+   invocations in 10 minutes against 40 for internal ones is a workable start.
 
 ## Adaptation notes
 
 **Decide the audience before you build the feature.** The question that governs
 everything else is: *if an injection here fully succeeds, who reads the output?*
-Bede's answer is that external content is confined to an operator-facing sandbox
-that persists nothing, and is structurally unreachable from any child-facing
-session, enforced three independent ways, including a source-level test
-asserting the anonymous-visitor call site does not even mention the
-external-tools argument. That redundancy is deliberate: this failure is one you
-learn about afterwards.
+One workable answer: confine external content to an operator-facing surface that
+persists nothing, and make it structurally unreachable from any session serving
+your general user population. Enforce that more than one way, including a
+source-level test asserting the untrusted call site does not even mention the
+external-tools argument. That redundancy is deliberate, because this failure is
+one you learn about afterwards.
 
-**Off by default, and require two switches to arm.** Bede requires both an
-enable flag and a non-empty server list, so half-configuring it does nothing.
+**Off by default, and require two switches to arm.** Require both an enable flag
+and a non-empty server list, so half-configuring it does nothing.
 
 **Declare no capabilities you do not need.** An MCP client that offers
 `sampling` lets a remote server request completions from *your* model on *your*
-account. Bede's client declares `{}`.
+account. Declare `{}` unless you have a specific reason not to.
 
 **Do not spawn subprocesses for this.** An outbound HTTPS call to an address the
 operator named is a far smaller change to your threat model than launching local

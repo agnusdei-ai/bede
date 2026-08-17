@@ -50,10 +50,10 @@ next thing.
 ## Adaptation notes
 
 **Write both rules and cross-reference rather than duplicate.** They are the
-same principle applied to two triggers. Bede's version states the distinction
-explicitly and points at the sentinel rule by number rather than restating its
-wording, which is only safe because operating rules are numbered and never
-renumbered ([G02](G02-operating-rules.md)).
+same principle applied to two triggers. State the distinction explicitly and
+point at the sentinel rule by number rather than restating its wording, which is
+only safe because operating rules are numbered and never renumbered
+([G02](G02-operating-rules.md)).
 
 **"Never open as though they just answered" is the load-bearing clause.**
 "Do not greet again" is the obvious instruction and it is insufficient: the

@@ -18,10 +18,10 @@ There is a second failure inside the first, and it is the one worth reading this
 file for. The first version of this guardrail shipped with a hazard list naming
 only objects and environments: heights, fire, sharp things, water, and a single
 instruction for handling a *user-proposed* risky activity: redirect them to a
-safe alternative. That is correct for a child who wants to throw something out a
-window. It is dangerously wrong for a child who proposes holding their breath as
+safe alternative. That is correct for someone who wants to throw something out a
+window. It is dangerously wrong for someone who proposes holding their breath as
 long as they can, or seeing how long they can go without eating, or testing how
-much pain they can stand: framed, in every case, as part of the lesson.
+much pain they can stand, framed in every case as part of the task.
 
 Object risk and self-directed bodily risk look identical in the request and
 require opposite responses. A safe-alternative swap applied to the second one
@@ -70,13 +70,13 @@ did.
 ## Adaptation notes
 
 **Universal, not tiered.** Resist the instinct to relax this for sophisticated
-users. Bede's version applies identically at every grade, on the reasoning that a
-younger child is *more* literal about a suggestion, never less, and a competent
-adult loses nothing by being told a step needs a second person. If you tier
+users. Apply it identically at every level of expertise: a less experienced
+person is *more* literal about a suggestion, never less, and a competent expert
+loses nothing by being told a step needs a second person. If you tier
 anything here, tier the tone, never the hazard list.
 
 **Rewrite the hazard list for your domain; keep the shape.** The list above is
-tuned for a child at a desk. A home-repair agent needs mains electricity, gas,
+tuned for someone at a desk. A home-repair agent needs mains electricity, gas,
 load-bearing structure, and working at height. A cooking agent needs oil
 temperature, raw protein handling, and knife technique. A fitness agent needs
 load progression, joint hyperextension, and heat. The transferable structure is:
@@ -93,10 +93,10 @@ because you will revise it as you learn your domain's actual hazards. Putting
 operational detail under founder-review change control makes the change control
 itself an obstacle people route around.
 
-**Check your tools too.** Bede's only hands-on tool draws on a screen, so this
-guardrail is entirely about language, not tool behavior. If one of your tools
-actually actuates something physical, this block is necessary and not
-sufficient: that tool needs its own preconditions.
+**Check your tools too.** Where every tool is screen-based, this guardrail is
+entirely about language rather than tool behavior. If one of your tools actually
+actuates something physical, this block is necessary and not sufficient: that
+tool needs its own preconditions.
 
 ## How to test it
 

@@ -82,34 +82,31 @@ of its own, so this guardrail is about Bede's language, not a tool's
 behavior. See `docs/SECURITY.md`'s Closed gaps for the audit that surfaced
 this.
 
-## The Agent Governance Kit (`governance-kit/`)
+## `governance-kit/` — staging only, not part of Bede
 
-An **Apache-2.0 open-source carve-out** of this repository's governance layer,
-generalized for the agent-building community — deliberately separate from the
-rest of the repo, which is All Rights Reserved (see `LICENSE` and
-`governance-kit/NOTICE`). Self-contained and **destined to be extracted into its
-own public repository**; nothing in `homeschool-api/`, `homeschool-tutor/`,
-`demo/`, or `site/` imports from it, and it imports nothing from them. It is a
-generalization, never a second copy: when a governance pattern here changes, the
-kit is updated as a separate, deliberate act — it does not track this code
-automatically, and no test asserts they agree.
+**This is not a Bede feature and must not be treated as one.** It is a
+standalone, Apache-2.0, domain-neutral agent-hardening package for the
+agent-building community, sitting in this repository **only as a staging
+area until it is pushed to its own public repository**. It names no
+product, no domain, and nothing about this one: a test asserts that
+(`homeschool-api/tests/test_governance_kit_isolation.py`). Do not add
+Bede-specific content to it, do not wire anything in the app to it, and do
+not treat a change here as a change to Bede.
 
-Contents: 12 prompt blocks (`prompts/G01`–`G12`) covering the constitution
-preamble, operating rules, role limits, physical safety, escalation, tool-use
-discipline, tool-result continuation, untrusted external content, measurement
-refusals, substitution limits, certainty/verbatim quoting, and the moderation
-classifier — each with the failure it prevents, adaptation notes, and how to
-test it; a constitution template plus JSON schema; dependency-free reference
-Python (`reference/`, 99 passing tests) implementing digest-pinned constitution
-verification, sanitization, Tier-1 detection, the policy engine, tool trust
-tiers, and the untrusted-content envelope; two checklists; and `docs/`
-(philosophy, adoption path, OWASP/NIST cross-map, threat-model template, and a
-case study naming Bede's real values and three real defects).
+The isolation test is what keeps the two apart while they share a
+repository, and each of its five guards was verified by breaking it:
+`scripts/build_pages_site.sh` never copies the kit into the published site,
+the kit declares no `_headers` of its own (`site/_headers` must stay the
+only one in the published tree), its deliberately-inert CI does not collide
+with the root workflows, `governance-kit/` is named in `.github/workflows/test.yml`'s
+change filter (without it a kit-only PR computes `relevant=false`, skips
+`api-tests`, and never runs `test_site_headers.py` — the same failure mode
+`test_decision_register.py` documents), and the kit imports nothing from the
+app so it stays extractable. The whole file self-skips once the directory is
+gone.
 
-`scripts/check_docs.py` pins every relative link and template, and
-`.github/workflows/tests.yml` is deliberately inert while the kit lives inside
-this repo — GitHub reads workflows only from a repository root, so it activates
-on extraction rather than needing to be written afterwards.
+Its own `.github/workflows/tests.yml` is inert here — GitHub reads workflows
+only from a repository root — and activates on extraction.
 
 ## Running the Full Stack
 

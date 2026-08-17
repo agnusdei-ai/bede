@@ -14,9 +14,9 @@ unbounded, which means it is unfalsifiable, which means it is not a claim.
 Two or three sentences. What it does, who runs it, where it runs, who talks to
 it.
 
-> *Example:* A Socratic tutoring agent, self-hosted on a family's own LAN,
-> configured by a parent and used by children aged 5–13 on their own tablets.
-> No multi-tenancy: one household per deployment.
+> *Example:* An intake assistant, self-hosted inside a customer's own network,
+> configured by an administrator and used by that organization's staff. No
+> multi-tenancy: one deployment per customer.
 
 ## 2. Assets
 

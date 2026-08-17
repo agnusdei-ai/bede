@@ -1,11 +1,14 @@
-"""governance-kit/ is a carve-out that must not touch the deployed site.
+"""governance-kit/ is staged here, not part of this product.
 
-`governance-kit/` is an Apache-2.0 open-source extraction of this repository's
-governance layer, destined to become its own public repository. It is the first
-top-level directory added next to `site/` since the public deployment took its
-current shape, and it carries the two things that make a directory dangerous to
-that deployment: a large amount of markdown, and a `.github/workflows/` of its
-own.
+`governance-kit/` is a standalone, domain-neutral, Apache-2.0 agent-hardening
+package that happens to be sitting in this repository until it is pushed to its
+own. It is NOT a Bede feature: it names no product and no domain, which
+`test_the_kit_names_no_product_or_domain` below asserts rather than trusts.
+
+It is also the first top-level directory added next to `site/` since the public
+deployment took its current shape, and it carries the two things that make a
+directory dangerous to that deployment: a large amount of markdown, and a
+`.github/workflows/` of its own.
 
 Neither is a problem today. Both become one silently, which is why this file
 exists rather than a note in a README.
@@ -131,6 +134,43 @@ def test_the_site_header_guard_is_reachable_for_a_kit_only_change():
         "governance-kit/ is missing from test.yml's change filter, so a PR "
         "touching only the kit skips api-tests — including test_site_headers.py, "
         "which guards the public site's security headers. Add it to the pattern."
+    )
+
+
+def test_the_kit_names_no_product_or_domain():
+    """The kit is domain-neutral, and that has to be enforced rather than swept
+    once.
+
+    It was first written with this product as its worked case study, then
+    rescoped to be generic. The failure mode after a rescope is re-entry: the
+    next person adding a pattern reaches for the example they know, and the
+    kit drifts back into being an artifact of one system. A grep is cheap and
+    the drift is silent.
+
+    `agnusdei.ai` is exempt: it is the copyright holder's own URL in NOTICE and
+    the README's provenance line, which is attribution rather than domain
+    content.
+    """
+    banned = (
+        "bede", "catholic", "homeschool", "socratic", "mater amabilis",
+        "narration", "catechism", "scripture", "parishioner",
+    )
+    offenders = []
+    for path in sorted(_KIT.rglob("*")):
+        if not path.is_file() or path.suffix not in {".md", ".py", ".json", ".yml", ".yaml"}:
+            continue
+        if path.name == "LICENSE":
+            continue
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            lowered = line.lower().replace("agnusdei.ai", "")
+            for term in banned:
+                if term in lowered:
+                    offenders.append(f"{path.relative_to(_ROOT).as_posix()}:{lineno} ({term})")
+    assert not offenders, (
+        "governance-kit/ names this product or its domain: "
+        + "; ".join(offenders)
+        + ". The kit is domain-neutral by design; use a generic example, or "
+        "describe the incident as 'one production system' without naming it."
     )
 
 

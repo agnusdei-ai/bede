@@ -12,32 +12,32 @@ and having it quietly harden into a judgment nobody decided to make.
 Four distinct failures:
 
 **Measuring what you have no standing to measure.** Some things are legible to
-an agent and still not its business. Bede's standing rule is that a child's
-spiritual engagement is never scored, counted, or tracked: governed
-qualitatively, by rule, while other dimensions carry real per-item counters. The
-rule is written into the project's own contribution guidelines: if a future
-change proposes a "faith engagement" signal, that is out of scope, raise it as a
-question rather than building it. Your domain has an equivalent. Name it
-explicitly, because the reason it never gets built is that nobody wrote down
-that it should not be.
+an agent and still not its business: a person's sincerity, their conviction,
+their emotional state, how much they seem to care. One production system names
+such a dimension explicitly and governs it qualitatively, by rule, while other
+dimensions carry real per-item counters. The prohibition is written into its
+contribution guidelines: if a change proposes a signal for that dimension, it is
+out of scope and gets raised as a question rather than built. Your domain has an
+equivalent. Name it explicitly, because the reason it never gets built is that
+nobody wrote down that it should not be.
 
 **A blank looking like a low score.** If your agent scores work only when it
-genuinely observed enough to score it, which it should: then unscored items
-must remain visibly distinct from badly-scored ones. Bede's UI shipped a version
-where a skill scored honestly at every floor rendered *identically* to work the
-agent had never judged at all, and another where a student with no notable
-observations rendered "0 exemplary · 0 beyond the task · 0 brisk" under the
-heading **Signs of initiative**. Three zeros under that heading is a verdict on
-a child, and a caveat underneath does not undo it. The fix: report a presence,
+genuinely observed enough to score it, which it should, then unscored items must
+remain visibly distinct from badly-scored ones. One production UI shipped a
+version where a skill scored honestly at every floor rendered *identically* to
+work the agent had never judged at all, and another where a person with no
+notable observations rendered "0 exemplary · 0 beyond the task · 0 brisk" under
+the heading **Signs of initiative**. Three zeros under that heading is a verdict
+on a person, and a caveat underneath does not undo it. The fix: report a presence,
 never an absence: render only the non-zero counts, and state the scored count
 alongside the unscored one so both halves are always visible.
 
 **A roster becoming a ranking.** An API can refuse to emit a ranking and a UI
 can reintroduce one purely through layout. A list of people with numbers beside
-them reads as a table of who is ahead regardless of what the numbers mean. Bede
-groups by skill rather than by person, sorts alphabetically so the order cannot
-shift when counts do, computes no per-person total *even client-side*, and omits
-a person from a skill they have not worked rather than listing them at zero.
+them reads as a table of who is ahead regardless of what the numbers mean. Group
+by skill rather than by person, sort alphabetically so the order cannot shift
+when counts do, compute no per-person total *even client-side*, and omit a
+person from a skill they have not worked rather than listing them at zero.
 
 **A downstream model reintroducing the judgment.** This is the subtle one and it
 is why the refusals must be *in the data*. If you expose your observations
@@ -90,16 +90,15 @@ Rules, and they matter more than the scales:
 
 The prompt is a third of it. The rest is what your storage and API refuse to do:
 
-**Separate events from claims.** Bede keeps two stores. One holds a
-psychometric claim *about the child* ("0.47 probability of having mastered
-multi-digit multiplication"). The other holds an *event* ("on this date, a
-multi-digit multiplication task was completed unaided"). They answer different
-questions, both are wanted, and the distinction determines what a privacy switch
-can turn off: setting the deployment to non-retaining drops the claim and keeps
-the events, because an event record is not a judgment.
+**Separate events from claims.** Keep two stores. One holds an estimate *about
+the person* ("0.47 probability that this person has mastered the skill"). The
+other holds an *event* ("on this date, a task exercising that skill was completed
+unaided"). They answer different questions, both are wanted, and the distinction
+determines what a privacy switch can turn off: a non-retaining mode drops the
+claim and keeps the events, because an event record is not a judgment.
 
-**A missed attempt writes no row.** Bede's work ledger does not record failed
-attempts; that would make it a record of failures. Struggle is captured by the
+**A missed attempt writes no row.** Do not record failed attempts in the event
+store; that would make it a record of failures. Struggle belongs to the
 estimator, which is the thing designed to represent it.
 
 **Emit distributions, never averages.** A mean over an ordinal scale invents
@@ -112,23 +111,23 @@ grade wearing different words.
 **Ordering is fixed and meaningful, never sorted by score.** A list that
 reshuffles as someone improves is a ranking of their own attributes.
 
-**Say what the data does not mean, in the payload.** Bede's coverage endpoint
+**Say what the data does not mean, in the payload.** One production endpoint
 carries the refusal inside the response body: *"not a measure of interest,
-engagement, or effort… says nothing about the person"*, and a test scans the
+engagement, or effort… says nothing about the person"*, with a test scanning the
 payload for `engagement`, `motivation`, `effort`, `score`.
 
 ## Adaptation notes
 
-**Distinguish a finding about the plan from a finding about the person.** Bede's
-"no evidence in this window" outcome is surfaced as *check that this is
-scheduled often enough* at the schedule level, deliberately not next to the
-child's name like a score. Same data; the placement is the whole ethics.
+**Distinguish a finding about the plan from a finding about the person.**
+Surface a "no evidence in this window" outcome as *check that this is scheduled
+often enough*, at the level of the plan, deliberately not next to the person's
+name like a score. Same data; the placement is the whole ethics.
 
-**Freeze your stored enum values; keep labels and criteria revisable.** Bede
-stores level strings verbatim in encrypted blobs with no migration path, so
-renaming one orphans every observation a family has accumulated. Wire values are
-frozen; what a level *means* and what a user sees it *called* are not. Hence
-`exemplary` → "one to show", `brisk` → "came easily".
+**Freeze your stored enum values; keep labels and criteria revisable.** Where
+level strings are stored verbatim, and especially in encrypted blobs with no
+migration path, renaming one orphans every observation accumulated so far. Wire
+values are frozen; what a level *means* and what a user sees it *called* are
+not. Hence `exemplary` → "one to show", `brisk` → "came easily".
 
 **Never ship a metric for a dimension you have named unmeasurable.** Write the
 prohibition into your contribution guide and add a test that fails if a field

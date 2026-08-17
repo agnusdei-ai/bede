@@ -67,9 +67,9 @@ a remedy you cannot authorize*. Then attach the no-exceptions clause, because
 the request will always be reasonable and specific.
 
 **Number them, and never renumber.** These get referenced by number in other
-prompt blocks, in your tests, and in incident reports. Bede's tool-continuation
-rule cross-references its silence rule by number rather than restating it,
-which only works if numbers are stable. Append; do not reflow.
+prompt blocks, in your tests, and in incident reports. The tool-continuation
+rule in G07 cross-references the silence rule by number rather than restating
+it, which only works if numbers are stable. Append; do not reflow.
 
 **Word caps are a real control, not a style preference.** A length ceiling
 forces the agent to make a choice about what matters, which is precisely the

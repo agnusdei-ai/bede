@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.audit import AuditEvent, audit_from_request, log_event
+from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
@@ -16,6 +16,7 @@ from core.demo_code_session import (
     get_current_unit as get_demo_current_unit,
     get_faith_tradition as get_demo_faith_tradition,
     get_personalization as get_demo_personalization,
+    has_message_quota as demo_code_has_message_quota,
     record_message as demo_code_record_message,
 )
 from core.deps import require_auth, require_email_summary, require_parent
@@ -36,6 +37,7 @@ from services.ai_service import (
     _redact_credentials,
     _sanitize_parent_field,
     check_safeguarding,
+    demo_quota_response,
     generate_session_summary,
     moderation_redirect_response,
     safeguarding_response,
@@ -156,9 +158,17 @@ async def chat(
         req.session_config = await _demo_session_config(auth.get("code"))
         db = None
 
+    demo_quota_exceeded = False
     if is_demo_code:
-        # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
-        await demo_code_record_message(auth.get("code", ""))
+        demo_code = auth.get("code", "")
+        # The actual LLM10 enforcement point (see core/demo_code_session.py's
+        # _MAX_MESSAGES_PER_CODE) — checked BEFORE record_message increments,
+        # so an over-quota turn is never double-counted and never reaches
+        # stream_tutor_response below, i.e. no model call is spent refusing it.
+        if await demo_code_has_message_quota(demo_code):
+            await demo_code_record_message(demo_code)
+        else:
+            demo_quota_exceeded = True
 
     # Fire-and-forget — log_event() runs in its own independent DB session
     # and already swallows its own failures (see core/audit.py), so there's
@@ -196,6 +206,19 @@ async def chat(
         ))
 
     async def event_generator():
+        if demo_quota_exceeded:
+            await log_event(
+                AuditEvent.RATE_LIMITED,
+                role=role,
+                student_name=req.session_config.student_name,
+                success=False,
+                detail="demo_message_quota",
+                **audit_from_request(request),
+            )
+            yield json.dumps({'type': 'text', 'content': demo_quota_response(auth.get("locale", "en"))})
+            yield json.dumps({'type': 'done'})
+            return
+
         # Deterministic safeguarding check — bypasses LLM entirely for crisis
         # signals, free and zero-latency, so it runs before paying for a
         # moderation classification call at all.
@@ -299,13 +322,33 @@ async def chat(
                 "Tutor stream stalled past %.0fs for %s — closing with a recoverable error",
                 STREAM_STALL_TIMEOUT_SECONDS, req.session_config.student_name,
             )
+            # See core/audit.py's AI_BACKEND_FAILURE / _GLOBAL_ANOMALY_EVENTS —
+            # a repeated pattern here (pooled across every device, not just
+            # this one) is what actually tells a parent/operator Bede's AI
+            # backend is unhealthy, rather than that surfacing only as a
+            # string of individually-unremarkable "try again" replies with
+            # nobody watching. Fire-and-forget: must not delay the error
+            # response the child is waiting on.
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE,
+                role=role, student_name=req.session_config.student_name,
+                success=False, detail=f"cause=stall subject={req.current_subject.value}",
+                **audit_from_request(request),
+            )
             yield json.dumps({
                 'type': 'text',
                 'content': "Sorry, that took too long to come through. Could you try sending that again?",
             })
             yield json.dumps({'type': 'done'})
-        except Exception:
+        except Exception as exc:
             log.exception("Tutor stream failed mid-turn for %s", req.session_config.student_name)
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE,
+                role=role, student_name=req.session_config.student_name,
+                success=False,
+                detail=f"cause=exception subject={req.current_subject.value} error={type(exc).__name__}",
+                **audit_from_request(request),
+            )
             yield json.dumps({
                 'type': 'text',
                 'content': "Something went wrong on my end. Could you try sending that again?",

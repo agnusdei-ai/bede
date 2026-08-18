@@ -78,15 +78,17 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
 
       - name: Install dependencies
         working-directory: homeschool-api
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        # From the hash-locked lockfile — see docs/SECURITY.md's closed-gap
+        # entry and requirements.in's own header comment.
+        run: pip install --require-hashes -r requirements-dev.lock.txt
 
       - name: Fail loudly if no probe API key is configured
         run: |
@@ -124,7 +126,7 @@ jobs:
         run: python3 scripts/adversarial_probe.py
 
       - name: Upload probe transcript
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: adversarial-probe-transcript-${{ github.run_id }}
           path: docs/adversarial-probes/probe-*.json

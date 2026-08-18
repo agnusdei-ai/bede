@@ -17,8 +17,13 @@ const LABELS: Record<AIProviderName, string> = {
  * restart (homeschool-api/core/provider_state.py — same "DB value wins
  * over env" precedent LicenseSettings.tsx already uses for the license
  * key). Meant for e.g. moving off a degraded local model onto a cloud
- * provider without touching the server. Renders nothing if fewer than two
- * providers are configured — nothing to switch between.
+ * provider without touching the server. Renders nothing if NO provider is
+ * configured (a different, broken-deployment problem this card isn't
+ * about). With exactly one configured, there's nothing to switch between
+ * yet, so a lighter nudge renders instead of the full switcher below —
+ * see the reliability gap this closes: before this, a family running a
+ * single provider for months had no ongoing prompt to ever add a backup,
+ * since this component used to render nothing at all in that case.
  */
 export default function AIProviderSettings({ token }: { token: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -30,7 +35,26 @@ export default function AIProviderSettings({ token }: { token: string }) {
     fetchAIProviderStatus(token).then(setStatus).catch(() => setStatus(null))
   }, [token])
 
-  if (status === undefined || status === null || status.configured.length < 2) return null
+  if (status === undefined || status === null || status.configured.length === 0) return null
+
+  if (status.configured.length === 1) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 px-5 py-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+          <Cpu size={16} className="text-navy-500" /> AI Provider
+          <span className="text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
+            {LABELS[status.configured[0]]}
+          </span>
+        </p>
+        <p className="text-xs text-gray-500 mt-2">
+          Only one AI provider is configured right now. If it goes down — a local model server
+          crashing, a revoked cloud API key — Bede has nothing to automatically fail over to.
+          Adding a second provider, even just as a backup, lets Bede keep working on its own. See
+          docs/PROVIDER_ADAPTERS.md for how to set one up.
+        </p>
+      </div>
+    )
+  }
 
   const handleSelect = async (provider: AIProviderName) => {
     setBusy(true)

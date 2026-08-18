@@ -3,10 +3,13 @@ Per-IP quota on the demo's diagnostic-preview feature (GET /diagnostic/summary,
 POST /diagnostic/chat) — see routers/diagnostic.py.
 
 The base demo (routers/tutor.py's /chat) is deliberately uncapped in
-duration and message count (see core/demo_code_session.py's own docstring)
-— a real, full-length tutoring demo is the point, not a crippled preview.
-But the diagnostic engine layered on top of it is a materially heavier
-feature (mastery tracking built up across a whole session, plus its own
+DURATION and BREADTH — a code lives out its full TTL and every subject is
+reachable, a real full-length tutoring demo rather than a crippled preview
+— though message VOLUME per code is now bounded by
+core/demo_code_session.py's own _MAX_MESSAGES_PER_CODE (see that module's
+docstring), sized well above any real evaluation. But the diagnostic
+engine layered on top of the base chat is a materially heavier feature
+(mastery tracking built up across a whole session, plus its own
 direct-answer chat), and an uncapped diagnostic preview is the single
 most abuse-prone surface for someone using the "demo" as an ongoing free
 substitute for a real production deployment rather than a one-time

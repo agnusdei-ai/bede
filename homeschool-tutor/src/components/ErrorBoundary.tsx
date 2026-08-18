@@ -35,7 +35,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) return this.props.children
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-faith-100 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-parchment-100 via-sage-50 to-madder-100 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <AgnusDeiMark className="w-16 h-16 mx-auto mb-4" />
           <p className="text-sage-600 font-display text-lg font-semibold">

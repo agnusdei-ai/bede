@@ -39,7 +39,7 @@ This document scopes a **License Server**: a new, small, separately-deployed ser
 
 ```mermaid
 graph TD
-  A[Customer] -->|"Buys annual plan"| B["Checkout<br/>(Stripe / Square / Helcim)"]
+  A[Customer] -->|"Buys annual plan"| B["Checkout<br/>(Stripe / Square)"]
   B -->|"provider-native webhook"| P["Payment Adapter Layer<br/>translates to a common event shape"]
   P -->|"normalized PaymentEvent"| C["License Server<br/>(new service)"]
   C -->|"issue_license() — same Ed25519 scheme"| D[("License Server DB<br/>customers, licenses, activations")]
@@ -56,7 +56,7 @@ The License Server is a **new, separate service** — it does not run inside `ho
 
 ## 5. Hosting recommendation — locked decision: Cloudflare Workers + D1
 
-**Revised from an earlier draft of this document, which recommended Render + Postgres** (matching `bede-demo-api`'s existing pattern) and explicitly argued against Cloudflare because this repo's existing `wrangler.jsonc` is static-assets-only. That reasoning was correct about what's in the repo *today*, but incomplete about what Cloudflare Workers can actually do — modern Workers support real compute (a `main` script, not just `assets`), and **D1** (Cloudflare's serverless SQLite) is a genuine, production database, not a toy. Given Helcim as the chosen processor (§6.1) and an explicit preference for staying in the Cloudflare ecosystem, this is the better fit:
+**Revised from an earlier draft of this document, which recommended Render + Postgres** (matching `bede-demo-api`'s existing pattern) and explicitly argued against Cloudflare because this repo's existing `wrangler.jsonc` is static-assets-only. That reasoning was correct about what's in the repo *today*, but incomplete about what Cloudflare Workers can actually do — modern Workers support real compute (a `main` script, not just `assets`), and **D1** (Cloudflare's serverless SQLite) is a genuine, production database, not a toy. Given Stripe as the chosen processor (§6.1) and an explicit preference for staying in the Cloudflare ecosystem, this is the better fit — and the two choices reinforce each other, since Stripe is the one processor with a documented, first-class Workers path (§6.1):
 
 - **Compute:** a **new, second Cloudflare Worker project** — distinct from the existing `bede` static-assets Worker (`wrangler.jsonc`, `site/` + `demo/dist/`) — with its own `wrangler.jsonc` carrying a `main` script and a D1 binding. Not an addition to the existing static site's config.
 - **Database:** D1 in place of Postgres. The License Server's own schema (§7) — four small tables, no complex joins, no need for Postgres-specific features — has no real requirement for a full RDBMS; D1 is a comfortable fit.
@@ -67,23 +67,43 @@ Email delivery still reuses `services/email_service.py`'s existing pattern conce
 
 ## 6. Component design
 
-### 6.1 Payment integration — a vendor-neutral adapter layer over Stripe, Square, and Helcim
+### 6.1 Payment integration — a vendor-neutral adapter layer over Stripe and Square
+
+**Revised 2026-08-15, replacing Helcim with Stripe as the Phase 1 primary and
+removing Helcim from this document entirely.** The earlier version picked Helcim
+on effective card-processing cost — no monthly platform fee, no
+per-recurring-charge surcharge, interchange-plus averaging below the other two
+for recurring billing. That reasoning was about *rates*, and it was sound on
+rates. What it did not weigh is that §5 had already locked **Cloudflare Workers**
+as the runtime, and processor support for that runtime is not uniform. Stripe
+publishes a Workers path (`Stripe.createFetchHttpClient()`,
+`constructEventAsync()` + `Stripe.createSubtleCryptoProvider()`); the
+synchronous `constructEvent` throws there, so this is a compatibility property
+rather than a convenience. Helcim's integration would have been hand-rolled
+against `crypto.subtle` — which is exactly what PR #82 did, and exactly why that
+PR carried three unverified Helcim API details it could not confirm from
+documentation alone.
+
+The cost argument can be revisited later without revisiting this design: the
+whole point of the adapter layer below is that the *business* can change
+processors without the issuance logic changing. What it should not do is pay for
+a rate advantage in unverifiable integration code on the critical path to taking
+money. See [`DECISIONS.md`](DECISIONS.md) entry 11.
 
 This repo already has a strong, proven precedent for exactly this shape of problem: `services/adapters/` decouples Bede's tutor from any single LLM vendor. Its own docstring states the pattern plainly — "An adapter is any object that presents that SAME surface... Everything else... becomes an adapter that TRANSLATES to and from that shape... so the ~2000 lines of prompt/tool/streaming logic... never have to change." The License Server should be built the same way for payments, not hardcoded to one processor.
 
-**All three requested processors were verified to support the required primitives** (recurring/subscription billing + webhooks — not just one-time checkout):
+**Both processors were verified to support the required primitives** (recurring/subscription billing + webhooks — not just one-time checkout):
 - **Stripe** — Subscriptions + Checkout + webhooks (`checkout.session.completed`, `invoice.paid`, `customer.subscription.deleted`), signature-verified via a webhook signing secret. The most mature/standard of the three; **[to verify against this repo's actual future integration, not just public docs]**.
 - **Square** — a dedicated Subscriptions API (`SubscriptionPlanVariation` for billing cadence/pricing) plus its own Webhook Subscriptions API; renewal payment status is tracked via the `invoices.payment_made` event or `Subscription.created`/updated events. Source: [Square Subscriptions API Overview](https://developer.squareup.com/docs/subscriptions-api/overview), [Subscription Billing and Invoices](https://developer.squareup.com/docs/subscriptions-api/subscription-billing), [Webhooks — Subscriptions API](https://developer.squareup.com/reference/square/subscriptions-api/webhooks).
-- **Helcim** — a Recurring API (payment plan + subscription + add-on objects covering billing frequency, expiry, tax) with its own webhook system, signed HMAC-SHA256 via a per-account `verifierToken`. Source: [Helcim Recurring API](https://devdocs.helcim.com/docs/recurring-api), [Helcim Webhooks](https://devdocs.helcim.com/docs/webhooks).
 
 **Design, mirroring `services/adapters/base.py` exactly:**
-- A canonical, **Stripe-shaped internal vocabulary** for payment events (Stripe's object/event model is the most standard of the three, same reasoning `services/adapters/base.py` uses Anthropic's shape as the canonical one since the Anthropic adapter needs zero translation). A `PaymentEvent` type: `{type: "subscription_created" | "subscription_renewed" | "subscription_cancelled" | "payment_failed", customer_email, external_customer_id, external_subscription_id, tier, provider: "stripe" | "square" | "helcim"}`.
-- A `PaymentAdapter` Protocol (mirroring `base.py`'s `runtime_checkable` Protocol pattern) with one implementation per processor. The Stripe adapter is near-passthrough (its webhook payloads already are this shape). The Square and Helcim adapters are translators — same role as `openai_compatible_adapter.py` plays for non-Anthropic LLM providers — converting each processor's own webhook payload and signature scheme into one `PaymentEvent`. Which vocabulary is canonical is independent of build order: Helcim is built first (§11 Phase 1) purely because it's the chosen primary, even though it's a translating adapter rather than the passthrough one.
+- A canonical, **Stripe-shaped internal vocabulary** for payment events (Stripe's object/event model is the most standard of the two, same reasoning `services/adapters/base.py` uses Anthropic's shape as the canonical one since the Anthropic adapter needs zero translation). A `PaymentEvent` type: `{type: "subscription_created" | "subscription_renewed" | "subscription_cancelled" | "payment_failed", customer_email, external_customer_id, external_subscription_id, tier, provider: "stripe" | "square"}`.
+- A `PaymentAdapter` Protocol (mirroring `base.py`'s `runtime_checkable` Protocol pattern) with one implementation per processor. The Stripe adapter is near-passthrough (its webhook payloads already are this shape). The Square adapter is a translator — same role as `openai_compatible_adapter.py` plays for non-Anthropic LLM providers — converting that processor's own webhook payload and signature scheme into one `PaymentEvent`. Here the canonical vocabulary and the build order agree: Stripe is both the shape everything translates *to* and the Phase 1 primary (§11), so the first adapter written is the passthrough one and has the least that can go wrong in it.
 - **The License Server's issuance/renewal/revocation logic (§6.2–§6.5) is written once against `PaymentEvent`, and never needs to know which processor fired.** This is the entire point of the pattern, restated from `base.py`'s own docstring: business logic doesn't change when a processor is added or swapped.
 
-**Checkout CX — locked decision: one path, never a picker.** The customer picks a tier and hits one "Subscribe" button; which processor actually runs the charge is invisible to them — no "pay with Stripe / Square / Helcim" selector. This is the same shape as `BEDE_ADAPTER_ORDER`/`core/provider_state.py`'s primary-provider selection for AI adapters: exactly **one processor is configured as primary** at a time (env-default, live DB override, no restart — identical mechanism, reused verbatim), and only that processor's hosted checkout page is ever shown to a customer. All three adapters exist in the code from Phase 3 onward (§11) so the *business* can switch primaries later — a rate renegotiation, an outage, a new market — without a customer ever noticing or acting differently. This intentionally forecloses the "customer picks their processor at checkout" version of the earlier open question: it is strictly more CX complexity (an extra decision, on a page whose only job is to not lose the sale) for a choice that means nothing to the customer.
-- **Checkout:** the one configured primary processor renders its own hosted checkout page (Stripe Checkout Session, Square Checkout, or Helcim's `HelcimPay.js` hosted fields) — the License Server never touches raw card data with any of the three, all handle PCI scope themselves.
-- **Webhook signature verification is processor-specific and must live inside each adapter, not centrally** — Stripe uses a signing secret + its own SDK helper, Square has its own webhook-signature scheme, Helcim signs with HMAC-SHA256 against a `verifierToken`. Getting this wrong per-adapter is the single highest-severity implementation risk in this whole component (§8).
+**Checkout CX — locked decision: one path, never a picker.** The customer picks a tier and hits one "Subscribe" button; which processor actually runs the charge is invisible to them — no "pay with Stripe / Square" selector. This is the same shape as `BEDE_ADAPTER_ORDER`/`core/provider_state.py`'s primary-provider selection for AI adapters: exactly **one processor is configured as primary** at a time (env-default, live DB override, no restart — identical mechanism, reused verbatim), and only that processor's hosted checkout page is ever shown to a customer. Both adapters exist in the code from Phase 3 onward (§11) so the *business* can switch primaries later — a rate renegotiation, an outage, a new market — without a customer ever noticing or acting differently. This intentionally forecloses the "customer picks their processor at checkout" version of the earlier open question: it is strictly more CX complexity (an extra decision, on a page whose only job is to not lose the sale) for a choice that means nothing to the customer.
+- **Checkout:** the one configured primary processor renders its own hosted checkout page (Stripe Checkout Session or Square Checkout) — the License Server never touches raw card data with either, both handle PCI scope themselves.
+- **Webhook signature verification is processor-specific and must live inside each adapter, not centrally** — Stripe uses a signing secret verified through its own SDK helper, and Square has its own webhook-signature scheme. Getting this wrong per-adapter is the single highest-severity implementation risk in this whole component (§8).
 - **Trials — locked decision: self-serve, no card, through the License Server.** Simpler CX than "email us for a trial key": tier picker shows `trial` as a zero-payment option, same single flow, immediate email delivery — no separate off-platform request process for a prospective customer to navigate, and no operator in the loop (consistent with G1).
 
 ### 6.2 Issuance automation
@@ -127,7 +147,7 @@ customers        id, email, created_at
 licenses          id, customer_id, tier, seats, max_activations,
                   status (active | revoked | trial),
                   valid_until,
-                  payment_provider (stripe | square | helcim | none),
+                  payment_provider (stripe | square | none),
                   external_customer_id, external_subscription_id,
                   license_key (the signed string, stored for re-delivery),
                   created_at
@@ -137,12 +157,12 @@ webhook_events    id, payment_provider, external_event_id,
                   type, received_at
 ```
 
-Every processor's IDs (`external_customer_id`, `external_subscription_id`, `webhook_events.external_event_id`) are scoped by `payment_provider` rather than assumed to be Stripe's — a `customer_id` from Square and one from Helcim are different ID spaces that must never collide. `webhook_events`'s composite unique constraint is the standard, necessary defense against at-least-once webhook delivery — a property all three processors document, not just Stripe — every adapter's handler must be idempotent, or a retried `subscription_created` event double-issues a license.
+Every processor's IDs (`external_customer_id`, `external_subscription_id`, `webhook_events.external_event_id`) are scoped by `payment_provider` rather than assumed to be Stripe's — a `customer_id` from Stripe and one from Square are different ID spaces that must never collide. `webhook_events`'s composite unique constraint is the standard, necessary defense against at-least-once webhook delivery — a property all three processors document, not just Stripe — every adapter's handler must be idempotent, or a retried `subscription_created` event double-issues a license.
 
 ## 8. Security considerations
 
 - **Private key custody changes.** Today the signing private key lives entirely offline, on an operator's machine, touched only per manual issuance — about as safe as a private key can be. Moving issuance in-process on the License Server means that key now lives on a running, internet-facing service. This is a real, deliberate trade for automation and needs its own hardening: stored as a **Workers Secret** (`wrangler secret put`, Cloudflare's equivalent of Render's secret env vars — same never-in-source, never-logged handling as the rest of this repo's credentials), and the Worker should be the *only* thing with read access to it — no admin UI ever displays it.
-- **Webhook authenticity, per processor, not once.** Each of the three has its own scheme — Stripe's signing-secret + SDK helper, Square's own webhook-signature key, Helcim's HMAC-SHA256 against a per-account `verifierToken` — and each `PaymentAdapter` (§6.1) must implement its own correctly. Getting even one wrong means `POST` to that adapter's webhook URL is an unauthenticated "issue me a free license" endpoint. This is a per-adapter code-review item, not something a shared/central check can fully cover, precisely because the three schemes aren't unifiable.
+- **Webhook authenticity, per processor, not once.** Each has its own scheme — Stripe's signing-secret + SDK helper, Square's own webhook-signature key — and each `PaymentAdapter` (§6.1) must implement its own correctly. Getting even one wrong means `POST` to that adapter's webhook URL is an unauthenticated "issue me a free license" endpoint. This is a per-adapter code-review item, not something a shared/central check can fully cover, precisely because the two schemes aren't unifiable.
 - **Rate limiting on `/v1/activate` and `/v1/validate`**, mirroring `core/middleware.py`'s existing `RateLimitMiddleware` bucket pattern (per-IP sliding window) — these are the two endpoints most likely to be probed by someone testing whether a shared key still works elsewhere.
 - **What this still cannot do:** stop a technically sophisticated deployer from patching `core/license_state.py` to hardcode `ok=True`, or from replaying a captured `/v1/validate` "active" response forever. Restated from §2 — this is not being oversold as a solved problem.
 
@@ -159,9 +179,11 @@ Every processor's IDs (`external_customer_id`, `external_subscription_id`, `webh
 
 ## 11. Phased rollout
 
-- **Phase 1 — Foundation, one live processor.** License Server skeleton (Cloudflare Worker + D1, §5), the four tables (already provider-scoped, §7), the `PaymentAdapter` Protocol with **one** real implementation — **Helcim**, chosen for lowest effective cost to the seller (no monthly platform fee, no per-recurring-charge surcharge, interchange-plus averaging below Stripe's and Square's online rates for this specifically-recurring-billing use case) — configured as primary, plus the self-serve no-card trial flow and automated paid issuance + email. Before writing the adapter, confirm Helcim's merchant-account underwriting process in practice — it has a reputation for more manual approval than Stripe's instant self-serve signup, worth verifying doesn't stall Phase 1 before committing further engineering time. `max_activations` generously high (e.g. 5) at this stage — proves the pipeline without yet being strict. Manual paste into `PUT /admin/license` still works exactly as today (no client changes required yet) — the License Server can exist and issue real licenses before `homeschool-api` knows it exists at all.
+- **Phase 1 — Foundation, one live processor.** License Server skeleton (Cloudflare Worker + D1, §5), the four tables (already provider-scoped, §7), the `PaymentAdapter` Protocol with **one** real implementation — **Stripe**, configured as primary, plus the self-serve no-card trial flow and automated paid issuance + email. `max_activations` generously high (e.g. 5) at this stage — proves the pipeline without yet being strict. Manual paste into `PUT /admin/license` still works exactly as today (no client changes required yet) — the License Server can exist and issue real licenses before `homeschool-api` knows it exists at all.
+
+  Stripe is Phase 1 on two grounds that point the same way. It is the **least code**: §6.1's canonical `PaymentEvent` vocabulary is already Stripe-shaped, so this adapter is a near-passthrough while every other processor needs a translation layer. And it is the **only processor with a documented Cloudflare Workers path**, which matters because §5 already locked Workers as the runtime — Stripe ships `Stripe.createFetchHttpClient()` for the Workers `fetch` client, and `constructEventAsync()` with `Stripe.createSubtleCryptoProvider()` for webhook verification against Workers' async Web Crypto. The synchronous `constructEvent` throws on Workers, so this is a real compatibility property rather than a preference. Square's SDK has no equivalent documented Workers support and would need its HMAC-SHA256 verification hand-rolled against `crypto.subtle`.
 - **Phase 2 — Client integration.** `install_id`, `/v1/activate` + `/v1/validate` wired into `homeschool-api`, 30-day offline grace period (uniform across tiers), server-reported status overriding signed expiry. `max_activations` tightened to **2** for the standard case (§12), enforced for real.
-- **Phase 3 — Stripe and Square adapters.** Because Phase 1 already wrote the issuance/renewal/revocation logic against the processor-neutral `PaymentEvent` shape (§6.1), adding each remaining processor is scoped to *one new adapter* (webhook translation + signature verification) — no changes to §6.2–§6.5's logic, and **no change to the checkout page a customer sees** unless the operator deliberately switches the configured primary (§6.1's "one path, never a picker" decision). These exist for business flexibility (a Helcim underwriting issue, a rate renegotiation, redundancy) rather than a near-term need — order between Stripe and Square is a business call, not a technical one — open (§13).
+- **Phase 3 — the Square adapter.** Because Phase 1 already wrote the issuance/renewal/revocation logic against the processor-neutral `PaymentEvent` shape (§6.1), adding the remaining processor is scoped to *one new adapter* (webhook translation + signature verification) — no changes to §6.2–§6.5's logic, and **no change to the checkout page a customer sees** unless the operator deliberately switches the configured primary (§6.1's "one path, never a picker" decision). It exists for business flexibility (a rate renegotiation, an outage, an existing banking or point-of-sale relationship) rather than a near-term need — whether to build it at all is a business call, not a technical one — deferred (§13).
 - **Phase 4 — Operator tooling.** Admin-facing dashboard on the License Server (list customers/licenses, manual revoke/comp a license, resend delivery email) — replaces the last remaining manual step (§6.2 already automates issuance itself; this phase is about *support*, not issuance). Existing hand-issued licenses (including the CI test key) are migrated into the License Server's DB in this phase too (§12) — one system going forward, not two running in parallel indefinitely.
 
 ## 12. Locked decisions (this revision)
@@ -176,9 +198,22 @@ Made using one consistent lens — the simplest, lowest-friction customer experi
 
 ## 13. Remaining open questions
 
-1. **Stripe-vs-Square ordering for Phase 3:** which comes second is a business call (e.g., wanting Stripe's maturity as the first fallback given it's the easiest to integrate, versus an existing Square POS/banking relationship) — doesn't block Phase 1 or 2 either way, so it can be answered whenever, not before implementation starts.
-2. **Tier 3 billing primitive:** does its metered billing genuinely need ad-hoc per-event charging (vs. Helcim's subscription/payment-plan-shaped Recurring API, which is a different primitive) — needs its own small spike, not an assumption.
-3. **Tier 3 "no updates":** confirm this means no new/premium features (requiring the feature-gating work in §14.1) rather than something else.
+**These are tracked in [`DECISIONS.md`](DECISIONS.md), not here.** They were
+listed inline in this section until 2026-08-13, with no status, no owner and
+nothing checking them. They now have entries in the register, which carries the
+status and what each one blocks:
+
+- **Entry 4** — whether to build the Square adapter as a second processor.
+  Deferred until Phase 3, since it blocks neither Phase 1 nor Phase 2.
+- **Entry 3** — Tier 3's billing primitive. Stripe's subscription billing is
+  subscription-shaped and verified. Arbitrary per-event charging is a different
+  capability and is not. Needs its own spike.
+- **Entry 5** — what Tier 3's "no new/premium features" actually excludes,
+  which §14.1's feature-gating work cannot start without.
+
+The reasoning for each stays in this document, in §14 and §14.1. The register
+carries whether it is decided. Where the two would say the same thing twice,
+this document is the argument and the register is the state.
 
 ## 14. Pricing & service tiers (replaces the old `trial`/`core`/`coop` split)
 
@@ -193,7 +228,7 @@ The three paid tiers replace `core`/`coop`; `trial` (§3) stays a separate, time
 - **Tier 3 — Metered, with community access.** Platform access billed **per diagnostic test, $15/test**, not a flat subscription — no live 1:1 training, and (pending confirmation, §13) no access to new/premium features added after signup. **Includes the same weekly community check-ins as Tier 2** — the low-commitment, pay-only-for-what-you-use option still gets the community layer, it just doesn't carry Tier 1/2's flat annual fee or Tier 1's 1:1 coaching. This is the one tier that changes §6–§7's design, not just the tier label:
   - **A new `PaymentEvent` type is needed**: `usage_charged` (`{license_id, quantity: 1, unit_price_cents: 1500}`), distinct from the subscription lifecycle events §6.1 already defines.
   - **`homeschool-api` needs a new reporting hook**: wherever a diagnostic test actually completes (`services/diagnostic/`, per `CLAUDE.md`'s existing description of the real, DB-backed diagnostic engine — distinct from `services/diagnostic_demo.py`'s ephemeral demo-only store, which is correctly out of scope here since demo sessions never carry a license at all) — that completion needs to call the License Server to record and charge the usage event. This is new, not covered by §6.4's activate/heartbeat protocol, which only ever reports license *status*, never usage.
-  - **Processor choice for this tier specifically is unresolved (§13).** §6.1/§11 picked Helcim for Phase 1 based on its Recurring API (subscription-plan billing) — verified to exist, not verified to cover arbitrary ad-hoc per-event charges the way Tier 3 needs. Helcim does expose a separate one-off "process a payment against a stored card" endpoint that could plausibly serve this (charge $15 against the customer's card on file per completed test), but that's a distinct capability from the Recurring API this document already verified, and needs its own confirmation before Tier 3 is built — worth treating as a small, separate spike before committing to it, not an assumption folded silently into Phase 1.
+  - **The billing primitive for this tier is still unresolved (§13).** §6.1/§11 pick Stripe for Phase 1 on the strength of its subscription billing, which is the primitive Tiers 1 and 2 need. Tier 3's per-completed-test charging is a *different* primitive, and picking a processor does not by itself settle it — Stripe exposes both metered/usage-based subscription billing and one-off charges against a saved payment method, and which of those fits Tier 3 needs confirming against a real account before Tier 3 is built. Worth treating as a small, separate spike rather than an assumption folded silently into Phase 1.
   - **"No paid learning outcomes"** is read here as: Tier 3 carries no outcome-based guarantee or premium reporting layer beyond the raw diagnostic result itself — full result per paid test, just no bundled coaching around interpreting it, and (pending §13) no new features beyond what's in the base platform at signup.
   - **Community-hosting cost, worth naming plainly:** unlike the rejected Tier 0, this is bundled into a *paid* tier, so the community layer's marginal cost is covered by Tier 3's own revenue rather than given away for free — the actual concern that made a perpetual free tier the wrong call.
 

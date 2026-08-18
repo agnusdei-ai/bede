@@ -125,6 +125,64 @@ harmless, and the knob is not the lever it was assumed to be — its influence
 washes out because it only weights the first N of ~30 updates. Left at 5;
 this is now a measured decision rather than an open flag.
 
+### Phase 5.3 — a grade is not evidence (cold-start priors)
+
+Prompted by re-asking whether `CALIBRATION_THRESHOLD = 5`, set against a
+42-skill map, still held for the 95-skill one. It does. The measurement
+found something else instead.
+
+**A brand-new 6-8 student's profile reported 24 of 95 skills as Mastered
+before Bede had asked a single question.** `new_vector` seeded a below-band
+skill at `0.5 + 0.2 × distance`, reaching **0.90** at two bands down —
+above the 0.80 secure cutoff. The software was asserting mastery from a
+birth date.
+
+That is the false-secure error, the one this project bounds most tightly,
+because it sends a household *past* a gap: the next lesson builds on sand
+and nobody knows why it collapsed.
+
+| band 6-8, one sitting (20 observations) | before | after |
+|---|---|---|
+| false-secure, struggling cohort | 13.1% | **1.9%** |
+| false-secure, middle | 5.9% | 0.6% |
+| accuracy on committed verdicts, struggling | 70.0% | **92.2%** |
+| skills decided, struggling | 45.1% | 31.6% |
+| false-gap, struggling | 0.5% | 0.6% |
+
+The lost coverage was largely *wrong* — accuracy on what remains rose 22
+points. False-gap, the feared cost, did not materialise.
+
+**The fix is narrower than the first attempt.** An initial version capped
+below-band priors at 0.65 and broke `test_next_steps_band_leak.py`
+immediately: `kst.fringe`'s `prereq_hi` is 0.65, so dropping to it made
+every unprobed earlier-band prerequisite block its dependents — a 3-5
+student's entire "next steps" list collapsed to the two K-2 skills with no
+prerequisites at all, which is the exact defect that file was written for.
+
+The prior has to sit inside a genuinely narrow window: **above `prereq_hi`
+(0.65)** so it doesn't block, **below the secure cutoff (0.80)** so a grade
+alone never reports Mastered. 0.70 — where the one-band-down prior always
+was. So the change is only the two-bands-down case, and only band 6-8 is
+affected at all, which is the band that showed the damage.
+
+Both edges are now pinned by
+`test_the_below_band_prior_stays_inside_its_window`, reading `prereq_hi`
+off `fringe`'s own signature rather than restating it.
+
+**Nothing a family already has is touched.** Priors apply at cold start and
+at `ensure_complete`'s backfill of skills that didn't exist when the row
+was written; they are never re-applied to a stored probability. And the
+threshold is read at render time and forward-weighted at write time, never
+retroactive. No reset, no recompute, no re-test — asserted by
+`test_retuning_never_touches_a_vector_a_family_already_has` and
+`test_the_calibration_threshold_is_read_time_and_write_forward_only`.
+
+**The threshold, re-swept on the 95-skill map:** 3 → 20 moves a struggling
+6-8 child's false-secure 1.7% → 3.8% and accuracy 92.2% → 90.0% while
+coverage rises 30% → 42%. No free move, and 5 sits near the knee. Left at
+5 again — the priors moved that same rate by 11 points, so the threshold
+was never where the problem was.
+
 ---
 
 ## Privacy-Invariant Checklist (carried from runtime loop §6)

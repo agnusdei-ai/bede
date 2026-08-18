@@ -695,7 +695,7 @@ export async function emailSessionSummary(
 // persisted server-side beyond that one email. See
 // homeschool-api/routers/feedback.py.
 
-export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other' | 'onboarding'
+export type FeedbackCategory = 'cx' | 'ux' | 'content_quality' | 'other' | 'onboarding' | 'beta_survey'
 
 /** Checked before showing the feedback button at all, so it never appears
  *  only to fail on submit on a deployment where FEEDBACK_EMAIL isn't set. */
@@ -794,6 +794,37 @@ export async function fetchStudentActivity(
     { headers: { Authorization: `Bearer ${token}` } }
   )
   if (!res.ok) throw new Error(`Failed to load the work ledger for ${studentName}`)
+  return res.json()
+}
+
+export interface SubjectCoverage {
+  stale_after_days: number
+  subjects: Array<{
+    subject: string
+    label: string
+    last_taught: string | null
+    days_since: number | null
+    needs_attention: boolean
+  }>
+  note: string
+}
+
+/**
+ * Which scheduled subjects are actually getting taught. Answers a question
+ * a parent could not previously ask — a subject with nothing to show for it
+ * might never have been scheduled, or might have been scheduled for six
+ * weeks and opened twice. Reports the SCHEDULE, never the child.
+ */
+export async function fetchSubjectCoverage(
+  token: string,
+  studentName: string,
+): Promise<SubjectCoverage | null> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/coverage`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (res.status === 404) return null
+  if (!res.ok) return null
   return res.json()
 }
 

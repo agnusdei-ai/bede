@@ -258,15 +258,100 @@ below), which used to rely entirely on native recognition's own autonomous
 endpointing to decide a turn was over and fire `onFinal` on its own — there
 was never an explicit `release()` call on that path. With native gone,
 `start()` now behaves exactly like `startHold()` and needs an explicit end
-signal the same way; continuous mode's call site still doesn't provide one,
-so as of this rewrite a continuous-mode turn runs for the full
-`HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before auto-finishing,
-instead of ending snappily the moment the child actually stops talking.
-This is a real, known regression for that one opt-in feature specifically —
-not something this rewrite silently papered over — and needs real
-client-side silence/voice-activity detection as a follow-up before
-continuous mode is genuinely usable again. Hold-to-talk (the default for
-every family) is fully unaffected.
+signal the same way. For a while it didn't have one, and a continuous-mode
+turn ran to the full `HOLD_SAFETY_TIMEOUT_MS` ceiling (120 seconds) before
+auto-finishing instead of ending the moment the child stopped talking —
+a real, disclosed regression for that one opt-in feature.
+
+**That is now closed in both apps.** `endpointing.ts` supplies the missing
+end signal (see "Endpointing: how a continuous-mode turn ends" below), and
+the 120-second ceiling remains underneath purely as the backstop it always
+was. Hold-to-talk (the default for every family, and for every demo
+visitor) was unaffected throughout, and deliberately still does not
+endpoint itself.
+
+### "Unknown or expired session" on an open events stream, even on a single-instance deployment
+
+A second, DIFFERENT way to reach the exact same symptom as the
+cross-instance case above — same client-visible error, same
+`voice stream event error: unknown or expired session` debug line — but
+confirmed on a deployment with `X-Bede-Instance` reporting the SAME value
+across the whole trace, which rules out cross-instance routing outright.
+
+Real trace: the child released the mic, the final chunk uploaded (`200`),
+`/finish` succeeded (`200`) — and several seconds later, the events stream
+that had been open since before any of that finally resolved with
+`{"type": "error", "message": "unknown or expired session"}` instead of the
+`final`/`done` pair the successful `/finish` should have produced. On a
+real mobile connection with visibly poor round-trip latency (a slow,
+multi-second `GET .../events` is itself a symptom of this, not a cause).
+
+The cause: `services/streaming_transcription.py`'s `events()` only checks
+`_sessions.get(session_id)` ONCE, at the very top of the generator, then
+consumes `session.queue` in a loop until a `"done"` item arrives, at which
+point its `finally` block calls `_discard()` and removes the session
+entirely. Nothing previously stopped a SECOND, concurrent `events()`
+attach for the exact same `session_id` — most plausibly a network- or
+proxy-level retry of the GET request under poor connectivity, not a
+client-code bug (the client's own JS only ever issues one events() request
+per turn). With two consumers racing the same `asyncio.Queue`, whichever
+one happened to receive the terminal `"done"` item tore the session down
+via `_discard()`, silently pulling it out from under the OTHER, still-open,
+still-legitimate reader — which is what a family/visitor actually saw.
+
+**Fixed**: `_Session.active_reader` tracks whether a reader is already
+attached. A second, concurrent `events()` call for the same session now
+returns immediately without touching the queue or calling `_discard`,
+leaving the first (real) reader entirely undisturbed — it keeps consuming
+the queue on its own and remains the one that eventually tears the session
+down normally. See `tests/test_streaming_transcription.py`'s "Concurrent
+readers" section.
+
+### A session 404s on its own first chunk/finish, a few seconds after opening — same instance the whole time
+
+A third way to reach the same symptom as the two above, and the one that
+actually matters most in practice: reported live from the demo with a full
+trace, `instance=` identical across every single call (`start`, the failing
+`chunk`/`finish`, and the still-open `events`), which rules out
+cross-instance routing outright per the diagnostic rule above. A session
+opened normally (`200`), then its own very first `chunk` and `finish` calls
+both 404'd ("Unknown or finished streaming session") about four seconds
+later — well under the 180s TTL, and the reported hold was itself under
+four seconds, so nothing about a stale/abandoned session applies either.
+
+The only server-side code path that can remove a session that young is
+`events()`'s own `finally` block running before a `'done'` item ever
+arrived — a client disconnect, or something cancelling that coroutine out
+from under it. Client-side, `useHybridVoiceInput.ts`'s `consumeEvents`
+issues exactly one `events()` request per turn and never aborts it early on
+its own, so the leading theory is an intermediary between the browser and
+the app (most plausibly something in Render's own edge/proxy path) treating
+a connection with zero bytes flowing as idle-and-dead — and this stream can
+genuinely sit fully silent for the first `CHUNK_UPLOAD_INTERVAL_MS` (4s)
+after opening, since nothing is pushed onto `session.queue` until the first
+chunk uploads; a short hold can end before that first tick ever fires at
+all. `sse-starlette`'s `EventSourceResponse` ping — the only thing that
+would otherwise put bytes on the wire during that gap — defaults to every
+15 seconds, longer than the whole gap in the reported trace.
+
+Not confirmed with certainty (that needs production log access this
+sandbox doesn't have), so two things shipped rather than a single guessed
+fix: **`events()` now logs a warning whenever its generator is torn down
+without ever seeing `'done'`** — session id, how long it had been attached,
+how many items it delivered — so the *next* occurrence is diagnosable from
+server logs directly, the same "observe before fix" precedent
+`core/instance_id.py` set for the cross-instance case above. And
+`routers/voice.py`'s `/stream/{id}/events` endpoint now pings every 3
+seconds instead of the 15s default — specifically for this one stream,
+since `/tutor/chat`/`/sandbox/chat`'s `EventSourceResponse` calls stream
+near-continuous text from the model and rarely sit idle long enough for
+this to matter. If the root cause turns out to be exactly what's suspected
+here, more frequent bytes on the wire during the silent gap closes it
+directly; if not, the new server-side log will say so on the next report.
+See `tests/test_streaming_transcription.py`'s
+`test_events_torn_down_early_logs_a_warning_naming_the_session` and its
+`test_events_completing_normally_logs_no_early_teardown_warning` sibling
+(pinning the warning does NOT fire on an ordinary completed turn).
 
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 
@@ -637,6 +722,37 @@ across overlapping passes. See `tests/test_transcription.py` for the
 regression coverage (proves passes are actually serialized, and that the
 concurrency cap is configurable, not hardcoded).
 
+**Live-HTTP concurrency measurement, closing part of the earlier "not
+directly measured" gap.** `tests/test_transcription.py` proves the
+semaphore serializes calls; it never measures WHAT that serialization
+actually costs a real child waiting on the "Transcribing…" spinner, over
+the real HTTP/SSE wire the client actually uses. `scripts/
+voice_latency_probe.py` does: it drives N concurrent simulated voice calls
+against a real running instance, using the exact same wire behavior as
+`useHybridVoiceInput.ts` (raw 16kHz PCM deltas every
+`CHUNK_UPLOAD_INTERVAL_MS`, not the legacy RIFF path), and measures
+release→final latency — the same number `useHybridVoiceInput.ts`'s own
+`processingMs` reports client-side. Run with `services/transcription.py`'s
+`_transcribe_sync` swapped for a controllable artificial delay (real
+faster-whisper/torch isn't installable in every dev sandbox — see that
+script's own docstring), so real inference *quality* isn't exercised, but
+the actual code path under test — `transcribe_audio()`'s semaphore
+acquire, `run_in_executor` dispatch, and everything in
+`services/streaming_transcription.py` around it — runs completely
+unmodified. Two runs at `--concurrency 1 3 5`, `--hold-seconds 8`,
+confirm the fix does what it claims: at the default concurrency of 1,
+release→final latency for N concurrent calls grows additively with N
+(each call queues fully behind the others' total work — no thrashing, no
+non-terminating pile-up, every call still completes), and every observed
+number matched the architecture's own math exactly (including
+reproducing the documented "final pass stuck behind an in-flight
+partial" case at concurrency 1 itself). Raising
+`VOICE_TRANSCRIPTION_MAX_CONCURRENCY` to match the concurrent load
+collapses that additive latency back to the single-call baseline — the
+calls genuinely overlap instead of queuing, confirming the configurable
+escape hatch for a deployment with real CPU headroom also works as
+documented, not just as intended.
+
 ## Troubleshooting (historical): the microphone stopped working after a browser update
 
 The section below predates the server-side-streaming rewrite above and
@@ -684,7 +800,7 @@ instead, which serves the full CUDA-bundled build (measured directly:
 526.6MB, versus the CPU-only build's well-documented roughly one-third of
 that) into a container that will never touch a GPU. See the Dockerfile's
 own comment for the mechanism (installing torch first so the later
-`requirements.txt` install sees it as already satisfied).
+`requirements.in` install sees it as already satisfied).
 
 One thing that *did* need a deployment-level fix alongside the swap: the
 `api` container runs `read_only: true` in production
@@ -1761,11 +1877,11 @@ Three details worth keeping:
 `touch-none`), so scroll-gesture `pointercancel` was never part of this
 particular failure.
 
-**Not the same issue as continuous mode's missing endpointing** (see that
-feature's section below). Hold-to-talk has always had an explicit end signal
-— the child's own finger lift — and this fix is about that signal being
-delivered reliably. Continuous "Voice on" mode has no end signal at all,
-which remains open, separate work.
+**Not the same issue as continuous mode's endpointing** (see that feature's
+section below). Hold-to-talk has always had an explicit end signal — the
+child's own finger lift — and this fix is about that signal being delivered
+reliably. Continuous "Voice on" mode had no end signal at all, which was
+separate work, since closed by `endpointing.ts` in both apps.
 
 ## Troubleshooting: the live transcript while speaking is off-screen
 
@@ -1953,6 +2069,15 @@ seconds and the microphone stayed open for another hundred and sixteen.
 `homeschool-tutor/src/utils/endpointing.ts` closes that. It samples the
 recorder's existing level meter every 200ms and ends the turn on trailing
 silence.
+
+**`demo/src/endpointing.ts` is its mirror, and the demo has continuous mode
+too.** For a while it did not, and that was the wrong way round: the demo is
+what a prospective family judges the product by, so shipping it with worse
+voice behaviour than the product it is selling made Bede look slower at
+listening than it actually is. The two files are byte-identical apart from
+their header note, and `demo/src/endpointing.test.ts` imports both and
+asserts every constant matches — a silence window that drifted apart would
+mean the demo was quietly demonstrating something a family would not get.
 
 **The silence window is deliberately longer than a dictation app's, and that
 is the whole design.** General-purpose dictation endpoints after roughly

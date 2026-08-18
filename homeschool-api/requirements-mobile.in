@@ -1,0 +1,72 @@
+# PROPOSED — not yet a shipped deployment target. See
+# docs/MOBILE_HOSTING_DECISIONS.md for the decision this file exists to
+# make concrete evidence for, and core/database.py's docstring for why a
+# SQLite DATABASE_URL is safe to use with this reduced dependency set.
+#
+# A trimmed variant of requirements.in for a resource-constrained,
+# single-device, Docker-less host (the motivating case: a dedicated
+# always-on Android tablet running this natively under Termux — see the
+# decision doc above). Verified against the REAL test suite
+# (tests/test_*.py, 2599 tests) with this exact file's packages installed
+# and nothing else: 2597 passed, 2 skipped-by-design (a positive-control
+# test for faster-whisper's import, which this profile deliberately never
+# installs, and one test-harness env leak unrelated to this file). See
+# docs/MOBILE_HOSTING_DECISIONS.md for the full verification record.
+#
+# Three things removed from requirements.in, each already gracefully
+# optional in the application code (not a new capability, just not
+# installing something the code already treats as best-effort):
+#
+#   - asyncpg — only reachable via a `postgresql+asyncpg://` DATABASE_URL;
+#     this profile is meant to be paired with a `sqlite+aiosqlite://` one
+#     instead. core/database.py's engine construction needed NO code
+#     change for this — SQLAlchemy 2.x's async SQLite pool already accepts
+#     the same pool_size/max_overflow kwargs the Postgres path uses.
+#
+#   - resemblyzer (and its hard `torch` dependency, ~500MB+ once its
+#     transitive CUDA wheels resolve, or ~180MB even pinned to the
+#     CPU-only build) — services/voice_auth.py already tries `from
+#     resemblyzer import VoiceEncoder` and catches ImportError, falling
+#     back to a librosa MFCC comparison ("reliable, no model download",
+#     per that module's own docstring). Not installing it is choosing the
+#     fallback deliberately, not disabling a feature — voice
+#     identification still works, just via the second tier the code
+#     already has.
+#
+#   - faster-whisper (and its ctranslate2 dependency) — only ever imported
+#     when TRANSCRIPTION_PROVIDER=local (the app's own default, so this
+#     profile MUST set TRANSCRIPTION_PROVIDER=openai or another cloud
+#     provider explicitly in .env). See services/transcription.py's own
+#     module docstring: "On 'openai' NOTHING imports faster_whisper."
+#     Verified directly: with this file's packages and
+#     TRANSCRIPTION_PROVIDER=openai, `sys.modules` contains no
+#     faster_whisper, torch, or resemblyzer after a full app boot +
+#     transcription preload() call.
+#
+# Everything else is identical to requirements.in — numpy/scipy/librosa/
+# soundfile stay (voice_auth's MFCC fallback and services/transcription.py
+# both need them regardless of which STT backend is chosen), as does every
+# non-voice/non-DB dependency.
+anthropic>=0.40.0
+openai>=2.47.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.2.2
+pydantic>=2.9.0
+pydantic-settings>=2.14.2
+sse-starlette>=2.1.0
+python-multipart>=0.0.12
+pycryptodome>=3.21.0
+sqlalchemy[asyncio]>=2.0.36
+# Async SQLite driver — this profile's DATABASE_URL, in place of asyncpg.
+aiosqlite>=0.20.0
+numpy>=1.26.0
+scipy>=1.13.0
+librosa>=0.11.0
+soundfile>=0.12.0
+webauthn>=2.0.0
+pyotp>=2.9.0
+email-validator>=2.3.0
+httpx>=0.28.1
+pypdf>=5.0.0
+cbor2>=5.6.0

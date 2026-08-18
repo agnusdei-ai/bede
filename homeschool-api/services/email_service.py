@@ -141,20 +141,30 @@ _CATEGORY_LABELS = {
     "other": "Other",
     "beta_close": "💬 End-of-demo suggestion",
     "onboarding": "🌱 New family's first-day hopes",
+    "beta_survey": "📋 Beta survey response",
 }
 
 
 def _feedback_prefix(category: str) -> str:
-    """"plans" is a demo lead, not product feedback, and "onboarding" is
-    collected before a family has used the product at all — both read oddly
-    under a "beta feedback" heading, so each gets its own prefix even though
-    they share every other part of this pipeline (same inbox, same
-    template, same one-outbound-email contract) with routers/feedback.py's
-    original cx/ux/content_quality/other categories."""
+    """"plans" is a demo lead, not product feedback, "onboarding" is
+    collected before a family has used the product at all, and
+    "beta_survey" is a whole structured instrument rather than one remark —
+    each reads oddly under a "beta feedback" heading, so each gets its own
+    prefix even though they share every other part of this pipeline (same
+    inbox, same template, same one-outbound-email contract) with
+    routers/feedback.py's original cx/ux/content_quality/other categories.
+
+    The survey prefix is shared by all three of its delivery channels (the
+    two hosted pages and the in-app prompt) on purpose — they ask the same
+    questions, so their answers have to land in one pile to be readable
+    together. Which channel a response came from is carried in the message
+    body's own tag line instead. See docs/BETA_SURVEY.md."""
     if category == "plans":
         return "Bede demo lead"
     if category == "onboarding":
         return "Bede beta onboarding"
+    if category == "beta_survey":
+        return "Bede beta survey"
     return "Bede beta feedback"
 
 
@@ -194,6 +204,15 @@ def feedback_configured() -> bool:
     return email_configured() and bool(settings.feedback_email)
 
 
+def _recipient_for(category: str) -> str:
+    """"plans" — a real lead, not product feedback — goes to sales_email
+    when the operator has set one; every other category, and "plans"
+    itself when sales_email is unset, keeps going to feedback_email."""
+    if category == "plans" and settings.sales_email:
+        return settings.sales_email
+    return settings.feedback_email
+
+
 async def send_feedback(
     category: str,
     message: str,
@@ -206,7 +225,7 @@ async def send_feedback(
     html_body = build_feedback_email_html(category, message, role, rating, contact_email)
     label = _CATEGORY_LABELS.get(category, category)
     return await send_email(
-        settings.feedback_email,
+        _recipient_for(category),
         subject=f"{_feedback_prefix(category)}: {label}",
         html_body=html_body,
     )
@@ -328,5 +347,63 @@ async def send_security_alert(event: str, ip: str, count: int, window_label: str
     return await send_email(
         settings.parent_email,
         subject="Bede: unusual activity detected on your instance",
+        html_body=html_body,
+    )
+
+
+def build_backend_failure_alert_html(count: int, window_label: str) -> str:
+    """
+    Reliability alert — the AI backend itself (local model, or every
+    configured cloud provider) has failed or stalled repeatedly, not a
+    security concern. Deliberately its own template rather than reusing
+    build_security_alert_html's "unusual activity"/"from address" framing
+    above: there's no single culprit address for a broken backend (see
+    core/audit.py's _GLOBAL_ANOMALY_EVENTS), and calling this "unusual
+    activity" would send a worried parent looking for an intruder instead
+    of a crashed local model server.
+    """
+    return f"""\
+<!DOCTYPE html>
+<html>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">Bede is having trouble responding</h1>
+  <p style="font-size: 13px; color: #6b7280; margin: 0 0 24px 0;">
+    Bede's AI service has failed or timed out repeatedly, which usually means it can't
+    currently hold a tutoring session at all — worth checking on before your child's
+    next one.
+  </p>
+  <div style="font-size: 15px; line-height: 1.6; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+    <p style="margin: 0;"><strong>{count}&times;</strong> failed or stalled {window_label}</p>
+  </div>
+  <p style="font-size: 13px; color: #4b5563; margin-top: 16px;">
+    If you're running a local/self-hosted model, check that its server is still running.
+    If you're using a cloud provider, check that its API key is still valid and that
+    provider isn't reporting an outage. The AI Provider card (parent login &rarr; Setup)
+    shows which provider is currently primary.
+  </p>
+  <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
+    Full detail is in your instance's audit log (parent login &rarr; Admin &rarr; Audit Log).
+    This alert is a single automated notice — it won't repeat for the same pattern for a
+    while, even if it continues, so check the log directly for the current picture.
+  </p>
+</body>
+</html>"""
+
+
+async def send_backend_failure_alert(count: int, window_label: str = "in the last 10 minutes") -> bool:
+    """
+    Best-effort real-time notification when core/audit.py's anomaly watch
+    crosses the threshold for AuditEvent.AI_BACKEND_FAILURE — repeated
+    tutor/sandbox stream failures or stalls, pooled across every device
+    (see that event's own comment for why). Same PARENT_EMAIL/Resend
+    config as send_security_alert above; returns False silently when
+    unconfigured, same convention as every other alert in this file.
+    """
+    if not security_alert_configured():
+        return False
+    html_body = build_backend_failure_alert_html(count, window_label)
+    return await send_email(
+        settings.parent_email,
+        subject="Bede: having trouble responding — please check in",
         html_body=html_body,
     )

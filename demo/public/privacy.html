@@ -7,25 +7,29 @@
 <style>
   body {
     font-family: Georgia, 'Times New Roman', serif;
-    color: #2d3142;
+    color: #1c2438;
     max-width: 680px;
     margin: 0 auto;
     padding: 32px 20px 64px;
     line-height: 1.6;
-    background: #fdfbf7;
+    background: #faf6ec;
   }
   h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 26px; margin-bottom: 4px; }
   h2 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 18px; margin-top: 36px; }
-  .sub { color: #6b7280; font-size: 14px; margin-top: 0; }
+  .sub { color: #4d4a42; font-size: 14px; margin-top: 0; }
   table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-  th { color: #1e3a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e0d6c1; vertical-align: top; }
+  th { color: #1c2438; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
   .callout {
-    background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
-    padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #92400e;
+    background: #fff6e5; border: 1px solid #e0b84a; border-radius: 10px;
+    padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #7d4f00;
   }
-  a { color: #1e3a8a; }
-  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  /* agnusdei.ai's own inline-link idiom (site.css `.lede a`): ink with a
+     gilt underline, so a link is legible as a link without introducing a
+     colour the palette does not have. */
+  a { color: #1c2438; text-decoration: underline;
+      text-decoration-color: #b8860b; text-underline-offset: 3px; }
+  code { background: #f1e7d2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
   .back { display: inline-block; margin-top: 32px; font-size: 14px; }
 </style>
 </head>
@@ -61,6 +65,11 @@
     <td>Up to 6 hours, or immediately if you log out. Never added to a permanent record.</td>
   </tr>
   <tr>
+    <td>A record of the work finished during this session</td>
+    <td>Shows you what your learner actually completed &mdash; which skill, how much help it took, and what Bede noticed about the work. Never what was said.</td>
+    <td>Up to 6 hours, or immediately if you log out. Never added to a permanent record.</td>
+  </tr>
+  <tr>
     <td>The conversation itself</td>
     <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with our configured backup provider instead &mdash; Mistral by default, or Claude (Anthropic) if we've configured that as the backup instead.</td>
     <td><strong>Never stored by us, under any circumstance.</strong> It exists on our side only for the
@@ -86,6 +95,11 @@
     <td>Contact email <em>(optional, parent/guardian only)</em></td>
     <td>To follow up if you've asked us to</td>
     <td>Only ever collected if you actively choose to share it — never written to any database, used once to reply.</td>
+  </tr>
+  <tr>
+    <td>A picture-study artwork <em>(Art &amp; Music only)</em></td>
+    <td>To show the actual painting Bede is talking about</td>
+    <td>Nothing is collected or stored. This is the one thing your browser fetches from outside our own servers: when Bede shows a painting, your browser asks Wikipedia for that article's summary and loads the image from Wikimedia. Nothing you or your child typed is sent, and nothing about the session goes with it — but as with visiting any website, Wikipedia and Wikimedia can see your IP address and which article was requested. We store the artwork's title rather than a copy of the image, which is why it is fetched when it is shown.</td>
   </tr>
 </table>
 
@@ -133,6 +147,13 @@
     pressure to fill it in. If you do provide it, it is used for this one session's framing and
     nothing else — never to categorize, segment, target, or profile your family, and never shared
     with anyone.</li>
+  <li><strong>A record of the work finished during the session</strong> &mdash; which skill was
+    worked, how much help it took, and what Bede noticed about the work itself (for example that a
+    narration was one to show, or that a step went further than what was asked). This is shown back
+    to you on screen during the session so you can see what your learner actually did. It never
+    includes anything that was said, it is kept for the same at-most-6-hours window as the fields
+    above, and it is deleted immediately if you log out. It is never built into a persistent
+    profile, and it is never a grade, a score, or a judgment about your child.</li>
   <li><strong>The conversation itself</strong>, transmitted in real time to our AI providers,
     OpenAI (primary) and, only if OpenAI is briefly unavailable, our configured backup — Mistral
     by default, or Claude (Anthropic) if we've configured that as the backup instead — so Bede

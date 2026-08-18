@@ -1,7 +1,66 @@
 # Release quality gates
 
-What must be true before a change reaches `main`. One gate today; this file
-is where further ones get recorded rather than living in someone's memory.
+What must be true before a change reaches `main`. This file is where gates get
+recorded rather than living in someone's memory.
+
+## What a release IS, today
+
+**There is no release artifact, and `main` is the release.** This is stated
+first because every other line in this file depends on it, and because it is
+currently true by default rather than by decision — see `docs/DECISIONS.md`
+entry 17.
+
+The mechanics, verifiable in two files:
+
+- `docker-compose.yml` declares all four of Bede's own services (`api`, `ui`,
+  `locuto-ipc`, `trust`) with `build:`, not `image:`. Nothing is published to
+  any registry. The only `image:` entries are third-party — `postgres:16-alpine`
+  and `caddy:2-alpine`.
+- `make update` is `git pull && docker compose pull && docker compose up -d
+  --build`. That `docker compose pull` therefore fetches Postgres and Caddy
+  only; Bede is rebuilt from whatever source `git pull` just brought down.
+
+So a family runs **whatever `main` was at the moment they typed `make
+update`.** No tag has ever been cut. There is no `CHANGELOG`. The `1.0.0` in
+both `package.json` files is read by nothing.
+
+**The consequence that matters:** every merge to `main` is immediately what
+the next family builds. There is no staging period, no release branch, and no
+moment between "merged" and "shipped" in which anything could be caught. That
+is why the merge gate below is a *release* gate, and why the periodic proofs
+in the next section are not optional extras.
+
+**What this file does not do.** It does not describe a versioned release
+process, because there is not one. Adding version tags without changing
+`make update` would create a number that nothing reads — the "config that
+looks maintained but silently isn't" failure this repository has shipped
+twice (the 22 settings `docker-compose.yml` never passed through, and
+`DiagnosticEvidenceLog`'s docstring contradicting the design doc for four
+phases). Whether to move to tagged releases is entry 17, and it is a decision
+about how every existing family receives updates, not a tidy-up.
+
+## The proofs that stand in for a release candidate
+
+With no staging period, these are what continuously establish that `main` is
+in a shippable state. Listed together because they were not collected
+anywhere, and a gate nobody can enumerate is one nobody notices losing.
+
+| Proof | Where | Cadence | What it establishes |
+| --- | --- | --- | --- |
+| Merge gate | `.github/rulesets/main-branch-protection.json` | every merge | The merged state was tested, not each branch in isolation — see Gate 1 |
+| Full test suites | `.github/workflows/test.yml`, `frontend-tests.yml` | every PR | Backend, frontend, demo, wizard, trust service, MCP server |
+| Real production boot | `.github/workflows/production-regression.yml` | weekly + on deploy-path pushes | The Docker stack actually boots and serves traffic with a real daemon |
+| Live security headers | `.github/workflows/site-headers-live.yml` | every push to `main`, twice daily | The deployed site really serves the header set, not just declares it |
+| Installer integrity | `.github/workflows/verify-unix-installer-checksum.yml`, `build-windows-installer.yml` | on packaging changes | The unsigned Unix installer matches its published checksum; the Windows installer compiles and signs |
+| Lockfile currency | `lockfile-freshness` in `test.yml` | every PR | The committed pins are what `pip-compile` produces today — see entry 12 |
+| Constitution integrity | `core/constitution.py`, re-verified in `main.py`'s lifespan | every process start | A modified constitution prevents Bede starting at all |
+
+Note the last one is enforced at **runtime on the family's own machine**, not
+in CI. It is the only gate here that keeps working after delivery, which is
+deliberate: `main` reaching a family unaltered is a CI question, but the file
+staying unaltered on their disk is not.
+
+
 
 ## Gate 1 — a branch must be up to date with `main` before it merges
 
@@ -136,3 +195,76 @@ existing `^7.25.0` range, so no dependency change was needed.
 It does not stop a change that is wrong on its own — that is what the tests
 are for. It stops a change that is right on its own and wrong in
 combination, which is the failure that no single PR's CI can see.
+
+---
+
+## Platform verification log — observed, not inferred
+
+**This is a log, not a gate.** Nothing here blocks a merge. It records which
+platforms Bede's client path has actually been *run on* versus which it is
+merely expected to work on, so "we think it works" and "someone watched it
+work" stay distinguishable. That distinction disappears silently otherwise,
+and the first person to discover it is a family.
+
+**Why a log rather than a gate.** Nothing in the client is pinned to an OS
+version, and every platform-sensitive path is feature-detected rather than
+version-checked — `navigator.audioSession` (iOS/iPadOS 17+) is behind a
+capability check with a try/catch, `getUserMedia` is called inside a real user
+gesture, `h-dvh` degrades to ordinary viewport height where unsupported. So a
+new OS build is not presumed broken, and blocking a release on hardware nobody
+owns would be theatre. What is owed instead is an honest record.
+
+**The rule:** an entry moves from *expected* to *verified* only when someone
+ran it on that build and watched the flow. A passing test suite does not move
+an entry — jsdom evaluates no CSS, no media queries and no referrer policy,
+so an entire class of platform behaviour is structurally invisible to it (see
+`HandwritingCanvas.tsx`'s `short:sr-only` fix and
+`tests/test_youtube_embed_referrer.py`, both of which needed a real browser).
+
+### No version floor — support tracks Apple's own catalog
+
+**There is no minimum OS version.** A fixed floor was briefly recorded here
+(iOS/iPadOS 15.6, 2026-08-16) and is **superseded** — see `docs/DECISIONS.md`
+entry 16.
+
+What replaces it is a rule rather than a number: Bede supports the OS versions
+**the platform vendor itself still supports**. Apple's own currently-supported
+list is the reference, so the set moves when Apple moves it, without anyone
+here restating a version. That is what keeps this open-ecosystem rather than
+anchored to whatever hardware happened to be on a desk when a number was
+written down.
+
+**Why a number was the wrong instrument.** A named floor ages in one
+direction only: it accumulates legacy commitments and never sheds them, so a
+version chosen once quietly becomes a promise about hardware the vendor has
+itself stopped supporting. That is a bias toward legacy devices dressed as a
+compatibility guarantee, and it competes directly with staying current with
+what Apple actually ships.
+
+**Nothing in the code enforces any of this, and that is deliberate** (see
+`docs/DECISIONS.md` entry 15). There is no version gate and no user-agent
+sniff; a device outside the supported set is not turned away, it runs and each
+capability it lacks degrades on its own feature check. Removing the floor
+therefore changes what this project *says*, not what any device *does*.
+
+Verified rather than assumed: the only reads of `navigator.userAgent` in
+either frontend are the diagnostic log lines in `hooks/diagnostics.ts` and its
+demo mirror. Nothing anywhere branches on a platform or a version.
+
+**The table below records observations, never commitments.** A row saying a
+version was run on is a report that someone watched it work, and it implies no
+undertaking to keep supporting it. Old entries are kept because deleting a
+true observation would be erasing a fact — but they are not promises, and they
+are not ordered to suggest one.
+
+| Platform | Status | Note |
+| --- | --- | --- |
+| iOS/iPadOS 15.8 | observed (historical) | An older iPad, `.mobileconfig` install path. A past observation, not a support commitment — see above. |
+| iOS 26.6 | **expected, not yet observed** | iPhone 15. No WebKit change flagged in that release note that touches this; feature detection is the defence against version drift. Close this the first time someone runs a real session on that build. |
+| Android tablet | expected | Chrome/WebView; the CA install path differs (Settings → Security → Install a certificate) and is documented in `docs/PRODUCTION_SETUP.md`. |
+
+**Multi-device peer testing is not on this table**, and its absence is not an
+untested-platform note. It is blocked on an unbuilt protocol — see
+`docs/DECISIONS.md` entry 14. A verification log records what has not been
+*observed*; entry 14 records what has not been *built*. Recording the second
+as though it were the first would suggest a device could be tested today.

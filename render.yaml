@@ -169,6 +169,14 @@ services:
       # secrets manually after the first deploy).
       - key: FEEDBACK_EMAIL
         value: info@agnusdei.ai
+      # Where a "plans" submission goes instead — a real lead asking about
+      # pricing or an onboarding call (site/index.html's #request-a-call
+      # form, and this demo's own quota-exceeded "interested in plans"
+      # prompt), not ordinary product feedback. Same non-secret, same
+      # RESEND_API_KEY/RESEND_FROM_ADDRESS dependency as FEEDBACK_EMAIL
+      # above — see services/email_service.py's _recipient_for.
+      - key: SALES_EMAIL
+        value: sales@agnusdei.ai
 
       # Fixed, non-secret settings.
       - key: DEMO_STUDENT_NAME

@@ -15,8 +15,12 @@ Last reviewed: 2026-08-04.
 ## 1. Scope
 
 This policy covers only the personal information **Agnus Dei Technologies,
-LLC** itself collects and controls as the operator of `agnusdei.io` and its
-public demo (`agnusdei.io/bede/`, backed by the `bede-demo-api` service).
+LLC** itself collects and controls as the operator of `agnusdei.ai` and its
+public demo (`agnusdei.ai/bede/`, backed by the `bede-demo-api` service).
+`agnusdei.io` resolves to the identical build on the same Cloudflare
+Worker and is covered by this policy on the same terms — see
+`docs/DEMO_HOSTING.md`'s "Interim beta domain" section for why both stay
+live and why `.ai` is the canonical one.
 
 It does **not** cover a self-hosted family's own deployment of Bede
 (`docker-compose.yml`, run on that family's own hardware) — that data is

@@ -10,7 +10,8 @@ accredited third-party auditor's opinion after a live assessment. If
 something has actually gone wrong (or you've found a vulnerability in
 Bede's code), see **[docs/INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)**
 instead — this file is the architecture/posture overview, that one is the
-action plan.
+action plan. See **[docs/OWASP_LLM_TOP10.md](OWASP_LLM_TOP10.md)** for the
+companion mapping against the OWASP Top 10 for LLM Applications.
 
 ## AIUC-1 Society pillar: scope statement
 
@@ -105,30 +106,6 @@ list as items are closed.
   single-instance Render deployment) — would need a shared store (Redis)
   behind a real multi-replica deployment, which nothing in this app runs
   today.
-- **Backend `requirements.txt` is floor-pinned (`>=`, no upper bound), with
-  no lockfile.** Unlike the frontend's exact-pinned `package-lock.json`, a
-  fresh `pip install` at two different points in time can resolve
-  different transitive versions — CI (`test.yml`) reinstalls fresh on every
-  run rather than from a hash-pinned lockfile. The new `pip-audit` step
-  (below) catches a *known-vulnerable* version whenever it's resolved, but
-  doesn't make installs reproducible. A real fix (pip-tools/`pip-compile`,
-  or switching to Poetry/uv with a lockfile) touches every dependency in
-  the tree and needs its own compatibility pass — out of scope for a
-  same-day hardening pass. One specific instance of this was closed
-  separately: `homeschool-api/Dockerfile`'s `torch` install had no version
-  constraint *at all* and pulled from a second package index
-  (`download.pytorch.org`), so it is now pinned exactly. The general
-  floor-pinning gap across `requirements.txt` remains open.
-- **GitHub Actions are pinned to mutable version tags (`@v4`), not commit
-  SHAs.** Common practice, but a compromised upstream Action could push a
-  same-tag update that CI trusts automatically. Low severity, deferred in
-  favor of the higher-value fixes below. Note that `dependabot.yml`'s
-  `github-actions` entry does *not* mitigate this the way an earlier
-  revision of this document claimed: it now runs with
-  `open-pull-requests-limit: 0`, which deliberately suppresses routine
-  version-bump PRs and leaves only security-advisory PRs. That is the
-  right trade for the other ecosystems, but it does mean mutable action
-  tags move silently unless SHA-pinning is adopted.
 - **Branch-protection / required-status-checks configuration on `main` is
   not verifiable from the repository itself** — it's a GitHub repo-settings
   concern, not a file in this codebase. `frontend-tests.yml`'s own header
@@ -150,8 +127,118 @@ list as items are closed.
   human with that private key has to notice and act on it — nothing
   enforces that anymore. Worth periodically confirming this step is
   actually green, not just that the workflow overall is.
+- **A proposed Bede↔Locuto content-agent connector has one remaining
+  unresolved pre-implementation blocker, tracked in
+  [`docs/LOCUTO_CONNECTOR_DECISIONS.md`](LOCUTO_CONNECTOR_DECISIONS.md).**
+  No such connector exists yet, and this is infrastructure ahead of a
+  feature, not a gap in anything shipped today. Packet 1 (which adapter a
+  Locuto-content-touching capability may call) is resolved —
+  `services/adapters/router.py`'s `resolve_local_only()` exists and is
+  tested, independent of `BEDE_ADAPTER_ORDER`/`BEDE_FORCE_ADAPTER`/any live
+  DB override. Packet 2 remains open: Bede has no
+  signed-release/reproducible-build/hash-pinned-weights infrastructure
+  matching `agnusdei-ai/locuto`'s own `docs/agents.md` §5 measurement
+  requirement for a locally-composed agent. See that document for the full
+  options and recommendation — pending a decision from both products'
+  owners, and moot until `agents.md` §9 open question 1 (whether a content
+  agent ships at all) resolves.
 
 ## Closed gaps
+
+- **GitHub Actions were pinned to mutable version tags (`@v4`), not commit
+  SHAs — closed 2026-08-12.** A compromised upstream Action could push a
+  same-tag update that CI would trust automatically next run, with nothing
+  in this repository able to tell that update apart from one a maintainer
+  actually reviewed. `dependabot.yml`'s `github-actions` entry doesn't
+  cover this — `open-pull-requests-limit: 0` suppresses routine
+  version-bump PRs, leaving only security-advisory PRs, so a mutable tag
+  can still move silently between those.
+
+  Every `uses:` line across all nine workflow files now pins the exact
+  commit SHA the tag resolved to, with the tag kept as a trailing comment
+  (`uses: actions/checkout@<sha> # v4`) — the standard pattern for this
+  hardening. Resolved via `git ls-remote --tags` against each action's own
+  repo, peeling annotated tags to their underlying commit where needed
+  (`azure/login`, `azure/artifact-signing-action`,
+  `anthropics/claude-code-action`). Bumping to a newer release now means
+  re-resolving and replacing both the SHA and its comment, not editing a
+  version number.
+
+- **Backend `requirements.txt` was floor-pinned (`>=`, no upper bound),
+  with no lockfile — closed 2026-08-12.** Unlike the frontend's
+  exact-pinned `package-lock.json`, a fresh `pip install` at two different
+  points in time could resolve different transitive versions, and
+  `test.yml`'s `pip-audit` step could only catch a *known-vulnerable*
+  version whenever one happened to be resolved — installs were never
+  reproducible.
+
+  `homeschool-api/requirements.txt`/`requirements-dev.txt` are renamed to
+  `requirements.in`/`requirements-dev.in` (pip-tools' own convention),
+  kept as the human-edited, floor-pinned *source of intent* they already
+  were. `requirements.lock.txt`/`requirements-dev.lock.txt` are new,
+  fully-pinned, hash-verified lockfiles generated via `pip-compile
+  --generate-hashes --allow-unsafe` (Python 3.12, matching CI —
+  `--allow-unsafe` is what also pins `setuptools`, which
+  `ctranslate2`/`torch` need exactly once hashes are in play).
+  `test.yml`'s `api-tests`/`demo-concurrency-test` jobs and
+  `adversarial-probe.yml` now install from the lockfile
+  (`pip install --require-hashes -r requirements-dev.lock.txt`), so CI
+  tests byte-for-byte what a fresh install produces, not whatever the
+  resolver picks that day. `pip-audit` now audits the lockfile too, for
+  the same reason.
+
+  A new `lockfile-freshness` job (`test.yml`) and script
+  (`homeschool-api/scripts/check_lockfile_freshness.sh`) regenerate both
+  lockfiles into a temp directory and diff against what's committed,
+  failing the build on drift — the guard against this becoming another
+  "looks maintained but silently isn't" config, per CLAUDE.md's "Thirty
+  settings never reached the container" incident. Run locally with
+  `--fix` to regenerate both after editing either `.in` file.
+
+  `homeschool-api/Dockerfile` still installs from `requirements.in`
+  (rename only, behavior unchanged): its CPU-only-`torch` install relies
+  on resemblyzer's transitive `torch` dependency rather than an exact
+  hash, and switching it to the lockfile wasn't verifiable here — the
+  sandbox's egress proxy blocks `download.pytorch.org`. Verified end to
+  end otherwise: the lockfile was generated for real, and `pip install
+  --require-hashes -r requirements-dev.lock.txt` succeeded against a
+  clean virtualenv before this was considered done.
+
+- **Public demo had no hard per-visitor cost ceiling — OWASP LLM10
+  "Unbounded Consumption" — closed 2026-08-12.** `core/demo_code_session.py`'s
+  own module docstring previously stated "No per-code message cap by
+  design," reasoning that `_MAX_ACTIVE_CODES` (concurrent codes) and the
+  per-IP `RateLimitMiddleware` "api" bucket (120 req/min default) were
+  sufficient cost control. Neither bounds aggregate spend: the rate limit
+  caps REQUEST RATE, not total messages, so a single scripted session
+  sustained at that ceiling for its whole `demo_code_token_expire_minutes`
+  token lifetime (120 min default) could sustain roughly 14,000 real model
+  calls from one demo code — a genuine denial-of-wallet surface with no
+  dollar or message-count floor underneath the rate limit, on the one
+  publicly-reachable, unauthenticated-signup surface this codebase has.
+  `core/demo_code_session.py` now adds `_MAX_MESSAGES_PER_CODE` (400 — well
+  above any real evaluation, see that constant's own comment) and
+  `has_message_quota()`, a read-only pre-check kept deliberately separate
+  from the existing `record_message()` counter so the ENFORCEMENT happens
+  before the expensive model call a turn triggers, not after: an
+  over-quota turn is refused for free, never billed. Wired into both
+  `routers/tutor.py`'s `/tutor/chat` and `routers/sandbox.py`'s
+  `/sandbox/demo-chat` — the two call sites that were already logging
+  "usage bookkeeping only — no cap enforced" verbatim — ahead of the
+  safeguarding/moderation/policy-engine pipeline, so a refused turn costs
+  nothing beyond one DB read. The refusal is a plain, localized (en/es)
+  chat message (`services/ai_service.py`'s `demo_quota_response`, same
+  fallback contract as `safeguarding_response`/`moderation_redirect_response`)
+  rather than an HTTP error, matching how every other pre-model gate in
+  these two SSE endpoints already communicates a redirect to the child/
+  visitor's own chat window, and is audit-logged as `AuditEvent.RATE_LIMITED`
+  with `detail="demo_message_quota"`. `core/diagnostic_preview_quota.py`'s
+  own docstring (which referenced the old "uncapped in duration and message
+  count" framing) was corrected in the same change. Duration and subject
+  BREADTH remain deliberately uncapped — a full, real evaluation is still
+  the point, not a crippled preview; only aggregate message volume per code
+  is now bounded. See `CLAUDE.md`'s demo-session documentation and
+  `tests/test_demo_message_quota.py`.
 
 - **The setup wizard recommended a PIN the API refuses to boot on —
   closed 2026-08-03.**
@@ -786,7 +873,29 @@ list as items are closed.
   reaches `/Applications`; Ollama additionally extracts to a private
   staging directory first rather than unpacking an unverified archive over
   a system location.
-
+- **AI backend failure alerting (reliability, not a security control),
+  closed 2026-07-29.** Not an AIUC-1/SOC 2 control — noted here because
+  it extends E009's anomaly-watch infrastructure and a reader tracing
+  that mechanism should know this one rule works differently. Before
+  this, a crashed local model server or a revoked cloud API key just
+  looked like Bede being broken, with no signal reaching the parent —
+  `routers/tutor.py`/`routers/sandbox.py`'s existing stall-timeout/
+  guaranteed-`done` resilience already kept the child's UI from hanging,
+  but nothing told anyone the backend itself was unhealthy. A new
+  `AuditEvent.AI_BACKEND_FAILURE`, logged from all three streaming call
+  sites on a stall or any exception, feeds a new E009 rule — but
+  deliberately the only one in `_GLOBAL_ANOMALY_EVENTS`, pooled across
+  every IP instead of per-IP like every security rule here, since a
+  broken backend affects the whole household identically rather than
+  being one actor's pattern. 3 failures in 10 minutes emails
+  `PARENT_EMAIL` via a dedicated template (`send_backend_failure_alert`)
+  distinct from the security-alert one — "unusual activity"/"from
+  address" framing would be actively misleading for a reliability
+  problem with no culprit address. See `CLAUDE.md`'s "AI backend failure
+  alerting" section for the full mapping. Covered by
+  `tests/test_audit_anomaly.py`, `tests/test_email_service.py`,
+  `tests/test_tutor_stream_resilience.py`, and
+  `tests/test_sandbox_stream_resilience.py`.
 - **Parent account lockout + recovery, ending a stolen-credential
   takeover, closed 2026-07-23.** Follows directly from the pre-production
   hardening pass below: that pass closed the "weak password accepted"

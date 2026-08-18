@@ -42,10 +42,50 @@
  *
  * Usage:  node scripts/synthetic_journey.mjs https://agnusdei.ai/bede/
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium, devices } from 'playwright';
 
 const TARGET = process.argv[2] || process.env.DEMO_URL || 'https://agnusdei.ai/bede/';
 const TIMEOUT_MS = Number(process.env.JOURNEY_TIMEOUT_MS || 90_000);
+// Bounded separately from TIMEOUT_MS: picture study is a secondary signal
+// and must never be able to hold the whole journey open.
+const PICTURE_PROBE_TIMEOUT_MS = Number(process.env.PICTURE_PROBE_TIMEOUT_MS || 20_000);
+
+/**
+ * The picture-study probe's subject, read from the real catalog rather than
+ * hardcoded, so it cannot drift from what the app actually ships.
+ *
+ * ONE entry, deterministically the first picture_study one, not all 23 —
+ * the failures this guards against (a CSP that forbids the origins, a
+ * changed Wikimedia API shape, a changed image host) are systemic and show
+ * up on any entry. Validating every title is catalog hygiene, belongs in a
+ * test rather than a check that runs every 30 minutes, and would multiply
+ * both the runtime and the flakiness surface of a watchdog whose whole
+ * value is that it only cries wolf for real.
+ */
+function pickProbeAid() {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const catalog = JSON.parse(
+      readFileSync(join(here, '..', 'homeschool-api', 'data', 'visual_aids.json'), 'utf8')
+    );
+    const aids = catalog.visual_aids || [];
+    const wanted = process.env.PICTURE_PROBE_AID_ID;
+    return (
+      (wanted && aids.find((a) => a.id === wanted)) ||
+      aids.find((a) => a.category === 'picture_study') ||
+      aids[0] ||
+      null
+    );
+  } catch {
+    // Running outside a repo checkout is a legitimate way to use this
+    // script against a deployed demo. Skipping the probe is the right
+    // outcome; failing the journey over it is not.
+    return null;
+  }
+}
 
 /**
  * Device profiles, because "it works" is a claim about a device, not about
@@ -105,6 +145,7 @@ const report = {
   networkFailures: [],
   requests: [],
   diagnosticsBuffer: [],
+  pictureStudy: null,
 };
 
 function finish(code) {
@@ -118,6 +159,87 @@ const browser = await chromium.launch({
 });
 const context = await browser.newContext(PROFILE.ctx);
 const page = await context.newPage();
+
+// A precise, structured record of every CSP refusal, alongside the console
+// scrape below. The console text says a policy fired; this says WHICH
+// directive refused WHICH URI, which is the difference between "picture
+// study is broken" and "picture study is broken because img-src forbids
+// the image host". Installed via addInitScript so it is listening before
+// the app's own first line runs.
+await page.addInitScript(() => {
+  window.__bedeCspViolations = [];
+  document.addEventListener('securitypolicyviolation', (e) => {
+    window.__bedeCspViolations.push({
+      directive: e.violatedDirective,
+      blockedURI: e.blockedURI,
+    });
+  });
+});
+
+/**
+ * Does picture study actually work for a visitor?
+ *
+ * NOT by driving Bede until it decides to call show_visual_aid. That would
+ * make this check depend on a model's choice — non-deterministic, several
+ * paid LLM turns per run, every 30 minutes — and a watchdog that fails for
+ * reasons other than a real outage gets muted, which is worse than not
+ * having one.
+ *
+ * The failure this exists for had nothing to do with the model. Every
+ * picture-study card on the demo rendered "Picture unavailable right now"
+ * for a straightforwardly deterministic reason: the CSP forbade both
+ * origins VisualAidCard.tsx needs. So this performs exactly what that
+ * component performs — the same lookup, then the image that lookup returns
+ * — inside the real page, and is therefore governed by the real deployed
+ * policy. That last part is the point: a repository whose site/_headers is
+ * correct can still be serving a stale or overridden header, and only a
+ * request made from the deployed origin can tell.
+ */
+async function probePictureStudy(aid) {
+  return page.evaluate(
+    async ({ title, timeoutMs }) => {
+      const seen = window.__bedeCspViolations?.length ?? 0;
+      const out = { wikiTitle: title, lookupOk: false, imageOk: false };
+      let data = null;
+      try {
+        const res = await fetch(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`
+        );
+        out.lookupStatus = res.status;
+        if (res.ok) {
+          data = await res.json();
+          out.lookupOk = true;
+        }
+      } catch (err) {
+        out.lookupError = String(err);
+      }
+
+      // The same two fields VisualAidCard.tsx reads, in the same order.
+      const src = data?.thumbnail?.source || data?.originalimage?.source || null;
+      out.imageUrl = src;
+      if (src) {
+        try {
+          out.imageHost = new URL(src).host;
+        } catch {
+          out.imageHost = null;
+        }
+        out.imageOk = await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = src;
+          setTimeout(() => resolve(false), timeoutMs);
+        });
+      }
+
+      // A violation event is dispatched asynchronously after the refusal.
+      await new Promise((r) => setTimeout(r, 300));
+      out.violations = (window.__bedeCspViolations || []).slice(seen);
+      return out;
+    },
+    { title: aid.wiki_title, timeoutMs: Math.min(PICTURE_PROBE_TIMEOUT_MS, 15_000) }
+  );
+}
 
 // A CSP block is the one failure with no server-side trace at all, so it is
 // captured first-class rather than inferred from a generic console error.
@@ -207,9 +329,71 @@ try {
     .evaluate(() => (window.__bedeDebugEntries ? window.__bedeDebugEntries() : []))
     .catch(() => []);
 
+  // ── Step 4: can picture study actually show a picture? ───────────────
+  // Runs whatever the session outcome was, so a backend problem never
+  // hides a picture-study one. See probePictureStudy's own comment for why
+  // this does not drive Bede into calling show_visual_aid.
+  const probeAid = pickProbeAid();
+  if (probeAid) {
+    const picture = await probePictureStudy(probeAid).catch((err) => ({
+      wikiTitle: probeAid.wiki_title,
+      lookupOk: false,
+      imageOk: false,
+      probeError: String(err),
+      violations: [],
+    }));
+    picture.aidId = probeAid.id;
+    // THE distinction this whole step turns on, and the reason it is safe
+    // to run unattended every 30 minutes.
+    //
+    // A CSP refusal is OURS: the deployed policy forbids an origin the app
+    // needs, no request was ever sent, and no amount of waiting fixes it.
+    // That is a real outage of a real feature and it is repairable from
+    // this repository (site/_headers is on the repair agent's allowlist).
+    //
+    // Wikipedia being slow, rate-limiting, 404ing a renamed article, or
+    // unreachable is NOT ours. The demo stays perfectly usable — picture
+    // study degrades to the captioned card it is designed to fall back to.
+    // Failing the watchdog for that would wake a repair agent for someone
+    // else's outage and teach everyone to ignore the alert.
+    picture.cspBlocked = (picture.violations || []).some((v) =>
+      /wikipedia\.org|wikimedia\.org/i.test(v.blockedURI || '')
+    );
+    report.pictureStudy = picture;
+  } else {
+    report.pictureStudy = { skipped: 'visual_aids.json not found next to this script' };
+  }
+
   if (outcome === 'started') {
+    const picture = report.pictureStudy || {};
+    if (picture.cspBlocked) {
+      const directives = [...new Set(picture.violations.map((v) => v.directive))].join(', ');
+      report.failedStep = 'picture-study-csp';
+      report.summary =
+        'A demo session starts, but picture study cannot show a picture: the ' +
+        `deployed Content-Security-Policy refused it (${directives}). Every ` +
+        'Art & Music card renders "Picture unavailable right now". ' +
+        'VisualAidCard.tsx needs BOTH https://en.wikipedia.org in connect-src ' +
+        '(the summary lookup) and the image host in img-src (the thumbnail it ' +
+        'returns) — allowing only one leaves the identical broken card. Fix ' +
+        'the policy in site/_headers; this is a deployment header problem, ' +
+        'not a backend outage.';
+      finish(1);
+    }
     report.ok = true;
     report.summary = 'A demo session started successfully.';
+    if (picture.imageOk) {
+      report.summary += ` Picture study resolved and rendered "${picture.wikiTitle}" from ${picture.imageHost}.`;
+    } else if (picture.skipped) {
+      report.summary += ' Picture study was not probed (no catalog next to this script).';
+    } else {
+      // Reported, deliberately not failed — see cspBlocked above.
+      report.summary +=
+        ` Picture study could not load "${picture.wikiTitle}" this run, but the ` +
+        'policy did not refuse it, so this is Wikimedia being unreachable ' +
+        'rather than a Bede problem; the card falls back to its caption. ' +
+        'Worth investigating only if it persists across runs.';
+    }
     finish(0);
   }
 

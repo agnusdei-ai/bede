@@ -4,7 +4,7 @@ import { useTranslation, Trans } from 'react-i18next'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle, BookMarked, X } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
-import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS } from '../types'
+import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS, CHARACTER_VIRTUE_SUGGESTIONS, LEARNING_SUPPORT_SUGGESTIONS } from '../types'
 import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
@@ -148,6 +148,13 @@ interface StudentForm {
   // string[] on save (up to 6 — see models/schemas.py's
   // _validate_curriculum_resources).
   curriculum_resources: string
+  // Comma-separated, same editing convention as curriculum_resources above
+  // (up to 12 — see models/schemas.py's _validate_character_virtues). A
+  // family's or school's own character-formation program.
+  character_virtues: string
+  // Comma-separated, same editing convention as curriculum_resources and
+  // term_topics above. What the parent says helps this child.
+  learning_support: string
   voice_required: boolean
   appearance_locked: boolean
   session_cap_minutes: number
@@ -187,6 +194,8 @@ const blankStudent = (): StudentForm => ({
   faith_tradition: '',
   bible_translation: '',
   curriculum_resources: '',
+  character_virtues: '',
+  learning_support: '',
   voice_required: true,
   appearance_locked: false,
   // Derived from DEFAULT_SUBJECTS, not a literal — a new student's session
@@ -228,6 +237,8 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     faith_tradition: c.faith_tradition ?? '',
     bible_translation: c.bible_translation ?? '',
     curriculum_resources: (c.curriculum_resources ?? []).join(', '),
+    character_virtues: (c.character_virtues ?? []).join(', '),
+    learning_support: (c.learning_support ?? []).join(', '),
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
     session_cap_minutes: c.session_cap_minutes ?? 120,
@@ -253,7 +264,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     })),
     voice_narration_enabled: c.voice_narration_enabled ?? true,
     // Already-filled context shouldn't hide behind a collapsed toggle.
-    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition || c.bible_translation || c.curriculum_resources?.length),
+    expandedContext: !!(c.lesson_focus || c.faith_emphasis || c.current_unit || c.faith_tradition || c.bible_translation || c.curriculum_resources?.length || c.character_virtues?.length || c.learning_support?.length),
   }
 }
 
@@ -348,6 +359,8 @@ export default function ParentSetup() {
       faith_tradition: s.faith_tradition.trim() || undefined,
       bible_translation: s.bible_translation.trim() || undefined,
       curriculum_resources: s.curriculum_resources.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 6),
+      character_virtues: s.character_virtues.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 12),
+      learning_support: s.learning_support.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 8),
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
       companion_mode: s.companion_mode,
@@ -761,7 +774,7 @@ function StudentCard({
               fits every current label on one line; truncate + title remain
               as a safety net for a future label that doesn't. The left
               border is each subject's own color from SUBJECTS, matching
-              agnusdei.io's curriculum color binder — see that field's own
+              agnusdei.ai's curriculum color binder — see that field's own
               comment in types/index.ts. */}
           <div className="grid grid-cols-1 gap-1.5">
             {availableSubjects.map((s) => {
@@ -1235,6 +1248,46 @@ function StudentCard({
                   <p className="text-xs text-gray-400 mt-1">{t('parentSetup.bibleTranslationHint')}</p>
                 </div>
               )}
+              {/* What helps this child. Placed directly above the
+                  curriculum-resources field because they are the same kind of
+                  thing — context a parent supplies about how the day should
+                  run — and deliberately NOT near anything that looks like an
+                  assessment. Bede never infers this and never names a reason
+                  for it; see the backend's _learning_support_note. */}
+              <div>
+                <label className="label">{t('parentSetup.learningSupport')}</label>
+                <input
+                  type="text"
+                  value={student.learning_support}
+                  onChange={(e) => onUpdate({ learning_support: e.target.value })}
+                  placeholder={t('parentSetup.learningSupportPlaceholder')}
+                  className="input"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {LEARNING_SUPPORT_SUGGESTIONS.map((name) => {
+                    const already = student.learning_support
+                      .split(',').map((r) => r.trim().toLowerCase()).includes(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={already}
+                        onClick={() => onUpdate({
+                          learning_support: [student.learning_support, name].filter(Boolean).join(', '),
+                        })}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          already
+                            ? 'bg-sage-50 border-sage-200 text-sage-500 cursor-default'
+                            : 'bg-white border-sage-200 text-sage-700 hover:bg-sage-50 cursor-pointer'
+                        }`}
+                      >
+                        {already ? `✓ ${name}` : `+ ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.learningSupportHint')}</p>
+              </div>
               <div>
                 <label className="label">{t('parentSetup.curriculumResources')}</label>
                 <input
@@ -1268,6 +1321,40 @@ function StudentCard({
                   })}
                 </div>
                 <p className="text-xs text-gray-400 mt-1">{t('parentSetup.curriculumResourcesHint')}</p>
+              </div>
+              <div>
+                <label className="label">{t('parentSetup.characterVirtues')}</label>
+                <input
+                  type="text"
+                  value={student.character_virtues}
+                  onChange={(e) => onUpdate({ character_virtues: e.target.value })}
+                  placeholder={t('parentSetup.characterVirtuesPlaceholder')}
+                  className="input"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {CHARACTER_VIRTUE_SUGGESTIONS.map((name) => {
+                    const already = student.character_virtues
+                      .split(',').map((r) => r.trim().toLowerCase()).includes(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={already}
+                        onClick={() => onUpdate({
+                          character_virtues: [student.character_virtues, name].filter(Boolean).join(', '),
+                        })}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          already
+                            ? 'bg-gold-50 border-gold-200 text-gold-500 cursor-default'
+                            : 'bg-white border-gold-200 text-gold-700 hover:bg-gold-50 cursor-pointer'
+                        }`}
+                      >
+                        {already ? `✓ ${name}` : `+ ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.characterVirtuesHint')}</p>
               </div>
               <div>
                 <label className="label">{t('parentSetup.noteForBede')}</label>

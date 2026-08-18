@@ -54,6 +54,19 @@ export interface SessionConfig {
   // panel; Bede aligns terminology/approach where it naturally overlaps,
   // never claiming to reproduce a named publisher's actual content.
   curriculum_resources?: string[]
+  // A family's or school's own character-formation framework — the virtues
+  // Bede should notice and occasionally weave into subject dialogue (see
+  // CHARACTER_VIRTUE_SUGGESTIONS below). Mirrors the backend's
+  // SessionConfig.character_virtues; see the backend's
+  // _character_virtues_note for the governing rules — framing only, never
+  // a rating of the child, and never the same thing as the constitution's
+  // own theological virtues.
+  character_virtues?: string[]
+  // What the PARENT says helps this child — never inferred by Bede, never a
+  // diagnosis. Mirrors the backend's SessionConfig.learning_support; see
+  // LEARNING_SUPPORT_SUGGESTIONS below and the backend's
+  // _learning_support_note for the rules that govern how Bede acts on it.
+  learning_support?: string[]
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
@@ -142,12 +155,38 @@ export const BIBLE_TRANSLATIONS = [
 ] as const
 
 // Curriculum publishers commonly used alongside Bede, offered as quick-pick
+// Quick-pick suggestions for SessionConfig.learning_support — mirrors
+// homeschool-api/models/schemas.py's LEARNING_SUPPORT_SUGGESTIONS. Not a
+// closed list: a family's own wording is kept exactly as typed.
+//
+// Every entry names a change to HOW a lesson is delivered, never to what is
+// taught or the standard the work is held to. A parent reading this list
+// should come away with "here is what we can do", not a deficit checklist.
+export const LEARNING_SUPPORT_SUGGESTIONS = [
+  'More time to answer',
+  'Shorter passages at a time',
+  'Answer out loud instead of writing',
+  'Read the passage aloud to them',
+  'Break tasks into one step at a time',
+  'Frequent short breaks',
+  'Repeat instructions before starting',
+  'Say numbers and letters clearly, one at a time',
+]
+
 // suggestions for SessionConfig.curriculum_resources — mirrors
 // homeschool-api/models/schemas.py's CURRICULUM_RESOURCE_SUGGESTIONS. Not a
 // closed list — a parent's own free-text entry is kept as typed.
 export const CURRICULUM_RESOURCE_SUGGESTIONS = [
   'Memoria Press', 'Classical Academic Press', 'Well-Trained Mind Press',
   'Institute for Excellence in Writing', 'RightStart Mathematics', 'Logic of English',
+] as const
+
+// Quick-pick suggestions for SessionConfig.character_virtues — mirrors
+// homeschool-api/models/schemas.py's CHARACTER_VIRTUE_SUGGESTIONS. Not a
+// closed list — a family's or school's own entry is kept as typed.
+export const CHARACTER_VIRTUE_SUGGESTIONS = [
+  'Courage', 'Humility', 'Wonder', 'Attentiveness',
+  'Honesty', 'Gratitude', 'Perseverance', 'Kindness',
 ] as const
 
 // Foundational core areas tracked term-by-term — mirrors
@@ -198,7 +237,7 @@ export interface SubjectInfo {
   durationMin: number
   // A single hex color, not a Tailwind class string — one hue per subject,
   // used as a left-border accent (SubjectPicker, SubjectDrawer). Matches
-  // agnusdei.io's own curriculum-grid color binder exactly: 14 hues evenly
+  // agnusdei.ai's own curriculum-grid color binder exactly: 14 hues evenly
   // spaced around the wheel (25.7° apart, S=0.380, L=0.361 — see
   // site/assets/site.css's ".curriculum .card:nth-child" rules, the source
   // of truth for these values), in the same subject order as the Subject

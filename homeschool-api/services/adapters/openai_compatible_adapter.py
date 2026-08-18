@@ -37,6 +37,7 @@ installed or imported at all.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any, Dict, List, Optional
 
@@ -369,3 +370,23 @@ class OpenAICompatibleClient:
         self._openai = AsyncOpenAI(**client_kwargs)
         self._model = model
         self.messages = _Messages(self)
+
+    async def is_reachable(self, timeout_seconds: float = 5.0) -> bool:
+        """
+        Lightweight reachability check — GETs the server's /models list (the
+        one OpenAI-compatible endpoint every real target here exposes: vLLM,
+        Ollama's compat layer, LM Studio, a real OpenAI/Mistral endpoint)
+        instead of a real chat completion, so this costs no tokens and never
+        touches the actual model. Used only for main.py's periodic local-
+        adapter health check — never on the request path itself, where a
+        slow/dead server is already caught by the existing stall timeout and
+        FailoverClient's circuit breaker. AsyncOpenAI's own default timeout
+        is minutes long (fine for a real tutoring call, far too slow for a
+        background health probe), hence the explicit short override here
+        rather than relying on the client's construction-time default.
+        """
+        try:
+            await asyncio.wait_for(self._openai.models.list(), timeout=timeout_seconds)
+            return True
+        except Exception:
+            return False

@@ -61,8 +61,8 @@ async def test_returns_none_under_every_condition_proving_no_sse_chunk_is_possib
     the caller in stream_tutor_response never yields anything for this
     branch, so there is no code path that could emit an SSE chunk."""
     tool_input = {"domain": "letter_sound", "outcome": "correct"}
-    assert await _record_phonics_evidence(None, _config(), Subject.language_arts, tool_input) is None
-    assert await _record_phonics_evidence(None, _config(), Subject.language_arts, {"outcome": "bad"}) is None
+    assert await _record_phonics_evidence(None, None, _config(), Subject.language_arts, tool_input) is None
+    assert await _record_phonics_evidence(None, None, _config(), Subject.language_arts, {"outcome": "bad"}) is None
 
 
 @pytest.mark.asyncio
@@ -71,7 +71,7 @@ async def test_wrong_subject_never_reaches_the_backend(db_session, monkeypatch):
     monkeypatch.setattr("services.diagnostic.phonics.process_evidence", mock_process_evidence)
 
     await _record_phonics_evidence(
-        db_session, _config(), Subject.mathematics,
+        db_session, None, _config(), Subject.mathematics,
         {"domain": "letter_sound", "outcome": "correct"},
     )
 
@@ -88,7 +88,7 @@ async def test_wrong_grade_stage_never_reaches_the_backend(db_session, monkeypat
     monkeypatch.setattr("services.diagnostic.phonics.process_evidence", mock_process_evidence)
 
     await _record_phonics_evidence(
-        db_session, _config(grade="5", grade_stage=GradeStage.core_mastery), Subject.language_arts,
+        db_session, None, _config(grade="5", grade_stage=GradeStage.core_mastery), Subject.language_arts,
         {"domain": "letter_sound", "outcome": "correct"},
     )
 
@@ -104,7 +104,7 @@ async def test_db_none_writes_nothing():
     """No demo backend exists for phonics (unlike math's record_skill_evidence)
     — db=None is the true no-op default, not an error."""
     await _record_phonics_evidence(
-        None, _config(), Subject.language_arts,
+        None, None, _config(), Subject.language_arts,
         {"domain": "letter_sound", "outcome": "correct"},
     )  # no exception raised is the assertion
 
@@ -114,7 +114,7 @@ async def test_malformed_tool_input_is_logged_and_swallowed_not_raised(db_sessio
     """Mirrors _record_skill_evidence's contract: a diagnostic-recording
     failure must never propagate and break the child's tutoring turn."""
     await _record_phonics_evidence(
-        db_session, _config(), Subject.language_arts,
+        db_session, None, _config(), Subject.language_arts,
         {"domain": "letter_sound", "outcome": "definitely-not-valid"},
     )  # no exception raised is the assertion
 
@@ -132,7 +132,7 @@ async def test_a_hallucinated_but_well_formed_domain_is_a_safe_no_op(db_session)
     phonics.apply_evidence(). Confirming that chain holds end-to-end,
     mirroring test_record_skill_evidence.py's equivalent probe_id test."""
     await _record_phonics_evidence(
-        db_session, _config(), Subject.language_arts,
+        db_session, None, _config(), Subject.language_arts,
         {"domain": "a_plausible_but_made_up_domain", "outcome": "correct"},
     )
 
@@ -145,7 +145,7 @@ async def test_a_hallucinated_but_well_formed_domain_is_a_safe_no_op(db_session)
 @pytest.mark.asyncio
 async def test_valid_phonics_evidence_genuinely_persists_end_to_end_via_db(db_session):
     await _record_phonics_evidence(
-        db_session, _config(student_name="Grace"), Subject.language_arts,
+        db_session, None, _config(student_name="Grace"), Subject.language_arts,
         {"domain": "cvc_blending", "outcome": "correct"},
     )
 
@@ -161,11 +161,11 @@ async def test_valid_phonics_evidence_genuinely_persists_end_to_end_via_db(db_se
 @pytest.mark.asyncio
 async def test_second_valid_call_accumulates_on_the_same_row(db_session):
     await _record_phonics_evidence(
-        db_session, _config(student_name="Noah"), Subject.language_arts,
+        db_session, None, _config(student_name="Noah"), Subject.language_arts,
         {"domain": "letter_sound", "outcome": "correct"},
     )
     await _record_phonics_evidence(
-        db_session, _config(student_name="Noah"), Subject.language_arts,
+        db_session, None, _config(student_name="Noah"), Subject.language_arts,
         {"domain": "sight_words", "outcome": "partial"},
     )
 

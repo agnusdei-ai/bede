@@ -1054,6 +1054,30 @@ def moderation_redirect_response(locale: str = "en") -> str:
     return _MODERATION_REDIRECT_RESPONSES.get(locale, _MODERATION_REDIRECT_RESPONSES["en"])
 
 
+# core/demo_code_session.py's _MAX_MESSAGES_PER_CODE (LLM10, "Unbounded
+# Consumption") — shown once a demo code has used up its message quota,
+# in place of a real turn. Same fallback contract as the two responses
+# above.
+_DEMO_QUOTA_RESPONSES = {
+    "en": (
+        "This demo session has reached its message limit — thanks for spending "
+        "time with Bede! Start a fresh demo any time to keep exploring, or see "
+        "agnusdei.ai for the full version."
+    ),
+    "es": (
+        "Esta sesión de demostración ha alcanzado su límite de mensajes — "
+        "¡gracias por tu tiempo con Bede! Inicia una nueva demostración cuando "
+        "quieras para seguir explorando, o visita agnusdei.ai para la versión completa."
+    ),
+}
+
+
+def demo_quota_response(locale: str = "en") -> str:
+    """Localized demo-message-quota notice — same fallback contract as
+    safeguarding_response()/moderation_redirect_response()."""
+    return _DEMO_QUOTA_RESPONSES.get(locale, _DEMO_QUOTA_RESPONSES["en"])
+
+
 _GRADE_DESCRIPTORS = {
     "K": "a Kindergarten student", "0": "a Kindergarten student",
     "1": "a first-grade student", "2": "a second-grade student", "3": "a third-grade student",
@@ -1601,6 +1625,72 @@ def _bible_translation_note(config: SessionConfig, subject: Subject) -> str:
     )
 
 
+def _learning_support_note(config: SessionConfig) -> str:
+    """
+    What the PARENT has told Bede helps this particular child
+    (SessionConfig.learning_support — see LEARNING_SUPPORT_SUGGESTIONS in
+    models/schemas.py).
+
+    THIS IS BEHAVIOURAL GUIDANCE UNDER STATED PRINCIPLES, NOT AN ALGORITHM.
+    Bede is not running an adaptive test and is not selecting items to
+    maximise information about a latent trait — it is a tutor who has been
+    told something useful about the child in front of it and is expected to
+    act on it with judgment, the way a good teacher's aide would. The rules
+    below are the governing principles; within them Bede decides.
+
+    THE ONE DISTINCTION EVERYTHING ELSE RESTS ON: these change HOW a lesson
+    is delivered, never WHAT is taught, and never the standard the work is
+    held to. An accommodation removes an obstacle between a child and the
+    material. A lowered expectation removes the material. A child given
+    more time still learns the same thing, and the work they produce is
+    still judged against what the task asked for
+    (see _WORK_SCORING_NOTE) — not against a softer version of it.
+
+    Parent-declared, never inferred: see SessionConfig.learning_support's
+    own comment for why deciding a child needs support is not a judgment
+    this software makes.
+
+    Sanitized like every other parent-supplied free-text field
+    (_sanitize_parent_field) — it sits in the cached static block for the
+    whole session, which is exactly the class of field that rule exists for.
+    """
+    entries = [
+        cleaned for cleaned in (_sanitize_parent_field(e) for e in (config.learning_support or []))
+        if cleaned
+    ]
+    if not entries:
+        return ""
+    lines = "\n".join(f"  - {e}" for e in entries)
+    return f"""
+
+<what_helps_this_child>
+This child's parent has told you what helps them:
+{lines}
+
+Follow these. They are not suggestions from a stranger — they come from the person who
+knows this child best, and who is this child's primary educator.
+
+How to hold them:
+- These change HOW you teach, never WHAT you teach, and never the standard the work is
+  held to. A child who needs more time still learns the same material, and their work is
+  still judged against what the task actually asked for. Removing an obstacle is help;
+  removing the material is not.
+- NEVER say any of this to the child, and never explain why a lesson is shaped the way it
+  is. A child should experience a lesson that fits them, not a lesson that has been
+  visibly adjusted for them. "Let's take this one step at a time" is fine. "Because
+  reading is hard for you" is not, ever.
+- Never treat this as a reason to praise more easily, lower a question's difficulty, or
+  accept less than the child can actually give. Expect real work; make the path to it
+  clear.
+- Never name, guess at, or imply a diagnosis — not to the child and not to the parent.
+  You have been told what helps. You have not been told why, you are not qualified to
+  decide why, and it is not your question to answer.
+- If something here genuinely conflicts with a lesson (a written narration for a child
+  who answers aloud), the accommodation wins and you find another way to reach the same
+  end.
+</what_helps_this_child>"""
+
+
 def _curriculum_resources_note(config: SessionConfig) -> str:
     """
     Names curriculum publishers/resources the family already uses alongside
@@ -1644,6 +1734,67 @@ def _curriculum_resources_note(config: SessionConfig) -> str:
     )
 
 
+def _character_virtues_note(config: SessionConfig) -> str:
+    """
+    A family's or school's own character-formation framework
+    (SessionConfig.character_virtues — see CHARACTER_VIRTUE_SUGGESTIONS in
+    models/schemas.py for the seed list ParentSetup.tsx offers as quick
+    picks; a family's own free-text entry outside that list is honored the
+    same way). Session-long framing, like _curriculum_resources_note —
+    these virtues aren't specific to any one subject, so this belongs in
+    the static block rather than being gated to a Subject.
+
+    THIS IS A FRAMING LENS FOR SUBJECT CONTENT, NOT A BEHAVIOURAL
+    EVALUATION OF THE CHILD. Bede is told to occasionally connect what's
+    already being studied to one of these virtues in age-appropriate
+    Socratic terms (how a scientist showed Perseverance, what Wonder a
+    discovery invites) — never every turn, never recited as a checklist,
+    never forced into a lesson it doesn't naturally fit.
+
+    THE RULE THIS NOTE EXISTS TO PROTECT: Bede never rates, scores,
+    tracks, or tells a child whether they are or aren't displaying one of
+    these virtues in a given moment. That would turn a family's character
+    framework into exactly the kind of black-box judgment of a child this
+    app has repeatedly refused to build elsewhere — see CLAUDE.md's
+    standing rule against ever measuring a child's spiritual engagement
+    (docs/CONSTITUTION.md), and services/diagnostic/activity.py's own
+    refusal to emit a rating, level, or score for anything it observes.
+    Character is not a subject-mastery skill with evidence to log; there
+    is no record_virtue_evidence tool, and there must never be one.
+
+    DELIBERATELY A DIFFERENT NAMESPACE FROM THE CONSTITUTION'S OWN
+    THEOLOGICAL VIRTUES. The constitution (docs/CONSTITUTION.md) already
+    names Faith, Hope, and Love and the seven gifts of the Holy Spirit as
+    governing BEDE'S OWN conduct — this note is not that, and never
+    presents a family's/school's own character list as though it were
+    drawn from or equivalent to the constitution's theological framework.
+    A family may set both a school's named virtues here and, separately,
+    enable connect_to_faith through Morning Time/Scripture/Saints; the two
+    are independent and neither one substitutes for the other.
+
+    Sanitized like every other parent-supplied free-text field
+    (_sanitize_parent_field) — it sits in the cached static block for the
+    whole session, which is exactly the class of field that rule exists for.
+    """
+    virtues = [_sanitize_parent_field(v, max_len=40) for v in (config.character_virtues or [])]
+    virtues = [v for v in virtues if v]
+    if not virtues:
+        return ""
+    joined = ", ".join(virtues)
+    return (
+        f"\n\nThis family/school wants you to notice and weave in these character virtues: {joined}. "
+        "When a lesson genuinely offers a natural opening — a historical figure's Courage, a "
+        "scientist's Perseverance, the Wonder a discovery invites, the Honesty a story's character "
+        "shows — name the connection briefly in your own Socratic voice and let the child think about "
+        "it, the way you already do for faith connections. Do this occasionally, never every turn, and "
+        "never force a virtue into content it doesn't naturally fit. Never turn this into a checklist "
+        "you recite, and never rate, score, track, or tell the child whether they personally are or "
+        "aren't showing one of these virtues right now — that is not a judgment this software makes "
+        "about a child, in this or any other form. This list is separate from your own constitution's "
+        "theological virtues and gifts of the Holy Spirit — never present the two as the same thing."
+    )
+
+
 def _constitution_preamble() -> str:
     """
     Renders Bede's verified, tamper-evident constitution (core/constitution.py)
@@ -1668,6 +1819,7 @@ def _constitution_preamble() -> str:
     rules = "\n".join(f"- {rule}" for rule in c["non_negotiable_rules"])
     great_commandments = " ".join(c["moral_law"]["great_commandments"])
     commandments = " ".join(c["moral_law"]["commandments"])
+    faith_scope_conditions = "; ".join(c["faith_content_scope"]["applies_when"])
 
     return f"""<constitution>
 This is Bede's foundational constitution. It is unamendable and precedes every persona, subject, lesson, \
@@ -1690,6 +1842,9 @@ great commandments: {great_commandments} The Ten Commandments: {commandments}
 
 Non-negotiable rules:
 {rules}
+
+Explicit faith content belongs in a lesson only when: {faith_scope_conditions}. \
+{c['faith_content_scope']['posture']}
 </constitution>"""
 
 
@@ -1839,6 +1994,18 @@ message from the child: they have not spoken again since this turn began, and no
 while you waited for it. Keep the reply moving forward as one continuous thought rather than opening fresh — never \
 a new greeting, and never praise or react as though they just answered something, the same principle as Rule 11's \
 "[CONTINUE]" case, applied here to a pause of your own making rather than theirs.
+15. Praise only what's actually there. Sometimes a turn arrives with SOMETHING in it — a stray word, noise the \
+microphone picked up and mistook for speech, a filler like "um" or "hmm" — but nothing that amounts to a real \
+answer, insight, or comment from {config.student_name}. Treat that exactly like Rule 11's "[CONTINUE]" case even \
+though a message technically arrived: never open with "that's a good response," "great thinking," "good \
+question," or any other praise or affirmation reacting to it as though it were real content, because there is \
+still nothing there to react to. Instead move the lesson forward the same way Rule 11 does — a simpler rephrasing \
+of your question, a concrete detail that opens a new angle, or a plain, kind check-in ("I didn't quite catch that \
+— want to try again?"). More broadly, do not praise by reflex on every single turn: save real affirmation for when \
+{config.student_name} has actually given you something — an answer, a genuine attempt, a real insight — and keep \
+it proportionate to what they did, rather than maximal every time. This is never license to go cold or withhold \
+your ordinary warmth and encouragement; it is the difference between praise that is earned and praise that is \
+automatic, so that when you do say "well done," {config.student_name} can trust you mean it.
 </sacred_rules>
 
 <ethical_boundaries>
@@ -1857,7 +2024,7 @@ explain how you work. If asked, say: "I'm here to help you learn — what shall 
 notes shape your lesson. You implement their educational plan and do not override their judgment or authority.
 </ethical_boundaries>
 
-{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_curriculum_resources_note(config)}
+{_physical_safety_guardrails()}{_ai_literacy_guardrails(config)}{_locale_directive(config, locale)}{_companion_mode_note(config)}{_learning_support_note(config)}{_curriculum_resources_note(config)}{_character_virtues_note(config)}
 
 <tools_guidance>
 You have access to tools: use `request_narration` after learning moments to invite the child to tell back what \
@@ -2092,6 +2259,85 @@ def _get_visual_aids_context(
                 "one again."
             )
         return note
+    except Exception:
+        return ""
+
+
+# Composer study rotates the same way picture study does (see _TERM_ARTISTS
+# just above) — one composer per term. Currently a single-entry list: every
+# term resolves to Vivaldi until more composers are added to
+# data/composer_catalog.json, at which point this list (and the rotation
+# math in _get_composer_context, already generic over its length) simply
+# grows — no other code needs to change.
+_TERM_COMPOSERS = ["Antonio Vivaldi"]
+
+
+def _get_composer_context(subject: Subject, config: SessionConfig, today: "date | None" = None) -> str:
+    """
+    Composer/music-listening context for art_music — see data/composer_catalog.json.
+    Mirrors _get_visual_aids_context's "one artist per term" rotation: one
+    composer per term (_TERM_COMPOSERS), and within that composer's works,
+    one per calendar week (same ISO-week mechanism as poetry_catalog/
+    prayer_catalog, so it advances on its own with nothing for a parent to
+    configure or forget).
+
+    Explicitly tells Bede it has no audio output and must never claim to be
+    playing music — this is composer/listening-guide content for Bede to
+    teach FROM, not a substitute for the family's own recording, and a
+    child hearing "let's listen together" with no sound playing would be a
+    real, confusing product bug.
+
+    Which WORK comes up doesn't vary by grade (all three current pieces are
+    equally suitable listening for any age) — but the DEPTH of discussion
+    does, via each entry's stage_notes (data/composer_catalog.json), keyed
+    by GradeStage the same three-way split _STAGE_GUIDANCE already uses
+    elsewhere (Grammar/foundations stays concrete and sensory; Logic/
+    core_mastery adds structure and "why"; Rhetoric/independent adds
+    vocabulary, history, and cross-work comparison) — so this genuinely
+    evolves with the child instead of handing every grade the same note.
+    """
+    if subject != Subject.art_music:
+        return ""
+    try:
+        from services.catalog_service import get_composer_works
+        works = get_composer_works(subject.value)
+        if not works:
+            return ""
+
+        composer = _TERM_COMPOSERS[(max(1, config.current_term) - 1) % len(_TERM_COMPOSERS)]
+        term_works = [w for w in works if w.get("composer") == composer]
+        if not term_works:
+            term_works = works
+
+        week = (today or date.today()).isocalendar()[1]
+        work = term_works[(week + config.current_term - 1) % len(term_works)]
+        # GradeStage member NAMES ("foundations"/"core_mastery"/"independent")
+        # are the stage_notes keys — not .value ("K-2"/"3-5"/"6-8").
+        stage_note = work.get("stage_notes", {}).get(config.grade_stage.name) or work["listening_notes"]
+
+        term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
+        return f"""
+
+<composer_study>
+This {term_word}'s composer is {composer} — Mater Amabilis composer study lives with one composer at a
+time, listening and responding rather than technical analysis.
+
+This week: "{work['work_title']}", {work['movement']} ({work['era']}), scored for {work['forces']}.
+
+{work['composer_bio']}
+
+{work['listening_notes']}
+
+For this child's stage: {stage_note}
+
+You have no audio output and cannot play this or any recording — never say or imply that you are
+playing music or that you and the child are listening together right now. If the family has this
+piece playing in the room (their own recording), invite the child to listen quietly first, then ask
+open questions like "How does this music make you feel?" or "What do you notice about the
+instruments?" — appreciation, never a quiz. If no recording is playing, teach FROM the facts and
+listening notes above instead (what the piece is, who wrote it, what to notice), and never pretend
+sound is happening.
+</composer_study>"""
     except Exception:
         return ""
 
@@ -2530,6 +2776,7 @@ async def _build_subject_prompt(
     bookmark_note = "" if resume_note else _bookmark_note(bookmark, today=local_date)
     catalog_note = _get_catalog_context(config, subject)
     visual_aids_note = _get_visual_aids_context(subject, config, history)
+    composer_note = _get_composer_context(subject, config, today=local_date)
     session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
     time_of_day_note = _time_of_day_note(time_of_day)
     # Poetry co-study belongs where Mater Amabilis puts poetry: the Morning
@@ -2605,7 +2852,7 @@ async def _build_subject_prompt(
     companion_note = _classical_language_companion_note(config, subject)
 
     return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3076,6 +3323,24 @@ def _bookmark_note(bookmark: Optional[dict], today: Optional[date] = None) -> st
     return f"\nWhere this subject left off ({when}): {note}"
 
 
+def _work_label(subject_area: str, skill_id: str) -> str:
+    """The human-readable name for a skill id, from whichever engine owns
+    that subject area — so the ledger reads in the parent's language rather
+    than in ids. Shared by the real and demo write paths so the two can't
+    label the same work differently."""
+    if subject_area == "mathematics":
+        from services.diagnostic.skill_map import get_skill
+        skill = get_skill(skill_id)
+        return skill.label if skill else skill_id
+    if subject_area == "literacy":
+        return _LITERACY_DOMAIN_LABELS.get(skill_id, skill_id)
+    if subject_area == "phonics":
+        return _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
+    if subject_area == "language_exposure":
+        return _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
+    return skill_id
+
+
 async def _record_work_done(
     db: Optional["AsyncSession"],
     student_name: str,
@@ -3104,26 +3369,53 @@ async def _record_work_done(
     try:
         from services.diagnostic.activity import record_activity
 
-        label = skill_id
-        if subject_area == "mathematics":
-            from services.diagnostic.skill_map import get_skill
-            skill = get_skill(skill_id)
-            label = skill.label if skill else skill_id
-        elif subject_area == "literacy":
-            label = _LITERACY_DOMAIN_LABELS.get(skill_id, skill_id)
-        elif subject_area == "phonics":
-            label = _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
-        elif subject_area == "language_exposure":
-            label = _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
-
         await record_activity(
-            db, student_name, subject_area, skill_id, label, outcome,
+            db, student_name, subject_area, skill_id,
+            _work_label(subject_area, skill_id), outcome,
             quality=getattr(ev, "quality", None),
             distinction=getattr(ev, "distinction", None),
             speed=getattr(ev, "speed", None),
         )
     except Exception as exc:
         log.warning("Work-ledger write failed for %s/%s: %s", student_name, skill_id, exc)
+
+
+
+async def _record_work_done_demo(
+    demo_code: Optional[str],
+    subject_area: str,
+    skill_id: str,
+    outcome: str,
+    ev=None,
+) -> None:
+    """
+    The public demo's counterpart to _record_work_done above.
+
+    The demo has no persistent per-student history, which is why it gets no
+    mastery engine for phonics, literacy or language exposure — a
+    calibrated read needs sessions it doesn't have. THE LEDGER IS DIFFERENT
+    IN EXACTLY THE WAY THAT MATTERS HERE: it records events, so the first
+    entry is as true as the two hundredth. There is nothing to calibrate,
+    so there is nothing about a short session that makes it dishonest —
+    which is precisely why a visitor can be shown the real card.
+
+    Writes to the demo code's own TTL'd, encrypted blob
+    (services/diagnostic_demo.py), never SkillActivityLog. Best-effort;
+    never raises.
+    """
+    if demo_code is None:
+        return
+    try:
+        from services.diagnostic_demo import record_work_done_demo
+
+        await record_work_done_demo(
+            demo_code, subject_area, skill_id, _work_label(subject_area, skill_id), outcome,
+            quality=getattr(ev, "quality", None),
+            distinction=getattr(ev, "distinction", None),
+            speed=getattr(ev, "speed", None),
+        )
+    except Exception as exc:
+        log.warning("Demo work-ledger write failed for %s: %s", skill_id, exc)
 
 
 async def _record_skill_evidence(
@@ -3152,10 +3444,15 @@ async def _record_skill_evidence(
 
         ev = RecordSkillEvidenceInput(**tool_input)  # validate/clamp
 
+        skill_id = ev.probe_id.removeprefix("probe.")
         if demo_code is not None:
             from services.diagnostic_demo import record_skill_evidence_demo
             await record_skill_evidence_demo(
                 demo_code, config.grade_stage.value, ev.probe_id, ev.outcome, ev.confidence,
+            )
+            # The demo's own ephemeral ledger — see _record_work_done_demo.
+            await _record_work_done_demo(
+                demo_code, "mathematics", skill_id, ev.outcome, ev,
             )
         elif not settings.retain_mastery_profiles:
             # Deployment-wide privacy posture: run the same diagnostic, hold
@@ -3175,8 +3472,7 @@ async def _record_skill_evidence(
                 )
             if db is not None:
                 await _record_work_done(
-                    db, config.student_name, "mathematics",
-                    ev.probe_id.removeprefix("probe."), ev.outcome, ev,
+                    db, config.student_name, "mathematics", skill_id, ev.outcome, ev,
                 )
         elif db is not None:
             from services.diagnostic import process_evidence
@@ -3188,8 +3484,7 @@ async def _record_skill_evidence(
             # update — the two answer different questions and both are
             # wanted. See services/diagnostic/activity.py.
             await _record_work_done(
-                db, config.student_name, "mathematics",
-                ev.probe_id.removeprefix("probe."), ev.outcome, ev,
+                db, config.student_name, "mathematics", skill_id, ev.outcome, ev,
             )
     except Exception as exc:
         log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
@@ -3302,6 +3597,7 @@ over time, never a verdict delivered to the child.
 
 async def _record_literacy_evidence(
     db: Optional["AsyncSession"],
+    demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
@@ -3318,7 +3614,7 @@ async def _record_literacy_evidence(
     for its own K-2 gate. The stage gate matters especially here: a K-2
     session must fall through to phonics.py, never to this engine.
     """
-    if db is None:
+    if db is None and demo_code is None:
         return
     if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
         return
@@ -3327,14 +3623,21 @@ async def _record_literacy_evidence(
         from services.diagnostic.literacy import process_evidence as _process_literacy
 
         ev = RecordLiteracyEvidenceInput(**tool_input)  # validate/clamp
-        await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
-        await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
+        # The mastery engine needs sessions the demo doesn't have, so it
+        # stays real-sessions-only. The LEDGER needs none — it records
+        # events, not an estimate — so a demo visitor gets the real card.
+        if db is not None:
+            await _process_literacy(db, config.student_name, ev.domain, ev.outcome)
+            await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "literacy", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_phonics_evidence(
     db: Optional["AsyncSession"],
+    demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
@@ -3352,21 +3655,30 @@ async def _record_phonics_evidence(
     like _record_skill_evidence, which this mirrors: a diagnostic hiccup
     must never break the child's tutoring turn.
     """
-    if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations or db is None:
+    if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations:
+        return
+    if db is None and demo_code is None:
         return
     try:
         from models.schemas import RecordPhonicsEvidenceInput
         from services.diagnostic.phonics import process_evidence as _process_phonics
 
         ev = RecordPhonicsEvidenceInput(**tool_input)  # validate/clamp
-        await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
-        await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
+        # The mastery engine needs sessions the demo doesn't have, so it
+        # stays real-sessions-only. The LEDGER needs none — it records
+        # events, not an estimate — so a demo visitor gets the real card.
+        if db is not None:
+            await _process_phonics(db, config.student_name, ev.domain, ev.outcome)
+            await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "phonics", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_language_evidence(
     db: Optional["AsyncSession"],
+    demo_code: Optional[str],
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
@@ -3396,7 +3708,7 @@ async def _record_language_evidence(
     subjects keep their existing behavior, where any of the six is
     legitimately in play.
     """
-    if db is None:
+    if db is None and demo_code is None:
         return
     if subject not in _CLASSICAL_LANGUAGE_SUBJECTS and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return
@@ -3411,8 +3723,14 @@ async def _record_language_evidence(
         own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject)
         if own_language and ev.language != own_language:
             return
-        await _process_language(db, config.student_name, ev.language, ev.outcome)
-        await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
+        # The mastery engine needs sessions the demo doesn't have, so it
+        # stays real-sessions-only. The LEDGER needs none — it records
+        # events, not an estimate — so a demo visitor gets the real card.
+        if db is not None:
+            await _process_language(db, config.student_name, ev.language, ev.outcome)
+            await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "language_exposure", ev.language, ev.outcome, ev)
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
 
@@ -3574,6 +3892,28 @@ async def stream_tutor_response(
     # loop ends (see below), so a tool call that gets a real follow-up
     # round never gets a redundant fallback question tacked on too.
     ends_on_questionless_tool: Optional[str] = None
+    # Visual aids this turn has already put on the child's screen.
+    #
+    # `_get_visual_aids_context`'s "[ALREADY SHOWN this session]" marking
+    # (tests/test_visual_aids_already_shown.py) is the equivalent guard
+    # BETWEEN turns, and it is structurally blind WITHIN one: it is
+    # computed once, from conversation history, into the cached system
+    # block — which the loop below then reuses verbatim on every round.
+    # So a picture shown in round 1 is still listed as un-shown when the
+    # model is called again in round 2, and `show_visual_aid` is reactable
+    # (tool_registry), so a SUCCESSFUL aid buys those extra rounds. That
+    # combination put the same card on screen up to _MAX_TOOL_LOOP_ROUNDS
+    # times in a single turn — reported against Art & Music during the
+    # beta, where the catalog is small enough that the model reaching for
+    # the same painting again is the likely case rather than the unlucky
+    # one.
+    #
+    # Scoped to the TURN, deliberately, and never to the session: showing
+    # a picture again in a LATER turn is legitimate picture study (look,
+    # put away, narrate, look again), so this must not become a
+    # session-wide "once only" rule. Within a single turn there is no
+    # reason to render the same picture twice.
+    shown_aid_ids: set[str] = set()
     final_message = None
 
     # Bounded tool_result loop (see _MAX_TOOL_LOOP_ROUNDS's own comment for
@@ -3726,7 +4066,41 @@ async def stream_tutor_response(
                                         result_payload = {"recorded": False}
                                 elif tc["name"] == "show_visual_aid":
                                     aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
-                                    if aid:
+                                    if aid and aid.get("id") in shown_aid_ids:
+                                        # Already on screen from an earlier round of
+                                        # THIS turn — see shown_aid_ids above. Emitting
+                                        # a second chunk would render a second,
+                                        # identical card; the child would simply see the
+                                        # same painting twice with the same caption.
+                                        #
+                                        # The call is still answered, and answered
+                                        # HONESTLY rather than by pretending it failed:
+                                        # `found` stays true (the aid is real and is
+                                        # visible to the child right now), and
+                                        # `already_shown` tells the model the thing it
+                                        # could not otherwise know. A "found: false"
+                                        # here would invite it to go hunting for a
+                                        # different id to fix a failure that never
+                                        # happened.
+                                        #
+                                        # No _increment_behavior_check either: that
+                                        # counter measures whether the visual-processing
+                                        # nudge changed Bede's behaviour, and counting
+                                        # one picture twice would inflate it for a card
+                                        # the child never received.
+                                        result_payload = {
+                                            "found": True,
+                                            "visual_aid_id": aid.get("id"),
+                                            "already_shown": True,
+                                            "note": (
+                                                "You already showed this picture earlier in this "
+                                                "same turn and it is on the child's screen now. "
+                                                "Do not show it again — talk about it instead, or "
+                                                "choose a different aid."
+                                            ),
+                                        }
+                                    elif aid:
+                                        shown_aid_ids.add(aid.get("id"))
                                         yield json.dumps({'type': 'visual_aid', 'visualAid': aid})
                                         if processing_style == "visual":
                                             # See LearnerBehaviorCheck's docstring — only counts
@@ -3755,15 +4129,15 @@ async def stream_tutor_response(
                                 elif tc["name"] == "record_phonics_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_phonics_evidence's own docstring.
-                                    await _record_phonics_evidence(db, config, subject, tool_input)
+                                    await _record_phonics_evidence(db, demo_code, config, subject, tool_input)
                                 elif tc["name"] == "record_literacy_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_literacy_evidence's own docstring.
-                                    await _record_literacy_evidence(db, config, subject, tool_input)
+                                    await _record_literacy_evidence(db, demo_code, config, subject, tool_input)
                                 elif tc["name"] == "record_language_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.
-                                    await _record_language_evidence(db, config, subject, tool_input)
+                                    await _record_language_evidence(db, demo_code, config, subject, tool_input)
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,

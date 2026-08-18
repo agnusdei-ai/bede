@@ -100,6 +100,26 @@ class _Session:
     new_audio: asyncio.Event = field(default_factory=asyncio.Event)
     queue: "asyncio.Queue[dict]" = field(default_factory=asyncio.Queue)
     worker: Optional[asyncio.Task] = None
+    # True from the moment one events() call attaches until it detaches (see
+    # events() below). Guards against a SECOND concurrent events() call for
+    # the same session — reported live from the demo under real mobile
+    # network conditions: a client that has already sent its final chunk and
+    # a successful /finish still sees its own, still-open events() stream
+    # come back with "unknown or expired session" moments later, even though
+    # the session plainly still existed (finish_session() just found it).
+    # Deployment was confirmed pinned to a single instance, which rules out
+    # cross-instance session loss (the previously-diagnosed cause this
+    # module's docstring and CLAUDE.md describe). The only other way
+    # _discard() can run out from under a session that's still mid-turn is a
+    # SECOND events() attach for the same id racing the first on the same
+    # asyncio.Queue — whichever of the two consumers happens to receive the
+    # queue's "done" item tears the session down in its own finally block,
+    # discarding it out from under the other. A retried HTTP request for the
+    # same logical GET (a mobile network/proxy retrying what looks like a
+    # stalled connection under poor signal — exactly the conditions in the
+    # reported trace) is the most likely way a second attach happens; this
+    # guards the outcome regardless of what triggers it.
+    active_reader: bool = False
 
 
 _sessions: dict[str, _Session] = {}
@@ -263,13 +283,48 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
     if session is None or session.owner != owner:
         yield {"type": "error", "message": "unknown or expired session"}
         return
+    if session.active_reader:
+        # A second, concurrent events() attach for a session that already has
+        # one — see _Session.active_reader's own comment for what this
+        # guards against. Ending here, without touching the queue or calling
+        # _discard, leaves the FIRST (real) reader entirely undisturbed: it
+        # keeps consuming the queue on its own and remains the one that
+        # eventually tears the session down normally, via 'done' or its own
+        # disconnect.
+        return
+    session.active_reader = True
+    attached_at = time.monotonic()
+    items_yielded = 0
+    completed_normally = False
     try:
         while True:
             item = await session.queue.get()
+            items_yielded += 1
             yield item
             if item.get("type") == "done":
+                completed_normally = True
                 break
     finally:
+        if not completed_normally:
+            # This generator is being torn down WITHOUT ever seeing "done" —
+            # either the consumer genuinely disconnected (navigation, a
+            # dropped connection) or something cancelled this coroutine out
+            # from under it (server shutdown, or — the pattern actually
+            # reported live from the demo, same X-Bede-Instance value on
+            # every call in the trace, which already rules out cross-instance
+            # routing — an intermediary proxy deciding a fully idle
+            # connection is dead during the silent gap before any chunk has
+            # ever uploaded). Logged unconditionally, not just past some
+            # threshold: a session this young tearing itself down is exactly
+            # the signature a family's screenshot can't tell apart from "the
+            # session simply expired" without this. See
+            # docs/VOICE_SETUP.md's cross-instance section for the identical
+            # "observe before fix" reasoning behind core/instance_id.py.
+            log.warning(
+                "streaming_transcription: session=%s events() torn down early "
+                "after %.2fs, %d item(s) delivered, without a 'done'",
+                session_id, time.monotonic() - attached_at, items_yielded,
+            )
         _discard(session_id)
 
 

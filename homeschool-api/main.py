@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from core import constitution, device_registry, elevation, identity, license_state, parent_credential, provider_state
+from core.audit import AuditEvent, log_event
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import initialize_encryption
@@ -175,6 +176,54 @@ async def _periodic_data_purge():
             log.warning("Elevation purge failed — will retry next interval", exc_info=True)
 
 
+_LOCAL_HEALTH_CHECK_INTERVAL_SECONDS = 10 * 60  # every 10 minutes
+
+
+async def _periodic_local_health_check():
+    """
+    Proactively catches a dead/never-started local (self-hosted vLLM/Ollama)
+    model server, instead of only discovering it when a child's real turn
+    fails — see CLAUDE.md's "AI backend failure alerting" section for the
+    reactive half of this (AuditEvent.AI_BACKEND_FAILURE, fired from every
+    real streaming call site on a stall or exception). That reactive path
+    still catches a single-provider deployment going down, but only after a
+    child sits through several slow, failing turns first; this task is
+    purely about detecting it faster, ideally before any child ever hits it.
+
+    services.adapters.router.check_local_adapter_reachable() does the actual
+    work and the scoping: only pings when `local` is BOTH configured and
+    currently the live primary (honoring any DB override) — a cloud
+    provider's uptime is already caught fast by real traffic plus
+    FailoverClient's own circuit breaker, so pinging one here would just
+    spend tokens proving what a real turn already proves. Returns None
+    (nothing to check) rather than True/False in that case, which is why
+    the check below is `is False`, not `not result`.
+
+    Reuses the exact same AuditEvent.AI_BACKEND_FAILURE / pooled-anomaly
+    path a real failed turn already feeds (core/audit.py's
+    _GLOBAL_ANOMALY_EVENTS) — same threshold, same alert email — rather
+    than inventing a second, parallel signal a parent would have to learn
+    to recognize separately. `detail`'s `cause=health_check` distinguishes
+    a proactive catch from a real-turn failure in the audit log, nothing
+    more.
+    """
+    from services.adapters.router import check_local_adapter_reachable
+
+    while True:
+        await asyncio.sleep(_LOCAL_HEALTH_CHECK_INTERVAL_SECONDS)
+        try:
+            result = await check_local_adapter_reachable()
+            if result is False:
+                log.warning("Periodic health check: local AI adapter is unreachable")
+                await log_event(
+                    AuditEvent.AI_BACKEND_FAILURE,
+                    success=False,
+                    detail="cause=health_check adapter=local",
+                )
+        except Exception:
+            log.warning("Periodic local-adapter health check failed — will retry next interval", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -216,6 +265,11 @@ async def lifespan(app: FastAPI):
           startup sync is sufficient; credentials_version and device
           revocation both change via a path a *different* session
           — an attacker's stolen one — needs to stop trusting quickly.)
+      7c. Start the periodic local-adapter health-check loop
+          (non-blocking) — proactively catches a dead/never-started local
+          model server rather than only discovering it via a child's
+          failed real turn; see _periodic_local_health_check's own
+          docstring and CLAUDE.md's "AI backend failure alerting" section.
     Shutdown:
       8. Dispose the database connection pool cleanly.
       9. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
@@ -270,6 +324,11 @@ async def lifespan(app: FastAPI):
     # applied to P9's revoked-device set (core/device_registry.py) instead
     # of credentials_version.
     device_refresh_task = asyncio.create_task(device_registry.periodic_refresh())
+    # Proactively catches a dead/never-started local model server instead of
+    # only discovering it via a child's failed real turn — see that
+    # function's own docstring and CLAUDE.md's "AI backend failure
+    # alerting" section.
+    local_health_check_task = asyncio.create_task(_periodic_local_health_check())
 
     yield
 
@@ -277,6 +336,7 @@ async def lifespan(app: FastAPI):
     purge_task.cancel()
     credentials_refresh_task.cancel()
     device_refresh_task.cancel()
+    local_health_check_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

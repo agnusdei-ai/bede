@@ -124,15 +124,83 @@ becomes matched by two blocks setting the same header again.
 
 `.github/workflows/demo-watchdog.yml` runs `scripts/synthetic_journey.mjs`
 every 30 minutes against the live demo, across desktop and two emulated
-Android viewports. It drives a real Chromium through the real first
-journey — load `/bede/`, accept consent, click "Generate my code" — and
-reads back the diagnostics buffer above.
+Android viewports — all three in one job, sequentially, because the
+journey takes seconds per device and the Playwright install dominates.
+It drives a real Chromium through the real first journey — load `/bede/`,
+accept consent, click "Generate my code" — and reads back the diagnostics
+buffer above.
+
+### When the watchdog is red and the demo is fine
+
+Check this before investigating the demo. On 2026-08-06 the workflow
+reported failure for four hours while the demo was healthy: GitHub's
+hosted runner pool never assigned a runner, so the jobs sat queued for
+one to two hours each and were then cancelled having never started. In
+the notification email that is indistinguishable from a real outage. On
+the run itself it is unmistakable:
+
+| Runner starvation | A real demo outage |
+|---|---|
+| Job conclusion `cancelled` | Job conclusion `failure` |
+| `runner_id` 0, `runner_name` empty | A real runner is named |
+| **No logs at all** — no step ever ran | A failing step, with the report printed |
+| Ragged queue times (1h4m, 1h9m, 2h4m) | ~45 seconds |
+| Another workflow cancelled in the same window | Only this one is affected |
+
+That last row is the quickest tell: on 2026-08-06 `keep-demo-warm.yml`,
+whose entire job is one `curl`, was cancelled the same way at 17:43. No
+change to this repository could have caused that.
+
+Nothing here can fix GitHub capacity. What the workflow does about it is
+avoid making it worse — one runner request per tick rather than three, a
+real `timeout-minutes` on both jobs, and a `check` that is superseded by
+the next tick instead of wedging behind a run that never started. The
+repair agent is correctly unaffected either way: its gate requires
+`needs.check.result == 'failure'`, and a starved job is `cancelled`, so
+it stays skipped. Never widen that to `!= 'success'`.
 
 **Why a browser and not another `curl /health`.** `keep-demo-warm.yml`
 already curls `/health` every 10 minutes and reported healthy right
 through the 2026-08-04 outage. It could not have caught it: curl does not
 evaluate CSP, does not send an `Origin` header, and does not enforce
 CORS, and the failure lived entirely in those layers.
+
+### Step 4: can picture study actually show a picture?
+
+Added after every picture-study card on the demo was found blank — the
+deployed CSP forbade both origins `VisualAidCard.tsx` needs, and the
+session-start check could not see it because a session started fine.
+
+**It does not drive Bede into calling `show_visual_aid`.** That would make
+the watchdog depend on a model's choice: non-deterministic, several paid
+LLM turns every 30 minutes, and flaky in a check whose entire value is
+that it only goes red for real. The failure it guards against was
+deterministic and had nothing to do with the model. So the probe performs
+exactly what the component performs — the same summary lookup, then the
+image that lookup returns — **inside the real page**, and is therefore
+governed by the real deployed policy. That last part is the point: this
+repository's `site/_headers` can be correct while the deployment serves a
+stale or overridden header, and only a request made from the deployed
+origin can tell the difference.
+
+**One catalog entry, not all 23.** The failures being guarded against (a
+policy that forbids the origins, a changed Wikimedia API shape, a changed
+image host) show up on any entry. Validating every `wiki_title` is catalog
+hygiene and belongs in a test, not in something that runs 48 times a day.
+
+**The distinction that keeps it honest**, and the reason it is safe to run
+unattended:
+
+| Observation | Whose problem | Watchdog |
+|---|---|---|
+| A CSP violation naming wikipedia/wikimedia | **Ours.** No request was sent; waiting fixes nothing. Repairable from this repo (`site/_headers`). | **Fails**, `failedStep: "picture-study-csp"` |
+| Lookup or image failed, no violation | Not ours — Wikimedia unreachable, slow, or an article renamed. The demo stays usable; the card falls back to its caption. | **Passes**, and says so in the summary |
+
+Failing on the second row would wake a repair agent for someone else's
+outage and teach everyone to ignore the alert. `report.pictureStudy`
+carries the full evidence either way — `violations[]` with the exact
+directive and blocked URI, plus `imageHost`, so a Wikimedia host change
+names itself rather than having to be guessed.
 
 On failure the report goes to an agent driven by
 `.github/agent-prompts/demo-repair.md` — a versioned, reviewable file

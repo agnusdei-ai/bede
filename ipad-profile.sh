@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generates one .mobileconfig for iPad/iPad Pro demo setup that does in a
+# Generates one .mobileconfig for an iPhone or iPad that does in a
 # single install what would otherwise take three separate manual steps:
 #   1. Trusts the Caddy LAN root CA (from `make caddy-trust`)
 #   2. Adds a "Bede" Home Screen icon pointing straight at this LAN server
@@ -9,7 +9,7 @@
 #    LAN IP is auto-detected the same way setup.sh does)
 #
 # After generating bede-ipad.mobileconfig:
-#   AirDrop it to the iPad (or host it and open the link in Safari), then:
+#   AirDrop it to the device (or host it and open the link in Safari), then:
 #     Settings -> Profile Downloaded -> Install
 #     Settings -> General -> About -> Certificate Trust Settings
 #       -> enable full trust for "Bede LAN Root CA"
@@ -20,7 +20,19 @@ set -euo pipefail
 
 CERT_FILE="${1:-sage-root-ca.crt}"
 LAN_IP="${2:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
-ICON_FILE="homeschool-tutor/public/agnus-dei.png"
+# The SAME file the PWA already uses for its Home Screen presence —
+# manifest.json's 512x512 icon and index.html's apple-touch-icon both point
+# here. Three copies of one fact, so they must agree: a device that installs
+# this profile and a device that uses Safari's own "Add to Home Screen" must
+# not end up with different icons for the same app.
+#
+# This previously named "agnus-dei.png", which has never existed in that
+# directory (agnus-dei-emblem.png and agnus-dei-logo.png do). Combined with
+# the -f guard below it degraded silently: the profile installed fine and the
+# Home Screen showed a generic Safari screenshot instead of the Bede mark,
+# with nothing anywhere saying why. Found during an iPhone install-readiness
+# pass, not by anything failing.
+ICON_FILE="homeschool-tutor/public/bede-icon.png"
 OUT="bede-ipad.mobileconfig"
 
 [[ -f "$CERT_FILE" ]] || { echo "Missing $CERT_FILE — run 'make caddy-trust' first (requires the stack to be running)."; exit 1; }
@@ -38,12 +50,19 @@ UUID_CERT=$(new_uuid)
 UUID_CLIP=$(new_uuid)
 UUID_PROFILE=$(new_uuid)
 
-ICON_TAG=""
-if [[ -f "$ICON_FILE" ]]; then
-  ICON_B64=$(base64 "$ICON_FILE" | tr -d '\n')
-  ICON_TAG="<key>Icon</key>
+# Fail loudly rather than shipping an unbranded profile. The icon is checked
+# into this repository, so a missing one means the path is wrong or the tree
+# is incomplete — a bug, not a household's configuration. The previous
+# `if [[ -f ]]` fallback made exactly that bug invisible for as long as it
+# existed, which is the failure mode this repo treats as worse than an error.
+[[ -f "$ICON_FILE" ]] || {
+  echo "Missing $ICON_FILE — the Home Screen icon ships with this repository."
+  echo "Run this from the repository root, or check that the file still exists."
+  exit 1
+}
+ICON_B64=$(base64 "$ICON_FILE" | tr -d '\n')
+ICON_TAG="<key>Icon</key>
             <data>${ICON_B64}</data>"
-fi
 
 cat > "$OUT" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -97,9 +116,9 @@ cat > "$OUT" <<EOF
         </dict>
     </array>
     <key>PayloadDescription</key>
-    <string>One-tap setup for the Bede demo iPad: trusts the LAN server's certificate and adds a Home Screen icon.</string>
+    <string>One-tap setup for Bede on this device: trusts the LAN server's certificate and adds a Home Screen icon.</string>
     <key>PayloadDisplayName</key>
-    <string>Bede iPad Setup</string>
+    <string>Bede Device Setup</string>
     <key>PayloadIdentifier</key>
     <string>ai.agnusdei.bede.ipadsetup</string>
     <key>PayloadOrganization</key>
@@ -118,9 +137,9 @@ EOF
 
 echo "Wrote ${OUT}"
 echo ""
-echo "Install on the iPad:"
-echo "  1. AirDrop ${OUT} to the iPad (or serve it: python3 -m http.server 8080, then open"
-echo "     http://<this-host-ip>:8080/${OUT} in Safari on the iPad)"
+echo "Install on the iPhone or iPad:"
+echo "  1. AirDrop ${OUT} to the device (or serve it: python3 -m http.server 8080, then open"
+echo "     http://<this-host-ip>:8080/${OUT} in Safari on the device)"
 echo "  2. Settings -> Profile Downloaded -> Install (enter passcode)"
 echo "  3. Settings -> General -> About -> Certificate Trust Settings"
 echo "     -> enable full trust for 'Bede LAN Root CA'  (required by iOS — can't be skipped)"

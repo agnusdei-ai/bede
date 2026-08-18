@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#faf8f0",
-  "theme_color": "#7c8a5a",
+  "background_color": "#faf6ec",
+  "theme_color": "#faf6ec",
   "icons": [
     {
       "src": "/bede-icon.png",

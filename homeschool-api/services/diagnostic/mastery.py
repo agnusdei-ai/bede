@@ -35,12 +35,25 @@ _BAND_INDEX = {band.value: index for index, band in enumerate(_BAND_ORDER)}
 
 # Per-subject evidence-point count (MasteryProfile.evidence_count's own
 # scalar, not a per-skill count — see DIAGNOSTIC_BUILD_PROGRESS.md's unit
-# 2.2 review) below which a student is still "calibrating": design doc
-# §8.3's own explicit "[to verify final N]" flag — this is a placeholder,
-# not yet tuned against real sessions. Coincidentally the same value as
-# services/diagnostic_demo.py's own, separately-declared CALIBRATION_
-# THRESHOLD today, but the two are not coupled — this one is free to
-# change at Phase 5's tuning pass without touching the demo's number.
+# 2.2 review) below which a student is still "calibrating".
+#
+# MEASURED AND DELIBERATELY LEFT AT 5. The map grew from 42 skills to 95,
+# which made it fair to ask whether a threshold set against the smaller map
+# still held. It does, and the measurement said something more useful than
+# a new number: the threshold is a second-order knob here. Swept 3 → 20
+# against the DINA simulator (band 6-8, one sitting), a struggling child's
+# false-secure rate moves 1.7% → 3.8% and accuracy 92.2% → 90.0%, while
+# coverage rises 30% → 42%. A higher threshold buys coverage and pays for
+# it in exactly the error that hurts most, so there is no free move; 5 sits
+# near the knee.
+#
+# For contrast, the cold-start PRIORS — fixed in the same pass, see
+# new_vector below — moved that same false-secure rate 13.1% → 1.9%. The
+# threshold was never where the problem was, and changing it for the sake
+# of having changed something would have been noise dressed as tuning.
+#
+# Coincidentally the same value as services/diagnostic_demo.py's own,
+# separately-declared CALIBRATION_THRESHOLD, but the two are not coupled.
 CALIBRATION_THRESHOLD = 5
 
 # ── Phase 5.2 tuning (see docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md §15,
@@ -119,15 +132,64 @@ class MasteryUpdate:
     observed_at: str
 
 
+#: What a below-band skill is seeded at before anyone has asked the child
+#: anything. It has to sit inside a genuinely narrow window, and BOTH edges
+#: are load-bearing:
+#:
+#:   - strictly BELOW the secure cutoff (0.80, models/schemas.py's
+#:     MasteryLevel), because a grade is not evidence and no skill may be
+#:     reported Mastered until the child has shown something;
+#:   - strictly ABOVE kst.fringe's `prereq_hi` (0.65), because that is the
+#:     bar for "is the ground solid enough to build on". Drop under it and
+#:     every unprobed earlier-band prerequisite BLOCKS its dependents, which
+#:     is precisely the defect test_next_steps_band_leak.py exists for — a
+#:     3-5 student whose entire "next steps" list was the two K-2 skills
+#:     that happen to have no prerequisites at all.
+#:
+#: 0.70 sits in that window, and it was where the one-band-down prior always
+#: was. The bug was never that value: it was the two-bands-down case, which
+#: climbed to 0.90 and straight past secure. So this is flat across
+#: distance rather than rising — "probably met this" does not become more
+#: evidenced the further back the material goes, and the cap is about
+#: evidence, not about plausibility.
+UNEVIDENCED_BELOW_BAND_PRIOR = 0.70
+
+
 def new_vector(grade_band: str) -> MasteryVector:
-    """Cold-start vector: prior 0.5 for skills in the student's own band,
-    lower for bands above (less likely mastered yet), higher for bands
-    below (a student at this level has very likely already mastered
-    earlier-band foundations, even if never directly probed). An
-    unrecognized grade_band gets a flat 0.5 prior everywhere rather than
-    raising — this only ever seeds a starting point, never a
-    security-relevant decision, matching grade_to_stage()'s own
-    degrade-gracefully convention in models/schemas.py."""
+    """Cold-start vector. The only thing a grade licenses assuming is that
+    the child has probably MET the earlier material — never that they have
+    mastered it.
+
+    WHAT THIS REPLACED, AND WHY IT WAS WRONG. Below-band skills used to seed
+    at 0.5 + 0.2 per band of distance, reaching 0.9 — above the 0.80 secure
+    cutoff. The consequence was measurable and bad: a brand-new 6-8 student's
+    profile reported **24 of 95 skills as Mastered before Bede had asked a
+    single question.** The software was asserting mastery from a birth date.
+
+    That is the false-secure error, and it is the one that actually reaches a
+    family: telling a parent their child is secure on something they cannot
+    do sends the household PAST a gap, the next lesson builds on sand, and
+    nobody knows why it collapsed. Understating costs review time; this costs
+    a term. See test_convergence.py's own note on why the two are bounded
+    asymmetrically.
+
+    The change is narrower than it first looks, and deliberately so. The
+    one-band-down prior (0.70) is unchanged — it was always correct, and
+    kst.fringe depends on it clearing `prereq_hi`. What moved is the
+    two-bands-down case, which climbed to 0.90; it is now the same 0.70. So
+    only band 6-8 is affected at all, which is exactly the band that showed
+    the damage, being the only one with two bands beneath it.
+
+    A grade is also a weaker signal for the families this is built for than
+    it would be in a school. Homeschooled children are routinely ahead in one
+    area and behind in another; that asymmetry is frequently the reason the
+    family homeschools at all.
+
+    An unrecognized grade_band gets a flat 0.5 everywhere rather than raising
+    — this only ever seeds a starting point, never a security-relevant
+    decision, matching grade_to_stage()'s own degrade-gracefully convention
+    in models/schemas.py.
+    """
     student_index = _BAND_INDEX.get(grade_band)
     vector: MasteryVector = {}
     for skill_id in all_skill_ids():
@@ -137,11 +199,17 @@ def new_vector(grade_band: str) -> MasteryVector:
             continue
         distance = _BAND_INDEX[skill.band.value] - student_index
         if distance == 0:
+            # Their own band: genuine ignorance, and 0.5 says exactly that.
             vector[skill_id] = 0.5
         elif distance > 0:
+            # Above their band: probably not reached yet.
             vector[skill_id] = max(0.1, 0.5 - 0.2 * distance)
         else:
-            vector[skill_id] = min(0.9, 0.5 - 0.2 * distance)
+            # Below their band: probably MET, not probably mastered — see
+            # UNEVIDENCED_BELOW_BAND_PRIOR for why this single value has to
+            # sit between kst's prereq_hi and the secure cutoff, and why it
+            # does not rise with distance.
+            vector[skill_id] = UNEVIDENCED_BELOW_BAND_PRIOR
     return vector
 
 

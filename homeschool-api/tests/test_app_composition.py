@@ -90,9 +90,20 @@ GUARDS = {
     ('GET', '/catalog/{year}/books'): 'require_real_user',
     ('GET', '/catalog/{year}/books/{subject}'): 'require_real_user',
     ('POST', '/diagnostic/chat'): '_require_diagnostic_quota',
+    # The demo's own work ledger. require_demo_preview, NOT
+    # _require_diagnostic_quota like /diagnostic/summary beside it: the
+    # quota protects a mastery estimate, which is the demo's expensive
+    # asset. This aggregates what the visitor themselves completed minutes
+    # ago and is worthless to anyone else, so spending a preview use on it
+    # would be charging for the receipt.
+    ('GET', '/diagnostic/demo/activity'): 'require_demo_preview',
     ('GET', '/diagnostic/pod/activity'): 'require_parent',
     ('GET', '/diagnostic/summary'): '_require_diagnostic_quota',
     ('GET', '/diagnostic/{student_name}/activity'): 'require_parent',
+    # Which scheduled subjects are actually getting taught. Parent-only
+    # for the same reason the ledger is: a child shown "you have not done
+    # History in three weeks" has been handed a reproach.
+    ('GET', '/diagnostic/{student_name}/coverage'): 'require_parent',
     # Parent-only, and deliberately not merely by convention: the plan's
     # reasons say things like "this hasn't come up in a while", which is a
     # statement about the schedule that a CHILD would read as a statement

@@ -8,6 +8,14 @@ description of the code's behavior so a parent, and anyone reviewing this
 deployment for a family or organization, can see exactly what's retained
 and how to remove it.
 
+**Its counterpart is `docs/RETENTION_POLICY.md`**, the written policy the
+amended FTC COPPA Rule requires of us as operator of the public demo:
+purpose and deletion timeframe per category, stated as a commitment. That
+document is what we have promised; this one is the evidence, and the code
+it cites is how either can be checked. Where the two could drift,
+`homeschool-api/tests/test_coppa_compliance.py` fails rather than leaving
+it to be noticed.
+
 Two genuinely different situations are covered here — don't conflate them:
 
 - **Your family's own self-hosted instance** (`docs/PRODUCTION_SETUP.md`)
@@ -107,6 +115,7 @@ as possible, and what little it holds expires automatically:
 |---|---|---|
 | `demo_code_sessions` | ~6 hours | Opportunistic cleanup on every new code generation (`core/demo_code_session.py`) |
 | `demo_code_unit_notes` | ~6 hours (same window as `demo_code_sessions`) | Opportunistic cleanup on every new code generation; also deleted immediately on explicit logout, same as its `demo_code_sessions` row. Holds only the optional "what are we already covering at home" note behind the demo's Continuing Mastery card (see `CLAUDE.md`'s "Continuing Mastery (demo)" section) — never the conversation itself. |
+| `demo_code_activity_logs` | ~6 hours (same window as `demo_code_sessions`) | Opportunistic cleanup on every new code generation; also deleted immediately on explicit logout, same as its `demo_code_sessions` row. One encrypted blob per demo code holding that session's work ledger — which skill was worked, how much help it took, and what Bede noticed about the work. Derived and structural, in the same class as `demo_code_sessions.mastery_vector_enc`: never the child's words, never a transcript. Deliberately NOT `skill_activity_logs`, which is a real family's permanent per-student record — see `CLAUDE.md`'s "The work ledger in the public demo" section. |
 | `diagnostic_preview_uses` | Rolling window, per (hashed) IP | Opportunistic cleanup on each quota check (`core/diagnostic_preview_quota.py`) |
 | `demo_interaction_signals` | 30 days | **Automatic** background purge, every 6 hours, for the life of the process (`main.py`'s `_periodic_data_purge`, calling `services/interaction_signals.purge_old_signals()`) |
 

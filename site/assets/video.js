@@ -20,8 +20,21 @@ if (YOUTUBE_VIDEO_VERTICAL) videoWrap.classList.add('vertical');
 
 function playerIframe(autoplay) {
   const params = autoplay ? '?autoplay=1' : '';
+  // referrerpolicy is NOT optional and its absence fails loudly but
+  // uninformatively: site/_headers sets Referrer-Policy: no-referrer for the
+  // whole domain, and since late 2025 YouTube's embedded player refuses to
+  // start when it cannot identify the embedding host from an HTTP Referer,
+  // showing "Error 153 — Video player configuration error" in place of the
+  // video. An element's referrerpolicy attribute overrides the document
+  // policy for that element's own request, so this grants the exception to
+  // this one iframe and leaves every other request on the site sending
+  // nothing. strict-origin-when-cross-origin is the narrowest value that
+  // works (and YouTube's own recommendation): it sends the bare origin —
+  // whichever host is serving this build, since the same Worker answers on
+  // agnusdei.ai and agnusdei.io alike — never the page path or query.
   return `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}${params}"
        title="Agnus Dei Technologies: Meet Bede"
+       referrerpolicy="strict-origin-when-cross-origin"
        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
        allowfullscreen></iframe>`;
 }

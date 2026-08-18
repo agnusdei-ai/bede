@@ -13,16 +13,57 @@ import type { VisualAidData } from '../types'
 // discussion, not a memory exercise, so it stays visible the whole time.
 const PICTURE_STUDY_VIEW_MS = 25_000
 
+// One retry, after a short pause — not because the lookup is expected to
+// fail, but because it costs nothing against PICTURE_STUDY_VIEW_MS's 25s
+// window and turns a single transient hiccup (a slow mobile connection, a
+// dropped packet) from a permanent "unavailable" card into a picture that
+// still shows up. A REAL failure (a genuinely bad wiki_title, Wikipedia
+// truly down) still fails the same way on the second attempt — this buys
+// resilience against flakiness, not infallibility.
+const LOOKUP_RETRY_DELAY_MS = 800
+const LOOKUP_MAX_ATTEMPTS = 2
+
+async function fetchWikiSummary(wikiTitle: string, signal: AbortSignal): Promise<string | null> {
+  let lastError: unknown = null
+  for (let attempt = 1; attempt <= LOOKUP_MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`,
+        { signal },
+      )
+      if (!res.ok) throw new Error(`lookup failed: ${res.status}`)
+      const data = await res.json()
+      return data?.thumbnail?.source || data?.originalimage?.source || null
+    } catch (err) {
+      if (signal.aborted) throw err
+      lastError = err
+      if (attempt < LOOKUP_MAX_ATTEMPTS) {
+        // Raced against the abort signal, not a bare setTimeout — otherwise
+        // an unmount (or a wiki_title change) mid-wait still burns the full
+        // delay AND fires one more no-op fetch() before the loop next
+        // notices signal.aborted, instead of stopping immediately.
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, LOOKUP_RETRY_DELAY_MS)
+          signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+        })
+        if (signal.aborted) throw lastError
+      }
+    }
+  }
+  throw lastError
+}
+
 /**
  * Renders a picture-study artwork or historical map/artifact.
  *
  * The backend only ever sends a server-validated `wiki_title` (never a raw
  * image URL from the model) — this component resolves that title to an
- * actual image live, client-side, via Wikipedia's public REST summary API.
- * That keeps the curated catalog resilient to file-path changes on the image
+ * actual image live, client-side, via Wikipedia's public REST summary API,
+ * retrying once on a transient failure (see fetchWikiSummary above). That
+ * keeps the curated catalog resilient to file-path changes on the image
  * host, at the cost of a runtime dependency on Wikipedia's API from the
- * child's device. If the lookup fails or returns no image, this degrades to
- * a plain captioned card — never a broken-image icon.
+ * child's device. If both attempts fail, or the lookup succeeds with no
+ * image, this degrades to a plain captioned card — never a broken-image icon.
  */
 export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -31,24 +72,22 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
   const [putAway, setPutAway] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     setLoading(true)
     setFailed(false)
     setImageUrl(null)
     setPutAway(false)
 
-    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(aid.wiki_title)}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('lookup failed'))))
-      .then((data) => {
-        if (cancelled) return
-        const src = data?.thumbnail?.source || data?.originalimage?.source
+    fetchWikiSummary(aid.wiki_title, controller.signal)
+      .then((src) => {
+        if (controller.signal.aborted) return
         if (src) setImageUrl(src)
         else setFailed(true)
       })
-      .catch(() => { if (!cancelled) setFailed(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+      .catch(() => { if (!controller.signal.aborted) setFailed(true) })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
 
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [aid.wiki_title])
 
   const isPictureStudy = aid.category !== 'map'

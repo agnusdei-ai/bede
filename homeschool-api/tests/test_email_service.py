@@ -12,12 +12,16 @@ import pytest
 import services.email_service as es
 from services.email_service import (
     _feedback_prefix,
+    _recipient_for,
+    build_backend_failure_alert_html,
     build_distress_alert_html,
     build_feedback_email_html,
     build_summary_email_html,
     distress_alert_configured,
     email_configured,
     feedback_configured,
+    security_alert_configured,
+    send_backend_failure_alert,
     send_distress_alert,
     send_email,
     send_feedback,
@@ -129,6 +133,47 @@ def test_send_distress_alert_returns_false_when_parent_email_unset(monkeypatch):
     assert result is False
 
 
+# ── AI backend failure alert (reliability, not security) ────────────────────
+
+
+def test_backend_failure_html_reports_the_count_and_window():
+    html = build_backend_failure_alert_html(3, "in the last 10 minutes")
+    assert "3" in html
+    assert "in the last 10 minutes" in html
+
+
+def test_backend_failure_html_is_framed_as_reliability_not_security():
+    """This must never reuse the security-alert's "unusual activity"/"from
+    address" copy — there's no single culprit address for a broken AI
+    backend, and framing a crashed local model as "unusual activity" would
+    send a worried parent looking for an intruder instead."""
+    html = build_backend_failure_alert_html(3, "in the last 10 minutes")
+    assert "unusual activity" not in html.lower()
+    assert "from address" not in html.lower()
+    assert "having trouble" in html.lower()
+
+
+def test_security_alert_configured_requires_both_resend_and_parent_email(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "resend_from_address", "Bede <bede@realdomain.org>")
+    monkeypatch.setattr(settings, "parent_email", "")
+    assert security_alert_configured() is False
+
+    monkeypatch.setattr(settings, "parent_email", "parent@example.com")
+    assert security_alert_configured() is True
+
+
+def test_send_backend_failure_alert_returns_false_when_parent_email_unset(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "parent_email", "")
+    result = asyncio.run(send_backend_failure_alert(3))
+    assert result is False
+
+
 def test_feedback_html_includes_category_role_and_rating():
     html = build_feedback_email_html("ux", "The subject sidebar is hard to reach", "demo_code", rating=4)
     assert "The subject sidebar is hard to reach" in html
@@ -184,6 +229,31 @@ def test_feedback_prefix_treats_plans_and_onboarding_specially():
     assert _feedback_prefix("onboarding") == "Bede beta onboarding"
     for category in ("cx", "ux", "content_quality", "other", "beta_close", "anything-unrecognized"):
         assert _feedback_prefix(category) == "Bede beta feedback"
+
+
+def test_recipient_for_plans_uses_sales_email_when_set(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "feedback_email", "info@example.com")
+    monkeypatch.setattr(settings, "sales_email", "sales@example.com")
+    assert _recipient_for("plans") == "sales@example.com"
+
+
+def test_recipient_for_plans_falls_back_to_feedback_email_when_sales_unset(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "feedback_email", "info@example.com")
+    monkeypatch.setattr(settings, "sales_email", "")
+    assert _recipient_for("plans") == "info@example.com"
+
+
+def test_recipient_for_other_categories_ignores_sales_email(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "feedback_email", "info@example.com")
+    monkeypatch.setattr(settings, "sales_email", "sales@example.com")
+    for category in ("cx", "ux", "content_quality", "other", "beta_close", "onboarding", "beta_survey"):
+        assert _recipient_for(category) == "info@example.com"
 
 
 def test_feedback_configured_requires_both_resend_and_feedback_email(monkeypatch):

@@ -264,5 +264,5 @@ Bede's own model for completions and spend your API budget.
 - CI runs the two test files (`.github/workflows/test.yml`, `mcp-server-tests`).
 
 The MCP SDK is pinned in `scripts/mcp_server/requirements.txt`, deliberately
-apart from `homeschool-api/requirements.txt`, so the API image never carries a
+apart from `homeschool-api/requirements.in`, so the API image never carries a
 dependency it doesn't use.

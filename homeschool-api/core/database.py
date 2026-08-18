@@ -7,6 +7,18 @@ AES-256-GCM encrypted by core/encryption.py before it reaches the driver.
 Startup sequence (main.py lifespan):
   1. create_tables()          — idempotent CREATE TABLE IF NOT EXISTS
   2. initialize_encryption()  — reads/writes encryption_config rows
+
+DATABASE_URL is not hard-coded to PostgreSQL: every table already carries
+`.with_variant(Integer(), "sqlite")` on its autoincrement primary key
+specifically so the real test suite can run this exact schema against
+`sqlite+aiosqlite://` (18 test files do, via Base.metadata.create_all()),
+and _build_engine() below needs no dialect branching — SQLAlchemy's async
+SQLite pool accepts the same pool_size/max_overflow kwargs the Postgres
+path does. This is proposed-but-undecided infrastructure for a
+resource-constrained single-device host (see
+docs/MOBILE_HOSTING_DECISIONS.md), not a supported production target —
+PostgreSQL remains the only officially documented choice
+(docs/PRODUCTION_SETUP.md).
 """
 
 from datetime import datetime, timezone
@@ -882,6 +894,53 @@ class DemoCodeFaithNote(Base):
 
     code: Mapped[str] = mapped_column(String(6), primary_key=True)
     tradition: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
+class DemoCodeActivityLog(Base):
+    """
+    The public demo's own work ledger — what the visitor actually finished
+    during this one demo session.
+
+    DELIBERATELY NOT SkillActivityLog, and the difference is the whole
+    point. That table is a permanent, per-student record a family builds
+    over months; this one lives exactly as long as the demo code does and
+    is gone the moment it expires or the visitor logs out. A demo visitor
+    is anonymous and their `student_name` is whatever they typed at the
+    code screen, so it is not isolated from a real family's — writing them
+    into the same table would be both a broken promise and a collision.
+
+    WHY THIS IS COMPATIBLE WITH "your conversation is never stored". What
+    is kept here is derived and structural, in exactly the category the
+    consent screen already carves out: which skill was worked, how much
+    help it took, and what Bede noticed about the work. Never the child's
+    words, never a transcript, never the task's prose — the same
+    derived-not-raw class as DemoCodeSession.mastery_vector_enc beside it,
+    encrypted for the same reason and evicted on the same schedule.
+
+    ONE ROW PER CODE, not one per activity: `activities_enc` holds an
+    encrypted JSON list, appended to under read-modify-write. A demo
+    session produces a few dozen entries at most, so the simpler shape
+    wins — and it keeps eviction to a single DELETE alongside
+    DemoCodeUnitNote/DemoCodeFaithNote rather than a range scan.
+    core/demo_code_session.py caps the list length.
+
+    Standalone table for the same reason as those two siblings: startup
+    only ever runs CREATE TABLE IF NOT EXISTS (no ALTER TABLE path), so a
+    new table is the only way to ship this to an already-running
+    deployment. Same TTL/eviction convention as well — no expiry column,
+    core/demo_code_session.py filters on created_at at read time and
+    deletes past the same cutoff.
+    """
+    __tablename__ = "demo_code_activity_logs"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    activities_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -6,14 +6,22 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sse_starlette.sse import EventSourceResponse
 
-from core.audit import AuditEvent, audit_from_request, log_event
+from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings
-from core.demo_code_session import record_message as demo_code_record_message
+from core.demo_code_session import (
+    has_message_quota as demo_code_has_message_quota,
+    record_message as demo_code_record_message,
+)
 from core.deps import require_demo_preview, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services import mcp_client
-from services.ai_service import check_safeguarding, SAFEGUARDING_RESPONSE, stream_sandbox_response
+from services.ai_service import (
+    check_safeguarding,
+    demo_quota_response,
+    SAFEGUARDING_RESPONSE,
+    stream_sandbox_response,
+)
 
 log = logging.getLogger(__name__)
 
@@ -73,10 +81,23 @@ async def chat(
                 yield chunk
         except asyncio.TimeoutError:
             log.warning("Sandbox stream stalled past %.0fs", STREAM_STALL_TIMEOUT_SECONDS)
+            # See core/audit.py's AI_BACKEND_FAILURE — pooled across every
+            # tutor/sandbox stream failure regardless of which one hit it,
+            # so a parent testing config in the sandbox still contributes
+            # to (and benefits from) the same backend-health signal.
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE, role="parent", success=False,
+                detail="cause=stall subject=sandbox", **audit_from_request(request),
+            )
             yield json.dumps({'type': 'text', 'content': _STALL_MESSAGE})
             yield json.dumps({'type': 'done'})
-        except Exception:
+        except Exception as exc:
             log.exception("Sandbox stream failed mid-turn")
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE, role="parent", success=False,
+                detail=f"cause=exception subject=sandbox error={type(exc).__name__}",
+                **audit_from_request(request),
+            )
             yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
             yield json.dumps({'type': 'done'})
         finally:
@@ -107,10 +128,28 @@ async def demo_chat(
     this body; it's now the "sandbox.demo_preview" action in
     core/policy.py's table, enforced by require_demo_preview.
     """
-    # Usage bookkeeping only — no cap enforced (see core/demo_code_session.py).
-    await demo_code_record_message(auth.get("code", ""))
+    demo_code = auth.get("code", "")
+    # The actual LLM10 enforcement point (see core/demo_code_session.py's
+    # _MAX_MESSAGES_PER_CODE) — checked BEFORE record_message increments, so
+    # an over-quota turn is never double-counted and never reaches
+    # stream_sandbox_response below.
+    demo_quota_exceeded = not await demo_code_has_message_quota(demo_code)
+    if not demo_quota_exceeded:
+        await demo_code_record_message(demo_code)
 
     async def event_generator():
+        if demo_quota_exceeded:
+            await log_event(
+                AuditEvent.RATE_LIMITED,
+                role="demo_code",
+                success=False,
+                detail="demo_message_quota (sandbox demo preview)",
+                **audit_from_request(request),
+            )
+            yield json.dumps({'type': 'text', 'content': demo_quota_response("en")})
+            yield json.dumps({'type': 'done'})
+            return
+
         if check_safeguarding(req.message):
             await log_event(
                 AuditEvent.SAFEGUARDING,
@@ -132,10 +171,19 @@ async def demo_chat(
                 yield chunk
         except asyncio.TimeoutError:
             log.warning("Sandbox demo stream stalled past %.0fs", STREAM_STALL_TIMEOUT_SECONDS)
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE, role="demo_code", success=False,
+                detail="cause=stall subject=sandbox_demo", **audit_from_request(request),
+            )
             yield json.dumps({'type': 'text', 'content': _STALL_MESSAGE})
             yield json.dumps({'type': 'done'})
-        except Exception:
+        except Exception as exc:
             log.exception("Sandbox demo stream failed mid-turn")
+            log_event_nowait(
+                AuditEvent.AI_BACKEND_FAILURE, role="demo_code", success=False,
+                detail=f"cause=exception subject=sandbox_demo error={type(exc).__name__}",
+                **audit_from_request(request),
+            )
             yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
             yield json.dumps({'type': 'done'})
 

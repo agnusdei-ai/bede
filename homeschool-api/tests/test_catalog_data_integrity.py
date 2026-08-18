@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from models.schemas import BIBLE_TRANSLATIONS, PUBLIC_DOMAIN_BIBLE_TRANSLATIONS, Subject
+from models.schemas import BIBLE_TRANSLATIONS, PUBLIC_DOMAIN_BIBLE_TRANSLATIONS, GradeStage, Subject
 from services import catalog_service
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
@@ -103,6 +103,45 @@ def test_every_visual_aid_has_required_non_empty_fields():
         assert entry["subject"] in _VALID_SUBJECTS, (
             f"visual aid {entry['id']!r} has subject {entry['subject']!r}, not a real Subject enum value"
         )
+
+
+# ── Composer catalog ─────────────────────────────────────────────────────
+
+def _load_composer_works_raw() -> list[dict]:
+    raw = json.loads((_DATA_DIR / "composer_catalog.json").read_text(encoding="utf-8"))
+    return raw.get("composer_works", [])
+
+
+def test_composer_work_ids_are_unique():
+    entries = _load_composer_works_raw()
+    ids = [e["id"] for e in entries]
+    assert len(ids) == len(set(ids)), "duplicate id in data/composer_catalog.json"
+
+
+def test_every_composer_work_has_required_non_empty_fields():
+    required = (
+        "id", "subject", "composer", "composer_dates", "work_title", "movement",
+        "era", "forces", "composer_bio", "listening_notes",
+    )
+    for entry in _load_composer_works_raw():
+        for field in required:
+            assert entry.get(field), f"composer work {entry.get('id', '?')!r} missing/empty {field!r}"
+        assert entry["subject"] in _VALID_SUBJECTS, (
+            f"composer work {entry['id']!r} has subject {entry['subject']!r}, not a real Subject enum value"
+        )
+
+
+def test_every_composer_work_has_all_three_stage_notes():
+    # Must key by GradeStage MEMBER NAME ("foundations"/"core_mastery"/
+    # "independent") — services/ai_service.py's _get_composer_context looks
+    # entries up by config.grade_stage.name, not .value ("K-2"/"3-5"/"6-8").
+    required_stages = {s.name for s in GradeStage}
+    for entry in _load_composer_works_raw():
+        stage_notes = entry.get("stage_notes") or {}
+        missing = required_stages - stage_notes.keys()
+        assert not missing, f"composer work {entry['id']!r} missing stage_notes for {missing}"
+        for stage, note in stage_notes.items():
+            assert note, f"composer work {entry['id']!r} has an empty stage_notes[{stage!r}]"
 
 
 # ── Bible translation copyright permissions ─────────────────────────────────

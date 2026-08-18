@@ -31,7 +31,24 @@
 
   <section class="band-curriculum">
     <div class="inner">
-      <form class="form-block" id="feedback-form">
+      <!-- method="post" is a safety net, not a route: nothing here
+           accepts a POST. feedback-form.js intercepts submit and sends the
+           answers itself, but if that script ever fails to load or parse,
+           the button falls through to a NATIVE submit of this form.
+           Without a method that is a GET to this same static page, which
+           puts every answered field - name, email, and long free-text
+           answers - into the query string, and so into browser history
+           and any URL-logging intermediary. As a POST the same failure
+           loses the answers instead of publishing them, and the mailto
+           line in the note below is already on screen as the way to send
+           them. Keeping type="submit" on the button preserves
+           Enter-to-submit and the browser's own required-field
+           validation. -->
+      <form class="form-block" id="feedback-form"
+            method="post"
+            data-category="cx"
+            data-tag="[Website feedback form]"
+            data-mail-subject="Bede feedback">
 
         <fieldset class="field">
           <legend>Where are you with Bede today?</legend>
@@ -56,7 +73,7 @@
         <fieldset class="field">
           <legend>Which subjects matter most in your week?</legend>
           <span class="hint">Tick as many as apply. This tells us where to spend our effort.</span>
-          <div class="choices">
+          <div class="choices compact">
             <label><input type="checkbox" name="subjects" value="Morning Time" /> Morning Time</label>
             <label><input type="checkbox" name="subjects" value="Living Books" /> Living Books</label>
             <label><input type="checkbox" name="subjects" value="Mathematics" /> Mathematics</label>
@@ -158,14 +175,15 @@
   <section class="band-closing">
     <div class="inner" style="max-width: 40rem;">
       <p class="eyebrow">Pricing</p>
-      <h2>Ask what a year would cost</h2>
+      <h2>See what a year would cost</h2>
       <p class="lede">
-        We do not publish a price, because we would rather understand your
-        family before quoting one: how many children, which subjects,
-        what you already own. Ask, and a person will walk you through the
-        year your children would actually have, then what it costs.
+        One Family Membership covers the household, up to six children,
+        with no per-child fees &mdash; the
+        <a href="/bede/launch.html">full table is published</a>. A person
+        will still walk you through the year your children would actually
+        have before you decide anything.
       </p>
-      <a class="cta gilt" href="mailto:sales@agnusdei.ai?subject=Pricing%20request&amp;body=How%20many%20children%3A%0ATheir%20grades%3A%0ASubjects%20we%20care%20most%20about%3A%0AWhat%20we%20already%20use%3A%0AAnything%20else%3A%0A">Request pricing &rarr;</a>
+      <a class="cta gilt" href="/#request-a-call">Schedule Onboarding &rarr;</a>
       <p class="cta-sub light">
         <a href="mailto:sales@agnusdei.ai">sales@agnusdei.ai</a>
         &nbsp;&middot;&nbsp; every year is backed by the
@@ -176,16 +194,18 @@
 
   <footer>
     <div class="footer-links">
-      <a href="/">Home</a> &nbsp;&middot;&nbsp;
-      <a href="/faq/">FAQ</a> &nbsp;&middot;&nbsp;
-      <a href="/bede/">Demo</a> &nbsp;&middot;&nbsp;
-      <a href="mailto:sales@agnusdei.ai?subject=Onboarding%20call">Schedule Onboarding</a> &nbsp;&middot;&nbsp;
-      <a href="/feedback/">Feedback</a> &nbsp;&middot;&nbsp;
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/bede/">Demo</a>
+      <a href="/#request-a-call">Schedule Onboarding</a>
+      <a href="/feedback/">Feedback</a>
+      <a href="/educators/">Co-ops</a>
       <a href="/privacy/">Privacy</a>
     </div>
     <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
   </footer>
 
+  <script src="/assets/api-base.js"></script>
   <script src="/assets/feedback-form.js"></script>
 </body>
 </html>

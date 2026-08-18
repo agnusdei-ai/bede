@@ -1,5 +1,9 @@
 # Setting Up Bede: A Guide for Parents & Tutors
 
+> **New here?** Read [MASTERY.md](MASTERY.md) first — ten minutes on what Bede
+> measures, what it deliberately refuses to, and how to tell whether it is
+> working. This guide is the field-by-field walkthrough; that one is the why.
+
 This walks through everything from "nothing installed" to "my child is having their
 first lesson," including the parts that matter for keeping it secure once you hand
 it off. No terminal or typed commands required: steps 2 and 3 below are answering
@@ -643,6 +647,35 @@ break every hour for every child, but it will not tell you that your
    on "No preference" and Bede quotes Scripture from its own knowledge
    without favoring any particular translation's phrasing.
 
+   The panel also has a **What Helps This Child** field: always available,
+   not tied to any subject. Type in (or tap a chip for) anything you
+   already know makes a lesson go better for this particular child — more
+   time to answer, shorter passages, answering out loud instead of
+   writing, one step at a time, frequent short breaks.
+
+   **Bede teaches the same material to the same standard.** This changes
+   *how* a lesson is delivered, never *what* is taught and never how the
+   work is judged. Removing an obstacle between your child and the
+   material is help; removing the material is not, and Bede is told so
+   explicitly. A child given more time is still expected to do real work,
+   and what they produce is still measured against what the task actually
+   asked for.
+
+   **Bede never mentions it to your child, and never guesses at a reason
+   for it.** Your child experiences a lesson that fits them, not a lesson
+   they can tell has been adjusted. "Let's take this one step at a time"
+   is something Bede will say. "Because reading is hard for you" is
+   something it will not, ever. And Bede will not name, guess at, or imply
+   a diagnosis — to your child or to you. You have told it what helps; you
+   have not told it why, that isn't its question to answer, and it isn't
+   qualified to answer it.
+
+   You don't need a diagnosis to use this. If you have one, you don't need
+   to share it — describe what helps and that is enough. If you suspect
+   something and don't know, that is a conversation for your pediatrician
+   or an educational specialist, and this field works perfectly well in the
+   meantime.
+
    The panel also has a **Curriculum Resources You Already Use** field:
    always available, not tied to any one subject, since a family's
    curriculum choices span math, writing, phonics, and more, not just
@@ -656,6 +689,24 @@ break every hour for every child, but it will not tell you that your
    phonogram approach), but it never claims to know or reproduce that
    publisher's actual lesson content, since Bede was never given their
    materials to draw from.
+
+   Right below it is a **Character Virtues Your School Emphasizes** field:
+   also always available, also not tied to any one subject. If your
+   family belongs to a school, co-op, or program with its own named
+   character-formation framework, type in (or click a quick-pick chip for)
+   the virtues it emphasizes — Courage, Humility, Wonder, Attentiveness,
+   Honesty, Gratitude, Perseverance, Kindness are offered as a starting
+   point, but this is not a closed list; type your own if your program
+   names different ones. Bede will occasionally connect what's already
+   being studied to one of these — a historical figure's Courage, the
+   Wonder a discovery invites — the way it already does for faith
+   connections, when a lesson genuinely offers a natural opening. It is a
+   lens for talking about the material, never a rating of your child:
+   Bede does not score, track, or tell your child whether they personally
+   showed one of these virtues in a given moment, and this list is
+   entirely separate from Bede's own constitution (the theological virtues
+   and gifts of the Holy Spirit that govern Bede's own conduct — see
+   `docs/CONSTITUTION.md`).
 4. Toggle **voice required** off only for a student who can't do voice verification
    (e.g. a very young or non-verbal child). This makes their login PIN-only.
 5. If your deployment offers a language other than English at login (`LOCALE`
@@ -835,6 +886,29 @@ Advance the term yourself each time your family's own term/quarter turns
 over. (The weekly poem and prayer above are different: those rotate
 automatically off the calendar and need no action from you.)
 
+**Art & Music also includes composer study — talked through, not played.**
+Alongside picture study, Bede introduces one composer at a time (currently
+Antonio Vivaldi, with more composers to be added over time) and, each week,
+one specific piece of that composer's music: the piece's title, movement,
+what instruments play it, and a few sourced, true facts about the composer
+and what to listen for. Bede has no way to actually play audio in a
+session — this is a listening *guide*, meant to be used alongside your own
+recording of the piece (from a streaming service, CD, or a source like
+[Musopen](https://musopen.org), which hosts free public-domain classical
+recordings) playing in the room, especially nice as quiet background music
+during handwriting, composition, or drawing time. If you don't have a
+recording playing, Bede still teaches from the facts and won't pretend
+music is playing. Which composer is featured follows the same **Term**
+dropdown as picture study; which of that composer's pieces comes up
+rotates weekly on its own, same as the poem and prayer above.
+
+The same piece comes up regardless of your child's grade, but how Bede
+talks about it grows with them, the same way it already paces every other
+subject to your child's stage: a K-2 child gets simple, physical questions
+("does it feel fast or slow? can you tap the beat?"), a 3rd-5th grader
+starts noticing structure and asking why, and a 6th-8th grader gets real
+vocabulary, historical context, and comparisons across the term's pieces.
+
 **Composition is encouraged, never required.** At least once per session,
 Bede invites your child to spend about ten minutes on a piece of their own
 handwritten work: a written narration, a nature journal entry, math worked
@@ -924,12 +998,17 @@ stops showing certificate warnings for this server.
 *(Prefer a terminal? `make caddy-trust` prints the same certificate to
 install by hand: same one-time result.)*
 
-**iPad shortcut:** `make ipad-profile` (requires a terminal) generates one
-file that installs a Home Screen icon *and* trusts the certificate in a
-single step, instead of doing both separately. iOS still requires one
-manual toggle afterward either way (Settings → General → About →
-Certificate Trust Settings). Works on older iPads too (tested down to
-iOS 15.8).
+**iPhone and iPad shortcut:** `make ipad-profile` (requires a terminal)
+generates one file that installs a Home Screen icon *and* trusts the
+certificate in a single step, instead of doing both separately. The profile
+payloads are identical on iPhone and iPad — the target keeps its original
+name, but nothing in it is iPad-specific. iOS still requires one manual
+toggle afterward either way (Settings → General → About → Certificate Trust
+Settings). Bede does not name a minimum iOS version — it supports whatever
+Apple itself still supports, so the answer stays current as Apple's own list
+moves. Older devices are never turned away either way: nothing checks a
+version, and any feature a device lacks simply isn't offered on it. See
+`docs/RELEASE_QUALITY_GATES.md` for which versions have actually been run on.
 
 **Then**, from the Pod Dashboard, **"Copy Link for Tablet"** gives you a link
 pre-filled with that student's name: send it to their device (AirDrop, text,
@@ -1171,6 +1250,34 @@ Bede tutors. Setup instructions and the full reasoning are in
   cannot be undone. See `docs/DATA_RETENTION.md` for the full, table-by-table list
   of what's kept and for how long.
 
+## 14. The beta survey (during the beta only)
+
+Once your child has a few sessions behind them, the Progress page may ask
+you five short questions: how many days Bede has actually been used, what
+it did to your own teaching time, whether what Bede does with a narration
+is better or worse than what you would have done, whether Bede has ever
+said something you had to correct, and the one thing that would make it
+genuinely useful to you.
+
+Some things worth knowing about it:
+
+- **It never asks you to rate your child.** Every question is about the
+  software or about your own day. That is a rule, not a coincidence: this
+  product does not score children, and a survey is not an exception to it.
+- **Nothing about your child is sent.** Your answers go to us as one
+  email and are not stored on any server. No names, no scores, no
+  transcripts travel with them.
+- **"Not now" is honoured.** Dismissing it asks again in a fortnight;
+  "Don't ask me again" means never, on that device.
+- **It only appears if the person running your deployment configured a
+  feedback address** (`FEEDBACK_EMAIL`). On a deployment without one you
+  will never see it.
+
+There is a longer version at [agnusdei.ai/survey](https://agnusdei.ai/survey/),
+including questions about what a year of this should cost. If you help
+run a homeschool co-op, there is a separate one for that at
+[agnusdei.ai/educators](https://agnusdei.ai/educators/).
+
 ## Troubleshooting
 
 - **"Too many requests" on login**: the rate limiter (10 attempts/minute per
@@ -1387,6 +1494,32 @@ threshold, no "is/isn't" attached to it. Whether your child is a learning
 entrepreneur isn't a call Bede is competent to make. What it can do is
 notice the evidence and put it in front of you.
 
+
+### What's been taught lately
+
+A card on the Progress page, above the ledger, answering a question you
+couldn't previously ask.
+
+You could always see that History had produced almost nothing. What you
+couldn't see was **which of two completely different situations you were
+in**: History was never actually on the plan, or History was on the plan
+for six weeks and got opened twice. The first is a scheduling fix. The
+second is a conversation. They look identical from a blank column.
+
+So the card lists each subject on that student's plan and when it was last
+*actually taught* — anything untouched for a fortnight or more first, then
+a short line naming the subjects that are being kept up. "Not yet started"
+is its own state, separate from "not lately," because a subject you haven't
+got to isn't a subject you're neglecting.
+
+**This is about the plan, not your child.** There is no score on this card,
+nothing about how well anything went, and no measure of interest or effort.
+A subject goes untaught for all sorts of reasons — the hour it's scheduled,
+the book, a hard fortnight, or a child who needs it approached a different
+way. You know which. Bede genuinely doesn't, and won't pretend to.
+
+Parent-only, like everything else built on the ledger. A child shown "you
+haven't done History in three weeks" has been handed a reproach.
 
 ### Where you'll see the ledger
 

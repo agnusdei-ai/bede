@@ -481,3 +481,148 @@ def test_every_recording_tool_accepts_the_three_dimensions_as_optional():
         assert not (need & set(schema.get("required", []))), f"{tool['name']} made a score mandatory"
         # And they must live INSIDE properties, not as stray sibling keys.
         assert not (need & set(schema)), f"{tool['name']} has scoring keys outside properties"
+
+
+# ── The public demo's own ledger ─────────────────────────────────────────
+#
+# The demo gets the REAL card because the ledger records events rather than
+# an estimate: its first entry is as true as its two-hundredth, so nothing
+# about a fifteen-minute session makes showing it dishonest. What it must
+# never do is touch a real family's data or outlive the demo code.
+
+def test_the_demo_ledger_never_writes_to_the_real_table():
+    """
+    A demo visitor is anonymous and their student_name is whatever they
+    typed at the code screen — not isolated from a real family's. Writing
+    them into SkillActivityLog would be both a broken promise and a
+    collision.
+    """
+    import inspect
+
+    from services import diagnostic_demo
+
+    source = inspect.getsource(diagnostic_demo)
+    # Assert on what the module DOES, not on whether the name appears — it
+    # appears in a comment saying never to use it, which is exactly the
+    # trap a bare substring check falls into.
+    assert "import SkillActivityLog" not in source
+    assert "record_activity(" not in source
+    assert "append_activity" in source
+
+
+def test_the_demo_ledger_is_deleted_on_logout_and_evicted_on_ttl():
+    """Same lifecycle as every other demo-scoped table: gone immediately on
+    an explicit logout, and swept with the others past the shared cutoff."""
+    import inspect
+
+    from core import demo_code_session
+
+    end = inspect.getsource(demo_code_session.end_session)
+    assert "DemoCodeActivityLog" in end
+
+    generate = inspect.getsource(demo_code_session.generate_code)
+    assert "delete(DemoCodeActivityLog).where(DemoCodeActivityLog.created_at < _cutoff())" in generate
+
+
+def test_the_demo_and_the_real_ledger_run_the_same_aggregation():
+    """
+    Not a second implementation. A demo that shows a card the product
+    doesn't actually produce is worse than no demo, so both paths call
+    summarize_records and the real initiative_signal.
+    """
+    import inspect
+
+    from services import diagnostic_demo
+
+    source = inspect.getsource(diagnostic_demo)
+    assert "summarize_records" in source
+    assert "initiative_signal" in source
+
+
+def test_the_demo_ledger_keeps_the_incorrect_refusal():
+    """`incorrect` writes no row in the demo either — the demo must not be
+    where this quietly becomes a record of failures."""
+    import inspect
+
+    from services.diagnostic_demo import record_work_done_demo
+
+    source = inspect.getsource(record_work_done_demo)
+    assert "assistance_for_outcome" in source
+    assert "if assistance is None:" in source
+
+
+def test_summarize_records_is_shared_by_both_paths():
+    """The real path decrypts rows and hands them to the same pure
+    aggregation the demo path builds in memory."""
+    import inspect
+
+    from services.diagnostic import activity
+
+    assert "summarize_records(records, student_name, since_days)" in inspect.getsource(activity.summarize)
+
+
+def test_the_demo_activity_route_is_demo_only_and_not_quota_gated():
+    """
+    demo_code-only, so it can never reach a real family's data. And NOT
+    behind the diagnostic preview quota, unlike /summary: this aggregates
+    what the visitor themselves did minutes ago, costs nothing, and is
+    worthless to anyone else — charging a preview use for it would be
+    charging for the receipt.
+    """
+    import inspect
+
+    from routers.diagnostic import get_demo_activity, router
+
+    paths = [r.path for r in router.routes]
+    assert "/diagnostic/demo/activity" in paths
+    # Declared before the parameterized student path, same reason /pod is.
+    assert paths.index("/diagnostic/demo/activity") < paths.index("/diagnostic/{student_name}/activity")
+
+    signature = inspect.signature(get_demo_activity)
+    dependency = signature.parameters["auth"].default.dependency
+    assert dependency.__name__ == "require_demo_preview"
+
+
+@pytest.mark.parametrize("recorder", [
+    "_record_phonics_evidence", "_record_literacy_evidence", "_record_language_evidence",
+])
+def test_every_evidence_path_can_reach_the_demo_ledger(recorder):
+    """
+    All four recording tools feed the ledger, in the demo as in a real
+    session — otherwise a visitor who picks Living Books gets an empty card
+    and no reason why. The MASTERY engines stay real-sessions-only: those
+    need history the demo doesn't have.
+    """
+    import inspect
+
+    from services import ai_service
+
+    fn = getattr(ai_service, recorder)
+    assert "demo_code" in inspect.signature(fn).parameters
+    source = inspect.getsource(fn)
+    assert "_record_work_done_demo(" in source
+    # The mastery write stays behind a real-session check.
+    assert "if db is not None:" in source
+
+
+def test_the_demo_ledger_ciphertext_is_bound_to_its_row():
+    """
+    One DATA_KEY covers every column in every table, so a ciphertext with
+    no associated data proves only "encrypted by whoever holds the key",
+    never where it belongs. Without this an attacker with database write
+    access could copy one visitor's ledger into another visitor's row and
+    it would decrypt cleanly, with no tag failure and no signal. The
+    sibling mastery_vector_enc in this same module already binds it; this
+    column has to as well.
+    """
+    import inspect
+
+    from core import demo_code_session
+
+    for fn in (demo_code_session.append_activity, demo_code_session.get_activities):
+        source = inspect.getsource(fn)
+        assert 'aad_for("demo_code_activity_logs", "activities_enc", code)' in source, fn.__name__
+    # And never an unbound call on either path.
+    write = inspect.getsource(demo_code_session.append_activity)
+    assert "encrypt_json([entry])" not in write
+    assert "decrypt_json(row.activities_enc)" not in write

@@ -38,7 +38,7 @@ material from the DB; there's no in-memory fallback):
 
 ```bash
 cd homeschool-api
-pip install -r requirements.txt
+pip install -r requirements.in   # or requirements-dev.in for tests too
 cp .env.example .env   # then fill in values, including a real DATABASE_URL
 uvicorn main:app --reload --port 8000
 # API docs at http://localhost:8000/docs (only when DISABLE_API_DOCS=false)

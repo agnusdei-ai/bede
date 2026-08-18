@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agnus Dei — Membership Pricing</title>
+<style>
+  /* Print source for membership-pricing.pdf. Regenerate with
+     docs/marketing/README.md's command. Same three-colour palette as
+     demo/public/launch.html; no webfonts, so this renders identically
+     wherever it is opened. */
+  @page { size: Letter; margin: 0; }
+  :root {
+    --navy: #1e3a8a;
+    --navy-deep: #0b1636;
+    --gold: #d4a106;
+    --gold-text: #7c5a03;
+    --rule: #dce6f7;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    color: var(--navy-deep);
+    background: #fff;
+    line-height: 1.5;
+  }
+  .page {
+    width: 8.5in; height: 11in; padding: 0.7in 0.75in;
+    display: flex; flex-direction: column;
+  }
+  /* No child may shrink: a fixed-height flex column otherwise absorbs
+     overflow by crushing every item proportionally — the 2px gold rule
+     rendered at 0px height for exactly that reason, and the one-page
+     regeneration check could never fire. Overflow must overflow. */
+  .page > * { flex-shrink: 0; }
+  h1, h2, h3 {
+    font-family: Georgia, 'Times New Roman', serif; color: var(--navy);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+    margin: 0; line-height: 1.25;
+  }
+  .brand { text-align: center; }
+  .brand h1 { font-size: 34pt; letter-spacing: 0.2em; text-indent: 0.2em; }
+  .brand .tag {
+    margin: 6px 0 0; font-size: 9.5pt; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--gold-text); text-indent: 0.22em;
+  }
+  .rule { width: 70px; height: 2px; background: var(--gold); border: 0; margin: 12px auto; }
+  .headline {
+    text-align: center; font-size: 15pt; color: var(--navy); margin: 0 0 4px;
+  }
+  .sub { text-align: center; font-size: 10pt; color: var(--gold-text);
+         letter-spacing: 0.14em; text-transform: uppercase; text-indent: 0.14em;
+         margin: 0 0 18px; }
+
+  .hero-price {
+    border: 2px solid var(--navy); padding: 18px 26px; text-align: center;
+    margin-bottom: 16px;
+  }
+  .hero-price .label {
+    font-family: Georgia, serif; font-size: 9pt; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--navy); text-indent: 0.16em;
+  }
+  .hero-price .amount { font-size: 40pt; color: var(--navy); font-weight: 700; line-height: 1.1; margin: 6px 0 0; }
+  .hero-price .amount .per { font-size: 13pt; font-weight: 400; }
+  .hero-price .annual { margin: 8px 0 0; font-size: 11pt; color: var(--gold-text); }
+  .hero-price .cap { margin: 4px 0 0; font-size: 10.5pt; }
+
+  .cols { display: flex; gap: 22px; margin-bottom: 16px; }
+  .col { flex: 1; border: 1px solid var(--rule); border-top: 3px solid var(--gold); padding: 18px 18px; }
+  .col h3 { font-size: 10pt; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .col .amt { font-size: 15pt; color: var(--navy); font-weight: 700; margin: 0 0 4px; }
+  .col p { margin: 0; font-size: 9.5pt; line-height: 1.5; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 11pt; margin-bottom: 6px; }
+  th, td { border-bottom: 1px solid var(--rule); padding: 8px 10px; text-align: left; }
+  thead th:last-child, td { text-align: right; }
+  thead th:last-child { text-indent: 0; }
+  td { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+  thead th { font-size: 8.5pt; letter-spacing: 0.12em; text-transform: uppercase;
+             color: var(--gold-text); text-indent: 0.12em; }
+  tbody th { font-weight: 400; }
+  td { text-align: right; color: var(--navy); font-weight: 700; }
+  tr.highlight { background: #f4f7fd; }
+  tr.highlight th, tr.highlight td,
+  tr.pre-highlight th, tr.pre-highlight td { border-bottom-color: var(--gold); }
+  .caption { font-size: 9pt; color: #4a5878; margin: 0 0 14px; }
+
+  .includes { border-left: 3px solid var(--gold); padding: 4px 0 4px 16px; margin-bottom: auto; }
+  .includes h3 { font-size: 9.5pt; margin-bottom: 6px; }
+  .includes ul { margin: 0; padding: 0; list-style: none; font-size: 10.5pt;
+                 display: flex; flex-wrap: wrap; gap: 4px 26px; }
+  .includes li::before { content: '\2022'; color: var(--gold); margin-right: 7px; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 24px;
+    text-align: center; font-size: 9pt; color: #4a5878; line-height: 1.7;
+  }
+  footer strong { color: var(--navy); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="brand">
+    <h1>Agnus Dei</h1>
+    <p class="tag">Comprehension &middot; Compassion &middot; Conscience</p>
+  </div>
+  <hr class="rule">
+
+  <p class="headline">One price. No per-child fees.</p>
+  <p class="sub">Private by design &middot; Verified by membership</p>
+
+  <div class="hero-price">
+    <p class="label">Family Membership</p>
+    <p class="amount">$199<span class="per">/month</span></p>
+    <p class="annual">or <strong>$2,149/year</strong> &mdash; save $239</p>
+    <p class="cap">Up to six children in your household.</p>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <h3>Co-op Membership</h3>
+      <p class="amt"><span style="font-size:10pt;font-weight:400">from </span>$149<span style="font-size:10pt;font-weight:400">/family/month</span></p>
+      <p>Ten-family minimum.</p>
+    </div>
+    <div class="col">
+      <h3>Network Partnership</h3>
+      <p class="amt">Custom pricing</p>
+      <p>Schools and organizations.</p>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th scope="col">Children</th><th scope="col">Per child, per month</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">1 child</th><td>$199</td></tr>
+      <tr class="pre-highlight"><th scope="row">2 children</th><td>$99.50</td></tr>
+      <tr class="highlight"><th scope="row">3 children</th><td>$66.33</td></tr>
+      <tr><th scope="row">4 children</th><td>$49.75</td></tr>
+      <tr><th scope="row">5 or 6</th><td>Even less</td></tr>
+    </tbody>
+  </table>
+  <p class="caption">Family Membership at $199 per month, divided by household size.</p>
+
+  <div class="includes">
+    <h3>Every membership includes</h3>
+    <ul>
+      <li>Bede Tutor</li>
+      <li>Locuto Messaging</li>
+      <li>Family Portal</li>
+      <li>Parent Tools &amp; Oversight</li>
+      <li>Verified Access</li>
+    </ul>
+  </div>
+
+  <footer>
+    <strong>Agnus Dei Technologies</strong> &mdash; Technology in service of what lasts<br>
+    agnusdei.ai &middot; Fall Launch: September 30
+  </footer>
+
+</div>
+</body>
+</html>

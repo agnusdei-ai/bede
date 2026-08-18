@@ -172,7 +172,7 @@ async def summarize(
     # DATA_KEY and open without one.
     _key = await student_keys.get_existing(db, student_name)
 
-    by_skill: dict[str, dict] = {}
+    records = []
     for row in rows:
         try:
             detail = decrypt_json(
@@ -183,10 +183,33 @@ async def summarize(
             )
         except Exception:
             continue
-        entry = by_skill.setdefault(row.skill_id, {
-            "skill_id": row.skill_id,
-            "label": detail.get("label") or row.skill_id,
-            "subject_area": row.subject_area,
+        records.append((row.skill_id, row.subject_area, detail,
+                        row.completed_at.replace(microsecond=0).isoformat()))
+    return summarize_records(records, student_name, since_days)
+
+
+def summarize_records(
+    records: list[tuple[str, str, dict, str]],
+    student_name: str,
+    since_days: int,
+) -> dict:
+    """
+    The aggregation itself, over already-decrypted records — pure, no I/O.
+
+    Extracted from `summarize` above so the public demo's own ephemeral
+    ledger (services/diagnostic_demo.py) runs the IDENTICAL computation
+    rather than a second implementation that could quietly drift from it.
+    The demo's storage is completely different — one TTL'd blob per demo
+    code, never SkillActivityLog — but what a parent SEES has to be the
+    real thing, or the demo is showing them something the product doesn't
+    do. Each record is (skill_id, subject_area, detail, completed_at_iso).
+    """
+    by_skill: dict[str, dict] = {}
+    for skill_id, subject_area, detail, stamp in records:
+        entry = by_skill.setdefault(skill_id, {
+            "skill_id": skill_id,
+            "label": detail.get("label") or skill_id,
+            "subject_area": subject_area,
             "completed": 0,
             "unaided": 0,
             "with_a_hint": 0,
@@ -216,7 +239,6 @@ async def summarize(
                 scored_here = True
         if scored_here:
             entry["scored"] += 1
-        stamp = row.completed_at.replace(microsecond=0).isoformat()
         if entry["last_worked"] is None or stamp > entry["last_worked"]:
             entry["last_worked"] = stamp
 

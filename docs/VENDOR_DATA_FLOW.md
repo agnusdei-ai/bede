@@ -93,7 +93,7 @@ on a setting:
   (~480MB of RSS on import alone) whenever torch is present, which is
   more memory than a small cloud instance has — see
   `docs/DEMO_HOSTING.md`'s memory section. **The public demo at
-  agnusdei.io runs on this setting** (`render.yaml`), which is why its
+  agnusdei.ai runs on this setting** (`render.yaml`), which is why its
   Privacy Notice names OpenAI for voice; a deployment that already sends
   the whole conversation to a cloud model is not buying privacy from
   transcribing locally. A family's own instance is not on this setting
@@ -119,6 +119,43 @@ None of these addresses are ever written to the database or the audit log
 (`services/email_service.py`'s module docstring) — each is used for
 exactly the one outbound send that triggered it.
 
+## Wikimedia — the only call made by the CHILD's browser, not the server
+
+Every other flow on this page is server-to-vendor: the family's own
+machine talks to Bede, and Bede talks to the provider. Picture study is
+the one exception, and the distinction is the whole reason it has its own
+section rather than a row in a table above.
+
+`data/visual_aids.json` stores a Wikipedia article title (`wiki_title`),
+never an image URL or a copy of the image — deliberately, so the catalog
+survives Wikimedia file and path changes and this project hosts no
+artwork. `VisualAidCard.tsx` therefore resolves the picture at the moment
+it is shown, which is two cross-origin requests **from the tablet
+itself**:
+
+| Request | Origin | Directive that permits it |
+|---|---|---|
+| `GET /api/rest_v1/page/summary/<title>` | `en.wikipedia.org` | `connect-src` |
+| The thumbnail that lookup returns | `upload.wikimedia.org` | `img-src` |
+
+**What travels:** the article title, and nothing else. No session data, no
+student name, no conversation text, no identifier, no query string. It is
+the same public request a browser makes when someone opens the article.
+
+**What is nonetheless true:** because it comes from the child's browser
+rather than from Bede, Wikimedia sees that browser's IP address and which
+article it asked for. On a LAN deployment that is a request leaving the
+LAN, which nothing else here does. It is disclosed on
+`site/privacy/index.html` and on the demo's own Privacy Notice, in both
+languages, and stated as the different kind of request it is rather than
+listed alongside the server-side vendors.
+
+**Turning it off** is deleting those two origins from
+`homeschool-tutor/nginx.conf`'s CSP. Picture study then falls back to the
+captioned card it already shows when a lookup fails — a real degradation,
+not a break. That fallback existing is what makes this an honest choice
+rather than a condition of using the product.
+
 ## Voice biometrics — never leaves your machine
 
 Worth stating explicitly since it's easy to assume voice data is cloud
@@ -134,13 +171,13 @@ python3 scripts/generate_sbom.py
 
 Regenerates both `docs/sbom/backend.cdx.json` and
 `docs/sbom/frontend.cdx.json` (CycloneDX 1.5) from the currently committed
-`requirements.txt`/`requirements-dev.txt` and `package-lock.json` — no
+`requirements.in`/`requirements-dev.in` and `package-lock.json` — no
 `pip install`/`npm install` required, so it works offline and doesn't
 depend on matching Python/Node versions locally. Two caveats to know about
 before treating either file as authoritative for an audit:
 
 - **Backend versions are declared floors, not exact pins.**
-  `requirements.txt` uses `>=` with no upper bound, so `backend.cdx.json`
+  `requirements.in` uses `>=` with no upper bound, so `backend.cdx.json`
   records the minimum version each dependency is allowed to resolve to,
   not necessarily what's actually running in any given deployment. Run
   `pip freeze` inside your own running container if you need exact
@@ -150,7 +187,13 @@ before treating either file as authoritative for an audit:
   weekly update PR for every ecosystem in this repo, and `.github/
   workflows/test.yml`/`frontend-tests.yml` run `pip-audit`/`npm audit`
   against the exact versions each PR would ship, on every push — see
-  `docs/SECURITY.md`'s "Closed gaps" for when this was added.
+  `docs/SECURITY.md`'s "Closed gaps" for when this was added. The exact,
+  hash-verified versions CI actually installs from now live in
+  `requirements.lock.txt`/`requirements-dev.lock.txt` (also
+  `docs/SECURITY.md`'s Closed gaps) — this SBOM generator deliberately
+  keeps reading the floor-pinned `.in` files rather than the lockfile, so
+  `backend.cdx.json` stays a declared-scope document rather than
+  restating the lockfile's own exact-pin record a second time.
 - **Frontend versions are exact**, since `package-lock.json` pins real
   resolved versions — those entries are a genuine, accurate snapshot as of
   whenever the lockfile was last updated.

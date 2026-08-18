@@ -34,6 +34,7 @@ on:
     paths:
       - 'homeschool-tutor/**'
       - 'demo/**'
+      - 'site/assets/site.css'
       - '.github/workflows/frontend-tests.yml'
   pull_request:
   workflow_dispatch:
@@ -49,7 +50,7 @@ jobs:
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - id: filter
@@ -64,8 +65,15 @@ jobs:
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # site/assets/site.css is in here because src/palette.test.ts reads
+          # it: the app's ramps are pinned to the marketing site's own colour
+          # tokens, so retuning the brand palette there is the change most
+          # likely to break that agreement. Without this path the skip would
+          # compute relevant=false for exactly that edit and never run the
+          # guard written for it — the same vacuous-coverage trap
+          # test_decision_register.py documents for the backend filter.
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-tutor/|demo/|\.github/workflows/frontend-tests\.yml)'; then
+               | grep -qE '^(homeschool-tutor/|demo/|site/assets/site\.css|\.github/workflows/frontend-tests\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -75,8 +83,8 @@ jobs:
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -120,8 +128,8 @@ jobs:
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm

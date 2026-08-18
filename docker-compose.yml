@@ -210,6 +210,31 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost,http://ui:80}
       - DISABLE_API_DOCS=true
       - PRODUCTION=true
+    # mem_limit (legacy top-level key, NOT deploy.resources.limits — the
+    # latter is only reliably honored by `docker compose up` on some
+    # versions without the --compatibility flag, a config-that-looks-right-
+    # but-is-silently-ignored risk this file avoids elsewhere; mem_limit
+    # works unconditionally, verified against this exact file with
+    # `docker compose config`). Guards the Linux OOM killer's behavior on a
+    # memory-constrained host (a Raspberry Pi, most concretely) — without
+    # an explicit limit, the kernel picks WHICH process to SIGKILL under
+    # memory pressure, and that process could just as easily be `db`
+    # (data-loss-adjacent) or sshd as it could be this container. A limit
+    # confines the blast radius to "this container restarts" (restart:
+    # unless-stopped below already handles that) rather than "the kernel
+    # guesses." 1024m default: this is the heaviest service (the full
+    # torch/faster-whisper stack this Dockerfile builds), with real
+    # measured headroom above the ~642MB RSS this repo has already
+    # observed in a similarly-heavy environment (Render's free tier, see
+    # services/transcription.py's own docstring). A 2GB Raspberry Pi
+    # should either raise this via API_MEM_LIMIT or, better, switch to
+    # homeschool-api/requirements-mobile.in's reduced footprint (no torch/
+    # faster-whisper — see docs/MOBILE_HOSTING_DECISIONS.md) rather than
+    # just widening the ceiling. See docs/PRODUCTION_SETUP.md's Raspberry
+    # Pi section for the full per-service memory budget and the separate,
+    # Pi-specific cgroup-memory-accounting gotcha this limit depends on
+    # actually being enforced.
+    mem_limit: ${API_MEM_LIMIT:-1024m}
     read_only: true                    # stateless container — all state in Postgres
     tmpfs:
       - /tmp:size=64m,mode=1777       # audio processing temp files only
@@ -223,6 +248,98 @@ services:
     # already provides the mapping — this just makes it explicit everywhere.
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - internal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # ── Locuto local-IPC listener (services/locuto_ipc/) ─────────────────────
+  # Bede's half of the on-device connector to agnusdei-ai/locuto's own
+  # client — see docs/LOCUTO_CONNECTOR_DECISIONS.md and Locuto's own
+  # docs/bede-ipc-spec.md (the single canonical wire spec this service
+  # implements; nothing here duplicates it). Deliberately its OWN service,
+  # not folded into `api` above — bede-connector.md §2's own recommendation
+  # and decision-packets.md packet 11's "process-boundary impact" note both
+  # argue against widening the tutor-facing, hardened `api` container's role
+  # to also accept local IPC from a different product. Same image and
+  # source as `api` (so `resolve_local_only()` and everything else it needs
+  # is a plain Python import, not a second implementation to keep in sync),
+  # but its own container and its own tiny env block.
+  #
+  # Starts by default alongside the rest of the stack (no compose profile
+  # gate) — Bede is meant to interoperate with a paired Locuto installation
+  # out of the box. Safe by construction even for a deployment that never
+  # pairs with Locuto: v1's capability registry is empty (services/
+  # locuto_ipc/capabilities.py), so the socket accepts a handshake and
+  # refuses every real capability, nothing more — see that package's own
+  # docstring. `LOCUTO_IPC_ENABLED` (below) is the one real switch, and it
+  # is a configurable, deployer-facing choice: set it to `false` in `.env`
+  # at install time, or any time after (container restart required — see
+  # server.py's own docstring for why this process stays up rather than
+  # exiting while disabled, so disabling it never becomes a restart-loop).
+  # Not documented in .env.example: `LOCUTO_IPC_*` belongs to this service,
+  # not `api`, and test_compose_settings_passthrough.py's contract is
+  # scoped to what `api` receives — see that test's own docstring.
+  locuto-ipc:
+    build:
+      context: ./homeschool-api
+      dockerfile: Dockerfile
+    command: ["python", "-m", "services.locuto_ipc"]
+    environment:
+      - LOCUTO_IPC_ENABLED=${LOCUTO_IPC_ENABLED:-true}
+      - LOCUTO_IPC_SOCKET_PATH=${LOCUTO_IPC_SOCKET_PATH:-/tmp/bede-locuto/locuto.sock}
+      # resolve_local_only() (services/adapters/router.py) is the only
+      # model-resolution path this process's capability dispatch may use —
+      # bede-ipc-spec.md §6 — so it needs LOCAL_LLM_* and nothing else
+      # AI-provider-related; it structurally cannot reach ANTHROPIC_API_KEY/
+      # OPENAI_API_KEY/MISTRAL_API_KEY even if a household has them set for
+      # `api`'s own ordinary tutoring, because those variables are simply
+      # never passed to this service at all.
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-}
+      - LOCAL_LLM_API_KEY=${LOCAL_LLM_API_KEY:-not-needed}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      # core/config.py's Settings() construction validates these as present
+      # regardless of whether THIS process's own logic uses them — same
+      # values `api` already requires, reused rather than duplicated.
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - MASTER_SECRET=${MASTER_SECRET:?MASTER_SECRET is required}
+      - PARENT_PASSWORD=${PARENT_PASSWORD:?PARENT_PASSWORD is required}
+      - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - LICENSE_KEY=${LICENSE_KEY:?LICENSE_KEY is required}
+      - DISABLE_API_DOCS=true
+      - PRODUCTION=true
+    # See `api`'s own mem_limit comment above for why this key (not
+    # deploy.resources.limits) and why it matters on a memory-constrained
+    # host. Lighter than api's: this process never loads a model
+    # (v1's capability registry is empty, so resolve_local_only() has no
+    # real caller yet) — 256m gives real headroom above an ordinary
+    # Python/asyncio/FastAPI baseline.
+    mem_limit: ${LOCUTO_IPC_MEM_LIMIT:-256m}
+    read_only: true
+    # A bind-mount, not a tmpfs — deliberately. tmpfs (what `api`'s own
+    # /tmp uses) is container-internal-only memory, invisible from the
+    # host; this socket's whole purpose requires the OPPOSITE property. A
+    # bind-mounted directory stays writable even with read_only:true on the
+    # container's own root filesystem (the same reason the `db` service's
+    # pgdata volume, or `api`'s tmpfs, both work under their own
+    # restrictions), so this doesn't reopen the read-only guarantee for
+    # anything but this one directory.
+    volumes:
+      # Bind-mounts the socket's containing directory to a host-visible
+      # path so a native Locuto process (running on the same physical
+      # machine, per bede-connector.md §2's on-device requirement) can
+      # actually reach it — a socket sealed inside this container's own
+      # filesystem is unreachable from anywhere else. LOCUTO_IPC_HOST_DIR
+      # defaults to a project-relative ./locuto-ipc directory, created on
+      # first `docker compose up` like any other bind-mount target; a
+      # deployment with LOCUTO_IPC_ENABLED=false still gets this directory
+      # (harmless — nothing binds a socket into it) since the service
+      # itself always starts.
+      - ${LOCUTO_IPC_HOST_DIR:-./locuto-ipc}:/tmp/bede-locuto
     networks:
       - internal
     restart: unless-stopped
@@ -260,6 +377,12 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. This is the service the OOM
+    # killer would be worst to pick without a limit — it holds the only
+    # writable copy of every family's data, and an unclean kill mid-write
+    # is exactly the class of SD-card/database corruption
+    # docs/PRODUCTION_SETUP.md's Raspberry Pi section warns about.
+    mem_limit: ${DB_MEM_LIMIT:-384m}
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -288,6 +411,9 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. nginx serving a static
+    # build is light; 128m is generous headroom, not a tight fit.
+    mem_limit: ${UI_MEM_LIMIT:-128m}
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -332,6 +458,9 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. A tiny static-file/QR-code
+    # service; 128m is generous headroom.
+    mem_limit: ${TRUST_MEM_LIMIT:-128m}
     read_only: true
     tmpfs:
       - /tmp:size=8m,mode=1777
@@ -357,6 +486,10 @@ services:
       - ui
       - trust
     restart: unless-stopped
+    # See `api`'s own mem_limit comment above. Caddy's Go runtime plus
+    # cert/ACME handling; 256m is comfortable headroom for a LAN deployment
+    # (no high connection volume to size for).
+    mem_limit: ${CADDY_MEM_LIMIT:-256m}
     security_opt:
       - no-new-privileges:true
 

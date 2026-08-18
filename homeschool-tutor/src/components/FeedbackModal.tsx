@@ -80,7 +80,7 @@ export default function FeedbackModal({ token, onClose }: { token: string; onClo
                   aria-label={`${n} star${n > 1 ? 's' : ''}`}
                   className="p-0.5"
                 >
-                  <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-300'} />
+                  <Star size={20} className={n <= rating ? 'fill-gold-400 text-gold-500' : 'text-gray-500'} />
                 </button>
               ))}
             </div>

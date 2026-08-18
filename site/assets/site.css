@@ -431,6 +431,70 @@ p.lede {
   margin: 0;
 }
 
+/* Tier cards: the headline (name, one-liner, price) is never gated behind
+   an interaction — only the "what's actually included" elaboration is.
+   Hiding the price itself behind a hover would read as a trick, not a
+   nice touch, so it stays visible at all times. */
+.tier-name {
+  font-family: Georgia, serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8c887c;
+  margin: 0 0 0.3rem;
+}
+
+.tier-card h3 {
+  margin-bottom: 0.4rem;
+}
+
+.tier-price {
+  font-family: Georgia, serif;
+  font-size: 0.82rem;
+  color: var(--fern-deep);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--vellum-deep);
+  border-radius: 999px;
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  margin: 0 0 0.6rem;
+}
+
+.tier-card {
+  outline: none;
+}
+
+/* The reveal itself: a quiet unfolding of one supporting sentence, not a
+   flip, glow, or lift. Present in the DOM either way, so nothing here
+   depends on JavaScript or on a device having a pointer at all. */
+.tier-detail {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease 0.05s;
+}
+
+.tier-detail p {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--vellum-deep);
+}
+
+.tier-card:hover .tier-detail,
+.tier-card:focus-within .tier-detail,
+.tier-card:focus .tier-detail {
+  max-height: 10rem;
+  opacity: 1;
+}
+
+/* No pointer to hover with — the detail is simply always open, same as
+   it is for a keyboard or touch visitor who never triggers :hover. */
+@media (hover: none) {
+  .tier-detail {
+    max-height: none;
+    opacity: 1;
+  }
+}
+
 /* Curriculum tab colours — one per subject, like the colored divider
    tabs in a school binder, so the fourteen subjects read as distinct at
    a glance instead of one undifferentiated green list. Fourteen hues

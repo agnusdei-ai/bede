@@ -47,7 +47,28 @@ name: Lockfile refresh
 # them. The latter tests the drift the gate was written for and would not fire
 # on upstream publishes — but it also gives up the "the lockfile is current"
 # property, which is a supply-chain posture decision rather than a cleanup.
-# Recorded here rather than decided unilaterally.
+# Recorded here rather than decided unilaterally. RULED ON 2026-08-15 — keep
+# the live resolve; see docs/DECISIONS.md entry 12, which closes on the
+# bargain that THIS workflow removes the toil.
+#
+# ── A REPOSITORY SETTING THIS FILE CANNOT SET ────────────────────────────
+#
+# `pull-requests: write` below is necessary and NOT sufficient. A separate
+# repository/organisation toggle governs whether Actions may open a PR at
+# all, and with it off `gh pr create` fails with:
+#
+#     GraphQL: GitHub Actions is not permitted to create or approve pull
+#     requests (createPullRequest)
+#
+# Enable it at: Settings > Actions > General > Workflow permissions >
+# "Allow GitHub Actions to create and approve pull requests".
+#
+# Until then this job regenerates and pushes correctly and then cannot open
+# the pull request, so the toil entry 12 assumes is automated is manual
+# again. That is what happened on 2026-08-18, and it was invisible for
+# three days because the two prior runs found no drift and skipped every
+# step after the regeneration — the first time this job was needed was the
+# first time its PR path ran at all.
 
 on:
   schedule:
@@ -152,19 +173,52 @@ jobs:
 
       - name: Open or update the standing pull request
         if: steps.regen.outputs.drifted == 'true'
+        env:
+          # Passed as an environment variable and read as "$BODY" — NEVER
+          # interpolated into the script with ${{ }}.
+          #
+          # Actions substitutes those expressions into the script TEXT before
+          # bash ever parses it, so a body containing backticks — and this one
+          # does, it is markdown — gets command-substituted by the shell. That
+          # is exactly what happened on 2026-08-18: the body's own
+          # `.github/workflows/lockfile-refresh.yml` was executed ("Permission
+          # denied"), along with `requirements*.in`, `lockfile-freshness` and
+          # every `package==version` line in the diff. The body reached the
+          # pull request mangled and stray commands ran on the runner.
+          #
+          # It is also the canonical GitHub Actions script-injection shape,
+          # and worth keeping in mind that the package names in this body come
+          # from PyPI metadata, not from this repository.
+          BODY: ${{ steps.summary.outputs.body }}
         run: |
           # One PR, reused. Daily runs update it in place rather than opening
           # a queue of near-identical pull requests, which is the specific
           # noise #285 removed Dependabot's version updates over.
           existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
-            gh pr edit "$existing" --body "${{ steps.summary.outputs.body }}"
+            gh pr edit "$existing" --body "$BODY"
             echo "Updated existing PR #$existing"
-          else
-            gh pr create \
+          elif ! gh pr create \
               --head "$BRANCH" --base main \
               --title "Refresh the backend lockfiles" \
-              --body "${{ steps.summary.outputs.body }}"
+              --body "$BODY"; then
+            # The branch is already pushed by the step above, so the refresh
+            # itself succeeded and nothing is lost — only the pull request is
+            # missing. Say that, and say where the most likely cause lives,
+            # because it is NOT in this repository: `pull-requests: write` is
+            # necessary but not sufficient, and a separate repository/org
+            # toggle governs it. Without this the run ends on a bare GraphQL
+            # error and the daily job looks broken rather than blocked.
+            echo "::error::Refresh succeeded but the pull request could not be opened."
+            echo "Branch '$BRANCH' is pushed and current — it can be opened by hand:"
+            echo "  https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1"
+            echo ""
+            echo "If the error above is 'GitHub Actions is not permitted to create or"
+            echo "approve pull requests', that is a repository setting this workflow"
+            echo "cannot change, and no edit here will fix it. Enable it at:"
+            echo "  Settings > Actions > General > Workflow permissions"
+            echo "  > 'Allow GitHub Actions to create and approve pull requests'"
+            exit 1
           fi
           # Deliberately does not merge. demo-watchdog.yml draws the same line:
           # it opens a pull request and stops.

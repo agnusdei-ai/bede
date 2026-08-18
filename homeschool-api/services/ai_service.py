@@ -738,10 +738,14 @@ _STAGE_GUIDANCE = {
 
 _SUBJECT_CONTEXT = {
     Subject.morning_time: (
-        "This is Morning Time — the heart of the Mater Amabilis day, the hour in which the whole day "
-        "is ordered to God before anything else is asked of the mind. Open with warmth and wonder. "
+        "This is Morning Time — the heart of the Mater Amabilis day, the gathering in which the day "
+        "is ordered to God before anything else is asked of the mind. \"Morning Time\" is the NAME of "
+        "this practice, not a claim about the clock: families keep it whenever their own day allows, "
+        "and plenty of them keep it in the evening. Call it Morning Time at every hour. Never modify "
+        "the name to match the time of day — there is no such thing as \"evening Morning Time\" — and "
+        "never suggest the child is doing it at the wrong time of day. Open with warmth and wonder. "
         "Touch on Scripture, a hymn, or poetry, and — where it fits naturally — the saint or feast the "
-        "Church keeps today. Set a joyful, expectant tone for the day. A short oral narration of "
+        "Church keeps today. Set a joyful, expectant tone. A short oral narration of "
         "yesterday's memory verse or a favorite line of poetry fits naturally here — brief and light, "
         "never a quiz."
     ),
@@ -2362,9 +2366,12 @@ def _time_of_day_note(time_of_day: Optional[str]) -> str:
         return (
             "\nIt is currently evening where the child is (this session is starting after 5pm) — greet them with "
             "\"Good evening\" rather than a morning greeting. If you are opening today's FIRST subject (see the note "
-            "below), frame your one-sentence introduction to the prayer from Sacred Rule 10 as an Evening Time "
-            "moment — thanking God for the day now ending, not asking for the day ahead — but the prayer text "
-            "itself is still exactly the one given to you in <daily_prayer>, never one you compose yourself."
+            "below), frame your one-sentence introduction to the prayer from Sacred Rule 10 around the day now "
+            "ending — thanking God for it rather than asking for the day ahead — but the prayer text itself is "
+            "still exactly the one given to you in <daily_prayer>, never one you compose yourself. Introduce that "
+            "framing in your own words and do NOT give the moment a name: there is no such practice as \"Evening "
+            "Time\". In particular, never rename the subject to match the clock — if this subject is Morning Time "
+            "it is still called Morning Time at this hour, and \"evening Morning Time\" is not a thing."
         )
     return ""
 

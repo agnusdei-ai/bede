@@ -400,6 +400,36 @@ reasoning above, unchanged. And a duration read off the GitHub API mid-run is
 not evidence — take timings from `completed_at - started_at` after the job
 reports, never from how long a status has appeared to be pending.
 
+**The palliative this decision rests on had never once run (2026-08-18).** This
+entry closes on a specific bargain: the live resolve is worth its cost
+*because* `lockfile-refresh.yml` removes the manual toil. On 2026-08-18
+`cuda-pathfinder` 1.6.0 → 1.6.1 turned `lockfile-freshness` red on an unrelated
+PR, exactly as this entry predicts — and the refresh job did not absorb it. It
+failed, opened nothing, and the red gate sat there.
+
+Two defects, neither of which the two earlier green runs could have revealed:
+those runs found no drift, so `drifted=false` skipped every step after the
+regeneration. **The first time the job was actually needed was the first time
+its pull-request path ran at all** — the same never-exercised shape as
+`demo-watchdog.yml`'s repair job, and worth expecting from any workflow whose
+real path is conditional.
+
+1. `gh pr create --body "${{ steps.summary.outputs.body }}"` interpolated the
+   PR body into the shell script, so bash command-substituted the backticks in
+   its own markdown. Fixed by passing it through `env:`, and pinned by
+   `homeschool-api/tests/test_workflow_script_injection.py`.
+2. `GitHub Actions is not permitted to create or approve pull requests` — a
+   repository setting, not a file in this repo. `pull-requests: write` is
+   necessary and not sufficient. **Until someone enables Settings → Actions →
+   General → Workflow permissions → "Allow GitHub Actions to create and approve
+   pull requests", this entry's bargain does not hold and the toil is manual
+   again.** The job now says so in its own failure output and links the pushed
+   branch, rather than ending on a bare GraphQL error.
+
+The decision itself is unchanged — the live resolve still buys the property it
+was kept for. What is recorded here is that its cost was being paid by a person
+rather than by the automation, silently, for three days.
+
 
 ---
 

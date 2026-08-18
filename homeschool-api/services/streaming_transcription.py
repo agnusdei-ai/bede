@@ -293,13 +293,38 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
         # disconnect.
         return
     session.active_reader = True
+    attached_at = time.monotonic()
+    items_yielded = 0
+    completed_normally = False
     try:
         while True:
             item = await session.queue.get()
+            items_yielded += 1
             yield item
             if item.get("type") == "done":
+                completed_normally = True
                 break
     finally:
+        if not completed_normally:
+            # This generator is being torn down WITHOUT ever seeing "done" —
+            # either the consumer genuinely disconnected (navigation, a
+            # dropped connection) or something cancelled this coroutine out
+            # from under it (server shutdown, or — the pattern actually
+            # reported live from the demo, same X-Bede-Instance value on
+            # every call in the trace, which already rules out cross-instance
+            # routing — an intermediary proxy deciding a fully idle
+            # connection is dead during the silent gap before any chunk has
+            # ever uploaded). Logged unconditionally, not just past some
+            # threshold: a session this young tearing itself down is exactly
+            # the signature a family's screenshot can't tell apart from "the
+            # session simply expired" without this. See
+            # docs/VOICE_SETUP.md's cross-instance section for the identical
+            # "observe before fix" reasoning behind core/instance_id.py.
+            log.warning(
+                "streaming_transcription: session=%s events() torn down early "
+                "after %.2fs, %d item(s) delivered, without a 'done'",
+                session_id, time.monotonic() - attached_at, items_yielded,
+            )
         _discard(session_id)
 
 

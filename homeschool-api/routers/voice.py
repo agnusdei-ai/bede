@@ -261,4 +261,23 @@ async def stream_events_endpoint(session_id: str, auth: dict = Depends(require_a
         async for item in with_stall_timeout(stream_events(session_id, owner=owner), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS):
             yield json.dumps(item)
 
-    return EventSourceResponse(event_generator(), media_type="text/event-stream")
+    # A shorter ping than sse-starlette's 15s default, for this endpoint
+    # specifically. /tutor/chat and /sandbox/chat (the other EventSourceResponse
+    # call sites in this app) stream near-continuous text chunks from the
+    # model, so they rarely sit fully idle. This stream is different: a
+    # session can go completely silent for the first CHUNK_UPLOAD_INTERVAL_MS
+    # (4s) after opening — no chunk uploaded yet, nothing in session.queue,
+    # not even a real partial — and a short hold can end before that first
+    # tick ever fires at all. Reported live from the demo: a session opened,
+    # then 404'd on its own first chunk/finish call ~4 seconds later, on the
+    # SAME X-Bede-Instance the whole time (ruling out cross-instance
+    # routing). The only server-side path that can discard a session that
+    # young is this stream's own generator being torn down before a 'done'
+    # — see streaming_transcription.py's events(), now logging exactly that.
+    # A likely cause: an intermediary between the browser and this instance
+    # (Render's own edge, or something in between) treating a connection
+    # with zero bytes flowing as idle-and-dead well before 15s. Pinging
+    # every few seconds instead keeps real bytes moving through that gap —
+    # cheap for a stream that's normally open a few seconds to at most a
+    # couple minutes. See docs/VOICE_SETUP.md's cross-instance section.
+    return EventSourceResponse(event_generator(), media_type="text/event-stream", ping=3)

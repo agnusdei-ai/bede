@@ -307,6 +307,52 @@ the queue on its own and remains the one that eventually tears the session
 down normally. See `tests/test_streaming_transcription.py`'s "Concurrent
 readers" section.
 
+### A session 404s on its own first chunk/finish, a few seconds after opening — same instance the whole time
+
+A third way to reach the same symptom as the two above, and the one that
+actually matters most in practice: reported live from the demo with a full
+trace, `instance=` identical across every single call (`start`, the failing
+`chunk`/`finish`, and the still-open `events`), which rules out
+cross-instance routing outright per the diagnostic rule above. A session
+opened normally (`200`), then its own very first `chunk` and `finish` calls
+both 404'd ("Unknown or finished streaming session") about four seconds
+later — well under the 180s TTL, and the reported hold was itself under
+four seconds, so nothing about a stale/abandoned session applies either.
+
+The only server-side code path that can remove a session that young is
+`events()`'s own `finally` block running before a `'done'` item ever
+arrived — a client disconnect, or something cancelling that coroutine out
+from under it. Client-side, `useHybridVoiceInput.ts`'s `consumeEvents`
+issues exactly one `events()` request per turn and never aborts it early on
+its own, so the leading theory is an intermediary between the browser and
+the app (most plausibly something in Render's own edge/proxy path) treating
+a connection with zero bytes flowing as idle-and-dead — and this stream can
+genuinely sit fully silent for the first `CHUNK_UPLOAD_INTERVAL_MS` (4s)
+after opening, since nothing is pushed onto `session.queue` until the first
+chunk uploads; a short hold can end before that first tick ever fires at
+all. `sse-starlette`'s `EventSourceResponse` ping — the only thing that
+would otherwise put bytes on the wire during that gap — defaults to every
+15 seconds, longer than the whole gap in the reported trace.
+
+Not confirmed with certainty (that needs production log access this
+sandbox doesn't have), so two things shipped rather than a single guessed
+fix: **`events()` now logs a warning whenever its generator is torn down
+without ever seeing `'done'`** — session id, how long it had been attached,
+how many items it delivered — so the *next* occurrence is diagnosable from
+server logs directly, the same "observe before fix" precedent
+`core/instance_id.py` set for the cross-instance case above. And
+`routers/voice.py`'s `/stream/{id}/events` endpoint now pings every 3
+seconds instead of the 15s default — specifically for this one stream,
+since `/tutor/chat`/`/sandbox/chat`'s `EventSourceResponse` calls stream
+near-continuous text from the model and rarely sit idle long enough for
+this to matter. If the root cause turns out to be exactly what's suspected
+here, more frequent bytes on the wire during the silent gap closes it
+directly; if not, the new server-side log will say so on the next report.
+See `tests/test_streaming_transcription.py`'s
+`test_events_torn_down_early_logs_a_warning_naming_the_session` and its
+`test_events_completing_normally_logs_no_early_teardown_warning` sibling
+(pinning the warning does NOT fire on an ordinary completed turn).
+
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 
 Reported live on the public demo shortly after the server-side-streaming

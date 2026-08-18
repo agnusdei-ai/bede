@@ -186,6 +186,58 @@ async def test_events_disconnecting_early_still_removes_the_session(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_events_torn_down_early_logs_a_warning_naming_the_session(monkeypatch, caplog):
+    """Regression for a real reported bug: a voice session opened, then its
+    own very first chunk/finish calls both 404'd ("Unknown or finished
+    streaming session") a few seconds later, on the SAME X-Bede-Instance the
+    whole time — which rules out cross-instance routing (see
+    docs/VOICE_SETUP.md). The only server-side path that removes a session
+    that young is this generator's own finally block running before a
+    'done' ever arrived — and until now nothing logged that distinction, so
+    a genuinely early teardown was indistinguishable, from server logs
+    alone, from ordinary cleanup after a normal completion."""
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "partial text", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    session_id = st.start_session(language="en")
+    st.push_chunk(session_id, b"audio")
+
+    with caplog.at_level("WARNING", logger="services.streaming_transcription"):
+        gen = st.events(session_id)
+        await asyncio.wait_for(gen.__anext__(), timeout=2)  # the one partial — attaches active_reader
+        await gen.aclose()  # torn down here, before 'finish'/'done' ever arrives
+
+    assert session_id not in st._sessions
+    warnings = [r for r in caplog.records if "torn down early" in r.message]
+    assert len(warnings) == 1
+    assert f"session={session_id}" in warnings[0].message
+    assert "without a 'done'" in warnings[0].message
+
+
+@pytest.mark.asyncio
+async def test_events_completing_normally_logs_no_early_teardown_warning(monkeypatch, caplog):
+    """The new warning above must fire ONLY on an early teardown — an
+    ordinary turn that runs all the way to 'done' is not the failure this
+    guards, and must never be confused for one in server logs."""
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "hello", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+
+    session_id = st.start_session(language="en")
+    st.push_chunk(session_id, b"some-audio-bytes")
+    st.finish_session(session_id)
+
+    with caplog.at_level("WARNING", logger="services.streaming_transcription"):
+        events_seen = [item async for item in st.events(session_id)]
+
+    assert events_seen[-1] == {"type": "done"}
+    assert not any("torn down early" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
 async def test_sweep_loop_evicts_sessions_idle_past_the_ttl(monkeypatch):
     session_id = st.start_session(language="en")
     # Backdate last_touched past the TTL without waiting the real 180s.

@@ -378,3 +378,63 @@ def test_a_live_check_asserts_the_headers_on_every_merge():
         "the live check no longer reads its expected header set from "
         "site/_headers, so the two can drift"
     )
+
+
+def test_the_live_check_actually_fetches_the_demo_it_claims_to_cover():
+    """The default path list must include the demo, and a first-hop check.
+
+    Both halves failed silently until 2026-08-19, in the same file:
+
+    * `PATHS` was `/ /faq/ /privacy/` while the comment directly above it
+      said the paths "cover the three shapes: root, a sub-page, and the
+      demo under /bede/." The demo — the one path a prospective family
+      actually opens — was named in the comment and never fetched. A
+      comment describing coverage that does not exist is the shape this
+      repo keeps rediscovering.
+
+    * Every fetch used `curl -I --location`, which concatenates EVERY hop's
+      headers into one blob. The grep that follows searches the whole blob,
+      so a header present only on the final 200 passes even when the
+      redirect before it carried nothing. `/bede` -> `/bede/` is exactly
+      that shape, and Cloudflare does not apply `_headers` to redirects it
+      generates itself.
+
+    The second one matters most for Strict-Transport-Security specifically:
+    a redirect is usually the first response a browser sees, and
+    hstspreload.org checks every hop — so a redirect without HSTS fails the
+    preload eligibility `site/_headers` claims by carrying `preload`.
+    """
+    body = (_REPO / "scripts" / "check_live_site_headers.sh").read_text()
+
+    paths = re.search(r'^PATHS="\$\{SITE_PATHS:-([^}]*)\}"', body, re.M)
+    assert paths, "PATHS assignment not found or reshaped"
+    assert "/bede/" in paths.group(1).split(), (
+        "the live header check does not fetch the demo under /bede/, which "
+        "its own comment claims it covers"
+    )
+
+    first_hop = re.search(r'^FIRST_HOP_PATHS="\$\{SITE_FIRST_HOP_PATHS:-([^}]*)\}"', body, re.M)
+    assert first_hop, (
+        "the redirect/first-hop check is gone. Without it a redirect serving "
+        "no headers at all passes, because --location hides it behind the "
+        "page it lands on"
+    )
+    assert "/bede" in first_hop.group(1).split()
+
+    # The point of that loop is the absent --location. A fetch that follows
+    # redirects there would restore the exact blindness it was added for,
+    # while still looking like a check.
+    # Sliced from the loop's own `for path in $FIRST_HOP_PATHS` line, not
+    # from the FIRST_HOP_PATHS assignment: that assignment sits ABOVE the
+    # original --location loop, so slicing there and taking the next
+    # "for host in" lands on the wrong loop and asserts against code this
+    # test is not about. Caught by this test failing against a correct
+    # script -- the same wrong-thing-measured shape it exists to prevent.
+    loop = body[body.index("for path in $FIRST_HOP_PATHS") :]
+    curls = re.findall(r"^\s*if got=\$\(curl[^\n]*", loop, re.M)
+    assert curls, "no curl found in the first-hop loop"
+    for call in curls:
+        assert "--location" not in call, (
+            "the first-hop check follows redirects, which defeats its only "
+            f"purpose: {call.strip()}"
+        )

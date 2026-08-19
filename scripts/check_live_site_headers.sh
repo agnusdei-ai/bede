@@ -41,9 +41,34 @@ HEADERS_FILE="site/_headers"
 # the other is how a half-configured custom domain goes unnoticed.
 HOSTS="${SITE_HOSTS:-https://agnusdei.ai https://agnusdei.io}"
 # "all pages", not just the root — the report that prompted this was about
-# every page. These are cheap and cover the three shapes: root, a sub-page,
-# and the demo under /bede/.
-PATHS="${SITE_PATHS:-/ /faq/ /privacy/}"
+# every page. These are cheap and cover the four shapes: root, a sub-page,
+# the privacy inventory, and the demo under /bede/.
+#
+# /bede/ was named in this comment from the beginning and was NOT in the
+# list until 2026-08-19 — the demo, the one path a prospective family
+# actually opens, was the only shape this gate claimed to cover and never
+# fetched.
+PATHS="${SITE_PATHS:-/ /faq/ /privacy/ /bede/}"
+
+# Paths checked WITHOUT following redirects, asserting the header set on the
+# very first response rather than on wherever it lands.
+#
+# `curl -I --location` above concatenates EVERY hop's headers into one blob,
+# and the grep that follows searches the whole blob — so a header present
+# only on the final 200 passes even when the redirect that preceded it
+# carried nothing at all. That is invisible by construction, and it is the
+# shape a trailing-slash redirect takes: /bede -> /bede/.
+#
+# It matters most for exactly the header this was added for. A redirect is
+# usually the FIRST response a browser sees, and hstspreload.org checks
+# every hop in the chain: a redirect without Strict-Transport-Security fails
+# preload eligibility, which site/_headers claims by carrying `preload`.
+#
+# Cloudflare does not apply _headers to responses it generates itself (see
+# the failure message at the bottom of this file), and a trailing-slash
+# redirect is generated rather than served from an asset — so this is not a
+# hypothetical.
+FIRST_HOP_PATHS="${SITE_FIRST_HOP_PATHS:-/bede}"
 ATTEMPTS="${ATTEMPTS:-10}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-30}"
 
@@ -103,6 +128,45 @@ for host in $HOSTS; do
       echo "OK   $url — all ${#EXPECTED[@]} headers present"
     else
       echo "FAIL $url — missing: ${missing[*]}"
+      failed=1
+    fi
+  done
+done
+
+# See FIRST_HOP_PATHS above: same assertion, on the first response only.
+for host in $HOSTS; do
+  for path in $FIRST_HOP_PATHS; do
+    url="${host}${path}"
+
+    got=""
+    for attempt in $(seq 1 "$ATTEMPTS"); do
+      # No --location, deliberately. That is the entire point of this loop.
+      if got=$(curl -sS -I --max-time 30 "$url" 2>/dev/null); then
+        break
+      fi
+      echo "  ($url unreachable, attempt $attempt/$ATTEMPTS)"
+      [ "$attempt" -lt "$ATTEMPTS" ] && sleep "$SLEEP_SECONDS"
+    done
+
+    if [ -z "$got" ]; then
+      echo "FAIL $url — unreachable after $ATTEMPTS attempts."
+      failed=1
+      continue
+    fi
+
+    status=$(printf '%s' "$got" | head -n1 | tr -d '\r')
+    lower=$(printf '%s' "$got" | tr '[:upper:]' '[:lower:]')
+    missing=()
+    for h in "${EXPECTED[@]}"; do
+      printf '%s' "$lower" | grep -qE "^${h}:" || missing+=("$h")
+    done
+
+    if [ "${#missing[@]}" -eq 0 ]; then
+      echo "OK   $url (first hop: $status) — all ${#EXPECTED[@]} headers present"
+    else
+      echo "FAIL $url (first hop: $status) — missing: ${missing[*]}"
+      echo "     This response is what a browser sees FIRST. If it is a 3xx,"
+      echo "     Cloudflare generated it and did not apply site/_headers."
       failed=1
     fi
   done

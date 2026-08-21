@@ -20,6 +20,7 @@ prompts/optional/            Opt-in, by name — see "Extending it" below.
   10-untrusted-content.md    For an agent reading anything it did not author.
 profiles/                    Filled-in placeholder sets for a real agent.
   openclaw.values.json       A starting point for OpenClaw. Read before using.
+  openclaw.runbook.md        Deploying packaged OpenClaw with this layer, in order.
 reference/
   governance.py / .ts        ~100-line builder: verify digest, assemble, resolve placeholders.
   parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
@@ -116,6 +117,27 @@ sending a stored token — is an input-validation bug in code that runs before
 any model sees anything. Credentials in plaintext on disk, an unauthenticated
 pairing flow, a missing sandbox, an unvetted skill marketplace: all of these
 are fixed in the deployment or not at all.
+
+## Deploying it
+
+`profiles/openclaw.runbook.md` connects the two halves: installing packaged
+OpenClaw and applying this layer, in the order that matters. Install, close the
+network surface **before anything listens**, cut the tool surface, pair
+deliberately, and only then render the prompt into the workspace `AGENTS.md`
+that OpenClaw loads at the start of every session.
+
+The ordering is the content. Steps 2-4 are enforcement and hold whatever the
+model does; step 5 shapes judgment and can be argued with. Installing the
+prompt while skipping the config produces something that feels governed and is
+not — which is why the runbook puts `gateway.bind: "loopback"` before anything
+about prompts.
+
+One trap worth naming here because it is silent:
+`agents.defaults.bootstrapMaxChars` defaults to 20,000 and oversized bootstrap
+files are **truncated on injection, not rejected**. A governance prompt that
+overflows loses its tail and nothing says which rules stopped loading. The
+rendered profile is ~12,200 characters, and the runbook has you check with
+`wc -c` after every edit.
 
 ## Profiles
 

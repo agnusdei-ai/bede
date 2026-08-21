@@ -1216,7 +1216,25 @@ defect — the published tool table lists `cron`, and the registry
 normalizes `cron` to `automations`, a permanent alias under their RFC 0026
 with the same contract as `bash` to `exec`. Reading the documentation
 alone would not have produced that, which is the argument for running a
-check against the real thing rather than a description of it.
+check against the real thing rather than a description of it. A later pass
+extended the same test to the deployment runbook's config keys, walking
+`buildConfigSchemaCore()` (4,451 keys) — a key that does not exist is
+accepted silently by a JSON5 config and does nothing, so the hardening step
+reads as done and is not.
+
+**`profiles/openclaw.runbook.md` connects installing packaged OpenClaw to
+applying this layer, and the ordering is the content.** Install, close the
+network surface before anything listens (`gateway.bind: "loopback"`), cut
+the tool surface (`tools.profile`, denying `gateway` and `sessions_spawn`,
+`workspaceOnly`, a sandbox — `exec` is host-first by default), pair
+deliberately, and only then render the prompt into the workspace
+`AGENTS.md` OpenClaw loads every session. Steps 2-4 are enforcement and
+hold whatever the model does; step 5 shapes judgment and can be argued
+with. One trap is named because it is silent:
+`agents.defaults.bootstrapMaxChars` defaults to 20,000 and oversized
+bootstrap files are TRUNCATED on injection, not rejected, so an overlong
+governance prompt loses its tail with nothing reporting which rules
+stopped loading.
 
 **The package states what it cannot do, which for this class of agent is
 most of it.** `README.md`'s coverage table maps each failure class to where

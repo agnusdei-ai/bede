@@ -294,6 +294,10 @@ story += section("8.  Optional blocks",
 story += section("9.  Profiles",
                  "profiles/ — every placeholder filled for one real agent",
                  [code_block(read("profiles/openclaw.values.json"))])
+story.append(PageBreak())
+story.append(Paragraph("Deployment runbook", h2))
+story.append(Paragraph('<font face="Courier" size="8.5">profiles/openclaw.runbook.md</font>', sub))
+story.extend(render_markdown(read("profiles/openclaw.runbook.md")))
 
 story += section("10.  Reference implementation",
                  "reference/ — a ~100-line builder in two runtimes, the constants, and the guards",

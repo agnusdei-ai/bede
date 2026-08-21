@@ -31,10 +31,29 @@ import { describe, expect, it } from "vitest";
 
 import { CORE_TOOL_GROUPS, isKnownCoreToolId } from "./tool-catalog.js";
 import { normalizeToolPolicyName } from "./tool-policy-shared.js";
+import { buildConfigSchemaCore } from "../config/schema.js";
 
 const PROFILE =
   process.env.GOVERNANCE_PROFILE ??
   "/home/user/bede/agent-governance/profiles/openclaw.values.json";
+const RUNBOOK = process.env.GOVERNANCE_RUNBOOK ?? PROFILE.replace("values.json", "runbook.md");
+
+/** Every config path the schema actually defines. */
+function schemaPaths(node: unknown, prefix = "", out = new Set<string>()): Set<string> {
+  if (!node || typeof node !== "object") return out;
+  const n = node as Record<string, any>;
+  const props = n.properties ?? n.fields ?? n.children;
+  if (props && typeof props === "object") {
+    for (const [key, value] of Object.entries<any>(props)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      out.add(path);
+      schemaPaths(value, path, out);
+      if (value?.additionalProperties) schemaPaths(value.additionalProperties, `${path}.*`, out);
+      if (value?.items) schemaPaths(value.items, path, out);
+    }
+  }
+  return out;
+}
 
 /** Identifiers the profile marks with backticks, minus non-tool notation. */
 function citedIdentifiers(): string[] {
@@ -78,5 +97,25 @@ describe("agent-governance OpenClaw profile", () => {
     const highRisk = ["exec", "write", "edit", "apply_patch", "message", "web_fetch", "gateway", "automations", "sessions_spawn", "skill_workshop"];
     const cited = new Set(citedIdentifiers().map((id) => normalizeToolPolicyName(id)));
     expect(highRisk.filter((id) => !cited.has(id))).toEqual([]);
+  });
+
+  it("cites only config keys this schema actually defines", () => {
+    // The runbook tells an operator to set these. A key that does not exist is
+    // accepted silently by a JSON5 config and simply does nothing, so the
+    // hardening step reads as done and is not.
+    // Never skip on a missing runbook: a silent pass for a check that never
+    // ran is the failure mode this whole file exists to avoid.
+    expect(existsSync(RUNBOOK)).toBe(true);
+    const known = schemaPaths((buildConfigSchemaCore() as { schema: unknown }).schema);
+    expect(known.size).toBeGreaterThan(500);
+    const cited = [
+      ...new Set(
+        [
+          ...readFileSync(RUNBOOK, "utf8").matchAll(/\b(?:gateway|tools|agents)\.[A-Za-z][A-Za-z0-9.*]*/g),
+        ].map((m) => m[0].replace(/\.$/, "")),
+      ),
+    ];
+    expect(cited.length).toBeGreaterThan(3);
+    expect(cited.filter((key) => !known.has(key))).toEqual([]);
   });
 });

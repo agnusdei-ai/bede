@@ -1131,6 +1131,154 @@ product actually does, so they get an extra human checkpoint the rest of the
 repo doesn't require. Everything else about the workflow (test first, open a
 PR with a real test plan, tell the user once merged) still applies.
 
+## The Governance Kit (`agent-governance/`, Apache-2.0)
+
+**The one directory in this repository that is not proprietary.** A generic
+extraction of Bede's own governance layer — the constitution pattern, the
+ethical-boundary block, an action-safety fork, operating rules, tool
+guidance, and the code backstops — with every product-specific thing removed
+and replaced by a `{{PLACEHOLDER}}`. It names no product, persona,
+trademark, curriculum, or domain content, which is what makes giving it away
+cost nothing: a reader of the public repository can already see the pattern,
+and nothing in it is specific to homeschooling, classical education, or
+children. Licensed to everyone under Apache-2.0 (`agent-governance/LICENSE`),
+carved out by name in the root `LICENSE`'s section 6, recorded as
+`docs/DECISIONS.md` entry 18. Section 5's trademark reservation still
+applies — the grant covers the prompts and code, never the "Bede" mark.
+
+**`prompts/*.md` carry no license header, deliberately.** `reference/
+governance.py` reads those files verbatim into the assembled system prompt,
+so an SPDX comment at the top of one would be shipped into the model's own
+context. Licensing lives in `LICENSE`, `NOTICE`, the README, and the SPDX
+headers on `reference/`'s sources — never in a file whose bytes become a
+prompt. Guarded from both sides:
+`agent-governance/reference/test_governance.py`'s
+`test_no_license_header_leaks_into_the_rendered_prompt` (which renders the
+real prompt and scans it) and `homeschool-api/tests/test_license_carveout.py`
+(which is the file someone actually edits when relicensing).
+
+**Self-contained, and it must stay that way.** The package imports nothing
+from `homeschool-api/`, and its 15 guards run as their own
+`agent-governance-tests` job in `.github/workflows/test.yml` — deliberately
+not coupled to that backend's lockfile install, since the package needs no
+backend dependency. The parent repository tests the *carve-out*
+(`test_license_carveout.py`, whose seven guards were each verified by
+breaking them); the package tests *itself*. A test in the package that
+reached back into this repo would break the moment someone vendored it,
+which is the whole point of the extraction.
+
+**Optional blocks are the extension seam, and they are off by default.**
+`prompts/` is always rendered; `prompts/optional/` is rendered only when a
+block is named (`render(values, extra_blocks=[...])`), because a rule that
+does not apply to an agent is prompt budget spent teaching it to worry about
+nothing, and every block dilutes the ones that do apply. Adding a block needs
+no code change — drop the file in, document any new placeholder — and
+`test_adding_a_block_needs_no_code_change` proves that by creating one,
+rendering, and removing it rather than by reading the glob.
+`10-untrusted-content.md` is the first optional block: inbound content as
+data never instruction (including notes the agent itself persisted and later
+reloads — the same trap `LessonBookmark` hit here), no secret emission even
+partially or encoded, no bulk export, no outbound data in a URL, preview,
+webhook, QR code or DNS lookup, and no self-modification of config, tools,
+or permissions. `limits.py`'s `wrap_untrusted()` is its enforceable half: the
+envelope cannot be closed from inside, which is the text equivalent of SQL
+injection and the likeliest way such a mechanism fails.
+
+**`profiles/` holds filled-in placeholder sets, and each says it is a
+starting point.** `openclaw.values.json` fills all 17 for a single-operator
+messaging agent, written against that project's documented model — the
+operator is the only principal, a message on a connected channel is a request
+from whoever sent it and never a grant of the operator's authority, skills are
+code someone else wrote. Its tool guidance names real tools (`apply_patch`, `exec`, `message`,
+`web_fetch`, `gateway`, `sessions_spawn`, `ask_user`, `skill_workshop`)
+read from that repository at a pinned commit and confirmed to appear in its
+`src/` rather than taken from its docs alone — a rule about "your shell
+tool" attaches to nothing a model can act on.
+`test_every_profile_fills_every_placeholder` renders each profile against
+every block and fails on any `{{PLACEHOLDER}}` left standing, since a
+half-filled profile reads to a model as literal text and to a reviewer as
+configured. A second guard requires the `_note` to admit it is not
+finished, and a third requires `_source` to cite a 40-character commit
+SHA: another project's tool names change, and a stale name in a governance
+prompt is worse than no rule, because the rule attaches to nothing while
+reading as though it does. Adding a profile is a file; all three guards
+pick it up automatically.
+
+**The OpenClaw profile was checked against that project's running
+registry, not just read off its docs.**
+`agent-governance/tools/verify_openclaw_profile.test.ts` imports their own
+`isKnownCoreToolId`/`normalizeToolPolicyName`/`CORE_TOOL_GROUPS` and asserts
+every tool the profile names exists. It runs by hand inside a clone of
+`openclaw/openclaw` (it imports their modules, so it cannot run in this
+repo's CI — same posture as `scripts/mcp_client_e2e_check.py`). Run
+2026-08-21 against commit `07c8b42a`: 4 passed, after catching one real
+defect — the published tool table lists `cron`, and the registry
+normalizes `cron` to `automations`, a permanent alias under their RFC 0026
+with the same contract as `bash` to `exec`. Reading the documentation
+alone would not have produced that, which is the argument for running a
+check against the real thing rather than a description of it. A later pass
+extended the same test to the deployment runbook's config keys, walking
+`buildConfigSchemaCore()` (4,451 keys) — a key that does not exist is
+accepted silently by a JSON5 config and does nothing, so the hardening step
+reads as done and is not.
+
+**`profiles/openclaw.runbook.md` is the operational runbook, and
+`profiles/openclaw.hardened.json5` is the config it copies** — a real file
+an operator puts at `~/.openclaw/openclaw.json` (JSON5 content, `.json`
+name), not prose they retype. The runbook's control table says what each
+key buys rather than restating the values, and the by-hand verifier checks
+the two agree: every key exists in the real schema, the config actually
+sets what the table promises, and the network surface is genuinely closed.
+Eight assertions, each verified by breaking it — including a drift the
+agreement check caught on its first run (`tools.exec.host` named in prose
+to explain a default, which is not the same as a control the config sets;
+the check now reads the table rows rather than every backticked key).
+
+**The ordering is the content.** Install, close the
+network surface before anything listens (`gateway.bind: "loopback"`), cut
+the tool surface (`tools.profile`, denying `gateway` and `sessions_spawn`,
+`workspaceOnly`, a sandbox — `exec` is host-first by default), pair
+deliberately, and only then render the prompt into the workspace
+`AGENTS.md` OpenClaw loads every session. Steps 2-4 are enforcement and
+hold whatever the model does; step 5 shapes judgment and can be argued
+with. One trap is named because it is silent:
+`agents.defaults.bootstrapMaxChars` defaults to 20,000 and oversized
+bootstrap files are TRUNCATED on injection, not rejected, so an overlong
+governance prompt loses its tail with nothing reporting which rules
+stopped loading.
+
+**The package states what it cannot do, which for this class of agent is
+most of it.** `README.md`'s coverage table maps each failure class to where
+it is handled, then says plainly that the largest documented failures of this
+kind — an unauthenticated port, a `gatewayUrl` taken from a query string,
+plaintext credentials, an unvetted skill marketplace — are fixed in the
+deployment or not at all. Shipping a governance prompt beside an
+unauthenticated port is the more dangerous outcome of the two, because the
+prompt makes the system feel governed.
+
+**`tools/build_pdf.py` is optional, and `dist/` is not committed.**
+It renders the whole package into one PDF by reading the package files
+directly, so the handout cannot drift from what it documents. A generated
+artifact in git is a fresh binary blob on every rebuild kept forever, so
+`dist/` is gitignored and the PDF is built on demand
+(`pip install reportlab && python3 tools/build_pdf.py`). Two defects worth
+not reintroducing, both found by rendering and looking rather than by
+reading the code: reportlab's `Preformatted` silently ignores `backColor`
+(only `Paragraph` paints it) and does not wrap, so an over-long prompt line
+was drawn straight past the page edge and lost. A Word builder existed
+briefly and was dropped as packaging that outweighed the package.
+
+**`governance.ts` could not run at all until a parity test existed.** It
+used `__dirname` in ESM scope, so importing it threw before reaching any
+assertion — the third time this repository has shipped code nothing ever
+invoked, after `bayesian_update`'s unpassed `params` and the MCP server's
+1.x decorator API. `reference/parity_check.ts` renders through the
+TypeScript builder and `test_the_typescript_builder_renders_exactly_what_python_does`
+diffs it byte for byte against the Python one, so the two cannot drift and
+neither can silently stop running. CI sets `BEDE_REQUIRE_NODE=1`, which
+turns that test's "node not installed" skip into a failure — without it, a
+runner that lost node would report a pass for a check that never ran.
+
 ## The Decision Register
 
 **[docs/DECISIONS.md](docs/DECISIONS.md)** carries one numbered entry per

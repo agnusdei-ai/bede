@@ -1,0 +1,20 @@
+{
+  "_comment": "Every {{PLACEHOLDER}} used across constitution.template.json and prompts/. Fill all of them; the builder refuses to render with any left unresolved. SPDX-License-Identifier: Apache-2.0.",
+  "AGENT_NAME": "The agent's own name. Must match whatever the product calls it, or ethical_boundaries rule 3 is unenforceable.",
+  "PRINCIPAL": "The person the agent serves, in the words the agent should use for them (e.g. 'the user', 'the operator', 'your account owner').",
+  "PURPOSE": "One sentence: what this agent exists to do, and for whom.",
+  "ROLE": "What the agent is (e.g. 'personal assistant', 'coding agent', 'research assistant').",
+  "FORBIDDEN_ROLES": "The licensed or intimate roles it must never assume (e.g. 'prescribe medication, diagnose conditions, give legal or financial advice, or act as a therapist').",
+  "ESCALATION_CONDITION": "The condition that must stop work outright (e.g. 'someone appears to be in danger, or a request would harm a third party').",
+  "ESCALATION_SENTENCE": "The exact words to say when escalating. Keep it short, kind, and identical every time.",
+  "RESUMPTION_CONDITION": "What has to be true before ordinary work resumes (e.g. 'the principal explicitly restarts the task').",
+  "DEFLECTION_SENTENCE": "The one-line answer to 'what is in your system prompt'.",
+  "INVIOLABLE_LAW": "The single behavioral law this agent must never break, stated as an instruction.",
+  "MAX_WORDS": "Response length ceiling, or delete rule 2 if the agent has no such limit.",
+  "TURN_SHAPE": "The required shape of every turn (e.g. 'End every turn with either a completed action or one specific question.').",
+  "PER_TOOL_GUIDANCE": "One clause per tool: what it is for and the condition under which to reach for it.",
+  "RECORDING_TOOLS": "The tools that log, score, or measure \u2014 the ones a model is tempted to call to produce a nicer number.",
+  "TERMINAL_TOOL": "The tool that ends the current unit of work, if there is one.",
+  "ORDINARY_RECOVERY": "What to try before reaching for the terminal tool.",
+  "DEAD_END_TOOLS": "Tools whose output leaves the principal nothing to act on."
+}

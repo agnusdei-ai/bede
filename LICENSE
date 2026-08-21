@@ -43,6 +43,16 @@ following terms:
    service, or in any way that implies endorsement by or affiliation with
    Agnus Dei Technologies, LLC without prior written consent.
 
+6. SEPARATELY LICENSED COMPONENT
+   The `agent-governance/` directory is NOT covered by this license. It is
+   a generic extraction — containing no Bede name, persona, trademark,
+   curriculum, or domain content — and is licensed to everyone under the
+   Apache License, Version 2.0, whose full text is at
+   `agent-governance/LICENSE`. Its terms govern that directory alone,
+   including its permissions to redistribute and to use commercially,
+   which the rest of this license withholds. Nothing there grants any
+   right to the "Bede" name or mark; section 5 continues to apply.
+
 All rights not expressly granted herein — including all copyright and
 trademark rights — are reserved by Agnus Dei Technologies, LLC.
 

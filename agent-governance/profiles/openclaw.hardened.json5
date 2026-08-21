@@ -1,0 +1,63 @@
+// Hardened OpenClaw configuration — copy to ~/.openclaw/openclaw.json
+// (JSON5 content, .json extension; or point OPENCLAW_CONFIG_PATH at it).
+//
+// SPDX-License-Identifier: Apache-2.0
+// Companion to profiles/openclaw.runbook.md. Every key here was verified
+// against the real config schema at commit 07c8b42a by walking
+// buildConfigSchemaCore() — see tools/verify_openclaw_profile.test.ts, which
+// fails if any key in this file does not exist.
+//
+// A STARTING POINT, NOT A DROP-IN. Two values are placeholders you must
+// change (gateway.auth.token, channels.*.allowFrom), and the right tool
+// profile depends on what this agent is for. Read the runbook first.
+{
+  gateway: {
+    // The single most valuable line in this file. A Gateway reachable from
+    // the network is the failure class no prompt touches.
+    bind: "loopback", // "auto" | "lan" | "loopback" | "custom" | "tailnet"
+    auth: {
+      token: "REPLACE-ME-32-bytes-of-randomness", // openssl rand -hex 32
+    },
+  },
+
+  tools: {
+    // "minimal" is session_status only; "coding" adds fs/runtime/web;
+    // "messaging" adds the channel and session tools. Pick the smallest one
+    // that lets this agent do its job.
+    profile: "messaging",
+
+    // gateway is the self-modification surface: denying it is what makes the
+    // prompt's self-modification rule enforceable rather than advisory.
+    // sessions_spawn bounds how far one compromised turn can spread.
+    // Deny canonical ids — an alias alone denies nothing (bash -> exec,
+    // cron -> automations).
+    deny: ["gateway", "sessions_spawn"],
+
+    fs: { workspaceOnly: true },
+    exec: { applyPatch: { workspaceOnly: true } },
+  },
+
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+
+      // exec is HOST-FIRST by default (this key defaults to "off"), so
+      // commands run on the host machine unless a sandbox is on.
+      sandbox: { mode: "non-main" }, // "off" | "non-main" | "all"
+
+      // AGENTS.md is where the governance prompt goes, and oversized
+      // bootstrap files are TRUNCATED on injection rather than rejected.
+      // The rendered profile is ~12,200 chars, so the default 20,000 fits —
+      // but AGENTS.md shares bootstrapTotalMaxChars with SOUL.md, USER.md,
+      // IDENTITY.md and the rest. Check with wc -c after every edit.
+      bootstrapMaxChars: 20000,
+      bootstrapTotalMaxChars: 60000,
+    },
+  },
+
+  channels: {
+    // DM-capable channels pair unknown senders by default. allowFrom is the
+    // list of people who may reach a machine with exec on it.
+    whatsapp: { allowFrom: ["+15555550123"] },
+  },
+}

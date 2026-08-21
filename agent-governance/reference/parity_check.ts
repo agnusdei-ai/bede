@@ -22,4 +22,10 @@ for (const key of Object.keys(documented)) {
   if (key !== "_comment") values[key] = `<${key}>`;
 }
 
-process.stdout.write(render(values, undefined, join(ROOT, "constitution.template.json")));
+const template = join(ROOT, "constitution.template.json");
+
+// Both renders: core-only, then core plus the optional block. A parity check
+// that only exercised the default path would let the opt-in branch drift.
+process.stdout.write(render(values, undefined, template));
+process.stdout.write("\n@@PARITY@@\n");
+process.stdout.write(render(values, undefined, template, ["10-untrusted-content"]));

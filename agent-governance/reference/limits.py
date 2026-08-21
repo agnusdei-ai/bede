@@ -13,6 +13,7 @@ counts to N — otherwise it is a suggestion.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -66,6 +67,32 @@ def assert_all_internal(specs: list[ToolSpec]) -> None:
     external = [s.name for s in specs if s.trust != "internal"]
     if external:
         raise RuntimeError(f"external-trust tools in the internal loop: {external}")
+
+
+#: Delimiters for the <untrusted_content> block's envelope. Content is DATA;
+#: this is the label that says so.
+_OPEN = '<untrusted source="{source}">'
+_CLOSE = "</untrusted>"
+
+
+def wrap_untrusted(source: str, text: str) -> str:
+    """Envelope content this process did not author.
+
+    Labelling, never sanitization — it does not make hostile text safe, it
+    makes its provenance legible so the prompt rules can apply to it. The one
+    real property enforced here is that the envelope cannot be forged from
+    inside: text containing its own closing tag would otherwise let an
+    attacker end the envelope early and continue as if trusted, which is the
+    text equivalent of SQL injection and the single most likely way this
+    mechanism fails. Both delimiters are neutralized in the payload, and the
+    source label is stripped of anything that could close the opening tag.
+
+    Truncation, redaction, and classification are separate concerns and
+    deliberately not done here; do them before calling this.
+    """
+    safe_source = re.sub(r'[<>"]', "", str(source))[:80] or "unknown"
+    body = text.replace(_CLOSE, "<\u200bunclosed>").replace("<untrusted", "<\u200buntrusted")
+    return f"{_OPEN.format(source=safe_source)}\n{body}\n{_CLOSE}"
 
 
 def within_cap(calls_executed_this_turn: int) -> bool:

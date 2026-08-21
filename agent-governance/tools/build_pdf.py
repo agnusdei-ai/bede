@@ -48,7 +48,32 @@ subtitle = ParagraphStyle("subtitle", parent=body, fontSize=12.5, leading=17,
                           alignment=TA_CENTER, textColor=colors.HexColor("#4A4A4A"))
 tiny = ParagraphStyle("tiny", parent=body, fontSize=8.6, alignment=TA_CENTER, textColor=colors.HexColor("#7A7A7A"))
 
+# reportlab's built-in Type 1 fonts (Courier, Helvetica) encode cp1252 only.
+# A character outside it is not dropped — it is drawn as a WRONG glyph, so a
+# box-drawing rule in a source comment silently rendered as a row of "I"s.
+# Anything outside the encodable set is mapped to a plain-ASCII stand-in here
+# rather than left to surprise the next person who pastes in a nice arrow.
+_GLYPH_FALLBACK = {
+    "\u2500": "-", "\u2501": "-", "\u2502": "|", "\u2503": "|",
+    "\u2192": "->", "\u2190": "<-", "\u21d2": "=>",
+    "\u2713": "v", "\u2717": "x", "\u2022": "*", "\u200b": "",
+}
+
+
+def renderable(t: str) -> str:
+    out = []
+    for ch in t:
+        try:
+            ch.encode("cp1252")
+        except UnicodeEncodeError:
+            out.append(_GLYPH_FALLBACK.get(ch, "?"))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def esc(t: str) -> str:
+    t = renderable(t)
     return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def inline(t: str) -> str:
@@ -77,7 +102,7 @@ def wrap_code(text: str, width: int) -> str:
     document must be able to tell the two apart.
     """
     out = []
-    for line in text.replace("\t", "    ").split("\n"):
+    for line in renderable(text).replace("\t", "    ").split("\n"):
         if len(line) <= width:
             out.append(line)
             continue
@@ -218,7 +243,7 @@ story += [
     Spacer(1, 1.5 * inch),
     Paragraph("Generated from agent-governance.tar.gz", tiny),
     Spacer(1, 0.08 * inch),
-    Paragraph("Licensed under the Apache License, Version 2.0 — see section 9", tiny),
+    Paragraph("Licensed under the Apache License, Version 2.0 — see section 10", tiny),
     PageBreak(),
 ]
 
@@ -230,8 +255,9 @@ TOC = [
     ("5", "prompts/03-action-safety.md", "Limits on actions the agent originates"),
     ("6", "prompts/04-operating-rules.md", "Honesty and turn-shape rules"),
     ("7", "prompts/05-tool-guidance.md", "How tools may be spent"),
-    ("8", "reference/", "governance.py · governance.ts · parity_check.ts · limits.py · test_governance.py"),
-    ("9", "LICENSE · NOTICE", "Apache License 2.0, and what it does not cover"),
+    ("8", "prompts/optional/", "Opt-in blocks — rendered only when named"),
+    ("9", "reference/", "governance.py · governance.ts · parity_check.ts · limits.py · test_governance.py"),
+    ("10", "LICENSE · NOTICE", "Apache License 2.0, and what it does not cover"),
 ]
 story.append(Paragraph("Contents", h1))
 story.append(Spacer(1, 0.18 * inch))
@@ -259,7 +285,12 @@ story += section("6.  Operating rules", "prompts/04-operating-rules.md",
 story += section("7.  Tool guidance", "prompts/05-tool-guidance.md",
                  [code_block(read("prompts/05-tool-guidance.md"))])
 
-story += section("8.  Reference implementation",
+story += section("8.  Optional blocks",
+                 "prompts/optional/ — off unless named in extra_blocks, so an agent is not "
+                 "governed by rules its own surface never meets",
+                 [code_block(read("prompts/optional/10-untrusted-content.md"))])
+
+story += section("9.  Reference implementation",
                  "reference/ — a ~100-line builder in two runtimes, the constants, and the guards",
                  [Paragraph(inline(
                      "The prompts are plain text and the constitution is plain JSON, so this layer is "
@@ -278,7 +309,7 @@ for fname, label in [
     story.append(Paragraph(f"<i>{esc(label)}</i>", sub))
     story.append(code_block(read(fname)))
 
-story += section("9.  Licensing", "NOTICE — attribution and scope",
+story += section("10.  Licensing", "NOTICE — attribution and scope",
                  [code_block(read("NOTICE"))])
 story.append(Paragraph("Apache License 2.0 — full text", h2))
 story.append(Paragraph(

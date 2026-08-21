@@ -1167,6 +1167,32 @@ breaking them); the package tests *itself*. A test in the package that
 reached back into this repo would break the moment someone vendored it,
 which is the whole point of the extraction.
 
+**Optional blocks are the extension seam, and they are off by default.**
+`prompts/` is always rendered; `prompts/optional/` is rendered only when a
+block is named (`render(values, extra_blocks=[...])`), because a rule that
+does not apply to an agent is prompt budget spent teaching it to worry about
+nothing, and every block dilutes the ones that do apply. Adding a block needs
+no code change — drop the file in, document any new placeholder — and
+`test_adding_a_block_needs_no_code_change` proves that by creating one,
+rendering, and removing it rather than by reading the glob.
+`10-untrusted-content.md` is the first optional block: inbound content as
+data never instruction (including notes the agent itself persisted and later
+reloads — the same trap `LessonBookmark` hit here), no secret emission even
+partially or encoded, no bulk export, no outbound data in a URL, preview,
+webhook, QR code or DNS lookup, and no self-modification of config, tools,
+or permissions. `limits.py`'s `wrap_untrusted()` is its enforceable half: the
+envelope cannot be closed from inside, which is the text equivalent of SQL
+injection and the likeliest way such a mechanism fails.
+
+**The package states what it cannot do, which for this class of agent is
+most of it.** `README.md`'s coverage table maps each failure class to where
+it is handled, then says plainly that the largest documented failures of this
+kind — an unauthenticated port, a `gatewayUrl` taken from a query string,
+plaintext credentials, an unvetted skill marketplace — are fixed in the
+deployment or not at all. Shipping a governance prompt beside an
+unauthenticated port is the more dangerous outcome of the two, because the
+prompt makes the system feel governed.
+
 **`tools/build_pdf.py` is optional, and `dist/` is not committed.**
 It renders the whole package into one PDF by reading the package files
 directly, so the handout cannot drift from what it documents. A generated

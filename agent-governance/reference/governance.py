@@ -80,6 +80,7 @@ def render(
     values: dict[str, str],
     blocks: list[str] | None = None,
     constitution_path: Path | None = None,
+    extra_blocks: list[str] | None = None,
 ) -> str:
     """Assemble the full governance preamble with placeholders resolved.
 
@@ -87,6 +88,14 @@ def render(
     template. It deliberately does NOT fall back to the template when
     constitution.json is absent — silently governing an agent with an
     unfilled template is the failure this whole package exists to prevent.
+
+    extra_blocks names files in prompts/optional/, which are OFF unless asked
+    for by name. They address surfaces not every agent has (untrusted inbound
+    content, outbound exfiltration channels), and a rule that does not apply
+    to your agent is prompt budget spent teaching it to worry about nothing.
+    Adding a block of your own needs no change to this function: drop the
+    file in prompts/ (always on) or prompts/optional/ (opt-in), and document
+    any new {{PLACEHOLDER}} in placeholders.json.
     """
     c = load_constitution(constitution_path)
     parts = [render_constitution_block(c)]
@@ -94,6 +103,11 @@ def render(
     for f in sorted(prompt_dir.glob("*.md")):
         if blocks is None or f.stem in blocks:
             parts.append(_read(f))
+    for name in extra_blocks or []:
+        f = prompt_dir / "optional" / f"{name}.md"
+        if not f.exists():
+            raise ConstitutionError(f"unknown optional block: {name}")
+        parts.append(_read(f))
     text = "\n\n".join(parts)
 
     def sub(m: re.Match) -> str:

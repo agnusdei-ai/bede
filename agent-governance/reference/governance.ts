@@ -5,7 +5,7 @@
 // block first and read-only.
 
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,6 +60,7 @@ export function render(
   values: Record<string, string>,
   blocks?: string[],
   constitutionPath?: string,
+  extraBlocks?: string[],
 ): string {
   // constitutionPath is injectable for tests. It deliberately does NOT fall
   // back to the template when constitution.json is absent.
@@ -69,6 +70,12 @@ export function render(
     if (!f.endsWith(".md")) continue;
     if (blocks && !blocks.includes(f.replace(/\.md$/, ""))) continue;
     parts.push(readFileSync(join(dir, f), "utf8").trim());
+  }
+  // prompts/optional/ is off unless named — see governance.py's render().
+  for (const name of extraBlocks ?? []) {
+    const f = join(dir, "optional", `${name}.md`);
+    if (!existsSync(f)) throw new ConstitutionError(`unknown optional block: ${name}`);
+    parts.push(readFileSync(f, "utf8").trim());
   }
   const rendered = parts.join("\n\n").replace(PLACEHOLDER, (_m, key: string) => {
     if (!(key in values)) throw new ConstitutionError(`unresolved placeholder: {{${key}}}`);

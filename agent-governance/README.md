@@ -11,11 +11,13 @@ a `{{PLACEHOLDER}}`.
 ```
 constitution.template.json   The immutable layer. Copy to constitution.json, fill in, hash it.
 placeholders.json            Every placeholder, documented. The builder refuses to leave one unresolved.
-prompts/
+prompts/                     Always rendered.
   02-ethical-boundaries.md   What the agent is not, and what stops it.
   03-action-safety.md        Limits on actions the agent itself originates.
   04-operating-rules.md      Honesty and turn-shape rules.
   05-tool-guidance.md        How tools may be spent.
+prompts/optional/            Opt-in, by name — see "Extending it" below.
+  10-untrusted-content.md    For an agent reading anything it did not author.
 reference/
   governance.py / .ts        ~100-line builder: verify digest, assemble, resolve placeholders.
   parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
@@ -48,6 +50,63 @@ content can be handed to someone who will not clone a repository:
 the document cannot drift from the package — change a prompt, re-run it, and
 the handout matches. `dist/` is deliberately **not** committed: a generated
 artifact in git is a fresh binary blob on every rebuild, kept forever.
+
+## Extending it
+
+Adding a block needs no code change. Drop a file in `prompts/` (always on) or
+`prompts/optional/` (rendered only when named), document any new
+`{{PLACEHOLDER}}` in `placeholders.json`, and that is the whole procedure —
+`test_adding_a_block_needs_no_code_change` proves it by creating a block,
+rendering, and removing it.
+
+```python
+render(values, extra_blocks=["10-untrusted-content"])   # core + one optional
+```
+
+Optional blocks are off by default on purpose. A rule that does not apply to
+your agent is prompt budget spent teaching it to worry about nothing, and
+every block dilutes the ones that do apply. Take what your agent's actual
+surface calls for.
+
+## What this covers when the agent reads untrusted input
+
+`prompts/optional/10-untrusted-content.md` exists because of a specific,
+well-documented class of failure: personal agents wired to messaging apps and
+given shell access. Through 2026, OpenClaw accumulated 138 CVEs and, at one
+count, [40,000+ internet-exposed instances](https://www.infosecurity-magazine.com/news/researchers-40000-exposed-openclaw/),
+most with authentication disabled. Independent researchers demonstrated
+[prompt injection and data exfiltration](https://thehackernews.com/2026/03/openclaw-ai-agent-flaws-could-enable.html)
+through ordinary inbound messages, and PromptArmor showed link-preview
+metadata working as an exfiltration channel — the agent is induced to build an
+attacker-controlled URL, and the preview fetch delivers the payload.
+
+| Failure class | This package | Where |
+| --- | --- | --- |
+| Direct injection: "ignore previous instructions", persona override | Covered | `02` rules 3-4 |
+| Indirect injection: web pages, files, email HTML, skill manifests | Covered | `10`, plus `wrap_untrusted()` |
+| Persisted-note injection: text the agent wrote and later reloads | Covered | `10` |
+| Secret extraction, including partial or encoded | Covered | `10` |
+| Bulk export of history, contacts, credential stores | Covered | `10` |
+| Outbound exfiltration via URL, preview, webhook, QR, DNS | Covered | `10` |
+| Self-modification: config patch, permission widening, skill install | Covered | `10`, `03` |
+| Unbounded tool loops and runaway action counts | Covered | `limits.py` |
+| External tools reachable from a sensitive loop | Covered | `assert_all_internal()` |
+
+**What it cannot cover, and no prompt can.** The largest OpenClaw failures
+were never behavioural. A web interface listening on `0.0.0.0:8080` with
+authentication off is not persuaded by a system prompt.
+[CVE-2026-25253](https://www.betterclaw.io/blog/openclaw-security-2026) —
+taking a `gatewayUrl` from a query string, opening a WebSocket to it and
+sending a stored token — is an input-validation bug in code that runs before
+any model sees anything. Credentials in plaintext on disk, an unauthenticated
+pairing flow, a missing sandbox, an unvetted skill marketplace: all of these
+are fixed in the deployment or not at all.
+
+So treat this package as the layer that governs the agent's own judgment once
+it is running, not as a mitigation for how it is exposed. Shipping it beside
+an unauthenticated port would be the more dangerous outcome of the two,
+because the prompt makes the system feel governed. Layer 6 is where the
+enforceable part lives — and even that stops at the process boundary.
 
 ## The six layers, and which ones carry weight
 

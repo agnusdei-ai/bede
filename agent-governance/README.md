@@ -26,6 +26,8 @@ reference/
   limits.py                  The constants a prompt cannot argue with.
   test_governance.py         Guards, each verified by breaking what it guards.
 tools/build_pdf.py           Builds the whole package into one PDF (optional).
+tools/verify_openclaw_profile.test.ts
+                             Checks the profile against OpenClaw's real registry. By hand.
 LICENSE / NOTICE             Apache-2.0. Use it, ship it, change it — see below.
 ```
 
@@ -123,6 +125,20 @@ the only principal, a message on a connected channel is a request from whoever
 sent it and never a grant of the operator's authority, and skills are code
 someone else wrote. It renders at roughly 3,200 tokens with the
 untrusted-content block included.
+
+**The profile has been checked against the running registry, not just read
+off the docs.** `tools/verify_openclaw_profile.test.ts` is a vitest test that
+imports OpenClaw's own `isKnownCoreToolId`, `normalizeToolPolicyName`, and
+`CORE_TOOL_GROUPS` and asserts every tool the profile names actually exists.
+It runs inside a clone of that repository, by hand — it imports their modules,
+so it cannot run in this package's CI, and pretending otherwise would be worse
+than saying so. Last run 2026-08-21 against `07c8b42a`: 4 passed.
+
+That run earned itself immediately. The published tool table lists `cron` in
+`group:automation`, and the registry normalizes `cron` to `automations` — a
+permanent alias under their RFC 0026, the same contract as `bash` to `exec`.
+The profile now names the canonical id and the alias, which reading the
+documentation alone would not have produced.
 
 Its tool guidance names **real tools**, not categories — `read`/`write`/`edit`/
 `apply_patch`, `exec` (with `bash` as its alias), `message`, `web_fetch`,

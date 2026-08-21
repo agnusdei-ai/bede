@@ -1204,6 +1204,20 @@ prompt is worse than no rule, because the rule attaches to nothing while
 reading as though it does. Adding a profile is a file; all three guards
 pick it up automatically.
 
+**The OpenClaw profile was checked against that project's running
+registry, not just read off its docs.**
+`agent-governance/tools/verify_openclaw_profile.test.ts` imports their own
+`isKnownCoreToolId`/`normalizeToolPolicyName`/`CORE_TOOL_GROUPS` and asserts
+every tool the profile names exists. It runs by hand inside a clone of
+`openclaw/openclaw` (it imports their modules, so it cannot run in this
+repo's CI — same posture as `scripts/mcp_client_e2e_check.py`). Run
+2026-08-21 against commit `07c8b42a`: 4 passed, after catching one real
+defect — the published tool table lists `cron`, and the registry
+normalizes `cron` to `automations`, a permanent alias under their RFC 0026
+with the same contract as `bash` to `exec`. Reading the documentation
+alone would not have produced that, which is the argument for running a
+check against the real thing rather than a description of it.
+
 **The package states what it cannot do, which for this class of agent is
 most of it.** `README.md`'s coverage table maps each failure class to where
 it is handled, then says plainly that the largest documented failures of this

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 Agnus Dei Technologies, LLC
+// Copyright 2026 Adapt Cloud
 // TypeScript port of governance.py — same three properties: verify the
 // digest at boot, refuse to render an unresolved placeholder, constitution
 // block first and read-only.

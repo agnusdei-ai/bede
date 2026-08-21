@@ -48,8 +48,9 @@ Dei Technologies, LLC.
 
 **One directory is an exception.** [`agent-governance/`](agent-governance/)
 is a generic extraction of Bede's governance layer — no product name,
-persona, trademark, or curriculum — licensed to everyone under the Apache
-License, Version 2.0, including for commercial use and redistribution. The
+persona, trademark, or curriculum — published by Adapt Cloud and licensed to
+everyone under the Apache License, Version 2.0, including for commercial use
+and redistribution. The
 carve-out is stated in [LICENSE](LICENSE) section 6 and the reasoning in
 [docs/DECISIONS.md](docs/DECISIONS.md) entry 18. It grants no trademark
 rights.

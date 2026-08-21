@@ -1,5 +1,5 @@
 // Hardened OpenClaw configuration — copy to ~/.openclaw/openclaw.json
-// (JSON5 content, .json extension; or point OPENCLAW_CONFIG_PATH at it).
+// JSON5 content with a .json extension. Or point OPENCLAW_CONFIG_PATH at it.
 //
 // SPDX-License-Identifier: Apache-2.0
 // Companion to profiles/openclaw.runbook.md. Every key here was verified
@@ -21,13 +21,13 @@
   },
 
   tools: {
-    // "minimal" is session_status only; "coding" adds fs/runtime/web;
+    // "minimal" gives session_status only. "coding" adds fs/runtime/web, and
     // "messaging" adds the channel and session tools. Pick the smallest one
     // that lets this agent do its job.
     profile: "messaging",
 
     // gateway is the self-modification surface: denying it is what makes the
-    // prompt's self-modification rule enforceable rather than advisory.
+    // prompt's self-modification rule enforceable instead of advisory.
     // sessions_spawn bounds how far one compromised turn can spread.
     // Deny canonical ids — an alias alone denies nothing (bash -> exec,
     // cron -> automations).
@@ -46,7 +46,7 @@
       sandbox: { mode: "non-main" }, // "off" | "non-main" | "all"
 
       // AGENTS.md is where the governance prompt goes, and oversized
-      // bootstrap files are TRUNCATED on injection rather than rejected.
+      // bootstrap files are TRUNCATED on injection instead of rejected.
       // The rendered profile is ~12,200 chars, so the default 20,000 fits —
       // but AGENTS.md shares bootstrapTotalMaxChars with SOUL.md, USER.md,
       // IDENTITY.md and the rest. Check with wc -c after every edit.

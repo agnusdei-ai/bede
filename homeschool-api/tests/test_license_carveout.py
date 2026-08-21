@@ -44,6 +44,30 @@ def test_the_root_license_carves_the_package_out_by_name():
     assert "Apache License, Version 2.0" in text
 
 
+def test_one_copyright_holder_across_the_whole_package():
+    """The holder now appears in the NOTICE, in every shipped source header,
+    and in the root LICENSE's carve-out. A rename that reached some of those
+    and not the others would leave the grant naming two different licensors,
+    which is worse than a stale comment: it is ambiguity in the document that
+    conveys rights."""
+    holder = "Adapt Cloud"
+    notice = (_PKG / "NOTICE").read_text()
+    assert f"Copyright 2026 {holder}" in notice
+
+    sources = sorted((_PKG / "reference").glob("*.py")) + \
+        sorted((_PKG / "reference").glob("*.ts")) + \
+        sorted((_PKG / "tools").glob("*.ts")) + \
+        sorted((_PKG / "tools").glob("*.sh"))
+    assert len(sources) >= 6, "no shipped sources found; this guard would be empty"
+    for source in sources:
+        head = "\n".join(source.read_text(encoding="utf-8").splitlines()[:4])
+        assert f"Copyright 2026 {holder}" in head, source.name
+
+    assert holder in _ROOT_LICENSE.read_text(), (
+        "The root LICENSE carve-out no longer names the package's publisher."
+    )
+
+
 def test_the_carveout_preserves_the_trademark_reservation():
     """A permissive grant on the prompts must never read as a grant on the
     name. The package's own NOTICE says the same thing from its side."""

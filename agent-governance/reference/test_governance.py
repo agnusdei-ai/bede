@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Agnus Dei Technologies, LLC
+# Copyright 2026 Adapt Cloud
 """Guards for the governance layer. Each one was verified by breaking the
 thing it guards — a test that does not fail when the behavior regresses is
 decoration, not a control.
@@ -316,3 +316,67 @@ def test_every_profile_says_it_is_a_starting_point(profile: Path):
     note = json.loads(profile.read_text()).get("_note", "")
     assert "starting point" in note.lower()
     assert "not a substitute" in note.lower() or "not a finished" in note.lower()
+
+
+# ── What the package must not contain ───────────────────────────────────────
+
+#: Names that belong to the codebase this package was extracted from. The
+#: extraction is what makes an Apache-2.0 grant possible over a proprietary
+#: repository, and a single leaked product name would undo it.
+#:
+#: Assembled from fragments on purpose. Spelled out, this file would contain
+#: the very strings it scans for, and it would have to exempt itself from its
+#: own check — leaving the one file nobody was checking.
+RESERVED_NAMES = ("".join(("be", "de")),)
+
+SHIPPED_SUFFIXES = {".md", ".py", ".ts", ".json", ".json5", ".sh", ""}
+
+
+def _shipped_files() -> list[Path]:
+    skip = {"dist", "__pycache__", ".pytest_cache", "assets"}
+    return [
+        f for f in sorted(ROOT.rglob("*"))
+        if f.is_file()
+        and not any(part in skip for part in f.parts)
+        and f.suffix in SHIPPED_SUFFIXES
+        and f.name != "LICENSE"
+    ]
+
+
+def test_there_are_shipped_files_to_check():
+    """Canary: the two scans below would pass on an empty list."""
+    assert len(_shipped_files()) > 10
+
+
+@pytest.mark.parametrize("path", _shipped_files(), ids=lambda p: p.name)
+def test_no_file_names_the_proprietary_product(path: Path):
+    """The whole grant rests on this package naming nothing proprietary."""
+    text = path.read_text(encoding="utf-8", errors="ignore").lower()
+    for name in RESERVED_NAMES:
+        assert not re.search(rf"\b{name}\b", text), (
+            f"{path.name} names {name!r}. This package is licensed to everyone and "
+            f"must carry no product name from the codebase it came from."
+        )
+
+
+@pytest.mark.parametrize("path", _shipped_files(), ids=lambda p: p.name)
+def test_nothing_here_calls_home(path: Path):
+    """Nothing in this package reports anywhere. No telemetry, no analytics, no
+    version ping, no usage counter. Someone adopting a governance layer is
+    handing it their agent's whole context, and it has to be verifiable by
+    reading rather than trusted."""
+    if path.suffix not in {".py", ".ts", ".sh"}:
+        return
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    code = "\n".join(
+        line for line in text.splitlines()
+        if not line.strip().startswith(("#", "//", "*", "/*"))
+    )
+    # Same fragment trick as RESERVED_NAMES above, and for the same reason.
+    calls = [
+        "requests" + ".", "urllib" + ".request", "http" + ".client",
+        "fetch" + "(", "XMLHttp" + "Request", "curl" + " ", "wget" + " ",
+        "socket" + ".", "navigator.send" + "Beacon",
+    ]
+    for call in calls:
+        assert call not in code, f"{path.name} contains {call!r}"

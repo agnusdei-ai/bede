@@ -15,6 +15,8 @@ from reportlab.platypus import (
     BaseDocTemplate, Frame, PageBreak, PageTemplate, Paragraph, Preformatted,
     Spacer, KeepTogether, Table, TableStyle,
 )
+from reportlab.platypus import Image as RLImage
+from reportlab.platypus.flowables import HRFlowable
 
 PKG = Path(__file__).resolve().parent.parent
 OUT = PKG / "dist" / "Agent-Governance-Prompts.pdf"
@@ -76,21 +78,50 @@ def esc(t: str) -> str:
     t = renderable(t)
     return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+
+_LINK_RE = re.compile(r'<link href="[^"]+"><font color="#2A5DA0">[^<]*</font></link>')
+
+LINK = colors.HexColor("#2A5DA0")
+
+
 def inline(t: str) -> str:
-    """**bold** and `code` -> reportlab markup, everything else escaped."""
+    """**bold**, *italic*, `code` and [text](url) -> reportlab markup.
+
+    Links were rendering as their raw markdown source, which reads as a
+    typo in a finished document and hides the URL behind punctuation.
+    """
+    t = re.sub(
+        r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+        lambda m: f'<link href="{m.group(2)}"><font color="#2A5DA0">{m.group(1)}</font></link>',
+        t,
+    )
+    # Stash finished link markup so the escaper below leaves it alone.
+    stash: list[str] = []
+
+    def _park(m: re.Match) -> str:
+        stash.append(m.group(0))
+        return f"\x00{len(stash) - 1}\x00"
+
+    t = _LINK_RE.sub(_park, t)
+
     out, last = [], 0
     for m in re.finditer(r"(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)", t):
         out.append(esc(t[last:m.start()]))
         tok = m.group(0)
         if tok.startswith("**"):
-            out.append(f"<b>{esc(tok[2:-2])}</b>")
+            # Bold can contain code spans; formatting the inner text rather
+            # than escaping it is what stops literal backticks reaching the page.
+            out.append(f"<b>{inline(tok[2:-2])}</b>")
         elif tok.startswith("*"):
             out.append(f"<i>{esc(tok[1:-1])}</i>")
         else:
             out.append(f'<font face="Courier" size="9">{esc(tok[1:-1])}</font>')
         last = m.end()
     out.append(esc(t[last:]))
-    return "".join(out)
+    rendered = "".join(out)
+    for i, link in enumerate(stash):
+        rendered = rendered.replace(f"\x00{i}\x00", link)
+    return rendered
 
 def wrap_code(text: str, width: int) -> str:
     """Hard-wrap long lines so nothing runs off the page.
@@ -160,10 +191,24 @@ def md_table(rows: list[str]):
     avail = LETTER[0] - 2 * inch
     # weight columns by their longest cell so a narrow "#" column stays narrow
     weights = [max(len(r[c]) for r in parsed) or 1 for c in range(ncols)]
-    total = sum(weights)
-    widths = [max(0.5 * inch, avail * w / total) for w in weights]
-    scale = avail / sum(widths)
-    widths = [w * scale for w in widths]
+    widths = [avail * w / sum(weights) for w in weights]
+
+    # A dotted config key broken across lines reads as two keys and can be
+    # copied wrong, so column 0 gets the width its longest code span needs.
+    # This has to happen AFTER the proportional split, not before: an earlier
+    # cut applied the minimum first and the rescale below silently undid it.
+    CODE_PT = 9  # the size inline() renders a code span at
+    longest = max(
+        (len(m) for row in parsed for m in re.findall(r"`([^`]+)`", row[0])), default=0
+    )
+    needed = longest * CODE_PT * 0.6 + 16
+    if ncols > 1 and needed > widths[0] and needed < avail * 0.55:
+        deficit = needed - widths[0]
+        widths[0] = needed
+        rest = sum(widths[1:])
+        widths[1:] = [w - deficit * (w / rest) for w in widths[1:]]
+
+    widths[-1] += avail - sum(widths)  # absorb rounding
     t = Table(data, colWidths=widths, hAlign="LEFT")
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NAVY),
@@ -180,6 +225,15 @@ def md_table(rows: list[str]):
 
 
 def render_markdown(md: str) -> list:
+    # HTML comments are markup, not content — an SPDX header rendered as body
+    # text is the file's licence leaking onto the page.
+    md = re.sub(r"<!--.*?-->", "", md, flags=re.S)
+    # Layout tags are markup too. A README that positions an image with <img>
+    # renders that tag as a line of body text here, which is worse than simply
+    # not showing the picture — the PDF has its own contributors page for it.
+    # Deliberately a short, named list: an XML-ish tag in a prompt block (for
+    # example <untrusted source="...">) is CONTENT and must survive.
+    md = re.sub(r"</?(?:img|br|div|span|p|hr)\b[^>]*>", "", md, flags=re.S)
     flow, lines, i = [], md.split("\n"), 0
     while i < len(lines):
         line = lines[i]
@@ -203,14 +257,33 @@ def render_markdown(md: str) -> list:
             flow.append(Paragraph(inline(re.sub(r"^#+\s*", "", line)), style))
             i += 1
             continue
-        if re.match(r"^[-*] ", line):
-            flow.append(Paragraph(inline(re.sub(r"^[-*]\s*", "", line)), bullet, bulletText="•"))
+        if re.fullmatch(r"-{3,}|\*{3,}|_{3,}", line.strip()):
+            flow.append(HRFlowable(width="100%", thickness=0.5, color=RULE,
+                                   spaceBefore=8, spaceAfter=10))
             i += 1
+            continue
+        if re.match(r"^[-*] ", line):
+            # Gather continuation lines: a wrapped bullet is one bullet, not a
+            # bullet followed by an orphan paragraph.
+            buf = [re.sub(r"^[-*]\s*", "", line)]
+            i += 1
+            while i < len(lines) and lines[i].strip() and not re.match(
+                r"^([-*] |\d+\. |#{1,4} |\||```|-{3,}$)", lines[i]
+            ):
+                buf.append(lines[i].strip())
+                i += 1
+            flow.append(Paragraph(inline(" ".join(buf)), bullet, bulletText="•"))
             continue
         if re.match(r"^\d+\. ", line):
             num = re.match(r"^(\d+)\.", line).group(1)
-            flow.append(Paragraph(inline(re.sub(r"^\d+\.\s*", "", line)), bullet, bulletText=f"{num}."))
+            buf = [re.sub(r"^\d+\.\s*", "", line)]
             i += 1
+            while i < len(lines) and lines[i].strip() and not re.match(
+                r"^([-*] |\d+\. |#{1,4} |\||```|-{3,}$)", lines[i]
+            ):
+                buf.append(lines[i].strip())
+                i += 1
+            flow.append(Paragraph(inline(" ".join(buf)), bullet, bulletText=f"{num}."))
             continue
         if not line.strip():
             i += 1
@@ -291,6 +364,17 @@ story += section("8.  Optional blocks",
                  "governed by rules its own surface never meets",
                  [code_block(read("prompts/optional/10-untrusted-content.md"))])
 
+story.append(PageBreak())
+story.append(Paragraph("Installer", h1))
+story.append(Paragraph('<font face="Courier" size="8.5">tools/harden-openclaw.sh</font>', sub))
+story.extend(render_markdown(
+    "One command for someone who would rather not read the runbook first. It "
+    "writes a hardened configuration with a fresh access token, installs the "
+    "governance prompt where OpenClaw reads it, checks its own work, and stops "
+    "with an error if the result is not actually hardened. It backs up anything "
+    "it replaces and is safe to run twice.\n\n```bash\nbash tools/harden-openclaw.sh\n```"))
+story.append(code_block(read("tools/harden-openclaw.sh"), size=6.6))
+
 story += section("9.  Profiles",
                  "profiles/ — every placeholder filled for one real agent",
                  [code_block(read("profiles/openclaw.values.json"))])
@@ -321,6 +405,39 @@ for fname, label in [
     story.append(Paragraph(f'<font face="Courier">{esc(fname)}</font>', h2))
     story.append(Paragraph(f"<i>{esc(label)}</i>", sub))
     story.append(code_block(read(fname)))
+
+# ---- Contributors ----
+_photo = PKG / "assets" / "contributor.jpg"
+if _photo.exists():
+    story.append(PageBreak())
+    story.append(Paragraph("Contributors", h1))
+    story.append(Paragraph(
+        '<font face="Courier" size="8.5">assets/contributor.jpg</font>', sub))
+    _img = RLImage(str(_photo), width=1.35 * inch, height=1.35 * inch)
+    _img.hAlign = "LEFT"
+    _bio = [
+        Paragraph("<b>JK Gonzalez</b> — security practitioner", body),
+        Paragraph(
+            "Commissioned this package, reviewed every layer of it, and is putting it in "
+            "front of a real OpenClaw deployment. The direction that shaped it came from "
+            "practice rather than theory: check the running registry instead of the "
+            "documentation, ship the config instead of describing it, and say plainly "
+            "which failures a prompt cannot touch.", body),
+    ]
+    # Leave a few points of slack: reportlab's own cell padding pushed an
+    # exact-width table past the frame by 6pt, which the overflow check caught.
+    _avail = (LETTER[0] - 2 * inch) - 10
+    _t = Table([[_img, _bio]], colWidths=[1.55 * inch, _avail - 1.55 * inch],
+               hAlign="LEFT")
+    _t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0),
+        ("LEFTPADDING", (1, 0), (1, 0), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    story.append(_t)
 
 story += section("11.  Licensing", "NOTICE — attribution and scope",
                  [code_block(read("NOTICE"))])

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 Agnus Dei Technologies, LLC
+// Copyright 2026 Adapt Cloud
 /**
  * Verifies profiles/openclaw.values.json against OpenClaw's real tool registry.
  *
@@ -13,7 +13,7 @@
  *   pnpm vitest run src/agents/governance-profile-tool-names.test.ts \
  *     --config test/vitest/vitest.agents-core.config.ts
  *
- * Point GOVERNANCE_PROFILE at the profile if it is not at the default path.
+ * Point GOVERNANCE_DIR at the agent-governance directory before running it.
  *
  * Last run: 2026-08-21 against commit 07c8b42a71b0856f3a822ca641322a1aa0a49f3c,
  * 4 passed. That run is what caught `cron` being an alias whose canonical id
@@ -27,15 +27,25 @@
  *
  */
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CORE_TOOL_GROUPS, isKnownCoreToolId } from "./tool-catalog.js";
 import { normalizeToolPolicyName } from "./tool-policy-shared.js";
 import { buildConfigSchemaCore } from "../config/schema.js";
 
+// No default path: this test runs inside a clone of openclaw/openclaw, so it
+// cannot guess where the governance package lives. Point GOVERNANCE_DIR at it.
+//
+//   GOVERNANCE_DIR=/path/to/agent-governance pnpm vitest run ...
+const GOVERNANCE_DIR = process.env.GOVERNANCE_DIR;
+if (!GOVERNANCE_DIR && !process.env.GOVERNANCE_PROFILE) {
+  throw new Error(
+    "set GOVERNANCE_DIR to the agent-governance directory, or GOVERNANCE_PROFILE to the profile file",
+  );
+}
 const PROFILE =
-  process.env.GOVERNANCE_PROFILE ??
-  "/home/user/bede/agent-governance/profiles/openclaw.values.json";
+  process.env.GOVERNANCE_PROFILE ?? join(GOVERNANCE_DIR!, "profiles", "openclaw.values.json");
 const RUNBOOK = process.env.GOVERNANCE_RUNBOOK ?? PROFILE.replace("values.json", "runbook.md");
 const CONFIG = process.env.GOVERNANCE_CONFIG ?? PROFILE.replace("values.json", "hardened.json5");
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Agnus Dei Technologies, LLC
+# Copyright 2026 Adapt Cloud
 """The layer a prompt cannot argue with.
 
 Every rule in prompts/ is text that a sufficiently motivated input can talk
@@ -46,7 +46,7 @@ class ToolSpec:
                          this process.
     trust="external"  -> result contains content this process did not
                          author (a web page, a third-party API, an MCP
-                         server). Must never be reachable from a loop that
+                         server). Never make one reachable from a loop that
                          speaks to an untrusted or vulnerable audience.
     """
 
@@ -78,17 +78,18 @@ _CLOSE = "</untrusted>"
 def wrap_untrusted(source: str, text: str) -> str:
     """Envelope content this process did not author.
 
-    Labelling, never sanitization — it does not make hostile text safe, it
-    makes its provenance legible so the prompt rules can apply to it. The one
-    real property enforced here is that the envelope cannot be forged from
-    inside: text containing its own closing tag would otherwise let an
-    attacker end the envelope early and continue as if trusted, which is the
-    text equivalent of SQL injection and the single most likely way this
-    mechanism fails. Both delimiters are neutralized in the payload, and the
-    source label is stripped of anything that could close the opening tag.
+    This is labelling, never sanitization. It does not make hostile text
+    safe. It makes the text's provenance legible so the prompt rules can
+    apply to it. The one real property enforced here is that the envelope
+    cannot be forged from inside. Text containing its own closing tag would
+    otherwise let an attacker end the envelope early and continue as though
+    trusted, which is the text equivalent of SQL injection and the single most
+    likely way this mechanism fails. Both delimiters are neutralized in the
+    payload, and the source label is stripped of anything that could close the
+    opening tag.
 
-    Truncation, redaction, and classification are separate concerns and
-    deliberately not done here; do them before calling this.
+    Truncation, redaction, and classification are separate concerns, and this
+    function deliberately leaves them alone. Do them before calling it.
     """
     safe_source = re.sub(r'[<>"]', "", str(source))[:80] or "unknown"
     body = text.replace(_CLOSE, "<\u200bunclosed>").replace("<untrusted", "<\u200buntrusted")
@@ -97,5 +98,5 @@ def wrap_untrusted(source: str, text: str) -> str:
 
 def within_cap(calls_executed_this_turn: int) -> bool:
     """Check BEFORE executing, never after. The point is that the expensive
-    or irreversible thing does not happen, not that it is logged once it has."""
+    or irreversible thing never happens, rather than being logged once it has."""
     return calls_executed_this_turn < MAX_TOOL_CALLS_PER_TURN

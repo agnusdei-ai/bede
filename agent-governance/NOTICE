@@ -1,5 +1,5 @@
 Agent Governance Prompts
-Copyright 2026 Agnus Dei Technologies, LLC
+Copyright 2026 Adapt Cloud
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use these files except in compliance with the License. You may obtain a copy
@@ -17,9 +17,14 @@ the License.
 
 This package is a generic extraction. It contains no product name, persona,
 trademark, or domain content from the codebase it was extracted from, and it
-grants no rights to any trademark of Agnus Dei Technologies, LLC.
+grants no rights to any trademark of Adapt Cloud or of the company whose
+codebase it was extracted from.
 
-The prompt text here is a starting point, not a warranty. Governing an agent
-that takes real actions is the deployer's responsibility: fill every
-placeholder deliberately, port the code backstops as well as the prose, and
-verify each guard by breaking the thing it guards.
+It reports nothing anywhere. No telemetry, no analytics, no version check, no
+usage data. Both properties are enforced by tests in reference/, not left as a
+claim in this file.
+
+Treat the prompt text here as a starting point. It carries no warranty.
+Governing an agent that takes real actions remains the deployer's
+responsibility. Fill every placeholder deliberately, port the code backstops as
+well as the prose, and verify each guard by breaking the thing it guards.

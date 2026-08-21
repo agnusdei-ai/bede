@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 Agnus Dei Technologies, LLC
+// Copyright 2026 Adapt Cloud
 //
 // Renders the governance preamble with the TypeScript builder and writes it to
 // stdout, so test_governance.py can compare it byte for byte against the

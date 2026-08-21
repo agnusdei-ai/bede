@@ -659,21 +659,21 @@ today it is neither read nor updated.
 
 **Decided (2026-08).** `agent-governance/` — a generic extraction of Bede's
 own governance layer, carrying no product name, persona, trademark, curriculum,
-or domain content — is licensed to everyone under the Apache License,
-Version 2.0. The rest of this repository stays proprietary and unchanged.
+or domain content — is published by Adapt Cloud and licensed to everyone under
+the Apache License, Version 2.0. The rest of this repository stays proprietary and unchanged.
 `LICENSE` section 6 states the carve-out so the two cannot be confused, and
 section 5's trademark reservation continues to apply to it: the licence covers
 the prompts and code, never the "Bede" name or mark.
 
-**Why Apache-2.0 rather than MIT or CC BY.** The artifact is meant to be
+**Why Apache-2.0 over MIT or CC BY.** The artifact is meant to be
 quoted and adapted into other people's agents, so the express patent grant and
-the NOTICE convention fit it better than MIT's shorter terms. CC BY was the
-alternative if this were published as prose, and it is not — half the package
-is code, including the tests that make the prompt rules enforceable.
+the NOTICE convention fit it better than MIT's shorter terms. CC BY would have been the
+alternative if this were published as prose. Half the package is code,
+including the tests that make the prompt rules enforceable.
 
 **Why give it away at all.** It is the part of this work with no competitive
 value and real external value. Nothing in it is specific to homeschooling,
-classical education, or children; what remains is the structure — a
+classical education, or children. What remains is the structure: a
 digest-verified constitution, an escalation boundary, an action-safety fork,
 and the code backstops that keep the prose from being decoration. Keeping it
 proprietary would protect nothing, since a reader of the public repository can
@@ -684,5 +684,5 @@ the assumption that it does: it carries no warranty that an agent governed by
 these prompts will behave, and it grants no trademark rights. The package says
 so in its own `NOTICE`.
 
-**Related:** `agent-governance/README.md` is the argument; this entry is the
+**Related:** `agent-governance/README.md` carries the argument. This entry carries the
 state. The package's own guards run in CI via `.github/workflows/test.yml`.

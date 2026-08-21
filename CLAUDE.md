@@ -1133,7 +1133,7 @@ PR with a real test plan, tell the user once merged) still applies.
 
 ## The Governance Kit (`agent-governance/`, Apache-2.0)
 
-**The one directory in this repository that is not proprietary.** A generic
+**The one directory in this repository that anyone may reuse freely.** A generic
 extraction of Bede's own governance layer — the constitution pattern, the
 ethical-boundary block, an action-safety fork, operating rules, tool
 guidance, and the code backstops — with every product-specific thing removed
@@ -1145,6 +1145,20 @@ children. Licensed to everyone under Apache-2.0 (`agent-governance/LICENSE`),
 carved out by name in the root `LICENSE`'s section 6, recorded as
 `docs/DECISIONS.md` entry 18. Section 5's trademark reservation still
 applies — the grant covers the prompts and code, never the "Bede" mark.
+
+**Two properties make the Apache-2.0 grant safe, and both are tested rather
+than promised.** The package names nothing proprietary
+(`test_no_file_names_the_proprietary_product`, which scans every shipped
+file including itself — the reserved name is assembled from fragments so
+the scanner does not have to exempt the one file nobody would then be
+checking), and it reports nowhere
+(`test_nothing_here_calls_home`: no telemetry, analytics, version ping or
+callback in any shipped Python, TypeScript or shell file). Both were
+confirmed by breaking them. Two leaks had already happened by the time
+the guards were written: the installer's banner named the product, and
+`verify_openclaw_profile.test.ts` hardcoded an absolute path containing
+the repo name, which also made it unrunnable for anyone else. It now
+takes `GOVERNANCE_DIR` and refuses to run without it.
 
 **`prompts/*.md` carry no license header, deliberately.** `reference/
 governance.py` reads those files verbatim into the assembled system prompt,
@@ -1163,18 +1177,18 @@ from `homeschool-api/`, and its 15 guards run as their own
 not coupled to that backend's lockfile install, since the package needs no
 backend dependency. The parent repository tests the *carve-out*
 (`test_license_carveout.py`, whose seven guards were each verified by
-breaking them); the package tests *itself*. A test in the package that
+breaking them). The package tests *itself*. A test in the package that
 reached back into this repo would break the moment someone vendored it,
 which is the whole point of the extraction.
 
 **Optional blocks are the extension seam, and they are off by default.**
-`prompts/` is always rendered; `prompts/optional/` is rendered only when a
+`prompts/` is always rendered. `prompts/optional/` is rendered only when a
 block is named (`render(values, extra_blocks=[...])`), because a rule that
 does not apply to an agent is prompt budget spent teaching it to worry about
 nothing, and every block dilutes the ones that do apply. Adding a block needs
 no code change — drop the file in, document any new placeholder — and
 `test_adding_a_block_needs_no_code_change` proves that by creating one,
-rendering, and removing it rather than by reading the glob.
+rendering, and removing it instead of reading the glob.
 `10-untrusted-content.md` is the first optional block: inbound content as
 data never instruction (including notes the agent itself persisted and later
 reloads — the same trap `LessonBookmark` hit here), no secret emission even
@@ -1192,17 +1206,15 @@ from whoever sent it and never a grant of the operator's authority, skills are
 code someone else wrote. Its tool guidance names real tools (`apply_patch`, `exec`, `message`,
 `web_fetch`, `gateway`, `sessions_spawn`, `ask_user`, `skill_workshop`)
 read from that repository at a pinned commit and confirmed to appear in its
-`src/` rather than taken from its docs alone — a rule about "your shell
+`src/` instead of taken from its docs alone — a rule about "your shell
 tool" attaches to nothing a model can act on.
 `test_every_profile_fills_every_placeholder` renders each profile against
 every block and fails on any `{{PLACEHOLDER}}` left standing, since a
 half-filled profile reads to a model as literal text and to a reviewer as
-configured. A second guard requires the `_note` to admit it is not
-finished, and a third requires `_source` to cite a 40-character commit
+configured. A second guard requires the `_note` to say plainly that it is unfinished, and a third requires `_source` to cite a 40-character commit
 SHA: another project's tool names change, and a stale name in a governance
 prompt is worse than no rule, because the rule attaches to nothing while
-reading as though it does. Adding a profile is a file; all three guards
-pick it up automatically.
+reading as though it does. Adding a profile is a file, and all three guards pick it up automatically.
 
 **The OpenClaw profile was checked against that project's running
 registry, not just read off its docs.**
@@ -1216,23 +1228,23 @@ defect — the published tool table lists `cron`, and the registry
 normalizes `cron` to `automations`, a permanent alias under their RFC 0026
 with the same contract as `bash` to `exec`. Reading the documentation
 alone would not have produced that, which is the argument for running a
-check against the real thing rather than a description of it. A later pass
+check against the real thing instead of a description of it. A later pass
 extended the same test to the deployment runbook's config keys, walking
 `buildConfigSchemaCore()` (4,451 keys) — a key that does not exist is
 accepted silently by a JSON5 config and does nothing, so the hardening step
-reads as done and is not.
+reads as done when it is not.
 
 **`profiles/openclaw.runbook.md` is the operational runbook, and
 `profiles/openclaw.hardened.json5` is the config it copies** — a real file
 an operator puts at `~/.openclaw/openclaw.json` (JSON5 content, `.json`
 name), not prose they retype. The runbook's control table says what each
-key buys rather than restating the values, and the by-hand verifier checks
+key buys instead of restating the values, and the by-hand verifier checks
 the two agree: every key exists in the real schema, the config actually
 sets what the table promises, and the network surface is genuinely closed.
 Eight assertions, each verified by breaking it — including a drift the
 agreement check caught on its first run (`tools.exec.host` named in prose
-to explain a default, which is not the same as a control the config sets;
-the check now reads the table rows rather than every backticked key).
+to explain a default, which is a different claim from a control the config
+sets. The check now reads the table rows instead of every backticked key).
 
 **The ordering is the content.** Install, close the
 network surface before anything listens (`gateway.bind: "loopback"`), cut
@@ -1240,8 +1252,8 @@ the tool surface (`tools.profile`, denying `gateway` and `sessions_spawn`,
 `workspaceOnly`, a sandbox — `exec` is host-first by default), pair
 deliberately, and only then render the prompt into the workspace
 `AGENTS.md` OpenClaw loads every session. Steps 2-4 are enforcement and
-hold whatever the model does; step 5 shapes judgment and can be argued
-with. One trap is named because it is silent:
+hold whatever the model does. Step 5 shapes judgment, and a determined input
+can argue with it. One trap is named because it is silent:
 `agents.defaults.bootstrapMaxChars` defaults to 20,000 and oversized
 bootstrap files are TRUNCATED on injection, not rejected, so an overlong
 governance prompt loses its tail with nothing reporting which rules
@@ -1256,14 +1268,23 @@ deployment or not at all. Shipping a governance prompt beside an
 unauthenticated port is the more dangerous outcome of the two, because the
 prompt makes the system feel governed.
 
-**`tools/build_pdf.py` is optional, and `dist/` is not committed.**
+**`tools/harden-openclaw.sh` is the one-command path for someone who will
+not read the runbook first.** It writes a hardened config with a fresh
+token, renders the prompt into the workspace `AGENTS.md`, checks its own
+work, and exits non-zero when the result is not actually hardened. Backs
+up anything it replaces and is safe to run twice. Tested end to end in a
+throwaway HOME: fresh install, re-run over an existing config, two installs
+to confirm the token differs, and a weakened config to confirm it fails
+loudly instead of reporting success.
+
+**`tools/build_pdf.py` is optional, and `dist/` stays out of git.**
 It renders the whole package into one PDF by reading the package files
 directly, so the handout cannot drift from what it documents. A generated
 artifact in git is a fresh binary blob on every rebuild kept forever, so
 `dist/` is gitignored and the PDF is built on demand
 (`pip install reportlab && python3 tools/build_pdf.py`). Two defects worth
-not reintroducing, both found by rendering and looking rather than by
-reading the code: reportlab's `Preformatted` silently ignores `backColor`
+not reintroducing, both found by rendering and looking instead of reading
+the code: reportlab's `Preformatted` silently ignores `backColor`
 (only `Paragraph` paints it) and does not wrap, so an over-long prompt line
 was drawn straight past the page edge and lost. A Word builder existed
 briefly and was dropped as packaging that outweighed the package.

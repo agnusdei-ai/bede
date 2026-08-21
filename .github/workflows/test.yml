@@ -34,6 +34,7 @@ on:
       - 'scripts/setup_wizard/**'
       - 'scripts/trust_service/**'
       - 'scripts/mcp_server/**'
+      - 'agent-governance/**'
       - '.github/workflows/test.yml'
   pull_request:
   workflow_dispatch:
@@ -74,8 +75,12 @@ jobs:
           #   demo/public/privacy.html   ditto (the public disclosure the
           #                              policies must agree with)
           #   scripts/build_pages_site.sh, render.yaml                      ditto
+          #   LICENSE, agent-governance/   tests/test_license_carveout.py
+          # agent-governance/ is additionally named because it carries its own
+          # guards (agent-governance/reference/test_governance.py), run by the
+          # agent-governance-tests job below.
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/index\.html|site/_headers|wrangler\.jsonc|docs/DECISIONS\.md|docs/PRICING_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|render\.yaml|\.github/workflows/test\.yml)'; then
+               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/index\.html|site/_headers|wrangler\.jsonc|docs/DECISIONS\.md|docs/PRICING_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|render\.yaml|agent-governance/|LICENSE|\.github/workflows/test\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -119,6 +124,26 @@ jobs:
       - name: Run tests
         working-directory: homeschool-api
         run: python -m pytest tests/ -v
+
+  agent-governance-tests:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    # agent-governance/ is a separately licensed, self-contained package
+    # (Apache-2.0 — see docs/DECISIONS.md entry 18 and LICENSE section 6).
+    # Its guards are what make its prompt rules enforceable rather than
+    # decorative, so they run here rather than only on whoever remembers.
+    # Deliberately its own job: it needs no backend dependency, so it must
+    # not be coupled to homeschool-api's lockfile install.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Run the governance package's own guards
+        run: |
+          pip install pytest
+          python -m pytest agent-governance/reference/test_governance.py -v
 
   lockfile-freshness:
     needs: changes

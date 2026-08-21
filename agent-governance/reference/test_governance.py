@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Agnus Dei Technologies, LLC
+"""Guards for the governance layer. Each one was verified by breaking the
+thing it guards — a test that does not fail when the behavior regresses is
+decoration, not a control.
+
+Run: pytest reference/test_governance.py
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from governance import ConstitutionError, load_constitution, render
+from limits import (
+    MAX_TOOL_CALLS_PER_TURN,
+    MAX_TOOL_LOOP_ROUNDS,
+    TRIVIAL_TOOL_RESULT,
+    ToolSpec,
+    assert_all_internal,
+    within_cap,
+)
+
+ROOT = Path(__file__).resolve().parent.parent
+TEMPLATE = ROOT / "constitution.template.json"
+PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
+
+
+def _all_placeholders() -> set[str]:
+    found: set[str] = set()
+    for f in [*(ROOT / "prompts").glob("*.md"), ROOT / "constitution.template.json"]:
+        found |= set(PLACEHOLDER_RE.findall(f.read_text(encoding="utf-8")))
+    return found
+
+
+def test_every_placeholder_is_documented():
+    """A placeholder nobody documented is one nobody fills."""
+    documented = set(json.loads((ROOT / "placeholders.json").read_text())) - {"_comment"}
+    assert _all_placeholders() <= documented
+
+
+def test_render_refuses_an_unresolved_placeholder():
+    """A shipped prompt containing the literal '{{PRINCIPAL}}' is worse than
+    a missing rule, because it looks configured."""
+    with pytest.raises(ConstitutionError):
+        render({}, constitution_path=TEMPLATE)
+
+
+def test_a_missing_constitution_stops_the_process():
+    """Never a soft fallback to the template — an agent governed by an
+    unfilled template is the failure this package exists to prevent."""
+    with pytest.raises(ConstitutionError):
+        load_constitution(ROOT / "does-not-exist.json")
+
+
+def test_no_license_header_leaks_into_the_rendered_prompt():
+    """prompts/*.md are prompt PAYLOAD, not source files.
+
+    The builder reads them verbatim, so an SPDX comment or any other
+    file-level annotation added to one would be shipped into the model's own
+    context. Licensing lives in LICENSE, NOTICE, and the reference sources —
+    never in a file whose bytes become a prompt.
+    """
+    values = {k: f"<{k}>" for k in _all_placeholders()}
+    rendered = render(values, constitution_path=TEMPLATE)
+    for leak in ("SPDX", "<!--", "Copyright"):
+        assert leak not in rendered, f"{leak!r} reached the rendered prompt"
+
+
+def test_the_package_carries_its_license():
+    assert (ROOT / "LICENSE").read_text().lstrip().startswith("Apache License")
+    assert "Apache License, Version 2.0" in (ROOT / "NOTICE").read_text()
+
+
+def test_every_reference_source_declares_the_license():
+    """Apache-2.0 does not require per-file headers, but a file that travels
+    out of this directory on its own should still say what it is."""
+    for f in sorted((ROOT / "reference").glob("*.py")) + sorted((ROOT / "reference").glob("*.ts")):
+        head = f.read_text(encoding="utf-8").splitlines()[:3]
+        assert any("SPDX-License-Identifier: Apache-2.0" in ln for ln in head), f.name
+
+
+def test_the_constitution_comes_first():
+    values = {k: f"<{k}>" for k in _all_placeholders()}
+    assert render(values, constitution_path=TEMPLATE).lstrip().startswith("<constitution>")
+
+
+def test_the_constitution_is_read_only_at_runtime():
+    c = load_constitution(TEMPLATE)
+    with pytest.raises(TypeError):
+        c["authority_order"] = ["me"]  # type: ignore[index]
+
+
+def test_the_agent_is_never_the_top_authority():
+    c = load_constitution(TEMPLATE)
+    assert "never the final authority" in c["authority_order"][-1]
+
+
+def test_override_refusal_survives():
+    """The one rule that defends every other rule."""
+    c = load_constitution(TEMPLATE)
+    joined = " ".join(c["non_negotiable_rules"]).lower()
+    for source in ("user", "retrieved document", "tool result", "custom prompt"):
+        assert source in joined
+
+
+def test_action_safety_keeps_the_two_branches_and_the_tiebreaker():
+    """A single undifferentiated 'redirect' under-escalates the serious case.
+    Collapsing (a) and (b) back into one branch must fail here."""
+    text = (ROOT / "prompts" / "03-action-safety.md").read_text()
+    assert "(a)" in text and "(b)" in text
+    assert "When in doubt" in text and "treat it as (b)" in text
+
+
+def test_the_caps_are_constants_not_config():
+    assert isinstance(MAX_TOOL_CALLS_PER_TURN, int)
+    assert isinstance(MAX_TOOL_LOOP_ROUNDS, int)
+    assert MAX_TOOL_LOOP_ROUNDS <= MAX_TOOL_CALLS_PER_TURN
+
+
+def test_the_cap_is_checked_before_the_call_not_after():
+    assert within_cap(MAX_TOOL_CALLS_PER_TURN - 1)
+    assert not within_cap(MAX_TOOL_CALLS_PER_TURN)
+
+
+def test_a_trivial_tool_result_carries_no_free_text():
+    """The moment this holds a string sourced from outside the process, it is
+    a prompt-injection vector into your own context."""
+    assert all(isinstance(v, bool) for v in TRIVIAL_TOOL_RESULT.values())
+
+
+def test_an_external_tool_cannot_enter_the_internal_loop():
+    assert_all_internal([ToolSpec("read_note"), ToolSpec("save_note")])
+    with pytest.raises(RuntimeError):
+        assert_all_internal([ToolSpec("read_note"), ToolSpec("fetch_url", trust="external")])

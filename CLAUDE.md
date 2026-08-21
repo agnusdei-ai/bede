@@ -1131,6 +1131,54 @@ product actually does, so they get an extra human checkpoint the rest of the
 repo doesn't require. Everything else about the workflow (test first, open a
 PR with a real test plan, tell the user once merged) still applies.
 
+## The Governance Kit (`agent-governance/`, Apache-2.0)
+
+**The one directory in this repository that is not proprietary.** A generic
+extraction of Bede's own governance layer — the constitution pattern, the
+ethical-boundary block, an action-safety fork, operating rules, tool
+guidance, and the code backstops — with every product-specific thing removed
+and replaced by a `{{PLACEHOLDER}}`. It names no product, persona,
+trademark, curriculum, or domain content, which is what makes giving it away
+cost nothing: a reader of the public repository can already see the pattern,
+and nothing in it is specific to homeschooling, classical education, or
+children. Licensed to everyone under Apache-2.0 (`agent-governance/LICENSE`),
+carved out by name in the root `LICENSE`'s section 6, recorded as
+`docs/DECISIONS.md` entry 18. Section 5's trademark reservation still
+applies — the grant covers the prompts and code, never the "Bede" mark.
+
+**`prompts/*.md` carry no license header, deliberately.** `reference/
+governance.py` reads those files verbatim into the assembled system prompt,
+so an SPDX comment at the top of one would be shipped into the model's own
+context. Licensing lives in `LICENSE`, `NOTICE`, the README, and the SPDX
+headers on `reference/`'s sources — never in a file whose bytes become a
+prompt. Guarded from both sides:
+`agent-governance/reference/test_governance.py`'s
+`test_no_license_header_leaks_into_the_rendered_prompt` (which renders the
+real prompt and scans it) and `homeschool-api/tests/test_license_carveout.py`
+(which is the file someone actually edits when relicensing).
+
+**Self-contained, and it must stay that way.** The package imports nothing
+from `homeschool-api/`, and its 15 guards run as their own
+`agent-governance-tests` job in `.github/workflows/test.yml` — deliberately
+not coupled to that backend's lockfile install, since the package needs no
+backend dependency. The parent repository tests the *carve-out*
+(`test_license_carveout.py`, whose seven guards were each verified by
+breaking them); the package tests *itself*. A test in the package that
+reached back into this repo would break the moment someone vendored it,
+which is the whole point of the extraction.
+
+**`tools/` and `dist/` are optional.** `tools/build_pdf.py` (reportlab) and
+`tools/build_doc.js` (docx-js) generate the PDF/Word handout in `dist/` by
+reading the package files directly, so the documents cannot drift from the
+package they document — change a prompt, re-run a builder, and the handout
+matches. Neither is needed to use the package. Two defects worth not
+reintroducing, both found by rendering and looking rather than by reading
+the code: reportlab's `Preformatted` silently ignores `backColor` (only
+`Paragraph` paints it) and does not wrap, so an over-long prompt line was
+drawn straight past the page edge and lost. LibreOffice is broken in this
+sandbox and converts nothing, so the `.docx` is verified structurally and by
+content extraction rather than by eye.
+
 ## The Decision Register
 
 **[docs/DECISIONS.md](docs/DECISIONS.md)** carries one numbered entry per

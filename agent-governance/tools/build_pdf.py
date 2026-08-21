@@ -15,6 +15,7 @@ from reportlab.platypus import (
     BaseDocTemplate, Frame, PageBreak, PageTemplate, Paragraph, Preformatted,
     Spacer, KeepTogether, Table, TableStyle,
 )
+from reportlab.platypus.flowables import HRFlowable
 
 PKG = Path(__file__).resolve().parent.parent
 OUT = PKG / "dist" / "Agent-Governance-Prompts.pdf"
@@ -83,7 +84,9 @@ def inline(t: str) -> str:
         out.append(esc(t[last:m.start()]))
         tok = m.group(0)
         if tok.startswith("**"):
-            out.append(f"<b>{esc(tok[2:-2])}</b>")
+            # Bold can contain code spans; formatting the inner text rather
+            # than escaping it is what stops literal backticks reaching the page.
+            out.append(f"<b>{inline(tok[2:-2])}</b>")
         elif tok.startswith("*"):
             out.append(f"<i>{esc(tok[1:-1])}</i>")
         else:
@@ -160,10 +163,24 @@ def md_table(rows: list[str]):
     avail = LETTER[0] - 2 * inch
     # weight columns by their longest cell so a narrow "#" column stays narrow
     weights = [max(len(r[c]) for r in parsed) or 1 for c in range(ncols)]
-    total = sum(weights)
-    widths = [max(0.5 * inch, avail * w / total) for w in weights]
-    scale = avail / sum(widths)
-    widths = [w * scale for w in widths]
+    widths = [avail * w / sum(weights) for w in weights]
+
+    # A dotted config key broken across lines reads as two keys and can be
+    # copied wrong, so column 0 gets the width its longest code span needs.
+    # This has to happen AFTER the proportional split, not before: an earlier
+    # cut applied the minimum first and the rescale below silently undid it.
+    CODE_PT = 9  # the size inline() renders a code span at
+    longest = max(
+        (len(m) for row in parsed for m in re.findall(r"`([^`]+)`", row[0])), default=0
+    )
+    needed = longest * CODE_PT * 0.6 + 16
+    if ncols > 1 and needed > widths[0] and needed < avail * 0.55:
+        deficit = needed - widths[0]
+        widths[0] = needed
+        rest = sum(widths[1:])
+        widths[1:] = [w - deficit * (w / rest) for w in widths[1:]]
+
+    widths[-1] += avail - sum(widths)  # absorb rounding
     t = Table(data, colWidths=widths, hAlign="LEFT")
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NAVY),
@@ -180,6 +197,9 @@ def md_table(rows: list[str]):
 
 
 def render_markdown(md: str) -> list:
+    # HTML comments are markup, not content — an SPDX header rendered as body
+    # text is the file's licence leaking onto the page.
+    md = re.sub(r"<!--.*?-->", "", md, flags=re.S)
     flow, lines, i = [], md.split("\n"), 0
     while i < len(lines):
         line = lines[i]
@@ -203,14 +223,33 @@ def render_markdown(md: str) -> list:
             flow.append(Paragraph(inline(re.sub(r"^#+\s*", "", line)), style))
             i += 1
             continue
-        if re.match(r"^[-*] ", line):
-            flow.append(Paragraph(inline(re.sub(r"^[-*]\s*", "", line)), bullet, bulletText="•"))
+        if re.fullmatch(r"-{3,}|\*{3,}|_{3,}", line.strip()):
+            flow.append(HRFlowable(width="100%", thickness=0.5, color=RULE,
+                                   spaceBefore=8, spaceAfter=10))
             i += 1
+            continue
+        if re.match(r"^[-*] ", line):
+            # Gather continuation lines: a wrapped bullet is one bullet, not a
+            # bullet followed by an orphan paragraph.
+            buf = [re.sub(r"^[-*]\s*", "", line)]
+            i += 1
+            while i < len(lines) and lines[i].strip() and not re.match(
+                r"^([-*] |\d+\. |#{1,4} |\||```|-{3,}$)", lines[i]
+            ):
+                buf.append(lines[i].strip())
+                i += 1
+            flow.append(Paragraph(inline(" ".join(buf)), bullet, bulletText="•"))
             continue
         if re.match(r"^\d+\. ", line):
             num = re.match(r"^(\d+)\.", line).group(1)
-            flow.append(Paragraph(inline(re.sub(r"^\d+\.\s*", "", line)), bullet, bulletText=f"{num}."))
+            buf = [re.sub(r"^\d+\.\s*", "", line)]
             i += 1
+            while i < len(lines) and lines[i].strip() and not re.match(
+                r"^([-*] |\d+\. |#{1,4} |\||```|-{3,}$)", lines[i]
+            ):
+                buf.append(lines[i].strip())
+                i += 1
+            flow.append(Paragraph(inline(" ".join(buf)), bullet, bulletText=f"{num}."))
             continue
         if not line.strip():
             i += 1

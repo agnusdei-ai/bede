@@ -89,7 +89,7 @@ def render(
     constitution.json is absent — silently governing an agent with an
     unfilled template is the failure this whole package exists to prevent.
 
-    extra_blocks names files in prompts/optional/, which are OFF unless asked
+    extra_blocks names files in prompts/optional/, which stay OFF unless asked
     for by name. They address surfaces not every agent has (untrusted inbound
     content, outbound exfiltration channels), and a rule that does not apply
     to your agent is prompt budget spent teaching it to worry about nothing.

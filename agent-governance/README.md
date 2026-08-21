@@ -12,7 +12,7 @@ a `{{PLACEHOLDER}}`.
 constitution.template.json   The immutable layer. Copy to constitution.json, fill in, hash it.
 placeholders.json            Every placeholder, documented. The builder refuses to leave one unresolved.
 prompts/                     Always rendered.
-  02-ethical-boundaries.md   What the agent is not, and what stops it.
+  02-ethical-boundaries.md   The agent's limits, and what stops it.
   03-action-safety.md        Limits on actions the agent itself originates.
   04-operating-rules.md      Honesty and turn-shape rules.
   05-tool-guidance.md        How tools may be spent.
@@ -49,8 +49,8 @@ python3 reference/governance.py values.json > system_prompt.txt
 if any placeholder is missing — a shipped prompt containing the literal string
 `{{PRINCIPAL}}` is worse than a missing rule, because it looks configured.
 
-`tools/build_pdf.py` is not needed to use the package. It exists so the same
-content can be handed to someone who will not clone a repository:
+You do not need `tools/build_pdf.py` to use the package. It exists so you can
+hand the same content to someone who will not clone a repository:
 `pip install reportlab && python3 tools/build_pdf.py` writes
 `dist/Agent-Governance-Prompts.pdf`. It reads the package files directly, so
 the document cannot drift from the package — change a prompt, re-run it, and
@@ -88,14 +88,15 @@ through ordinary inbound messages, and PromptArmor showed link-preview
 metadata working as an exfiltration channel — the agent is induced to build an
 attacker-controlled URL, and the preview fetch delivers the payload.
 
-**The project's own position is the clearest statement of where this package
-sits.** OpenClaw's `SECURITY.md` says plainly that *"the model/agent is not a
-trusted principal"* and that security boundaries come from host and config
-trust, auth, tool policy, sandboxing, and exec approvals. It also puts prompt
-injection out of scope as a vulnerability class unless it crosses one of those
-boundaries. That is the right call for a threat model, and it is exactly why a
-governance layer is a complement to it and never a replacement: the boundaries
-do the enforcing, and this shapes the judgment exercised inside them.
+**The project's own position states where this package sits, better than this
+README did.** OpenClaw's `SECURITY.md` says plainly that *"the model/agent is
+not a trusted principal"*, and that security boundaries come from host and
+config trust, auth, tool policy, sandboxing, and exec approvals. It also puts
+prompt injection out of scope as a vulnerability class unless an attack crosses
+one of those boundaries. That is the right call for a threat model. It is also
+why a governance layer complements those boundaries and cannot replace them.
+The boundaries do the enforcing. This shapes the judgment exercised inside
+them.
 
 | Failure class | This package | Where |
 | --- | --- | --- |
@@ -109,9 +110,9 @@ do the enforcing, and this shapes the judgment exercised inside them.
 | Unbounded tool loops and runaway action counts | Covered | `limits.py` |
 | External tools reachable from a sensitive loop | Covered | `assert_all_internal()` |
 
-**What it cannot cover, and no prompt can.** The largest failures of this
-kind were never behavioural. A Gateway listening on a public interface without
-authentication is not persuaded by a system prompt.
+**What it cannot cover, and no prompt can.** The largest failures of this kind
+were never behavioural. A system prompt has no effect on a Gateway listening on
+a public interface without authentication.
 [CVE-2026-25253](https://www.betterclaw.io/blog/openclaw-security-2026) —
 taking a `gatewayUrl` from a query string, opening a WebSocket to it and
 sending a stored token — is an input-validation bug in code that runs before
@@ -127,19 +128,19 @@ network surface **before anything listens**, cut the tool surface, pair
 deliberately, and only then render the prompt into the workspace `AGENTS.md`
 that OpenClaw loads at the start of every session.
 
-It ships the config rather than describing it: `profiles/openclaw.hardened.json5`
+It ships the config instead of describing it. `profiles/openclaw.hardened.json5`
 is a real file an operator copies to `~/.openclaw/openclaw.json`, and the
-runbook's control table says what each key buys instead of restating it. The
-by-hand verifier checks three things at once — every key exists in the real
+runbook's control table says what each key buys instead of restating its value.
+The by-hand verifier checks three things at once. Every key exists in the real
 schema, the config actually sets what the table promises, and the network
 surface is genuinely closed (`bind: "loopback"`, `gateway` denied, a sandbox
 on). Eight assertions, each verified by breaking it.
 
 The ordering is the content. Steps 2-4 are enforcement and hold whatever the
-model does; step 5 shapes judgment and can be argued with. Installing the
-prompt while skipping the config produces something that feels governed and is
-not — which is why the runbook puts `gateway.bind: "loopback"` before anything
-about prompts.
+model does. Step 5 shapes judgment, and a determined input can argue with it.
+Installing the prompt while skipping the config produces something that only
+feels governed, which is why the runbook puts `gateway.bind: "loopback"` ahead
+of anything about prompts.
 
 One trap worth naming here because it is silent:
 `agents.defaults.bootstrapMaxChars` defaults to 20,000 and oversized bootstrap
@@ -151,9 +152,9 @@ rendered profile is ~12,200 characters, and the runbook has you check with
 ## Profiles
 
 `profiles/openclaw.values.json` fills all 17 placeholders for a single-operator
-messaging agent, written against OpenClaw's documented model: the operator is
-the only principal, a message on a connected channel is a request from whoever
-sent it and never a grant of the operator's authority, and skills are code
+messaging agent, written against OpenClaw's documented model. The operator is
+the only principal. A message on a connected channel is a request from whoever
+sent it, and it carries none of the operator's authority. Skills are code
 someone else wrote. It renders at roughly 3,200 tokens with the
 untrusted-content block included.
 
@@ -176,16 +177,15 @@ Its tool guidance names **real tools**, not categories — `read`/`write`/`edit`
 `gateway`, `cron`, `sessions_spawn`, `ask_user`, `skill_workshop` — grouped the
 way that project groups them, because a rule about "your shell tool" attaches
 to nothing a model can act on. The names were read from the repository at a
-pinned commit and each was confirmed to appear in `src/` rather than taken from
-the documentation alone. Tool names change:
+pinned commit, and each one was confirmed to appear in `src/` instead of being
+taken from the documentation alone. Tool names change:
 `test_every_profile_records_where_its_facts_came_from` requires each profile to
 cite the commit it was checked against, since a stale name in a governance
 prompt is worse than no rule at all — the rule attaches to nothing and reads as
 though it does.
 
-It is a starting point, not a configuration — nobody should paste a profile
-written by someone who has never seen their deployment and treat it as
-finished. `test_every_profile_fills_every_placeholder` keeps it honest, and a
+Treat it as a starting point. Nobody should paste a profile written by someone
+who has never seen their deployment and treat it as finished. `test_every_profile_fills_every_placeholder` keeps it honest, and a
 second guard requires each profile to say so in its own `_note`.
 
 So treat this package as the layer that governs the agent's own judgment once
@@ -237,7 +237,7 @@ context. For an agent that browses, this is the highest-risk line in the file.
 
 **5. Confine external content by construction, not by setting.** The original
 uses three independent mechanisms: a tool registry containing only
-internal-trust specs, a function parameter defaulting to none rather than
+internal-trust specs, a function parameter that defaults to none instead of
 reading config, and a call site that never passes it. The redundancy is
 deliberate — the failure being prevented is one you learn about afterwards.
 `assert_all_internal()` is the first of the three.
@@ -261,14 +261,14 @@ Collapsing them turns an absence of evidence into a verdict.
 `MAX_TOOL_CALLS_PER_TURN = 6` and `MAX_TOOL_LOOP_ROUNDS = 3` come from an
 agent with ten tools, most of them trivially resolving. An agent with a
 broader tool surface will want higher values — but pick them deliberately,
-keep them constants rather than config, and check the cap *before* executing
-rather than after, so the expensive or irreversible thing does not happen at
+keep them as constants instead of config, and check the cap *before* executing
+instead of after, so the expensive or irreversible thing never happens at
 all.
 
 ## License
 
 Apache License 2.0. Use it in commercial or closed products, modify it, and
-redistribute it; keep the notice and state your changes. Full text in
+redistribute it. Keep the notice and state your changes. Full text in
 `LICENSE`, attribution in `NOTICE`, and `SPDX-License-Identifier: Apache-2.0`
 on each reference source.
 

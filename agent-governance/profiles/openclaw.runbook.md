@@ -7,10 +7,10 @@ running code — tool names via `isKnownCoreToolId`, config keys by walking
 `buildConfigSchemaCore()` (4,451 keys). Re-check them against the commit you
 are actually installing.
 
-**The governance prompt is the last layer, not the first.** It shapes judgment
-inside the boundaries; it does not create them. Steps 2-4 are what actually
-stop an attacker, and skipping them while installing the prompt produces
-something that feels governed and is not.
+**Install the governance prompt last.** It shapes judgment inside the
+boundaries. It does not create them. Steps 2-4 are what actually stop an
+attacker, and skipping them while installing the prompt produces something that
+only feels governed.
 
 ---
 
@@ -25,8 +25,8 @@ A container image and `docker-compose.yml` ship in the repo if you would rather
 not install onto the host — worth preferring, since step 3 exists because
 `exec` runs on the host by default.
 
-**Do not start the Gateway yet.** Onboarding creates config and workspace; the
-window between "listening" and "hardened" is the one that produced the exposed
+**Do not start the Gateway yet.** Onboarding creates config and workspace. The
+window between "listening" and "hardened" is what produced the exposed
 instances found in the wild.
 
 ## 2. Close the network surface before anything listens
@@ -40,8 +40,8 @@ $EDITOR ~/.openclaw/openclaw.json                               # -> channels.*.
 ```
 
 `profiles/openclaw.hardened.json5` is the single source for every value in
-steps 2 and 3; the tables below say what each one buys rather than restating
-it, so the two cannot drift. `gateway.bind: "loopback"` is the most valuable
+steps 2 and 3. The tables below say what each one buys instead of restating its
+value, so the two cannot drift. `gateway.bind: "loopback"` is the most valuable
 line in it. A Gateway
 reachable from the network is the failure class no prompt touches, and it is
 how tens of thousands of instances ended up publicly enumerable. If you need
@@ -58,8 +58,8 @@ Already set by the config you copied. Four facts worth knowing before you choose
   trusted-operator default, not an oversight — but it is the difference
   between a mistake and an incident.
 - **`gateway` is the self-modification tool.** Denying it is what makes the
-  prompt's self-modification rule enforceable rather than advisory.
-- **`sessions_spawn` should stay denied** unless you actually delegate; that is
+  prompt's self-modification rule enforceable instead of advisory.
+- **`sessions_spawn` should stay denied** unless you actually delegate. That is
   the project's own guidance, and it bounds how far one compromised turn
   spreads.
 - **`bash` is an alias for `exec`, and `cron` for `automations`** (their RFC
@@ -73,8 +73,8 @@ openclaw pairing approve <request>
 ```
 
 DM-capable channels pair unknown senders by default. Every approval is a person
-who can now reach a machine with `exec` on it. Approve individually; never
-leave a channel open because it was convenient during setup.
+who can now reach a machine with `exec` on it. Approve people one at a time,
+and close any channel you opened because it was convenient during setup.
 
 ## 5. Install the governance layer
 
@@ -106,7 +106,7 @@ wc -c ~/.openclaw/workspace/*.md
 ```
 
 Put the non-negotiables early in the file for the same reason: if anything is
-ever cut, let it be the elaboration rather than the rules.
+ever cut, let it be the elaboration instead of the rules.
 
 If you manage these files yourself and do not want them reseeded, set
 `agents.defaults.skipBootstrap: true`.
@@ -166,20 +166,19 @@ asserts every key here exists in the real config schema AND is actually set by
 | Refuse bulk export | `10` | History, contact and credential-store dumps |
 | No data into a URL, preview, webhook, QR or DNS | `10` | Link-preview exfiltration — the fetch delivers the payload |
 | No self-modification of config, tools, permissions | `10`, `03` | Config patching through an injected instruction |
-| Stop and escalate rather than proceed | `03` (b) | Anything harming a third party or concealing itself |
+| Stop and escalate instead of proceeding | `03` (b) | Anything harming a third party or concealing itself |
 
 **Neither. Fixed in the deployment or not at all:** an unauthenticated port, a
 `gatewayUrl` read from a query string, plaintext credentials on disk, a missing
-sandbox, an unvetted skill marketplace. This is the project's own position —
-its `SECURITY.md` states that the model is not a trusted principal and puts
-prompt injection out of scope unless it crosses an auth, policy, approval,
+sandbox, an unvetted skill marketplace. This is the project's own position. Its
+`SECURITY.md` states that the model is not a trusted principal, and puts prompt
+injection out of scope unless an attack crosses an auth, policy, approval,
 sandbox or tool boundary.
 
 ## What none of this covers
 
 A live injection attempt has not been run against this configuration. Steps 2-4
-are enforcement and hold regardless of what the model does; step 5 shapes
-judgment and can be argued with by a sufficiently clever input. Treat the
-prompt as the layer that makes good behaviour likely, and the config as the
-layer that makes bad behaviour impossible — and never let the first stand in
-for the second.
+are enforcement and hold regardless of what the model does. Step 5 shapes
+judgment, and a sufficiently clever input can argue with it. The prompt makes
+good behaviour likely. The config makes bad behaviour impossible. Never let the
+first stand in for the second.

@@ -19,7 +19,7 @@ This package is a generic extraction. It contains no product name, persona,
 trademark, or domain content from the codebase it was extracted from, and it
 grants no rights to any trademark of Agnus Dei Technologies, LLC.
 
-The prompt text here is a starting point, not a warranty. Governing an agent
-that takes real actions is the deployer's responsibility: fill every
-placeholder deliberately, port the code backstops as well as the prose, and
-verify each guard by breaking the thing it guards.
+Treat the prompt text here as a starting point. It carries no warranty.
+Governing an agent that takes real actions remains the deployer's
+responsibility. Fill every placeholder deliberately, port the code backstops as
+well as the prose, and verify each guard by breaking the thing it guards.

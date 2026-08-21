@@ -1184,6 +1184,18 @@ or permissions. `limits.py`'s `wrap_untrusted()` is its enforceable half: the
 envelope cannot be closed from inside, which is the text equivalent of SQL
 injection and the likeliest way such a mechanism fails.
 
+**`profiles/` holds filled-in placeholder sets, and each says it is a
+starting point.** `openclaw.values.json` fills all 17 for a single-operator
+messaging agent, written against that project's documented model — the
+operator is the only principal, a message on a connected channel is a request
+from whoever sent it and never a grant of the operator's authority, skills are
+code someone else wrote. `test_every_profile_fills_every_placeholder` renders
+each profile against every block and fails on any `{{PLACEHOLDER}}` left
+standing, since a half-filled profile reads to a model as literal text and to
+a reviewer as configured. A second guard requires the `_note` to admit it is
+not finished. Adding a profile is a file; both guards pick it up
+automatically.
+
 **The package states what it cannot do, which for this class of agent is
 most of it.** `README.md`'s coverage table maps each failure class to where
 it is handled, then says plainly that the largest documented failures of this

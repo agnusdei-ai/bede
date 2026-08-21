@@ -18,6 +18,8 @@ prompts/                     Always rendered.
   05-tool-guidance.md        How tools may be spent.
 prompts/optional/            Opt-in, by name — see "Extending it" below.
   10-untrusted-content.md    For an agent reading anything it did not author.
+profiles/                    Filled-in placeholder sets for a real agent.
+  openclaw.values.json       A starting point for OpenClaw. Read before using.
 reference/
   governance.py / .ts        ~100-line builder: verify digest, assemble, resolve placeholders.
   parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
@@ -72,13 +74,24 @@ surface calls for.
 
 `prompts/optional/10-untrusted-content.md` exists because of a specific,
 well-documented class of failure: personal agents wired to messaging apps and
-given shell access. Through 2026, OpenClaw accumulated 138 CVEs and, at one
-count, [40,000+ internet-exposed instances](https://www.infosecurity-magazine.com/news/researchers-40000-exposed-openclaw/),
-most with authentication disabled. Independent researchers demonstrated
-[prompt injection and data exfiltration](https://thehackernews.com/2026/03/openclaw-ai-agent-flaws-could-enable.html)
+given shell access. Through 2026, [OpenClaw](https://github.com/openclaw/openclaw)
+accumulated 138 CVEs, and researchers reported
+[40,000+ internet-exposed instances](https://www.infosecurity-magazine.com/news/researchers-40000-exposed-openclaw/)
+— a deployment pattern the project itself advises against, since its security
+guide tells operators to bind the Gateway to loopback. Independent researchers
+demonstrated [prompt injection and data exfiltration](https://thehackernews.com/2026/03/openclaw-ai-agent-flaws-could-enable.html)
 through ordinary inbound messages, and PromptArmor showed link-preview
 metadata working as an exfiltration channel — the agent is induced to build an
 attacker-controlled URL, and the preview fetch delivers the payload.
+
+**The project's own position is the clearest statement of where this package
+sits.** OpenClaw's `SECURITY.md` says plainly that *"the model/agent is not a
+trusted principal"* and that security boundaries come from host and config
+trust, auth, tool policy, sandboxing, and exec approvals. It also puts prompt
+injection out of scope as a vulnerability class unless it crosses one of those
+boundaries. That is the right call for a threat model, and it is exactly why a
+governance layer is a complement to it and never a replacement: the boundaries
+do the enforcing, and this shapes the judgment exercised inside them.
 
 | Failure class | This package | Where |
 | --- | --- | --- |
@@ -92,15 +105,29 @@ attacker-controlled URL, and the preview fetch delivers the payload.
 | Unbounded tool loops and runaway action counts | Covered | `limits.py` |
 | External tools reachable from a sensitive loop | Covered | `assert_all_internal()` |
 
-**What it cannot cover, and no prompt can.** The largest OpenClaw failures
-were never behavioural. A web interface listening on `0.0.0.0:8080` with
-authentication off is not persuaded by a system prompt.
+**What it cannot cover, and no prompt can.** The largest failures of this
+kind were never behavioural. A Gateway listening on a public interface without
+authentication is not persuaded by a system prompt.
 [CVE-2026-25253](https://www.betterclaw.io/blog/openclaw-security-2026) —
 taking a `gatewayUrl` from a query string, opening a WebSocket to it and
 sending a stored token — is an input-validation bug in code that runs before
 any model sees anything. Credentials in plaintext on disk, an unauthenticated
 pairing flow, a missing sandbox, an unvetted skill marketplace: all of these
 are fixed in the deployment or not at all.
+
+## Profiles
+
+`profiles/openclaw.values.json` fills all 17 placeholders for a single-operator
+messaging agent, written against OpenClaw's documented model: the operator is
+the only principal, a message on a connected channel is a request from whoever
+sent it and never a grant of the operator's authority, and skills are code
+someone else wrote. It renders at roughly 3,000 tokens with the untrusted-content
+block included.
+
+It is a starting point, not a configuration — nobody should paste a profile
+written by someone who has never seen their deployment and treat it as
+finished. `test_every_profile_fills_every_placeholder` keeps it honest, and a
+second guard requires each profile to say so in its own `_note`.
 
 So treat this package as the layer that governs the agent's own judgment once
 it is running, not as a mitigation for how it is exposed. Shipping it beside

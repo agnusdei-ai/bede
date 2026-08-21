@@ -243,7 +243,7 @@ story += [
     Spacer(1, 1.5 * inch),
     Paragraph("Generated from agent-governance.tar.gz", tiny),
     Spacer(1, 0.08 * inch),
-    Paragraph("Licensed under the Apache License, Version 2.0 — see section 10", tiny),
+    Paragraph("Licensed under the Apache License, Version 2.0 — see section 11", tiny),
     PageBreak(),
 ]
 
@@ -256,8 +256,9 @@ TOC = [
     ("6", "prompts/04-operating-rules.md", "Honesty and turn-shape rules"),
     ("7", "prompts/05-tool-guidance.md", "How tools may be spent"),
     ("8", "prompts/optional/", "Opt-in blocks — rendered only when named"),
-    ("9", "reference/", "governance.py · governance.ts · parity_check.ts · limits.py · test_governance.py"),
-    ("10", "LICENSE · NOTICE", "Apache License 2.0, and what it does not cover"),
+    ("9", "profiles/", "Filled-in placeholder sets — a starting point, never a configuration"),
+    ("10", "reference/", "governance.py · governance.ts · parity_check.ts · limits.py · test_governance.py"),
+    ("11", "LICENSE · NOTICE", "Apache License 2.0, and what it does not cover"),
 ]
 story.append(Paragraph("Contents", h1))
 story.append(Spacer(1, 0.18 * inch))
@@ -290,7 +291,11 @@ story += section("8.  Optional blocks",
                  "governed by rules its own surface never meets",
                  [code_block(read("prompts/optional/10-untrusted-content.md"))])
 
-story += section("9.  Reference implementation",
+story += section("9.  Profiles",
+                 "profiles/ — every placeholder filled for one real agent",
+                 [code_block(read("profiles/openclaw.values.json"))])
+
+story += section("10.  Reference implementation",
                  "reference/ — a ~100-line builder in two runtimes, the constants, and the guards",
                  [Paragraph(inline(
                      "The prompts are plain text and the constitution is plain JSON, so this layer is "
@@ -309,7 +314,7 @@ for fname, label in [
     story.append(Paragraph(f"<i>{esc(label)}</i>", sub))
     story.append(code_block(read(fname)))
 
-story += section("10.  Licensing", "NOTICE — attribution and scope",
+story += section("11.  Licensing", "NOTICE — attribution and scope",
                  [code_block(read("NOTICE"))])
 story.append(Paragraph("Apache License 2.0 — full text", h2))
 story.append(Paragraph(

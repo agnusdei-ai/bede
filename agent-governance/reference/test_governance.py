@@ -270,3 +270,36 @@ def test_the_untrusted_block_covers_the_channels_data_actually_leaves_by():
         assert surface in text, f"inbound surface not named: {surface}"
     for rule in ("secrets", "bulk", "self-modification"):
         assert rule in text
+
+
+# ── Profiles ────────────────────────────────────────────────────────────────
+
+
+def _profiles() -> list[Path]:
+    return sorted((ROOT / "profiles").glob("*.values.json"))
+
+
+def test_there_is_at_least_one_profile():
+    """Canary — the parametrized tests below pass vacuously with no profiles."""
+    assert _profiles(), "no profiles found; the guards below would be empty"
+
+
+@pytest.mark.parametrize("profile", _profiles(), ids=lambda p: p.stem)
+def test_every_profile_fills_every_placeholder(profile: Path):
+    """A profile is a claim that this agent is configured. A half-filled one
+    ships a prompt with {{PLACEHOLDER}} still in it, which reads to a model as
+    literal text and to a reviewer as configured — the worst pair."""
+    values = {k: v for k, v in json.loads(profile.read_text()).items()
+              if not k.startswith("_")}
+    optional = [f.stem for f in sorted((ROOT / "prompts" / "optional").glob("*.md"))]
+    rendered = render(values, constitution_path=TEMPLATE, extra_blocks=optional)
+    assert not PLACEHOLDER_RE.findall(rendered)
+
+
+@pytest.mark.parametrize("profile", _profiles(), ids=lambda p: p.stem)
+def test_every_profile_says_it_is_a_starting_point(profile: Path):
+    """Nobody should paste a profile written by someone who has never seen
+    their deployment and believe it is finished."""
+    note = json.loads(profile.read_text()).get("_note", "")
+    assert "starting point" in note.lower()
+    assert "not a substitute" in note.lower() or "not a finished" in note.lower()

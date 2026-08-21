@@ -114,6 +114,10 @@ If you manage these files yourself and do not want them reseeded, set
 ## 6. Verify, and keep verifying
 
 ```bash
+# you are running a current version — the largest advisory class is fixed
+# by upgrading and by nothing in this directory
+openclaw --version && npm view openclaw version
+
 # the tool names your prompt cites are real, in a clone of openclaw/openclaw
 pnpm vitest run src/agents/governance-profile-tool-names.test.ts \
   --config test/vitest/vitest.agents-core.config.ts
@@ -128,7 +132,7 @@ ss -tlnp | grep -v '127.0.0.1\|::1'
 wc -c ~/.openclaw/workspace/*.md
 ```
 
-Re-run all four after any OpenClaw upgrade. Tool ids and config keys are that
+Re-run all five after any OpenClaw upgrade. Tool ids and config keys are that
 project's to change, and a governance rule naming a tool that no longer exists
 reads exactly like one that works.
 
@@ -174,6 +178,49 @@ sandbox, an unvetted skill marketplace. This is the project's own position. Its
 `SECURITY.md` states that the model is not a trusted principal, and puts prompt
 injection out of scope unless an attack crosses an auth, policy, approval,
 sandbox or tool boundary.
+
+## What this does to OpenClaw's published advisories
+
+The [jgamblin/OpenClawCVEs](https://github.com/jgamblin/OpenClawCVEs) tracker
+watches the GitHub Advisory Database, the repo's own advisories, and the full
+CVE V5 registry. As of 2026-08-21 it lists **157 advisories**, 51 of them
+published with a CVE id and 106 still awaiting one, plus 543 CVE records across
+every assigning CNA. Severity runs 1 critical, 90 high, 53 medium, 13 low.
+
+Classifying the 113 advisories that carry CWE tags puts most of them in one
+place:
+
+| Class | Share | What actually fixes it |
+| --- | --- | --- |
+| Authorization, access control, auth bypass | 62 (55%) | Upgrading. The config removes the unauthenticated path to them |
+| Command execution, untrusted search path | 12 (11%) | Upgrading. A sandbox and `workspaceOnly` limit what a successful one reaches |
+| Input handling, SSRF, gaps in a denylist | 17 (15%) | Upgrading. Tool policy narrows what is reachable |
+| Resource exhaustion | 3 (3%) | Upgrading |
+| Information exposure | 1 (1%) | Upgrading |
+| No CWE tag | 18 (16%) | Read them individually |
+
+Read that table before believing any claim of coverage, including this one.
+**A defect in someone else's code is fixed by running a fixed version of it.**
+Neither the config in this directory nor the prompt patches a single one of
+these advisories, and a governance layer that claimed otherwise would be the
+most dangerous thing in the package.
+
+What the config does change is who can reach them. Most of the 62
+authorization bugs need an attacker who can talk to the Gateway.
+`gateway.bind: "loopback"` and an auth token remove the unauthenticated
+network path, so a remote stranger is no longer in a position to try. The
+sandbox and the `workspaceOnly` keys limit what a successful command execution
+touches. Those are worth having, and they are not a patch.
+
+The prompt layer covers none of this. That is consistent with the project's
+own security policy, which puts prompt injection out of scope unless an attack
+crosses an auth, policy, approval, sandbox or tool boundary. The prompt
+addresses a different class of problem, listed in the second table above.
+
+**So step 0 of this runbook, and step 7 of every week after it, is to run a
+current version.** Watch that tracker or the repo's advisories, and upgrade on
+a schedule you actually keep. Everything else here reduces what a live defect
+can reach while you get to it.
 
 ## What none of this covers
 

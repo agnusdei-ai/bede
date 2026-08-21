@@ -111,6 +111,17 @@ them.
 | Unbounded tool loops and runaway action counts | Covered | `limits.py` |
 | External tools reachable from a sensitive loop | Covered | `assert_all_internal()` |
 
+**Against the published advisories, this package patches nothing.** The
+[jgamblin/OpenClawCVEs](https://github.com/jgamblin/OpenClawCVEs) tracker lists
+157 advisories as of 2026-08-21, 51 with a CVE id and 106 awaiting one. Of the
+113 carrying CWE tags, 62 are authorization or access control defects and 12
+are command execution. Every one of those is fixed by running a fixed version
+of OpenClaw. What the shipped config changes is who can reach them, since
+`bind: "loopback"` and an auth token take the unauthenticated network attacker
+out of the picture. `profiles/openclaw.runbook.md` breaks the numbers down and
+puts the upgrade check first, because the largest class of defect is closed by
+upgrading and by nothing in this directory.
+
 **What it cannot cover, and no prompt can.** The largest failures of this kind
 were never behavioural. A system prompt has no effect on a Gateway listening on
 a public interface without authentication.
@@ -279,10 +290,6 @@ the running registry instead of the documentation, ship the config instead of
 describing it, and say plainly which failures a prompt cannot touch.
 
 <br clear="left" />
-
-Corrections from anyone running this against a live deployment are worth more
-than anything written here. That work is the only thing that can tell you
-whether a governance prompt changes what an agent does under attack.
 
 ## License
 

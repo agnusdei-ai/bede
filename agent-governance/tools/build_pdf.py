@@ -78,8 +78,32 @@ def esc(t: str) -> str:
     t = renderable(t)
     return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+
+_LINK_RE = re.compile(r'<link href="[^"]+"><font color="#2A5DA0">[^<]*</font></link>')
+
+LINK = colors.HexColor("#2A5DA0")
+
+
 def inline(t: str) -> str:
-    """**bold** and `code` -> reportlab markup, everything else escaped."""
+    """**bold**, *italic*, `code` and [text](url) -> reportlab markup.
+
+    Links were rendering as their raw markdown source, which reads as a
+    typo in a finished document and hides the URL behind punctuation.
+    """
+    t = re.sub(
+        r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+        lambda m: f'<link href="{m.group(2)}"><font color="#2A5DA0">{m.group(1)}</font></link>',
+        t,
+    )
+    # Stash finished link markup so the escaper below leaves it alone.
+    stash: list[str] = []
+
+    def _park(m: re.Match) -> str:
+        stash.append(m.group(0))
+        return f"\x00{len(stash) - 1}\x00"
+
+    t = _LINK_RE.sub(_park, t)
+
     out, last = [], 0
     for m in re.finditer(r"(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)", t):
         out.append(esc(t[last:m.start()]))
@@ -94,7 +118,10 @@ def inline(t: str) -> str:
             out.append(f'<font face="Courier" size="9">{esc(tok[1:-1])}</font>')
         last = m.end()
     out.append(esc(t[last:]))
-    return "".join(out)
+    rendered = "".join(out)
+    for i, link in enumerate(stash):
+        rendered = rendered.replace(f"\x00{i}\x00", link)
+    return rendered
 
 def wrap_code(text: str, width: int) -> str:
     """Hard-wrap long lines so nothing runs off the page.
@@ -386,7 +413,10 @@ if _photo.exists():
             "documentation, ship the config instead of describing it, and say plainly "
             "which failures a prompt cannot touch.", body),
     ]
-    _t = Table([[_img, _bio]], colWidths=[1.55 * inch, (LETTER[0] - 2 * inch) - 1.55 * inch],
+    # Leave a few points of slack: reportlab's own cell padding pushed an
+    # exact-width table past the frame by 6pt, which the overflow check caught.
+    _avail = (LETTER[0] - 2 * inch) - 10
+    _t = Table([[_img, _bio]], colWidths=[1.55 * inch, _avail - 1.55 * inch],
                hAlign="LEFT")
     _t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -397,11 +427,6 @@ if _photo.exists():
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
     story.append(_t)
-    story.append(Spacer(1, 16))
-    story.append(Paragraph(
-        "Corrections from anyone running this against a live deployment are worth more "
-        "than anything written here. That work is the only thing that can tell you whether "
-        "a governance prompt changes what an agent does under attack.", body))
 
 story += section("11.  Licensing", "NOTICE — attribution and scope",
                  [code_block(read("NOTICE"))])

@@ -19,6 +19,10 @@ This package is a generic extraction. It contains no product name, persona,
 trademark, or domain content from the codebase it was extracted from, and it
 grants no rights to any trademark of Agnus Dei Technologies, LLC.
 
+It reports nothing anywhere. No telemetry, no analytics, no version check, no
+usage data. Both properties are enforced by tests in reference/, not left as a
+claim in this file.
+
 Treat the prompt text here as a starting point. It carries no warranty.
 Governing an agent that takes real actions remains the deployer's
 responsibility. Fill every placeholder deliberately, port the code backstops as

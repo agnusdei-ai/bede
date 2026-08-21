@@ -21,7 +21,7 @@ ok()   { printf '  \033[32mok\033[0m   %s\n' "$*"; }
 warn() { printf '  \033[33mnote\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[31mstopped:\033[0m %s\n\n' "$*" >&2; exit 1; }
 
-say "Bede governance layer for OpenClaw"
+say "Agent governance layer for OpenClaw"
 echo "  config     $CONFIG"
 echo "  workspace  $WORKSPACE"
 

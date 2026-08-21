@@ -77,6 +77,24 @@ allowed to message the agent, and approve them once.
 
 Everything below explains what that command did and why.
 
+## What it does not do
+
+**Nothing here reports anywhere.** No telemetry, no analytics, no version ping,
+no usage counter, no callback of any kind. The package reads files and writes a
+prompt. Someone adopting a governance layer is handing it their agent's entire
+context, so that property is checked rather than promised:
+`test_nothing_here_calls_home` scans every shipped Python, TypeScript and shell
+file for a network call and fails on one.
+
+**Nothing here carries a product name.** This started as one company's internal
+governance layer, and the extraction is what makes an Apache-2.0 grant possible
+over a proprietary codebase. `test_no_file_names_the_proprietary_product`
+enforces that in both directions, and it checks itself as well, which is why
+the name it looks for is assembled from fragments rather than spelled out.
+
+Both guards were confirmed by breaking them: a file naming the product fails,
+an installer running `curl` fails, and a Python helper opening a URL fails.
+
 ## What has been verified
 
 - **29 automated guards** ship with the package and run in CI. Each one was

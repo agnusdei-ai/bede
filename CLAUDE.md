@@ -1146,6 +1146,20 @@ carved out by name in the root `LICENSE`'s section 6, recorded as
 `docs/DECISIONS.md` entry 18. Section 5's trademark reservation still
 applies — the grant covers the prompts and code, never the "Bede" mark.
 
+**Two properties make the Apache-2.0 grant safe, and both are tested rather
+than promised.** The package names nothing proprietary
+(`test_no_file_names_the_proprietary_product`, which scans every shipped
+file including itself — the reserved name is assembled from fragments so
+the scanner does not have to exempt the one file nobody would then be
+checking), and it reports nowhere
+(`test_nothing_here_calls_home`: no telemetry, analytics, version ping or
+callback in any shipped Python, TypeScript or shell file). Both were
+confirmed by breaking them. Two leaks had already happened by the time
+the guards were written: the installer's banner named the product, and
+`verify_openclaw_profile.test.ts` hardcoded an absolute path containing
+the repo name, which also made it unrunnable for anyone else. It now
+takes `GOVERNANCE_DIR` and refuses to run without it.
+
 **`prompts/*.md` carry no license header, deliberately.** `reference/
 governance.py` reads those files verbatim into the assembled system prompt,
 so an SPDX comment at the top of one would be shipped into the model's own

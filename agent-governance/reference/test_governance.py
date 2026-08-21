@@ -297,6 +297,19 @@ def test_every_profile_fills_every_placeholder(profile: Path):
 
 
 @pytest.mark.parametrize("profile", _profiles(), ids=lambda p: p.stem)
+def test_every_profile_records_where_its_facts_came_from(profile: Path):
+    """A profile names another project's tools and config keys, and those
+    change. Without a commit to check it against, a reader cannot tell a
+    current profile from one describing an interface that no longer exists —
+    and stale tool names in a governance prompt are worse than none, because
+    the rules attach to nothing."""
+    source = json.loads(profile.read_text()).get("_source", "")
+    assert re.search(r"\b[0-9a-f]{40}\b", source), (
+        f"{profile.name} does not cite the commit its tool names were read from"
+    )
+
+
+@pytest.mark.parametrize("profile", _profiles(), ids=lambda p: p.stem)
 def test_every_profile_says_it_is_a_starting_point(profile: Path):
     """Nobody should paste a profile written by someone who has never seen
     their deployment and believe it is finished."""

@@ -1189,12 +1189,20 @@ starting point.** `openclaw.values.json` fills all 17 for a single-operator
 messaging agent, written against that project's documented model — the
 operator is the only principal, a message on a connected channel is a request
 from whoever sent it and never a grant of the operator's authority, skills are
-code someone else wrote. `test_every_profile_fills_every_placeholder` renders
-each profile against every block and fails on any `{{PLACEHOLDER}}` left
-standing, since a half-filled profile reads to a model as literal text and to
-a reviewer as configured. A second guard requires the `_note` to admit it is
-not finished. Adding a profile is a file; both guards pick it up
-automatically.
+code someone else wrote. Its tool guidance names real tools (`apply_patch`, `exec`, `message`,
+`web_fetch`, `gateway`, `sessions_spawn`, `ask_user`, `skill_workshop`)
+read from that repository at a pinned commit and confirmed to appear in its
+`src/` rather than taken from its docs alone — a rule about "your shell
+tool" attaches to nothing a model can act on.
+`test_every_profile_fills_every_placeholder` renders each profile against
+every block and fails on any `{{PLACEHOLDER}}` left standing, since a
+half-filled profile reads to a model as literal text and to a reviewer as
+configured. A second guard requires the `_note` to admit it is not
+finished, and a third requires `_source` to cite a 40-character commit
+SHA: another project's tool names change, and a stale name in a governance
+prompt is worse than no rule, because the rule attaches to nothing while
+reading as though it does. Adding a profile is a file; all three guards
+pick it up automatically.
 
 **The package states what it cannot do, which for this class of agent is
 most of it.** `README.md`'s coverage table maps each failure class to where

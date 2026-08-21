@@ -121,8 +121,20 @@ are fixed in the deployment or not at all.
 messaging agent, written against OpenClaw's documented model: the operator is
 the only principal, a message on a connected channel is a request from whoever
 sent it and never a grant of the operator's authority, and skills are code
-someone else wrote. It renders at roughly 3,000 tokens with the untrusted-content
-block included.
+someone else wrote. It renders at roughly 3,200 tokens with the
+untrusted-content block included.
+
+Its tool guidance names **real tools**, not categories — `read`/`write`/`edit`/
+`apply_patch`, `exec` (with `bash` as its alias), `message`, `web_fetch`,
+`gateway`, `cron`, `sessions_spawn`, `ask_user`, `skill_workshop` — grouped the
+way that project groups them, because a rule about "your shell tool" attaches
+to nothing a model can act on. The names were read from the repository at a
+pinned commit and each was confirmed to appear in `src/` rather than taken from
+the documentation alone. Tool names change:
+`test_every_profile_records_where_its_facts_came_from` requires each profile to
+cite the commit it was checked against, since a stale name in a governance
+prompt is worse than no rule at all — the rule attaches to nothing and reads as
+though it does.
 
 It is a starting point, not a configuration — nobody should paste a profile
 written by someone who has never seen their deployment and treat it as

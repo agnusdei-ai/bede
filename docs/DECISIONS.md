@@ -659,8 +659,8 @@ today it is neither read nor updated.
 
 **Decided (2026-08).** `agent-governance/` — a generic extraction of Bede's
 own governance layer, carrying no product name, persona, trademark, curriculum,
-or domain content — is licensed to everyone under the Apache License,
-Version 2.0. The rest of this repository stays proprietary and unchanged.
+or domain content — is published by Adapt Cloud and licensed to everyone under
+the Apache License, Version 2.0. The rest of this repository stays proprietary and unchanged.
 `LICENSE` section 6 states the carve-out so the two cannot be confused, and
 section 5's trademark reservation continues to apply to it: the licence covers
 the prompts and code, never the "Bede" name or mark.

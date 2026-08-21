@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Agnus Dei Technologies, LLC
+# Copyright 2026 Adapt Cloud
 """Guards for the governance layer. Each one was verified by breaking the
 thing it guards — a test that does not fail when the behavior regresses is
 decoration, not a control.

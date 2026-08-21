@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Agnus Dei Technologies, LLC
+# Copyright 2026 Adapt Cloud
 """The layer a prompt cannot argue with.
 
 Every rule in prompts/ is text that a sufficiently motivated input can talk

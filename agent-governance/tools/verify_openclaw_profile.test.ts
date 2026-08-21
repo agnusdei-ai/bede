@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 Agnus Dei Technologies, LLC
+// Copyright 2026 Adapt Cloud
 /**
  * Verifies profiles/openclaw.values.json against OpenClaw's real tool registry.
  *

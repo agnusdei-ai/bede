@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Agnus Dei Technologies, LLC
+# Copyright 2026 Adapt Cloud
 #
 # Hardens an OpenClaw install and loads the governance prompt.
 # Safe to run twice. It backs up anything it replaces and changes nothing

@@ -30,6 +30,7 @@ voice biometrics authenticate children at session start.
 | Know what principles govern security design decisions | [docs/ARCHITECTURE_PRINCIPLES.md](docs/ARCHITECTURE_PRINCIPLES.md) — 22 principles on the CISSP domains (self-hosted) and CCSP domains (cloud-resident surfaces), cross-mapped to AIUC-1, NIST AI RMF, ISO/IEC 42001, OWASP LLM/Agentic Top 10, and MITRE ATLAS, each with a conformance status |
 | Know whether Bede needs Kubernetes/Rancher, and what breaks if it's replicated | [docs/DEPLOYMENT_TOPOLOGY.md](docs/DEPLOYMENT_TOPOLOGY.md) — why single-node is the right shape, when a co-op deployment would change that, and the controls that fail silently under horizontal scaling |
 | Run or design a pentest against my own instance | [docs/environment-pentests/README.md](docs/environment-pentests/README.md) — isolated redteam setup (`docker-compose.redteam.yml`), authorization model, and a test plan for both a device already on your LAN and a tester starting with zero prior access |
+| Reuse Bede's governance layer in my own agent | [agent-governance/README.md](agent-governance/README.md) — the constitution pattern, action-safety fork, and code backstops, extracted generically and licensed to everyone under Apache-2.0. The one part of this repository that is open source |
 
 Production (self-hosted, your family's real data) and the public demo
 (stateless, cloud-hosted) are deliberately different setups with different
@@ -44,6 +45,14 @@ self-hosted use by your own household or homeschool community: see
 [LICENSE](LICENSE) for the full terms. Resale, redistribution, and
 commercial use are not permitted without written permission from Agnus
 Dei Technologies, LLC.
+
+**One directory is an exception.** [`agent-governance/`](agent-governance/)
+is a generic extraction of Bede's governance layer — no product name,
+persona, trademark, or curriculum — licensed to everyone under the Apache
+License, Version 2.0, including for commercial use and redistribution. The
+carve-out is stated in [LICENSE](LICENSE) section 6 and the reasoning in
+[docs/DECISIONS.md](docs/DECISIONS.md) entry 18. It grants no trademark
+rights.
 
 Bede™ and the Bede name, logo, and persona are trademarks of Agnus Dei
 Technologies, LLC.

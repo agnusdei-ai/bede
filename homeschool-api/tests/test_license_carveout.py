@@ -51,6 +51,21 @@ def test_the_carveout_preserves_the_trademark_reservation():
     assert "trademark" in (_PKG / "NOTICE").read_text().lower()
 
 
+def test_the_public_readme_states_the_carveout():
+    """The root README is the public statement, and it said outright that this
+    repository is "not open source" with redistribution "not permitted" for a
+    commit after the carve-out landed. A licence exception that only the LICENSE
+    file knows about is one nobody reusing the package will ever find.
+    """
+    readme = (_ROOT / "README.md").read_text()
+    assert "agent-governance/" in readme, (
+        "The root README does not mention agent-governance/. It is the public "
+        "statement of what this repository is; a licence carve-out missing from "
+        "it reads as though the package is proprietary too."
+    )
+    assert "Apache" in readme
+
+
 def test_the_register_records_the_decision():
     register = (_ROOT / "docs" / "DECISIONS.md").read_text()
     assert "agent-governance/" in register and "Apache" in register
@@ -78,7 +93,7 @@ def test_the_change_filter_names_both_licensing_paths():
     failure test_decision_register.py documents for the register itself."""
     workflow = (_ROOT / ".github" / "workflows" / "test.yml").read_text()
     filter_line = next(ln for ln in workflow.splitlines() if "grep -qE" in ln)
-    for path in ("agent-governance/", "LICENSE"):
+    for path in ("agent-governance/", "LICENSE", "README"):
         assert path in filter_line, (
             f"{path} is missing from test.yml's change filter, so a change to "
             f"only that path would skip this suite entirely."

@@ -14,6 +14,16 @@ only feels governed.
 
 ---
 
+## The short version
+
+```bash
+bash ../tools/harden-openclaw.sh
+```
+
+That does steps 2 and 5 for you, checks the result, and prints what is left.
+The rest of this page explains each step so you can do it by hand or check what
+the script did.
+
 ## 1. Install the package
 
 ```bash
@@ -224,8 +234,11 @@ can reach while you get to it.
 
 ## What none of this covers
 
-A live injection attempt has not been run against this configuration. Steps 2-4
-are enforcement and hold regardless of what the model does. Step 5 shapes
-judgment, and a sufficiently clever input can argue with it. The prompt makes
-good behaviour likely. The config makes bad behaviour impossible. Never let the
-first stand in for the second.
+Every key and tool name here is verified against OpenClaw's own schema and
+registry, and the installer is tested end to end. What has not been done is a
+live Gateway under a real injection attempt.
+
+Steps 2-4 are enforcement and hold regardless of what the model does. Step 5
+shapes judgment, and a sufficiently clever input can argue with it. The prompt
+makes good behaviour likely. The config makes bad behaviour impossible. Never
+let the first stand in for the second.

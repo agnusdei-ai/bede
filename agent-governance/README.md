@@ -27,6 +27,7 @@ reference/
   parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
   limits.py                  The constants a prompt cannot argue with.
   test_governance.py         Guards, each verified by breaking what it guards.
+tools/harden-openclaw.sh     One command: hardened config, prompt installed, result checked.
 tools/build_pdf.py           Builds the whole package into one PDF (optional).
 tools/verify_openclaw_profile.test.ts
                              Checks the profile against OpenClaw's real registry. By hand.
@@ -57,6 +58,51 @@ hand the same content to someone who will not clone a repository:
 the document cannot drift from the package — change a prompt, re-run it, and
 the handout matches. `dist/` is deliberately **not** committed. A generated file
 in git becomes a fresh binary blob on every rebuild, kept forever.
+
+## Deploy it in one command
+
+If you are setting up OpenClaw on your own machine and would rather not read
+the rest of this first:
+
+```bash
+bash tools/harden-openclaw.sh
+```
+
+It writes a hardened configuration with a fresh access token, installs the
+governance prompt where OpenClaw reads it, and then checks its own work and
+tells you what it found. It backs up anything it replaces, it is safe to run
+twice, and it stops with an error if the result is not actually hardened. When
+it finishes it prints the two things left for you to do by hand: list who is
+allowed to message the agent, and approve them once.
+
+Everything below explains what that command did and why.
+
+## What has been verified
+
+- **29 automated guards** ship with the package and run in CI. Each one was
+  confirmed to fail when the thing it guards is broken, which is the only way
+  to know a test is doing anything.
+- **8 assertions run inside a clone of `openclaw/openclaw`** at commit
+  `07c8b42a`, against that project's own code rather than its documentation.
+  Tool names go through `isKnownCoreToolId` and `normalizeToolPolicyName`.
+  Config keys are checked against `buildConfigSchemaCore()`, all 4,451 of them.
+  The shipped config is parsed and its values asserted.
+- **The installer was run end to end**: a fresh install, a second run over an
+  existing config, two installs to confirm the access token differs each time,
+  and a deliberately weakened config to confirm it exits with an error instead
+  of reporting success.
+
+Those checks caught four real defects that reading alone would not have. The
+scheduler tool is `automations` and `cron` is an alias for it, so a policy
+naming only `cron` denies nothing. The TypeScript builder could not run at all.
+The config file is `~/.openclaw/openclaw.json`, not the path the documentation
+implied. And `channels.*.allowFrom`, which decides who can reach the agent, was
+missing from the hardening set entirely.
+
+**What has not been done:** no live Gateway has been stood up and attacked. The
+configuration is verified against the real schema and the prompt against the
+real registry, and neither of those tells you how a running agent behaves under
+a determined injection attempt. That test is worth doing and is the next one.
 
 ## Extending it
 

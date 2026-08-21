@@ -364,6 +364,17 @@ story += section("8.  Optional blocks",
                  "governed by rules its own surface never meets",
                  [code_block(read("prompts/optional/10-untrusted-content.md"))])
 
+story.append(PageBreak())
+story.append(Paragraph("Installer", h1))
+story.append(Paragraph('<font face="Courier" size="8.5">tools/harden-openclaw.sh</font>', sub))
+story.extend(render_markdown(
+    "One command for someone who would rather not read the runbook first. It "
+    "writes a hardened configuration with a fresh access token, installs the "
+    "governance prompt where OpenClaw reads it, checks its own work, and stops "
+    "with an error if the result is not actually hardened. It backs up anything "
+    "it replaces and is safe to run twice.\n\n```bash\nbash tools/harden-openclaw.sh\n```"))
+story.append(code_block(read("tools/harden-openclaw.sh"), size=6.6))
+
 story += section("9.  Profiles",
                  "profiles/ — every placeholder filled for one real agent",
                  [code_block(read("profiles/openclaw.values.json"))])

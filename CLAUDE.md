@@ -1254,6 +1254,15 @@ deployment or not at all. Shipping a governance prompt beside an
 unauthenticated port is the more dangerous outcome of the two, because the
 prompt makes the system feel governed.
 
+**`tools/harden-openclaw.sh` is the one-command path for someone who will
+not read the runbook first.** It writes a hardened config with a fresh
+token, renders the prompt into the workspace `AGENTS.md`, checks its own
+work, and exits non-zero when the result is not actually hardened. Backs
+up anything it replaces and is safe to run twice. Tested end to end in a
+throwaway HOME: fresh install, re-run over an existing config, two installs
+to confirm the token differs, and a weakened config to confirm it fails
+loudly instead of reporting success.
+
 **`tools/build_pdf.py` is optional, and `dist/` stays out of git.**
 It renders the whole package into one PDF by reading the package files
 directly, so the handout cannot drift from what it documents. A generated

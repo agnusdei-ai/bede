@@ -15,6 +15,7 @@ from reportlab.platypus import (
     BaseDocTemplate, Frame, PageBreak, PageTemplate, Paragraph, Preformatted,
     Spacer, KeepTogether, Table, TableStyle,
 )
+from reportlab.platypus import Image as RLImage
 from reportlab.platypus.flowables import HRFlowable
 
 PKG = Path(__file__).resolve().parent.parent
@@ -200,6 +201,12 @@ def render_markdown(md: str) -> list:
     # HTML comments are markup, not content — an SPDX header rendered as body
     # text is the file's licence leaking onto the page.
     md = re.sub(r"<!--.*?-->", "", md, flags=re.S)
+    # Layout tags are markup too. A README that positions an image with <img>
+    # renders that tag as a line of body text here, which is worse than simply
+    # not showing the picture — the PDF has its own contributors page for it.
+    # Deliberately a short, named list: an XML-ish tag in a prompt block (for
+    # example <untrusted source="...">) is CONTENT and must survive.
+    md = re.sub(r"</?(?:img|br|div|span|p|hr)\b[^>]*>", "", md, flags=re.S)
     flow, lines, i = [], md.split("\n"), 0
     while i < len(lines):
         line = lines[i]
@@ -360,6 +367,41 @@ for fname, label in [
     story.append(Paragraph(f'<font face="Courier">{esc(fname)}</font>', h2))
     story.append(Paragraph(f"<i>{esc(label)}</i>", sub))
     story.append(code_block(read(fname)))
+
+# ---- Contributors ----
+_photo = PKG / "assets" / "contributor.jpg"
+if _photo.exists():
+    story.append(PageBreak())
+    story.append(Paragraph("Contributors", h1))
+    story.append(Paragraph(
+        '<font face="Courier" size="8.5">assets/contributor.jpg</font>', sub))
+    _img = RLImage(str(_photo), width=1.35 * inch, height=1.35 * inch)
+    _img.hAlign = "LEFT"
+    _bio = [
+        Paragraph("<b>JK Gonzalez</b> — security practitioner", body),
+        Paragraph(
+            "Commissioned this package, reviewed every layer of it, and is putting it in "
+            "front of a real OpenClaw deployment. The direction that shaped it came from "
+            "practice rather than theory: check the running registry instead of the "
+            "documentation, ship the config instead of describing it, and say plainly "
+            "which failures a prompt cannot touch.", body),
+    ]
+    _t = Table([[_img, _bio]], colWidths=[1.55 * inch, (LETTER[0] - 2 * inch) - 1.55 * inch],
+               hAlign="LEFT")
+    _t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0),
+        ("LEFTPADDING", (1, 0), (1, 0), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    story.append(_t)
+    story.append(Spacer(1, 16))
+    story.append(Paragraph(
+        "Corrections from anyone running this against a live deployment are worth more "
+        "than anything written here. That work is the only thing that can tell you whether "
+        "a governance prompt changes what an agent does under attack.", body))
 
 story += section("11.  Licensing", "NOTICE — attribution and scope",
                  [code_block(read("NOTICE"))])

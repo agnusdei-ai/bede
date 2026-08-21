@@ -21,7 +21,7 @@ prompts/optional/            Opt-in, by name — see "Extending it" below.
 profiles/                    Filled-in placeholder sets for a real agent.
   openclaw.values.json       A starting point for OpenClaw. Read before using.
   openclaw.runbook.md        Deploying packaged OpenClaw with this layer, in order.
-  openclaw.hardened.json5    The config that runbook copies. Every key schema-verified.
+  openclaw.hardened.json5    The config that runbook copies. Every key checked.
 reference/
   governance.py / .ts        ~100-line builder: verify digest, assemble, resolve placeholders.
   parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
@@ -30,6 +30,7 @@ reference/
 tools/build_pdf.py           Builds the whole package into one PDF (optional).
 tools/verify_openclaw_profile.test.ts
                              Checks the profile against OpenClaw's real registry. By hand.
+assets/contributor.jpg       Contributor photo, used by the README and the PDF.
 LICENSE / NOTICE             Apache-2.0. Use it, ship it, change it — see below.
 ```
 
@@ -54,8 +55,8 @@ hand the same content to someone who will not clone a repository:
 `pip install reportlab && python3 tools/build_pdf.py` writes
 `dist/Agent-Governance-Prompts.pdf`. It reads the package files directly, so
 the document cannot drift from the package — change a prompt, re-run it, and
-the handout matches. `dist/` is deliberately **not** committed: a generated
-artifact in git is a fresh binary blob on every rebuild, kept forever.
+the handout matches. `dist/` is deliberately **not** committed. A generated file
+in git becomes a fresh binary blob on every rebuild, kept forever.
 
 ## Extending it
 
@@ -77,16 +78,16 @@ surface calls for.
 ## What this covers when the agent reads untrusted input
 
 `prompts/optional/10-untrusted-content.md` exists because of a specific,
-well-documented class of failure: personal agents wired to messaging apps and
-given shell access. Through 2026, [OpenClaw](https://github.com/openclaw/openclaw)
+class of failure that is documented in detail. Personal agents get wired to
+messaging apps and given shell access. Through 2026, [OpenClaw](https://github.com/openclaw/openclaw)
 accumulated 138 CVEs, and researchers reported
-[40,000+ internet-exposed instances](https://www.infosecurity-magazine.com/news/researchers-40000-exposed-openclaw/)
+[more than 40,000 instances exposed on the internet](https://www.infosecurity-magazine.com/news/researchers-40000-exposed-openclaw/)
 — a deployment pattern the project itself advises against, since its security
 guide tells operators to bind the Gateway to loopback. Independent researchers
 demonstrated [prompt injection and data exfiltration](https://thehackernews.com/2026/03/openclaw-ai-agent-flaws-could-enable.html)
 through ordinary inbound messages, and PromptArmor showed link-preview
-metadata working as an exfiltration channel — the agent is induced to build an
-attacker-controlled URL, and the preview fetch delivers the payload.
+metadata working as a way to move data out. The agent is talked into building
+a URL the attacker controls, and the preview fetch delivers the payload.
 
 **The project's own position states where this package sits, better than this
 README did.** OpenClaw's `SECURITY.md` says plainly that *"the model/agent is
@@ -115,8 +116,8 @@ were never behavioural. A system prompt has no effect on a Gateway listening on
 a public interface without authentication.
 [CVE-2026-25253](https://www.betterclaw.io/blog/openclaw-security-2026) —
 taking a `gatewayUrl` from a query string, opening a WebSocket to it and
-sending a stored token — is an input-validation bug in code that runs before
-any model sees anything. Credentials in plaintext on disk, an unauthenticated
+sending a stored token — is a bug in how input is checked, in code that runs
+before any model sees anything. Credentials in plaintext on disk, an unauthenticated
 pairing flow, a missing sandbox, an unvetted skill marketplace: all of these
 are fixed in the deployment or not at all.
 
@@ -124,16 +125,16 @@ are fixed in the deployment or not at all.
 
 `profiles/openclaw.runbook.md` connects the two halves: installing packaged
 OpenClaw and applying this layer, in the order that matters. Install, close the
-network surface **before anything listens**, cut the tool surface, pair
-deliberately, and only then render the prompt into the workspace `AGENTS.md`
+network **before anything listens**, cut back the tools the agent can reach,
+pair deliberately, and only then render the prompt into the workspace `AGENTS.md`
 that OpenClaw loads at the start of every session.
 
 It ships the config instead of describing it. `profiles/openclaw.hardened.json5`
 is a real file an operator copies to `~/.openclaw/openclaw.json`, and the
 runbook's control table says what each key buys instead of restating its value.
 The by-hand verifier checks three things at once. Every key exists in the real
-schema, the config actually sets what the table promises, and the network
-surface is genuinely closed (`bind: "loopback"`, `gateway` denied, a sandbox
+schema, the config actually sets what the table promises, and the Gateway really is
+unreachable from the network (`bind: "loopback"`, `gateway` denied, a sandbox
 on). Eight assertions, each verified by breaking it.
 
 The ordering is the content. Steps 2-4 are enforcement and hold whatever the
@@ -232,8 +233,9 @@ than a classification problem.
 
 **4. Tool results are data, never instructions.** `TRIVIAL_TOOL_RESULT` is a
 fixed constant for exactly this reason. The moment a tool result carries free
-text the process did not author, it is a prompt-injection vector into your own
-context. For an agent that browses, this is the highest-risk line in the file.
+text the process did not author, it becomes a way for someone else's words to
+reach your model. For an agent that browses, this line carries the most risk in
+the file.
 
 **5. Confine external content by construction, not by setting.** The original
 uses three independent mechanisms: a tool registry containing only
@@ -264,6 +266,23 @@ broader tool surface will want higher values — but pick them deliberately,
 keep them as constants instead of config, and check the cap *before* executing
 instead of after, so the expensive or irreversible thing never happens at
 all.
+
+## Contributors
+
+<img src="assets/contributor.jpg" alt="JK Gonzalez" width="120" align="left"
+     style="margin: 0 16px 8px 0; border-radius: 8px;" />
+
+**JK Gonzalez** — security practitioner. Commissioned this package, reviewed
+every layer of it, and is putting it in front of a real OpenClaw deployment.
+The direction that shaped it came from practice rather than from theory: check
+the running registry instead of the documentation, ship the config instead of
+describing it, and say plainly which failures a prompt cannot touch.
+
+<br clear="left" />
+
+Corrections from anyone running this against a live deployment are worth more
+than anything written here. That work is the only thing that can tell you
+whether a governance prompt changes what an agent does under attack.
 
 ## License
 

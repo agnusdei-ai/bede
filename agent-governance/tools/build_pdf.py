@@ -298,6 +298,10 @@ story.append(PageBreak())
 story.append(Paragraph("Deployment runbook", h2))
 story.append(Paragraph('<font face="Courier" size="8.5">profiles/openclaw.runbook.md</font>', sub))
 story.extend(render_markdown(read("profiles/openclaw.runbook.md")))
+story.append(PageBreak())
+story.append(Paragraph("Hardened configuration", h2))
+story.append(Paragraph('<font face="Courier" size="8.5">profiles/openclaw.hardened.json5 — copy to ~/.openclaw/openclaw.json</font>', sub))
+story.append(code_block(read("profiles/openclaw.hardened.json5")))
 
 story += section("10.  Reference implementation",
                  "reference/ — a ~100-line builder in two runtimes, the constants, and the guards",

@@ -1222,8 +1222,19 @@ extended the same test to the deployment runbook's config keys, walking
 accepted silently by a JSON5 config and does nothing, so the hardening step
 reads as done and is not.
 
-**`profiles/openclaw.runbook.md` connects installing packaged OpenClaw to
-applying this layer, and the ordering is the content.** Install, close the
+**`profiles/openclaw.runbook.md` is the operational runbook, and
+`profiles/openclaw.hardened.json5` is the config it copies** — a real file
+an operator puts at `~/.openclaw/openclaw.json` (JSON5 content, `.json`
+name), not prose they retype. The runbook's control table says what each
+key buys rather than restating the values, and the by-hand verifier checks
+the two agree: every key exists in the real schema, the config actually
+sets what the table promises, and the network surface is genuinely closed.
+Eight assertions, each verified by breaking it — including a drift the
+agreement check caught on its first run (`tools.exec.host` named in prose
+to explain a default, which is not the same as a control the config sets;
+the check now reads the table rows rather than every backticked key).
+
+**The ordering is the content.** Install, close the
 network surface before anything listens (`gateway.bind: "loopback"`), cut
 the tool surface (`tools.profile`, denying `gateway` and `sessions_spawn`,
 `workspaceOnly`, a sandbox — `exec` is host-first by default), pair

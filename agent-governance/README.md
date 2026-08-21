@@ -21,6 +21,7 @@ prompts/optional/            Opt-in, by name — see "Extending it" below.
 profiles/                    Filled-in placeholder sets for a real agent.
   openclaw.values.json       A starting point for OpenClaw. Read before using.
   openclaw.runbook.md        Deploying packaged OpenClaw with this layer, in order.
+  openclaw.hardened.json5    The config that runbook copies. Every key schema-verified.
 reference/
   governance.py / .ts        ~100-line builder: verify digest, assemble, resolve placeholders.
   parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
@@ -125,6 +126,14 @@ OpenClaw and applying this layer, in the order that matters. Install, close the
 network surface **before anything listens**, cut the tool surface, pair
 deliberately, and only then render the prompt into the workspace `AGENTS.md`
 that OpenClaw loads at the start of every session.
+
+It ships the config rather than describing it: `profiles/openclaw.hardened.json5`
+is a real file an operator copies to `~/.openclaw/openclaw.json`, and the
+runbook's control table says what each key buys instead of restating it. The
+by-hand verifier checks three things at once — every key exists in the real
+schema, the config actually sets what the table promises, and the network
+surface is genuinely closed (`bind: "loopback"`, `gateway` denied, a sandbox
+on). Eight assertions, each verified by breaking it.
 
 The ordering is the content. Steps 2-4 are enforcement and hold whatever the
 model does; step 5 shapes judgment and can be argued with. Installing the

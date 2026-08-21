@@ -37,6 +37,28 @@ const PROFILE =
   process.env.GOVERNANCE_PROFILE ??
   "/home/user/bede/agent-governance/profiles/openclaw.values.json";
 const RUNBOOK = process.env.GOVERNANCE_RUNBOOK ?? PROFILE.replace("values.json", "runbook.md");
+const CONFIG = process.env.GOVERNANCE_CONFIG ?? PROFILE.replace("values.json", "hardened.json5");
+
+/** Dotted paths actually SET by the shipped config, read from its structure. */
+function configPaths(node: unknown, prefix = "", out = new Set<string>()): Set<string> {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return out;
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    out.add(path);
+    configPaths(value, path, out);
+  }
+  return out;
+}
+
+/** Minimal JSON5 reader: comments and trailing commas only, which is all this file uses. */
+function readJson5(file: string): unknown {
+  const stripped = readFileSync(file, "utf8")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replace(/\/\/.*$/gm, "")
+    .replace(/,(\s*[}\]])/g, "$1")
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":');
+  return JSON.parse(stripped);
+}
 
 /** Every config path the schema actually defines. */
 function schemaPaths(node: unknown, prefix = "", out = new Set<string>()): Set<string> {
@@ -117,5 +139,45 @@ describe("agent-governance OpenClaw profile", () => {
     ];
     expect(cited.length).toBeGreaterThan(3);
     expect(cited.filter((key) => !known.has(key))).toEqual([]);
+  });
+
+  it("ships a config whose every key exists in this schema", () => {
+    // Stronger than scanning prose: this reads the file an operator actually
+    // copies. A key that does not exist is accepted silently by a JSON5
+    // config and does nothing, so the hardening step reads as done and is not.
+    expect(existsSync(CONFIG)).toBe(true);
+    const known = schemaPaths((buildConfigSchemaCore() as { schema: unknown }).schema);
+    const set = [...configPaths(readJson5(CONFIG))];
+    expect(set.length).toBeGreaterThan(10);
+    expect(set.filter((key) => !known.has(key))).toEqual([]);
+  });
+
+  it("sets the controls the runbook says it sets", () => {
+    // Two copies of one fact: the runbook's table and the config file. This
+    // is the check that they agree.
+    expect(existsSync(RUNBOOK)).toBe(true);
+    const set = configPaths(readJson5(CONFIG));
+    // Only the runbook's own table of controls — the first backticked key on
+    // each table row. Prose elsewhere names keys to explain a default
+    // (tools.exec.host) without claiming the config sets them.
+    const promised = [
+      ...new Set(
+        readFileSync(RUNBOOK, "utf8")
+          .split("\n")
+          .filter((line) => line.startsWith("| `"))
+          .map((line) => line.match(/^\| `([A-Za-z][A-Za-z0-9.*]*)`/)?.[1])
+          .filter((key): key is string => Boolean(key) && !key!.includes("*")),
+      ),
+    ].filter((key) => key !== "agents.defaults.skipBootstrap");
+    expect(promised.length).toBeGreaterThan(5);
+    expect(promised.filter((key) => !set.has(key))).toEqual([]);
+  });
+
+  it("the shipped config actually closes the network surface", () => {
+    const cfg = readJson5(CONFIG) as any;
+    expect(cfg.gateway.bind).toBe("loopback");
+    expect(cfg.tools.deny).toContain("gateway");
+    expect(cfg.tools.fs.workspaceOnly).toBe(true);
+    expect(cfg.agents.defaults.sandbox.mode).not.toBe("off");
   });
 });

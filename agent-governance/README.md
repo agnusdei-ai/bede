@@ -18,10 +18,10 @@ prompts/
   05-tool-guidance.md        How tools may be spent.
 reference/
   governance.py / .ts        ~100-line builder: verify digest, assemble, resolve placeholders.
+  parity_check.ts            Renders via the TS builder so a test can diff it against Python's.
   limits.py                  The constants a prompt cannot argue with.
   test_governance.py         Guards, each verified by breaking what it guards.
-tools/                       Builders for the PDF/Word handout in dist/ (optional).
-dist/                        The same contents as one document, for handing to someone.
+tools/build_pdf.py           Builds the whole package into one PDF (optional).
 LICENSE / NOTICE             Apache-2.0. Use it, ship it, change it — see below.
 ```
 
@@ -41,11 +41,13 @@ python3 reference/governance.py values.json > system_prompt.txt
 if any placeholder is missing — a shipped prompt containing the literal string
 `{{PRINCIPAL}}` is worse than a missing rule, because it looks configured.
 
-Nothing in `tools/` or `dist/` is needed to use the package — they exist so the
-same content can be handed to someone who will not clone a repository.
-`tools/build_pdf.py` (needs `reportlab`) and `tools/build_doc.js` (needs `docx`)
-both read the package files directly, so the documents cannot drift from the
-package: change a prompt, re-run a builder, and the handout matches.
+`tools/build_pdf.py` is not needed to use the package. It exists so the same
+content can be handed to someone who will not clone a repository:
+`pip install reportlab && python3 tools/build_pdf.py` writes
+`dist/Agent-Governance-Prompts.pdf`. It reads the package files directly, so
+the document cannot drift from the package — change a prompt, re-run it, and
+the handout matches. `dist/` is deliberately **not** committed: a generated
+artifact in git is a fresh binary blob on every rebuild, kept forever.
 
 ## The six layers, and which ones carry weight
 

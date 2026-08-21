@@ -7,8 +7,12 @@
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = join(__dirname, "..");
+// ESM has no __dirname. An earlier cut of this file used it and so could not
+// run at all — the failure a parity test against the Python builder now
+// catches, since nothing else here ever executed this module.
+const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const PLACEHOLDER = /\{\{([A-Z0-9_]+)\}\}/g;
 
 /** Set once the constitution is final; never edit the file without updating this. */

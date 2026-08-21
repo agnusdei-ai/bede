@@ -230,7 +230,7 @@ TOC = [
     ("5", "prompts/03-action-safety.md", "Limits on actions the agent originates"),
     ("6", "prompts/04-operating-rules.md", "Honesty and turn-shape rules"),
     ("7", "prompts/05-tool-guidance.md", "How tools may be spent"),
-    ("8", "reference/", "governance.py · governance.ts · limits.py · test_governance.py"),
+    ("8", "reference/", "governance.py · governance.ts · parity_check.ts · limits.py · test_governance.py"),
     ("9", "LICENSE · NOTICE", "Apache License 2.0, and what it does not cover"),
 ]
 story.append(Paragraph("Contents", h1))
@@ -269,6 +269,7 @@ story += section("8.  Reference implementation",
 for fname, label in [
     ("reference/governance.py", "Python builder"),
     ("reference/governance.ts", "TypeScript builder"),
+    ("reference/parity_check.ts", "Renders through the TS builder so a test can diff it against Python's"),
     ("reference/limits.py", "The constants a prompt cannot argue with"),
     ("reference/test_governance.py", "Guards — each verified by breaking what it guards"),
 ]:
@@ -299,6 +300,9 @@ def decorate(canvas, doc):
         canvas.drawString(1 * inch, 0.52 * inch, "Agent Governance Prompts")
     canvas.restoreState()
 
+
+# dist/ is gitignored, so a fresh clone does not have it.
+OUT.parent.mkdir(parents=True, exist_ok=True)
 
 doc = BaseDocTemplate(str(OUT), pagesize=LETTER,
                       leftMargin=1 * inch, rightMargin=1 * inch,

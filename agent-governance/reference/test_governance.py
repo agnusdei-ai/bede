@@ -10,7 +10,10 @@ Run: pytest reference/test_governance.py
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -82,6 +85,36 @@ def test_every_reference_source_declares_the_license():
     for f in sorted((ROOT / "reference").glob("*.py")) + sorted((ROOT / "reference").glob("*.ts")):
         head = f.read_text(encoding="utf-8").splitlines()[:3]
         assert any("SPDX-License-Identifier: Apache-2.0" in ln for ln in head), f.name
+
+
+def _documented_values() -> dict:
+    documented = json.loads((ROOT / "placeholders.json").read_text())
+    return {k: f"<{k}>" for k in documented if k != "_comment"}
+
+
+def test_the_typescript_builder_renders_exactly_what_python_does():
+    """Two implementations of one contract drift silently, and this one could
+    not run at all until a parity check existed: governance.ts used __dirname
+    in ESM scope, so importing it threw before reaching a single assertion.
+    Nothing caught that because nothing ever executed the module.
+
+    Skipped when node is unavailable, EXCEPT when BEDE_REQUIRE_NODE is set —
+    CI sets it, so a missing runtime there fails loudly instead of quietly
+    reporting a pass for a check that never ran.
+    """
+    node = shutil.which("node")
+    if node is None:
+        if os.environ.get("BEDE_REQUIRE_NODE"):
+            pytest.fail("node is required here but was not found on PATH")
+        pytest.skip("node not installed")
+    result = subprocess.run(
+        [node, "--experimental-strip-types", str(ROOT / "reference" / "parity_check.ts")],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert result.returncode == 0, f"the TypeScript builder failed to run:\n{result.stderr}"
+    assert result.stdout == render(_documented_values(), constitution_path=TEMPLATE), (
+        "governance.ts and governance.py no longer render the same prompt"
+    )
 
 
 def test_the_constitution_comes_first():

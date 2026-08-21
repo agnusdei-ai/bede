@@ -1167,17 +1167,28 @@ breaking them); the package tests *itself*. A test in the package that
 reached back into this repo would break the moment someone vendored it,
 which is the whole point of the extraction.
 
-**`tools/` and `dist/` are optional.** `tools/build_pdf.py` (reportlab) and
-`tools/build_doc.js` (docx-js) generate the PDF/Word handout in `dist/` by
-reading the package files directly, so the documents cannot drift from the
-package they document — change a prompt, re-run a builder, and the handout
-matches. Neither is needed to use the package. Two defects worth not
-reintroducing, both found by rendering and looking rather than by reading
-the code: reportlab's `Preformatted` silently ignores `backColor` (only
-`Paragraph` paints it) and does not wrap, so an over-long prompt line was
-drawn straight past the page edge and lost. LibreOffice is broken in this
-sandbox and converts nothing, so the `.docx` is verified structurally and by
-content extraction rather than by eye.
+**`tools/build_pdf.py` is optional, and `dist/` is not committed.**
+It renders the whole package into one PDF by reading the package files
+directly, so the handout cannot drift from what it documents. A generated
+artifact in git is a fresh binary blob on every rebuild kept forever, so
+`dist/` is gitignored and the PDF is built on demand
+(`pip install reportlab && python3 tools/build_pdf.py`). Two defects worth
+not reintroducing, both found by rendering and looking rather than by
+reading the code: reportlab's `Preformatted` silently ignores `backColor`
+(only `Paragraph` paints it) and does not wrap, so an over-long prompt line
+was drawn straight past the page edge and lost. A Word builder existed
+briefly and was dropped as packaging that outweighed the package.
+
+**`governance.ts` could not run at all until a parity test existed.** It
+used `__dirname` in ESM scope, so importing it threw before reaching any
+assertion — the third time this repository has shipped code nothing ever
+invoked, after `bayesian_update`'s unpassed `params` and the MCP server's
+1.x decorator API. `reference/parity_check.ts` renders through the
+TypeScript builder and `test_the_typescript_builder_renders_exactly_what_python_does`
+diffs it byte for byte against the Python one, so the two cannot drift and
+neither can silently stop running. CI sets `BEDE_REQUIRE_NODE=1`, which
+turns that test's "node not installed" skip into a failure — without it, a
+runner that lost node would report a pass for a check that never ran.
 
 ## The Decision Register
 

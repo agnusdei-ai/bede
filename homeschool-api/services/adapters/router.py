@@ -333,6 +333,40 @@ async def _best_effort_failover_alert(primary: str, chosen: str) -> None:
         log.debug("Failover alert email suppressed", exc_info=True)
 
 
+#: Sampling parameters the Anthropic SDK removed from its typed signature in
+#: 1.x. Passing one to messages.create()/stream() there is a TypeError raised
+#: client-side, before any request goes out.
+#:
+#: They are translated here rather than deleted from call sites because every
+#: OTHER adapter still takes them as ordinary kwargs — openai_compatible_adapter
+#: reads `temperature` explicitly when it builds its request — so removing them
+#: upstream would quietly drop the setting on the OpenAI, Mistral and local
+#: paths to fix a problem only Anthropic has. Adapting per-adapter is what this
+#: layer is for.
+_SDK_REMOVED_SAMPLING_PARAMS = ("temperature", "top_p", "top_k")
+
+
+def _kwargs_for(name: str, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Adapt one call's kwargs to the adapter about to serve it.
+
+    `extra_body` is merged into the request JSON by the Anthropic SDK as-is, so
+    the parameter still reaches the API and a model that honours it behaves
+    exactly as before. Whether a given model honours it is a separate question
+    from whether the SDK will accept the keyword.
+    """
+    if name != "anthropic":
+        return kwargs
+    present = {k: kwargs[k] for k in _SDK_REMOVED_SAMPLING_PARAMS if k in kwargs}
+    if not present:
+        return kwargs
+    adapted = {k: v for k, v in kwargs.items() if k not in present}
+    extra_body: Dict[str, Any] = dict(adapted.get("extra_body") or {})
+    for key, value in present.items():
+        extra_body.setdefault(key, value)
+    adapted["extra_body"] = extra_body
+    return adapted
+
+
 class _FailoverStreamContext:
     """Opens a stream against the first healthy adapter, trying the next on an
     open-time failover error. Failover only happens BEFORE any event is yielded
@@ -350,7 +384,7 @@ class _FailoverStreamContext:
         last_exc: Optional[Exception] = None
         for name in candidates:
             adapter = self._client._adapter(name)
-            ctx = adapter.messages.stream(**self._kwargs)
+            ctx = adapter.messages.stream(**_kwargs_for(name, self._kwargs))
             try:
                 stream = await ctx.__aenter__()
             except errs as exc:  # type: ignore[misc]
@@ -388,7 +422,7 @@ class _FailoverMessages:
         for name in candidates:
             adapter = self._client._adapter(name)
             try:
-                result = await adapter.messages.create(**kwargs)
+                result = await adapter.messages.create(**_kwargs_for(name, kwargs))
             except errs as exc:  # type: ignore[misc]
                 last_exc = exc
                 self._client._breaker.trip(name)

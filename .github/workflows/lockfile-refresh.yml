@@ -70,11 +70,41 @@ name: Lockfile refresh
 # step after the regeneration — the first time this job was needed was the
 # first time its PR path ran at all.
 
+# ── THE SCHEDULE IS OFF. DO NOT RE-ENABLE IT WITHOUT READING THIS ────────
+#
+# Disabled 2026-08-19 on the repository owner's instruction: refreshing the
+# backend lockfiles was causing instance instability on the deployed
+# backend.
+#
+# The mechanism is not mysterious, and it is the thing this workflow's
+# design overlooked. Every refresh merged here changes what Render actually
+# installs on the next deploy, and `bede-demo-api` runs with almost no
+# memory headroom — see services/transcription.py's own note on being
+# OOM-killed at 642MB against Render's 512MB free-tier cap, which reached
+# real families as a voice bug rather than as a memory error. A transitive
+# bump that costs a few megabytes at import is enough to cross that line.
+#
+# So this job was pulling the newest resolvable versions of ~110 packages
+# into a memory-constrained production instance, daily, on the strength of
+# an argument about CI tidiness. docs/DECISIONS.md entry 12 weighed
+# supply-chain currency against pull-request noise and never weighed
+# production stability at all.
+#
+# .github/dependabot.yml is open-pull-requests-limit: 0 across every
+# ecosystem (security updates only), so with this schedule off, nothing in
+# this repository moves a dependency version on its own. That is the point.
+#
+# workflow_dispatch is deliberately kept: a deliberate, attended refresh —
+# run by a person who is watching the deploy — is a different act from an
+# unattended daily one, and is still the right way to pick up a security
+# fix that Dependabot does not cover.
+#
+# THE COST, stated so re-enabling is not the only way to rediscover it:
+# lockfile-freshness compares against a live resolve, so it will go red on
+# unrelated pull requests whenever any transitive dependency publishes, and
+# nothing now absorbs that. See entry 12, whose stated justification this
+# withdraws.
 on:
-  schedule:
-    # Daily, off the hour and clear of the other crons in this repo
-    # (site-headers-live at :17, keep-demo-warm every 10 min from 12:00).
-    - cron: '41 5 * * *'
   workflow_dispatch:
 
 # Read-only by default; the one job that needs to write says so itself and

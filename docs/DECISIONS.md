@@ -400,6 +400,39 @@ reasoning above, unchanged. And a duration read off the GitHub API mid-run is
 not evidence — take timings from `completed_at - started_at` after the job
 reports, never from how long a status has appeared to be pending.
 
+**The palliative is now switched off, and this entry's justification with
+it (2026-08-19).** On the repository owner's instruction: refreshing the
+backend lockfiles was causing instance instability on the deployed backend.
+`.github/workflows/lockfile-refresh.yml`'s `schedule:` is removed;
+`workflow_dispatch` is kept so a deliberate, attended refresh is still
+possible.
+
+**This entry weighed two things and should have weighed three.** It traded
+supply-chain currency against pull-request noise. It never considered that
+every refresh changes what Render installs on the next deploy, into an
+instance with almost no memory headroom — `services/transcription.py`
+records `bede-demo-api` being OOM-killed at 642MB against a 512MB cap, a
+failure that reached real families as a voice bug rather than as a memory
+error. Pulling the newest resolvable versions of ~110 packages into that,
+daily, is a production risk the entry never named. A dependency refresh is
+not a CI-hygiene question; it is a deployment.
+
+**The decision text above is left standing** because it was genuinely made
+and its reasoning about supply-chain currency is unchanged. But the
+sentence "what made this affordable rather than merely principled is that
+`lockfile-refresh.yml` now absorbs the toil" is no longer true, and nothing
+absorbs it now. `lockfile-freshness` will go red on unrelated pull requests
+whenever a transitive dependency publishes, exactly as before the workflow
+existed.
+
+**That makes the question this entry closed live again**, and the
+alternative it rejected — comparing against the previous commit rather than
+a live resolve — now has an argument on its side that was not on the table
+in August: it would stop the gate demanding a dependency change nobody
+asked for. Left `closed` rather than reopened unilaterally, because
+reopening a founder's ruling is the founder's call; flagged here so the
+next person does not have to rediscover that the premise moved.
+
 **The palliative this decision rests on had never once run (2026-08-18).** This
 entry closes on a specific bargain: the live resolve is worth its cost
 *because* `lockfile-refresh.yml` removes the manual toil. On 2026-08-18

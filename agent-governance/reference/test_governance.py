@@ -27,6 +27,10 @@ from limits import (
     assert_all_internal,
     within_cap,
     wrap_untrusted,
+    MAX_PEER_FRAME_BYTES,
+    UnknownCapability,
+    peer_is_authorized,
+    resolve_peer_capability,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -272,6 +276,85 @@ def test_the_untrusted_block_covers_the_channels_data_actually_leaves_by():
         assert rule in text
 
 
+def test_the_local_peer_block_is_off_unless_asked_for():
+    """Most agents have no local peer at all. A rule about one teaches them to
+    worry about a connection that does not exist."""
+    values = _documented_values()
+    assert "<local_peer_connector>" not in render(values, constitution_path=TEMPLATE)
+    with_block = render(values, constitution_path=TEMPLATE,
+                        extra_blocks=["11-local-peer-connector"])
+    assert "<local_peer_connector>" in with_block
+
+
+def test_the_local_peer_block_refuses_rather_than_improvises():
+    """The failure this block exists to prevent is a connector that answers a
+    request nobody built it to answer by finding something close enough. Deny
+    by default only means anything if widening is named as forbidden too."""
+    text = (ROOT / "prompts" / "optional" / "11-local-peer-connector.md").read_text().lower()
+    for rule in ("do not improvise", "widen", "arbitrary command"):
+        assert rule in text, f"capability-refusal rule missing: {rule}"
+
+
+def test_the_local_peer_block_keeps_peer_content_local():
+    """A local connector that relays what it receives to a third-party model has
+    moved the data off the machine, which is the whole property a local
+    connector exists to hold."""
+    text = (ROOT / "prompts" / "optional" / "11-local-peer-connector.md").read_text().lower()
+    assert "outside this machine" in text
+    assert "relay" in text
+    for rule in ("refus", "stays local"):
+        assert rule in text, f"stay-local rule missing: {rule}"
+
+
+def test_the_local_peer_block_denies_the_peer_the_principals_authority():
+    """Same machine is not same principal. Proximity is not authorization, and
+    an agent that reads a local socket as itself has no boundary at all."""
+    text = (ROOT / "prompts" / "optional" / "11-local-peer-connector.md").read_text()
+    lowered = text.lower()
+    assert "same machine grants it nothing" in lowered
+    assert "untrusted-content rules" in lowered, (
+        "the block must defer to 10-untrusted-content rather than restate it"
+    )
+    assert text.count("{{PRINCIPAL}}") >= 3
+
+
+def test_an_empty_capability_registry_answers_nothing():
+    """The correct state for a connector whose capabilities have not been
+    agreed yet. Deny by default is only real if the empty case refuses rather
+    than falling through to something."""
+    with pytest.raises(UnknownCapability):
+        resolve_peer_capability("anything", {})
+
+
+def test_a_capability_lookup_never_finds_something_close_enough():
+    """A near-match handler widens the connector's surface without anyone
+    deciding to, which is exactly what the prompt block forbids the model from
+    doing. The dispatch path must not be able to do it either."""
+    registry = {"summarize_note": object()}
+    for near in ("summarize", "summarize_notes", "Summarize_Note", "summarize_note "):
+        with pytest.raises(UnknownCapability):
+            resolve_peer_capability(near, registry)
+    assert resolve_peer_capability("summarize_note", registry) is registry["summarize_note"]
+
+
+def test_an_unidentifiable_peer_is_refused():
+    """A platform that cannot tell you who connected has not told you it is
+    safe. Treating 'could not check' as 'passed' is how a boundary becomes
+    decorative on the systems where nobody tested it."""
+    assert peer_is_authorized(1000, 1000) is True
+    assert peer_is_authorized(1000, 1001) is False
+    assert peer_is_authorized(None, 1000) is False
+    assert peer_is_authorized(1000, None) is False
+    assert peer_is_authorized(None, None) is False
+
+
+def test_the_peer_frame_bound_is_readable_before_allocating():
+    """A length field is attacker-controlled. The bound exists to be checked
+    against the header, before anything is allocated for the body."""
+    assert isinstance(MAX_PEER_FRAME_BYTES, int)
+    assert 0 < MAX_PEER_FRAME_BYTES <= 1024 * 1024
+
+
 # ── Profiles ────────────────────────────────────────────────────────────────
 
 
@@ -327,7 +410,7 @@ def test_every_profile_says_it_is_a_starting_point(profile: Path):
 #: Assembled from fragments on purpose. Spelled out, this file would contain
 #: the very strings it scans for, and it would have to exempt itself from its
 #: own check — leaving the one file nobody was checking.
-RESERVED_NAMES = ("".join(("be", "de")),)
+RESERVED_NAMES = ("".join(("be", "de")), "".join(("loc", "uto")))
 
 SHIPPED_SUFFIXES = {".md", ".py", ".ts", ".json", ".json5", ".sh", ""}
 

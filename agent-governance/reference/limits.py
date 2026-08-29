@@ -100,3 +100,48 @@ def within_cap(calls_executed_this_turn: int) -> bool:
     """Check BEFORE executing, never after. The point is that the expensive
     or irreversible thing never happens, rather than being logged once it has."""
     return calls_executed_this_turn < MAX_TOOL_CALLS_PER_TURN
+
+
+# ── The local peer connector ────────────────────────────────────────────────
+#
+# For the optional 11-local-peer-connector block. These are the parts of that
+# block a prompt cannot hold on its own: what the connector will answer, who
+# it will answer, and how much it will read before deciding either.
+
+#: The largest body one peer frame may carry, read from the frame header
+#: BEFORE anything is allocated for it. A length field is attacker-controlled,
+#: so trusting it enough to allocate against is the whole bug.
+MAX_PEER_FRAME_BYTES = 256 * 1024
+
+
+class UnknownCapability(RuntimeError):
+    """The peer asked for something the connector does not answer."""
+
+
+def resolve_peer_capability(name: str, registry: dict[str, Any]) -> Any:
+    """Look a request up in a CLOSED registry, or refuse.
+
+    An empty registry answers nothing, which is the correct state for a
+    connector whose capabilities have not been agreed yet. There is
+    deliberately no default handler and no nearest-match: a connector that
+    finds something close enough has widened its own surface without anyone
+    deciding to, and the prompt rule against improvising is only real while
+    the dispatch path cannot do it either.
+    """
+    try:
+        return registry[name]
+    except KeyError:
+        raise UnknownCapability(name) from None
+
+
+def peer_is_authorized(expected_uid: int | None, peer_uid: int | None) -> bool:
+    """Check the connecting process's own identity, at accept time.
+
+    Both unknowns refuse. A platform that cannot tell you who connected has
+    not told you it is safe, and treating "could not check" as "passed" is
+    how a boundary becomes decorative on exactly the systems where nobody
+    tested it.
+    """
+    if expected_uid is None or peer_uid is None:
+        return False
+    return expected_uid == peer_uid

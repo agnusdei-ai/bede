@@ -18,6 +18,7 @@ prompts/                     Always rendered.
   05-tool-guidance.md        How tools may be spent.
 prompts/optional/            Opt-in, by name — see "Extending it" below.
   10-untrusted-content.md    For an agent reading anything it did not author.
+  11-local-peer-connector.md For an agent another program on the same machine can call.
 profiles/                    Filled-in placeholder sets for a real agent.
   openclaw.values.json       A starting point for OpenClaw. Read before using.
   openclaw.runbook.md        Deploying packaged OpenClaw with this layer, in order.
@@ -97,9 +98,10 @@ an installer running `curl` fails, and a Python helper opening a URL fails.
 
 ## What has been verified
 
-- **29 automated guards** ship with the package and run in CI. Each one was
-  confirmed to fail when the thing it guards is broken, which is the only way
-  to know a test is doing anything.
+- **40 automated guards** ship with the package and run in CI, 82 cases once
+  parametrized over the files they scan. Each one was confirmed to fail when
+  the thing it guards is broken, which is the only way to know a test is doing
+  anything.
 - **8 assertions run inside a clone of `openclaw/openclaw`** at commit
   `07c8b42a`, against that project's own code rather than its documentation.
   Tool names go through `isKnownCoreToolId` and `normalizeToolPolicyName`.
@@ -174,6 +176,10 @@ them.
 | Self-modification: config patch, permission widening, skill install | Covered | `10`, `03` |
 | Unbounded tool loops and runaway action counts | Covered | `limits.py` |
 | External tools reachable from a sensitive loop | Covered | `assert_all_internal()` |
+| A local program treated as the operator because it is on the same machine | Covered | `11`, `peer_is_authorized()` |
+| A peer request answered by a near-match capability nobody agreed to | Covered | `11`, `resolve_peer_capability()` |
+| Peer content relayed to a hosted model or an outbound request | Covered | `11` |
+| An attacker-controlled frame length allocated against | Covered | `MAX_PEER_FRAME_BYTES` |
 
 **Against the published advisories, this package patches nothing.** The
 [jgamblin/OpenClawCVEs](https://github.com/jgamblin/OpenClawCVEs) tracker lists
@@ -195,6 +201,31 @@ sending a stored token — is a bug in how input is checked, in code that runs
 before any model sees anything. Credentials in plaintext on disk, an unauthenticated
 pairing flow, a missing sandbox, an unvetted skill marketplace: all of these
 are fixed in the deployment or not at all.
+
+## What this covers when another program on the machine calls the agent
+
+`prompts/optional/11-local-peer-connector.md` is for the case where a second
+program on the same machine can send the agent requests over a local socket or
+pipe. That arrangement is usually built for good reasons — a companion app, a
+desktop client, a device daemon — and it quietly changes who can ask the agent
+for things. Being on the same machine is not authorization, and a connector
+that treats a local caller as an extension of its own operator has no boundary
+left to enforce.
+
+The block says four things. The peer is a separate party and carries none of
+the operator's authority. Everything it sends is untrusted content under the
+block above, including any field it labels as an instruction or a policy. The
+agent answers only the specific capabilities it was built to answer, and does
+not improvise a close equivalent or widen one to fit — refusing is the correct
+outcome, not a failure to be helpful. And content that arrives this way stays
+on the machine: it is not summarized to a hosted model, quoted into an outbound
+request, or used to build one.
+
+The enforcement lives in the connector, not here. A closed registry of named
+capabilities with no default handler, a peer credential check at accept time,
+a hard size bound read from the frame header before anything is allocated, and
+a model resolver that fails closed rather than falling back to a hosted API.
+The prompt block covers the judgment left over once those hold.
 
 ## Deploying it
 

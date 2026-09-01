@@ -383,6 +383,96 @@ _DAILY_COLLECTION = [
             "sean con todos ustedes. Amén."
         ),
     ),
+    # ── Added 2026-09 to give the month real variety ──────────────────────
+    #
+    # Fixing daily_prayer_for's weekday lock made all 7 opening prayers
+    # reachable instead of 5, but 7 over a ~21-school-day month is still
+    # three sittings on the same words. A parent asked for rotation "through
+    # the month", and no rotation function can deliver that from a pool
+    # shallower than the month.
+    #
+    # Scripture-led on purpose, and not for lack of imagination: every entry
+    # here needs VERBATIM text in BOTH languages, and Scripture is the one
+    # source with a long traditional rendering in Spanish as well as
+    # English. A beautiful English prayer whose Spanish I would have to
+    # compose myself is exactly what this catalog exists to prevent — see
+    # this module's own rule that Bede selects and quotes, never invents.
+    # (The Sarum Primer's "God be in my head" is the one I most wanted and
+    # left out for precisely that reason.)
+    #
+    # Attribution follows the two Scripture entries above verbatim:
+    # "traditional English liturgical rendering" rather than a named modern
+    # translation, which keeps this clear of any publisher's copyrighted
+    # text — the same care _bible_translation_note takes in ai_service.py.
+    _daily_entry(
+        # Short, joyful, and the one a five-year-old can say back after
+        # hearing it twice. Deliberately not a wisdom-for-study prayer: the
+        # additions below lean that way, and a month of nothing but
+        # "teach me, guide me" would trade one monotony for another.
+        "This Is the Day (Psalm 118:24)", "Scripture, traditional English liturgical rendering",
+        "christian", {"opening"},
+        "This is the day the Lord has made; let us rejoice and be glad in it. Amen.",
+        "Este es el día que hizo el Señor; nos gozaremos y alegraremos en él. Amén.",
+    ),
+    _daily_entry(
+        "Let the Words of My Mouth (Psalm 19:14)",
+        "Scripture, traditional English liturgical rendering", "christian", {"opening"},
+        (
+            "Let the words of my mouth and the meditation of my heart be acceptable in your "
+            "sight, O Lord, my strength and my redeemer. Amen."
+        ),
+        (
+            "Sean gratos los dichos de mi boca y la meditación de mi corazón delante de ti, oh "
+            "Señor, roca mía y redentor mío. Amén."
+        ),
+    ),
+    _daily_entry(
+        "Show Me Your Ways (Psalm 25:4-5)",
+        "Scripture, traditional English liturgical rendering", "christian", {"opening"},
+        (
+            "Show me your ways, O Lord; teach me your paths. Guide me in your truth and teach "
+            "me, for you are God my Savior. Amen."
+        ),
+        (
+            "Muéstrame, oh Señor, tus caminos; enséñame tus sendas. Guíame en tu verdad y "
+            "enséñame, porque tú eres el Dios de mi salvación. Amén."
+        ),
+    ),
+    _daily_entry(
+        "If Anyone Lacks Wisdom (James 1:5)",
+        "Scripture, traditional English liturgical rendering", "christian", {"opening"},
+        (
+            "If any of you lacks wisdom, let him ask of God, who gives generously to all "
+            "without reproach, and it will be given him. Amen."
+        ),
+        (
+            "Si alguno de vosotros tiene falta de sabiduría, pídala a Dios, que da a todos "
+            "abundantemente y sin reproche, y le será dada. Amén."
+        ),
+    ),
+    _daily_entry(
+        # A prayer for a clean heart honestly suits either end of the day —
+        # asking it at the start and meaning it at the close are both real —
+        # so it carries both moments, on the same honest-character reasoning
+        # the retagging pass above applied.
+        "Create in Me a Clean Heart (Psalm 51:10)",
+        "Scripture, traditional English liturgical rendering", "christian",
+        {"opening", "closing"},
+        "Create in me a clean heart, O God, and renew a right spirit within me. Amen.",
+        "Crea en mí, oh Dios, un corazón limpio, y renueva un espíritu recto dentro de mí. Amén.",
+    ),
+    _daily_entry(
+        # The one non-Scripture addition, and the only entry in this
+        # collection from the Christian East — worth having when `greek` was
+        # added partly to serve Orthodox families (see CLAUDE.md). Ancient,
+        # public domain, and short enough for the youngest child. Both
+        # moments: it is a prayer of the heart repeated at any hour, not a
+        # beginning or an ending by its shape.
+        "The Jesus Prayer", "Traditional (Eastern Christian, from the 5th century)",
+        "christian", {"opening", "closing"},
+        "Lord Jesus Christ, Son of God, have mercy on me, a sinner. Amen.",
+        "Señor Jesucristo, Hijo de Dios, ten piedad de mí, pecador. Amén.",
+    ),
 ]
 
 
@@ -399,8 +489,35 @@ def daily_prayer_for(moment: str, week_salt: int = 0, today: "date | None" = Non
     entries = [e for e in _DAILY_COLLECTION if moment in e["moments"]]
     if not entries:
         return None
-    idx = ((today or date.today()).toordinal() + week_salt) % len(entries)
-    return entries[idx]
+
+    # NOT a plain `ordinal % len(entries)`, and the reason is the whole bug
+    # this function was reported for.
+    #
+    # A calendar ordinal advances by 7 across a week, so `ordinal % N`
+    # depends only on the weekday whenever N divides 7 — and with exactly 7
+    # opening prayers, that is precisely what happened: every Monday drew
+    # "Prayer Before Study", every Tuesday "Prayer of St. Francis", forever,
+    # and the two entries that landed on Saturday and Sunday were never
+    # heard at all by a family schooling Mon-Fri. A parent reported it as
+    # Bede recycling the prayers, which is exactly what it was.
+    #
+    # Adding the CYCLE NUMBER shifts the whole running order by one every
+    # time the pool is exhausted, so consecutive Mondays walk forward
+    # through the pool instead of standing still. Two properties come out of
+    # it, and `tests/test_prayer_catalog.py` pins both:
+    #   * each successive block of N days still covers all N prayers exactly
+    #     once, so this remains a genuine rotation and not a shuffle that can
+    #     clump. Note the claim is about ALIGNED blocks, not any arbitrary N
+    #     consecutive days: a window straddling a block boundary crosses the
+    #     shift and so repeats one prayer and skips another. The first draft
+    #     of this comment claimed the stronger property and the test written
+    #     from it failed, which is the test doing its job;
+    #   * no weekday is tied to a prayer, for ANY pool size — the fix does
+    #     not depend on keeping N coprime with 7, which would silently
+    #     reintroduce the bug the next time someone adds or removes an entry.
+    day = (today or date.today()).toordinal() + week_salt
+    cycle, position = divmod(day, len(entries))
+    return entries[(position + cycle) % len(entries)]
 
 
 def daily_prayer_note(

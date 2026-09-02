@@ -168,3 +168,44 @@ def test_the_register_is_named_in_the_ci_change_filter():
         "api-tests, and never runs this guard. A comment mentioning the file "
         "does not count."
     )
+
+
+def test_no_entry_points_at_a_document_that_does_not_exist():
+    """A register entry's value is that it reaches the reasoning. A pointer to
+    a renamed or deleted document leaves an entry that still *reads* as
+    sourced while being unreachable — the same shape as
+    test_research_citations.py's dangling-citation guard, and as
+    test_release_posture.py's phantom-workflow guard, generalised to every
+    document this register names.
+
+    Caught as a real gap: docs/LDC_DEPLOYMENT.md is referenced by three
+    entries and, being outside test.yml's change filter, had nothing in CI
+    reading it at all. Renaming it would have broken all three silently.
+    """
+    register = _REGISTER.read_text()
+
+    # A `docs/...` path belonging to ANOTHER repository is not a dangling
+    # pointer here. Entry 14 cites `agnusdei-ai/locuto`'s own
+    # `docs/bede-ipc-spec.md`, which this guard flagged on its first run — a
+    # false positive against a correct register, and the kind that gets a test
+    # deleted. Excluded by looking at what precedes the path rather than by
+    # loosening the pattern, so a genuinely missing local file cannot hide
+    # behind the exemption.
+    external = re.compile(r"agnusdei-ai/[a-z-]+`?'?s?\s*\n?[^\n]{0,40}$")
+    referenced = sorted({
+        m.group(0)
+        for m in re.finditer(r"docs/[A-Za-z0-9_/-]+\.md", register)
+        if not external.search(register[max(0, m.start() - 120): m.start()])
+    })
+    assert referenced, (
+        "Parsed no document references out of the register at all. Either the "
+        "convention changed or this pattern needs updating — both need a human "
+        "rather than a vacuous pass."
+    )
+    root = _REGISTER.parent.parent
+    missing = [p for p in referenced if not (root / p).exists()]
+    assert not missing, (
+        f"docs/DECISIONS.md points at document(s) that do not exist: {missing}. "
+        "Either the file was renamed without the register following, or the "
+        "entry's reasoning is now unreachable from the decision it supports."
+    )

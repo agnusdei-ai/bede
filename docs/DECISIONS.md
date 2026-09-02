@@ -969,3 +969,48 @@ nothing and is what would move this entry.
 
 **Related:** entries 19, 20, 21; `docs/LOCALIZATION.md` (which records that
 shipped locales are AI-drafted first passes needing native review).
+
+---
+
+## 23. `[RESEARCH]` No ARM build of Bede has ever been verified to run
+
+**Status:** open · needs: one `linux/arm64` image build and one boot of the
+stack — an afternoon of work, and every ARM hardware purchase in
+`docs/LDC_DEPLOYMENT.md` §9 and §10 depends on the answer.
+
+Entry 19 commits the developing-market deployment to hardware on the premises,
+and the low-power candidates for that are ARM: the NVIDIA Jetson line, and
+single-board computers. **Nothing in this repository has ever built or tested
+for arm64.** Every CI runner is `ubuntu-latest` on x86-64, including
+`production-regression.yml`, whose entire purpose is proving the Docker stack
+really boots.
+
+So "Bede runs on a Jetson" is an assumption, and the hardware spec says so
+rather than implying otherwise.
+
+**Three dependencies are known to be architecture-sensitive**, all in
+`homeschool-api/Dockerfile`:
+
+* `torch==2.13.0` is installed from `download.pytorch.org/whl/cpu`, an index
+  chosen deliberately to keep the CUDA-bundled build out of a CPU-only
+  container. On a Jetson that reasoning inverts and the required wheel is
+  NVIDIA's own Jetson build.
+* `webrtcvad` has no prebuilt wheel and compiles from source — which is why
+  that Dockerfile installs `gcc` and `python3-dev` at all. It already failed
+  once on x86, and was not caught until the image was first built end to end.
+* `ctranslate2`, behind `faster-whisper`, is the other compiled dependency and
+  sits on the voice path — the one a child notices first.
+
+**Why open rather than deferred:** a deferral needs a trigger, and this has no
+external event to wait for. It is blocked on nobody, costs an afternoon, and
+gates spending. Buying hardware first and discovering this afterwards is how a
+donated deployment becomes shelfware.
+
+**Deliberately not resolved by adding arm64 to CI.** A cross-architecture build
+under QEMU is slow enough to change the shape of every pull request, and the
+question here is one-time: does the stack run on this architecture at all. If
+the answer is yes and ARM becomes a supported target rather than an
+investigation, *then* a periodic arm64 build earns its place — as its own
+scheduled workflow, not in the per-PR path.
+
+**Related:** entry 19, entry 20 (which model), `docs/LDC_DEPLOYMENT.md` §10.4.

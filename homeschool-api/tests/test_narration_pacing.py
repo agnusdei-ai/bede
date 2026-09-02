@@ -91,14 +91,25 @@ def test_nature_study_specifically_invites_a_nature_notebook_sketch():
 
 def test_conversation_never_stalls_on_a_questionless_tool_card():
     """Regression for a real transcript: Bede's turn ended on a
-    celebrate_discovery card (no question field in its own schema) with no
-    follow-up, and the session just stopped — nothing to respond to."""
+    celebrate_discovery card with no follow-up, and the session just stopped —
+    nothing to respond to.
+
+    This used to assert the prompt said celebrate_discovery "has no question
+    field". That was true, and it was the second half of a different reported
+    defect: with no field to fill in, a celebration's follow-up could only ever
+    come from the server's own canned list, which knows nothing about the turn
+    and so asked how the child had figured something out after a narration. The
+    tool now has an optional `next_question`, so the prompt says so instead —
+    see tests/test_celebration_follow_up_fits_the_moment.py. The property this
+    test guards is unchanged: the model is told these cards can leave a child
+    with nothing, and told never to end a turn on one."""
     prompt = _build_static_prompt(
         SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
     )
     assert "End EVERY turn with exactly one question" in prompt
     assert "even when you also use a tool" in prompt
-    assert "celebrate_discovery" in prompt and "has no question field" in prompt
+    assert "celebrate_discovery" in prompt
+    assert "neither card by itself gives the child anything to do next" in prompt
     assert "Never let one of these be the very last thing in a turn" in prompt
 
 

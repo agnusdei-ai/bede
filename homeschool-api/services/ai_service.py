@@ -142,18 +142,38 @@ _QUESTIONLESS_TOOLS = tool_registry.QUESTIONLESS_TOOLS
 # to instruct at all; the only fix is translating the fallback text itself.
 # Falls back to the "en" list for any locale without its own translation yet
 # (see core/config.py's SUPPORTED_LOCALES for what's actually live).
+#
+# NOTHING HERE MAY PRESUPPOSE THAT THE CHILD SOLVED SOMETHING. This list
+# used to open with "What was the first clue that helped you notice that?"
+# and included "How did you figure that out?" and "What do you want to try
+# next?" — every one of which asserts that a problem was worked out.
+#
+# `celebrate_discovery` fires after any moment worth naming, and the most
+# common one in this pedagogy is a NARRATION: the child telling a story or
+# a passage back in their own words. That is the central act of Mater
+# Amabilis and it is not a puzzle. Reported by the repository owner from a
+# real session — a child narrated, and Bede asked how they had figured it
+# out, when nothing had been figured out.
+#
+# The model can now supply its own `next_question` (see that field's
+# description in TUTOR_TOOLS), which is the real fix, because the model
+# knows what just happened and this list cannot. These four remain the
+# guaranteed backstop for when it supplies neither a question nor text, so
+# they have to fit BOTH a solved problem and a told-back story — while
+# still pointing at the immediate moment rather than drifting back to the
+# vague "that way"/"that" phrasing the split into two lists removed.
 _CELEBRATION_FALLBACK_QUESTIONS = {
     "en": [
-        "What was the first clue that helped you notice that?",
-        "Can you find one more example like that one?",
-        "How did you figure that out?",
-        "What do you want to try next?",
+        "What part of that would you like to tell me more about?",
+        "What else did you notice?",
+        "Was there anything there you're still wondering about?",
+        "What would you like to look at next?",
     ],
     "es": [
-        "¿Cuál fue la primera pista que te ayudó a notar eso?",
-        "¿Puedes encontrar un ejemplo más como ese?",
-        "¿Cómo lo descubriste?",
-        "¿Qué te gustaría intentar después?",
+        "¿Qué parte de eso te gustaría contarme con más detalle?",
+        "¿Qué más notaste?",
+        "¿Hubo algo ahí que todavía te deja con curiosidad?",
+        "¿Qué te gustaría ver a continuación?",
     ],
 }
 _FAITH_FALLBACK_QUESTIONS = {
@@ -432,6 +452,28 @@ TUTOR_TOOLS = [
                 "encouragement": {
                     "type": "string",
                     "description": "Warm, specific encouragement connecting to their growth — one short sentence, never a paragraph",
+                },
+                "next_question": {
+                    "type": "string",
+                    # Optional, and the reason it exists is a reported bug: a
+                    # celebration card with nothing after it used to get a
+                    # server-picked question tacked on, chosen from a fixed
+                    # list with no model in the loop and so no knowledge of
+                    # what the child had actually just done. After a
+                    # narration — telling a story back in their own words,
+                    # which is the central act of this pedagogy and not a
+                    # puzzle — that list asked how they had figured it out.
+                    # Filling this in is what lets the question fit the
+                    # moment; the fallback then stays silent entirely.
+                    "description": (
+                        "Optional. Your own next question, continuing straight on from the celebration. "
+                        "Fit it to what the child actually just did: after they worked something out, ask "
+                        "about their reasoning; after they told back a story or a passage in their own "
+                        "words, ask about the telling itself — what stayed with them, what they would say "
+                        "more about, what they noticed. Never ask how they figured something out when "
+                        "nothing was figured out. Omit this only if your own text after the card already "
+                        "asks the child something."
+                    ),
                 },
             },
             "required": ["specific_insight", "encouragement"],
@@ -2067,10 +2109,17 @@ they discovered today ("Before we move on — what will you remember from this?"
 passage were learned, say them once more together. This is the Mater Amabilis habit of ending on what was gained — \
 keep it warm and light, thirty seconds of gathering up, never a quiz or a checklist. Then move on.
 
-`celebrate_discovery` has no question field at all, and `connect_to_faith`'s reflection_question is optional — \
-neither one, by itself, gives the child anything to do next. Never let one of these be the very last thing in a \
-turn: continue with your own text and a genuine next question right after it, per Rule 3. The conversation stalling \
-on a celebration or a faith connection with nothing to respond to is exactly the failure Rule 3 exists to prevent. \
+`celebrate_discovery`'s next_question and `connect_to_faith`'s reflection_question are both optional — without one, \
+neither card by itself gives the child anything to do next. Never let one of these be the very last thing in a \
+turn: either fill that field in, or continue with your own text and a genuine next question right after it, per \
+Rule 3. The conversation stalling on a celebration or a faith connection with nothing to respond to is exactly the \
+failure Rule 3 exists to prevent.
+
+Whichever way you ask it, make the question fit what the child actually just did. When they worked something out, \
+asking about their reasoning is right. When they told back a story or a passage in their own words — a narration, \
+which is the ordinary and central thing to celebrate here, not a puzzle — ask about the telling: what stayed with \
+them, what they would say more about, what they noticed as they told it. Never ask how they figured something out \
+when nothing was figured out; that lands as though you were not listening. \
 `request_narration`, `invite_handwriting`, `offer_socratic_hint` (its hint_question already IS the turn's \
 question), and `suggest_next_subject` are each a fine, natural place to end a turn on their own — they already \
 invite the child's next move.
@@ -2936,7 +2985,11 @@ def _process_tool_use(tool_name: str, tool_input: dict) -> str:
     if tool_name == "celebrate_discovery":
         insight = tool_input["specific_insight"]
         encouragement = tool_input["encouragement"]
-        return f"✨ {encouragement} I noticed you saw that {insight}."
+        card = f"✨ {encouragement} I noticed you saw that {insight}."
+        # Optional, same shape as connect_to_faith's reflection_question just
+        # below — see that field's own description for why it exists.
+        follow_up = (tool_input.get("next_question") or "").strip()
+        return f"{card} {follow_up}" if follow_up else card
 
     if tool_name == "connect_to_faith":
         connection = tool_input["connection"]
@@ -4162,9 +4215,19 @@ async def stream_tutor_response(
                                     tool_response = _process_tool_use(tc["name"], tool_input)
                                     if tool_response:
                                         yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
+                                        # Which field means "this card asked
+                                        # its own question" is per-tool and
+                                        # lives in the registry. It used to be
+                                        # the literal string
+                                        # "reflection_question" here, which is
+                                        # connect_to_faith's field name applied
+                                        # to every questionless tool — see
+                                        # ToolSpec.question_field for what that
+                                        # cost celebrate_discovery.
                                         ends_on_questionless_tool = (
                                             tc["name"]
-                                            if tool_registry.is_questionless(tc["name"]) and not tool_input.get("reflection_question")
+                                            if tool_registry.is_questionless(tc["name"])
+                                            and not tool_registry.carries_own_question(tc["name"], tool_input)
                                             else None
                                         )
 

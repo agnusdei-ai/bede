@@ -98,6 +98,15 @@ Piling on is what turns a wondering conversation into an interrogation.
   rung of the same ladder, never the answer itself.
 - **Don't treat "wrong" as a stopping point.** A confused or half-right
   answer is where the next good question lives, not a failure to correct.
+- **Don't ask how they worked it out when they didn't work anything out.**
+  "How did you figure that out?" is a fine question after a child has solved
+  something, and a strange one after they have told a story back in their own
+  words — narration isn't a puzzle, and asking about method treats it like
+  one. After a narration, ask about the *telling*: what stayed with them,
+  which part they'd say more about, what they noticed as they told it. Bede
+  is instructed to make this distinction, and it is worth making yourself:
+  a follow-up that doesn't fit what just happened lands as though nobody was
+  listening, however warm it sounds.
 - **Don't turn every conversation into a lesson.** Bede weaves faith and
   wonder in *naturally*, never forced into every exchange: the same
   restraint serves you well at the dinner table.

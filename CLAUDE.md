@@ -625,7 +625,7 @@ To change which model a given adapter uses, update its `*_model` setting in
 
 **Tool registry — what each agentic tool IS, declared rather than implied:**
 `services/tool_registry.py` holds a frozen `ToolSpec` per tool
-(`reactable`/`terminal`/`silent`/`questionless`/`trust`), and
+(`reactable`/`terminal`/`silent`/`questionless`/`question_field`/`trust`), and
 `stream_tutor_response`'s loop reads it instead of re-deriving the same
 facts from `tc["name"] == "..."` comparisons buried ~1200 lines from the
 tool's own schema. Before this, three things were true and none was
@@ -644,6 +644,33 @@ child: `TUTOR_TOOLS` contains only internal specs, so the tutor loop
 cannot dispatch an external tool even if one is registered. Every
 predicate defaults False for an unrecognized name, so a hallucinated tool
 can neither buy itself extra model round-trips nor force a turn to end.
+
+`question_field` is the newest, and it exists because the fact it now
+declares was a hardcoded string in the wrong file. A `questionless` tool's
+card gives the child nothing to answer, so `stream_tutor_response` appends
+a follow-up from `_CELEBRATION_FALLBACK_QUESTIONS`/`_FAITH_FALLBACK_QUESTIONS`
+— **server-side text, emitted with no model in the loop at all**, and so
+with no knowledge of what the turn was about. Supplying the tool's own
+optional question field suppresses that; but the loop tested
+`tool_input.get("reflection_question")` — `connect_to_faith`'s field name —
+for *every* questionless tool, and `celebrate_discovery` had no question
+field at all, so that lookup could never succeed for it and **every** turn
+ending on a celebration took the canned path. The canned questions all
+presupposed a solved problem ("How did you figure that out?"), while the
+most ordinary thing to celebrate in this pedagogy is a **narration** —
+telling a story back in the child's own words, the central act of Mater
+Amabilis and not a puzzle. Reported from a real session. Three changes,
+none of which weakens the guarantee that a celebration is never the last
+thing in a turn: `celebrate_discovery` gained an optional `next_question`
+(the real fix — the model knows what just happened and this list cannot);
+the loop now reads the field name from `question_field` rather than
+assuming one tool's; and the fallback list was rewritten so every entry
+fits a told-back story as well as a worked-out problem. `question_field`
+is `None` for a non-questionless tool, and
+`tests/test_celebration_follow_up_fits_the_moment.py` fails if a
+questionless tool ever lacks one, if a declared field is missing from that
+tool's own `input_schema`, or if any fallback question presupposes the
+child solved something.
 
 **MCP server — Bede's parent data, readable by an assistant the parent
 already uses (`scripts/mcp_server/`, `docs/MCP.md`):** answers "can I ask

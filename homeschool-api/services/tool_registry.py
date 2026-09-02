@@ -107,6 +107,22 @@ class ToolSpec:
     #: why a prompt instruction alone is not sufficient here.
     questionless: bool = False
 
+    #: The name of the OPTIONAL input field which, when the model fills it in,
+    #: means this card carried its own question after all — so the fallback
+    #: must not fire. Only meaningful alongside `questionless`.
+    #:
+    #: This is here rather than as a literal string in `ai_service.py` because
+    #: it was one there, and it was the WRONG one: the loop asked every
+    #: questionless tool for `reflection_question`, which is
+    #: `connect_to_faith`'s field name. `celebrate_discovery` had no question
+    #: field at all, so that lookup could never succeed for it and every turn
+    #: ending on a celebration took the canned-question path — including after
+    #: a narration, where the canned questions asked how the child had figured
+    #: something out when nothing had been figured out. Declaring the field per
+    #: tool is what makes a second question field impossible to add without
+    #: wiring it up.
+    question_field: str | None = None
+
 
 # Order mirrors TUTOR_TOOLS in services/ai_service.py. Keeping the two in the
 # same order is a readability convention, not a correctness requirement —
@@ -118,8 +134,8 @@ _SPECS: Tuple[ToolSpec, ...] = (
     # celebrate_discovery/connect_to_faith render a card and may legitimately
     # carry no question, hence questionless. They are NOT reactable: nothing
     # about the outcome is dynamic, so they never earn a second round-trip.
-    ToolSpec("celebrate_discovery", questionless=True),
-    ToolSpec("connect_to_faith", questionless=True),
+    ToolSpec("celebrate_discovery", questionless=True, question_field="next_question"),
+    ToolSpec("connect_to_faith", questionless=True, question_field="reflection_question"),
     # The two genuinely reactable tools, and the whole reason the tool_result
     # loop exists. show_visual_aid can miss (a hallucinated visual_aid_id was
     # previously a silent no-op the model never learned about);
@@ -180,3 +196,22 @@ def is_questionless(name: str) -> bool:
     """Whether this tool renders a card that may carry no question of its own."""
     spec = TUTOR_TOOL_SPECS.get(name)
     return bool(spec and spec.questionless)
+
+
+def carries_own_question(name: str, tool_input: dict) -> bool:
+    """Whether THIS call actually filled in its own follow-up question.
+
+    A question the model wrote knows what the child just did; the fallback in
+    `ai_service.py` does not, and cannot — it is emitted with no model in the
+    loop at all. So whenever the model supplies one, it wins and the fallback
+    stays silent.
+
+    False for a tool with no question field, for an unknown name, and for a
+    field present but blank or whitespace — an empty string must leave the
+    child with the guaranteed fallback rather than with nothing.
+    """
+    spec = TUTOR_TOOL_SPECS.get(name)
+    if spec is None or spec.question_field is None:
+        return False
+    value = tool_input.get(spec.question_field)
+    return isinstance(value, str) and bool(value.strip())

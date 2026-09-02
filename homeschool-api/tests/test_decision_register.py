@@ -185,7 +185,7 @@ def test_no_entry_points_at_a_document_that_does_not_exist():
     register = _REGISTER.read_text()
 
     # A `docs/...` path belonging to ANOTHER repository is not a dangling
-    # pointer here. Entry 23 cites `agnusdei-ai/locuto`'s own
+    # pointer here. Entry 14 cites `agnusdei-ai/locuto`'s own
     # `docs/bede-ipc-spec.md`, which this guard flagged on its first run — a
     # false positive against a correct register, and the kind that gets a test
     # deleted. Excluded by looking at what precedes the path rather than by

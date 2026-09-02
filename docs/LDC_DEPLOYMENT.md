@@ -406,7 +406,7 @@ on the device at no server cost.
 Two things to check before committing to that: the station needs **a real
 microphone** — narration and voice verification are not optional in this
 product — and browser speech synthesis should be confirmed working offline on
-the actual image, per §10's open item on local text-to-speech.
+the actual image, per §11's open item on local text-to-speech.
 
 A Pi 5 is also perfectly capable of running Caddy, nginx and PostgreSQL. But
 splitting those onto a second box buys little: they are §3's small resident
@@ -414,21 +414,185 @@ costs, and the inference host has to exist regardless.
 
 ---
 
-## 10. What is not built yet
+## 10. The Jetson Orin Nano Super, specified
+
+Asked as "that's a solid price, and we can get peripherals donated by local
+sponsors for the targeted schools." The price is genuinely good and the
+donation model is sound. **The verdict is that it is the correct build for a
+household or a single learner station, and is not a school server.** The
+arithmetic below is why, and §10.3 says what a school actually needs.
+
+### 10.1 The memory arithmetic, which decides it
+
+Unified memory is the whole story. On a discrete-GPU box, the model gets its
+own VRAM and everything else lives in system RAM. On a Jetson there is **one
+pool**, and Bede's own stack draws from the same 8 GB the model does.
+
+Published figure: **about 5.2 GB is available after the OS and JetPack
+overhead**, roughly 2.8 GB consumed. From that 5.2 GB, subtract this
+application (§3's table, all of it now resident in the same pool):
+
+| | |
+| --- | --- |
+| Available after JetPack | **~5.2 GB** |
+| API container (`torch` for `resemblyzer`) | −1.0 to 1.5 GB |
+| PostgreSQL | −0.5 GB |
+| `faster-whisper`, `base` int8 | −0.2 GB |
+| Caddy + nginx | −0.2 GB |
+| **Left for model weights + KV cache** | **~2.8-3.2 GB** |
+
+Against §3's weight table and a ~16k shared prefix:
+
+| Model | Weights (Q4) | KV left | Concurrent learners |
+| --- | --- | --- | --- |
+| ~3B | ~1.8 GB | ~1.0-1.4 GB | **1, maybe 2** |
+| ~4B | ~2.4 GB | ~0.4-0.8 GB | 1, tight |
+| 7-9B | ~5-6 GB | — | **does not fit** |
+
+The shared 16k static prefix alone is ~1.0 GB at fp8 (§3). So a 3B model leaves
+almost nothing for a second learner's own context.
+
+**One to two concurrent learners places this at the bottom of Tier A** — a
+household box, not the 5-12 concurrent Tier B a school needs. And the model
+size it permits (≤3B) is exactly where `docs/DECISIONS.md` entry 20's
+tool-calling risk is sharpest: eleven tools with required fields, against a
+constitution-bearing prompt, with a fail-open moderation classifier on every
+turn.
+
+### 10.2 What it is genuinely good at
+
+Everything above is a capacity finding, not a dismissal. On its own terms the
+Orin Nano Super is the best answer in §9.4 for a reason:
+
+* **102 GB/s** of LPDDR5 — about six times a Raspberry Pi 5, and enough that
+  decode is not the constraint.
+* **CUDA on a vendor-supported stack** (JetPack), not patched kernel modules —
+  §9.3's objection to a Pi eGPU does not apply.
+* **CUDA prefill makes §2's cold-start problem disappear.** This is the single
+  biggest practical difference from any CPU-only box in this document.
+* **7-25 W configurable, ~4.5 W idle**, measured 16-27 tok/s depending on power
+  mode — comfortably past §1's 10 tok/s bar.
+* Fanless-capable, sealed, no moving parts. In a dusty, hot, intermittently
+  powered room that is worth more than a spec sheet suggests.
+
+**As a sponsor-donation unit it fits well**: cheap enough to donate in
+quantity, one per family or one per classroom station, and its power draw makes
+§6's electricity arithmetic a rounding error rather than a running cost.
+
+### 10.3 What a school actually needs, and the price shock
+
+The smallest Jetson that is a school server is the **Orin NX 16 GB**. Note
+carefully what it does and does not buy: its memory bandwidth is **also
+102 GB/s**, identical to the Nano Super. Since decode speed *is* bandwidth
+(§2), an NX is **not faster per learner** — it is *bigger*, which is the thing
+that was actually short. ~13 GB usable holds a 7-9B model with real KV headroom,
+or a 3B with room for a class.
+
+**The price has moved against this.** Orin NX 16 GB is $599 MSRP for the
+module, with third-party developer kits historically $650-900 — but NVIDIA
+raised Jetson module and devkit prices by **up to 101% in July 2026**, with
+current expectations in the $700-1,500 range. Confirm live pricing before
+budgeting; this is the fastest-moving number in this document.
+
+At that price the comparison changes:
+
+| Build | ~Cost | Concurrent | Power (8h × 22d) |
+| --- | --- | --- | --- |
+| Orin Nano Super 8 GB | ~$249 | 1-2 | ~4 kWh/mo |
+| Orin NX 16 GB | ~$700-1,500 | 5-10 | ~5 kWh/mo |
+| Used SFF x86 + used RTX 3060 12 GB + 64 GB | ~$450 | 5-12 | ~35 kWh/mo |
+
+**The x86 build wins on capital cost and loses on power.** At Philippine-typical
+tariffs the ~31 kWh/month difference is roughly $6-7/month, near $80/year, so
+about $240 over three years. That closes the gap against an NX at $700 and does
+not close it against one at $1,400.
+
+**One factor cuts the other way, and §8 already states it**: a machine that
+cannot be repaired in the country it runs in is a deployment with an expiry
+date. A used x86 desktop can be fixed anywhere with commodity parts. **A dead
+Jetson is an RMA to another continent.** For a donated school deployment with
+no budget line for replacement, that is a real argument for the boring x86 box,
+whatever the electricity costs.
+
+### 10.4 The blocking unknown: nothing has ever run Bede on arm64
+
+**No CI job in this repository builds or tests for arm64.** Every runner is
+`ubuntu-latest` on x86-64, `production-regression.yml` included — the workflow
+whose whole purpose is proving the Docker stack really boots. So the claim
+"Bede runs on a Jetson" is **entirely unverified**, and three specific things
+in the image are known to be architecture-sensitive:
+
+1. **`homeschool-api/Dockerfile` installs `torch==2.13.0` from
+   `download.pytorch.org/whl/cpu`** — an index chosen deliberately to avoid
+   pulling the CUDA-bundled build into a CPU-only container. On a Jetson that
+   reasoning inverts, and the wheel required is NVIDIA's own Jetson build, not
+   this one.
+2. **`webrtcvad` already compiles from source** — the Dockerfile installs `gcc`
+   and `python3-dev` precisely because it has no prebuilt wheel. A second
+   architecture is a second chance for that to fail, and it failed once already
+   on x86 (see that file's own comment: it was not caught until the image was
+   first built end to end).
+3. **`ctranslate2`, behind `faster-whisper`**, is the other compiled
+   dependency, and it is on the voice path — the one a child notices first.
+
+This is cheap to resolve and must happen **before any purchase**: build the
+image for `linux/arm64` and boot the stack once. Either it works, or it names
+its own problem. Buying hardware first and discovering this afterwards is how a
+donated deployment becomes shelfware.
+
+### 10.5 Peripherals worth putting on a sponsor's list
+
+Since local sponsors are the funding model, the list should be a list. Per
+deployment:
+
+| Item | Note |
+| --- | --- |
+| **UPS** | Not optional — §6. Size for clean shutdown, 10-15 min at load. |
+| **Learner devices** | Tablets, or Pi 5 + touchscreen per §9.5. |
+| **A real microphone per station** | Narration and voice verification are core, not accessories. Built-in tablet mics are usually adequate; verify in the actual room. |
+| **Gigabit switch + a decent WiFi access point** | No internet needed for a lesson. |
+| **NVMe SSD** | For the Jetson, via its M.2 slot — do not run from an SD card. |
+| **Active cooling** | Sustained LLM load is not the duty cycle a passive case is specified for. |
+| **Surge protection** | Cheap, and the failure it prevents is total. |
+| **A monitor, keyboard and mouse** | Setup only; one set can serve many deployments. |
+
+### 10.6 Recommendation
+
+1. **Buy Orin Nano Supers for households and single learner stations.** At $249
+   with ~5 W idle they are the right unit for that job and the right thing to
+   ask a sponsor to fund in quantity.
+2. **Do not buy them as school servers.** One to two concurrent learners is a
+   household, and a ≤3B model is entry 20's risk at its sharpest.
+3. **For a school, price an Orin NX 16 GB against a used x86 SFF with a used
+   12 GB GPU**, and decide on repairability as much as on cost — §8's rule
+   points at the x86 box, §6's points at the Jetson.
+4. **Before any of it, do §10.4.** One arm64 build, one boot. It is an
+   afternoon, and every purchase above depends on the answer.
+5. **A school deployment is still gated on `docs/DECISIONS.md` entry 21.**
+   Hardware does not unblock multi-family administration.
+
+---
+
+## 11. What is not built yet
 
 Stated here rather than discovered in the field:
 
 1. **Prompt-cache warm-up (§2).** No code warms the static or per-subject
    prefix. On CPU-only hardware this is the difference between a good first
    impression and a bad one.
-2. **A model evaluation** against Bede's real tool set and constitution —
+2. **An arm64 build of the stack.** Nothing in CI builds or tests for it —
+   every runner is x86-64, `production-regression.yml` included — so no Jetson,
+   Pi, or other ARM deployment in this document has ever been verified to run
+   at all. See §10.4 for the three architecture-sensitive dependencies, and
+   `docs/DECISIONS.md` entry 23. This blocks every ARM purchase in §9 and §10.
+3. **A model evaluation** against Bede's real tool set and constitution —
    `docs/DECISIONS.md` entry 20. `scripts/adversarial_probe.py` already runs
    against a configurable adapter and covers part of it.
-3. **Multi-family administration.** Every deployment today assumes one family
+4. **Multi-family administration.** Every deployment today assumes one family
    with one parent credential. A parish server serving several families is
    `docs/DECISIONS.md` entry 21, and is **not** reachable by adding students to
    one pod — that would put each family's records in reach of the others.
-4. **Local text-to-speech.** Bede's voice output currently uses the browser's
+5. **Local text-to-speech.** Bede's voice output currently uses the browser's
    own speech synthesis (on the tablet, so no server cost) or OpenAI's API. The
    browser path works without internet on most platforms; verify it on the
    actual tablets before promising it.

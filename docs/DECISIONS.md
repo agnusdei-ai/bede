@@ -903,3 +903,69 @@ each family's records in reach of the others. That is a data-protection
 question, not a UX one.
 
 **Related:** entry 19, `docs/BETA_SURVEY.md`, `docs/DATA_RETENTION.md`.
+
+---
+
+## 22. `[RESEARCH]` The third locale is French, and it is not started yet
+
+**Status:** deferred · until: entry 21 (institutional administration) is
+resolved, entry 20's model evaluation is extended to the candidate language,
+`docs/LOCALE_RESEARCH.md` §5.1's Whisper measurement is done, and a named
+French-speaking Catholic educator has agreed to source and review the verbatim
+catalogs.
+
+**The evidence is in [`LOCALE_RESEARCH.md`](LOCALE_RESEARCH.md).** This entry
+carries the state; that document carries the argument, per this register's own
+rule about a fact having one home.
+
+**French** is the third locale when a third locale is started. It is the only
+candidate where the need is largest (the Democratic Republic of the Congo has
+~55 million Catholics, the most in Africa, and is a UN least developed country,
+as are Madagascar and Haiti), the deployment thesis in entry 19 matches, model
+and speech tooling are strong, and public-domain devotional content in the
+shape the verbatim catalogs require exists.
+
+**It is deferred rather than open because three findings say starting now would
+be effort spent ahead of its blocker:**
+
+* **The market is institutional, and entry 21 is deferred.** French reaches its
+  population through Catholic schools and parishes; the Philippines reaches
+  families through DepEd-accredited providers (confirmed against DepEd Order
+  No. 001, s. 2022 — this closes the "unverified" flag entry 21 carries). Bede
+  assumes one family, one parent credential. No locale unlocks a market the
+  architecture cannot serve.
+* **French Africa is the hardest case for a language-mediated tutor.** About
+  80% of 10-year-olds in Western and Central Africa cannot read a simple text,
+  and roughly 90% of Sub-Saharan students are taught in a language other than
+  the one they speak at home. Bede is Socratic dialogue and narration — the most
+  language-dependent method there is. French cannot ship as a straight locale
+  port; it needs home-language scaffolding, which is a larger feature and is not
+  designed.
+* **The first LDC deployment needs no third locale at all.** Republic Act 12027
+  (2024) reverted the Philippine medium of instruction to Filipino and English.
+  Bede in English is already curriculum-aligned in the market that prompted
+  this question.
+
+**Filipino is rejected**, on RA 12027, recorded so it is not re-proposed.
+
+**Portuguese is the runner-up, and its blocker may lift on its own.** Brazil has
+the world's largest Catholic population (~140 million) and better model and
+speech support than French, with none of the language-of-instruction problem —
+but STF *RE 1492951* (March 2025) held that homeschooling is not lawfully
+exercisable absent federal regulation, and struck down state authorisations. If
+PL 1338/2022 passes the Senate, Portuguese becomes the strongest candidate and
+this entry should be re-decided rather than followed.
+
+**A blocking unknown that applies to `es` as already shipped**, not only to a
+future locale: `core/config.py` sets `whisper_model_size: "base"` (74M, the
+second-smallest Whisper), and this project has never measured its accuracy on
+children speaking any non-English language. Cheap to resolve and recorded in
+`LOCALE_RESEARCH.md` §5.1 rather than assumed away.
+
+**The cheapest next step is not a locale.** `docs/BETA_SURVEY.md` asks nothing
+about language or market, so nothing in this repository measures demand for any
+of this. Adding a locale question to the educator instrument costs almost
+nothing and is what would move this entry.
+
+**Related:** entries 19, 20, 21; `docs/LOCALIZATION.md` (which records that
+shipped locales are AI-drafted first passes needing native review).

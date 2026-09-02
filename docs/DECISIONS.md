@@ -1006,11 +1006,25 @@ external event to wait for. It is blocked on nobody, costs an afternoon, and
 gates spending. Buying hardware first and discovering this afterwards is how a
 donated deployment becomes shelfware.
 
-**Deliberately not resolved by adding arm64 to CI.** A cross-architecture build
-under QEMU is slow enough to change the shape of every pull request, and the
-question here is one-time: does the stack run on this architecture at all. If
-the answer is yes and ARM becomes a supported target rather than an
-investigation, *then* a periodic arm64 build earns its place — as its own
-scheduled workflow, not in the per-PR path.
+**Deliberately not resolved by adding arm64 to every pull request.** A
+cross-architecture build under QEMU is slow enough to change the shape of the
+contributor loop, and the question here is one-time: does the stack run on this
+architecture at all.
+
+**A partial answer now exists, and it is emulated, not hardware.**
+`.github/workflows/arm64-build-check.yml` builds the API image for
+`linux/arm64` under QEMU and imports both the three architecture-sensitive
+dependencies and Bede's own modules. Added because the hardware is not on hand
+and a test point before a purchase order is worth more than none. It is
+`workflow_dispatch` plus a **path-filtered** `pull_request` trigger — the
+Dockerfile and the dependency manifests only, which are the sole files that can
+change the answer — so an ordinary pull request still never runs it. That is a
+refinement of the paragraph above rather than a reversal of it.
+
+**What it cannot establish, and no emulated run can:** anything about CUDA (a
+Jetson runs NVIDIA's L4T base images and its own torch build, not
+`python:3.12-slim` on arm64), anything about tokens per second, or that the
+full Compose stack boots. **A green run reduces this entry's risk. Only real
+hardware closes it**, which is why the status stays `open`.
 
 **Related:** entry 19, entry 20 (which model), `docs/LDC_DEPLOYMENT.md` §10.4.

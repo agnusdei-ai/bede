@@ -1,0 +1,166 @@
+name: arm64 build check
+
+# Does Bede's API image build and import on aarch64 at all?
+#
+# WHY THIS EXISTS
+#
+# docs/DECISIONS.md entry 19 commits the developing-market deployment to
+# hardware on the premises, and the low-power candidates for that are ARM —
+# NVIDIA Jetson, or a single-board computer. Entry 23 recorded that NOTHING in
+# this repository had ever built or tested for arm64: every runner is
+# ubuntu-latest on x86-64, production-regression.yml included, and that is the
+# workflow whose whole purpose is proving the Docker stack boots.
+#
+# So "Bede runs on a Jetson" was an assumption, and hardware was about to be
+# bought against it. This is the cheap test point that comes before the
+# purchase order.
+#
+# ── WHAT THIS PROVES, AND WHAT IT DOES NOT ───────────────────────────────
+#
+# PROVES: every wheel this image needs exists for linux/aarch64 or compiles
+# there, and the application's own modules import under that architecture.
+# Three dependencies are the real question (see homeschool-api/Dockerfile):
+#
+#   * torch, installed from download.pytorch.org/whl/cpu — an index chosen to
+#     keep the CUDA build out of a CPU-only container. Whether it serves an
+#     aarch64 wheel at all is the single most likely failure here.
+#   * webrtcvad, which has no prebuilt wheel and compiles from source. It
+#     already failed once on x86, and was not caught until the image was first
+#     built end to end.
+#   * ctranslate2, behind faster-whisper, on the voice path.
+#
+# DOES NOT PROVE, and no emulated build can:
+#
+#   * Anything about CUDA. A Jetson runs NVIDIA's L4T base images and its own
+#     torch build; this builds a generic python:3.12-slim on arm64.
+#   * Anything about speed. QEMU emulation is orders of magnitude slower than
+#     real silicon and says nothing about tokens/second.
+#   * That the whole Compose stack comes up. Postgres, Caddy and nginx all
+#     publish official arm64 images, so they are low-risk and deliberately not
+#     rebuilt here; the API image is where every compiled dependency lives.
+#
+# A green run here reduces the risk in entry 23. It does not close it. Only
+# real hardware closes it, and the entry says so.
+#
+# ── WHY NOT ON EVERY PULL REQUEST ────────────────────────────────────────
+#
+# Emulated builds are slow enough to reshape the contributor loop, which entry
+# 23 gives as the reason not to put arm64 in the per-PR path. The pull_request
+# trigger below is therefore PATH-FILTERED to the only files that can change
+# the answer: the Dockerfile and the dependency manifests. An ordinary pull
+# request never runs this.
+#
+# ── NO THIRD-PARTY ACTIONS ───────────────────────────────────────────────
+#
+# QEMU is registered from Ubuntu's own archive (qemu-user-static,
+# binfmt-support) rather than via docker/setup-qemu-action. Every action in
+# this repository is pinned to a commit SHA; adding two more third-party
+# actions to a supply chain that reaches a child's device, for something apt
+# does in one line, is not a trade worth making.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'homeschool-api/Dockerfile'
+      - 'homeschool-api/requirements.in'
+      - 'homeschool-api/requirements.lock.txt'
+      - '.github/workflows/arm64-build-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Emulated builds are long and expensive. A newer push supersedes an older
+  # run rather than queueing behind it.
+  group: arm64-build-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # The x86 build of this image takes minutes. Under QEMU, compiling
+    # webrtcvad and unpacking a ~500MB torch wheel is far slower. Generous,
+    # but bounded — an emulated build that hangs must fail, not run forever.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Register the aarch64 binfmt handler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-user-static binfmt-support
+          # Prove the handler is actually registered before spending an hour
+          # discovering it is not. A missing handler makes the build below fail
+          # with an exec-format error that reads like a broken Dockerfile.
+          test -e /proc/sys/fs/binfmt_misc/qemu-aarch64 \
+            || { echo "::error::aarch64 binfmt handler not registered"; exit 1; }
+          echo "aarch64 binfmt handler registered."
+
+      - name: Create a buildx builder
+        run: docker buildx create --name arm64check --use --driver docker-container
+
+      - name: Build the API image for linux/arm64
+        id: build
+        working-directory: homeschool-api
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --tag bede-api:arm64check \
+            --load \
+            --progress plain \
+            .
+
+      - name: Import the risky dependencies under aarch64
+        run: |
+          # The build succeeding only means the wheels installed. Importing is
+          # what proves the compiled extensions actually load on this
+          # architecture — the failure mode for a cross-compiled C extension is
+          # at import, not at install.
+          docker run --rm --platform linux/arm64 bede-api:arm64check python -c '
+          import platform, sys
+          print("machine:", platform.machine())
+          assert platform.machine() == "aarch64", "not actually running on aarch64"
+          import torch, webrtcvad, ctranslate2, faster_whisper, soundfile, resemblyzer
+          print("torch:", torch.__version__)
+          print("ctranslate2:", ctranslate2.__version__)
+          print("soundfile:", soundfile.__version__)
+          print("every architecture-sensitive dependency imported.")
+          '
+
+      - name: Import the application itself under aarch64
+        run: |
+          # Stronger than the dependency check: this is Bede own modules, the
+          # constitution digest verification included. DATABASE_URL is a dummy
+          # because core/database.py builds its engine at import time and
+          # refuses to be imported without one; nothing here connects.
+          docker run --rm --platform linux/arm64 \
+            -e DATABASE_URL='postgresql+asyncpg://x:x@localhost/x' \
+            bede-api:arm64check python -c '
+          from core import constitution
+          from services import ai_service, transcription, voice_auth
+          from models.schemas import SessionConfig, GradeStage, Subject
+          prompt = ai_service._build_static_prompt(
+              SessionConfig(student_name="Guest", grade="4", grade_stage=GradeStage.core_mastery)
+          )
+          assert len(prompt) > 10000, "static prompt did not build"
+          print("static prompt built on aarch64:", len(prompt), "chars")
+          print("Bede imports and builds its prompt under aarch64.")
+          '
+
+      - name: Say plainly what this run did and did not establish
+        if: always()
+        run: |
+          echo "## arm64 build check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: **${{ job.status }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Emulated (QEMU) build of \`homeschool-api\` for \`linux/arm64\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Establishes:** the wheels exist or compile for aarch64, the compiled" >> "$GITHUB_STEP_SUMMARY"
+          echo "extensions import, and Bede's own modules load and build a prompt." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Does NOT establish:** anything about CUDA (a Jetson runs L4T base" >> "$GITHUB_STEP_SUMMARY"
+          echo "images and NVIDIA's own torch), anything about speed (QEMU is orders of" >> "$GITHUB_STEP_SUMMARY"
+          echo "magnitude slower than real silicon), or that the full Compose stack" >> "$GITHUB_STEP_SUMMARY"
+          echo "boots. See docs/DECISIONS.md entry 23 — a green run reduces its risk" >> "$GITHUB_STEP_SUMMARY"
+          echo "and does not close it." >> "$GITHUB_STEP_SUMMARY"

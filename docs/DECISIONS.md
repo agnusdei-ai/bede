@@ -974,9 +974,9 @@ shipped locales are AI-drafted first passes needing native review).
 
 ## 23. `[RESEARCH]` No ARM build of Bede has ever been verified to run
 
-**Status:** open · needs: one `linux/arm64` image build and one boot of the
-stack — an afternoon of work, and every ARM hardware purchase in
-`docs/LDC_DEPLOYMENT.md` §9 and §10 depends on the answer.
+**Status:** open · needs: a boot of the stack on a real ARM board. The
+emulated build is done and passed (below); what remains is hardware, and every
+ARM purchase in `docs/LDC_DEPLOYMENT.md` §9 and §10 still rests on it.
 
 Entry 19 commits the developing-market deployment to hardware on the premises,
 and the low-power candidates for that are ARM: the NVIDIA Jetson line, and
@@ -1021,10 +1021,22 @@ Dockerfile and the dependency manifests only, which are the sole files that can
 change the answer — so an ordinary pull request still never runs it. That is a
 refinement of the paragraph above rather than a reversal of it.
 
+**First run, 2026-09-02: passed, in ~74 minutes.** `torch 2.13.0+cpu`,
+`ctranslate2 4.8.2`, `soundfile 0.14.0`, plus `webrtcvad`, `faster_whisper` and
+`resemblyzer` all imported on `aarch64`; Bede's own modules loaded and built a
+static prompt of 28,709 characters, byte-identical to the same build on x86.
+
+**The predicted top risk did not materialise.** `download.pytorch.org/whl/cpu`
+was the most likely failure — an index chosen for x86 CPU-only containers,
+which might plausibly have carried no aarch64 wheel at all. It has one. So the
+dependency set exists for the architecture, which is the thing that could have
+made every ARM option in `docs/LDC_DEPLOYMENT.md` moot.
+
 **What it cannot establish, and no emulated run can:** anything about CUDA (a
 Jetson runs NVIDIA's L4T base images and its own torch build, not
 `python:3.12-slim` on arm64), anything about tokens per second, or that the
-full Compose stack boots. **A green run reduces this entry's risk. Only real
-hardware closes it**, which is why the status stays `open`.
+full Compose stack boots. **The green run reduced this entry's risk materially.
+Only real hardware closes it**, which is why the status stays `open` — what it
+now `needs:` is a boot on a real board, not a first build.
 
 **Related:** entry 19, entry 20 (which model), `docs/LDC_DEPLOYMENT.md` §10.4.

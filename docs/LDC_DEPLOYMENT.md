@@ -514,13 +514,16 @@ Jetson is an RMA to another continent.** For a donated school deployment with
 no budget line for replacement, that is a real argument for the boring x86 box,
 whatever the electricity costs.
 
-### 10.4 The blocking unknown: nothing has ever run Bede on arm64
+### 10.4 arm64: verified under emulation, not on hardware
 
-**No CI job in this repository builds or tests for arm64.** Every runner is
-`ubuntu-latest` on x86-64, `production-regression.yml` included — the workflow
-whose whole purpose is proving the Docker stack really boots. So the claim
-"Bede runs on a Jetson" is **entirely unverified**, and three specific things
-in the image are known to be architecture-sensitive:
+Until 2026-09-02 **no CI job in this repository built or tested for arm64** —
+every runner is `ubuntu-latest` on x86-64, `production-regression.yml`
+included, the workflow whose whole purpose is proving the Docker stack really
+boots. So "Bede runs on a Jetson" was an assumption, and hardware was about to
+be bought against it.
+
+Three things in the image are architecture-sensitive, and were the reason to
+doubt it:
 
 1. **`homeschool-api/Dockerfile` installs `torch==2.13.0` from
    `download.pytorch.org/whl/cpu`** — an index chosen deliberately to avoid
@@ -535,10 +538,44 @@ in the image are known to be architecture-sensitive:
 3. **`ctranslate2`, behind `faster-whisper`**, is the other compiled
    dependency, and it is on the voice path — the one a child notices first.
 
-This is cheap to resolve and must happen **before any purchase**: build the
-image for `linux/arm64` and boot the stack once. Either it works, or it names
-its own problem. Buying hardware first and discovering this afterwards is how a
-donated deployment becomes shelfware.
+**This has now been partly answered, under emulation.**
+`.github/workflows/arm64-build-check.yml` builds the API image for
+`linux/arm64` under QEMU and imports what it built. First run, 2026-09-02,
+**passed in ~74 minutes**:
+
+| | |
+| --- | --- |
+| `platform.machine()` | `aarch64` |
+| `torch` | **2.13.0+cpu** — the CPU-only index *does* serve an aarch64 wheel |
+| `ctranslate2` | 4.8.2 |
+| `soundfile` | 0.14.0 |
+| `webrtcvad`, `faster_whisper`, `resemblyzer` | all imported |
+| Bede's own modules + static prompt | **built, 28,709 chars** |
+
+**The predicted top risk did not materialise.** `download.pytorch.org/whl/cpu`
+was the single most likely failure — an index chosen for x86 CPU-only
+containers, which might plausibly have had no aarch64 wheel at all. It has one.
+
+The prompt length is worth noting: **28,709 characters, byte-identical to the
+same build on x86** (§1's grade-3-5 row). Nothing in the prompt assembly is
+architecture-dependent, which is the sort of thing worth confirming rather than
+assuming.
+
+One benign artifact appeared and is recorded so it is not mistaken for a defect
+later: torch logs `Can't open MIDR_EL1 sysfs entry` from its aarch64 kernel
+selector. That is QEMU not exposing the ARM CPU-ID register; on real silicon it
+does not occur.
+
+**What this still does not answer, and no emulated run can.** Nothing about
+CUDA — a Jetson runs NVIDIA's L4T base images and its own torch build, not
+`python:3.12-slim` on arm64. Nothing about tokens per second. And not that the
+whole Compose stack boots, though Postgres, Caddy and nginx all publish
+official arm64 images and are low-risk. **The risk in entry 23 is materially
+reduced and the entry stays open**, because only hardware closes it.
+
+What it does mean in practice: the argument for buying ARM hardware is no
+longer resting on an untested assumption about whether this application's
+dependency set exists for the architecture at all. It does.
 
 ### 10.5 Peripherals worth putting on a sponsor's list
 

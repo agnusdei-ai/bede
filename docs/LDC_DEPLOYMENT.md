@@ -287,9 +287,134 @@ A donation is only a saving if the thing works. Decline:
   locally.** A server that cannot be repaired in the country it runs in is a
   deployment with an expiry date.
 
+Single-board computers — the Raspberry Pi 5 above all — are the obvious
+donated-hardware thought and are caught by the first rule here. §9 answers that
+question in full, including the GPU add-on and what a Pi 5 *is* good for.
+
 ---
 
-## 9. What is not built yet
+## 9. Single-board computers, and the Raspberry Pi 5 in particular
+
+The obvious donated-hardware thought, asked directly, and worth answering in
+full because §8's rules catch it only implicitly.
+
+**Short answer: not as the inference host — including with a GPU add-on —
+but it has a real job in this deployment, further down.**
+
+### 9.1 Why the usual benchmarks mislead here
+
+Almost every published Pi 5 LLM benchmark reports **generation** speed. Bede is
+bottlenecked on **prefill**, because of the ~16k-token system prompt in §1, and
+essentially nobody quotes that number. It is the difference between "slow but
+usable" and "unusable".
+
+One measured anchor exists: **TinyLlama-1.1B at Q4_0 reaches about 108 tok/s of
+prompt processing on a Pi 5.** Prefill is compute-bound and scales roughly with
+parameter count, which gives the following. **The 3B and 8B prefill figures are
+scaled from that single anchor, not measured** — treat them as an order of
+magnitude, not a benchmark:
+
+| Model | Prefill (tok/s) | Cold 16k prompt | Subject switch (~13k) | Decode (measured) |
+| --- | --- | --- | --- | --- |
+| ~1.1B Q4 | ~108 *(measured)* | ~2.5 min | ~2 min | 10-18 tok/s |
+| ~3B Q4 | ~40 *(scaled)* | **~7 min** | ~5 min | 4-6 tok/s |
+| ~8B Q4 | ~15 *(scaled)* | **~18 min** | ~14 min | 0.7-3 tok/s |
+
+Against §1's requirement of ≥10 tok/s decode, and against a child waiting for
+the first sentence of a lesson.
+
+### 9.2 The three disqualifications, in order of how hard they are to argue with
+
+1. **Memory. 16 GB is the ceiling, and it is soldered.** The Pi 5 ships in
+   1/2/4/8/16 GB LPDDR4X-4267 with no expansion. §8 already says to refuse
+   hardware under 32 GB or unable to reach 64 GB, so **the Pi 5 is refused by
+   this document's own rule** — not by a new one invented for it.
+2. **Memory bandwidth. ~17 GB/s peak**, from LPDDR4X-4267 on a 32-bit bus.
+   Decode speed *is* memory bandwidth (§2), and this is roughly a tenth of the
+   dual-channel DDR4 a donated server has. It is why an 8B model has a
+   theoretical ceiling near 3.5 tok/s here and measures 0.7-3.
+3. **Four cores, and Whisper wants some of them.** There is no usable
+   accelerator on the base board: neither llama.cpp nor Ollama can use the
+   VideoCore VII GPU for matrix work, and the AI HAT+ (Hailo) is a vision NPU,
+   not an LLM decoder. §7 already warns that transcription competes with the
+   language model for cores; on four cores total that stops being a tuning note
+   and becomes the design.
+
+The one configuration that clears the decode bar — a 1-3B model — is exactly
+the size at which `docs/DECISIONS.md` entry 20's risk is sharpest: eleven tools
+with required fields, a constitution-bearing prompt, and a fail-open moderation
+classifier. A model that fits comfortably on a Pi 5 is a model this project has
+the least confidence can be Bede.
+
+### 9.3 The GPU add-on: it genuinely works, and still is not the answer
+
+This has been demonstrated, and one part of it is counterintuitive in the Pi's
+favour, so it deserves better than a dismissal.
+
+**What works.** With Pi OS 13, an ARM64 NVIDIA driver and *patched* open-source
+kernel modules, workstation cards on the Pi's PCIe link are recognised by
+`nvidia-smi` — power, temperature, memory — and llama.cpp with Vulkan has run
+3B models on them.
+
+**And the single PCIe lane is not the problem people assume.** Once weights are
+resident in VRAM, inference barely touches the bus: PCIe bandwidth matters for
+loading the model (slow, once) and for streaming tokens (trivial). A Pi 5 with
+a real GPU would have good prefill *and* good decode.
+
+**Why it is still the wrong build:**
+
+* **It is a patched, unsupported stack.** The stock driver expects x86-style
+  memory management and crashes on arm64; the Pi 5 defaults to a 16 KB kernel
+  page size against the driver's expected 4 KB, requiring a switch to
+  `kernel8.img`. Published accounts describe this as worthwhile for
+  experimentation and explicitly not for predictable production support.
+* **The Pi cannot power the GPU.** That is a second, separate PSU.
+* **The cost stack lands in the same place as a supported machine.** Pi 5 16 GB
+  plus a PCIe adapter plus a used GPU plus an ATX supply is within noise of a
+  used small-form-factor x86 desktop carrying the same GPU — which needs no
+  patches, has 4 KB pages and stock drivers, and takes 64 GB of expandable RAM.
+* **§8's last rule applies with full force**: a machine that cannot be repaired
+  or supported in the country it runs in is a deployment with an expiry date.
+  A configuration whose upstream describes it as experimental is worse than
+  that, because the failure will not be a part you can replace.
+
+### 9.4 If the deployment must be ARM and low-power
+
+**NVIDIA Jetson Orin Nano Super**, about $249: 8 GB LPDDR5 at **102 GB/s** —
+roughly six times the Pi 5 — with CUDA and a vendor-supported stack (JetPack)
+rather than patched kernel modules. Measured LLM throughput in the 16-27 tok/s
+range depending on power mode, at 7-25 W configurable, idling near 4.5 W. That
+clears §1's decode bar with margin, and CUDA prefill makes §2's cold-start
+problem disappear.
+
+Its constraint is the **8 GB**, which caps model size and KV cache — so it is a
+Tier A box in §4's terms, not a Tier B one. `docs/DECISIONS.md` entry 20 still
+applies to whatever model is chosen for it.
+
+An RK3588 board (Rock 5B, Orange Pi 5 Plus) sits between the two on bandwidth
+and offers up to 32 GB, but its NPU is not a general LLM accelerator and the
+software stack is less settled than either the Pi's or the Jetson's.
+
+### 9.5 Where a Raspberry Pi 5 does belong here
+
+**As a client, not a server** — and this is a real answer, not a consolation.
+Bede's architecture is one server plus tablets over the LAN (§7). Where tablets
+are unaffordable or hard to replace, a Pi 5 with a touchscreen is a legitimate
+learner station: it needs only a browser, and browser-side text-to-speech runs
+on the device at no server cost.
+
+Two things to check before committing to that: the station needs **a real
+microphone** — narration and voice verification are not optional in this
+product — and browser speech synthesis should be confirmed working offline on
+the actual image, per §10's open item on local text-to-speech.
+
+A Pi 5 is also perfectly capable of running Caddy, nginx and PostgreSQL. But
+splitting those onto a second box buys little: they are §3's small resident
+costs, and the inference host has to exist regardless.
+
+---
+
+## 10. What is not built yet
 
 Stated here rather than discovered in the field:
 

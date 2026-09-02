@@ -139,10 +139,32 @@ CI tests is byte-for-byte what a fresh install produces rather than
 whatever the resolver happens to pick that day. After editing either
 `.in` file, regenerate both lockfiles with
 `homeschool-api/scripts/check_lockfile_freshness.sh --fix` and commit the
-result — a `lockfile-freshness` CI job fails the build if they drift out
-of sync, the same "config that looks maintained but silently isn't"
+result — the same "config that looks maintained but silently isn't"
 failure mode described below. See docs/SECURITY.md's closed-gap entry for
 the full reasoning.
+
+**Two different checks, and the per-PR one no longer touches the network.**
+`check_lockfile_freshness.sh` resolves against PyPI and answers "are these
+the pins `pip-compile` produces *today*". That was the `lockfile-freshness`
+CI gate until 2026-09-02, which made every pull request hostage to the
+world: `openai`, `charset-normalizer`, `cuda-pathfinder` and `protobuf`
+each turned it red on unrelated PRs simply by publishing, and the daily
+job meant to absorb that is switched off (refreshing ~110 packages into
+the memory-constrained deployed backend was destabilising it). The gate
+now runs `homeschool-api/scripts/check_lockfile_consistency.py`, which
+reads the two files and nothing else: **every requirement declared in an
+`.in` must be in the matching lockfile at a version its specifier
+accepts.** That still catches the defect the gate was written for — most
+importantly a floor raised for a security fix that the lockfile does not
+honour, which otherwise ships the vulnerable version with nothing erroring
+— while being incapable of failing for something the world did rather than
+something a contributor did. What it gives up is currency: the pins can now
+sit behind what the floors permit, so a refresh is an **attended** act
+(`lockfile-refresh.yml` is `workflow_dispatch`-only), which follows from it
+being a deployment rather than CI hygiene. The CI job keeps the name
+`lockfile-freshness` because it may be a required status check and renaming
+it would silently stop that requirement applying. See docs/DECISIONS.md
+entry 12 and `tests/test_lockfile_consistency_gate.py`.
 
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 

@@ -52,7 +52,7 @@ anywhere, and a gate nobody can enumerate is one nobody notices losing.
 | Real production boot | `.github/workflows/production-regression.yml` | weekly + on deploy-path pushes | The Docker stack actually boots and serves traffic with a real daemon |
 | Live security headers | `.github/workflows/site-headers-live.yml` | every push to `main`, twice daily | The deployed site really serves the header set, not just declares it |
 | Installer integrity | `.github/workflows/verify-unix-installer-checksum.yml`, `build-windows-installer.yml` | on packaging changes | The unsigned Unix installer matches its published checksum; the Windows installer compiles and signs |
-| Lockfile currency | `lockfile-freshness` in `test.yml` | every PR | The committed pins are what `pip-compile` produces today — see entry 12 |
+| Lockfile consistency | `lockfile-freshness` in `test.yml` | every PR | Every requirement declared in `requirements*.in` is in the lockfile at a version its specifier accepts — see entry 12 |
 | Constitution integrity | `core/constitution.py`, re-verified in `main.py`'s lifespan | every process start | A modified constitution prevents Bede starting at all |
 
 Note the last one is enforced at **runtime on the family's own machine**, not

@@ -342,6 +342,57 @@ on the critical path to taking money.
 
 **Status:** closed
 
+**RE-DECIDED (2026-09-02): the per-PR gate no longer resolves against PyPI.**
+On the repository owner's instruction, after `protobuf` 7.36.0 → 7.36.1 turned
+this red on #479 — a change to a follow-up question in the tutor prompt, which
+touches no dependency. That is the fourth recorded occurrence, and the first
+since the palliative this entry closed on was switched off, so nothing absorbed
+it.
+
+**What replaced it is not the alternative this entry rejected in August.** That
+alternative — "fail only when `requirements*.in` changed without the lockfiles
+changing alongside them" — is a git-diff check, and it verifies nothing about
+the lockfile's *content*: two files touched in one commit is not evidence that
+one was derived from the other.
+
+`homeschool-api/scripts/check_lockfile_consistency.py` checks the property the
+gate was written to protect, directly and offline: **every requirement declared
+in an `.in` file must be present in the matching lockfile at a version its
+specifier accepts.** It reads two text files, resolves nothing, and reaches no
+network, so a release published five minutes ago cannot affect the result. It
+catches a package added and never compiled in, a package removed from `.in`
+that the lockfile still installs, and — the one that actually matters — **a
+floor raised for a security fix that the lockfile does not honour**, which
+fails silently today: nothing errors, nothing is missing, and the version the
+floor was raised to rule out is exactly what ships.
+
+**What is genuinely given up**, stated plainly because this entry's August
+reasoning about it was correct: the pins can now sit behind what the floors
+permit with nothing saying so. Currency is now an **attended** concern, not a
+per-PR gate — which follows from this entry's own 2026-08-19 finding that a
+refresh changes what production installs on its next deploy and is therefore a
+deployment, not CI hygiene. `check_lockfile_freshness.sh` and
+`lockfile-refresh.yml`'s `workflow_dispatch` both remain, unchanged, for a
+refresh run by someone watching the deploy.
+
+Transitive pins are verified against nothing. Verifying the transitive closure
+is exactly what needs a resolver, and a resolver is what made the gate
+non-deterministic. That limit is written into the checker's own docstring
+rather than left to be rediscovered.
+
+`homeschool-api/tests/test_lockfile_consistency_gate.py` pins the replacement
+in both directions — that it still catches a raised floor, and that CI has not
+gone back to the live resolve. The job name `lockfile-freshness` is deliberately
+unchanged: it may be configured as a required status check, and renaming it
+would silently stop that requirement applying to anything.
+
+**The August decision below is left standing**, as the 2026-08-19 amendment
+left it, because the reasoning is what changed rather than being wrong. It
+weighed supply-chain currency against pull-request noise, correctly, on a
+premise (that automation absorbed the toil) that no longer holds.
+
+---
+
 **Decided (2026-08-15): keep the live resolve.** The property it buys is worth
 the recurring refresh — the committed lockfile is what `pip-compile` produces
 *today*, so the pins CI installs are never quietly behind what the floors
@@ -719,3 +770,136 @@ so in its own `NOTICE`.
 
 **Related:** `agent-governance/README.md` carries the argument. This entry carries the
 state. The package's own guards run in CI via `.github/workflows/test.yml`.
+
+---
+
+## 19. `[PRODUCT]` The LDC deployment runs Bede's model locally, on donated or locally-built hardware
+
+**Status:** closed
+
+**Decided (2026-09-02).** For deployment into less-developed markets — the
+Philippines is the first named — Bede runs **fully on local hardware**: a
+repurposed or donated Linux server on the family's, school's, or parish's own
+premises, serving tablets over the LAN, with the language model running on that
+same machine. No cloud model provider, no per-token cost, and no dependency on
+an internet connection for a lesson to happen.
+
+**This is the architecture the codebase already has**, not a new one.
+`services/adapters/router.py`'s default `BEDE_ADAPTER_ORDER` is `local,anthropic`
+and has never required `ANTHROPIC_API_KEY` to boot;
+`services/transcription.py` defaults to in-process `faster-whisper`, which is
+already the only correct answer for a household whose premise is that a child's
+voice never leaves the LAN. What the LDC case does is make the *optional* path
+the *only* path, and force the hardware question to be answered concretely
+rather than left as "needs a GPU" (`docs/PROVIDER_ADAPTERS.md`).
+
+**What this decision closes off.** Offline-tolerance work — service workers,
+queued turns, cached lessons surviving an outage — was proposed as the LDC
+enabler and is **rejected on this ground**: it solves a problem this deployment
+does not have. A LAN with the server in the room is not an unreliable network.
+The remaining connectivity questions (a family's own internet for updates,
+licence renewal, feedback email) are administrative and asynchronous, not
+lesson-blocking.
+
+**What it does not close off**, and what actually becomes load-bearing instead:
+
+* **Hardware sizing is now a product surface.** A deployment that cannot be
+  bought or donated against a written spec cannot be deployed at all. See
+  `docs/LDC_DEPLOYMENT.md` for the tiers.
+* **Model quality at a size that fits.** Bede is a tool-calling agent with a
+  large cached system prompt (constitution, persona, subject block, verbatim
+  catalogs) and a per-turn moderation classification. A model small enough for
+  donated hardware must still call tools reliably and follow the constitution.
+  That is a capability question, not a throughput question, and it is the real
+  risk in this decision — recorded as entry 20.
+* **Power, not bandwidth, is the environmental constraint** in the markets named.
+  A UPS is in the spec for that reason.
+
+**Related:** `docs/LDC_DEPLOYMENT.md` (the sizing work and its assumptions),
+`docs/PROVIDER_ADAPTERS.md` (the adapter layer this rests on), entry 20.
+
+---
+
+## 20. `[RESEARCH]` Which locally-runnable model is good enough to be Bede
+
+**Status:** open · needs: a measured evaluation of candidate open-weight models
+against Bede's actual prompt and tool set, on the hardware tiers in
+`docs/LDC_DEPLOYMENT.md` — not a benchmark score, and not a judgement from
+reading model cards.
+
+Entry 19 commits to running the model locally. It does not establish that any
+model which fits on donated hardware can *be* Bede, and nothing in this
+repository has measured that. `core/config.py`'s `local_llm_model` default
+(`Qwen/Qwen3-Coder-30B-A3B-Instruct`) was chosen as a plausible self-hosted
+option, never evaluated against this application's own requirements.
+
+**What has to hold, in rough order of how likely it is to be the thing that
+fails:**
+
+1. **Tool calling.** Eleven tools, several with required fields and one
+   (`show_visual_aid`) whose ids must come from a supplied list. A model that
+   calls tools *plausibly* rather than *correctly* produces silent failures —
+   `services/tool_registry.py` exists partly because hallucinated tool names
+   were already a considered case.
+2. **Instruction adherence under a long cached prompt.** The static block
+   carries the constitution, fifteen sacred rules, stage guidance and up to
+   ~26 interpolated notes. Adherence degrades with prompt length differently
+   across models, and the rules that would degrade first are the ones nothing
+   else enforces.
+3. **The moderation classifier.** `services/moderation.py` runs on every turn
+   and **fails open**. On a local deployment it runs on the same model. A model
+   that classifies poorly there removes a safety layer without any signal that
+   it has.
+4. **Non-English quality**, if a locale beyond `en` is ever offered here.
+   Open-weight models degrade unevenly across languages.
+
+**Explicitly not resolvable by reading benchmarks.** MMLU and its relatives say
+nothing about whether a model will emit a well-formed `record_phonics_evidence`
+call or decline to be argued out of the constitution. `scripts/adversarial_probe.py`
+is the existing harness for the second half of that and already runs against a
+configurable adapter.
+
+**Until this is resolved,** the tiers in `docs/LDC_DEPLOYMENT.md` are sized on
+memory and throughput arithmetic — which is deterministic and can be stated
+honestly — with the model choice within each tier left as a range. A spec that
+names a model this project has not run is a spec that will be wrong in the
+field, where nobody can fix it.
+
+---
+
+## 21. `[COMMERCIAL]` Provider / co-op administration as a distinct product surface
+
+**Status:** deferred · until: `docs/BETA_SURVEY.md`'s educator instrument
+(`site/educators/`) returns enough responses to say whether organisations,
+rather than individual families, are a real channel — and, for the LDC case,
+whether a deployment is administered by a school, a parish, or a family.
+
+Every deployment today assumes one family administering their own pod: a single
+`PARENT_PASSWORD`, one `CHILD_PIN`, up to ten students, one licence. Entry 19's
+LDC deployment plausibly breaks that assumption — a donated server in a parish
+hall serves several families, and the person who administers it is not any of
+those children's parent.
+
+Two markets ask for the same capability from different directions. US co-ops
+are already being surveyed for it. Philippine homeschooling is commonly
+conducted through accredited providers rather than independently, which would
+make the provider, not the family, the entity that deploys and administers.
+*(This second claim is from general knowledge of the market and has not been
+verified against current DepEd requirements — do not build on it without
+checking.)*
+
+**Why deferred rather than open.** The capability is substantial —
+multi-tenancy touches the encryption key hierarchy (`core/encryption.py`'s
+per-student keys), the single-parent-identity assumption in
+`core/parent_lockout.py`, and the licence model. Building it before knowing
+whether either channel is real is the expensive mistake; the survey that would
+tell us is already deployed and collecting.
+
+**What must not be quietly assumed while this is deferred:** that a
+multi-family deployment can be reached by adding students to one pod. It cannot
+— the constitution's `authority_order` places the parent as the child's primary
+educator, and one shared parent credential across unrelated families would put
+each family's records in reach of the others. That is a data-protection
+question, not a UX one.
+
+**Related:** entry 19, `docs/BETA_SURVEY.md`, `docs/DATA_RETENTION.md`.

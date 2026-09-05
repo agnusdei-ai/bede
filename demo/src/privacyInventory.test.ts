@@ -20,6 +20,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { canvasStorageKey } from './canvasPersistence'
+import { READING_PRESENTATION_KEYS } from './useReadingPresentation'
 
 const PRIVACY_PAGE = readFileSync(join(__dirname, '../../site/privacy/index.html'), 'utf8')
 
@@ -32,11 +33,22 @@ const DISCLOSED_KEYS: ReadonlyArray<{ what: string; key: string }> = [
   { what: 'the in-progress chat', key: 'bede-demo-chat-&lt;code&gt;' },
   { what: 'the session token', key: 'bede-demo-auth' },
   { what: 'the press-and-hold vs. hands-free mic preference', key: 'bede-voice-mode' },
+  { what: 'the letter-spacing reading preference', key: 'bede-demo-letter-spacing' },
+  { what: 'the line-spacing reading preference', key: 'bede-demo-line-spacing' },
 ]
 
 describe('browser storage disclosed on the public privacy page', () => {
   it.each(DISCLOSED_KEYS)('$what ($key) has a row', ({ key }) => {
     expect(PRIVACY_PAGE).toContain(`<code>${key}</code>`)
+  })
+
+  it('names the reading-preference keys from the module itself, not copies', () => {
+    // Same reasoning as the drawing key below: if useReadingPresentation.ts
+    // renames one, the list above stops matching and this suite fails until
+    // the public page is updated, rather than the page quietly going stale.
+    for (const key of READING_PRESENTATION_KEYS) {
+      expect(DISCLOSED_KEYS.map((d) => d.key)).toContain(key)
+    }
   })
 
   it('names the drawing key from the module itself, not a copy of it', () => {

@@ -35,6 +35,7 @@ on:
       - 'homeschool-tutor/**'
       - 'demo/**'
       - 'site/assets/site.css'
+      - 'site/privacy/index.html'
       - '.github/workflows/frontend-tests.yml'
   pull_request:
   workflow_dispatch:
@@ -65,6 +66,9 @@ jobs:
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # site/privacy/index.html is in here because demo/src/privacyInventory.test.ts
+          # reads it: that page promises a storage inventory with "no rounding up", so a
+          # row deleted there makes a public claim false and nothing else would notice.
           # site/assets/site.css is in here because src/palette.test.ts reads
           # it: the app's ramps are pinned to the marketing site's own colour
           # tokens, so retuning the brand palette there is the change most
@@ -73,7 +77,7 @@ jobs:
           # guard written for it — the same vacuous-coverage trap
           # test_decision_register.py documents for the backend filter.
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-tutor/|demo/|site/assets/site\.css|\.github/workflows/frontend-tests\.yml)'; then
+               | grep -qE '^(homeschool-tutor/|demo/|site/assets/site\.css|site/privacy/index\.html|\.github/workflows/frontend-tests\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

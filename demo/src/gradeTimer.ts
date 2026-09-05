@@ -157,6 +157,69 @@ export function getPhase(
   }
 }
 
+// ── Suggested breaks for K-3 ─────────────────────────────────────────────
+//
+// A younger child's attention is shorter, but it is not uniformly shorter:
+// some 6-year-olds genuinely settle into 40 minutes, and stopping them dead
+// at 20 wastes the best stretch of their morning. So the 20-minute rhythm is
+// OFFERED rather than imposed — a dismissible suggestion at the 20- and
+// 40-minute marks of each study block, which the child (or the parent beside
+// them) can wave off with one tap.
+//
+// The 60-minute break stays mandatory for every grade, exactly as before.
+// Nothing here can extend a study block past an hour, raise the session cap,
+// or dismiss a mandatory break; suggestions live strictly INSIDE the hour
+// that the mandatory rhythm already governs.
+export const SUGGESTED_BREAK_INTERVAL_MINUTES = 20
+
+export interface SuggestedBreak {
+  /** 1 = the 20-minute mark, 2 = the 40-minute mark. */
+  mark: number
+  /** Stable identity for "this one has already been waved off". Includes the
+   *  cycle index so each hour's marks are independent — waving off the 20-
+   *  minute suggestion before the first mandatory break must not silently
+   *  wave off the one in the hour after it. */
+  key: string
+}
+
+/**
+ * The suggestion (if any) owed at this moment. Pure — takes the session's
+ * own PhaseInfo so it can never disagree with the mandatory rhythm it sits
+ * inside.
+ *
+ * Returns null for grades 4-8 (their pacing IS the 60/10 cycle) UNLESS the
+ * parent set frequentBreakOffers for this student, during any mandatory
+ * break or once concluded, and for the first 20 minutes of each study
+ * block.
+ */
+export function getSuggestedBreak(
+  phase: PhaseInfo,
+  isYounger: boolean,
+  frequentBreakOffers = false,
+): SuggestedBreak | null {
+  // The age gate was the whole availability rule, so a twelve-year-old whose
+  // parent knows they do better stopping every twenty minutes could not have
+  // that rhythm at all — not because anyone decided against it, but because
+  // the only way in was being under nine.
+  //
+  // `frequentBreakOffers` is the parent saying otherwise for one student. It
+  // is NOT a claim that more breaks improve attention: the ADHD literature
+  // supports physical activity generally (moderate effect, cognitive
+  // engagement the active ingredient) and does not support that specific
+  // claim — see docs/ACCESSIBILITY_RESEARCH.md §5. What it does is remove an
+  // arbitrary age gate on a choice that belongs to the parent, per the
+  // constitution's authority_order.
+  //
+  // Everything below is unchanged, so it still cannot shorten, skip, delay
+  // or extend past the mandatory hourly break — it only makes the existing
+  // suggestion reachable at a grade that was previously refused it.
+  if ((!isYounger && !frequentBreakOffers) || phase.phase !== 'study') return null
+  const studyElapsedSecs = SESSION_STUDY_MINUTES * 60 - phase.remainingSecs
+  const mark = Math.floor(studyElapsedSecs / (SUGGESTED_BREAK_INTERVAL_MINUTES * 60))
+  if (mark < 1) return null
+  return { mark, key: `${phase.cycleIndex}:${mark}` }
+}
+
 export function fmtTime(secs: number): string {
   const m = Math.floor(secs / 60)
   const s = secs % 60

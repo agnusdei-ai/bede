@@ -747,11 +747,23 @@ break every hour for every child, but it will not tell you that your
      the space between words at the same time, deliberately: pushing
      letters apart without pushing words apart makes it harder to see where
      one word ends. If you try one thing on this panel, try this.
+
+     **Your child can adjust this one on their own tablet, too.** What you
+     set here is where they start, and it is what every device shows until
+     someone changes it. If your child finds a wider setting easier while
+     they are reading, they can change it themselves from the reading
+     button in the corner of the screen — on that tablet only, and without
+     touching what you set. Two things follow from that, both deliberate:
+     their change never comes back and edits your setting, and **the moment
+     you change this setting yourself, yours takes over again** on every
+     device. You always have the last word; they just don't have to come
+     and find you mid-page.
    - **Space between lines** (Normal / Relaxed / Loose). Helps some readers
      keep their place when their eye travels back to the start of the next
      line. Honestly, this one rests on general readability guidance rather
      than on a study of children like yours. Worth trying, not worth
-     promising.
+     promising. Your child can adjust this one
+     themselves as well, on the same terms as above.
    - **Offer a break every 20 minutes** (a checkbox). Bede already offers
      younger children an optional pause at the 20- and 40-minute marks,
      dismissible, never forced. That offer used to be available only to

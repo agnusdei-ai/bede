@@ -51,7 +51,10 @@
     "voiceModeContinuous": "Voz activada",
     "voiceModeHold": "Mantener presionado",
     "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez.",
-    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras."
+    "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras.",
+    "drawOrWrite": "Dibujar o escribir a mano",
+    "muteBede": "Silenciar a Bede",
+    "unmuteBede": "Activar el sonido de Bede"
   },
   "canvas": {
     "cancel": "Cancelar",
@@ -78,6 +81,7 @@
     },
     "tool": {
       "pen": "Pluma",
+      "pencil": "Lápiz",
       "eraser": "Borrador"
     },
     "brush": {
@@ -138,7 +142,14 @@
     "breakTime": "Hora del descanso",
     "workedHard": "{{name}}, has trabajado muy duro.",
     "stepAway": "Aléjate de la pantalla. Disfruta la naturaleza, descansa los ojos o pasa un momento tranquilo con Dios.",
-    "untilNextBlock": "hasta tu próximo bloque de aprendizaje"
+    "untilNextBlock": "hasta tu próximo bloque de aprendizaje",
+    "breakSuggestionTitle": "Llevas {{minutes}} minutos trabajando, ¿quieres un descanso corto?",
+    "breakSuggestionBody": "No es obligatorio. Si vas con buen ritmo, sigue adelante: de todos modos habrá un descanso al cumplir la hora.",
+    "breakSuggestionTake": "Sí, hagamos una pausa",
+    "breakSuggestionKeepGoing": "No, gracias, sigamos",
+    "voluntaryBreakTitle": "Buena idea, tómate un momento",
+    "voluntaryBreakBody": "Aléjate un poco de la pantalla, {{name}}. Vuelve cuando estés listo.",
+    "voluntaryBreakResume": "Estoy listo para seguir aprendiendo"
   },
   "sessionEnded": {
     "title": "Tu sesión ha terminado",
@@ -186,7 +197,9 @@
     "lockAppearance": "Bloquear apariencia del chat",
     "lockedDesc": "El estudiante no puede cambiar el tema ni el color de las burbujas.",
     "unlockedDesc": "El estudiante puede cambiar el tema y el color de las burbujas.",
-    "passwordNote": "En la aplicación completa, la contraseña de los padres protege esta configuración."
+    "passwordNote": "En la aplicación completa, la contraseña de los padres protege esta configuración.",
+    "frequentBreaks": "Ofrecer descansos con más frecuencia",
+    "frequentBreaksDesc": "Ofrece un descanso corto opcional cada 20 minutos en cualquier grado, no solo en los más pequeños. El descanso al cumplir la hora no cambia."
   },
   "themePicker": {
     "backgroundTheme": "Tema de fondo",

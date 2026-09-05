@@ -1069,6 +1069,38 @@ is an obvious-sounding request and this is the reason it is refused;
 `readingPresentation.test.ts` and `test_accessibility_research.py` both guard
 it.
 
+**Amended (2026-09-05).** Who may *reach* the spacing settings changed, on an
+explicit product decision. They stay **parent-set and per-student** — that
+remains the right owner, since deciding a child needs an accommodation is a
+judgment about that child, reachable by the parent who lives with them and not
+by this software. But the consequence had come out inverted: text size, whose
+evidence is contested and whose direction reverses with age, sat one tap away
+on every screen, while letter spacing — the best-supported thing in this whole
+area — could only be changed by leaving the lesson, opening Parent Setup,
+editing a `<select>` and saving the pod. A child mid-passage cannot do that and
+a parent sitting beside them will not. An accommodation out of reach at the
+moment it is needed is not much of an accommodation.
+
+So the parent's value is now the **starting point**, and the reader may move it
+on the device in front of them (`useReadingPresentation.ts`), exactly as they
+already may with text size and the chat colours. Two properties keep the parent
+in charge, and both are pinned by test:
+
+* **The child's change is per-device and never writes back to
+  `StudentConfig`**, so it cannot silently undo, for every device, what a
+  parent decided.
+* **A parent who changes their mind wins.** Each stored override records the
+  parent value it was made *against*; when the parent's current value differs,
+  the override is stale and ignored — the same reading rule 9 already gives a
+  parent's own `current_unit` against a stored bookmark.
+
+Deliberately **not** gated on `appearance_locked`. That flag hides the
+theme/bubble picker so a child cannot spend the lesson choosing colours;
+colours are a preference and spacing is the accommodation, and locking a child
+out of the one setting that measurably helps them read, to stop them fiddling,
+is the wrong trade. A parent who wants a value enforced sets it, and their
+change overrides the child's.
+
 **The evidence is in [`ACCESSIBILITY_RESEARCH.md`](ACCESSIBILITY_RESEARCH.md).**
 This entry carries the state; that document carries the argument, per this
 register's own rule about a fact having one home.

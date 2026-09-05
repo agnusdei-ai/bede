@@ -15,6 +15,10 @@ import {
  *     session concludes automatically, with a mandatory 10-minute break
  *     after each hour regardless (see gradeTimer.ts).
  *   - Lock chat appearance: hides the theme/bubble picker.
+ *   - Offer breaks more often: makes the optional 20-minute break rhythm
+ *     reachable at any grade, not only K-3 (see gradeTimer.ts's
+ *     getSuggestedBreak — it removes an age gate on a choice that is the
+ *     parent's, and retunes nothing about the mandatory hourly break).
  * Persisted to sessionStorage like the demo's other session-scoped state
  * (name, grade) — gone when the tab closes.
  */
@@ -22,28 +26,33 @@ import {
 export interface DemoParentControls {
   sessionCapMinutes: number
   appearanceLocked: boolean
+  frequentBreakOffers: boolean
 }
 
 const CAP_KEY = 'bede-demo-session-cap'
 const LOCK_KEY = 'bede-demo-appearance-locked'
+const BREAKS_KEY = 'bede-demo-frequent-breaks'
 
 export function readDemoParentControls(): DemoParentControls {
   let cap = DEFAULT_SESSION_CAP_MINUTES
   let locked = false
+  let frequentBreaks = false
   try {
     const rawCap = Number(sessionStorage.getItem(CAP_KEY))
     if (rawCap >= MIN_SESSION_CAP_MINUTES && rawCap <= MAX_SESSION_CAP_MINUTES) cap = rawCap
     locked = sessionStorage.getItem(LOCK_KEY) === '1'
+    frequentBreaks = sessionStorage.getItem(BREAKS_KEY) === '1'
   } catch {
     // sessionStorage unavailable — defaults stand.
   }
-  return { sessionCapMinutes: cap, appearanceLocked: locked }
+  return { sessionCapMinutes: cap, appearanceLocked: locked, frequentBreakOffers: frequentBreaks }
 }
 
 export function saveDemoParentControls(c: DemoParentControls) {
   try {
     sessionStorage.setItem(CAP_KEY, String(c.sessionCapMinutes))
     sessionStorage.setItem(LOCK_KEY, c.appearanceLocked ? '1' : '0')
+    sessionStorage.setItem(BREAKS_KEY, c.frequentBreakOffers ? '1' : '0')
   } catch {
     // Best-effort — a failed save just means the settings reset next visit.
   }
@@ -138,6 +147,35 @@ export default function ParentControlsMenu({ controls, onChange }: {
               <span
                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
                   controls.appearanceLocked ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Offer breaks more often. Deliberately worded as availability,
+              never as a claim that more breaks help attention — the ADHD
+              literature does not support that (docs/ACCESSIBILITY_RESEARCH.md
+              §5). It only lifts the K-3 age gate on a rhythm that is offered
+              and dismissible either way. */}
+          <div className="flex items-center justify-between gap-3 pt-2 border-t border-parchment-200">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-700">{t('parentControls.frequentBreaks')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {t('parentControls.frequentBreaksDesc')}
+              </p>
+            </div>
+            <button
+              onClick={() => update({ frequentBreakOffers: !controls.frequentBreakOffers })}
+              role="switch"
+              aria-checked={controls.frequentBreakOffers}
+              aria-label={t('parentControls.frequentBreaks')}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                controls.frequentBreakOffers ? 'bg-navy-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  controls.frequentBreakOffers ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
             </button>

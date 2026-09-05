@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { canvasStorageKey } from './canvasPersistence'
+import { canvasStorageKey, CANVAS_STORAGE_VERSION } from './canvasPersistence'
 import { READING_PRESENTATION_KEYS } from './useReadingPresentation'
 
 const PRIVACY_PAGE = readFileSync(join(__dirname, '../../site/privacy/index.html'), 'utf8')
@@ -54,6 +54,8 @@ describe('browser storage disclosed on the public privacy page', () => {
   it('names the drawing key from the module itself, not a copy of it', () => {
     // If the prefix or version in canvasPersistence.ts changes, the key
     // above changes with it and this suite fails until the page is updated.
-    expect(canvasStorageKey('&lt;code&gt;')).toContain('bede-demo-canvas-v2:')
+    expect(canvasStorageKey('&lt;code&gt;')).toContain(
+      `bede-demo-canvas-v${CANVAS_STORAGE_VERSION}:`,
+    )
   })
 })

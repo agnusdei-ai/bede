@@ -28,6 +28,24 @@ they are. If you change something you did not mean to, the arrow curving
 backwards is Undo, and it puts things back. The only button that clears your
 whole page will ask you first, so you cannot lose your work by accident.
 
+## If the words are hard to read
+
+Up in the corner of your screen there is a small round button with a letter
+**T** on it. That one is about how the words look.
+
+Tap it and a little box opens. You can make the words **bigger or smaller**.
+You can also put **more space between the letters**, and **more space between
+the lines**. Try them and see what your eyes like best — nothing you do there
+changes your lesson or your work, only how the words sit on the screen. Tap
+"Done" when you are happy, or just leave it alone and it tucks itself away.
+
+There is no wrong answer here. Some people read more easily with the letters
+spread out a little, and some do not. It is your screen, so set it up the way
+that suits you.
+
+If a grown-up has already picked a setting for you, that is where you start
+from — and you can still move it on this tablet if you want to.
+
 ## Getting started
 
 1. Open Bede on your tablet. If your family uses Bede in more than one language, you'll

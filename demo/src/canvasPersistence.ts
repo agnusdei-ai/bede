@@ -5,14 +5,18 @@
  * `holdGesture.ts` and `gradeTimer.ts` are: the demo is a separate Vite app
  * with its own bundle and its own, deliberately smaller, canvas.
  *
- * Two differences from the app's copy, both because this is the demo:
+ * One difference from the app's copy, because this is the demo:
  *
  * 1. **Keyed by the demo session code**, matching `bede-demo-chat-<code>`
  *    in `App.tsx`. A demo visitor has no student identity, and the code is
  *    the one thing that is stable for the length of a session.
- * 2. **A smaller stroke shape** - this canvas has pen and eraser, no
- *    pencil, so a stroke carries `isEraser` rather than a tool name. It is
- *    stored as written; nothing here tries to anticipate the app's shape.
+ *
+ * A second difference was that this canvas had pen and eraser but no
+ * pencil, so a stroke carried `isEraser` rather than a tool name. The demo
+ * now offers the same three tools the product does, so the stroke shape is
+ * the app's (`tool: 'pen' | 'pencil' | 'eraser'`) and the two modules agree
+ * - CANVAS_STORAGE_VERSION bumped 2 -> 3 for the changed field, same
+ * "abandon rather than migrate" policy as always.
  *
  * A third difference existed briefly and is now gone: this module used to
  * carry a `space` field (the CSS-pixel size a page was drawn in), because
@@ -53,7 +57,7 @@ export const CANVAS_WARN_RATIO = 0.8
 // migrating it - a half-restored drawing is worse than a fresh page. (Bumped
 // 1 -> 2 when the `space` field below was dropped - see the module
 // docstring.)
-export const CANVAS_STORAGE_VERSION = 2
+export const CANVAS_STORAGE_VERSION = 3
 const KEY_PREFIX = `bede-demo-canvas-v${CANVAS_STORAGE_VERSION}:`
 
 // Coordinates are rounded before storage. A tenth of a CSS pixel is below
@@ -68,11 +72,14 @@ export interface PersistedPoint {
   pressure: number
 }
 
+export type PersistedTool = 'pen' | 'pencil' | 'eraser'
+const TOOLS: readonly string[] = ['pen', 'pencil', 'eraser']
+
 export interface PersistedStroke {
   points: PersistedPoint[]
   width: number
   color: string
-  isEraser: boolean
+  tool: PersistedTool
 }
 
 export interface PersistedPage {
@@ -138,7 +145,7 @@ export function serializePage(page: PersistedPage): string {
       for (const p of stroke.points) {
         pts.push(round(p.x, COORD_DECIMALS), round(p.y, COORD_DECIMALS), round(p.pressure, PRESSURE_DECIMALS))
       }
-      return { width: round(stroke.width, COORD_DECIMALS), color: stroke.color, isEraser: stroke.isEraser, pts }
+      return { width: round(stroke.width, COORD_DECIMALS), color: stroke.color, tool: stroke.tool, pts }
     }),
   }
   return JSON.stringify(stored)
@@ -169,7 +176,7 @@ export function parsePage(raw: string | null): StoredPage | null {
     const stroke = candidate as Record<string, unknown>
     if (typeof stroke.width !== 'number' || !Number.isFinite(stroke.width)) return null
     if (typeof stroke.color !== 'string') return null
-    if (typeof stroke.isEraser !== 'boolean') return null
+    if (typeof stroke.tool !== 'string' || !TOOLS.includes(stroke.tool)) return null
     if (!Array.isArray(stroke.pts)) return null
     if (stroke.pts.length % 3 !== 0) return null
     const points: PersistedPoint[] = []
@@ -180,7 +187,7 @@ export function parsePage(raw: string | null): StoredPage | null {
       if (typeof pressure !== 'number' || !Number.isFinite(pressure)) return null
       points.push({ x, y, pressure })
     }
-    strokes.push({ points, width: stroke.width, color: stroke.color, isEraser: stroke.isEraser })
+    strokes.push({ points, width: stroke.width, color: stroke.color, tool: stroke.tool as PersistedTool })
   }
 
   return {

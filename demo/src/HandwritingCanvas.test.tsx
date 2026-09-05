@@ -40,7 +40,7 @@ function storedPage(strokes = 1) {
       ],
       width: 4,
       color: '#1b3a6b',
-      isEraser: false,
+      tool: 'pen' as const,
     })),
     paperStyle: 'staff',
     paperColor: '#2e3a44',
@@ -280,6 +280,32 @@ describe('demo HandwritingCanvas page persistence', () => {
         vi.useRealTimers()
       }
     })
+  })
+
+  it('offers the same three drawing tools the product does', () => {
+    // Parity, not decoration: the demo shipped with pen and eraser while the
+    // product had pen, PENCIL and eraser, so a visitor evaluating the writing
+    // pad was shown a strictly smaller tool than a family would get. Named by
+    // their accessible names, which is what a child actually reaches for.
+    render(<HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    for (const tool of ['Pen', 'Pencil', 'Eraser']) {
+      expect(screen.getByRole('button', { name: tool })).toBeTruthy()
+    }
+  })
+
+  it('records which tool drew a stroke, not merely whether it erased', () => {
+    // The stored shape is the app's now (`tool`), so a pencil stroke survives
+    // a switch to the chat and back as a pencil stroke rather than being
+    // flattened to ink. Guards the persistence contract rather than the
+    // rendering, which jsdom cannot evaluate.
+    savePage('ABC123', {
+      strokes: [
+        { points: [{ x: 1, y: 1, pressure: 0.5 }, { x: 2, y: 2, pressure: 0.5 }], width: 3, color: '#123456', tool: 'pencil' as const },
+      ],
+      paperStyle: 'composition',
+      paperColor: '#ffffff',
+    })
+    expect(loadPage('ABC123')?.strokes[0].tool).toBe('pencil')
   })
 
   it('gives every toolbar control an accessible name', () => {

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio } from 'lucide-react'
+import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -32,7 +32,10 @@ import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
 import DemoParentSetup from './DemoParentSetup'
-import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
+import {
+  getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
+  getTimerConfig, getSuggestedBreak, SUGGESTED_BREAK_INTERVAL_MINUTES,
+} from './gradeTimer'
 import { clearPage as clearCanvasPage } from './canvasPersistence'
 import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
 import { isDuplicateUtterance } from './dedupe'
@@ -238,6 +241,15 @@ function demoGradeStage(): string {
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
   if (grade === '6' || grade === '7' || grade === '8') return '6-8'
   return '3-5'
+}
+
+// Whether this visitor is in the K-3 band that gets the optional 20-minute
+// break rhythm offered by default. Reads the same stored grade as
+// demoGradeStage() above and defers the banding to gradeTimer's own
+// getTimerConfig, so the demo cannot drift from the app's definition of
+// "younger" — the demo default (no grade picked) is grade 4, i.e. false.
+function demoIsYounger(): boolean {
+  return getTimerConfig(sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '').isYounger
 }
 
 export function CodeScreen({ onLoggedIn }: {
@@ -1008,8 +1020,47 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   )
   const isSessionBreak = sessionPhase.phase === 'break'
   const isConcluded = sessionPhase.phase === 'concluded'
-  const sessionPaused = isSessionBreak || isConcluded
-  const breakActivity = isSessionBreak ? pickBreakActivity(sessionPhase.cycleIndex) : null
+
+  // The optional 20/40-minute rhythm, mirroring TutorSession.tsx in the app.
+  // SUGGESTED, never imposed: a banner beside the lesson rather than the
+  // full-screen overlay a mandatory break gets, so a child who is genuinely
+  // settled waves it off in one tap. Nothing here can shorten, skip, delay or
+  // extend past the mandatory hourly break — getSuggestedBreak returns null
+  // during one, and outside a study phase entirely.
+  const [dismissedBreakKey, setDismissedBreakKey] = useState<string | null>(null)
+  const [acceptedBreakKey, setAcceptedBreakKey] = useState<string | null>(null)
+  const suggestedBreak = getSuggestedBreak(
+    sessionPhase, demoIsYounger(), parentControls.frequentBreakOffers,
+  )
+  // Both flags key off the SUGGESTION rather than being bare booleans, which
+  // makes them self-clearing: a voluntary break cannot outlive its own mark,
+  // survive a mandatory break, or leak into the next hour, so no cleanup
+  // effect is needed.
+  const voluntaryBreakActive =
+    !!suggestedBreak && acceptedBreakKey === suggestedBreak.key && !isSessionBreak && !isConcluded
+  const showBreakSuggestion =
+    !!suggestedBreak &&
+    !isSessionBreak &&
+    !isConcluded &&
+    !voluntaryBreakActive &&
+    suggestedBreak.key !== dismissedBreakKey &&
+    suggestedBreak.key !== acceptedBreakKey
+
+  // A voluntary break is a real break in every safety sense: the chat pauses
+  // and the break-inactivity logout below applies, exactly as for a mandatory
+  // one. It just ends when the child says so rather than on a clock.
+  const sessionPaused = isSessionBreak || isConcluded || voluntaryBreakActive
+  // Offset by the mark so the 20- and 40-minute breaks in one hour don't
+  // suggest the identical activity twice. Unlike the app's BreakActivity,
+  // the demo's carries no index field, so the rotation position is derived
+  // here once instead of being recomputed at each call site.
+  const breakActivityCycle =
+    voluntaryBreakActive && suggestedBreak
+      ? sessionPhase.cycleIndex + suggestedBreak.mark
+      : sessionPhase.cycleIndex
+  const breakActivityIndex = breakActivityCycle % BREAK_ACTIVITIES.length
+  const breakActivity =
+    isSessionBreak || voluntaryBreakActive ? pickBreakActivity(breakActivityCycle) : null
 
   // Break/concluded-inactivity auto-logout — see BREAK_INACTIVITY_LOGOUT_MS
   // above. Only active while sessionPaused (unlike ChatScreen's other
@@ -1762,7 +1813,73 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
           header (parent controls, Finish) reachable — a demo visitor is
           never locked away from ending or adjusting the session. */}
       <div className="flex-1 flex flex-col min-h-0 relative">
-      {sessionPaused && (
+      {/* The optional break, OFFERED. A banner rather than an overlay on
+          purpose: it sits beside the lesson instead of interrupting it. The
+          mandatory break below is unaffected and still has no dismiss
+          button. */}
+      {showBreakSuggestion && suggestedBreak && (
+        <div className="absolute inset-x-0 top-0 z-10 p-3">
+          <div className="mx-auto max-w-md rounded-2xl border border-sage-200 bg-white shadow-lg p-4">
+            <div className="flex items-start gap-3">
+              <Footprints size={20} className="mt-0.5 flex-shrink-0 text-sage-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-800">
+                  {t('sessionPaused.breakSuggestionTitle', {
+                    minutes: suggestedBreak.mark * SUGGESTED_BREAK_INTERVAL_MINUTES,
+                  })}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">{t('sessionPaused.breakSuggestionBody')}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setAcceptedBreakKey(suggestedBreak.key)}
+                    className="rounded-xl bg-sage-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sage-700"
+                  >
+                    {t('sessionPaused.breakSuggestionTake')}
+                  </button>
+                  <button
+                    onClick={() => setDismissedBreakKey(suggestedBreak.key)}
+                    className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                  >
+                    {t('sessionPaused.breakSuggestionKeepGoing')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* A break the child chose. Same full-screen treatment as a mandatory
+          one — the point is to be away from the device — but it ends when
+          they say so rather than on a clock, and it cannot outlive the mark
+          it belongs to. */}
+      {voluntaryBreakActive && suggestedBreak && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
+          <div className="bg-white rounded-2xl border border-sage-200 shadow-xl p-8 max-w-sm w-full text-center">
+            <Footprints size={36} className="mx-auto mb-4 text-sage-500" />
+            <h2 className="text-xl font-display font-bold text-gray-800 mb-2">
+              {t('sessionPaused.voluntaryBreakTitle')}
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {t('sessionPaused.voluntaryBreakBody', { name: displayName })}
+            </p>
+            {breakActivity && (
+              <div className="bg-sage-50 border border-sage-200 rounded-xl px-4 py-3 mb-4 text-sm text-sage-800">
+                {t(`breakActivities.${breakActivityIndex}`, breakActivity.prompt)}
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setAcceptedBreakKey(null)
+                setDismissedBreakKey(suggestedBreak.key)
+              }}
+              className="rounded-xl bg-sage-600 px-4 py-2 text-sm font-medium text-white hover:bg-sage-700"
+            >
+              {t('sessionPaused.voluntaryBreakResume')}
+            </button>
+          </div>
+        </div>
+      )}
+      {(isSessionBreak || isConcluded) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-parchment-50/90 backdrop-blur-sm p-6">
           <div className={`bg-white rounded-2xl border shadow-xl p-8 max-w-sm w-full text-center ${isConcluded ? 'border-sage-200' : 'border-amber-200'}`}>
             {isConcluded ? (
@@ -1784,7 +1901,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
                 <p className="text-sm text-gray-500 mb-4">{t('sessionPaused.stepAway')}</p>
                 {breakActivity && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
-                    {t(`breakActivities.${sessionPhase.cycleIndex % BREAK_ACTIVITIES.length}`, breakActivity.prompt)}
+                    {t(`breakActivities.${breakActivityIndex}`, breakActivity.prompt)}
                   </div>
                 )}
                 <div className="text-3xl font-mono font-bold text-amber-600 mb-1">{fmtTime(sessionPhase.remainingSecs)}</div>
@@ -1862,7 +1979,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
 
       <div className="px-4 py-3 bg-parchment-50 border-t border-sage-200">
         <div className="flex gap-2 items-end">
-          <button onClick={() => setShowCanvas(true)} disabled={isStreaming || sessionPaused} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
+          <button onClick={() => setShowCanvas(true)} disabled={isStreaming || sessionPaused} title={t('chatScreen.drawOrWrite')} aria-label={t('chatScreen.drawOrWrite')} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
           </button>
           <input
@@ -1880,7 +1997,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
           >
             {uploadingNarration ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
           </button>
-          <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
+          <button onClick={() => (ttsEnabled ? (setTtsEnabled(false), stopSpeech()) : setTtsEnabled(true))} title={ttsEnabled ? t('chatScreen.muteBede') : t('chatScreen.unmuteBede')} aria-label={ttsEnabled ? t('chatScreen.muteBede') : t('chatScreen.unmuteBede')} className={`p-2.5 rounded-lg transition-all hover:scale-110 active:scale-95 flex-shrink-0 ${ttsEnabled ? 'bg-sage-100 text-sage-700' : 'bg-gray-100 text-gray-400'}`}>
             {ttsEnabled ? (isSpeaking ? <Volume2 size={18} className="animate-pulse" /> : <Volume2 size={18} />) : <VolumeX size={18} />}
           </button>
           {/* Hold-to-talk vs. hands-free "Voice on" — the preference lives in

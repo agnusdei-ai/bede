@@ -20,6 +20,7 @@ import {
 } from '../utils/gradeTimer'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import { readingStyle } from '../utils/readingPresentation'
+import { useReadingPresentation } from '../hooks/useReadingPresentation'
 import { pickBreakActivity } from '../utils/breakActivities'
 import { setLogoutNotice } from '../utils/logoutNotice'
 import { Coffee, Eye, Footprints } from 'lucide-react'
@@ -47,6 +48,14 @@ export default function TutorSession() {
     sessionStartedAt, subjectStartedAt, displayMessages, isStreaming, sessionId,
     nextSubject, endSession, setSessionConfig, startSession, logout,
   } = useSessionStore()
+
+  // Declared here with the other hooks, well before the sessionConfig guard
+  // below — every hook in this component has to be, and this one reads the
+  // config it may be null for, which it handles.
+  const { presentation: readingPresentation } = useReadingPresentation(
+    sessionConfig,
+    sessionConfig?.student_name,
+  )
 
   const [showSummary, setShowSummary] = useState(false)
   const [summary, setSummary] = useState('')
@@ -461,8 +470,15 @@ export default function TutorSession() {
           history of dropping elements out of the accessibility tree) and
           deliberately not the page root, which would restyle the session
           chrome as well. readingStyle returns {} when every value is default,
-          so a family who never touches this renders exactly as before. */}
-      <main className="flex-1 overflow-hidden relative" style={readingStyle(sessionConfig)}>
+          so a family who never touches this renders exactly as before.
+
+          The value is the EFFECTIVE one — the parent's per-student setting,
+          or the child's own per-device adjustment of it while the parent has
+          not changed their mind since. See useReadingPresentation.ts. Note
+          the demo applies the equivalent style at <html> instead, because its
+          control is global and it has no chrome/lesson split worth keeping;
+          what a user can see and do is the same either way. */}
+      <main className="flex-1 overflow-hidden relative" style={readingStyle(readingPresentation)}>
         {showIntro ? (
           <MeetBede
             studentName={sessionConfig.student_name}

@@ -1,7 +1,7 @@
 /**
  * Mirrors homeschool-tutor/src/utils/canvasPersistence.test.ts, with the
  * one case this copy needs that the app's does not: a demo stroke carries
- * `isEraser` rather than a tool name.
+ * the same `tool` name the app's canvas uses.
  *
  * The properties under test are the two that would cost a visitor real
  * work: a page that comes back WRONG (truncated, half-restored, or from
@@ -29,7 +29,7 @@ function stroke(points: number, overrides: Partial<PersistedStroke> = {}): Persi
     points: Array.from({ length: points }, (_, i) => ({ x: i + 0.123456, y: i * 2 + 0.987654, pressure: 0.5123 })),
     width: 3,
     color: '#1b3a6b',
-    isEraser: false,
+    tool: 'pen' as const,
     ...overrides,
   }
 }
@@ -72,12 +72,12 @@ describe('demo canvas page persistence', () => {
   })
 
   it('round-trips a page a visitor would actually have drawn', () => {
-    savePage('ABC123', page({ strokes: [stroke(3), stroke(2, { isEraser: true })] }))
+    savePage('ABC123', page({ strokes: [stroke(3), stroke(2, { tool: 'eraser' })] }))
     const restored = loadPage('ABC123')
     expect(restored?.paperStyle).toBe('graph')
     expect(restored?.strokes).toHaveLength(2)
-    expect(restored?.strokes[0].isEraser).toBe(false)
-    expect(restored?.strokes[1].isEraser).toBe(true)
+    expect(restored?.strokes[0].tool).toBe('pen')
+    expect(restored?.strokes[1].tool).toBe('eraser')
     expect(restored?.strokes[0].points).toHaveLength(3)
   })
 
@@ -179,10 +179,10 @@ describe('demo canvas page persistence', () => {
       ['a page from a future version', { ...valid, v: 99 }],
       ['a page from the old, pre-fixed-page-space shape (v1)', { ...valid, v: 1 }],
       ['a missing stroke list', { ...valid, strokes: undefined }],
-      ['a stroke with no point array', { ...valid, strokes: [{ width: 1, color: '#000', isEraser: false }] }],
+      ['a stroke with no point array', { ...valid, strokes: [{ width: 1, color: '#000', tool: 'pen' }] }],
       ['a stroke with no eraser flag', { ...valid, strokes: [{ width: 1, color: '#000', pts: [] }] }],
-      ['a point array truncated mid-point', { ...valid, strokes: [{ width: 1, color: '#000', isEraser: false, pts: [1, 2, 0.5, 3, 4] }] }],
-      ['a non-finite coordinate', { ...valid, strokes: [{ width: 1, color: '#000', isEraser: false, pts: [null, 2, 0.5] }] }],
+      ['a point array truncated mid-point', { ...valid, strokes: [{ width: 1, color: '#000', tool: 'pen', pts: [1, 2, 0.5, 3, 4] }] }],
+      ['a non-finite coordinate', { ...valid, strokes: [{ width: 1, color: '#000', tool: 'pen', pts: [null, 2, 0.5] }] }],
     ])('refuses %s rather than half-restoring it', (_what, payload) => {
       expect(parsePage(JSON.stringify(payload))).toBeNull()
     })

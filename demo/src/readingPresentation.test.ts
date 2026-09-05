@@ -113,3 +113,39 @@ describe('the settings reach the demo\'s own lesson text', () => {
     expect(/\bleading-relaxed\b/.test(card), 'demo VisualAidCard has a bare leading-relaxed again').toBe(false)
   })
 })
+
+
+describe('the panel shows controls, not a research summary', () => {
+  const src = readFileSync(join(__dirname, 'TextSizeControl.tsx'), 'utf8')
+
+  it('keeps every condition and evidence mention inside a tooltip', () => {
+    // A reading-settings panel is a place to change a setting. The reasoning —
+    // which of these has evidence behind it, what the dyslexia research
+    // actually found — belongs in the tooltip and in docs/SPECIAL_NEEDS.md,
+    // which is what a parent deciding what to turn on is actually reading.
+    // As body text it also crowded the controls off a phone at the top
+    // text-size step, which is where it was first noticed.
+    //
+    // Scans the RENDERED text specifically: strip the tooltips, the imports
+    // and the comments, and none of these words may survive.
+    let rendered = src.replace(/title="[^"]*"/g, '')
+    rendered = rendered.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    for (const word of ['dyslex', 'evidence', 'research', 'study of', 'accuracy', 'measured result']) {
+      expect(
+        rendered.toLowerCase().includes(word),
+        `"${word}" is rendered as body text in the panel; it belongs in a title attribute and the docs`,
+      ).toBe(false)
+    }
+  })
+
+  it('still says it somewhere — the tooltips carry what the body text used to', () => {
+    // The rule is about PLACEMENT, not about dropping the honesty. If both
+    // the body text and the tooltip lost it, the panel would present two
+    // equal-looking controls with nothing distinguishing what each is
+    // supported by, which is the thing docs/ACCESSIBILITY_RESEARCH.md exists
+    // to prevent.
+    const titles = [...src.matchAll(/title="([^"]*)"/g)].map((m) => m[1]).join(' ').toLowerCase()
+    expect(titles).toContain('dyslex')
+    expect(titles).toContain('general readability guidance')
+  })
+})

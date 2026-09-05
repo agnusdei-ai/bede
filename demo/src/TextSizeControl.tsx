@@ -23,8 +23,12 @@ const AUTO_COLLAPSE_MS = 8000
  * easier to read" — and a second floating button would crowd a corner that
  * already reserves clearance on narrow viewports.
  *
- * The three are NOT equally well founded, and the panel says so rather than
- * presenting three equal-looking sliders:
+ * The three are NOT equally well founded, and the difference is carried in
+ * each row's TOOLTIP and in the docs — never as body text in the panel. A
+ * reading-settings panel is a place to change a setting, not to read a
+ * research summary, and the prose crowded the controls off a phone at the
+ * top text-size step. `docs/ACCESSIBILITY_RESEARCH.md` and
+ * `docs/SPECIAL_NEEDS.md` are where the descriptions live:
  *
  *   - Letter spacing is the one with real evidence. Zorzi et al. (2012,
  *     PNAS) found extra letter spacing doubled reading accuracy and raised
@@ -177,7 +181,10 @@ export default function TextSizeControl() {
 
       <div>
         <span className="block text-xs text-navy-600 mb-1">Space between letters</span>
-        <div className="flex flex-wrap gap-1">
+        <div
+          className="flex flex-wrap gap-1"
+          title="The best-supported of these. In a study of dyslexic 8-14 year olds, extra letter spacing doubled reading accuracy and made reading over 20% faster. Word spacing widens with it, so word boundaries stay clear."
+        >
           {letterOptions.map((o) => (
             <button
               key={o.value}
@@ -190,15 +197,14 @@ export default function TextSizeControl() {
             </button>
           ))}
         </div>
-        <p className="text-xs leading-snug text-navy-400 mt-1">
-          The one with real evidence behind it: in a study of dyslexic 8-14
-          year olds, extra letter spacing doubled reading accuracy.
-        </p>
       </div>
 
       <div>
         <span className="block text-xs text-navy-600 mb-1">Space between lines</span>
-        <div className="flex flex-wrap gap-1">
+        <div
+          className="flex flex-wrap gap-1"
+          title="Helps some readers keep their place when moving from one line to the next. General readability guidance rather than a measured result."
+        >
           {lineOptions.map((o) => (
             <button
               key={o.value}
@@ -211,10 +217,6 @@ export default function TextSizeControl() {
             </button>
           ))}
         </div>
-        <p className="text-xs leading-snug text-navy-400 mt-1">
-          Helps some readers keep their place. General readability guidance,
-          not a measured result.
-        </p>
       </div>
     </div>
   )

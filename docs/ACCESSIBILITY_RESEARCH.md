@@ -59,12 +59,19 @@ finding, it has its own section (§6.1) rather than a footnote.
 
 ## 3. What was built, and on what
 
-| Setting | Evidence | Offered to a parent as |
-| --- | --- | --- |
-| `letter_spacing` (carries word spacing) | **Strong** — §4.1 | An accommodation |
-| `line_spacing` | **Design guidance only** — §4.3 | "Helps some readers keep their place" |
-| `text_size` | **Contested; direction reverses with age** — §4.4 | **Not built here.** Already offered by `TextSizeControl`, product-wide — see §4.4 |
-| `frequent_break_offers` | **Not an evidence claim at all** — §5 | Removing an age limit on a parent's choice |
+| Setting | Evidence | Offered as | Who can change it |
+| --- | --- | --- | --- |
+| `letter_spacing` (carries word spacing) | **Strong** — §4.1 | An accommodation | Parent sets it per student; the reader may move it on their own device (register entry 24) |
+| `line_spacing` | **Design guidance only** — §4.3 | "Helps some readers keep their place" | Same |
+| `text_size` | **Contested; direction reverses with age** — §4.4 | **Not built here.** Already offered by `TextSizeControl`, product-wide — see §4.4 | The reader, per device |
+| `frequent_break_offers` | **Not an evidence claim at all** — §5 | Removing an age limit on a parent's choice | Parent only |
+
+The fourth column was added later and is a placement decision rather than an
+evidence one: the two spacing settings stay parent-owned and per-student, but
+the reader can now adjust them on the device in front of them, because the
+finding in §4.1 is worth nothing if reaching it means abandoning the page. The
+parent's own value seeds it and any change they make overrides the child's —
+see decision register entry 24 and `useReadingPresentation.ts`.
 
 The table is the point. Three of the four are honest about being weak, and the
 UI copy for each says so in the words a parent actually reads — because

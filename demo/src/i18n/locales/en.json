@@ -51,7 +51,10 @@
     "voiceModeContinuous": "Voice on",
     "voiceModeHold": "Hold to talk",
     "voiceModeStoodDown": "I'll stop listening for now — press and hold the microphone whenever you're ready to talk again.",
-    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime."
+    "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime.",
+    "drawOrWrite": "Draw or write by hand",
+    "muteBede": "Mute Bede",
+    "unmuteBede": "Unmute Bede"
   },
   "canvas": {
     "cancel": "Cancel",
@@ -78,6 +81,7 @@
     },
     "tool": {
       "pen": "Pen",
+      "pencil": "Pencil",
       "eraser": "Eraser"
     },
     "brush": {
@@ -138,7 +142,14 @@
     "breakTime": "Break Time",
     "workedHard": "{{name}}, you've been working hard.",
     "stepAway": "Step away from the screen. Be with nature, rest your eyes, or spend a quiet moment with God.",
-    "untilNextBlock": "until your next learning block"
+    "untilNextBlock": "until your next learning block",
+    "breakSuggestionTitle": "You've been working {{minutes}} minutes — want a quick break?",
+    "breakSuggestionBody": "You don't have to. If you're in a good rhythm, keep going — there's a proper break at the hour either way.",
+    "breakSuggestionTake": "Yes, let's pause",
+    "breakSuggestionKeepGoing": "No thanks, keep going",
+    "voluntaryBreakTitle": "Good idea — take a moment",
+    "voluntaryBreakBody": "Step away from the screen for a bit, {{name}}. Come back whenever you're ready.",
+    "voluntaryBreakResume": "I'm ready to keep learning"
   },
   "sessionEnded": {
     "title": "Your session has ended",
@@ -186,7 +197,9 @@
     "lockAppearance": "Lock chat appearance",
     "lockedDesc": "The learner cannot change the theme or bubble color.",
     "unlockedDesc": "The learner may change the theme and bubble color.",
-    "passwordNote": "In the full app, the parent password protects these settings."
+    "passwordNote": "In the full app, the parent password protects these settings.",
+    "frequentBreaks": "Offer breaks more often",
+    "frequentBreaksDesc": "Offers an optional short break every 20 minutes at any grade, not just the youngest. The break at the hour is unchanged."
   },
   "themePicker": {
     "backgroundTheme": "Background theme",

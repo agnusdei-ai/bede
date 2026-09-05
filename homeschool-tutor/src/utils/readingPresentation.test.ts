@@ -245,3 +245,29 @@ describe('the settings reach the lesson text, not just its container', () => {
     expect(/\bleading-relaxed\b/.test(card), 'VisualAidCard has a bare leading-relaxed again').toBe(false)
   })
 })
+
+
+describe('the parent panel shows controls, not a research summary', () => {
+  it('keeps every condition and evidence mention in a tooltip string', () => {
+    // Same rule as the demo's copy. In this app the strings live in the
+    // locale files, so the check is on the KEY: anything explaining a
+    // condition or citing research must be a *Tooltip key, never a visible
+    // label or hint. The descriptions live in docs/SPECIAL_NEEDS.md and
+    // docs/ACCESSIBILITY_RESEARCH.md.
+    for (const locale of ['en', 'es']) {
+      const strings = JSON.parse(
+        readFileSync(join(__dirname, `../i18n/locales/${locale}.json`), 'utf8'),
+      ).parentSetup as Record<string, string>
+      for (const [key, value] of Object.entries(strings)) {
+        if (key.endsWith('Tooltip')) continue
+        for (const word of ['dyslex', 'disléx']) {
+          expect(
+            value.toLowerCase().includes(word),
+            `${locale}.json parentSetup.${key} names a condition in visible copy: "${value}"`,
+          ).toBe(false)
+        }
+      }
+      expect(strings.letterSpacingTooltip.toLowerCase(), `${locale} lost the evidence from the tooltip too`).toContain(locale === 'en' ? 'dyslex' : 'disléx')
+    }
+  })
+})

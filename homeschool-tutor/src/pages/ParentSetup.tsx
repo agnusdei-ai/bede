@@ -1314,22 +1314,21 @@ function StudentCard({
                   learning-support design refuses, and would fit two children
                   with the same diagnosis equally badly.
 
-                  Every control carries BOTH a `title` and visible hint text,
-                  and the two say different things. IconButton.tsx's own
-                  comment records why `title` alone is never enough — it needs
-                  hover, which a tablet has not got — so the visible text
-                  carries what a parent must not miss, and the tooltip carries
-                  the evidence behind it. `title` sits on the wrapping <label>
-                  rather than on each <select>, since a tooltip is inherited
-                  from an ancestor and two copies of one string is one more
-                  place to drift.
+                  Explanation lives in the TOOLTIP and in the docs, never as
+                  body text here. A settings panel is a place to change a
+                  setting; the reasoning belongs in docs/SPECIAL_NEEDS.md and
+                  docs/ACCESSIBILITY_RESEARCH.md, which is where a parent
+                  deciding what to turn on is actually reading. `title` sits
+                  on the wrapping <label> rather than on each <select>, since
+                  a tooltip is inherited from an ancestor and two copies of
+                  one string is one more place to drift.
 
-                  These two are NOT equally well founded and the copy says so
-                  on each: identical-looking controls would imply equal
-                  promises, and "letter spacing has real evidence, line
-                  spacing is readability guidance" is precisely the thing a
-                  parent has no way to know. This panel is, deliberately,
-                  where that is disclosed rather than only in the docs.
+                  Note the real cost, since it is not nothing: `title` needs
+                  hover, which a tablet has not got (IconButton.tsx's own
+                  comment records the same limitation), so on a touch device
+                  the docs are the only route to the reasoning. That is the
+                  accepted trade — this panel is reached from a parent's
+                  setup screen, not mid-lesson on a child's tablet.
 
                   TEXT SIZE IS NOT HERE, and its absence is the decision.
                   `TextSizeControl` (mounted from AppShell, on every screen)
@@ -1340,7 +1339,9 @@ function StudentCard({
                   entry 24, docs/ACCESSIBILITY_RESEARCH.md and
                   docs/SPECIAL_NEEDS.md. */}
               <div>
-                <label className="label">{t('parentSetup.readingPresentation')}</label>
+                <label className="label" title={t('parentSetup.readingPresentationTooltip')}>
+                  {t('parentSetup.readingPresentation')}
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                   <div>
                     <label className="block" title={t('parentSetup.letterSpacingTooltip')}>
@@ -1371,7 +1372,6 @@ function StudentCard({
                     </label>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.readingPresentationHint')}</p>
 
                 <label
                   className="flex items-start gap-2 mt-3 cursor-pointer"
@@ -1383,12 +1383,7 @@ function StudentCard({
                     onChange={(e) => onUpdate({ frequent_break_offers: e.target.checked })}
                     className="mt-0.5"
                   />
-                  <span className="text-sm text-gray-700">
-                    {t('parentSetup.frequentBreaks')}
-                    <span className="block text-xs text-gray-400">
-                      {t('parentSetup.frequentBreaksHint')}
-                    </span>
-                  </span>
+                  <span className="text-sm text-gray-700">{t('parentSetup.frequentBreaks')}</span>
                 </label>
               </div>
               <div>

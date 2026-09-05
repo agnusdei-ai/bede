@@ -14,6 +14,22 @@ const AUTO_COLLAPSE_MS = 4000
  * under HandwritingCanvas/VoiceEnrollment/etc.'s z-50) so it's naturally
  * covered rather than floating on top of them while one is open.
  *
+ * SIZING, measured in real Chromium across device viewports rather than
+ * reasoned about — jsdom performs no layout, so none of it is visible to a
+ * component test. Two defects were found that way and are fixed here:
+ *
+ *   - the collapsed button was 36px and the +/- buttons 28px (24.5px at the
+ *     smallest text step). WCAG 2.5.8 asks for 24 and 2.5.5 for 44; this runs
+ *     on a child's tablet, so 44 it is, as a PIXEL floor rather than a rem
+ *     one — a finger does not get smaller when someone scales text down.
+ *   - the percentage readout was `text-[11px]`, a literal pixel value, and
+ *     this control works by scaling the ROOT font size. The one number
+ *     telling a reader what they just set was the one thing that never got
+ *     bigger. It is a rem class now.
+ *
+ * Found while giving the demo's copy the same treatment — the two share a
+ * lineage, so the defect was in both.
+ *
  * Minimized to a small icon-only button by default rather than the full
  * +/-/percentage pill — fixed-position at top-right, it was sitting
  * directly over chat text on narrower/tablet viewports since it floats
@@ -45,7 +61,7 @@ export default function TextSizeControl() {
         onClick={() => { setExpanded(true); scheduleCollapse() }}
         aria-label={`Text size, ${Math.round(scale)}%. Tap to adjust.`}
         title="Text size"
-        className="fixed top-3 right-3 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-white/95 backdrop-blur border border-navy-200 shadow-md pt-safe pr-safe text-navy-500 hover:bg-navy-50 hover:text-navy-700 transition-colors"
+        className="fixed top-3 right-3 z-40 flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/95 backdrop-blur border border-navy-200 shadow-md pt-safe pr-safe text-navy-500 hover:bg-navy-50 hover:text-navy-700 transition-colors"
       >
         <Type size={16} aria-hidden="true" />
       </button>
@@ -65,11 +81,11 @@ export default function TextSizeControl() {
         disabled={!canDecrease}
         aria-label="Decrease text size"
         title="Decrease text size"
-        className="w-7 h-7 flex items-center justify-center rounded-full text-navy-600 hover:bg-navy-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+        className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-navy-600 hover:bg-navy-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
       >
         <Minus size={14} />
       </button>
-      <span className="text-[11px] text-navy-500 w-10 text-center tabular-nums" aria-live="polite">
+      <span className="text-xs text-navy-500 min-w-[2.75rem] text-center tabular-nums" aria-live="polite">
         {Math.round(scale)}%
       </span>
       <button
@@ -78,7 +94,7 @@ export default function TextSizeControl() {
         disabled={!canIncrease}
         aria-label="Increase text size"
         title="Increase text size"
-        className="w-7 h-7 flex items-center justify-center rounded-full text-navy-600 hover:bg-navy-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+        className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-navy-600 hover:bg-navy-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
       >
         <Plus size={14} />
       </button>

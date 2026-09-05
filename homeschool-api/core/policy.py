@@ -159,6 +159,10 @@ _POLICY: dict[str, frozenset[str]] = {
     # a real family session.
     "sandbox.demo_preview": frozenset({"demo_code"}),
     "diagnostic.demo_preview": frozenset({"demo_code"}),
+    # The demo's own Parent Setup. A visitor configures their own demo
+    # session the way a parent configures a real one; a family session
+    # has ParentSetup.tsx and must never reach this path.
+    "demo.parent_config": frozenset({"demo_code"}),
 
     # Transient-flow completion. Listed so the table is exhaustive; the
     # transient-role check above handles these before the table is consulted.
@@ -177,6 +181,7 @@ _DENIAL: dict[str, str] = {
     "sandbox.parent_chat": "This action requires parent authorisation",
     "sandbox.demo_preview": "This preview is only available through the public demo login",
     "diagnostic.demo_preview": "This preview is only available through the public demo login",
+    "demo.parent_config": "This setup is only available through the public demo login",
     "tutor.email_summary": "Not authorized for this action",
     "mfa.complete": "No second-factor verification is pending",
     "recovery.reset_password": "No account recovery is in progress",

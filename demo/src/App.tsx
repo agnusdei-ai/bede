@@ -9,6 +9,7 @@ import {
   fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales, fetchDemoActivity,
   TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
+  type DemoParentConfig,
   type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
   type DemoWorkLedger,
 } from './api'
@@ -30,6 +31,7 @@ const HandwritingCanvas = lazy(() => import('./HandwritingCanvas'))
 import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
+import DemoParentSetup from './DemoParentSetup'
 import { getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES } from './gradeTimer'
 import { clearPage as clearCanvasPage } from './canvasPersistence'
 import { pickBreakActivity, BREAK_ACTIVITIES } from './breakActivities'
@@ -981,6 +983,18 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // matches: a session hard stop with mandatory hourly breaks, and the
   // appearance lock.
   const [parentControls, setParentControls] = useState<DemoParentControls>(() => readDemoParentControls())
+  // The full Parent Setup panel (DemoParentSetup.tsx). `parentSetup` keeps
+  // what was saved so reopening the panel shows the plan in force rather
+  // than resetting to defaults; it is not persisted across a reload, the
+  // same posture as subjectLastExchange above — the SERVER holds the saved
+  // configuration for this code either way, so a reload loses only the
+  // form's pre-fill, never the plan Bede is actually running.
+  // The subject list the picker offers. Seeded from the prop and replaced
+  // when a plan is saved, so the chat cannot keep offering subjects the
+  // server has just been told this session does not include.
+  const [activeSubjects, setActiveSubjects] = useState<readonly Subject[]>(subjects)
+  const [showParentSetup, setShowParentSetup] = useState(false)
+  const [parentSetup, setParentSetup] = useState<DemoParentConfig | undefined>(undefined)
   // Re-render every 15s so break/conclude transitions are noticed promptly
   // even when nothing else is happening (same trick as the full app).
   const [, setPhaseTick] = useState(0)
@@ -1496,7 +1510,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
       // advancing while Bede's own transition line is still playing would
       // cut it off mid-sentence.
     }
-  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
 
   // Fires once when a turn's text AND speech have both genuinely finished
   // (not just the text) — see the fire-and-forget speak() comment above for
@@ -1518,13 +1532,13 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
         // Brief pause so the child can read (and hear, if TTS is on)
         // Bede's transition line first.
         setTimeout(() => {
-          const idx = subjects.indexOf(subject)
-          const next = idx >= 0 ? subjects[idx + 1] : undefined
+          const idx = activeSubjects.indexOf(subject)
+          const next = idx >= 0 ? activeSubjects[idx + 1] : undefined
           if (next) setSubject(next)
         }, 2500)
       }
     }
-  }, [isStreaming, isSpeaking, subject, subjects])
+  }, [isStreaming, isSpeaking, subject, activeSubjects])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return
@@ -1665,7 +1679,11 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
               appearance picker lives, under the fixed text-size control:
               the familiar corner for settings. Stays visible when the
               appearance lock hides the picker (it's how you unlock). */}
-          <ParentControlsMenu controls={parentControls} onChange={setParentControls} />
+          <ParentControlsMenu
+            controls={parentControls}
+            onChange={setParentControls}
+            onOpenSetup={() => setShowParentSetup(true)}
+          />
           {/* Ends the demo — an icon button living here, grouped with the
               other real controls, rather than a text link forced onto its
               own guaranteed line down in the flex-wrap info row (see that
@@ -1726,12 +1744,12 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             onChange={(e) => setSubject(e.target.value as Subject)}
             className="w-full text-sm font-medium border border-sage-300 rounded-lg pl-3 pr-2 py-2 bg-white text-sage-800 hover:border-sage-400 cursor-pointer transition-colors"
           >
-            {subjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
+            {activeSubjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
           </select>
         </div>
         <ContinuingMasteryCard
           currentUnit={currentUnit}
-          subjects={subjects}
+          subjects={activeSubjects}
           activeSubject={subject}
           subjectLastExchange={subjectLastExchange}
           onResume={setSubject}
@@ -1906,6 +1924,24 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
         </div>
       </div>
       </div>
+
+      {showParentSetup && (
+        <DemoParentSetup
+          token={token}
+          initial={parentSetup}
+          onSaved={(config) => {
+            setParentSetup(config)
+            if (config.subjects?.length) {
+              setActiveSubjects(config.subjects)
+              // The open subject may no longer be on the plan. Move to the
+              // first one that is, rather than leaving the child on a
+              // subject the server has been told this session does not have.
+              if (!config.subjects.includes(subject)) setSubject(config.subjects[0])
+            }
+          }}
+          onClose={() => setShowParentSetup(false)}
+        />
+      )}
 
       {showCanvas && (
         <Suspense fallback={null}>

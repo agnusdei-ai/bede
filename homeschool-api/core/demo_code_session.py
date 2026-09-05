@@ -96,8 +96,8 @@ async def generate_code(
     docstring for why. faith_tradition (also pre-sanitized) is stored the
     same way, in DemoCodeFaithNote — see that model's own docstring."""
     from core.database import (
-        AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeSession,
-        DemoCodeUnitNote,
+        AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeParentConfig,
+        DemoCodeSession, DemoCodeUnitNote,
     )
 
     async with AsyncSessionLocal() as db:
@@ -108,6 +108,7 @@ async def generate_code(
         await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.created_at < _cutoff()))
         await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.created_at < _cutoff()))
         await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.created_at < _cutoff()))
+        await db.execute(delete(DemoCodeParentConfig).where(DemoCodeParentConfig.created_at < _cutoff()))
 
         count = (await db.execute(select(func.count()).select_from(DemoCodeSession))).scalar_one()
         if count >= _MAX_ACTIVE_CODES:
@@ -179,6 +180,66 @@ async def get_faith_tradition(code: str) -> str | None:
             )
         )
         return result.scalar_one_or_none()
+
+
+async def set_parent_config(code: str, config: dict) -> None:
+    """Store this code's own Parent Setup (core/database.py's
+    DemoCodeParentConfig), replacing whatever was there.
+
+    The caller is responsible for having validated `config` through
+    models/schemas.py's own validators — see routers/auth.py's
+    set_demo_parent_config, which builds a real SessionConfig from it and
+    would reject anything the product itself would reject. This function
+    stores what it is handed.
+
+    Silently does nothing for an unknown or evicted code, so a stale tab
+    cannot resurrect a session that has already gone.
+    """
+    from core.database import AsyncSessionLocal, DemoCodeParentConfig
+    from core.encryption import aad_for, encrypt_json
+
+    if not await code_exists(code):
+        return
+
+    # Bound to its own row (P5), same as the activity log beside it: one
+    # DATA_KEY covers every column, so without this a config blob could be
+    # copied into another code's row and decrypt cleanly.
+    blob = encrypt_json(config, aad_for("demo_code_parent_configs", "config_enc", code))
+    async with AsyncSessionLocal() as db:
+        existing = await db.get(DemoCodeParentConfig, code)
+        if existing is not None:
+            existing.config_enc = blob
+        else:
+            db.add(DemoCodeParentConfig(code=code, config_enc=blob))
+        await db.commit()
+
+
+async def get_parent_config(code: str) -> dict | None:
+    """This code's own Parent Setup, or None for a code that never set one
+    (the ordinary case — the demo works with nothing configured) or one
+    past the same TTL every other demo table uses."""
+    from core.database import AsyncSessionLocal, DemoCodeParentConfig
+    from core.encryption import aad_for, decrypt_json
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(DemoCodeParentConfig.config_enc).where(
+                DemoCodeParentConfig.code == code,
+                DemoCodeParentConfig.created_at >= _cutoff(),
+            )
+        )
+        blob = result.scalar_one_or_none()
+    if blob is None:
+        return None
+    try:
+        value = decrypt_json(blob, aad_for("demo_code_parent_configs", "config_enc", code))
+    except Exception:
+        # A row this process cannot read is a row that does not exist, as
+        # far as a demo session is concerned — never a 500 on the visitor's
+        # first turn.
+        logger.warning("demo parent config could not be decrypted; ignoring")
+        return None
+    return value if isinstance(value, dict) else None
 
 
 # A demo session produces a few dozen completed activities at most. The cap
@@ -394,8 +455,8 @@ async def end_session(code: str) -> None:
     DemoCodeFaithNote and DemoCodeActivityLog rows, if any, so nothing set
     or recorded during the session outlives it."""
     from core.database import (
-        AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeSession,
-        DemoCodeUnitNote,
+        AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeParentConfig,
+        DemoCodeSession, DemoCodeUnitNote,
     )
 
     async with AsyncSessionLocal() as db:
@@ -403,6 +464,7 @@ async def end_session(code: str) -> None:
         await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.code == code))
         await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.code == code))
         await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.code == code))
+        await db.execute(delete(DemoCodeParentConfig).where(DemoCodeParentConfig.code == code))
         await db.commit()
 
 

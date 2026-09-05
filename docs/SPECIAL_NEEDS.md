@@ -122,8 +122,8 @@ book while telling it back
 
 ## Panel 2 — Reading and Breaks
 
-Four settings. Every one starts off, and turning none of them on leaves the
-screen exactly as it is today.
+**Three settings.** Every one starts off, and turning none of them on leaves
+the screen exactly as it is today.
 
 **They are not equally well supported, and the panel says so on each one.**
 Identical-looking controls would imply equal promises, and "letter spacing has
@@ -160,10 +160,10 @@ rather than on a study of children like yours** — one study that looked
 specifically at line spacing for fifth graders found no effect. Worth trying.
 Not worth promising.
 
-### Text size — the **Aa** button, not this panel
+### Text size — the **T** button, not this panel
 
 Text size is not one of these settings, and that is deliberate. You already
-have it: the small **Aa** button in the top-right corner of every screen,
+have it: the small **T** button in the top-right corner of every screen,
 which scales the whole app from 87.5% up to 175%. It is one tap from wherever
 your child is, and **your child can reach it themselves** — which for a
 preference is better than a setting only you can change.
@@ -240,7 +240,7 @@ telling it back," or anything else in Panel 1, points Bede at these routes.
 | --- | --- |
 | …reads slowly, or sounds out words they know | **Space between letters: Wide.** The best-supported setting here. |
 | …loses their place, or re-reads the same line | **Space between lines: Relaxed**, and letters Wide. |
-| …squints, or holds the tablet close | The **Aa** button, top-right of any screen. Also worth an eye exam. |
+| …squints, or holds the tablet close | The **T** button, top-right of any screen. Also worth an eye exam. |
 | …can't get started on an open question | "Ask one direct question rather than an open one" and "Say what a good answer would include". |
 | …answers before thinking, or freezes | "Give the question, then quiet time to think". |
 | …understands but can't retell it | "Let them look back at the book while telling it back" and "Recap what was just covered before asking about it" — then let Bede pick a narration route. |

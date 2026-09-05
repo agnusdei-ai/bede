@@ -733,8 +733,8 @@ break every hour for every child, but it will not tell you that your
    identical-looking controls would imply equal promises.
 
    **Text size is not in this panel, deliberately.** You already have it, and
-   in a better form: the small **Aa** button in the top-right corner of every
-   screen. It scales the whole app (87.5% up to 175%), it is one tap from
+   in a better form: the small **text-size button** (a **T** icon) in the top-right corner
+   of every screen. It scales the whole app (87.5% up to 175%), it is one tap from
    wherever your child is, and your child can reach it themselves. A
    per-student copy of it briefly existed here and was removed rather than
    left as a second, weaker control for the same thing. The evidence is written up in

@@ -15,6 +15,7 @@ import {
   readingStyle,
   hasReadingPresentation,
   DEFAULT_LINE_HEIGHT,
+  DEFAULT_TIGHT_LINE_HEIGHT,
   LINE_HEIGHT_VAR,
   type ReadingPresentation,
 } from './readingPresentation'
@@ -145,7 +146,16 @@ describe('the settings reach the lesson text, not just its container', () => {
 
   // Every element that renders words a child reads. Chrome labels ("Bede",
   // the student's name) and buttons are deliberately not here.
-  const READS = 'leading-[var(--bede-line-height,1.625)]'
+  // TWO fallbacks, because two groups of elements had different defaults.
+  // The message bubbles and tool cards carried `leading-relaxed` (1.625). The
+  // three voice bubbles carried NO leading class at all and so took
+  // `text-sm`'s own 1.4375rem — giving those the 1.625 fallback silently
+  // changed their rendering ~14% for every family with nothing set, which is
+  // the byte-identical promise broken by the fix meant to keep it. Caught in
+  // review of #487, not by the first version of this guard, which only
+  // counted occurrences and could not tell the two groups apart.
+  const READS = `leading-[var(--bede-line-height,${DEFAULT_LINE_HEIGHT})]`
+  const READS_TIGHT = `leading-[var(--bede-line-height,${DEFAULT_TIGHT_LINE_HEIGHT})]`
 
   it('emits the custom properties, not only the inherited ones', () => {
     // The inherited pair is kept for anything that genuinely does inherit
@@ -168,8 +178,13 @@ describe('the settings reach the lesson text, not just its container', () => {
     // status, and the voice review step the child reads back before sending.
     // The status bubble is here because it sits in the same stream — one
     // bubble staying small while the rest grow reads as a rendering bug.
-    const uses = chat.split(READS).length - 1
-    expect(uses, `SocraticChat.tsx has ${uses} lesson-text elements reading the reading-presentation vars; expected 5`).toBe(5)
+    const loose = chat.split(READS).length - 1
+    const tight = chat.split(READS_TIGHT).length - 1
+    expect(loose + tight, `SocraticChat.tsx has ${loose + tight} lesson-text elements reading the var; expected 5`).toBe(5)
+    // The split matters, not just the total: the two message/tool-card
+    // elements had leading-relaxed, the three voice bubbles had nothing.
+    expect(loose, 'the message bubble and tool card should use the 1.625 fallback').toBe(2)
+    expect(tight, 'the three voice bubbles should keep text-sm\'s own 1.4375rem').toBe(3)
   })
 
   it('leaves no lesson-text element carrying a bare text-sm that would shadow the setting', () => {
@@ -178,7 +193,7 @@ describe('the settings reach the lesson text, not just its container', () => {
     const bubbles = chat.split('\n').filter((l) => /max-w-\[80%\] rounded-2xl/.test(l))
     expect(bubbles.length, 'no chat bubbles found — this scan has stopped checking anything').toBeGreaterThanOrEqual(4)
     for (const line of bubbles) {
-      if (line.includes(READS)) continue
+      if (line.includes(READS) || line.includes(READS_TIGHT)) continue
       expect(/\bleading-\w/.test(line), `a chat bubble sets its own line height and will shadow the line-spacing setting:\n  ${line.trim()}`).toBe(false)
     }
   })
@@ -192,6 +207,12 @@ describe('the settings reach the lesson text, not just its container', () => {
     // line height, which is what the bubbles rendered at before this.
     expect(DEFAULT_LINE_HEIGHT).toBe('1.625')
     expect(READS).toContain(DEFAULT_LINE_HEIGHT)
+    // text-sm's own line height, for the elements that had no leading class.
+    expect(DEFAULT_TIGHT_LINE_HEIGHT).toBe('1.4375rem')
+    const config = readFileSync(join(__dirname, '../../tailwind.config.js'), 'utf8')
+    const sm = config.match(/^\s*sm:\s*\['[^']+',\s*\{\s*lineHeight:\s*'([^']+)'/m)
+    expect(sm, 'could not read text-sm\'s line height out of tailwind.config.js').toBeTruthy()
+    expect(DEFAULT_TIGHT_LINE_HEIGHT).toBe(sm![1])
   })
 
   it('offers no text size of its own — that is TextSizeControl\'s job', () => {
@@ -212,5 +233,15 @@ describe('the settings reach the lesson text, not just its container', () => {
 
     const src = readFileSync(join(__dirname, 'readingPresentation.ts'), 'utf8')
     expect(/\btext_size\b/.test(src), 'text_size is back in readingPresentation.ts').toBe(false)
+  })
+
+  it('reaches the picture-study caption, which is lesson text too', () => {
+    // Missed by the first cut of this guard, which scanned only SocraticChat.
+    // A child reads the picture description and narrates from it — the most
+    // reading-heavy card in the app — and it carried a bare `leading-relaxed`
+    // that shadowed the setting exactly as the bubbles did. Caught in review.
+    const card = readFileSync(join(__dirname, '../components/VisualAidCard.tsx'), 'utf8')
+    expect(card).toContain(READS)
+    expect(/\bleading-relaxed\b/.test(card), 'VisualAidCard has a bare leading-relaxed again').toBe(false)
   })
 })

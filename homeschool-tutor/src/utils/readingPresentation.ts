@@ -67,6 +67,17 @@ export interface ReadingPresentation {
  */
 export const DEFAULT_LINE_HEIGHT = '1.625'
 
+/**
+ * The OTHER default, for elements that carried no `leading-*` at all and so
+ * took `text-sm`'s own built-in line height. Giving those the 1.625 fallback
+ * above would silently change their rendering by ~14% for every family who
+ * has set nothing — which is exactly the "byte-identical by default" property
+ * the rest of this module is built to keep, so a second constant is cheaper
+ * than a broken promise. Caught in review of #487, not by a test: every guard
+ * here scanned the message bubbles and none of them looked at these three.
+ */
+export const DEFAULT_TIGHT_LINE_HEIGHT = '1.4375rem'
+
 /** The custom property the lesson text's own class reads. Named here so a
  *  call site cannot misspell it silently — a typo'd var just falls back and
  *  the setting appears to do nothing. */

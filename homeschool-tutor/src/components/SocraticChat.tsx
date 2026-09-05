@@ -786,7 +786,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         {/* Interim speech-to-text preview */}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] bg-sage-200/60 border border-sage-200">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.4375rem)] bg-sage-200/60 border border-sage-200">
               {transcriptWords.map(({ text, key, isNew }) => (
                 <span
                   key={key}
@@ -801,7 +801,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         )}
         {isTranscribing && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.4375rem)] bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
               <Loader2 size={12} className="animate-spin" /> {t('chat.transcribing')}
             </div>
           </div>
@@ -811,7 +811,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             (see holdStart); Cancel just discards. */}
         {pendingVoiceTranscript !== null && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.4375rem)] bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
               <span className="text-sage-900">{pendingVoiceTranscript}</span>
               <div className="flex gap-2 justify-end">
                 <button

@@ -786,7 +786,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         {/* Interim speech-to-text preview */}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-[length:var(--bede-text-size,1.00625rem)] leading-[var(--bede-line-height,1.625)] bg-sage-200/60 border border-sage-200">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] bg-sage-200/60 border border-sage-200">
               {transcriptWords.map(({ text, key, isNew }) => (
                 <span
                   key={key}
@@ -801,7 +801,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
         )}
         {isTranscribing && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-[length:var(--bede-text-size,1.00625rem)] leading-[var(--bede-line-height,1.625)] bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] bg-sage-200/60 text-sage-800 italic border border-sage-200 animate-pulse-soft flex items-center gap-2">
               <Loader2 size={12} className="animate-spin" /> {t('chat.transcribing')}
             </div>
           </div>
@@ -811,7 +811,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
             (see holdStart); Cancel just discards. */}
         {pendingVoiceTranscript !== null && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-[length:var(--bede-text-size,1.00625rem)] leading-[var(--bede-line-height,1.625)] bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
               <span className="text-sage-900">{pendingVoiceTranscript}</span>
               <div className="flex gap-2 justify-end">
                 <button
@@ -1060,26 +1060,31 @@ function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
     }
     const cls = toolAccent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'
     return (
-      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-[length:var(--bede-text-size,1.00625rem)] leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
+      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {renderEmphasis(msg.content)}
       </div>
     )
   }
 
-  // The lesson text reads its size and line height from custom properties
-  // rather than taking `text-sm leading-relaxed` directly. A plain `text-sm`
-  // here SHADOWS the parent's reading-presentation setting: a property set on
-  // an element always beats one inherited from an ancestor, so the setting
-  // reached the surrounding chrome and never a word the child reads. The
-  // fallbacks are exactly what those two classes compile to in this project's
-  // scale, so a family with no setting gets byte-identical rendering.
-  // Verified in real Chromium; jsdom evaluates no cascade and cannot see it.
+  // The lesson text reads its LINE HEIGHT from a custom property rather than
+  // taking `leading-relaxed` directly. A plain `leading-*` here SHADOWS the
+  // parent's line-spacing setting: a property set on an element always beats
+  // one inherited from an ancestor, so the setting reached the surrounding
+  // chrome and never a word the child reads. The fallback is exactly what
+  // `leading-relaxed` compiles to, so a family with no setting gets
+  // byte-identical rendering. Verified in real Chromium; jsdom evaluates no
+  // cascade and cannot see it.
+  //
+  // `text-sm` stays a plain class deliberately: text SIZE is `useTextScale`'s
+  // job (a floating control on every screen, scaling the root font size), and
+  // `text-sm` is in rem so it scales with it. Making font-size a second
+  // per-student setting here is what decision register entry 24 removed.
   const isUser = msg.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
       <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 text-[length:var(--bede-text-size,1.00625rem)] leading-[var(--bede-line-height,1.625)] ${
+        className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.625)] ${
           isUser
             ? `${bubbleClass} text-white rounded-br-sm`
             : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'

@@ -27,9 +27,19 @@
  *     dyslexic 8-14 year olds, replicated across two languages.
  *   - lineSpacing rests on general readability guidance, not a measured
  *     effect for this population. Weaker, and labelled weaker.
- *   - textSize is offered as a PREFERENCE and is never described to a parent
- *     as an accommodation: bigger is not reliably better, and the direction
- *     reverses with age (Katzir et al. 2013).
+ *
+ * TEXT SIZE IS DELIBERATELY NOT HERE, and was removed rather than never
+ * added. `useTextScale`/`TextSizeControl` already solve it, in BOTH this app
+ * and the demo, and solve it better: a floating control on every screen
+ * scaling the ROOT font size 87.5%-175% (WCAG 2.1 SC 1.4.4), which scales
+ * every rem-based Tailwind size in the product rather than the handful of
+ * elements a setting here could reach. A parent-set copy of it was shipped
+ * in #486 without checking for the control that already existed — two
+ * controls for one thing, the newer one strictly weaker. See decision
+ * register entry 24. The evidence also puts text size lowest of the three
+ * (Katzir et al. 2013: bigger is not reliably better, and the direction
+ * reverses with age), so a per-device preference the child sets themselves
+ * is the right home for it, exactly as `useChatTheme`'s colours are.
  *
  * There is deliberately NO dyslexia-specific font here. Peer-reviewed studies
  * of OpenDyslexic and Dyslexie find no improvement in reading rate or
@@ -41,30 +51,25 @@
 
 export type LetterSpacing = 'normal' | 'wide' | 'wider'
 export type LineSpacing = 'normal' | 'relaxed' | 'loose'
-export type TextSize = 'normal' | 'large' | 'larger'
 
 export interface ReadingPresentation {
   letter_spacing?: LetterSpacing
   line_spacing?: LineSpacing
-  text_size?: TextSize
 }
 
 /**
- * The value each var falls back to when no setting is in effect — which is
- * exactly what `text-sm leading-relaxed` (the lesson text's own classes)
- * compiles to in THIS project's scale. They are written literally into the
- * arbitrary-value class names too, because Tailwind's scanner needs a literal
- * string; `readingPresentation.test.ts` reads tailwind.config.js and fails if
- * these stop matching, since two copies of one number is the drift this repo
- * checks rather than trusts.
+ * What `leading-relaxed` — the lesson text's own class — compiles to, and so
+ * what the var falls back to when no setting is in effect. Written literally
+ * into the arbitrary-value class name too, because Tailwind's scanner needs a
+ * literal string; `readingPresentation.test.ts` fails if the two stop
+ * matching, since two copies of one number is the drift this repo checks
+ * rather than trusts.
  */
-export const DEFAULT_TEXT_SIZE = '1.00625rem'
 export const DEFAULT_LINE_HEIGHT = '1.625'
 
-/** The custom properties the lesson text's own classes read. Named here so a
- *  call site cannot misspell one silently — a typo'd var just falls back and
+/** The custom property the lesson text's own class reads. Named here so a
+ *  call site cannot misspell it silently — a typo'd var just falls back and
  *  the setting appears to do nothing. */
-export const TEXT_SIZE_VAR = '--bede-text-size'
 export const LINE_HEIGHT_VAR = '--bede-line-height'
 
 /**
@@ -93,17 +98,7 @@ const LINE: Record<LineSpacing, string> = {
   loose: '2.2',
 }
 
-// Sized against this project's OWN scale, not stock Tailwind's. `text-sm`
-// here is 1.00625rem (tailwind.config.js overrides the whole ramp), which is
-// what the lesson text renders at today — so `normal` is that constant by
-// reference, not a round 1rem, or "no change" would in fact be a small
-// shrink. `large` is exactly `text-base`; `larger` sits between `lg` and
-// `xl`.
-const SIZE: Record<TextSize, string> = {
-  normal: DEFAULT_TEXT_SIZE,
-  large: '1.15rem',
-  larger: '1.35rem',
-}
+
 
 /**
  * The inline style for a container the lesson text sits inside.
@@ -113,19 +108,18 @@ const SIZE: Record<TextSize, string> = {
  * `letterSpacing`/`wordSpacing` are plain inherited properties and that is
  * enough: nothing downstream sets them, so a value here reaches the text.
  *
- * `fontSize`/`lineHeight` are inherited too, and inheritance LOSES — the
- * lesson text carries `text-sm leading-relaxed`, which set both properties on
- * the element itself, and a property set on an element always beats one
- * inherited from an ancestor no matter how specific the ancestor's rule is.
- * Measured in real Chromium before this was fixed: <main> at 21.6px/45.36px,
- * the chat bubble that renders every word of the lesson at 16.1px/26.16px.
- * The two weaker settings were reaching the surrounding chrome and nothing a
- * child actually reads.
+ * `lineHeight` is inherited too, and inheritance LOSES — the lesson text
+ * carries `leading-relaxed`, which sets the property on the element itself,
+ * and a property set on an element always beats one inherited from an
+ * ancestor no matter how specific the ancestor's rule is. Measured in real
+ * Chromium before this was fixed: <main> at 45.36px, the chat bubble that
+ * renders every word of the lesson at 26.16px. The setting was reaching the
+ * surrounding chrome and nothing a child actually reads.
  *
- * So those two ALSO travel as custom properties, which the text's own classes
- * read (`text-[length:var(--bede-text-size,…)]`). A custom property set on an
+ * So it ALSO travels as a custom property, which the text's own class reads
+ * (`leading-[var(--bede-line-height,…)]`). A custom property set on an
  * ancestor is inherited, and the class that consumes it is on the element
- * itself, so the setting now wins where it has to. The direct properties are
+ * itself, so the setting now wins where it has to. The direct property is
  * kept alongside for anything that genuinely does inherit (break cards,
  * MeetBede), which is why both are emitted rather than one replacing the
  * other. jsdom evaluates no cascade, so only a real browser can catch this
@@ -140,7 +134,6 @@ const SIZE: Record<TextSize, string> = {
 export function readingStyle(config: ReadingPresentation | null | undefined): React.CSSProperties {
   const letter = LETTER[config?.letter_spacing as LetterSpacing] ?? LETTER.normal
   const line = LINE[config?.line_spacing as LineSpacing] ?? LINE.normal
-  const size = SIZE[config?.text_size as TextSize] ?? SIZE.normal
 
   const style: Record<string, string> = {}
   if (letter !== LETTER.normal) {
@@ -150,10 +143,6 @@ export function readingStyle(config: ReadingPresentation | null | undefined): Re
   if (line !== LINE.normal) {
     style.lineHeight = line
     style[LINE_HEIGHT_VAR] = line
-  }
-  if (size !== SIZE.normal) {
-    style.fontSize = size
-    style[TEXT_SIZE_VAR] = size
   }
   return style as React.CSSProperties
 }

@@ -76,7 +76,6 @@ export interface SessionConfig {
   // what each is and is not supported by. Absent = today's rendering.
   letter_spacing?: 'normal' | 'wide' | 'wider'
   line_spacing?: 'normal' | 'relaxed' | 'loose'
-  text_size?: 'normal' | 'large' | 'larger'
   // Offer the optional 20-minute break rhythm at any grade, not only K-3.
   // Removes an age gate on a parent's choice; NOT a claim that more breaks
   // improve attention. Cannot touch the mandatory hourly break.

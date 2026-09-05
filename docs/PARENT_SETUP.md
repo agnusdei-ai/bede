@@ -721,16 +721,23 @@ break every hour for every child, but it will not tell you that your
 
    Below that is a **Reading and Breaks** panel, which is the other half of
    the same idea. "What Helps This Child" changes what Bede *says*. These
-   four settings change what the screen *looks like* and how often it
+   three settings change what the screen *looks like* and how often it
    offers a pause — because for a child whose obstacle is reading the
    screen rather than understanding the lesson, no amount of careful
    wording helps. They are per-student, so they follow your child to
    whatever tablet they sit at, and every one of them starts off.
 
    **They are not equally well supported, and the panel says so on each
-   one** — because "spacing helps and bigger text may not" is exactly the
-   thing you have no way to know, and four identical-looking controls would
-   imply four equal promises. The evidence is written up in
+   one** — because "letter spacing has real evidence behind it, line spacing
+   is general guidance" is exactly the thing you have no way to know, and
+   identical-looking controls would imply equal promises.
+
+   **Text size is not in this panel, deliberately.** You already have it, and
+   in a better form: the small **Aa** button in the top-right corner of every
+   screen. It scales the whole app (87.5% up to 175%), it is one tap from
+   wherever your child is, and your child can reach it themselves. A
+   per-student copy of it briefly existed here and was removed rather than
+   left as a second, weaker control for the same thing. The evidence is written up in
    `docs/ACCESSIBILITY_RESEARCH.md` if you want to check it yourself.
 
    - **Space between letters** (Normal / Wide / Wider). **The one with real
@@ -745,12 +752,6 @@ break every hour for every child, but it will not tell you that your
      line. Honestly, this one rests on general readability guidance rather
      than on a study of children like yours. Worth trying, not worth
      promising.
-   - **Text size** (Normal / Large / Larger). Offered because your child may
-     simply prefer it — which is reason enough. It is deliberately *not*
-     described as an accommodation: the research says bigger is not
-     reliably better, and the direction actually reverses with age (smaller
-     type raised comprehension for fifth graders in the same study where it
-     lowered comprehension for second graders).
    - **Offer a break every 20 minutes** (a checkbox). Bede already offers
      younger children an optional pause at the 20- and 40-minute marks,
      dismissible, never forced. That offer used to be available only to

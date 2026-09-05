@@ -80,7 +80,7 @@ jobs:
           # guards (agent-governance/reference/test_governance.py), run by the
           # agent-governance-tests job below.
           if git diff --name-only "$BASE_SHA" HEAD \
-               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/index\.html|site/_headers|wrangler\.jsonc|docs/DECISIONS\.md|docs/PRICING_RESEARCH\.md|docs/LOCALE_RESEARCH\.md|docs/ACCESSIBILITY_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|render\.yaml|agent-governance/|LICENSE|README\\.md|\.github/workflows/test\.yml|\.github/workflows/lockfile-refresh\.yml)'; then
+               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/index\.html|site/_headers|wrangler\.jsonc|docs/DECISIONS\.md|docs/PRICING_RESEARCH\.md|docs/LOCALE_RESEARCH\.md|docs/ACCESSIBILITY_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|demo/public/privacy\.es\.html|demo/src/api\.ts|demo/src/DemoParentSetup\.tsx|render\.yaml|agent-governance/|LICENSE|README\\.md|\.github/workflows/test\.yml|\.github/workflows/lockfile-refresh\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

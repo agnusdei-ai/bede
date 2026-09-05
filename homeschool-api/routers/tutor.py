@@ -15,6 +15,7 @@ from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
     get_current_unit as get_demo_current_unit,
     get_faith_tradition as get_demo_faith_tradition,
+    get_parent_config as get_demo_parent_config,
     get_personalization as get_demo_personalization,
     has_message_quota as demo_code_has_message_quota,
     record_message as demo_code_record_message,
@@ -22,6 +23,7 @@ from core.demo_code_session import (
 from core.deps import require_auth, require_email_summary, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import (
+    CompanionMode,
     EmailSummaryRequest,
     grade_to_stage,
     GradeStage,
@@ -114,20 +116,42 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     student_name, grade = (None, None)
     current_unit = None
     faith_tradition = None
+    parent_config: dict = {}
     if code:
         student_name, grade = await get_demo_personalization(code)
         current_unit = await get_demo_current_unit(code)
         faith_tradition = await get_demo_faith_tradition(code)
+        parent_config = await get_demo_parent_config(code) or {}
+
+    # The visitor's own Parent Setup, if they opened it (POST
+    # /auth/demo-code/config). Every value was already validated by
+    # building a real SessionConfig at the write path and sanitized on the
+    # way in, so this only decides PRECEDENCE — and the rule is that an
+    # explicit setup wins over the intake-screen note, which wins over the
+    # demo's own default. current_unit and faith_tradition can be set in
+    # both places (the code screen asks for them before a visitor has seen
+    # anything, the setup panel after), and the later, more deliberate
+    # answer is the setup panel's.
+    subjects = [Subject(s) for s in parent_config.get("subjects") or []] or list(Subject)
+    companion = parent_config.get("companion_mode")
+
     return SessionConfig(
         student_name=student_name or settings.demo_student_name,
         grade=grade or settings.demo_grade,
         grade_stage=grade_to_stage(grade) if grade else GradeStage(settings.demo_grade_stage),
-        subjects=list(Subject),
+        subjects=subjects,
         voice_required=False,
         term_schedule=TermSchedule.quarterly,
         current_term=_demo_current_term(code),
-        current_unit=current_unit,
-        faith_tradition=faith_tradition,
+        current_unit=parent_config.get("current_unit") or current_unit,
+        faith_tradition=parent_config.get("faith_tradition") or faith_tradition,
+        **({"companion_mode": CompanionMode(companion)} if companion else {}),
+        lesson_focus=parent_config.get("lesson_focus"),
+        faith_emphasis=parent_config.get("faith_emphasis"),
+        bible_translation=parent_config.get("bible_translation"),
+        curriculum_resources=parent_config.get("curriculum_resources") or [],
+        character_virtues=parent_config.get("character_virtues") or [],
+        learning_support=parent_config.get("learning_support") or [],
     )
 
 

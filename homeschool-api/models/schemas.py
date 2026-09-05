@@ -833,6 +833,40 @@ class DemoCodeRequest(BaseModel):
     faith_tradition: Optional[str] = Field(None, max_length=60)
 
 
+class DemoParentConfigRequest(BaseModel):
+    """The demo's own Parent Setup — see POST /auth/demo-code/config.
+
+    Every field is optional and every one mirrors a real
+    ``SessionConfig`` field a parent sets in ``ParentSetup.tsx``, so a
+    visitor evaluating Bede configures the same things a family does
+    rather than being shown a fixed showcase.
+
+    **This model deliberately declares no validators of its own.** The
+    endpoint builds a REAL ``SessionConfig`` from these values and lets its
+    validators run — subject list, the clean-never-reject list caps on
+    ``curriculum_resources``/``character_virtues``/``learning_support``,
+    the K-2 Logic gate, the whole lot. A demo that accepted a configuration
+    the product would refuse is a demo of something that does not exist,
+    and a second, looser copy of those rules here would be exactly the
+    "a fake looser than the real thing" failure this repository has already
+    shipped twice.
+
+    Free text still meets ``_sanitize_parent_field`` at prompt-build time,
+    as a real parent's own fields do — these come from an anonymous public
+    visitor, so that pass matters more here, not less.
+    """
+    subjects: Optional[List[Subject]] = None
+    companion_mode: Optional[CompanionMode] = None
+    lesson_focus: Optional[str] = Field(None, max_length=500)
+    faith_emphasis: Optional[str] = Field(None, max_length=500)
+    current_unit: Optional[str] = Field(None, max_length=200)
+    faith_tradition: Optional[str] = Field(None, max_length=60)
+    bible_translation: Optional[str] = Field(None, max_length=40)
+    curriculum_resources: Optional[List[str]] = None
+    character_virtues: Optional[List[str]] = None
+    learning_support: Optional[List[str]] = None
+
+
 class DemoCodeResponse(BaseModel):
     """A freshly minted, one-time 6-digit code — see POST /auth/demo-code.
     Exchanged for a JWT via POST /auth/login (role="demo_code")."""

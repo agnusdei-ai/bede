@@ -445,6 +445,56 @@ class SessionConfig(BaseModel):
     # (ADD/ADHD tendencies especially), choice happens with the parent,
     # not mid-lesson. A parent-role session still sees the picker.
     appearance_locked: bool = False
+
+    # ── How the text itself is presented ─────────────────────────────────
+    #
+    # SessionConfig.learning_support reaches the PROMPT and nothing else — it
+    # changes what Bede SAYS. It cannot change what the screen looks like, so
+    # a parent who typed "bigger text with more space between the letters" got
+    # nothing at all. For a child whose obstacle is decoding the text rather
+    # than understanding the lesson, that is most of the accommodation
+    # missing. These three fields are that half, and they are deliberately
+    # NOT a "dyslexia mode": naming a setting after a condition would make
+    # this software hold a diagnosis, which _learning_support_note's own
+    # rules forbid, and it would fit two children with the same diagnosis
+    # equally badly. See docs/ACCESSIBILITY_RESEARCH.md for what each of
+    # these is and is not supported by.
+    #
+    # Parent-set and per-student, unlike useChatTheme's background/bubble
+    # colours — those are the CHILD's own choice, per-device, for fun. These
+    # travel with the student to whatever tablet they sit at.
+
+    #: Extra space between LETTERS. The best-evidenced of the three by a
+    #: wide margin (Zorzi et al. 2012, PNAS: doubled accuracy and >20% faster
+    #: reading in dyslexic 8-14 year olds, replicated across Italian and
+    #: French) — and note the published critique of it argues the benefit may
+    #: belong to poor readers generally rather than to dyslexia specifically,
+    #: which is an argument FOR offering it as a plain setting rather than
+    #: behind a diagnosis. "normal" is today's rendering, byte for byte.
+    letter_spacing: Literal["normal", "wide", "wider"] = "normal"
+
+    #: Space between LINES. Weaker evidence than letter spacing and honestly
+    #: labelled as such — general readability guidance rather than a measured
+    #: effect for this population.
+    line_spacing: Literal["normal", "relaxed", "loose"] = "normal"
+
+    #: Text size. Deliberately offered as a PREFERENCE, never described to a
+    #: parent as an accommodation, because the evidence says bigger is not
+    #: reliably better and the direction actually reverses with age (Katzir
+    #: et al. 2013: smaller type RAISED comprehension for fifth graders while
+    #: lowering it for second graders). A parent may still want it; Bede just
+    #: does not get to claim it helps.
+    text_size: Literal["normal", "large", "larger"] = "normal"
+
+    #: Offer the optional 20-minute break rhythm regardless of grade.
+    #: utils/gradeTimer.ts's getSuggestedBreak gates that rhythm on K-3, so a
+    #: twelve-year-old whose parent knows they need it structurally could not
+    #: have it. This REMOVES AN AGE GATE ON A PARENT'S CHOICE — it is not a
+    #: claim that more breaks improve attention, which the ADHD literature
+    #: does not straightforwardly support (see docs/ACCESSIBILITY_RESEARCH.md
+    #: §5). Cannot shorten, skip, delay, or extend past the mandatory hourly
+    #: break; it only makes the existing suggestion reachable.
+    frequent_break_offers: bool = False
     # Parent's chosen starting point (see CompanionMode) — how much Bede
     # drives the day versus defers to the family's own books. Purely a
     # behavioral framing layered into the prompt (_companion_mode_note);

@@ -253,3 +253,69 @@ describe('getSuggestedBreak', () => {
     expect(getSuggestedBreak(study(40), true)!.mark * SUGGESTED_BREAK_INTERVAL_MINUTES).toBe(40)
   })
 })
+
+// ── frequent_break_offers: removing an age gate, not adding a claim ───────
+//
+// The age gate WAS the whole availability rule, so a twelve-year-old whose
+// parent knows they do better stopping every twenty minutes could not have
+// that rhythm at all — not because anyone weighed it, but because the only
+// way in was being under nine. `frequent_break_offers` is the parent saying
+// otherwise for one student (the constitution's authority_order), and it is
+// deliberately NOT a claim that more breaks improve attention: the ADHD
+// literature does not straightforwardly support that. See
+// docs/ACCESSIBILITY_RESEARCH.md §5.
+//
+// Everything these tests protect is the same invariant as above: the
+// mandatory break must stay untouchable. A setting that could weaken it
+// would be a safety regression wearing the clothes of an accommodation.
+describe('getSuggestedBreak with frequent_break_offers', () => {
+  const study = (elapsedMin: number, cycleIndex = 0): PhaseInfo => ({
+    phase: 'study',
+    remainingSecs: SESSION_STUDY_MINUTES * 60 - elapsedMin * 60,
+    cycleIndex,
+    elapsedSecs: elapsedMin * 60,
+  })
+
+  it('defaults to off, so every existing call site behaves exactly as before', () => {
+    // The parameter has a default precisely so no caller had to change. If
+    // that default flipped, every grade 4-8 student in every deployment
+    // would start being offered breaks nobody asked for.
+    expect(getSuggestedBreak(study(20), false)).toBeNull()
+    expect(getSuggestedBreak(study(45), false)).toBeNull()
+    expect(getSuggestedBreak(study(20), false)).toEqual(getSuggestedBreak(study(20), false, false))
+  })
+
+  it('offers the rhythm to an older student when the parent turns it on', () => {
+    expect(getSuggestedBreak(study(20), false, true)).toMatchObject({ mark: 1 })
+    expect(getSuggestedBreak(study(40), false, true)).toMatchObject({ mark: 2 })
+  })
+
+  it('changes nothing for a K-3 student, who already had it', () => {
+    for (let m = 0; m < 60; m++) {
+      expect(getSuggestedBreak(study(m), true, true)).toEqual(getSuggestedBreak(study(m), true))
+    }
+  })
+
+  it('still offers nothing during a mandatory break, or once concluded', () => {
+    // The setting must not become a way to put a dismissible banner over the
+    // one overlay that deliberately has no dismiss button.
+    const onBreak: PhaseInfo = { phase: 'break', remainingSecs: 300, cycleIndex: 0, elapsedSecs: 3900 }
+    const done: PhaseInfo = { phase: 'concluded', remainingSecs: 0, cycleIndex: 3, elapsedSecs: 12900 }
+    expect(getSuggestedBreak(onBreak, false, true)).toBeNull()
+    expect(getSuggestedBreak(done, false, true)).toBeNull()
+  })
+
+  it('still never reaches a third mark, so it cannot delay the mandatory break', () => {
+    for (let m = 0; m < 60; m++) {
+      const s = getSuggestedBreak(study(m), false, true)
+      if (s) expect(s.mark).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('keeps the same 20-minute marks — it grants access, it does not retune', () => {
+    expect(getSuggestedBreak(study(19), false, true)).toBeNull()
+    for (let m = 20; m < 60; m++) {
+      expect(getSuggestedBreak(study(m), false, true)).toEqual(getSuggestedBreak(study(m), true))
+    }
+  })
+})

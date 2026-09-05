@@ -719,6 +719,68 @@ break every hour for every child, but it will not tell you that your
    or an educational specialist, and this field works perfectly well in the
    meantime.
 
+   Below that is a **Reading and Breaks** panel, which is the other half of
+   the same idea. "What Helps This Child" changes what Bede *says*. These
+   four settings change what the screen *looks like* and how often it
+   offers a pause — because for a child whose obstacle is reading the
+   screen rather than understanding the lesson, no amount of careful
+   wording helps. They are per-student, so they follow your child to
+   whatever tablet they sit at, and every one of them starts off.
+
+   **They are not equally well supported, and the panel says so on each
+   one** — because "spacing helps and bigger text may not" is exactly the
+   thing you have no way to know, and four identical-looking controls would
+   imply four equal promises. The evidence is written up in
+   `docs/ACCESSIBILITY_RESEARCH.md` if you want to check it yourself.
+
+   - **Space between letters** (Normal / Wide / Wider). **The one with real
+     evidence behind it.** In a study of dyslexic children aged 8-14, extra
+     letter spacing doubled reading accuracy and made reading more than 20%
+     faster, and the result held across two different languages. It widens
+     the space between words at the same time, deliberately: pushing
+     letters apart without pushing words apart makes it harder to see where
+     one word ends. If you try one thing on this panel, try this.
+   - **Space between lines** (Normal / Relaxed / Loose). Helps some readers
+     keep their place when their eye travels back to the start of the next
+     line. Honestly, this one rests on general readability guidance rather
+     than on a study of children like yours. Worth trying, not worth
+     promising.
+   - **Text size** (Normal / Large / Larger). Offered because your child may
+     simply prefer it — which is reason enough. It is deliberately *not*
+     described as an accommodation: the research says bigger is not
+     reliably better, and the direction actually reverses with age (smaller
+     type raised comprehension for fifth graders in the same study where it
+     lowered comprehension for second graders).
+   - **Offer a break every 20 minutes** (a checkbox). Bede already offers
+     younger children an optional pause at the 20- and 40-minute marks,
+     dismissible, never forced. That offer used to be available only to
+     grades K-3, which meant a twelve-year-old who does better stopping
+     every twenty minutes couldn't have it at all. This checkbox makes it
+     available at any grade. It is not a claim that more breaks improve
+     attention — it removes an age limit on a choice that is yours to make.
+     It cannot shorten, skip, delay, or extend past the mandatory ten-minute
+     break every hour, which stays exactly as it is for everyone.
+
+   **There is deliberately no dyslexia font, and no "dyslexia mode."** The
+   special fonts sold for this — OpenDyslexic and similar — have been
+   tested, and they don't improve reading rate or accuracy; sometimes
+   children read slightly *worse* with them than with ordinary Arial. The
+   International Dyslexia Association's own position is that no reliable
+   evidence supports them. Bede won't ship you something that doesn't work
+   just because it is the thing everyone asks for. And no setting here is
+   named after a condition, because naming one would mean this software
+   was holding a diagnosis — which is yours and your doctor's, never a
+   tutoring app's.
+
+   **Your child is never told any of this is on.** Same rule as the field
+   above: the lesson simply fits, and there is nothing on screen announcing
+   that it was adjusted for them.
+
+   **For a fuller walkthrough** — which settings to reach for first, what to
+   try for a child who reads slowly, loses their place, can't get started,
+   or runs out of attention, and what Bede honestly cannot do — see
+   **[docs/SPECIAL_NEEDS.md](SPECIAL_NEEDS.md)**.
+
    The panel also has a **Curriculum Resources You Already Use** field:
    always available, not tied to any one subject, since a family's
    curriculum choices span math, writing, phonics, and more, not just

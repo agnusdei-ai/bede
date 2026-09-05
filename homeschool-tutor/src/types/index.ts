@@ -67,6 +67,20 @@ export interface SessionConfig {
   // LEARNING_SUPPORT_SUGGESTIONS below and the backend's
   // _learning_support_note for the rules that govern how Bede acts on it.
   learning_support?: string[]
+  // How the text itself is presented — parent-set and per-student, unlike
+  // useChatTheme's background/bubble colours, which are the CHILD's own
+  // choice, per-device, for fun. learning_support reaches only the PROMPT,
+  // so it can change what Bede says and never what the screen looks like;
+  // these are that missing half. Deliberately NOT a "dyslexia mode" — see
+  // docs/ACCESSIBILITY_RESEARCH.md and models/schemas.py's own comments for
+  // what each is and is not supported by. Absent = today's rendering.
+  letter_spacing?: 'normal' | 'wide' | 'wider'
+  line_spacing?: 'normal' | 'relaxed' | 'loose'
+  text_size?: 'normal' | 'large' | 'larger'
+  // Offer the optional 20-minute break rhythm at any grade, not only K-3.
+  // Removes an age gate on a parent's choice; NOT a claim that more breaks
+  // improve attention. Cannot touch the mandatory hourly break.
+  frequent_break_offers?: boolean
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's

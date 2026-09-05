@@ -304,6 +304,20 @@ async def require_email_summary(
     return await _require_live_session(request, payload)
 
 
+async def require_demo_parent_config(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """The demo's own Parent Setup (POST /auth/demo-code/config) — the
+    visitor configuring their own demo session. Its own policy action
+    rather than a third use of require_demo_preview: this one WRITES, and
+    an action that changes what the model is told should not ride on a
+    guard whose name and docstring say "preview"."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "demo.parent_config")
+    return await _require_live_session(request, payload)
+
+
 async def require_demo_preview(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),

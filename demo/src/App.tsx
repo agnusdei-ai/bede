@@ -9,6 +9,7 @@ import {
   fetchDiagnosticSummary, streamDiagnosticChat, fetchAvailableLocales, fetchDemoActivity,
   TrialSessionEndedError, TrialEmailCappedError, DiagnosticPreviewQuotaExceededError, DEMO_GRADES,
   SUBJECT_LABELS, type Subject, type ChatMessage, type VisualAidData, type StreamChunk, type SessionConfig,
+  type DemoParentConfig,
   type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
   type DemoWorkLedger,
 } from './api'
@@ -30,6 +31,7 @@ const HandwritingCanvas = lazy(() => import('./HandwritingCanvas'))
 import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
+import DemoParentSetup from './DemoParentSetup'
 import {
   getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
   getTimerConfig, getSuggestedBreak, SUGGESTED_BREAK_INTERVAL_MINUTES,
@@ -234,20 +236,19 @@ const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 // The stage bands the backend's grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
 // demo default (no grade picked) is grade 4, hence the '3-5' fallback.
-function demoGradeStage(): string {
-  const grade = sessionStorage.getItem(GRADE_STORAGE_KEY) ?? ''
+function demoGradeStage(grade: string): string {
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
   if (grade === '6' || grade === '7' || grade === '8') return '6-8'
   return '3-5'
 }
 
 // Whether this visitor is in the K-3 band that gets the optional 20-minute
-// break rhythm offered by default. Reads the same stored grade as
-// demoGradeStage() above and defers the banding to gradeTimer's own
-// getTimerConfig, so the demo cannot drift from the app's definition of
-// "younger" — the demo default (no grade picked) is grade 4, i.e. false.
-function demoIsYounger(): boolean {
-  return getTimerConfig(sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '').isYounger
+// break rhythm offered by default. Uses the live grade already on the current
+// session config, not a second sessionStorage read during render, so the timer
+// stays keyed to the same source of truth the rest of the session does. The
+// demo default (no grade picked) is grade 4, i.e. false.
+function demoIsYounger(grade: string): boolean {
+  return getTimerConfig(grade).isYounger
 }
 
 export function CodeScreen({ onLoggedIn }: {
@@ -619,6 +620,7 @@ const BREAK_INACTIVITY_LOGOUT_MS = 5 * 60 * 1000
 
 interface ChatScreenProps {
   displayName: string
+  grade: string
   subjects: readonly Subject[]
   // The optional "what are we already covering at home" note set at
   // CodeScreen (see UNIT_STORAGE_KEY above) — server-resolved onto
@@ -979,7 +981,7 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
-function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
@@ -993,6 +995,18 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   // matches: a session hard stop with mandatory hourly breaks, and the
   // appearance lock.
   const [parentControls, setParentControls] = useState<DemoParentControls>(() => readDemoParentControls())
+  // The full Parent Setup panel (DemoParentSetup.tsx). `parentSetup` keeps
+  // what was saved so reopening the panel shows the plan in force rather
+  // than resetting to defaults; it is not persisted across a reload, the
+  // same posture as subjectLastExchange above — the SERVER holds the saved
+  // configuration for this code either way, so a reload loses only the
+  // form's pre-fill, never the plan Bede is actually running.
+  // The subject list the picker offers. Seeded from the prop and replaced
+  // when a plan is saved, so the chat cannot keep offering subjects the
+  // server has just been told this session does not include.
+  const [activeSubjects, setActiveSubjects] = useState<readonly Subject[]>(subjects)
+  const [showParentSetup, setShowParentSetup] = useState(false)
+  const [parentSetup, setParentSetup] = useState<DemoParentConfig | undefined>(undefined)
   // Re-render every 15s so break/conclude transitions are noticed promptly
   // even when nothing else is happening (same trick as the full app).
   const [, setPhaseTick] = useState(0)
@@ -1016,7 +1030,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   const [dismissedBreakKey, setDismissedBreakKey] = useState<string | null>(null)
   const [acceptedBreakKey, setAcceptedBreakKey] = useState<string | null>(null)
   const suggestedBreak = getSuggestedBreak(
-    sessionPhase, demoIsYounger(), parentControls.frequentBreakOffers,
+    sessionPhase, demoIsYounger(grade), parentControls.frequentBreakOffers,
   )
   // Both flags key off the SUGGESTION rather than being bare booleans, which
   // makes them self-clearing: a voluntary break cannot outlive its own mark,
@@ -1547,7 +1561,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
       // advancing while Bede's own transition line is still playing would
       // cut it off mid-sentence.
     }
-  }, [runChat, subject, subjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
 
   // Fires once when a turn's text AND speech have both genuinely finished
   // (not just the text) — see the fire-and-forget speak() comment above for
@@ -1569,13 +1583,13 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
         // Brief pause so the child can read (and hear, if TTS is on)
         // Bede's transition line first.
         setTimeout(() => {
-          const idx = subjects.indexOf(subject)
-          const next = idx >= 0 ? subjects[idx + 1] : undefined
+          const idx = activeSubjects.indexOf(subject)
+          const next = idx >= 0 ? activeSubjects[idx + 1] : undefined
           if (next) setSubject(next)
         }, 2500)
       }
     }
-  }, [isStreaming, isSpeaking, subject, subjects])
+  }, [isStreaming, isSpeaking, subject, activeSubjects])
 
   useEffect(() => {
     if (openerFired.current.has(subject)) return
@@ -1716,7 +1730,11 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
               appearance picker lives, under the fixed text-size control:
               the familiar corner for settings. Stays visible when the
               appearance lock hides the picker (it's how you unlock). */}
-          <ParentControlsMenu controls={parentControls} onChange={setParentControls} />
+          <ParentControlsMenu
+            controls={parentControls}
+            onChange={setParentControls}
+            onOpenSetup={() => setShowParentSetup(true)}
+          />
           {/* Ends the demo — an icon button living here, grouped with the
               other real controls, rather than a text link forced onto its
               own guaranteed line down in the flex-wrap info row (see that
@@ -1777,12 +1795,12 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             onChange={(e) => setSubject(e.target.value as Subject)}
             className="w-full text-sm font-medium border border-sage-300 rounded-lg pl-3 pr-2 py-2 bg-white text-sage-800 hover:border-sage-400 cursor-pointer transition-colors"
           >
-            {subjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
+            {activeSubjects.map((s) => <option key={s} value={s}>{t(`subjects.${s}`, SUBJECT_LABELS[s])}</option>)}
           </select>
         </div>
         <ContinuingMasteryCard
           currentUnit={currentUnit}
-          subjects={subjects}
+          subjects={activeSubjects}
           activeSubject={subject}
           subjectLastExchange={subjectLastExchange}
           onResume={setSubject}
@@ -2024,13 +2042,31 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
       </div>
       </div>
 
+      {showParentSetup && (
+        <DemoParentSetup
+          token={token}
+          initial={parentSetup}
+          onSaved={(config) => {
+            setParentSetup(config)
+            if (config.subjects?.length) {
+              setActiveSubjects(config.subjects)
+              // The open subject may no longer be on the plan. Move to the
+              // first one that is, rather than leaving the child on a
+              // subject the server has been told this session does not have.
+              if (!config.subjects.includes(subject)) setSubject(config.subjects[0])
+            }
+          }}
+          onClose={() => setShowParentSetup(false)}
+        />
+      )}
+
       {showCanvas && (
         <Suspense fallback={null}>
           <HandwritingCanvas
             onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
             onCancel={() => setShowCanvas(false)}
             subject={subject}
-            gradeStage={demoGradeStage()}
+            gradeStage={demoGradeStage(grade)}
             // Whose page this is, for as long as this demo session lasts.
             // The canvas unmounts every time the visitor goes back to the
             // chat, so without this the drawing would go with it (see
@@ -3044,6 +3080,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
       {showFeedback && <FeedbackModal token={token} onClose={() => setShowFeedback(false)} />}
       <ChatScreen
         displayName={config.student_name}
+        grade={config.grade}
         subjects={config.subjects}
         currentUnit={config.current_unit}
         runChat={runChat}

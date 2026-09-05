@@ -37,6 +37,7 @@ to that data and sets no retention policy over it.
 | Session identity (learner's name, grade) — optional | Personalize the tone and content of the one demo session in progress | 6 hours from creation, or immediately on logout | Automatic: filtered out of every read past that age and opportunistically deleted on each new code issued (`demo_code_sessions`, `core/demo_code_session.py`) |
 | Current-unit note — optional | Let Bede anchor that one session on what the family is already learning, instead of only its own bundled curriculum | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_unit_notes`, encrypted) |
 | Church-tradition note — optional | Frame that one session's Scripture/Saints content consistently with the family's own tradition, instead of assuming one | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_faith_notes`, encrypted) |
+| Session setup — optional | Let a visitor configure their own demo session the way a parent configures a real one (subjects, what the family is already reading, what helps this child), instead of showing a fixed demo | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_parent_configs`, encrypted) |
 | Work-ledger record (which skill was worked, how much help it took, what Bede noticed about the work) | Show the visitor what their learner actually completed during the session — the demo's own copy of the work ledger a real family gets | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_activity_logs`, encrypted) |
 | The conversation itself | Generate that turn's response | **Never stored.** Exists only in transit and in-process memory for the duration of one turn | Nothing to delete — no row is ever created |
 | Voice audio, if the microphone is used | Transcribe speech to text for that turn (sent to OpenAI, see below); synthesize Bede's spoken reply | **Never stored**, by us or by OpenAI. Passes through our server for the live turn only | Nothing to delete — no row is ever created |
@@ -50,9 +51,10 @@ Several categories above are marked "never stored." That is a stronger
 commitment than a short retention window, not a weaker one — it means
 there is no row for this policy to schedule the deletion of, because
 none is ever written. This distinction matters for anyone reviewing this
-policy against the code: `core/database.py` defines exactly five demo-
+policy against the code: `core/database.py` defines exactly six demo-
 related tables (`DemoCodeSession`, `DemoCodeUnitNote`, `DemoCodeFaithNote`,
-`DemoCodeActivityLog`, `DemoInteractionSignal`) plus the rate-limit table
+`DemoCodeParentConfig`, `DemoCodeActivityLog`, `DemoInteractionSignal`) plus
+the rate-limit table
 above — nothing else exists to hold a demo visitor's data, and in
 particular no table holds conversation transcript text or audio for any
 `demo_code` session.

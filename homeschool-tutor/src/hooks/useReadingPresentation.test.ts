@@ -181,11 +181,19 @@ describe('the panel says what a setting does, never what a reader has', () => {
   })
 
   it('still carries the evidence in the tooltip, where a curious parent finds it', () => {
-    const tooltips = panel.match(/title="[^"]*"/g)!.join(' ').toLowerCase()
-    expect(tooltips).toContain('dyslex')
-    expect(tooltips, 'the weak setting must still be labelled weak').toContain(
-      'rather than a measured result',
-    )
+    // Tooltips are localized, so the evidence lives in locale files now.
+    const en = JSON.parse(
+      readFileSync(join(__dirname, '../i18n/locales/en.json'), 'utf8'),
+    ).reading as Record<string, string>
+    const es = JSON.parse(
+      readFileSync(join(__dirname, '../i18n/locales/es.json'), 'utf8'),
+    ).reading as Record<string, string>
+    expect(en.letterSpacingTooltip.toLowerCase()).toContain('dyslex')
+    expect(en.lineSpacingTooltip.toLowerCase()).toContain('rather than a measured result')
+    expect(es.letterSpacingTooltip.toLowerCase()).toContain('disléx')
+    expect(es.lineSpacingTooltip.toLowerCase()).toContain('no un resultado medido')
+    expect(panel).toContain("title={t('reading.letterSpacingTooltip')}")
+    expect(panel).toContain("title={t('reading.lineSpacingTooltip')}")
   })
 
   it('gates the spacing rows on there being a lesson to restyle', () => {

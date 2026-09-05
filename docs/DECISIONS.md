@@ -1040,3 +1040,50 @@ Only real hardware closes it**, which is why the status stays `open` — what it
 now `needs:` is a boot on a real board, not a first build.
 
 **Related:** entry 19, entry 20 (which model), `docs/LDC_DEPLOYMENT.md` §10.4.
+
+---
+
+## 24. `[PRODUCT]` Accessibility is plain settings, never a "dyslexia mode"
+
+**Status:** closed
+
+**Decided (2026-09-05).** A parent asked for accommodations for dyslexia and
+other learning differences. The obvious build is a **dyslexia mode**. What
+shipped instead is four ordinary settings any parent can turn on for any
+student — `letter_spacing`, `line_spacing`, `text_size` and
+`frequent_break_offers` — none of which names a condition.
+
+**The evidence is in [`ACCESSIBILITY_RESEARCH.md`](ACCESSIBILITY_RESEARCH.md).**
+This entry carries the state; that document carries the argument, per this
+register's own rule about a fact having one home.
+
+**Two findings decided it, and they point the same way.**
+
+* **Naming a setting after a condition would make this software hold a
+  diagnosis**, which `_learning_support_note`'s own rules already forbid Bede
+  from doing in words. It would also fit two children with the same diagnosis
+  equally badly. And the published objection to the strongest result here
+  (Skottun and Skoyles 2012) argues the spacing benefit may belong to poor
+  readers *generally* — which is an argument for a plain setting rather than
+  one behind a diagnosis a family must first obtain.
+* **The most-requested feature in a dyslexia mode does not work.**
+  Dyslexia-specific fonts show no improvement in reading rate or accuracy and
+  sometimes perform worse than Arial; the International Dyslexia Association's
+  own position is that no reliable evidence supports them. **No dyslexia font
+  is offered**, and `readingPresentation.test.ts` fails if one is added.
+
+**The four settings are deliberately not equally well founded, and the UI says
+so in the words a parent reads.** Letter spacing is strong (Zorzi et al. 2012:
+doubled accuracy, >20% faster, replicated across two languages). Line spacing
+is design guidance only. Text size is offered as a *preference* and never
+described as an accommodation, because the direction reverses with age.
+`frequent_break_offers` is not an evidence claim at all — it removes an
+arbitrary age gate on a choice that belongs to the parent.
+
+**Closed rather than open because nothing external is being waited on.** What
+remains unknown is stated in that document's §7 and is unknowable without
+measuring real children using Bede, which is not a decision anyone is blocked
+on.
+
+**Related:** `docs/PARENT_SETUP.md`, `docs/SPECIAL_NEEDS.md`,
+`homeschool-tutor/src/utils/readingPresentation.ts`.

@@ -137,12 +137,33 @@ export interface SuggestedBreak {
  * own PhaseInfo so it can never disagree with the mandatory rhythm it sits
  * inside.
  *
- * Returns null for grades 4-8 (their pacing IS the 60/10 cycle), during any
- * mandatory break or once concluded, and for the first 20 minutes of each
- * study block.
+ * Returns null for grades 4-8 (their pacing IS the 60/10 cycle) UNLESS the
+ * parent set frequentBreakOffers for this student, during any mandatory
+ * break or once concluded, and for the first 20 minutes of each study
+ * block.
  */
-export function getSuggestedBreak(phase: PhaseInfo, isYounger: boolean): SuggestedBreak | null {
-  if (!isYounger || phase.phase !== 'study') return null
+export function getSuggestedBreak(
+  phase: PhaseInfo,
+  isYounger: boolean,
+  frequentBreakOffers = false,
+): SuggestedBreak | null {
+  // The age gate was the whole availability rule, so a twelve-year-old whose
+  // parent knows they do better stopping every twenty minutes could not have
+  // that rhythm at all — not because anyone decided against it, but because
+  // the only way in was being under nine.
+  //
+  // `frequentBreakOffers` is the parent saying otherwise for one student. It
+  // is NOT a claim that more breaks improve attention: the ADHD literature
+  // supports physical activity generally (moderate effect, cognitive
+  // engagement the active ingredient) and does not support that specific
+  // claim — see docs/ACCESSIBILITY_RESEARCH.md §5. What it does is remove an
+  // arbitrary age gate on a choice that belongs to the parent, per the
+  // constitution's authority_order.
+  //
+  // Everything below is unchanged, so it still cannot shorten, skip, delay
+  // or extend past the mandatory hourly break — it only makes the existing
+  // suggestion reachable at a grade that was previously refused it.
+  if ((!isYounger && !frequentBreakOffers) || phase.phase !== 'study') return null
   const studyElapsedSecs = SESSION_STUDY_MINUTES * 60 - phase.remainingSecs
   const mark = Math.floor(studyElapsedSecs / (SUGGESTED_BREAK_INTERVAL_MINUTES * 60))
   if (mark < 1) return null

@@ -19,6 +19,7 @@ import {
   SUGGESTED_BREAK_INTERVAL_MINUTES,
 } from '../utils/gradeTimer'
 import { renderEmphasis } from '../utils/renderEmphasis'
+import { readingStyle } from '../utils/readingPresentation'
 import { pickBreakActivity } from '../utils/breakActivities'
 import { setLogoutNotice } from '../utils/logoutNotice'
 import { Coffee, Eye, Footprints } from 'lucide-react'
@@ -235,7 +236,12 @@ export default function TutorSession() {
   // rhythm already governs. Suppressed entirely while a mandatory break is
   // running or the session has concluded — a suggestion must never compete
   // with, or look like, something the child is allowed to dismiss.
-  const suggestedBreak = getSuggestedBreak(sessionPhase, timerCfg.isYounger)
+  // frequent_break_offers lets a parent reach this rhythm at any grade —
+  // see getSuggestedBreak's own comment for why that is removing an age
+  // gate rather than a claim about attention.
+  const suggestedBreak = getSuggestedBreak(
+    sessionPhase, timerCfg.isYounger, sessionConfig?.frequent_break_offers ?? false,
+  )
 
   // Both flags are keyed to the SUGGESTION they answer, not kept as bare
   // booleans, which makes them self-clearing: getSuggestedBreak returns null
@@ -446,7 +452,17 @@ export default function TutorSession() {
       {showFeedback && token && <FeedbackModal token={token} onClose={() => setShowFeedback(false)} />}
 
       {/* ── Full-height chat ── */}
-      <main className="flex-1 overflow-hidden relative">
+      {/* The parent's reading-presentation settings ride on this one element.
+          letter-spacing, word-spacing, line-height and font-size all inherit,
+          so nothing downstream has to know they exist — and <main> already
+          wraps both the lesson text and the break cards, which is the right
+          scope: a child who needs larger text needs it when Bede offers them
+          a break too. Deliberately NOT a display:contents wrapper (that has a
+          history of dropping elements out of the accessibility tree) and
+          deliberately not the page root, which would restyle the session
+          chrome as well. readingStyle returns {} when every value is default,
+          so a family who never touches this renders exactly as before. */}
+      <main className="flex-1 overflow-hidden relative" style={readingStyle(sessionConfig)}>
         {showIntro ? (
           <MeetBede
             studentName={sessionConfig.student_name}

@@ -236,20 +236,19 @@ const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 // The stage bands the backend's grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
 // demo default (no grade picked) is grade 4, hence the '3-5' fallback.
-function demoGradeStage(): string {
-  const grade = sessionStorage.getItem(GRADE_STORAGE_KEY) ?? ''
+function demoGradeStage(grade: string): string {
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
   if (grade === '6' || grade === '7' || grade === '8') return '6-8'
   return '3-5'
 }
 
 // Whether this visitor is in the K-3 band that gets the optional 20-minute
-// break rhythm offered by default. Reads the same stored grade as
-// demoGradeStage() above and defers the banding to gradeTimer's own
-// getTimerConfig, so the demo cannot drift from the app's definition of
-// "younger" — the demo default (no grade picked) is grade 4, i.e. false.
-function demoIsYounger(): boolean {
-  return getTimerConfig(sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '').isYounger
+// break rhythm offered by default. Uses the live grade already on the current
+// session config, not a second sessionStorage read during render, so the timer
+// stays keyed to the same source of truth the rest of the session does. The
+// demo default (no grade picked) is grade 4, i.e. false.
+function demoIsYounger(grade: string): boolean {
+  return getTimerConfig(grade).isYounger
 }
 
 export function CodeScreen({ onLoggedIn }: {
@@ -621,6 +620,7 @@ const BREAK_INACTIVITY_LOGOUT_MS = 5 * 60 * 1000
 
 interface ChatScreenProps {
   displayName: string
+  grade: string
   subjects: readonly Subject[]
   // The optional "what are we already covering at home" note set at
   // CodeScreen (see UNIT_STORAGE_KEY above) — server-resolved onto
@@ -981,7 +981,7 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
-function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
@@ -1030,7 +1030,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
   const [dismissedBreakKey, setDismissedBreakKey] = useState<string | null>(null)
   const [acceptedBreakKey, setAcceptedBreakKey] = useState<string | null>(null)
   const suggestedBreak = getSuggestedBreak(
-    sessionPhase, demoIsYounger(), parentControls.frequentBreakOffers,
+    sessionPhase, demoIsYounger(grade), parentControls.frequentBreakOffers,
   )
   // Both flags key off the SUGGESTION rather than being bare booleans, which
   // makes them self-clearing: a voluntary break cannot outlive its own mark,
@@ -2066,7 +2066,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
             onCancel={() => setShowCanvas(false)}
             subject={subject}
-            gradeStage={demoGradeStage()}
+            gradeStage={demoGradeStage(grade)}
             // Whose page this is, for as long as this demo session lasts.
             // The canvas unmounts every time the visitor goes back to the
             // chat, so without this the drawing would go with it (see
@@ -3080,6 +3080,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
       {showFeedback && <FeedbackModal token={token} onClose={() => setShowFeedback(false)} />}
       <ChatScreen
         displayName={config.student_name}
+        grade={config.grade}
         subjects={config.subjects}
         currentUnit={config.current_unit}
         runChat={runChat}

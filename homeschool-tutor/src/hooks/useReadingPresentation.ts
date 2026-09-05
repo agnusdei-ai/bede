@@ -152,6 +152,7 @@ export function useReadingPresentation(
   }, [studentName])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
     const sync = () => setStored(readOverride(studentName))
     window.addEventListener(CHANGE_EVENT, sync)
     return () => window.removeEventListener(CHANGE_EVENT, sync)
@@ -170,7 +171,9 @@ export function useReadingPresentation(
         // setting works for this session even when it cannot be saved.
       }
       setStored(next)
-      window.dispatchEvent(new Event(CHANGE_EVENT))
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(CHANGE_EVENT))
+      }
     },
     [studentName],
   )

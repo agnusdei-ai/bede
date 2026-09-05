@@ -50,6 +50,24 @@ export interface ReadingPresentation {
 }
 
 /**
+ * The value each var falls back to when no setting is in effect — which is
+ * exactly what `text-sm leading-relaxed` (the lesson text's own classes)
+ * compiles to in THIS project's scale. They are written literally into the
+ * arbitrary-value class names too, because Tailwind's scanner needs a literal
+ * string; `readingPresentation.test.ts` reads tailwind.config.js and fails if
+ * these stop matching, since two copies of one number is the drift this repo
+ * checks rather than trusts.
+ */
+export const DEFAULT_TEXT_SIZE = '1.00625rem'
+export const DEFAULT_LINE_HEIGHT = '1.625'
+
+/** The custom properties the lesson text's own classes read. Named here so a
+ *  call site cannot misspell one silently — a typo'd var just falls back and
+ *  the setting appears to do nothing. */
+export const TEXT_SIZE_VAR = '--bede-text-size'
+export const LINE_HEIGHT_VAR = '--bede-line-height'
+
+/**
  * Letter spacing carries word spacing with it, deliberately, as one setting.
  *
  * Pushing letters apart without pushing words apart erodes the gap that marks
@@ -64,22 +82,54 @@ const LETTER: Record<LetterSpacing, { letterSpacing: string; wordSpacing: string
   wider: { letterSpacing: '0.12em', wordSpacing: '0.32em' },
 }
 
+// Anchored on what the lesson text ACTUALLY renders at, not on a round
+// number: `leading-relaxed` is 1.625, so a map claiming `normal` is 1.5 would
+// describe a page nobody has. `normal` is the constant itself rather than a
+// copy of it, so the two cannot drift. The steps above it are ~17% and ~35%,
+// matching the text-size steps' own proportions.
 const LINE: Record<LineSpacing, string> = {
-  normal: '1.5',
-  relaxed: '1.8',
-  loose: '2.1',
+  normal: DEFAULT_LINE_HEIGHT,
+  relaxed: '1.9',
+  loose: '2.2',
 }
 
+// Sized against this project's OWN scale, not stock Tailwind's. `text-sm`
+// here is 1.00625rem (tailwind.config.js overrides the whole ramp), which is
+// what the lesson text renders at today — so `normal` is that constant by
+// reference, not a round 1rem, or "no change" would in fact be a small
+// shrink. `large` is exactly `text-base`; `larger` sits between `lg` and
+// `xl`.
 const SIZE: Record<TextSize, string> = {
-  normal: '1rem',
+  normal: DEFAULT_TEXT_SIZE,
   large: '1.15rem',
   larger: '1.35rem',
 }
 
 /**
- * The inline style for a container the lesson text sits inside. Every value
- * is inherited, so one element carries the whole setting rather than every
- * text node needing to know about it.
+ * The inline style for a container the lesson text sits inside.
+ *
+ * WHY TWO MECHANISMS, AND WHY THE SECOND ONE IS NOT OPTIONAL
+ *
+ * `letterSpacing`/`wordSpacing` are plain inherited properties and that is
+ * enough: nothing downstream sets them, so a value here reaches the text.
+ *
+ * `fontSize`/`lineHeight` are inherited too, and inheritance LOSES — the
+ * lesson text carries `text-sm leading-relaxed`, which set both properties on
+ * the element itself, and a property set on an element always beats one
+ * inherited from an ancestor no matter how specific the ancestor's rule is.
+ * Measured in real Chromium before this was fixed: <main> at 21.6px/45.36px,
+ * the chat bubble that renders every word of the lesson at 16.1px/26.16px.
+ * The two weaker settings were reaching the surrounding chrome and nothing a
+ * child actually reads.
+ *
+ * So those two ALSO travel as custom properties, which the text's own classes
+ * read (`text-[length:var(--bede-text-size,…)]`). A custom property set on an
+ * ancestor is inherited, and the class that consumes it is on the element
+ * itself, so the setting now wins where it has to. The direct properties are
+ * kept alongside for anything that genuinely does inherit (break cards,
+ * MeetBede), which is why both are emitted rather than one replacing the
+ * other. jsdom evaluates no cascade, so only a real browser can catch this
+ * class of failure — see the test file's own note.
  *
  * An unset or unrecognised value falls back to `normal` rather than throwing:
  * these arrive from a stored config a parent may have saved under an older
@@ -92,14 +142,20 @@ export function readingStyle(config: ReadingPresentation | null | undefined): Re
   const line = LINE[config?.line_spacing as LineSpacing] ?? LINE.normal
   const size = SIZE[config?.text_size as TextSize] ?? SIZE.normal
 
-  const style: React.CSSProperties = {}
+  const style: Record<string, string> = {}
   if (letter !== LETTER.normal) {
     style.letterSpacing = letter.letterSpacing
     style.wordSpacing = letter.wordSpacing
   }
-  if (line !== LINE.normal) style.lineHeight = line
-  if (size !== SIZE.normal) style.fontSize = size
-  return style
+  if (line !== LINE.normal) {
+    style.lineHeight = line
+    style[LINE_HEIGHT_VAR] = line
+  }
+  if (size !== SIZE.normal) {
+    style.fontSize = size
+    style[TEXT_SIZE_VAR] = size
+  }
+  return style as React.CSSProperties
 }
 
 /** Whether anything here is set away from default — for tests and for copy

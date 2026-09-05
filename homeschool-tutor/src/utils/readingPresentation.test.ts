@@ -9,9 +9,15 @@
  * every failure mode below renders a page that looks broadly fine.
  */
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   readingStyle,
   hasReadingPresentation,
+  DEFAULT_TEXT_SIZE,
+  DEFAULT_LINE_HEIGHT,
+  TEXT_SIZE_VAR,
+  LINE_HEIGHT_VAR,
   type ReadingPresentation,
 } from './readingPresentation'
 
@@ -120,5 +126,85 @@ describe('readingStyle', () => {
     // they have to read why rather than shipping it on request.
     const style = readingStyle({ letter_spacing: 'wider', line_spacing: 'loose', text_size: 'larger' })
     expect(style.fontFamily).toBeUndefined()
+  })
+})
+
+
+// ── Reaching the text a child actually reads ─────────────────────────────
+//
+// The defect these guard against SHIPPED, and every test in the block above
+// passed while it was live. `readingStyle` returned the right object and the
+// right object was applied to <main> — and the lesson text carried
+// `text-sm leading-relaxed`, which set font-size and line-height ON THE
+// ELEMENT, and a property set on an element always beats one inherited from
+// an ancestor. Measured in real Chromium: <main> at 21.6px/45.36px, the chat
+// bubble rendering every word of the lesson at 16.1px/26.16px. Two of the
+// four settings were reaching the surrounding chrome and nothing else.
+//
+// jsdom evaluates no cascade, so no test in this file can see the rendered
+// result. What IS checkable is the contract that makes the cascade work, and
+// that is what these assert: the consuming classes exist, they carry the
+// right fallbacks, and nothing shadows them.
+describe('the settings reach the lesson text, not just its container', () => {
+  const chat = readFileSync(join(__dirname, '../components/SocraticChat.tsx'), 'utf8')
+
+  // Every element that renders words a child reads. Chrome labels ("Bede",
+  // the student's name) and buttons are deliberately not here.
+  const READS = 'text-[length:var(--bede-text-size,1.00625rem)] leading-[var(--bede-line-height,1.625)]'
+
+  it('emits the custom properties, not only the inherited ones', () => {
+    // The inherited pair is kept for anything that genuinely does inherit
+    // (break cards, MeetBede). The vars are what the lesson text reads. Both,
+    // never one — dropping the vars is exactly the shipped defect.
+    const style = readingStyle({ text_size: 'larger', line_spacing: 'loose' }) as Record<string, string>
+    expect(style[TEXT_SIZE_VAR]).toBe('1.35rem')
+    expect(style[LINE_HEIGHT_VAR]).toBe('2.2')
+    expect(style.fontSize).toBe('1.35rem')
+    expect(style.lineHeight).toBe('2.2')
+  })
+
+  it('still emits nothing at all when no setting is on', () => {
+    // Including the vars — a var set to its own fallback is harmless but a
+    // var set to a WRONG value would silently change every family's text.
+    expect(readingStyle({})).toEqual({})
+  })
+
+  it('gives every lesson-text element the var-backed classes', () => {
+    // Five: Bede's and the child's messages, the tool cards (hints,
+    // celebrations, faith reflections), the live transcript, the "Transcribing…"
+    // status, and the voice review step the child reads back before sending.
+    // The status bubble is here because it sits in the same stream — one
+    // bubble staying small while the rest grow reads as a rendering bug.
+    const uses = chat.split(READS).length - 1
+    expect(uses, `SocraticChat.tsx has ${uses} lesson-text elements reading the reading-presentation vars; expected 5`).toBe(5)
+  })
+
+  it('leaves no lesson-text element carrying a bare text-sm that would shadow the setting', () => {
+    // The specific regression. A `text-sm` on a bubble looks harmless in
+    // review and silently disables two of the four settings for every child.
+    const bubbles = chat.split('\n').filter((l) => /max-w-\[80%\] rounded-2xl/.test(l))
+    expect(bubbles.length, 'no chat bubbles found — this scan has stopped checking anything').toBeGreaterThanOrEqual(4)
+    for (const line of bubbles) {
+      if (/text-\[length:var\(--bede-text-size/.test(line)) continue
+      expect(/\btext-(xs|sm|base|lg|xl)\b/.test(line), `a chat bubble sets its own font size and will shadow the reading-presentation setting:\n  ${line.trim()}`).toBe(false)
+      expect(/\bleading-\w/.test(line), `a chat bubble sets its own line height and will shadow the reading-presentation setting:\n  ${line.trim()}`).toBe(false)
+    }
+  })
+
+  it('uses fallbacks equal to what those classes used to compile to', () => {
+    // Two copies of one number: the literal in the class name (Tailwind's
+    // scanner needs a literal) and this project's own `text-sm`. If they
+    // drift, a family with NO setting gets their text silently resized —
+    // the quietest possible way to break the "nothing changes by default"
+    // promise. Read from tailwind.config.js rather than restated.
+    const config = readFileSync(join(__dirname, '../../tailwind.config.js'), 'utf8')
+    const sm = config.match(/^\s*sm:\s*\['([^']+)'/m)
+    expect(sm, "could not read text-sm out of tailwind.config.js").toBeTruthy()
+    expect(DEFAULT_TEXT_SIZE).toBe(sm![1])
+    expect(READS).toContain(DEFAULT_TEXT_SIZE)
+    // leading-relaxed is Tailwind's own default and wins over text-sm's own
+    // line height, which is what the bubbles rendered at before this.
+    expect(DEFAULT_LINE_HEIGHT).toBe('1.625')
+    expect(READS).toContain(DEFAULT_LINE_HEIGHT)
   })
 })

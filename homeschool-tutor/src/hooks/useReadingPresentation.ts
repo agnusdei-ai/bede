@@ -165,15 +165,17 @@ export function useReadingPresentation(
     (patch: StoredOverride) => {
       if (!studentName) return
       const next = { ...readOverride(studentName), ...patch }
-      try {
-        localStorage.setItem(storageKey(studentName), JSON.stringify(next))
-      } catch {
-        // Best-effort. The in-memory state below still updates, so the
-        // setting works for this session even when it cannot be saved.
+      if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        try {
+          window.localStorage.setItem(storageKey(studentName), JSON.stringify(next))
+        } catch {
+          // Best-effort. The in-memory state below still updates, so the
+          // setting works for this session even when it cannot be saved.
+        }
       }
       setStored(next)
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event(CHANGE_EVENT))
+      if (typeof window !== 'undefined' && typeof window.Event === 'function') {
+        window.dispatchEvent(new window.Event(CHANGE_EVENT))
       }
     },
     [studentName],

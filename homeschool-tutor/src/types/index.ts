@@ -171,6 +171,14 @@ export const LEARNING_SUPPORT_SUGGESTIONS = [
   'Frequent short breaks',
   'Repeat instructions before starting',
   'Say numbers and letters clearly, one at a time',
+  "Say what's coming next before starting",
+  'Keep the same routine each session',
+  'Ask one direct question rather than an open one',
+  'Say what a good answer would include',
+  'Give the question, then quiet time to think',
+  'Offer a movement break partway through',
+  'Let them look back at the book while telling it back',
+  'Recap what was just covered before asking about it',
 ]
 
 // suggestions for SessionConfig.curriculum_resources — mirrors

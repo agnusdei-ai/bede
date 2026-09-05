@@ -649,9 +649,32 @@ break every hour for every child, but it will not tell you that your
 
    The panel also has a **What Helps This Child** field: always available,
    not tied to any subject. Type in (or tap a chip for) anything you
-   already know makes a lesson go better for this particular child — more
-   time to answer, shorter passages, answering out loud instead of
-   writing, one step at a time, frequent short breaks.
+   already know makes a lesson go better for this particular child. The
+   chips cover six kinds of thing, and you can add your own wording for
+   anything they miss:
+
+   - **Pace and how a lesson comes across** — more time to answer, shorter
+     passages, answering out loud instead of writing, having a passage read
+     aloud, one step at a time, frequent short breaks, instructions
+     repeated before starting, numbers and letters said one at a time.
+   - **Knowing what's coming** — Bede says what's next before starting, and
+     keeps the same routine each session. For a child who spends part of
+     themselves bracing for a surprise, this gives that part back.
+   - **Knowing what's being asked** — one direct question rather than an
+     open one, and saying what a good answer would include. Bede's whole
+     method is open Socratic questioning, which is also the hardest shape
+     to answer if you're not sure what's wanted.
+   - **Time to think** — the question first, then quiet. Different from
+     "more time to answer," which is about how long your child may take
+     once they've started.
+   - **Moving** — a movement break partway through.
+   - **Holding onto it** — a recap of what was just covered before being
+     asked about it, and being allowed to look back at the book while
+     telling it back.
+
+   You can list up to ten. It's deliberately not more: Bede is told to
+   *follow* these, and a list long enough to dilute each one is worse than
+   a short list it actually holds.
 
    **Bede teaches the same material to the same standard.** This changes
    *how* a lesson is delivered, never *what* is taught and never how the
@@ -669,6 +692,26 @@ break every hour for every child, but it will not tell you that your
    a diagnosis — to your child or to you. You have told it what helps; you
    have not told it why, that isn't its question to answer, and it isn't
    qualified to answer it.
+
+   **Telling it back has more than one route.** Narration — your child
+   saying back in their own words what they just learned — is the heart of
+   this method, and it's also the hardest thing to do: recalling freely,
+   out loud, with nothing in front of you. If that's out of reach on a
+   given day, Bede doesn't drop it and doesn't settle for less. It takes
+   another way in: telling it back with the book open, telling just one
+   part, answering two or three specific questions instead, drawing it
+   first and then talking about the drawing, or Bede starting the retelling
+   and handing it over mid-sentence. Each of those still ends with your
+   child telling it back, and what they give is judged against what Bede
+   actually asked for — a child asked for one part who gives one part well
+   has done the work, and is told so exactly as any other child would be.
+
+   **What this is not.** Bede is a tutor. It is not special education, not
+   therapy, and not a reading intervention — it doesn't replace a
+   structured literacy program, speech therapy, or occupational therapy,
+   and it shouldn't be chosen instead of one. What it offers a child who
+   learns differently is patience that doesn't run out, a pace set by them,
+   and accommodations held quietly enough that the lesson simply fits.
 
    You don't need a diagnosis to use this. If you have one, you don't need
    to share it — describe what helps and that is enough. If you suspect

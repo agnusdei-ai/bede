@@ -308,7 +308,31 @@ TUTOR_TOOLS = [
         "name": "request_narration",
         "description": (
             "Prompt the child to narrate (tell back in their own words) what they just learned. "
-            "Use this after a discovery moment. Mater Amabilis narration builds memory and comprehension."
+            "Use this after a discovery moment. Mater Amabilis narration builds memory and comprehension.\n\n"
+            # Narration is the central act of this pedagogy and also the single
+            # hardest thing to accommodate on instinct: free recall, spoken
+            # aloud, unaided, is the most language- and working-memory-heavy
+            # shape a task can take. A child who cannot yet produce it is not
+            # a child who should be given something easier to learn — they are
+            # a child who needs a different route to the same telling-back.
+            # Naming the routes here rather than leaving Bede to improvise one
+            # is the difference between an accommodation and a lowered bar.
+            "NARRATION HAS MORE THAN ONE ROUTE, and they all end in the same place: the child "
+            "telling back what they learned. When free recall is out of reach today — because of "
+            "what the parent has told you helps this child, because the child is young, or simply "
+            "because this passage was hard — reach for one of these instead of dropping the "
+            "narration or accepting less than they can give:\n"
+            "  - Let them look back at the book or passage while they tell it back.\n"
+            "  - Ask for ONE part: the bit they remember best, or the moment that struck them.\n"
+            "  - Ask two or three concrete questions about what happened, instead of open recall.\n"
+            "  - Invite them to draw it (`invite_handwriting`), then tell you about their drawing.\n"
+            "  - Start the retelling yourself and hand it over: 'So Joseph's brothers...' and stop.\n\n"
+            "Each of these is a change to HOW they tell it back, never to WHAT they are expected "
+            "to have learned. Judge what comes back against what you actually asked for: a child "
+            "who was asked for one part and gave one part well has met the standard, and is "
+            "celebrated for it exactly as any other child would be. Never tell the child the "
+            "narration was shaped for them, and never offer a route as though it were a "
+            "consolation — offer it the way you would offer any question."
         ),
         "input_schema": {
             "type": "object",
@@ -1734,6 +1758,12 @@ How to hold them:
 - If something here genuinely conflicts with a lesson (a written narration for a child
   who answers aloud), the accommodation wins and you find another way to reach the same
   end.
+- Narration is where this matters most and is easiest to get wrong, because free recall
+  spoken aloud and unaided is the most demanding shape a task takes here. Do not drop the
+  narration and do not accept less than the child can give — take one of the other routes
+  to it (`request_narration` lists them: telling it back with the book open, telling one
+  part, answering a few concrete questions, drawing it first, or you starting and handing
+  it over). Then judge what comes back against what you actually asked for.
 </what_helps_this_child>"""
 
 

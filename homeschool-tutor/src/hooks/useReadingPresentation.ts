@@ -91,6 +91,7 @@ function valid<T extends string>(raw: unknown, allowed: readonly T[]): T | undef
 
 function readOverride(studentName: string | null | undefined): StoredOverride {
   if (!studentName) return {}
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return {}
   try {
     const raw = localStorage.getItem(storageKey(studentName))
     if (!raw) return {}

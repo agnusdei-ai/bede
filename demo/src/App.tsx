@@ -231,11 +231,20 @@ const FAITH_STORAGE_KEY = 'bede-demo-faith-tradition'
 // here, same lifetime as the name/grade keys above.
 const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 
+function readSessionStorage(key: string): string {
+  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') return ''
+  try {
+    return window.sessionStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
 // The stage bands the backend's grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
 // demo default (no grade picked) is grade 4, hence the '3-5' fallback.
 function demoGradeStage(): string {
-  const grade = sessionStorage.getItem(GRADE_STORAGE_KEY) ?? ''
+  const grade = readSessionStorage(GRADE_STORAGE_KEY)
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
   if (grade === '6' || grade === '7' || grade === '8') return '6-8'
   return '3-5'
@@ -247,7 +256,7 @@ function demoGradeStage(): string {
 // getTimerConfig, so the demo cannot drift from the app's definition of
 // "younger" — the demo default (no grade picked) is grade 4, i.e. false.
 function demoIsYounger(): boolean {
-  return getTimerConfig(sessionStorage.getItem(GRADE_STORAGE_KEY) ?? '').isYounger
+  return getTimerConfig(readSessionStorage(GRADE_STORAGE_KEY)).isYounger
 }
 
 export function CodeScreen({ onLoggedIn }: {

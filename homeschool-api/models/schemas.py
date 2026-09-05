@@ -56,6 +56,14 @@ PUBLIC_DOMAIN_BIBLE_TRANSLATIONS = {"KJV", "Douay-Rheims"}
 # material, and a lowered expectation removes the material. See
 # services/ai_service.py's _learning_support_note.
 LEARNING_SUPPORT_SUGGESTIONS = [
+    # Ordered by the kind of obstacle each removes, because the first eight
+    # were all one kind. Every entry names something for Bede to DO — a list
+    # that reads as a deficit checklist would teach the parent the wrong
+    # frame before Bede ever speaks, which
+    # test_every_suggestion_describes_a_delivery_change_not_a_deficit scans
+    # for. Not a closed list; a parent's own wording is kept as typed.
+
+    # Pace and modality — the original eight.
     "More time to answer",
     "Shorter passages at a time",
     "Answer out loud instead of writing",
@@ -64,6 +72,32 @@ LEARNING_SUPPORT_SUGGESTIONS = [
     "Frequent short breaks",
     "Repeat instructions before starting",
     "Say numbers and letters clearly, one at a time",
+
+    # Predictability. A child who knows what is coming spends less of
+    # themselves bracing for it.
+    "Say what's coming next before starting",
+    "Keep the same routine each session",
+
+    # Ambiguity. An open Socratic question is the whole method here, and it
+    # is also the hardest shape to answer for a child who needs to know what
+    # is being asked for.
+    "Ask one direct question rather than an open one",
+    "Say what a good answer would include",
+
+    # Processing time — distinct from "more time to answer", which is about
+    # how long a child may take once they have started.
+    "Give the question, then quiet time to think",
+
+    # Regulation.
+    "Offer a movement break partway through",
+
+    # Narration, the central act of this pedagogy and the hardest thing to
+    # accommodate on instinct — see request_narration's own tool
+    # description for the routes these two reach.
+    "Let them look back at the book while telling it back",
+
+    # Working memory.
+    "Recap what was just covered before asking about it",
 ]
 
 # Curriculum publishers commonly used alongside Bede by classical/Christian
@@ -529,7 +563,13 @@ class SessionConfig(BaseModel):
             cleaned = entry.strip()[:80] if entry else ""
             if cleaned and cleaned.lower() not in seen:
                 seen[cleaned.lower()] = cleaned
-        self.learning_support = list(seen.values())[:8]
+        # Raised from 8 to 10 when the suggestion list above roughly
+        # doubled. A child with more than one kind of need should not have
+        # to drop a real accommodation to add another. It stays a low
+        # number on purpose: _learning_support_note tells Bede to FOLLOW
+        # these, and a list long enough to dilute each one is worse than a
+        # short list that is actually held.
+        self.learning_support = list(seen.values())[:10]
         return self
 
     @model_validator(mode="after")

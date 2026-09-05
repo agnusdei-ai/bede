@@ -437,6 +437,55 @@ Three things are genuinely Greek-specific, not inherited from Latin. **The manus
 
 **Deliberately agentic-behavioural rather than algorithmic.** Bede is not running an adaptive test and is not selecting items to maximize information about a latent trait; it is a tutor told something useful about the child in front of it, acting on it with judgment inside stated bounds — the same shape as `services/policy_engine.py` (principles, not scoring) and `lesson_planner.py` (orders, never chooses). Five rules govern it and each is pinned by `tests/test_learning_support_note.py`: it changes **how** a lesson is delivered, never **what** is taught and never the standard the work is held to (*"removing an obstacle is help; removing the material is not"* — a child with more time is still judged against what the task asked, per `_WORK_SCORING_NOTE`); the child is **never told**, and never given a reason ("Let's take this one step at a time" yes, "because reading is hard for you" never); it is never a licence to praise more easily or lower a question's difficulty; Bede **never names, guesses at, or implies a diagnosis**, to the child or the parent; and where an accommodation conflicts with a lesson's form, the accommodation wins and Bede finds another route to the same end.
 
+**The vocabulary spans six kinds of obstacle, not one.** The original eight
+suggestions were all pace or modality (more time, shorter passages, aloud
+rather than written) — which covers one kind of child and left everyone else
+writing their own wording. It now also covers **predictability** (say what's
+coming next; keep the same routine), **ambiguity** (one direct question rather
+than an open one; say what a good answer would include — Bede's whole method
+is open Socratic questioning, which is the hardest shape to answer for a child
+unsure what is wanted), **processing time** (the question, then quiet — a
+different thing from "more time to answer", which is about how long a child
+may take once started), **regulation** (a movement break partway through), and
+**working memory** (recap before asking; look back at the book while telling it
+back). The cap rose 8 → 10 with it: a child with more than one kind of need
+should not have to drop a real accommodation to add another, and it stays low
+on purpose because the note tells Bede to FOLLOW these and a list long enough
+to dilute each one is worse than a short one actually held.
+`test_the_quick_picks_span_more_than_pace_and_modality` pins each category by
+phrase rather than by counting, so a trim cannot silently drop a whole category
+while keeping the total respectable. **The frontend mirror is now checked**
+(`test_the_frontend_mirror_matches_this_list_exactly`) — the list lives in
+`models/schemas.py` and in `types/index.ts`, which is what a parent actually
+clicks, and nothing had ever asserted they agreed.
+
+**Narration has more than one route, named in `request_narration`'s own tool
+description.** Narration is the central act of this pedagogy and the single
+hardest thing to accommodate on instinct: free recall, spoken aloud, unaided is
+the most language- and working-memory-heavy shape a task takes here, so the
+child who cannot yet produce it is exactly the child most likely to be quietly
+given less to learn instead of another way in. Five routes — tell it back with
+the book open, tell one part, answer two or three concrete questions, draw it
+first (`invite_handwriting`) then talk about the drawing, or Bede starts the
+retelling and hands it over mid-sentence — each a change to HOW the child tells
+it back and never to WHAT they are expected to have learned. **What comes back
+is judged against what was actually asked for**: a child asked for one part who
+gives one part well has met the standard and is celebrated exactly as any other
+child would be (`_WORK_SCORING_NOTE`'s rule, spelled out here because narration
+is where it is easiest to get wrong). A route is never offered as a consolation
+and the child is never told the narration was shaped for them — the same rule as
+the note's own "never say any of this to the child". Deliberately **prompt-only,
+with no new tool field**: the routes are behavioural guidance under stated
+principles, which is what `_learning_support_note`'s own docstring says this
+whole feature is, and a structured `support` field was considered and dropped
+because nothing downstream would have consumed it — `NarrationAssessment` has no
+`ALTER TABLE` path and inventing wire semantics for a field that changed no
+behaviour is decoration. `_learning_support_note` carries the pointer to the
+routes rather than restating them, so the two cannot drift.
+`tests/test_learning_support_note.py` pins every route, the
+still-held-to-the-standard sentences, the never-a-consolation rule, and the
+note's pointer — each verified by breaking it.
+
 **Parent-declared, never inferred**, and that is the whole safety property: deciding a child needs support is a judgment about that child, reachable by a qualified evaluator or by the parent who lives with them, and Bede is neither — the constitution's own `authority_order`. `LEARNING_SUPPORT_SUGGESTIONS` is scanned by test for deficit words (`struggles`, `poor`, `unable`, `slow`…) so the list a parent reads names things to DO rather than things the child lacks; that scan is what caught "Say numbers and letters *slowly*" and got it reworded.
 
 **Subject coverage — the schedule, never the child (`services/subject_coverage.py`, `GET /diagnostic/{student}/coverage`):** a parent could always see that History had produced nothing, and could never tell whether History was **never scheduled** (a calendar fix) or **scheduled for six weeks and opened twice** (a conversation). Opposite responses, identical-looking blank column. Both halves of the answer already existed and had never been compared: `StudentConfig` says what was scheduled, and `LessonBookmark.updated_at` says when a subject was last actually taught (written at session end for every subject genuinely covered). `STALE_AFTER_DAYS` is imported-equal to `lesson_planner`'s — one number for "long enough to notice," asserted by test rather than duplicated.

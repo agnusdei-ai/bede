@@ -53,6 +53,32 @@ export default function TextSizeControl() {
   const [expanded, setExpanded] = useState(false)
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // SIZING, measured across real device viewports in real Chromium rather
+  // than reasoned about — jsdom performs no layout, so none of this is
+  // visible to a component test. The first cut failed three ways at once and
+  // every one hit a phone hardest, which is the device this runs on:
+  //
+  //   - 420px wide at the top text-size step against a 360-390px phone, so
+  //     the panel hung 81px off the left edge and took the "Normal" option in
+  //     both rows with it — the one a visitor needs to undo a change they did
+  //     not like. max-w clamps it; flex-wrap lets the rows stack rather than
+  //     crushing three buttons into what is left.
+  //   - 17px tap targets, at every scale on every device. WCAG 2.5.8 asks for
+  //     24px and 2.5.5 for 44; this is a child's tablet, so 44 it is, as a
+  //     PIXEL floor rather than a rem one: a finger does not get smaller when
+  //     someone scales text down.
+  //   - every label pinned at 10-11px, because `text-[11px]` is a literal
+  //     pixel value and useTextScale works by scaling the ROOT font size. The
+  //     panel that exists to make text bigger was the one thing that never
+  //     got bigger. Everything is a rem-based class now.
+  //
+  // max-h + overflow-y-auto is the fourth: at the top step on a landscape
+  // phone the panel is taller than the 390px viewport, and a settings panel
+  // you cannot scroll to the bottom of is one with hidden settings.
+  //
+  // After: 44px minimum tap target and no overflow across seven viewports at
+  // three scales; labels 12.08 / 13.8 / 24.15px at 87.5 / 100 / 175%.
+
   const scheduleCollapse = () => {
     if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current)
     collapseTimerRef.current = setTimeout(() => setExpanded(false), AUTO_COLLAPSE_MS)
@@ -93,7 +119,7 @@ export default function TextSizeControl() {
   ]
 
   const rowButton = (selected: boolean) =>
-    `flex-1 px-2 py-1 rounded-md text-[11px] transition-colors ${
+    `flex-1 min-h-[44px] px-2 py-1 rounded-md text-xs flex items-center justify-center text-center transition-colors ${
       selected
         ? 'bg-navy-500 text-white'
         : 'bg-white text-navy-600 border border-navy-200 hover:bg-navy-50'
@@ -104,15 +130,15 @@ export default function TextSizeControl() {
       role="group"
       aria-label="Reading settings"
       onPointerDown={scheduleCollapse}
-      className="fixed top-3 right-3 z-40 w-60 rounded-2xl bg-white/97 backdrop-blur border border-navy-200 shadow-lg pt-safe pr-safe px-3 py-2.5 flex flex-col gap-2.5"
+      className="fixed top-3 right-3 z-40 w-60 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-2xl bg-white/97 backdrop-blur border border-navy-200 shadow-lg pt-safe pr-safe px-3 py-2.5 flex flex-col gap-2.5"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-navy-700">Reading</span>
+        <span className="text-xs font-semibold text-navy-700">Reading</span>
         <button
           type="button"
           onClick={() => setExpanded(false)}
           aria-label="Close reading settings"
-          className="text-[11px] text-navy-400 hover:text-navy-600 px-1"
+          className="text-xs text-navy-400 hover:text-navy-600 px-2 min-h-[44px] -my-2"
         >
           Done
         </button>
@@ -120,8 +146,8 @@ export default function TextSizeControl() {
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] text-navy-600">Text size</span>
-          <span className="text-[11px] text-navy-400 tabular-nums" aria-live="polite">
+          <span className="text-xs text-navy-600">Text size</span>
+          <span className="text-xs text-navy-400 tabular-nums" aria-live="polite">
             {Math.round(scale)}%
           </span>
         </div>
@@ -132,7 +158,7 @@ export default function TextSizeControl() {
             disabled={!canDecrease}
             aria-label="Decrease text size"
             title="Decrease text size"
-            className="flex-1 h-7 flex items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            className="flex-1 min-h-[44px] flex items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
           >
             <Minus size={14} />
           </button>
@@ -142,7 +168,7 @@ export default function TextSizeControl() {
             disabled={!canIncrease}
             aria-label="Increase text size"
             title="Increase text size"
-            className="flex-1 h-7 flex items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            className="flex-1 min-h-[44px] flex items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
           >
             <Plus size={14} />
           </button>
@@ -150,8 +176,8 @@ export default function TextSizeControl() {
       </div>
 
       <div>
-        <span className="block text-[11px] text-navy-600 mb-1">Space between letters</span>
-        <div className="flex gap-1">
+        <span className="block text-xs text-navy-600 mb-1">Space between letters</span>
+        <div className="flex flex-wrap gap-1">
           {letterOptions.map((o) => (
             <button
               key={o.value}
@@ -164,15 +190,15 @@ export default function TextSizeControl() {
             </button>
           ))}
         </div>
-        <p className="text-[10px] leading-snug text-navy-400 mt-1">
+        <p className="text-xs leading-snug text-navy-400 mt-1">
           The one with real evidence behind it: in a study of dyslexic 8-14
           year olds, extra letter spacing doubled reading accuracy.
         </p>
       </div>
 
       <div>
-        <span className="block text-[11px] text-navy-600 mb-1">Space between lines</span>
-        <div className="flex gap-1">
+        <span className="block text-xs text-navy-600 mb-1">Space between lines</span>
+        <div className="flex flex-wrap gap-1">
           {lineOptions.map((o) => (
             <button
               key={o.value}
@@ -185,7 +211,7 @@ export default function TextSizeControl() {
             </button>
           ))}
         </div>
-        <p className="text-[10px] leading-snug text-navy-400 mt-1">
+        <p className="text-xs leading-snug text-navy-400 mt-1">
           Helps some readers keep their place. General readability guidance,
           not a measured result.
         </p>

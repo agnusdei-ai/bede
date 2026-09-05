@@ -125,6 +125,16 @@ book while telling it back
 **Three settings.** Every one starts off, and turning none of them on leaves
 the screen exactly as it is today.
 
+**You set them; your child can also adjust the two spacing ones from their
+own screen.** The value you choose here is the starting point and applies on
+every device. From the reading button in the corner of a lesson, your child
+can move the spacing on the tablet in front of them — which matters, because
+the child who needs wider spacing usually discovers it mid-page, and asking
+them to stop, find you, and wait while you open Parent Setup is asking them
+not to bother. Their change stays on that device and never edits your setting,
+and if you change the setting yourself, yours takes over again everywhere.
+The break checkbox stays yours alone.
+
 **They are not equally well supported, and the panel says so on each one.**
 Identical-looking controls would imply equal promises, and "letter spacing has
 real evidence, line spacing is general guidance" is precisely the thing a

@@ -2,9 +2,12 @@
 
 Two halves, deliberately in one file because they are two copies of one fact.
 
-**The schema half** pins the four fields added for a child whose obstacle is
+**The schema half** pins the three fields for a child whose obstacle is
 reading the screen rather than understanding the lesson — `letter_spacing`,
-`line_spacing`, `text_size`, `frequent_break_offers`. What matters about them
+`line_spacing`, `frequent_break_offers`. A fourth, `text_size`, shipped in
+#486 and was removed: `TextSizeControl` already offered it in both the app and
+the demo, scaling the root font size product-wide, so the new field was a
+weaker duplicate. Decision register entry 24, and a guard below. What matters about them
 is not that they exist but three properties that regress silently: every one
 defaults to today's rendering, the frontend mirror agrees exactly, and **none
 of them names a condition**. That last is this app's standing rule (Bede never
@@ -94,7 +97,6 @@ def _references() -> dict[tuple[str, str], str]:
 READING_PRESENTATION_FIELDS = {
     "letter_spacing": {"normal", "wide", "wider"},
     "line_spacing": {"normal", "relaxed", "loose"},
-    "text_size": {"normal", "large", "larger"},
 }
 
 
@@ -106,7 +108,6 @@ def test_every_new_setting_defaults_to_todays_behaviour():
     config = _config()
     assert config.letter_spacing == "normal"
     assert config.line_spacing == "normal"
-    assert config.text_size == "normal"
     assert config.frequent_break_offers is False
 
 
@@ -321,3 +322,24 @@ def test_the_research_document_is_named_in_the_ci_change_filter():
         "docs/ACCESSIBILITY_RESEARCH.md is not in test.yml's change-filter "
         "pattern, so a research-only change never runs this guard."
     )
+
+
+def test_no_per_student_text_size_field_comes_back():
+    """`TextSizeControl`/`useTextScale` already offer text size in BOTH the app
+    and the demo — a floating control on every screen scaling the ROOT font
+    size 87.5%-175% (WCAG 2.1 SC 1.4.4), which reaches every rem-based size in
+    the product. A per-student `SessionConfig` copy shipped in #486 without
+    anyone checking for it, and was removed as the weaker of two controls for
+    one thing.
+
+    Adding it back is an obvious-sounding request, and the reason it is
+    refused lives in a register entry nobody re-reads. This is that reason,
+    placed where someone adding the field would trip over it."""
+    assert "text_size" not in SessionConfig.model_fields, (
+        "SessionConfig has a text_size field again. Text size is "
+        "TextSizeControl's job — see docs/DECISIONS.md entry 24. If this is "
+        "deliberate, the register entry and both accessibility docs need "
+        "changing first, not just this test."
+    )
+    types = _TYPES.read_text()
+    assert "text_size" not in types, f"text_size is back in {_TYPES}."

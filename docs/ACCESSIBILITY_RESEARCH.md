@@ -1,7 +1,7 @@
 # Accessibility research: how the text is presented, and how often breaks are offered
 
 > **What this is.** The evidence base behind the reading-presentation settings
-> (`letter_spacing`, `line_spacing`, `text_size`) and `frequent_break_offers`,
+> (`letter_spacing`, `line_spacing`) and `frequent_break_offers`,
 > and behind three things deliberately **not** built. Every claim names its
 > source, states what class of evidence that source is, and states where it
 > stops.
@@ -63,7 +63,7 @@ finding, it has its own section (§6.1) rather than a footnote.
 | --- | --- | --- |
 | `letter_spacing` (carries word spacing) | **Strong** — §4.1 | An accommodation |
 | `line_spacing` | **Design guidance only** — §4.3 | "Helps some readers keep their place" |
-| `text_size` | **Contested; direction reverses with age** — §4.4 | A *preference*, explicitly not an accommodation |
+| `text_size` | **Contested; direction reverses with age** — §4.4 | **Not built here.** Already offered by `TextSizeControl`, product-wide — see §4.4 |
 | `frequent_break_offers` | **Not an evidence claim at all** — §5 | Removing an age limit on a parent's choice |
 
 The table is the point. Three of the four are honest about being weak, and the
@@ -124,8 +124,22 @@ font size **raised** comprehension, with no effect of line length or line
 spacing. *(RCT/Experimental.)*
 
 A developmental reversal is a strong reason not to sell text size as an
-accommodation. It is offered because a child may genuinely prefer it and
-preference is reason enough — but Bede does not get to claim it helps.
+accommodation.
+
+**And it is not a setting in the reading panel at all — that was a mistake,
+corrected.** A per-student `text_size` shipped in #486 without anyone checking
+that `TextSizeControl`/`useTextScale` already offered text size in **both** the
+app and the demo: a floating control on every screen, scaling the **root** font
+size 87.5%-175% (WCAG 2.1 SC 1.4.4), which scales every rem-based size in the
+product rather than the five elements a per-student setting could reach. Two
+controls for one thing, the newer one strictly weaker, is worse than either
+alone, so the newer one was removed (decision register entry 24).
+
+The evidence above is also what makes the surviving control the right home for
+it: text size is a *preference*, and a per-device control the reader sets
+themselves is exactly where this codebase already puts preferences — see
+`useChatTheme`'s background and bubble colours, which are the child's own
+choice for the same reason.
 
 ---
 

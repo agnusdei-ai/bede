@@ -157,7 +157,6 @@ interface StudentForm {
   learning_support: string
   letter_spacing: 'normal' | 'wide' | 'wider'
   line_spacing: 'normal' | 'relaxed' | 'loose'
-  text_size: 'normal' | 'large' | 'larger'
   frequent_break_offers: boolean
   voice_required: boolean
   appearance_locked: boolean
@@ -202,7 +201,6 @@ const blankStudent = (): StudentForm => ({
   learning_support: '',
   letter_spacing: 'normal' as const,
   line_spacing: 'normal' as const,
-  text_size: 'normal' as const,
   frequent_break_offers: false,
   voice_required: true,
   appearance_locked: false,
@@ -249,7 +247,6 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     learning_support: (c.learning_support ?? []).join(', '),
     letter_spacing: c.letter_spacing ?? 'normal',
     line_spacing: c.line_spacing ?? 'normal',
-    text_size: c.text_size ?? 'normal',
     frequent_break_offers: c.frequent_break_offers ?? false,
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
@@ -379,7 +376,6 @@ export default function ParentSetup() {
       learning_support: s.learning_support.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 10),
       letter_spacing: s.letter_spacing,
       line_spacing: s.line_spacing,
-      text_size: s.text_size,
       frequent_break_offers: s.frequent_break_offers,
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
@@ -1318,26 +1314,35 @@ function StudentCard({
                   learning-support design refuses, and would fit two children
                   with the same diagnosis equally badly.
 
-                  Every control carries BOTH a `title` and visible hint text,
-                  and the two say different things. IconButton.tsx's own
-                  comment records why `title` alone is never enough — it needs
-                  hover, which a tablet has not got — so the visible text
-                  carries what a parent must not miss, and the tooltip carries
-                  the evidence behind it. `title` sits on the wrapping <label>
-                  rather than on each <select>, since a tooltip is inherited
-                  from an ancestor and two copies of one string is one more
-                  place to drift.
+                  Explanation lives in the TOOLTIP and in the docs, never as
+                  body text here. A settings panel is a place to change a
+                  setting; the reasoning belongs in docs/SPECIAL_NEEDS.md and
+                  docs/ACCESSIBILITY_RESEARCH.md, which is where a parent
+                  deciding what to turn on is actually reading. `title` sits
+                  on the wrapping <label> rather than on each <select>, since
+                  a tooltip is inherited from an ancestor and two copies of
+                  one string is one more place to drift.
 
-                  These three are NOT equally well founded and the copy says
-                  so on each one: four identical-looking controls would imply
-                  four equal promises, and "spacing helps and bigger text may
-                  not" is precisely the thing a parent has no way to know.
-                  This panel is, deliberately, where that is disclosed rather
-                  than only in the docs. See docs/ACCESSIBILITY_RESEARCH.md
-                  and docs/SPECIAL_NEEDS.md. */}
+                  Note the real cost, since it is not nothing: `title` needs
+                  hover, which a tablet has not got (IconButton.tsx's own
+                  comment records the same limitation), so on a touch device
+                  the docs are the only route to the reasoning. That is the
+                  accepted trade — this panel is reached from a parent's
+                  setup screen, not mid-lesson on a child's tablet.
+
+                  TEXT SIZE IS NOT HERE, and its absence is the decision.
+                  `TextSizeControl` (mounted from AppShell, on every screen)
+                  already offers it and scales the ROOT font size, so it
+                  reaches the whole product rather than the few elements a
+                  setting here could. A duplicate shipped in #486 without
+                  checking for it and was removed. See decision register
+                  entry 24, docs/ACCESSIBILITY_RESEARCH.md and
+                  docs/SPECIAL_NEEDS.md. */}
               <div>
-                <label className="label">{t('parentSetup.readingPresentation')}</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+                <label className="label" title={t('parentSetup.readingPresentationTooltip')}>
+                  {t('parentSetup.readingPresentation')}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                   <div>
                     <label className="block" title={t('parentSetup.letterSpacingTooltip')}>
                       <span className="block text-xs text-gray-500 mb-1">{t('parentSetup.letterSpacing')}</span>
@@ -1366,22 +1371,7 @@ function StudentCard({
                       </select>
                     </label>
                   </div>
-                  <div>
-                    <label className="block" title={t('parentSetup.textSizeTooltip')}>
-                      <span className="block text-xs text-gray-500 mb-1">{t('parentSetup.textSize')}</span>
-                      <select
-                        value={student.text_size}
-                        onChange={(e) => onUpdate({ text_size: e.target.value as StudentForm['text_size'] })}
-                        className="input"
-                      >
-                        <option value="normal">{t('parentSetup.spacingNormal')}</option>
-                        <option value="large">{t('parentSetup.sizeLarge')}</option>
-                        <option value="larger">{t('parentSetup.sizeLarger')}</option>
-                      </select>
-                    </label>
-                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">{t('parentSetup.readingPresentationHint')}</p>
 
                 <label
                   className="flex items-start gap-2 mt-3 cursor-pointer"
@@ -1393,12 +1383,7 @@ function StudentCard({
                     onChange={(e) => onUpdate({ frequent_break_offers: e.target.checked })}
                     className="mt-0.5"
                   />
-                  <span className="text-sm text-gray-700">
-                    {t('parentSetup.frequentBreaks')}
-                    <span className="block text-xs text-gray-400">
-                      {t('parentSetup.frequentBreaksHint')}
-                    </span>
-                  </span>
+                  <span className="text-sm text-gray-700">{t('parentSetup.frequentBreaks')}</span>
                 </label>
               </div>
               <div>

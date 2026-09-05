@@ -1050,8 +1050,24 @@ now `needs:` is a boot on a real board, not a first build.
 **Decided (2026-09-05).** A parent asked for accommodations for dyslexia and
 other learning differences. The obvious build is a **dyslexia mode**. What
 shipped instead is four ordinary settings any parent can turn on for any
-student — `letter_spacing`, `line_spacing`, `text_size` and
-`frequent_break_offers` — none of which names a condition.
+student — `letter_spacing`, `line_spacing` and `frequent_break_offers` — none
+of which names a condition.
+
+**Amended (2026-09-05).** A fourth, `text_size`, shipped and was **removed the
+same day**. `TextSizeControl`/`useTextScale` already offered text size in both
+the app and the demo — a floating control on every screen scaling the **root**
+font size 87.5%-175% (WCAG 2.1 SC 1.4.4), reaching every rem-based size in the
+product rather than the five elements a per-student setting could. It was added
+without checking for the control that already existed. Two controls for one
+thing, the newer strictly weaker, is worse than either alone, so the newer went.
+The evidence supports the surviving placement independently: text size is a
+*preference* (§4.4 — bigger is not reliably better, and the direction reverses
+with age), and a per-device control the reader sets themselves is where this
+codebase already puts preferences, as `useChatTheme`'s colours are. Recorded
+here rather than quietly reverted, since "add text size to the reading panel"
+is an obvious-sounding request and this is the reason it is refused;
+`readingPresentation.test.ts` and `test_accessibility_research.py` both guard
+it.
 
 **The evidence is in [`ACCESSIBILITY_RESEARCH.md`](ACCESSIBILITY_RESEARCH.md).**
 This entry carries the state; that document carries the argument, per this

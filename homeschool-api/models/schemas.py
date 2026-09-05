@@ -478,13 +478,15 @@ class SessionConfig(BaseModel):
     #: effect for this population.
     line_spacing: Literal["normal", "relaxed", "loose"] = "normal"
 
-    #: Text size. Deliberately offered as a PREFERENCE, never described to a
-    #: parent as an accommodation, because the evidence says bigger is not
-    #: reliably better and the direction actually reverses with age (Katzir
-    #: et al. 2013: smaller type RAISED comprehension for fifth graders while
-    #: lowering it for second graders). A parent may still want it; Bede just
-    #: does not get to claim it helps.
-    text_size: Literal["normal", "large", "larger"] = "normal"
+    #: There is deliberately NO text-size field here. `useTextScale`/
+    #: `TextSizeControl` already offer it in both the app and the demo, as a
+    #: floating control on every screen scaling the ROOT font size 87.5%-175%
+    #: (WCAG 2.1 SC 1.4.4) — which scales every rem-based size in the product,
+    #: not the handful of elements a per-student setting could reach. One
+    #: shipped here in #486 without checking for the control that already
+    #: existed, and was removed rather than left as a weaker duplicate. See
+    #: decision register entry 24.
+
 
     #: Offer the optional 20-minute break rhythm regardless of grade.
     #: utils/gradeTimer.ts's getSuggestedBreak gates that rhythm on K-3, so a

@@ -1787,7 +1787,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
         )}
         {isListening && interim && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border border-sage-200">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.4375rem)] bg-sage-200/60 border border-sage-200">
               {transcriptWords.map(({ text, key, isNew }) => (
                 <span
                   key={key}
@@ -1802,7 +1802,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
         )}
         {isTranscribing && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 text-sage-800 italic border border-sage-200 flex items-center gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.4375rem)] bg-sage-200/60 text-sage-800 italic border border-sage-200 flex items-center gap-2">
               <Loader2 size={12} className="animate-spin" /> {t('chatScreen.transcribing')}
             </div>
           </div>
@@ -1812,7 +1812,7 @@ function ChatScreen({ displayName, subjects, currentUnit, runChat, token, code, 
             (see holdStart); Cancel just discards. */}
         {pendingVoiceTranscript !== null && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-[var(--bede-line-height,1.4375rem)] bg-sage-200/60 border-2 border-sage-400 flex flex-col gap-2">
               <span className="text-sage-900">{pendingVoiceTranscript}</span>
               <div className="flex gap-2 justify-end">
                 <button
@@ -1948,7 +1948,7 @@ function MessageBubble({ msg, studentName, bubbleClass }: { msg: DisplayMessage;
       subject_complete: 'border-l-[3px] border-navy-400 bg-navy-50/70 font-medium',
     }
     return (
-      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-base leading-relaxed text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>
+      <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-base leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${accent[msg.tool] ?? 'border-l-[3px] border-gray-300 bg-gray-50/70'}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {renderEmphasis(msg.content)}
       </div>
@@ -1957,7 +1957,7 @@ function MessageBubble({ msg, studentName, bubbleClass }: { msg: DisplayMessage;
   const isUser = msg.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed ${isUser ? `${bubbleClass} text-white rounded-br-sm` : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-base leading-[var(--bede-line-height,1.625)] ${isUser ? `${bubbleClass} text-white rounded-br-sm` : 'bg-parchment-50 border border-sage-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
         {!isUser && <div className="text-xs font-semibold text-sage-700 mb-1">Bede</div>}
         {/* white/85 (not a sage tint) so the name stays legible on every bubble color */}
         {isUser && <div className="text-xs font-semibold text-white/85 mb-1">{studentName}</div>}

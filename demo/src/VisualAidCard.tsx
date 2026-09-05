@@ -132,9 +132,9 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
           {caption}
         </div>
         {putAway ? (
-          <p className="text-sm text-gray-500 italic leading-relaxed">Now tell Bede what you remember, in your own words.</p>
+          <p className="text-sm text-gray-500 italic leading-[var(--bede-line-height,1.625)]">Now tell Bede what you remember, in your own words.</p>
         ) : (
-          <p className="text-sm text-gray-700 leading-relaxed">{aid.description}</p>
+          <p className="text-sm text-gray-700 leading-[var(--bede-line-height,1.625)]">{aid.description}</p>
         )}
       </div>
     </div>

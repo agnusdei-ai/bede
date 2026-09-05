@@ -352,6 +352,47 @@ description in particular is large and carefully iterated on; a future
 mixed-language report tied to one of those tools would be the trigger to
 revisit them the same way.
 
+## The English Bede was handed: server-composed strings and labels
+
+`_locale_directive` tells the model to write every word in the family's
+language, and it does. It cannot fix text the model never wrote, or an
+English name the prompt handed it to repeat.
+
+A live Spanish session showed both at once: the subject picker read
+**Tiempo Matutino** and Bede opened with *"Hoy en **Morning Time** vamos a
+comenzar juntos"*. `_build_subject_prompt` passed `CURRENT SUBJECT: Morning
+Time`, so the model took that as the subject's name and used it.
+
+Four homes for the same defect, all now closed:
+
+| Where | What a Spanish session got |
+| --- | --- |
+| `CURRENT SUBJECT:` in the prompt | Bede saying "Morning Time" mid-sentence |
+| `_process_tool_use`'s card wording | "🔍 Let me ask it this way: ¿Qué crees…?" and "✨ ¡Muy bien! I noticed you saw that el agua sube." |
+| The empty-turn refusal fallbacks | an English sentence ending a Spanish lesson |
+| The app's own subject names | "Morning Time" in the sidebar; the product had no `subjects` translations at all, only the demo did |
+
+**The rule this leaves.** Anything the server composes and sends to a child
+— a card's wording, a fallback sentence, a label handed to the model — must
+be written per locale, exactly like `safeguarding_response` and its siblings
+already were. Native-language generation covers what the model writes and
+nothing else.
+
+**The trap in fixing it.** `_composition_note` decides whether this
+session's one writing invitation has gone out by scanning history for the
+`invite_handwriting` card's rendered title. Localizing that title without
+widening the scan would make a Spanish session re-invite composition on
+every single turn, because the English title would never appear —
+`handwriting_card_titles()` returns every locale's, and
+`tests/test_mixed_language_output.py` fails if the scan stops recognising
+one.
+
+**Whatever the screen calls a subject, Bede calls it too.** The UI's
+`subjects.*` strings and `models/schemas.py`'s `subject_label()` are two
+copies of one fact, asserted equal for both apps and every locale — a
+subject named one way on screen and another in the prompt is the reported
+bug wearing different clothes.
+
 ## Sex, not gender-neutral hedging
 
 Spanish, Italian, and Polish all require grammatically correct address —

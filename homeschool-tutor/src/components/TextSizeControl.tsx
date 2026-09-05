@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Minus, Plus, Type } from 'lucide-react'
 import { useTextScale } from '../hooks/useTextScale'
+import { useTranslation } from 'react-i18next'
 
 // How long the expanded +/- control stays open after the last tap before
 // collapsing itself back down to the small icon-only button.
@@ -39,6 +40,7 @@ const AUTO_COLLAPSE_MS = 4000
  * on screen while actively being used, not permanently blocking text.
  */
 export default function TextSizeControl() {
+  const { t } = useTranslation()
   const { scale, increase, decrease, canIncrease, canDecrease } = useTextScale()
   const [expanded, setExpanded] = useState(false)
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -59,8 +61,8 @@ export default function TextSizeControl() {
       <button
         type="button"
         onClick={() => { setExpanded(true); scheduleCollapse() }}
-        aria-label={`Text size, ${Math.round(scale)}%. Tap to adjust.`}
-        title="Text size"
+        aria-label={t('reading.textSizeTap', { pct: Math.round(scale) })}
+        title={t('reading.textSize')}
         className="fixed top-3 right-3 z-40 flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/95 backdrop-blur border border-navy-200 shadow-md pt-safe pr-safe text-navy-500 hover:bg-navy-50 hover:text-navy-700 transition-colors"
       >
         <Type size={16} aria-hidden="true" />
@@ -71,7 +73,7 @@ export default function TextSizeControl() {
   return (
     <div
       role="group"
-      aria-label="Text size"
+      aria-label={t('reading.textSize')}
       className="fixed top-3 right-3 z-40 flex items-center gap-0.5 rounded-full bg-white/95 backdrop-blur border border-navy-200 shadow-md pt-safe pr-safe px-1.5 py-1"
     >
       <Type size={14} className="text-navy-400 mx-1" aria-hidden="true" />
@@ -79,8 +81,8 @@ export default function TextSizeControl() {
         type="button"
         onClick={() => { decrease(); scheduleCollapse() }}
         disabled={!canDecrease}
-        aria-label="Decrease text size"
-        title="Decrease text size"
+        aria-label={t('reading.decrease')}
+        title={t('reading.decrease')}
         className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-navy-600 hover:bg-navy-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
       >
         <Minus size={14} />
@@ -92,8 +94,8 @@ export default function TextSizeControl() {
         type="button"
         onClick={() => { increase(); scheduleCollapse() }}
         disabled={!canIncrease}
-        aria-label="Increase text size"
-        title="Increase text size"
+        aria-label={t('reading.increase')}
+        title={t('reading.increase')}
         className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-navy-600 hover:bg-navy-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
       >
         <Plus size={14} />

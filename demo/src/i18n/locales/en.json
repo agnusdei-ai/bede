@@ -258,5 +258,30 @@
     "tookItFurther": "{{count}} took it further",
     "initiative": "Where you can see initiative: {{notes}}.",
     "caveat": "This counts pieces of work, not your learner — and only what Bede genuinely saw. It's kept just for this session and deleted when you log out."
+  },
+  "reading": {
+    "textSize": "Text size",
+    "textSizeTap": "Text size, {{pct}}%. Tap to adjust.",
+    "decrease": "Decrease text size",
+    "increase": "Increase text size",
+    "settings": "Reading settings",
+    "settingsTap": "Reading settings. Text size {{pct}}%. Tap to adjust.",
+    "close": "Close reading settings",
+    "letterSpacingTooltip": "The best-supported of these. In a study of dyslexic 8-14 year olds, extra letter spacing doubled reading accuracy and made reading over 20% faster. Word spacing widens with it, so word boundaries stay clear.",
+    "lineSpacingTooltip": "Helps some readers keep their place when moving from one line to the next. General readability guidance rather than a measured result."
+  },
+  "themes": {
+    "meadow": "Meadow",
+    "parchment": "Parchment",
+    "morning-sky": "Morning Sky",
+    "sunrise": "Sunrise"
+  },
+  "bubbles": {
+    "sage": "Sage",
+    "navy": "Navy",
+    "olive": "Olive",
+    "clay": "Clay",
+    "plum": "Plum",
+    "walnut": "Walnut"
   }
 }

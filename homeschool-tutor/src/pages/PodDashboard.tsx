@@ -6,6 +6,7 @@ import { useSessionStore } from '../store/sessionStore'
 import { fetchNarrationAssessments, fetchLearnerProfile, deleteStudentData } from '../services/api'
 import { SUBJECTS } from '../types'
 import type { SessionConfig } from '../types'
+import { subjectLabel } from '../utils/subjectLabel'
 
 export default function PodDashboard() {
   const { t } = useTranslation()
@@ -312,7 +313,7 @@ function StudentPodCard({
             const info = SUBJECTS.find((x) => x.id === s)
             return (
               <span key={s} className="text-xs bg-navy-50 text-navy-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                {info && <info.Icon size={10} />} {info?.label}
+                {info && <info.Icon size={10} />} {subjectLabel(t, s)}
               </span>
             )
           })}

@@ -258,5 +258,30 @@
     "tookItFurther": "{{count}} lo llevaron más lejos",
     "initiative": "Dónde se nota la iniciativa: {{notes}}.",
     "caveat": "Esto cuenta trabajos, no a su estudiante, y solo lo que Bede realmente observó. Se guarda únicamente para esta sesión y se borra al cerrarla."
+  },
+  "reading": {
+    "textSize": "Tamaño del texto",
+    "textSizeTap": "Tamaño del texto, {{pct}}%. Toca para ajustar.",
+    "decrease": "Reducir el tamaño del texto",
+    "increase": "Aumentar el tamaño del texto",
+    "settings": "Ajustes de lectura",
+    "settingsTap": "Ajustes de lectura. Tamaño del texto {{pct}}%. Toca para ajustar.",
+    "close": "Cerrar los ajustes de lectura",
+    "letterSpacingTooltip": "El mejor respaldado de estos. En un estudio con niños disléxicos de 8 a 14 años, un mayor espaciado entre letras duplicó la precisión de lectura y la hizo más de un 20 % más rápida. El espacio entre palabras se amplía junto con él, para que los límites entre palabras sigan claros.",
+    "lineSpacingTooltip": "Ayuda a algunos lectores a no perder el renglón al pasar de una línea a la siguiente. Es orientación general de legibilidad, no un resultado medido."
+  },
+  "themes": {
+    "meadow": "Pradera",
+    "parchment": "Pergamino",
+    "morning-sky": "Cielo Matutino",
+    "sunrise": "Amanecer"
+  },
+  "bubbles": {
+    "sage": "Salvia",
+    "navy": "Azul Marino",
+    "olive": "Oliva",
+    "clay": "Arcilla",
+    "plum": "Ciruela",
+    "walnut": "Nogal"
   }
 }

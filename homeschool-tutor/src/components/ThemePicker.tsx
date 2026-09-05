@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Palette, Check } from 'lucide-react'
 import { BUBBLE_COLORS, CHAT_THEMES, type BubbleColor, type ChatTheme } from '../hooks/useChatTheme'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Compact background-theme picker for the chat header: a palette icon that
@@ -16,6 +17,7 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   bubble: BubbleColor
   onSelectBubble: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -34,7 +36,7 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
     <div ref={rootRef} className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Background theme"
+        title={t('themePicker.backgroundTheme')}
         aria-label={`Background theme: ${theme.name}. Tap to change.`}
         aria-expanded={open}
         className="p-2 text-gray-400 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors"

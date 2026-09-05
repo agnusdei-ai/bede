@@ -38,6 +38,7 @@ from models.schemas import (
     GradeStage,
     CompanionMode,
     SUBJECT_LABELS,
+    subject_label,
     SessionSummaryRequest,
     PUBLIC_DOMAIN_BIBLE_TRANSLATIONS,
 )
@@ -1118,6 +1119,31 @@ _MODERATION_REDIRECT_RESPONSES = {
 }
 
 
+_EMPTY_TURN_RESPONSES = {
+    "en": "I'm not able to help with that one — let's try something else. What would you like to explore?",
+    "es": "Con eso no te puedo ayudar; probemos con otra cosa. ¿Qué te gustaría explorar?",
+}
+
+_EMPTY_TURN_SANDBOX_RESPONSES = {
+    "en": "I'm not able to help with that one — try rephrasing it, or ask something else.",
+    "es": "Con eso no te puedo ayudar; inténtalo de otra manera o pregunta otra cosa.",
+}
+
+
+def empty_turn_response(locale: str = "en") -> str:
+    """What the child sees when a turn ends with no content at all (Claude's
+    own stop_reason="refusal" can do this). Server-composed, with no model in
+    the loop, so it has to be written per locale like every other fallback
+    here — an English sentence at the end of a Spanish lesson is exactly the
+    mixed-language defect this pass exists to close."""
+    return _EMPTY_TURN_RESPONSES.get(locale, _EMPTY_TURN_RESPONSES["en"])
+
+
+def empty_turn_sandbox_response(locale: str = "en") -> str:
+    """The parent sandbox's own version of the above."""
+    return _EMPTY_TURN_SANDBOX_RESPONSES.get(locale, _EMPTY_TURN_SANDBOX_RESPONSES["en"])
+
+
 def moderation_redirect_response(locale: str = "en") -> str:
     """Localized non-crisis content redirect — same fallback contract as
     safeguarding_response()."""
@@ -1406,9 +1432,10 @@ Converse with {config.student_name} entirely in {language_name} — every word y
 opening greeting to your closing prayer. Write the way a native-speaking tutor actually talks: natural idiom and \
 sentence rhythm, never a stiff or literal translation of English phrasing. Keep the same reading-level judgment the \
 grade guidance above already asks of you — simpler vocabulary and shorter sentences for a younger child, more range \
-for an older one — the language changes, the Socratic method and every rule above do not. {sex_sentence} Tool names \
-and any structured data you produce stay exactly as documented below, in English; only your own spoken and written \
-words to {config.student_name} change language.
+for an older one — the language changes, the Socratic method and every rule above do not. {sex_sentence} Tool NAMES and \
+the JSON field names you fill in stay exactly as documented below, in English, because they are machine identifiers \
+rather than speech. Nothing else does. In particular the subject's own name, and every word inside a tool's text \
+fields, are things {config.student_name} reads — say them in {language_name}, never in English.
 </language>"""
 
 
@@ -2459,6 +2486,9 @@ def _time_of_day_note(time_of_day: Optional[str]) -> str:
 # renderer (_process_tool_use) and _composition_note's history scan below,
 # so the once-per-session detection can never drift from what the client
 # actually echoes back in history.
+# Kept for readers that reference it by name; defined FROM the phrase
+# table so the English title has exactly one home. The history scan uses
+# handwriting_card_titles() instead — see that function.
 _HANDWRITING_CARD_MARKER = "Time to Write or Draw"
 
 
@@ -2476,8 +2506,9 @@ def _composition_note(history: Optional[List[ChatMessage]]) -> str:
     has gone out this session, the standing nudge switches off and normal
     invite_handwriting judgment applies.
     """
+    titles = handwriting_card_titles()
     already_invited = any(
-        m.role == "assistant" and _HANDWRITING_CARD_MARKER in (m.content or "")
+        m.role == "assistant" and any(title in (m.content or "") for title in titles)
         for m in (history or [])
     )
     if already_invited:
@@ -2636,7 +2667,7 @@ def _session_position_note(
     return "".join(notes)
 
 
-def _lesson_resume_note(config: SessionConfig, subject: Subject) -> str:
+def _lesson_resume_note(config: SessionConfig, subject: Subject, locale: str = "en") -> str:
     """
     The "meet me where I am" block: the parent's own note about where this
     subject's last lesson stopped, so Bede opens mid-thread instead of
@@ -2673,7 +2704,7 @@ def _lesson_resume_note(config: SessionConfig, subject: Subject) -> str:
     recorded = _sanitize_parent_field(entry.recorded_on, max_len=10)
 
     name = config.student_name
-    label = SUBJECT_LABELS[subject]
+    label = subject_label(subject, locale)
     lines = [f"- Where the last lesson stopped: {stopped}"]
     if next_step:
         lines.append(f"- What the parent wants taken up next: {next_step}")
@@ -2851,7 +2882,7 @@ async def _build_subject_prompt(
     faith_note = f"\nToday's faith focus: {faith_raw}" if faith_raw else ""
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
-    resume_note = _lesson_resume_note(config, subject)
+    resume_note = _lesson_resume_note(config, subject, locale)
     # A parent's explicit lesson_resume note is a strictly more authoritative
     # "where we left off" signal than Bede's own auto-generated bookmark (see
     # _bookmark_note's docstring) — both describe the same resume point, and
@@ -2937,7 +2968,7 @@ async def _build_subject_prompt(
     bible_translation_note = _bible_translation_note(config, subject)
     companion_note = _classical_language_companion_note(config, subject)
 
-    return f"""CURRENT SUBJECT: {SUBJECT_LABELS[subject]}
+    return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
 {_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
 
 
@@ -2997,25 +3028,77 @@ def _processing_style_note(processing_style: Optional[str]) -> str:
     return ""
 
 
-def _process_tool_use(tool_name: str, tool_input: dict) -> str:
-    """Convert tool calls into natural tutor responses."""
+# The words the SERVER puts around a tool card, per locale.
+#
+# Everything the model supplies inside a card is already in the session's
+# language, but these connectives were hardcoded English — so a Spanish
+# session rendered "🔍 Let me ask it this way: ¿Qué crees que pasaría…?" and
+# "✨ ¡Muy bien! I noticed you saw that el agua sube." An English frame
+# around Spanish text is the same defect as an English subject name, and it
+# fired on every turn that produced a card.
+#
+# Same {"en": …, "es": …} + accessor shape as _SAFEGUARDING_RESPONSES and its
+# siblings. A locale with no entry falls back to English rather than being
+# machine-translated at request time.
+_CARD_PHRASES = {
+    "en": {
+        "narration_title": "Narration Time",
+        "handwriting_title": "Time to Write or Draw",
+        "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
+        "hint_plain": "Let me ask it this way: {hint}",
+        "celebration": "{encouragement} I noticed you saw that {insight}.",
+    },
+    "es": {
+        "narration_title": "Momento de Narración",
+        "handwriting_title": "Hora de Escribir o Dibujar",
+        "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
+        "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
+        "celebration": "{encouragement} Me di cuenta de que viste que {insight}.",
+    },
+}
+
+
+def card_phrases(locale: str = "en") -> dict:
+    """The server-composed wording around a tool card, in the session's own
+    language. Exported so tests can assert every locale carries every key."""
+    return _CARD_PHRASES.get(locale, _CARD_PHRASES["en"])
+
+
+def handwriting_card_titles() -> set:
+    """Every locale's rendered title for the invite_handwriting card.
+
+    _composition_note scans the conversation history for that title to know
+    whether this session's one composition invitation has already gone out.
+    Once the title is localized, scanning for the English one alone would
+    read a Spanish session's card as "no invitation yet" and re-invite every
+    single turn — so the scan checks them all."""
+    return {phrases["handwriting_title"] for phrases in _CARD_PHRASES.values()}
+
+
+def _process_tool_use(tool_name: str, tool_input: dict, locale: str = "en") -> str:
+    """Convert tool calls into natural tutor responses, in the session's
+    own language — see _CARD_PHRASES for why the locale argument exists."""
+    phrases = card_phrases(locale)
+
     if tool_name == "request_narration":
-        return f"📖 *Narration Time* — {tool_input['prompt']}"
+        return f"📖 *{phrases['narration_title']}* — {tool_input['prompt']}"
 
     if tool_name == "invite_handwriting":
-        return f"✍️ *{_HANDWRITING_CARD_MARKER}* — {tool_input['prompt']}"
+        return f"✍️ *{phrases['handwriting_title']}* — {tool_input['prompt']}"
 
     if tool_name == "offer_socratic_hint":
         hint = tool_input["hint_question"]
         analogy = tool_input.get("analogy", "")
         if analogy:
-            return f"🔍 Here's a thought to try: {analogy} ... so with that in mind — {hint}"
-        return f"🔍 Let me ask it this way: {hint}"
+            return "🔍 " + phrases["hint_with_analogy"].format(analogy=analogy, hint=hint)
+        return "🔍 " + phrases["hint_plain"].format(hint=hint)
 
     if tool_name == "celebrate_discovery":
         insight = tool_input["specific_insight"]
         encouragement = tool_input["encouragement"]
-        card = f"✨ {encouragement} I noticed you saw that {insight}."
+        card = "✨ " + phrases["celebration"].format(
+            encouragement=encouragement, insight=insight
+        )
         # Optional, same shape as connect_to_faith's reflection_question just
         # below — see that field's own description for why it exists.
         follow_up = (tool_input.get("next_question") or "").strip()
@@ -4242,7 +4325,7 @@ async def stream_tutor_response(
                                             processing_style == "reading_writing" and not has_elements
                                         ):
                                             await _increment_behavior_check(db, config.student_name)
-                                    tool_response = _process_tool_use(tc["name"], tool_input)
+                                    tool_response = _process_tool_use(tc["name"], tool_input, locale)
                                     if tool_response:
                                         yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
                                         # Which field means "this card asked
@@ -4367,7 +4450,7 @@ async def stream_tutor_response(
     if final_message is not None and _final_content is not None and len(_final_content) == 0:
         yield json.dumps({
             'type': 'text',
-            'content': "I'm not able to help with that one — let's try something else. What would you like to explore?",
+            'content': empty_turn_response(locale),
         })
 
     yield json.dumps({'type': 'done'})
@@ -4786,6 +4869,7 @@ async def stream_sandbox_response(
     external_tools: Optional[List[Any]] = None,
     external_clients: Optional[dict] = None,
     audit_context: Optional[dict] = None,
+    locale: str = "en",
 ) -> AsyncIterator[str]:
     """Direct-answer streaming chat for the parent sandbox — no subject/grade
     context, no database access. Same SSE text-chunk format as
@@ -4954,7 +5038,7 @@ async def stream_sandbox_response(
     if final_message is not None and _final_content is not None and len(_final_content) == 0:
         yield json.dumps({
             'type': 'text',
-            'content': "I'm not able to help with that one — try rephrasing it, or ask something else.",
+            'content': empty_turn_sandbox_response(locale),
         })
 
     yield json.dumps({'type': 'done'})

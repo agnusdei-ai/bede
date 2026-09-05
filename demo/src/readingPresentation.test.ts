@@ -144,8 +144,29 @@ describe('the panel shows controls, not a research summary', () => {
     // equal-looking controls with nothing distinguishing what each is
     // supported by, which is the thing docs/ACCESSIBILITY_RESEARCH.md exists
     // to prevent.
-    const titles = [...src.matchAll(/title="([^"]*)"/g)].map((m) => m[1]).join(' ').toLowerCase()
-    expect(titles).toContain('dyslex')
-    expect(titles).toContain('general readability guidance')
+    //
+    // The tooltips are TRANSLATED now (a Spanish visitor was reading English
+    // ones), so the evidence lives in the locale files rather than in a
+    // title="..." literal. This follows it there instead of relaxing the
+    // rule: the honesty has to survive in every language it is shown in, not
+    // just the one it was written in.
+    const en = JSON.parse(
+      readFileSync(join(__dirname, 'i18n/locales/en.json'), 'utf8'),
+    ).reading as Record<string, string>
+    const es = JSON.parse(
+      readFileSync(join(__dirname, 'i18n/locales/es.json'), 'utf8'),
+    ).reading as Record<string, string>
+
+    expect(en.letterSpacingTooltip.toLowerCase()).toContain('dyslex')
+    expect(en.lineSpacingTooltip.toLowerCase()).toContain('general readability guidance')
+    // Spanish keeps both claims: the condition named in the strong one, and
+    // the weak one still labelled as guidance rather than a measured result.
+    expect(es.letterSpacingTooltip.toLowerCase()).toContain('disléx')
+    expect(es.lineSpacingTooltip.toLowerCase()).toContain('no un resultado medido')
+
+    // And the panel still points at them, rather than having dropped the
+    // attribute entirely.
+    expect(src).toContain("title={t('reading.letterSpacingTooltip')}")
+    expect(src).toContain("title={t('reading.lineSpacingTooltip')}")
   })
 })

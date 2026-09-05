@@ -23,6 +23,7 @@ import { readingStyle } from '../utils/readingPresentation'
 import { pickBreakActivity } from '../utils/breakActivities'
 import { setLogoutNotice } from '../utils/logoutNotice'
 import { Coffee, Eye, Footprints } from 'lucide-react'
+import { subjectLabel } from '../utils/subjectLabel'
 
 // A break screen tells the child to step away from the device — if nobody
 // comes back to it (taps, types, or otherwise touches the page) for this
@@ -370,7 +371,7 @@ export default function TutorSession() {
           </span>
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sage-100 text-sage-800 text-sm font-medium border border-sage-300 hover:bg-sage-200 transition-colors">
             {subjectInfo && <subjectInfo.Icon size={16} />}
-            <span className="max-w-[140px] truncate">{subjectInfo?.label}</span>
+            <span className="max-w-[140px] truncate">{currentSubject ? subjectLabel(t, currentSubject) : subjectInfo?.label}</span>
             <ChevronDown size={14} />
           </span>
         </button>

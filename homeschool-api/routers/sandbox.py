@@ -35,7 +35,7 @@ _ERROR_MESSAGE = "Something went wrong on my end. Could you try sending that aga
 async def chat(
     req: SandboxChatRequest,
     request: Request,
-    _: dict = Depends(require_parent),
+    auth: dict = Depends(require_parent),
 ):
     """
     Direct-answer chat for testing/exploring Bede's behavior. Requires an
@@ -77,6 +77,7 @@ async def chat(
                 external_tools=external_tools,
                 external_clients=external_clients,
                 audit_context=audit_from_request(request),
+                locale=auth.get("locale", "en"),
             )):
                 yield chunk
         except asyncio.TimeoutError:
@@ -167,6 +168,7 @@ async def demo_chat(
                 conversation_history=req.conversation_history,
                 message=req.message,
                 custom_instructions=req.custom_instructions,
+                locale=auth.get("locale", "en"),
             )):
                 yield chunk
         except asyncio.TimeoutError:

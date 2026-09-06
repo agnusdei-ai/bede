@@ -393,6 +393,17 @@ copies of one fact, asserted equal for both apps and every locale — a
 subject named one way on screen and another in the prompt is the reported
 bug wearing different clothes.
 
+**And the guard is reachable for the change it guards.** That suite reads
+the two locale directories and five child-facing components, none of them
+under `homeschool-api/`, so all seven are named in
+`.github/workflows/test.yml`'s change filter — without them a locale-only
+or component-only edit computes `relevant=false`, skips `api-tests`, and
+the guards never run for exactly the change they exist to catch. The paths
+are derived from the suite's own constants rather than retyped, so one
+added to the suite and not to CI fails there instead of going quiet. This
+was found while resolving a merge conflict in that very grep line: nothing
+would have caught the i18n paths being dropped by hand.
+
 ## Sex, not gender-neutral hedging
 
 Spanish, Italian, and Polish all require grammatically correct address —

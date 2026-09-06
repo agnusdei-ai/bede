@@ -244,3 +244,39 @@ def test_no_child_facing_control_hardcodes_an_english_label(path):
     assert not literals, (
         f"{path} hardcodes {literals} instead of translating them."
     )
+
+
+# ── The guard has to be reachable for the change it guards ──────────────
+
+
+# Everything this suite reads from outside homeschool-api/, as a regex
+# fragment matching the change filter's own escaping. Derived from the
+# constants above rather than retyped, so a path added to this suite and
+# not to CI fails here instead of going quiet.
+_OUTSIDE_PATHS = [
+    "homeschool-tutor/src/i18n/",
+    "demo/src/i18n/",
+] + [p.replace(".", "\\.") for p in CHILD_FACING]
+
+
+@pytest.mark.parametrize("path", _OUTSIDE_PATHS)
+def test_the_files_this_guard_reads_are_in_the_ci_change_filter(path):
+    """This suite reads the locale files and five child-facing components,
+    none of them under homeschool-api/. Until each is named in
+    .github/workflows/test.yml's filter, a locale-only or component-only
+    edit computes relevant=false, skips api-tests, and these guards never
+    run for exactly the change they exist to catch — the failure
+    test_decision_register.py documents, and the one that made the reported
+    defect possible in the first place.
+
+    Reads the grep pattern line itself rather than the whole workflow: the
+    first version of the equivalent guard passed on a comment beside the
+    filter, which is a vacuous pass."""
+    workflow = (Path(__file__).resolve().parents[2]
+                / ".github" / "workflows" / "test.yml").read_text()
+    pattern_lines = [ln for ln in workflow.splitlines() if "grep -qE" in ln]
+    assert pattern_lines, "Could not find the change filter's grep line in test.yml."
+    assert any(path in ln for ln in pattern_lines), (
+        f"{path} is not in test.yml's change filter, so an edit touching only "
+        "it would skip the suite that reads it."
+    )

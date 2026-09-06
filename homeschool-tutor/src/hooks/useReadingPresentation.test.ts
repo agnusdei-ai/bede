@@ -181,12 +181,31 @@ describe('the panel says what a setting does, never what a reader has', () => {
   })
 
   it('still carries the evidence in the tooltip, where a curious parent finds it', () => {
+    // Two claims, and BOTH are needed. Asserting only that the rendered
+    // title equals the locale string is a tautology — it passes just as
+    // happily when both tooltips are empty, which is the state this guard
+    // exists to prevent. So: the locale files must still carry the
+    // evidence, and the panel must still render it.
+    //
+    // In EVERY language it is shown in, not just the one it was written
+    // in — the tooltips are translated now, and honesty that survives only
+    // in English is not honesty a Spanish family gets. Mirrors the demo's
+    // own guard in demo/src/readingPresentation.test.ts.
     const en = JSON.parse(
       readFileSync(join(__dirname, '../i18n/locales/en.json'), 'utf8'),
     ).reading as Record<string, string>
     const es = JSON.parse(
       readFileSync(join(__dirname, '../i18n/locales/es.json'), 'utf8'),
     ).reading as Record<string, string>
+
+    // The strong setting names what it is supported by; the weak one stays
+    // labelled as guidance rather than a measured result. A panel where
+    // both read the same way is what docs/ACCESSIBILITY_RESEARCH.md exists
+    // to prevent.
+    expect(en.letterSpacingTooltip.toLowerCase()).toContain('dyslex')
+    expect(en.lineSpacingTooltip.toLowerCase()).toContain('rather than a measured result')
+    expect(es.letterSpacingTooltip.toLowerCase()).toContain('disléx')
+    expect(es.lineSpacingTooltip.toLowerCase()).toContain('no un resultado medido')
 
     useSessionStore.setState({ sessionConfig: { student_name: ADA } as any })
     const { container, unmount } = render(createElement(TextSizeControl))

@@ -86,6 +86,14 @@ describe('the suggestion itself', () => {
     expect(getSuggestedBreak(study(20), false, true)).toMatchObject({ mark: 1 })
   })
 
+  it('follows the same 20/40-minute path for older grades once the override is on', () => {
+    for (let m = 0; m < 20; m++) expect(getSuggestedBreak(study(m), false, true)).toBeNull()
+    for (let m = 20; m < 40; m++) expect(getSuggestedBreak(study(m), false, true)).toMatchObject({ mark: 1 })
+    for (let m = 40; m < SESSION_STUDY_MINUTES; m++) {
+      expect(getSuggestedBreak(study(m), false, true)!.mark).toBe(2)
+    }
+  })
+
   it('yields nothing during a mandatory break or once concluded', () => {
     // The safety property. A suggestion must never compete with, or look
     // like, something the child is allowed to dismiss.

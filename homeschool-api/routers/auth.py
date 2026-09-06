@@ -5,25 +5,35 @@ import hmac
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import get_db
-from core.demo_code_session import end_session as end_code_session, generate_code, redeem_code
-from core.deps import require_auth, require_parent
+from core.demo_code_session import (
+    end_session as end_code_session,
+    generate_code,
+    get_personalization as get_demo_personalization,
+    redeem_code,
+    set_parent_config,
+)
+from core.deps import require_auth, require_demo_parent_config, require_parent
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
 from models.schemas import (
     DemoCodeRequest,
     DemoCodeResponse,
+    DemoParentConfigRequest,
     ElevationRequest,
     ElevationResponse,
     LoginRequest,
     TokenResponse,
+    SessionConfig,
     VALID_GRADES,
+    grade_to_stage,
 )
 from services import mfa_service
 from services.ai_service import _sanitize_parent_field
@@ -85,6 +95,102 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
             detail="Too many demo sessions are active right now — please try again shortly",
         )
     return DemoCodeResponse(code=code)
+
+
+@router.post("/demo-code/config", status_code=status.HTTP_204_NO_CONTENT)
+async def set_demo_parent_config(
+    req: DemoParentConfigRequest,
+    auth: dict = Depends(require_demo_parent_config),
+):
+    """
+    The demo's own Parent Setup — a visitor configuring their own demo
+    session the way a parent configures a real one (subjects, companion
+    mode, what the family is already reading, what helps this child).
+    Stored per demo code and read back by routers/tutor.py's
+    _demo_session_config, so it shapes the prompt exactly as a real
+    parent's own config does.
+
+    **Validated by building a real SessionConfig, not by a second set of
+    rules written here.** Every one of these fields belongs to
+    SessionConfig, and its validators are what decide whether a
+    configuration is acceptable: the subject list, the clean-never-reject
+    caps on curriculum_resources/character_virtues/learning_support, the
+    K-2 Logic gate. A demo that accepted something the product refuses
+    would be demonstrating a product that does not exist, and a looser
+    copy of those rules in this file is the exact "a fake looser than the
+    real thing" failure this repository has shipped before. The
+    SessionConfig that comes back is also what gets stored, so the values
+    persisted are the CLEANED ones rather than what was sent.
+
+    Free text is sanitized here as well as at prompt-build time. A real
+    parent's fields meet _sanitize_parent_field once, inside
+    _build_subject_prompt; this input arrives from an anonymous public
+    visitor, so it meets it on the way in too — the same belt-and-braces
+    already applied to current_unit and faith_tradition at
+    POST /auth/demo-code.
+    """
+    if not settings.demo_pin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The free demo is not enabled on this deployment",
+        )
+
+    code = auth.get("code")
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This demo session has no code to configure",
+        )
+
+    text = {
+        "lesson_focus": _sanitize_parent_field(req.lesson_focus, max_len=500),
+        "faith_emphasis": _sanitize_parent_field(req.faith_emphasis, max_len=500),
+        "current_unit": _sanitize_parent_field(req.current_unit, max_len=200),
+        "faith_tradition": _sanitize_parent_field(req.faith_tradition, max_len=60),
+    }
+    lists = {
+        field: [
+            cleaned
+            for item in (getattr(req, field) or [])
+            if (cleaned := _sanitize_parent_field(item, max_len=80))
+        ]
+        for field in ("curriculum_resources", "character_virtues", "learning_support")
+    }
+
+    # The real thing, with the demo's own fixed identity fields filled in so
+    # every validator that depends on them (the K-2 Logic gate reads
+    # grade_stage) actually runs.
+    student_name, grade = await get_demo_personalization(code)
+    grade = grade or settings.demo_grade
+    try:
+        validated = SessionConfig(
+            student_name=student_name or settings.demo_student_name,
+            grade=grade,
+            grade_stage=grade_to_stage(grade),
+            **({"subjects": req.subjects} if req.subjects else {}),
+            **({"companion_mode": req.companion_mode} if req.companion_mode else {}),
+            **({"bible_translation": req.bible_translation} if req.bible_translation else {}),
+            **text,
+            **lists,
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"That setup isn't valid: {exc.error_count()} problem(s)",
+        ) from exc
+
+    await set_parent_config(code, {
+        "subjects": [s.value for s in validated.subjects],
+        "companion_mode": validated.companion_mode.value,
+        "lesson_focus": validated.lesson_focus,
+        "faith_emphasis": validated.faith_emphasis,
+        "current_unit": validated.current_unit,
+        "faith_tradition": validated.faith_tradition,
+        "bible_translation": validated.bible_translation,
+        "curriculum_resources": validated.curriculum_resources,
+        "character_virtues": validated.character_virtues,
+        "learning_support": validated.learning_support,
+    })
 
 
 @router.get("/locales")

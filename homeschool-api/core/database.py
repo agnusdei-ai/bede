@@ -902,6 +902,57 @@ class DemoCodeFaithNote(Base):
     )
 
 
+class DemoCodeParentConfig(Base):
+    """
+    The demo's own Parent Setup, one row per demo code.
+
+    The demo had a gear menu with two client-side toggles while the product
+    had a whole Parent Setup page, so a prospective family evaluating Bede
+    could not see the thing they would actually be doing every morning —
+    choosing subjects, saying what their child is already reading, naming
+    what helps that child. This holds the settings that shape a session, so
+    the demo runs the parent's own plan rather than a fixed showcase.
+
+    ONE table with an encrypted JSON blob rather than a table per setting.
+    DemoCodeUnitNote and DemoCodeFaithNote each got their own table when
+    there was one field each; a dozen fields is where that convention stops
+    scaling, and the fields here are set together, read together and
+    deleted together. The blob is the same shape StudentConfig.config_enc
+    already uses for a real family.
+
+    Standalone table for the usual reason: this codebase's startup only
+    runs CREATE TABLE IF NOT EXISTS (no ALTER TABLE path), so a new table
+    is the only way to add this to an already-running deployment.
+
+    ENCRYPTED, unlike the two plaintext note tables. Those hold one short
+    self-described label each; this aggregates several free-text fields a
+    visitor typed about their own child's schooling, which is a bigger
+    thing to leave readable in a database — and encrypt_json is what this
+    codebase reaches for whenever a blob describes a learner.
+
+    Every value here is still sanitized rather than trusted: the write path
+    validates through models/schemas.py's real SessionConfig validators, so
+    the demo can never accept a configuration the product would reject, and
+    every free-text field meets _sanitize_parent_field in
+    services/ai_service.py exactly as a real parent's own field does.
+
+    Same TTL/eviction convention as every other demo table: no expiry
+    column, core/demo_code_session.py filters on created_at at read time,
+    sweeps rows past the same cutoff in generate_code(), and deletes this
+    code's row immediately in end_session().
+    """
+    __tablename__ = "demo_code_parent_configs"
+
+    code: Mapped[str] = mapped_column(String(6), primary_key=True)
+    config_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+        nullable=False,
+    )
+
+
 class DemoCodeActivityLog(Base):
     """
     The public demo's own work ledger — what the visitor actually finished

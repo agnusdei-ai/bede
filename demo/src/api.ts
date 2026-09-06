@@ -105,6 +105,111 @@ function apiBase(): string {
 /** Decodes a JWT's payload without verifying the signature — fine for reading
  *  our own freshly-issued `exp` claim to drive the countdown UI; the server
  *  is what actually enforces expiry on every request regardless. */
+/**
+ * The demo's own Parent Setup, mirroring what a family sets in
+ * ParentSetup.tsx. Sent once when the visitor saves the panel; the backend
+ * validates it by building a real SessionConfig, so anything the product
+ * would refuse is refused here too (see POST /auth/demo-code/config).
+ */
+export interface DemoParentConfig {
+  subjects?: Subject[]
+  companion_mode?: CompanionMode
+  lesson_focus?: string
+  faith_emphasis?: string
+  current_unit?: string
+  faith_tradition?: string
+  bible_translation?: string
+  curriculum_resources?: string[]
+  character_virtues?: string[]
+  learning_support?: string[]
+}
+
+export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
+
+/** Mirrors models/schemas.py's COMPANION_MODES presets. */
+export const COMPANION_MODES: ReadonlyArray<{
+  id: CompanionMode
+  label: string
+  blurb: string
+  subjects: Subject[]
+}> = [
+  {
+    id: 'book_companion',
+    label: 'Book Companion',
+    blurb: 'Bede follows the books you already read together.',
+    subjects: ['morning_time', 'living_books', 'mathematics'],
+  },
+  {
+    id: 'guided',
+    label: 'A Bit More Structure',
+    blurb: 'A short core rotation, still anchored on your own material.',
+    subjects: ['morning_time', 'living_books', 'mathematics', 'nature_study', 'language_arts'],
+  },
+  {
+    id: 'full_plan',
+    label: 'Full Daily Plan',
+    blurb: 'The full Mater Amabilis core rotation.',
+    subjects: [
+      'morning_time', 'living_books', 'mathematics', 'nature_study',
+      'history', 'language_arts', 'science', 'art_music', 'saints', 'scripture',
+    ],
+  },
+]
+
+/** Mirrors models/schemas.py's BIBLE_TRANSLATIONS, both traditions. */
+export const BIBLE_TRANSLATIONS = [
+  'KJV', 'NKJV', 'ESV', 'NIV', 'NASB', 'NLT', 'CSB',
+  'RSV-CE', 'NABRE', 'NRSV-CE', 'Douay-Rheims',
+] as const
+
+/** Public-domain ones Bede may quote freely — models/schemas.py's
+ *  PUBLIC_DOMAIN_BIBLE_TRANSLATIONS. */
+export const PUBLIC_DOMAIN_BIBLE_TRANSLATIONS = [
+  'KJV', 'Douay-Rheims',
+] as const
+
+export const CURRICULUM_RESOURCE_SUGGESTIONS = [
+  'Memoria Press', 'Classical Academic Press', 'Well-Trained Mind Press',
+  'Institute for Excellence in Writing', 'RightStart Mathematics', 'Logic of English',
+] as const
+
+export const CHARACTER_VIRTUE_SUGGESTIONS = [
+  'Courage', 'Humility', 'Wonder', 'Attentiveness',
+  'Honesty', 'Gratitude', 'Perseverance', 'Kindness',
+] as const
+
+export const LEARNING_SUPPORT_SUGGESTIONS = [
+  'More time to answer',
+  'Shorter passages at a time',
+  'Answer out loud instead of writing',
+  'Read the passage aloud to them',
+  'Break tasks into one step at a time',
+  'Frequent short breaks',
+  'Repeat instructions before starting',
+  'Say numbers and letters clearly, one at a time',
+  "Say what's coming next before starting",
+  'Keep the same routine each session',
+  'Ask one direct question rather than an open one',
+  'Say what a good answer would include',
+  'Give the question, then quiet time to think',
+  'Offer a movement break partway through',
+  'Let them look back at the book while telling it back',
+  'Recap what was just covered before asking about it',
+] as const
+
+export async function setDemoParentConfig(
+  token: string,
+  config: DemoParentConfig,
+): Promise<void> {
+  const res = await fetch(`${apiBase()}/auth/demo-code/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(config),
+  })
+  if (res.status === 401) throw new TrialSessionEndedError('This demo session has ended')
+  if (!res.ok) throw new Error(`Could not save these settings (${res.status})`)
+}
+
 export function decodeExpiry(token: string): number | null {
   try {
     const [, payloadB64] = token.split('.')

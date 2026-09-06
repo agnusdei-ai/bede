@@ -73,6 +73,12 @@ GUARDS = {
     ('GET', '/admin/status'): 'require_parent',
     ('GET', '/admin/usage/{student_name}'): 'require_parent',
     ('POST', '/auth/demo-code'): 'PUBLIC',
+    # The demo's own Parent Setup. Its own policy action, deliberately NOT
+    # a third use of require_demo_preview: this one WRITES, and an action
+    # that changes what the model is told should not ride on a guard whose
+    # name says "preview". Demo domain only — a family session has
+    # ParentSetup.tsx and must never reach it.
+    ('POST', '/auth/demo-code/config'): 'require_demo_parent_config',
     ('DELETE', '/auth/elevate'): 'require_parent',
     ('GET', '/auth/elevate'): 'require_parent',
     ('POST', '/auth/elevate'): 'require_parent',

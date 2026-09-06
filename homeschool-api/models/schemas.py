@@ -267,6 +267,45 @@ SUBJECT_LABELS = {
 }
 
 
+# The name Bede SAYS OUT LOUD, per locale.
+#
+# SUBJECT_LABELS above is English and reaches the prompt as
+# "CURRENT SUBJECT: Morning Time" (services/ai_service.py's
+# _build_subject_prompt). In a Spanish session the model read that as the
+# subject's name and echoed it verbatim mid-sentence — a real reported
+# defect: the picker said "Tiempo Matutino" and Bede said "Hoy en Morning
+# Time vamos a comenzar juntos". Native-language generation cannot fix what
+# it was handed in English.
+#
+# So the prompt gets the name in the session's own language and there is no
+# English string left for the model to echo. Keyed by locale; a locale with
+# no entry falls back to English, which is the honest default rather than a
+# machine translation invented at request time.
+SUBJECT_LABELS_BY_LOCALE: Dict[str, Dict[Subject, str]] = {
+    "es": {
+        Subject.morning_time: "Tiempo Matutino",
+        Subject.living_books: "Libros Vivos",
+        Subject.mathematics: "Matemáticas",
+        Subject.nature_study: "Estudio de la Naturaleza",
+        Subject.history: "Historia y Geografía",
+        Subject.language_arts: "Artes del Lenguaje",
+        Subject.science: "Ciencias",
+        Subject.art_music: "Arte y Música",
+        Subject.saints: "Santos y Catecismo",
+        Subject.scripture: "Escritura y Estudio Bíblico",
+        Subject.latin: "Latín y Fundamentos Cristianos",
+        Subject.greek: "Griego y Fundamentos del Nuevo Testamento",
+        Subject.logic: "Lógica",
+        Subject.free_study: "Estudio Libre",
+    },
+}
+
+
+def subject_label(subject: Subject, locale: str = "en") -> str:
+    """The subject's name in the language of the session it appears in."""
+    return SUBJECT_LABELS_BY_LOCALE.get(locale, {}).get(subject, SUBJECT_LABELS[subject])
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str

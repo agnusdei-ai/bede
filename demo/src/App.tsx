@@ -1020,6 +1020,8 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
   )
   const isSessionBreak = sessionPhase.phase === 'break'
   const isConcluded = sessionPhase.phase === 'concluded'
+  const isYounger = useMemo(() => demoIsYounger(grade), [grade])
+  const gradeStage = useMemo(() => demoGradeStage(grade), [grade])
 
   // The optional 20/40-minute rhythm, mirroring TutorSession.tsx in the app.
   // SUGGESTED, never imposed: a banner beside the lesson rather than the
@@ -1030,7 +1032,7 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
   const [dismissedBreakKey, setDismissedBreakKey] = useState<string | null>(null)
   const [acceptedBreakKey, setAcceptedBreakKey] = useState<string | null>(null)
   const suggestedBreak = getSuggestedBreak(
-    sessionPhase, demoIsYounger(grade), parentControls.frequentBreakOffers,
+    sessionPhase, isYounger, parentControls.frequentBreakOffers,
   )
   // Both flags key off the SUGGESTION rather than being bare booleans, which
   // makes them self-clearing: a voluntary break cannot outlive its own mark,
@@ -2066,7 +2068,7 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
             onSubmit={(dataUrl) => { setPendingDrawing(dataUrl); setShowCanvas(false) }}
             onCancel={() => setShowCanvas(false)}
             subject={subject}
-            gradeStage={demoGradeStage(grade)}
+            gradeStage={gradeStage}
             // Whose page this is, for as long as this demo session lasts.
             // The canvas unmounts every time the visitor goes back to the
             // chat, so without this the drawing would go with it (see

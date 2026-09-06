@@ -57,7 +57,7 @@ async def test_sandbox_chat_exception_logs_ai_backend_failure(monkeypatch, audit
     monkeypatch.setattr("routers.sandbox.stream_sandbox_response", erroring_stream)
 
     req = SandboxChatRequest(sandbox_pin="111222", message="test")
-    response = await chat(req, _fake_request(), _={"role": "parent"})
+    response = await chat(req, _fake_request(), auth={"role": "parent"})
     chunks = await _collect(response)
 
     assert any("went wrong" in c for c in chunks)
@@ -88,7 +88,7 @@ async def test_sandbox_chat_stall_logs_ai_backend_failure(monkeypatch, audit_eve
     monkeypatch.setattr("routers.sandbox.stream_sandbox_response", never_called_stream)
 
     req = SandboxChatRequest(sandbox_pin="111222", message="test")
-    response = await chat(req, _fake_request(), _={"role": "parent"})
+    response = await chat(req, _fake_request(), auth={"role": "parent"})
     chunks = await _collect(response)
 
     assert any("too long" in c for c in chunks)
@@ -105,7 +105,7 @@ async def test_sandbox_chat_healthy_stream_never_logs_a_failure(monkeypatch, aud
     monkeypatch.setattr("routers.sandbox.stream_sandbox_response", healthy_stream)
 
     req = SandboxChatRequest(sandbox_pin="111222", message="test")
-    response = await chat(req, _fake_request(), _={"role": "parent"})
+    response = await chat(req, _fake_request(), auth={"role": "parent"})
     await _collect(response)
 
     assert audit_events == []

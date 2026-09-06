@@ -91,6 +91,7 @@ function valid<T extends string>(raw: unknown, allowed: readonly T[]): T | undef
 
 function readOverride(studentName: string | null | undefined): StoredOverride {
   if (!studentName) return {}
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return {}
   try {
     const raw = localStorage.getItem(storageKey(studentName))
     if (!raw) return {}
@@ -152,6 +153,7 @@ export function useReadingPresentation(
   }, [studentName])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
     const sync = () => setStored(readOverride(studentName))
     window.addEventListener(CHANGE_EVENT, sync)
     return () => window.removeEventListener(CHANGE_EVENT, sync)
@@ -163,14 +165,18 @@ export function useReadingPresentation(
     (patch: StoredOverride) => {
       if (!studentName) return
       const next = { ...readOverride(studentName), ...patch }
-      try {
-        localStorage.setItem(storageKey(studentName), JSON.stringify(next))
-      } catch {
-        // Best-effort. The in-memory state below still updates, so the
-        // setting works for this session even when it cannot be saved.
+      if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        try {
+          window.localStorage.setItem(storageKey(studentName), JSON.stringify(next))
+        } catch {
+          // Best-effort. The in-memory state below still updates, so the
+          // setting works for this session even when it cannot be saved.
+        }
       }
       setStored(next)
-      window.dispatchEvent(new Event(CHANGE_EVENT))
+      if (typeof window !== 'undefined' && typeof window.Event === 'function') {
+        window.dispatchEvent(new window.Event(CHANGE_EVENT))
+      }
     },
     [studentName],
   )

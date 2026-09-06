@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Minus, Plus, Type } from 'lucide-react'
 import { useTextScale } from '../hooks/useTextScale'
+import { useTranslation } from 'react-i18next'
 import { useReadingPresentation } from '../hooks/useReadingPresentation'
 import { useSessionStore } from '../store/sessionStore'
 import type { LetterSpacing, LineSpacing } from '../utils/readingPresentation'
@@ -54,6 +55,7 @@ const AUTO_COLLAPSE_MS = 4000
  * option — the one a reader needs to undo a change they disliked — with it.
  */
 export default function TextSizeControl() {
+  const { t } = useTranslation()
   const { scale, increase, decrease, canIncrease, canDecrease } = useTextScale()
   const sessionConfig = useSessionStore((s) => s.sessionConfig)
   const { presentation, setLetterSpacing, setLineSpacing } = useReadingPresentation(
@@ -84,10 +86,10 @@ export default function TextSizeControl() {
         onClick={() => { setExpanded(true); scheduleCollapse() }}
         aria-label={
           showSpacing
-            ? `Reading settings. Text size ${Math.round(scale)}%. Tap to adjust.`
-            : `Text size, ${Math.round(scale)}%. Tap to adjust.`
+            ? t('reading.settingsTap', { pct: Math.round(scale) })
+            : t('reading.textSizeTap', { pct: Math.round(scale) })
         }
-        title={showSpacing ? 'Reading settings' : 'Text size'}
+        title={showSpacing ? t('reading.settings') : t('reading.textSize')}
         className="fixed top-3 right-3 z-40 flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/95 backdrop-blur border border-navy-200 shadow-md pt-safe pr-safe text-navy-500 hover:bg-navy-50 hover:text-navy-700 transition-colors"
       >
         <Type size={16} aria-hidden="true" />
@@ -96,14 +98,14 @@ export default function TextSizeControl() {
   }
 
   const letterOptions: ReadonlyArray<{ value: LetterSpacing; label: string }> = [
-    { value: 'normal', label: 'Normal' },
-    { value: 'wide', label: 'Wide' },
-    { value: 'wider', label: 'Widest' },
+    { value: 'normal', label: t('parentSetup.spacingNormal') },
+    { value: 'wide', label: t('parentSetup.spacingWide') },
+    { value: 'wider', label: t('parentSetup.spacingWider') },
   ]
   const lineOptions: ReadonlyArray<{ value: LineSpacing; label: string }> = [
-    { value: 'normal', label: 'Normal' },
-    { value: 'relaxed', label: 'Relaxed' },
-    { value: 'loose', label: 'Loosest' },
+    { value: 'normal', label: t('parentSetup.spacingNormal') },
+    { value: 'relaxed', label: t('parentSetup.lineRelaxed') },
+    { value: 'loose', label: t('parentSetup.lineLoose') },
   ]
 
   const rowButton = (selected: boolean) =>
@@ -116,25 +118,25 @@ export default function TextSizeControl() {
   return (
     <div
       role="group"
-      aria-label={showSpacing ? 'Reading settings' : 'Text size'}
+      aria-label={showSpacing ? t('reading.settings') : t('reading.textSize')}
       onPointerDown={scheduleCollapse}
       className="fixed top-3 right-3 z-40 w-60 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-2xl bg-white/97 backdrop-blur border border-navy-200 shadow-lg pt-safe pr-safe px-3 py-2.5 flex flex-col gap-2.5"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-navy-700">Reading</span>
+        <span className="text-xs font-semibold text-navy-700">{t('reading.settings')}</span>
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          aria-label="Close reading settings"
+          aria-label={t('reading.close')}
           className="text-xs text-navy-400 hover:text-navy-600 px-2 min-h-[44px] -my-2"
         >
-          Done
+          {t('betaSurvey.done')}
         </button>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-navy-600">Text size</span>
+          <span className="text-xs text-navy-600">{t('reading.textSize')}</span>
           <span className="text-xs text-navy-400 tabular-nums" aria-live="polite">
             {Math.round(scale)}%
           </span>
@@ -144,8 +146,8 @@ export default function TextSizeControl() {
             type="button"
             onClick={() => { decrease(); scheduleCollapse() }}
             disabled={!canDecrease}
-            aria-label="Decrease text size"
-            title="Decrease text size"
+            aria-label={t('reading.decrease')}
+            title={t('reading.decrease')}
             className="flex-1 min-h-[44px] flex items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
           >
             <Minus size={14} />
@@ -154,8 +156,8 @@ export default function TextSizeControl() {
             type="button"
             onClick={() => { increase(); scheduleCollapse() }}
             disabled={!canIncrease}
-            aria-label="Increase text size"
-            title="Increase text size"
+            aria-label={t('reading.increase')}
+            title={t('reading.increase')}
             className="flex-1 min-h-[44px] flex items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
           >
             <Plus size={14} />
@@ -166,10 +168,10 @@ export default function TextSizeControl() {
       {showSpacing && (
         <>
           <div>
-            <span className="block text-xs text-navy-600 mb-1">Space between letters</span>
+            <span className="block text-xs text-navy-600 mb-1">{t('parentSetup.letterSpacing')}</span>
             <div
               className="flex flex-wrap gap-1"
-              title="The best-supported of these. In a study of dyslexic 8-14 year olds, extra letter spacing doubled reading accuracy and made reading over 20% faster. Word spacing widens with it, so word boundaries stay clear."
+              title={t('reading.letterSpacingTooltip')}
             >
               {letterOptions.map((o) => (
                 <button
@@ -186,10 +188,10 @@ export default function TextSizeControl() {
           </div>
 
           <div>
-            <span className="block text-xs text-navy-600 mb-1">Space between lines</span>
+            <span className="block text-xs text-navy-600 mb-1">{t('parentSetup.lineSpacing')}</span>
             <div
               className="flex flex-wrap gap-1"
-              title="Helps some readers keep their place when moving from one line to the next. General readability guidance rather than a measured result."
+              title={t('reading.lineSpacingTooltip')}
             >
               {lineOptions.map((o) => (
                 <button

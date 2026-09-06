@@ -11,10 +11,14 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createElement } from 'react'
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { act, renderHook } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 
+import i18n from '../i18n'
+import TextSizeControl from '../components/TextSizeControl'
+import { useSessionStore } from '../store/sessionStore'
 import {
   READING_PRESENTATION_KEY_PREFIX,
   resolvePresentation,
@@ -36,6 +40,8 @@ function storedFor(student: string): Record<string, unknown> | null {
 
 beforeEach(() => {
   localStorage.clear()
+  useSessionStore.setState({ sessionConfig: null })
+  i18n.changeLanguage('en')
 })
 
 describe('what is in force', () => {
@@ -160,36 +166,76 @@ describe('reading back a store someone can edit', () => {
 })
 
 describe('the panel says what a setting does, never what a reader has', () => {
-  const panel = readFileSync(join(__dirname, '../components/TextSizeControl.tsx'), 'utf8')
-
   it('names no condition in any visible label', () => {
-    // Same rule the parent-facing panel already holds itself to, applied to
-    // the copy a CHILD sees. A control named after a diagnosis would have
-    // this software assert one — see decision register entry 24.
-    const visible = panel
-      // Drop the tooltips and the file's own commentary; what is left is
-      // roughly what renders.
-      .replace(/title="[^"]*"/g, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/[^\n]*/g, '')
+    useSessionStore.setState({ sessionConfig: { student_name: ADA } as any })
+    const { container } = render(createElement(TextSizeControl))
+    fireEvent.click(screen.getByRole('button', { name: /reading settings/i }))
+    const visible = container.textContent?.toLowerCase() ?? ''
     for (const word of ['dyslex', 'adhd', 'disorder', 'diagnos', 'disabilit', 'impair']) {
       expect(
-        visible.toLowerCase().includes(word),
+        visible.includes(word),
         `TextSizeControl names a condition in visible copy: ${word}`,
       ).toBe(false)
     }
+    cleanup()
   })
 
   it('still carries the evidence in the tooltip, where a curious parent finds it', () => {
-    const tooltips = panel.match(/title="[^"]*"/g)!.join(' ').toLowerCase()
-    expect(tooltips).toContain('dyslex')
-    expect(tooltips, 'the weak setting must still be labelled weak').toContain(
-      'rather than a measured result',
-    )
+    // Two claims, and BOTH are needed. Asserting only that the rendered
+    // title equals the locale string is a tautology — it passes just as
+    // happily when both tooltips are empty, which is the state this guard
+    // exists to prevent. So: the locale files must still carry the
+    // evidence, and the panel must still render it.
+    //
+    // In EVERY language it is shown in, not just the one it was written
+    // in — the tooltips are translated now, and honesty that survives only
+    // in English is not honesty a Spanish family gets. Mirrors the demo's
+    // own guard in demo/src/readingPresentation.test.ts.
+    const en = JSON.parse(
+      readFileSync(join(__dirname, '../i18n/locales/en.json'), 'utf8'),
+    ).reading as Record<string, string>
+    const es = JSON.parse(
+      readFileSync(join(__dirname, '../i18n/locales/es.json'), 'utf8'),
+    ).reading as Record<string, string>
+
+    // The strong setting names what it is supported by; the weak one stays
+    // labelled as guidance rather than a measured result. A panel where
+    // both read the same way is what docs/ACCESSIBILITY_RESEARCH.md exists
+    // to prevent.
+    expect(en.letterSpacingTooltip.toLowerCase()).toContain('dyslex')
+    expect(en.lineSpacingTooltip.toLowerCase()).toContain('rather than a measured result')
+    expect(es.letterSpacingTooltip.toLowerCase()).toContain('disléx')
+    expect(es.lineSpacingTooltip.toLowerCase()).toContain('no un resultado medido')
+
+    useSessionStore.setState({ sessionConfig: { student_name: ADA } as any })
+    const { container, unmount } = render(createElement(TextSizeControl))
+    fireEvent.click(screen.getByRole('button', { name: /reading settings/i }))
+    expect(container.querySelector(`[title="${en.letterSpacingTooltip}"]`)).not.toBeNull()
+    expect(container.querySelector(`[title="${en.lineSpacingTooltip}"]`)).not.toBeNull()
+    unmount()
+
+    i18n.changeLanguage('es')
+    const esRender = render(createElement(TextSizeControl))
+    fireEvent.click(screen.getByRole('button', { name: /ajustes de lectura/i }))
+    expect(esRender.container.querySelector(`[title="${es.letterSpacingTooltip}"]`)).not.toBeNull()
+    expect(esRender.container.querySelector(`[title="${es.lineSpacingTooltip}"]`)).not.toBeNull()
+    cleanup()
   })
 
   it('gates the spacing rows on there being a lesson to restyle', () => {
-    expect(panel).toContain('const showSpacing = !!sessionConfig?.student_name')
-    expect(panel).toContain('{showSpacing && (')
+    const en = JSON.parse(
+      readFileSync(join(__dirname, '../i18n/locales/en.json'), 'utf8'),
+    ).reading as Record<string, string>
+
+    const first = render(createElement(TextSizeControl))
+    fireEvent.click(screen.getByRole('button', { name: /text size/i }))
+    expect(first.container.querySelector(`[title="${en.letterSpacingTooltip}"]`)).toBeNull()
+    first.unmount()
+
+    useSessionStore.setState({ sessionConfig: { student_name: ADA } as any })
+    const second = render(createElement(TextSizeControl))
+    fireEvent.click(screen.getByRole('button', { name: /reading settings/i }))
+    expect(second.container.querySelector(`[title="${en.letterSpacingTooltip}"]`)).not.toBeNull()
+    cleanup()
   })
 })

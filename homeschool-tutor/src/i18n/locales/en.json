@@ -373,7 +373,7 @@
     "learningSupportPlaceholder": "e.g. More time to answer, Shorter passages at a time",
     "learningSupportHint": "Optional. Anything you already know helps — Bede will teach the same material to the same standard, just in a way that fits. It never mentions this to your child, and never guesses at a reason for it.",
     "readingPresentationTooltip": "For a child who finds reading the screen harder than understanding the lesson. Bede teaches the same material to the same standard — only the text on screen changes, and your child is never told it was adjusted. See docs/SPECIAL_NEEDS.md.",
-      "readingPresentation": "How the text looks",
+    "readingPresentation": "How the text looks",
     "letterSpacing": "Space between letters",
     "letterSpacingTooltip": "The best-supported of these three. In a study of dyslexic 8-14 year olds, extra letter spacing doubled reading accuracy and made reading over 20% faster. Word spacing widens with it, so word boundaries stay clear.",
     "lineSpacing": "Space between lines",
@@ -578,5 +578,52 @@
     "stillGettingToKnow": "still getting to know — {{count}} so far",
     "secureOf": "{{secure}} of {{total}} secure",
     "nothingYet": "Nothing assessed yet for {{name}}. This fills in as you work together — the Work Completed card below is the honest picture in the meantime."
+  },
+  "subjects": {
+    "morning_time": "Morning Time",
+    "living_books": "Living Books",
+    "mathematics": "Mathematics",
+    "nature_study": "Nature Study",
+    "history": "History & Geography",
+    "language_arts": "Language Arts",
+    "science": "Science",
+    "art_music": "Art & Music",
+    "saints": "Saints & Catechism",
+    "scripture": "Scripture & Bible Study",
+    "latin": "Latin & Christian Foundations",
+    "greek": "Greek & New Testament Foundations",
+    "logic": "Logic",
+    "free_study": "Free Study"
+  },
+  "reading": {
+    "textSize": "Text size",
+    "textSizeTap": "Text size, {{pct}}%. Tap to adjust.",
+    "decrease": "Decrease text size",
+    "increase": "Increase text size",
+    "settings": "Reading settings",
+    "settingsTap": "Reading settings. Text size {{pct}}%. Tap to adjust.",
+    "close": "Close reading settings",
+    "letterSpacingTooltip": "The best-supported of these. In a study of dyslexic 8-14 year olds, extra letter spacing doubled reading accuracy and made reading over 20% faster. Word spacing widens with it, so word boundaries stay clear.",
+    "lineSpacingTooltip": "Helps some readers keep their place when moving from one line to the next. General readability guidance rather than a measured result."
+  },
+  "themePicker": {
+    "backgroundTheme": "Background theme",
+    "backgroundThemeAria": "Background theme, currently {{name}}",
+    "background": "Background",
+    "yourBubble": "Your bubble"
+  },
+  "themes": {
+    "meadow": "Meadow",
+    "parchment": "Parchment",
+    "morning-sky": "Morning Sky",
+    "sunrise": "Sunrise"
+  },
+  "bubbles": {
+    "sage": "Sage",
+    "navy": "Navy",
+    "olive": "Olive",
+    "clay": "Clay",
+    "plum": "Plum",
+    "walnut": "Walnut"
   }
 }

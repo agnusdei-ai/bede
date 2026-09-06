@@ -2,6 +2,8 @@
 import { X, CheckCircle } from 'lucide-react'
 import { SUBJECT_MAP } from '../types'
 import type { Subject, SessionConfig } from '../types'
+import { subjectLabel } from '../utils/subjectLabel'
+import { useTranslation } from 'react-i18next'
 
 interface SubjectDrawerProps {
   open: boolean
@@ -17,6 +19,7 @@ interface SubjectDrawerProps {
 export default function SubjectDrawer({
   open, subjects, currentSubject, completed, config, onNext, onClose, disabled
 }: SubjectDrawerProps) {
+  const { t } = useTranslation()
   if (!open) return null
 
   const currentIndex = subjects.indexOf(currentSubject)
@@ -82,14 +85,14 @@ export default function SubjectDrawer({
                       fallback for the longest ones (Greek & New Testament
                       Foundations) on a narrow phone. */}
                   <span
-                    title={info.label}
+                    title={subjectLabel(t, subj)}
                     className={`flex-1 min-w-0 truncate text-sm ${
                       isCurrent ? 'font-semibold text-navy-700'
                       : isDone ? 'text-gray-400 line-through'
                       : 'text-gray-600'
                     }`}
                   >
-                    {info.label}
+                    {subjectLabel(t, subj)}
                   </span>
                   <span className="text-xs text-gray-400 tabular-nums shrink-0">{info.durationMin}m</span>
                 </div>

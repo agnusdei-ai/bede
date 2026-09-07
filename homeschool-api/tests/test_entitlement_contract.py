@@ -40,13 +40,13 @@ _END = "<!-- CONTRACT-V1-END -->"
 # The cross-repository parity token. This is the sha256 of the canonical block
 # — the bytes from the start of the BEGIN marker line through the newline that
 # ends the END marker line, inclusive of both markers — frozen at
-# contract_version 1.0.0. `agnusdei-ai/locuto`'s copy of the same block hashes
+# contract_version 1.1.0. `agnusdei-ai/locuto`'s copy of the same block hashes
 # to the same value, and that equality is the only mechanism keeping the two
 # documents one document. Changing this constant to make a failing test pass
 # is not a fix: it is the divergence, recorded.
-CANONICAL_SHA256 = "69abda9af44e68af0a65f8bff80a1857db1495214b5881445fc17d1edf64336e"
+CANONICAL_SHA256 = "eb9943ab9756c66fa0700b46244d7e41b1b2f637e8ef4a3f15a6388c09b5cdbc"
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"
 
 # Closed vocabularies, written as literals rather than parsed out of whatever
 # the document currently says. A test that reads its expectations from its
@@ -77,26 +77,44 @@ def _canonical_text() -> str:
 def _table_after(text: str, anchor: str) -> list[list[str]]:
     """The data rows of the first markdown table following `anchor`.
 
-    Returns each row as its list of cell strings, header and separator rows
-    dropped. Used for the tier and service vocabularies, which are stated as
-    tables and whose row COUNT is part of the claim — "exactly three" is not
-    checked by asserting three known values are present.
+    Data rows are everything AFTER the `| --- |` separator, which is the only
+    structural marker a markdown table actually has. That matters: an earlier
+    version dropped `rows[0]` unconditionally on the assumption that the first
+    row collected was always the header, which holds when `anchor` is prose
+    sitting above the table and is false when `anchor` IS the header row —
+    there the header has already been consumed, and the "drop the header" step
+    silently ate the first row of real data instead.
+
+    That was not hypothetical. The seats guard below anchors on section E's
+    header, so it inspected only three of the limits table's four fields:
+    `max_children` was never looked at, and renaming it to a bare `seats` —
+    the exact thing section E says there never may be — left the test green.
+    Found by review, and reproduced by making that rename before this fix
+    landed.
+
+    Anchoring on the separator makes both call styles correct, so no caller
+    has to know which kind of anchor it passed.
     """
     assert anchor in text, f"Anchor text not found in the canonical block: {anchor!r}"
     rest = text[text.index(anchor) + len(anchor):]
-    rows = []
-    seen_table = False
+    rows: list[list[str]] = []
+    separator_at: int | None = None
     for line in rest.splitlines():
         stripped = line.strip()
         if stripped.startswith("|"):
-            seen_table = True
             cells = [c.strip() for c in stripped.strip("|").split("|")]
-            if all(set(c) <= set("-: ") for c in cells):
-                continue  # separator row
+            if all(set(c) <= set("-: ") for c in cells) and separator_at is None:
+                separator_at = len(rows)
+                continue
             rows.append(cells)
-        elif seen_table and stripped == "":
+        elif rows and stripped == "":
             break
-    return rows[1:]  # drop the header row
+    assert separator_at is not None, (
+        f"No `| --- |` separator row found in the table following {anchor!r}. "
+        "Without it there is no way to tell the header from the data, and "
+        "guessing is the defect this function was rewritten to remove."
+    )
+    return rows[separator_at:]
 
 
 def test_the_contract_document_exists_and_carries_both_markers_exactly_once():
@@ -197,15 +215,24 @@ def test_the_entitled_services_are_exactly_the_three_adopted_values():
         "an unknown `contract_version`",
         "an unknown `commercial_tier`",
         "an unknown service",
+        "an unknown `event_type`",
         "an illegal transition",
+        "a missing required field",
+        "an unreadable event",
+        "an ambiguous limit",
     ],
 )
 def test_each_unknown_input_is_stated_to_fail_closed(unknown):
     """Fail-closed is the property the whole contract rests on: a consumer
     that guesses at an unrecognized tier provisions the wrong thing silently,
-    which is the outcome sections D and H both name. Each of the four is
-    pinned separately so a rewrite cannot drop one and keep the paragraph
-    looking complete.
+    which is the outcome sections D and H both name.
+
+    All EIGHT of section I's cases are pinned, one parameter each, so a
+    rewrite cannot drop one and keep the paragraph looking complete. An
+    earlier version covered four while its docstring claimed the set — which
+    is the same overclaim this file's privacy guard is careful about below,
+    and it left `event_type`, a missing required field, an unreadable event
+    and an ambiguous limit unguarded.
 
     Matched against whitespace-normalized text, because the contract is hard
     wrapped and every one of these phrases spans a line break in the source.
@@ -267,7 +294,17 @@ def test_there_is_no_bare_seats_field_only_max_seats():
 
 
 def test_the_json_example_carries_no_child_data_field():
-    """The privacy guard, and it has a trap worth stating.
+    """The privacy guard. It checks field NAMES, and nothing else.
+
+    Say what it does not cover, because a guard whose message overclaims is
+    worse than an absent one: a child's name sitting in a VALUE
+    (`"organization_id": "the Fitzgerald children"`) passes this test. That is
+    not an oversight to be fixed here — deciding whether an opaque string is
+    somebody's name is not decidable by a test — so the scope is stated
+    rather than closed, and section I's rule remains a person's to enforce on
+    the values.
+
+    It has a trap worth stating too.
 
     The prose of section I legitimately CONTAINS every word this rule
     forbids — it is the sentence that forbids them ("No child's name,
@@ -293,7 +330,7 @@ def test_the_json_example_carries_no_child_data_field():
     )
     example = json.loads(fences[0])
 
-    def field_names(obj, prefix=""):
+    def field_names(obj):
         for k, v in obj.items():
             yield k
             if isinstance(v, dict):
@@ -326,9 +363,11 @@ def test_the_json_example_carries_no_child_data_field():
         if word in name.lower()
     ]
     assert not leaks, (
-        f"The JSON example carries field name(s) matching forbidden child, "
+        f"The JSON example carries field NAME(s) matching forbidden child, "
         f"credential or payment vocabulary: {leaks}. Section I's rule is "
-        "absolute and the example is the first place a reader copies from."
+        "absolute and the example is the first place a reader copies from. "
+        "Note this guard reads names only — a forbidden datum placed in a "
+        "value would pass it, and section I binds those too."
     )
     assert "max_children" in example["limits"], (
         "The example's limits object no longer carries max_children, so the "

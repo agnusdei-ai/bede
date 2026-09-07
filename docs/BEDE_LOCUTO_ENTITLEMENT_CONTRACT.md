@@ -4,14 +4,14 @@
 repository, and adopting it implements nothing.
 
 It is adopted by both `agnusdei-ai/bede` and `agnusdei-ai/locuto` at
-`contract_version` **1.0.0**. Everything between the `CONTRACT-V1-BEGIN` and
+`contract_version` **1.1.0**. Everything between the `CONTRACT-V1-BEGIN` and
 `CONTRACT-V1-END` markers below is byte-identical to `agnusdei-ai/locuto`'s
 `docs/bede-locuto-entitlement-contract.md`. A change inside those markers that
 lands in one repository and not the other is a defect, not a divergence.
 
-**It changes no licensing, payment, or runtime behavior.** `core/licensing.py`,
-`_VALID_TIERS`, the signed payload, verification, seat caps and `checkout/` are
-untouched.
+**It changes no licensing, payment, or runtime behavior.**
+`homeschool-api/core/licensing.py`, `_VALID_TIERS`, the signed payload — its
+bare `seats` count included — verification and pod seat caps are untouched.
 
 **It is not a Locuto IPC capability contract.** It does not register a
 capability, and it does not fill `services/locuto_ipc/capabilities.py`'s
@@ -24,7 +24,7 @@ not be cited as the schema negotiation that would fill it.
 | Field | Value |
 | --- | --- |
 | Contract name | Bede–Locuto Commercial Entitlement Contract |
-| `contract_version` | `1.0.0` |
+| `contract_version` | `1.1.0` |
 | Status | Adopted by both repositories. Specification only. Nothing here is implemented. |
 | Canonical copies | `agnusdei-ai/bede` `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`, `agnusdei-ai/locuto` `docs/bede-locuto-entitlement-contract.md` |
 
@@ -76,11 +76,52 @@ behavior.
 
 | Word | Reserved meaning elsewhere | This contract |
 | --- | --- | --- |
-| entitlement | Locuto `storage.md` §5.1: cryptographic **entitlement to sign** a claim | Always written **commercial entitlement** when this contract is meant. The unqualified word never refers to this contract inside Locuto. |
+| entitlement | Locuto `storage.md` uses it for a signer's cryptographic **entitlement to sign** a claim (the claim-type rule it turns on lives in `genesis.md` §5.1). Apple code-signing entitlements are a third, unrelated use in that repository's CI. | Always written **commercial entitlement** when this contract is meant. The unqualified word never refers to this contract inside Locuto. |
+| `seats` | Bede's signed license carries a bare `seats` integer, and `routers/pod.py` enforces it as a count of **children** | This contract has no bare `seats` field. Bede's signed `seats` corresponds to `max_children` and **never** to `max_seats`, which counts adults. See section C rule 6. |
 | `coop` | Bede `core/licensing.py` `_VALID_TIERS`: a **signed legacy license tier** | A `commercial_tier` value. The two strings are equal and the meanings are not. Section C forbids substituting either for the other. |
 | principal, participant | Locuto decision 236 and `product-loop.md` §7 | Not used here. This contract's actors are `organization_id`, `purchaser_account_id` and `organization_admin_id` and nothing else. |
 | tier | Bede: a signed license field. Locuto: a Linux host support contract. | Always written **commercial tier**, carried only in `commercial_tier`. |
 
+### Versioning and compatibility policy
+
+`contract_version` is a semantic version, `MAJOR.MINOR.PATCH`, and the three
+parts mean exactly this and nothing else:
+
+| Part | Changes when | A consumer written for an earlier version |
+| --- | --- | --- |
+| MAJOR | A field is removed or renamed, a required field is added, an identifier's meaning changes, a value is removed from a closed vocabulary, or a legal transition is removed | **Cannot** read it. Fails closed |
+| MINOR | An optional field is added, a value is added to a closed vocabulary, or a legal transition is added | Reads what it recognizes and **fails closed on what it does not**, per section I. It never silently ignores the unrecognized part |
+| PATCH | Wording, citations, examples, or clarification with no change to any field, value, state, transition, or rule | Reads it unchanged |
+
+**A consumer states the versions it accepts, and refuses every other.** There is
+no version negotiation, no downgrade, and no best-effort parse. An event whose
+`contract_version` a consumer does not accept is recorded and routed to
+`manual_review` — the same behavior as any other unknown, and for the same
+reason: a consumer that half-understands an entitlement can provision half of
+it.
+
+**A MINOR addition is not permission to ignore what is new.** Adding a value to
+`commercial_tier` or `entitled_services` in a later MINOR version does not make
+an older consumer's silence acceptable; that consumer still fails closed on the
+value it does not know, which is what keeps the addition safe to make.
+
+**Both repositories carry the same version, or neither is adopted.** This
+contract has exactly one canonical text, and a version exists only once both
+repositories hold it byte-identically between the markers. A version present in
+one repository and not the other is not a version; it is a draft, and nothing
+may be implemented against it.
+
+**Superseding, and what happens to what was recorded.** A new version never
+retroactively reinterprets a stored entitlement. An entitlement recorded under
+one version keeps that version's meaning for its whole term, and the version it
+was written against stays on the record. Migrating a stored entitlement to a
+later version is a deliberate, separately reviewed act, never a side effect of
+adopting one.
+
+**Deprecation.** A field or value being withdrawn is marked deprecated in a
+MINOR version, with the version that will remove it named, before any MAJOR
+version removes it. Nothing is removed without that notice having shipped
+first.
 ---
 
 ## B. Canonical identifiers
@@ -92,7 +133,7 @@ its shape, or reconstruct any other value from it.
 | Identifier | Required | Meaning | Stability |
 | --- | --- | --- | --- |
 | `contract_version` | yes | The version of this contract the event was written against. Semantic version string. | Fixed per event |
-| `entitlement_id` | yes | The commercial entitlement itself. One per purchased term per organization. | Stable for the life of the entitlement, including across renewal-state changes |
+| `entitlement_id` | yes | The commercial entitlement itself. One per commercial entitlement per organization, **not one per purchased term** — a renewal extends the existing entitlement rather than minting a new one, and `source_purchase_reference` is what changes per term. | Stable across renewals, lifecycle transitions, and term boundaries, for the life of the commercial relationship |
 | `organization_id` | yes | The entity that holds the entitlement: a household, a co-op, or a network organization. | Stable across terms |
 | `purchaser_account_id` | yes | The account that paid. May equal `organization_admin_id`. | Stable |
 | `organization_admin_id` | yes | The account authorized to administer the organization's provisioning. | Stable; may be reassigned by a `manual_review` transition |
@@ -157,6 +198,16 @@ contract changes none of that, and Stage C ships no change to
    value outside the three above does not guess, does not fall back to the
    cheapest or the most generous, and does not proceed. It records the event,
    sets status `manual_review`, and stops.
+6. **Bede's signed `seats` is a count of children, and maps to `max_children`.**
+   The signed license carries a bare `seats` integer which `routers/pod.py`
+   enforces as the number of students a pod may hold. This contract's
+   `max_seats` counts adult or administrative accounts, which is a different
+   population. **`seats` maps to `max_children` and never to `max_seats`**,
+   however closely the two names read. This is the sharper of the two string
+   collisions in this section: `coop` and `coop` at least denote the same kind
+   of thing, while `seats` and `max_seats` denote opposite populations, and the
+   obvious name-matching mapping would leave a family entitlement with no child
+   limit at all.
 
 ---
 
@@ -231,8 +282,10 @@ ambiguous limit, never an unusual one.
 
 **No limit in this contract is enforced by this contract.** Enforcement lives
 where the software already enforces things, and today Bede's per-pod cap is
-driven by its signed license and knows nothing about this model. Reconciling
-the two is Stage A work named in section J.
+driven by its signed license and knows nothing about this model. **Which of the
+two governs is settled — the signed license does, by section C rule 4.** What is
+Stage A work, named in section J, is the narrower question of how a
+disagreement is detected and surfaced.
 
 ---
 
@@ -271,6 +324,7 @@ closed into `manual_review`.
 | `suspended` | `active` | Administrative decision | Named human operator only | Deciding operator, stated reason | Access restored | — |
 | `failed` | `manual_review` | Escalation, or retry budget exhausted | Provisioning operator | Retry count, last failure | Support informed | — |
 | `failed` | `pending` | Deliberate retry of the whole episode | Provisioning operator | Retry rationale, same `correlation_id` | No change | `manual_review` |
+| `provisioned`, `active`, `renewal_due`, `suspended`, `expired` | `manual_review` | An operator escalates, or a consumer detects a disagreement between the signed license and this entitlement (section C rule 4), or reconciliation (section H) reports a mismatch | Any consumer, or a named human operator | What disagreed and the values on each side, the escalating operator or system, `correlation_id` | Being looked at; support informed | — |
 | `manual_review` | `pending`, `provisioned`, `active`, `suspended`, `expired` | A human decided | Named human operator only | Deciding operator, stated reason, resulting state | As the resulting state | — |
 
 **Four properties of this table are load-bearing:**
@@ -278,9 +332,13 @@ closed into `manual_review`.
 - **`suspended` is only ever entered by a named human.** Nothing automatic
   suspends a customer, because an automatic suspension is a revocation the
   customer cannot appeal to anyone, and nothing implements one today.
-- **`manual_review` is reachable from every state and is never terminal.** A
-  state a customer can be stuck in with nobody responsible is the failure this
-  state exists to prevent.
+- **`manual_review` is reachable from every state by an explicit row, and is
+  never terminal.** A state a customer can be stuck in with nobody responsible
+  is the failure this state exists to prevent — so escalation is a legal
+  transition with its own audit record, never an illegal transition caught by
+  the catch-all. An escalation that had to be spelled `attempted an illegal
+  transition` in the audit log would tell a later reader the wrong thing about
+  what happened.
 - **`expired` is not `suspended` and not revocation.** It records that a term
   ended. It asserts nothing about what any software then does.
 - **Time is observed, not enforced.** `expires_at` passing changes the
@@ -338,7 +396,7 @@ secret data.
 ```json
 {
   "event_type": "entitlement.created",
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "occurred_at": "2026-09-07T14:03:11Z",
   "entitlement_id": "ent_7Qx2m4Kd",
   "organization_id": "org_3Ha9pZ1t",
@@ -483,7 +541,11 @@ than an implementation task waiting for time.
 4. Evidence that every already-issued license still verifies, in a test that
    fails when it does not.
 5. A decision on which of the signed license and the commercial entitlement
-   governs an enforced limit, and what happens when they disagree.
+   governs an enforced limit is already answered by section C rule 4 — the
+   signed license governs — so what is owed here is narrower: the mechanism by
+   which a disagreement is **detected and surfaced**, and which limit fields are
+   compared against which signed-license fields. Nothing in Stage A may reopen
+   rule 4's direction of authority.
 
 **Before Stage B (payment integration) may start:**
 
@@ -529,29 +591,38 @@ exists, this contract is the one describing reality.
 ## Bede's adoption note
 
 **What this pull request does not implement.** No change to
-`core/licensing.py`, to `_VALID_TIERS`, to the signed license payload, to
-verification, to any seat cap, to `scripts/issue_license.py`, to `checkout/`,
-to `docker-compose.yml`, or to any runtime code anywhere in this repository.
-No table, no field, no endpoint, no setting. A reader looking for the code that
-does what section F describes will not find it, because none was written. The
-lifecycle table says what a transition *would* mean, and nothing performs one.
+`homeschool-api/core/licensing.py`, to `_VALID_TIERS`, to the signed license
+payload, to verification, to `routers/pod.py`'s seat cap, to
+`homeschool-api/scripts/issue_license.py`, to `docker-compose.yml`, or to any
+runtime code anywhere in this repository. No table, no field, no endpoint, no
+setting. A reader looking for the code that does what section F describes will
+not find it, because none was written. The lifecycle table says what a
+transition *would* mean, and nothing performs one.
+
+**There is no checkout surface to leave untouched, and an earlier draft of this
+note listed one.** `checkout/` does not exist in this repository. Entry 8
+records that the pull request which would have built it was closed unmerged,
+so what survives is a design and not code. Naming it in a list of untouched
+paths would have read as evidence that a payment surface exists, which is the
+sales-claim boundary in section J applied to Bede's own documents.
 
 **Entry 7 stays open, and this contract feeds it rather than closing it.**
 Entry 7 records that the tier vocabulary in code no longer matches the pricing
 model, and needs a migration plan rather than a rename. Section C and section
-J's Stage A list state what such a plan must answer, including the explicit
-statement that legacy signed `coop` and commercial `coop` are two different
-values that happen to be spelled the same. Stating the requirement is not
-meeting it.
+J's Stage A list state what such a plan must answer, including two collisions
+of spelling: legacy signed `coop` against commercial `coop`, and — sharper,
+because the two words denote opposite populations — Bede's signed `seats`,
+which counts **children** and maps to `max_children`, against this contract's
+`max_seats`, which counts adults. Stating the requirement is not meeting it.
 
-**Entry 10 sells a monthly membership this contract does not describe.** The
-contract assumes an annual prepaid term with an explicit `effective_at` and
-`expires_at`. The Family Membership is sold monthly or annually today. Whether
-the monthly path is in the first commercial phase is an open question handed to
-Stage B, named in section J, and is not answered here.
+**Two gaps this contract names are now open entries rather than sentences.**
+The contract states that the monthly-billing gap and `family_portal`'s
+undefined scope are each "recorded as an open decision in both repositories."
+That was not true of this register when the contract was first adopted: both
+were named only inside a `closed` entry, which in this register's vocabulary
+carries no unanswered question. Entries 26 and 27 make the claim true rather than
+softening it.
 
-**`family_portal` is sold and undefined.** It appears in entry 10's list of
-what every membership carries and in this contract's `entitled_services`, and
-neither repository defines what surface it denotes or who delivers it.
-
-**Related:** [`DECISIONS.md`](DECISIONS.md) entry 25, and entries 7 and 10.
+**Related:** [`DECISIONS.md`](DECISIONS.md) entry 25 for the adoption, entries
+26 and 27 for the two questions it hands forward, and entries 7 and 10 for
+what it does not resolve.

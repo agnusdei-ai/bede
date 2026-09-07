@@ -139,14 +139,7 @@ def _stated_count(text: str, pattern: str) -> int:
         "That sentence is what states the count this test compares against, "
         "so its absence leaves the count unguarded rather than satisfied."
     )
-    word = match.group(1).lower()
-    if word.isdigit():
-        return int(word)
-    assert word in _NUMBER_WORDS, (
-        f"The stated count {word!r} is not a number this test can read. Add "
-        "it to _NUMBER_WORDS rather than dropping the assertion."
-    )
-    return _NUMBER_WORDS[word]
+    return _word_to_int(match.group(1))
 
 
 def _word_to_int(word: str) -> int:

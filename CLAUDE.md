@@ -1684,3 +1684,49 @@ same change.
 
 This is a standing rule for this repo across sessions, not a one-off for
 whichever change prompted it.
+
+## Standing Workflow: Never Commit Or Merge Under A Running Agent
+
+**A delegated agent owns the files it was assigned until it reports back.
+Nobody else commits them, pushes them, or merges them in the meantime** —
+not the orchestrator, not another agent, not a passing hook that noticed
+the tree was dirty.
+
+A dirty working tree during delegated work is **normal and expected**, not
+a problem to tidy. It is an agent mid-edit. Committing it captures a
+half-applied change, and the failure is silent: nothing errors, the commit
+looks deliberate, and the state it records is one no author ever intended.
+
+**In practice:**
+
+1. **Wait for the completion notification.** Not a poll, not a `git status`
+   that looks finished, not a plausible-looking file. An agent has one
+   moment at which its work is whole, and that is when it says so.
+2. **A tidiness prompt is not authority to commit.** A stop hook, a lint
+   warning, or a reminder about uncommitted changes describes the tree; it
+   knows nothing about who is writing to it. Answer it by explaining why
+   the tree is dirty, not by cleaning it.
+3. **Before committing, confirm nobody owns the files.** If a file ownership
+   map exists for the task, it names the owner. If the owner is a running
+   agent, the answer is wait.
+4. **A cross-repository change merges as a pair or not at all.** Merging one
+   side because it happens to be green leaves the other repository adopting
+   something its counterpart does not carry — which, for a contract, is the
+   exact drift the contract exists to prevent. Verify both sides carry the
+   same version before either merges.
+5. **Committing on an agent's behalf also loses its evidence.** The gate
+   exit codes, the pass counts, the break-verification results belong in
+   that commit's own message, and only the agent that ran them has them.
+
+**Why this is written down.** During the Stage C entitlement-contract work
+both repositories held uncommitted changes at once, because both adoption
+agents were mid-rebase onto a new contract version. A prompt to commit and
+push arrived at exactly that moment. Committing would have captured two
+half-swapped canonical blocks whose digest matched neither the old version
+nor the new one, and in the second repository it would additionally have
+committed generated files the gate had not yet run against — reproducing,
+in one step, the defect that repository's own commit-order rule was written
+after.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever task prompted it.

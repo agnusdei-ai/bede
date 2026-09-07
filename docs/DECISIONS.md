@@ -172,7 +172,7 @@ strings and moves with it.
 
 **The target vocabulary is now written down, and it carries a collision this
 entry did not previously name.** Entry 25's
-[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) fixes the
+[`BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`](BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md) fixes the
 commercial tiers as `family`/`coop`/`network`, so `coop` now appears in both
 vocabularies meaning two different things: a legacy signed tier, and the
 Co-op Membership. The mapping between commercial and signed tiers therefore
@@ -1155,62 +1155,135 @@ on.
 
 ---
 
-## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement contract
+## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement vocabulary is adopted at v1.3.0
 
-**Status:** open · needs: a counterpart pull request in `agnusdei-ai/locuto`
-adopting the same `contract_version`, contract tests in both repositories, and
-agreement on the transport left open in
-[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §9
+**Status:** closed
 
-**A Bede-side draft now exists**:
-[`docs/LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md),
-version `1.0.0-draft`. It defines the shared vocabulary by which a completed
-purchase becomes a provisioned household in both products — stable
-identifiers, the canonical `family`/`coop`/`network` tiers, per-service
-entitlement fields, explicit limits, lifecycle states with named transition
-owners, a minimal provisioning event schema, idempotency and reconciliation
-rules, and the security and privacy rules governing entitlement data.
+**Decided (2026-09).** Bede and Locuto adopt one shared vocabulary for stating
+what a paying customer has bought and what provisioning status that purchase
+has reached: the **Bede–Locuto Commercial Entitlement Contract**, at
+`contract_version` **1.3.0**. Its canonical block — everything between the
+`CONTRACT-V1-BEGIN` and `CONTRACT-V1-END` markers — is byte-identical in both
+repositories, and its sha256 is
+`d8649901af66e3a9145f79a7bbe5b9f9dd88e6c7dd3dbde3b37901a6b0f99e53`. That digest
+is the parity token, and what it enforces is narrower than the byte-identity
+just claimed: `homeschool-api/tests/test_entitlement_contract.py` hashes
+**this** repository's block and fails if a single byte of it changes, so a
+silent unilateral edit here is impossible. It never reads Locuto's copy.
+Byte-identity across the two rests on review at adoption, plus Locuto's own
+equivalent check on its own block — and a *coordinated* divergence, both blocks
+edited and both digests updated, is caught by neither. The block's own section A
+states this rather than leaving it to be inferred. An earlier version of this
+entry said the test made a change landing in one repository and not the other a
+defect rather than a divergence, which is a norm this contract states and not
+something any check here performs.
 
-**Why it is written before any of it is built.** Two repositories were about
-to implement against two compatible-looking guesses. The failure mode is not a
-build error — both sides ship, the shapes nearly agree, and the divergence
-surfaces as a household that paid and is provisioned in one product only. That
-is the "config that looks maintained but silently isn't" shape this repository
-has shipped twice, moved across a product boundary where neither side's tests
-can see it.
+**Adopting a contract implements nothing, and this entry is closed on the
+adoption rather than on anything working.** No change to
+`homeschool-api/core/licensing.py`, `_VALID_TIERS`, the signed license payload,
+verification, `routers/pod.py`'s seat cap,
+`homeschool-api/scripts/issue_license.py`, `docker-compose.yml`, or any runtime
+code. An earlier version of this entry also listed `checkout/`, which does not
+exist — entry 8 records that the pull request which would have built it was
+closed unmerged — and naming an absent surface in a list of untouched ones
+reads as evidence it is there. It registers no capability and does not fill
+`services/locuto_ipc/capabilities.py`'s deliberately empty registry, which
+stays empty; the joint schema negotiation `docs/LOCUTO_CONNECTOR_DECISIONS.md`
+requires is untouched by this. What was decided is that both products will use
+these words when they build, not that either has built.
 
-**This entry resolves the commercial entitlement contract definition only.**
-It does **not** resolve, advance, or pre-empt the runtime Locuto IPC
-capability negotiation, which is **entry 14** and remains open on its own
-terms. Those are separate concerns that share a product pairing and nothing
-else — no identifier, no transport, no schema.
-`services/locuto_ipc/capabilities.py` stays `CAPABILITIES = {}`, and the
-contract document registers no capability. Entry 14 closes on a jointly
-agreed *wire schema for a local socket*; this entry closes on a jointly
-adopted *commercial provisioning contract*. Neither closing does anything for
-the other.
+**Three questions it hands forward rather than answers:**
 
-**Deliberately out of scope, each tracked elsewhere:** Stripe and any
-checkout (entry 11 chose the processor; no pipeline exists), automated
-issuance and online validation
-([`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) Phases 1 and 2),
-monthly billing and immediate offline revocation (entry 10 records both as
-undecided, and `core/licensing.py` has no revocation mechanism at all), and
-feature gating inside Bede (entries 5 and 6). The contract covers **annual
-prepaid** entitlement and says so.
+* **Monthly billing.** The contract describes an annual prepaid term only, with
+  an explicit `effective_at` and `expires_at`. Entry 10 sells a Family
+  Membership monthly or annually. Now entry 26, and open — the contract asserts
+  this gap is recorded as an open decision in both repositories, and that was
+  not true of this register until entry 26 existed.
+* **Two spelling collisions, and the second is the sharper one.** The signed
+  legacy tier `coop` and the commercial tier `coop` are different values that
+  happen to be spelled the same, and denote the same *kind* of thing. Bede's
+  signed `seats` and the contract's `max_seats` denote **opposite
+  populations** — `routers/pod.py` enforces `seats` as a count of children,
+  while `max_seats` counts adults — so the obvious name-matching mapping leaves
+  a family entitlement with no child limit at all. Section C rule 6 states the
+  correct correspondence (`seats` maps to `max_children`, never `max_seats`).
+  Neither collision is resolved by a mapping being *stated*; both need entry
+  7's migration plan, still owed.
+* **`family_portal` is sold and undefined.** It is named in entry 10's list of
+  what every membership carries and in the contract's `entitled_services`, and
+  neither repository defines what surface it denotes or who delivers it. Now
+  entry 27, and open, for the same reason as entry 26.
 
-**It does not perform the tier migration, and it makes that migration
-harder to get wrong.** Entry 7 stays open. What this adds is a stated target
-vocabulary plus one finding entry 7 did not have: the string `coop` now
-appears in both vocabularies meaning different things — a legacy signed tier
-and the Co-op Membership — so the mapping between commercial and signed tiers
-has to be explicit rather than a passthrough. §11 of the contract is the
-compatibility plan.
+**Related:** `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`, and entries 7, 10, 26
+and 27.
 
-**Open rather than deferred** because nothing external is being waited on
-except a conversation this side can start. A deferral would need a trigger,
-and "the other repository gets to it" is not one.
+---
 
-**Related:** entries 7, 10, 11, 14;
-[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md);
-`homeschool-api/tests/test_locuto_entitlement_contract.py`.
+## 26. `[COMMERCIAL]` Whether monthly billing is in the first commercial phase
+
+**Status:** open · needs: a ruling from commercial ownership
+
+Entry 10 sells the Family Membership at **$199/month, or $2,149/year**. The
+Bede–Locuto Commercial Entitlement Contract
+(`docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`) describes **only the annual
+prepaid path**: one term, an explicit `effective_at`, an explicit `expires_at`,
+paid in advance. Its section F says so in as many words, and lists monthly
+subscription billing and its enforcement among what it deliberately leaves
+undecided.
+
+So a monthly product is sold today that the shared vocabulary does not
+describe. That is not a defect in either document — the contract states its own
+scope honestly, and the pricing entry states what is sold — but it is a gap
+somebody has to close before a checkout mints anything, because a checkout
+cannot mint an entitlement in a shape the contract has no words for.
+
+**Open rather than deferred, because nothing is being waited on.** The
+information needed to rule is already in hand: what is sold, and what the
+contract covers. What is missing is a decision about which of the two moves.
+
+**Two shapes the ruling could take, and they are not equally cheap.** Either
+the monthly path is out of the first commercial phase, and annual prepaid is
+what phase 1 sells — which needs entry 10's published pricing to say so — or
+monthly is in, and the contract needs a term model that renews on a cadence
+rather than once, which is a new `contract_version` agreed with
+`agnusdei-ai/locuto` rather than an edit Bede can make alone.
+
+**Named as a Stage B prerequisite by the contract itself.** Section J's Stage B
+list requires this ruling before payment integration may start, alongside a
+specified service-to-service transport and a named operator role owning
+`failed` and `manual_review`.
+
+**Related:** entry 10, entry 25, `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`.
+
+---
+
+## 27. `[PRODUCT]` What `family_portal` actually denotes
+
+**Status:** open · needs: a written definition from product ownership
+
+Entry 10 lists **the Family Portal** among the five things every membership
+carries, and `family_portal` is one of exactly three values in the entitlement
+contract's `entitled_services`. Neither repository defines what surface it is,
+what a person does on it, who builds it, or how it is delivered. It is sold and
+it is undefined.
+
+The other two service values are not like this. `bede_tutor` is this
+repository, and `locuto` is `agnusdei-ai/locuto`; each names something that
+exists and that someone owns. `family_portal` names a promise.
+
+**Until it is defined, sales material may not describe it as a separately
+delivered surface.** That is the contract's own section D rule, and it binds
+`site/`, the pricing page and anything else a prospective family reads. Nor may
+any implementation treat its presence in `entitled_services` as an instruction
+to provision something — which is the general rule for every service in that
+set (entitlement is never provisioning), and which matters most for the one
+member nobody can point at.
+
+**What would close this** is a written definition from product ownership: what
+the surface is, who delivers it, and whether it is distinct from the parent
+tools and oversight that entry 10 already lists beside it. The plausible
+reading — that it is a name for `ParentSetup.tsx` and `Progress.tsx` together,
+already built and already included — would close it cheaply, but nobody has
+said so, and a guess written down reads afterwards as a decision.
+
+**Related:** entry 10, entry 25, `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`.

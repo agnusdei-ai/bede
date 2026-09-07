@@ -1149,9 +1149,17 @@ has reached: the **Bede–Locuto Commercial Entitlement Contract**, at
 `CONTRACT-V1-BEGIN` and `CONTRACT-V1-END` markers — is byte-identical in both
 repositories, and its sha256 is
 `501d729af685ee79cf2096004f66b047949fcd84f297e9f8d7bf67d1a871bf14`. That digest
-is the parity token: `homeschool-api/tests/test_entitlement_contract.py` fails
-if a single byte of the block changes here, so a change that lands in one
-repository and not the other is a defect rather than a divergence.
+is the parity token, and what it enforces is narrower than the byte-identity
+just claimed: `homeschool-api/tests/test_entitlement_contract.py` hashes
+**this** repository's block and fails if a single byte of it changes, so a
+silent unilateral edit here is impossible. It never reads Locuto's copy.
+Byte-identity across the two rests on review at adoption, plus Locuto's own
+equivalent check on its own block — and a *coordinated* divergence, both blocks
+edited and both digests updated, is caught by neither. The block's own section A
+states this rather than leaving it to be inferred. An earlier version of this
+entry said the test made a change landing in one repository and not the other a
+defect rather than a divergence, which is a norm this contract states and not
+something any check here performs.
 
 **Adopting a contract implements nothing, and this entry is closed on the
 adoption rather than on anything working.** No change to

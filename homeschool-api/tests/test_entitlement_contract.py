@@ -40,13 +40,13 @@ _END = "<!-- CONTRACT-V1-END -->"
 # The cross-repository parity token. This is the sha256 of the canonical block
 # — the bytes from the start of the BEGIN marker line through the newline that
 # ends the END marker line, inclusive of both markers — frozen at
-# contract_version 1.1.0. `agnusdei-ai/locuto`'s copy of the same block hashes
+# contract_version 1.2.0. `agnusdei-ai/locuto`'s copy of the same block hashes
 # to the same value, and that equality is the only mechanism keeping the two
 # documents one document. Changing this constant to make a failing test pass
 # is not a fix: it is the divergence, recorded.
-CANONICAL_SHA256 = "eb9943ab9756c66fa0700b46244d7e41b1b2f637e8ef4a3f15a6388c09b5cdbc"
+CANONICAL_SHA256 = "501d729af685ee79cf2096004f66b047949fcd84f297e9f8d7bf67d1a871bf14"
 
-CONTRACT_VERSION = "1.1.0"
+CONTRACT_VERSION = "1.2.0"
 
 # Closed vocabularies, written as literals rather than parsed out of whatever
 # the document currently says. A test that reads its expectations from its
@@ -115,6 +115,147 @@ def _table_after(text: str, anchor: str) -> list[list[str]]:
         "guessing is the defect this function was rewritten to remove."
     )
     return rows[separator_at:]
+
+
+_NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+
+
+def _stated_count(text: str, pattern: str) -> int:
+    """The number a sentence in the contract states about the rows below it.
+
+    Written out as a word ("Six rules bind Stage A"), which is why this parses
+    a word rather than a digit — and accepts a digit anyway, so a future
+    rewording cannot make the guard silently unreachable by switching form.
+    """
+    match = re.search(pattern, text, re.IGNORECASE)
+    assert match, (
+        f"No sentence matching {pattern!r} was found in the canonical block. "
+        "That sentence is what states the count this test compares against, "
+        "so its absence leaves the count unguarded rather than satisfied."
+    )
+    word = match.group(1).lower()
+    if word.isdigit():
+        return int(word)
+    assert word in _NUMBER_WORDS, (
+        f"The stated count {word!r} is not a number this test can read. Add "
+        "it to _NUMBER_WORDS rather than dropping the assertion."
+    )
+    return _NUMBER_WORDS[word]
+
+
+def _section(letter: str) -> str:
+    """The canonical block's section `letter`, up to the next `## ` heading.
+
+    Slicing matters for the rule-count guard below: several sections carry
+    numbered lists (J has three of them), so counting `1.` across the whole
+    block would compare section C's stated number against everybody's rules.
+    """
+    block = _canonical_text()
+    start = re.search(rf"^## {letter}\. ", block, re.MULTILINE)
+    assert start, f"Section {letter} is missing from the canonical block."
+    rest = block[start.end():]
+    nxt = re.search(r"^## ", rest, re.MULTILINE)
+    return rest[: nxt.start()] if nxt else rest
+
+
+def test_section_c_states_the_number_of_rules_it_actually_carries():
+    """The defect this exists for shipped in v1.1.0 and the digest could not
+    see it: v1.1.0 added a sixth rule to section C and left the sentence above
+    it reading "Five rules bind Stage A", inside a document whose whole-block
+    hash was then frozen over the wrong sentence. A digest proves both
+    repositories carry the SAME text; it cannot tell a deleted rule from a
+    fixed typo, and it certainly cannot tell that prose and the rows beneath
+    it disagree.
+
+    The count is READ, never hardcoded, in both directions: a seventh rule
+    added correctly (sentence and list together) passes, and either half moved
+    without the other fails. Hardcoding six would have made this test the
+    thing that needs editing every time the contract legitimately grows,
+    which is how a guard becomes something people route around.
+    """
+    section = _section("C")
+    stated = _stated_count(section, r"\*\*(\w+) rules bind Stage A")
+
+    numbered = re.findall(r"^(\d+)\. ", section, re.MULTILINE)
+    actual = [int(n) for n in numbered]
+
+    assert len(actual) == stated, (
+        f"Section C says {stated} rules bind Stage A and carries "
+        f"{len(actual)}. One of the two moved without the other — which is "
+        "exactly the defect v1.1.0 shipped. Fix whichever is wrong, in both "
+        "repositories, under a new contract_version and a new digest."
+    )
+    assert actual == list(range(1, stated + 1)), (
+        f"Section C's rules are numbered {actual}, not 1..{stated}. A "
+        "duplicated or skipped number means a rule is cited by a number that "
+        "points at the wrong rule, or at two."
+    )
+
+
+def test_the_lifecycle_states_and_the_status_vocabulary_are_the_same_eight():
+    """Section F declares a count, lists the states, and then uses them as the
+    `status` field's vocabulary (section G types `status` as "lifecycle state,
+    Section F" rather than restating the values). Three statements of one
+    fact, and nothing compared them.
+
+    Every value here is read from the document. Retyping the eight names would
+    make this a test of whether the contract still says what this file
+    remembers, which is a different and much weaker claim than the one being
+    made: that the contract agrees with itself.
+
+    Equality with the transition table's own From/To vocabulary is deliberate
+    rather than containment. A state declared in the table above and reachable
+    by no transition is dead vocabulary — a consumer could never legally put
+    an entitlement into it — and a state used in a transition but absent from
+    the declared eight is a value a consumer would have to fail closed on
+    while the table tells it to go there.
+    """
+    section = _section("F")
+    stated = _stated_count(section, r"\*\*(\w+) states, and no others")
+
+    declared = [r[0].strip("`") for r in _table_after(section, "| State | Meaning |")]
+    assert declared, "Parsed no rows out of section F's state table."
+    assert len(declared) == stated, (
+        f"Section F says {stated} states and its table lists {len(declared)}: "
+        f"{declared}. The prose and the rows disagree, which is the same "
+        "shape as the rule-count defect v1.1.0 shipped in section C."
+    )
+    assert len(set(declared)) == len(declared), (
+        f"Section F's state table repeats a state: {declared}."
+    )
+
+    transitions = _table_after(
+        section,
+        "| From | To | Trigger | Who may initiate | Required audit | "
+        "Customer sees | On failure |",
+    )
+    assert transitions, "Parsed no rows out of section F's transition table."
+    used: set[str] = set()
+    for row in transitions:
+        # From and To only. A cell may name several states (the escalation row
+        # and the manual_review exit row both do); the em dash marking "no
+        # prior state" is not backticked, so reading backticked tokens picks
+        # up states and nothing else.
+        for cell in row[:2]:
+            used.update(re.findall(r"`([a-z_]+)`", cell))
+
+    assert used == set(declared), (
+        f"Section F's transition table uses {sorted(used)} while its state "
+        f"table declares {sorted(declared)}. A state declared but never "
+        "transitioned into or out of is unreachable vocabulary; a state used "
+        "in a transition but undeclared is one every consumer must fail "
+        "closed on while the table directs it there."
+    )
+
+    example = json.loads(re.findall(r"```json\n(.*?)```", _canonical_text(), re.DOTALL)[0])
+    assert example["status"] in declared, (
+        f"The JSON example's status is {example['status']!r}, which section "
+        "F does not declare. The example is what a reader copies, and section "
+        "G types `status` as a section F lifecycle state and nothing else."
+    )
 
 
 def test_the_contract_document_exists_and_carries_both_markers_exactly_once():

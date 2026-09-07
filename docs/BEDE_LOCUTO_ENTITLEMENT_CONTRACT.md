@@ -4,7 +4,7 @@
 repository, and adopting it implements nothing.
 
 It is adopted by both `agnusdei-ai/bede` and `agnusdei-ai/locuto` at
-`contract_version` **1.1.0**. Everything between the `CONTRACT-V1-BEGIN` and
+`contract_version` **1.2.0**. Everything between the `CONTRACT-V1-BEGIN` and
 `CONTRACT-V1-END` markers below is byte-identical to `agnusdei-ai/locuto`'s
 `docs/bede-locuto-entitlement-contract.md`. A change inside those markers that
 lands in one repository and not the other is a defect, not a divergence.
@@ -24,7 +24,7 @@ not be cited as the schema negotiation that would fill it.
 | Field | Value |
 | --- | --- |
 | Contract name | Bede–Locuto Commercial Entitlement Contract |
-| `contract_version` | `1.1.0` |
+| `contract_version` | `1.2.0` |
 | Status | Adopted by both repositories. Specification only. Nothing here is implemented. |
 | Canonical copies | `agnusdei-ai/bede` `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`, `agnusdei-ai/locuto` `docs/bede-locuto-entitlement-contract.md` |
 
@@ -84,32 +84,43 @@ behavior.
 
 ### Versioning and compatibility policy
 
-`contract_version` is a semantic version, `MAJOR.MINOR.PATCH`, and the three
-parts mean exactly this and nothing else:
+`contract_version` is a semantic version, `MAJOR.MINOR.PATCH`. Every change to
+this contract is classified by the **strongest** row it matches, and the last
+row of each part is a catch-all so that no change is unclassifiable:
 
-| Part | Changes when | A consumer written for an earlier version |
-| --- | --- | --- |
-| MAJOR | A field is removed or renamed, a required field is added, an identifier's meaning changes, a value is removed from a closed vocabulary, or a legal transition is removed | **Cannot** read it. Fails closed |
-| MINOR | An optional field is added, a value is added to a closed vocabulary, or a legal transition is added | Reads what it recognizes and **fails closed on what it does not**, per section I. It never silently ignores the unrecognized part |
-| PATCH | Wording, citations, examples, or clarification with no change to any field, value, state, transition, or rule | Reads it unchanged |
+| Part | Changes when |
+| --- | --- |
+| MAJOR | A field is removed or renamed; a required field is added; an identifier's meaning changes; a value is removed from a closed vocabulary; a legal transition is removed; **or any change that could make a consumer written for an earlier version behave incorrectly rather than fail closed** |
+| MINOR | An optional field is added; a value is added to a closed vocabulary; a legal transition is added; a field or value is marked deprecated; **or any other change to a rule that an earlier consumer meets by failing closed** |
+| PATCH | Wording, citation, example, formatting or clarification that changes no field, value, state, transition or rule |
 
-**A consumer states the versions it accepts, and refuses every other.** There is
-no version negotiation, no downgrade, and no best-effort parse. An event whose
-`contract_version` a consumer does not accept is recorded and routed to
-`manual_review` — the same behavior as any other unknown, and for the same
-reason: a consumer that half-understands an entitlement can provision half of
-it.
+**A consumer accepts a MAJOR line, not a single version.** A consumer written
+for `1.1.0` accepts any `1.y.z` at or above it and refuses every `2.y.z`. This
+is what makes MINOR mean anything: without it a consumer could never accept a
+version published after it was written, MINOR and MAJOR would behave
+identically for every existing consumer, and the distinction above would be
+decorative.
 
-**A MINOR addition is not permission to ignore what is new.** Adding a value to
-`commercial_tier` or `entitled_services` in a later MINOR version does not make
-an older consumer's silence acceptable; that consumer still fails closed on the
-value it does not know, which is what keeps the addition safe to make.
+**Within an accepted line, the fail-closed rule moves from the version to the
+value.** An accepted event whose `commercial_tier`, `entitled_services` member,
+`event_type` or transition the consumer does not recognize is recorded and
+routed to `manual_review` under section C rule 5, section D and section I —
+never ignored, never partially applied. So a MINOR addition is safe to make
+*and* an older consumer still refuses what it does not understand.
 
-**Both repositories carry the same version, or neither is adopted.** This
-contract has exactly one canonical text, and a version exists only once both
-repositories hold it byte-identically between the markers. A version present in
-one repository and not the other is not a version; it is a draft, and nothing
-may be implemented against it.
+**Outside the accepted line there is no negotiation.** A `2.y.z` event reaching
+a `1.y.z` consumer is recorded and routed to `manual_review` whole. No
+downgrade, no best-effort parse, no reading of the fields that happen to look
+familiar.
+
+**Both repositories carry the same version, or neither is adopted.** A version
+exists only once both repositories hold it byte-identically between the
+markers. A version present in one and not the other is a draft, and nothing may
+be implemented against it. **Note honestly what enforces this:** each
+repository has a check that its own block matches its own recorded digest, so a
+silent edit on one side is caught there. Neither check reads the other
+repository, so a *coordinated* divergence — both blocks edited, both digests
+updated — is caught by review at adoption and by nothing else.
 
 **Superseding, and what happens to what was recorded.** A new version never
 retroactively reinterprets a stored entitlement. An entitlement recorded under
@@ -119,9 +130,18 @@ later version is a deliberate, separately reviewed act, never a side effect of
 adopting one.
 
 **Deprecation.** A field or value being withdrawn is marked deprecated in a
-MINOR version, with the version that will remove it named, before any MAJOR
-version removes it. Nothing is removed without that notice having shipped
-first.
+MINOR version, naming the version that will remove it, before any MAJOR version
+removes it. Nothing is removed without that notice having shipped first.
+
+**One stated exception, recorded so it is not read as precedent.** The
+`1.0.0` → `1.1.0` change altered the meaning of `entitlement_id`, which the
+MAJOR row above covers. It was numbered MINOR because `1.0.0` was withdrawn
+during review, before any implementation, any stored entitlement, or any merge
+to either repository's default branch — so there was no consumer and no record
+for the change to break. **A later change of that shape is MAJOR.** The
+exception is written down rather than left to be inferred from the version
+history, because a precedent nobody argued for is how a rule stops binding.
+
 ---
 
 ## B. Canonical identifiers
@@ -174,7 +194,7 @@ verifies `trial`, `core` and `coop` inside an Ed25519-signed payload. This
 contract changes none of that, and Stage C ships no change to
 `_VALID_TIERS`, to the signed payload, or to verification.
 
-**Five rules bind Stage A, and they are the reason this section exists:**
+**Six rules bind Stage A, and they are the reason this section exists:**
 
 1. **Already-issued licenses must keep verifying.** A license signed with
    `trial`, `core` or `coop` was signed once and cannot be re-signed on a
@@ -396,7 +416,7 @@ secret data.
 ```json
 {
   "event_type": "entitlement.created",
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "occurred_at": "2026-09-07T14:03:11Z",
   "entitlement_id": "ent_7Qx2m4Kd",
   "organization_id": "org_3Ha9pZ1t",
@@ -549,8 +569,11 @@ than an implementation task waiting for time.
 
 **Before Stage B (payment integration) may start:**
 
-1. Section J's Stage A items 1, 2 and 5 answered, because a checkout that mints
-   a tier string needs to know which vocabulary it is minting into.
+1. Section J's Stage A items 1 and 2 answered, because a checkout that mints a
+   tier string needs to know which vocabulary it is minting into; and item 5
+   answered, because a checkout that records a commercial limit needs the
+   mechanism that will surface its disagreement with the signed license rather
+   than leaving it to be discovered by a family hitting a cap.
 2. A ruling on whether the monthly membership is in the first commercial phase,
    since this contract describes only the annual prepaid path and a monthly
    product is sold today.

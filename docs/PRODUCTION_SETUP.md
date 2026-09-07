@@ -387,14 +387,19 @@ and paste the new value into the secret. Set a calendar reminder a month
 before the expiry printed at issue time. If the signing keypair is ever
 rotated, reissue this key in the same change.
 
-That step runs with `continue-on-error: true` — a stale/invalid secret is
-only actionable by whoever holds the offline private key, never by
-anything in CI itself, so it reports failure (a visible signal in the
-Actions UI) without failing the whole job or skipping the steps after it
-(tablet-trust page, Postgres backup/restore all still run and still count
-either way). The tradeoff: while this secret is stale, that one step isn't
-actually proving the license gate works — reissuing it promptly is what
-restores that coverage, not a hard requirement to keep the workflow green.
+**That step blocks.** A stale, invalid or expired secret fails it, fails the
+job, and turns `main` red until someone reissues the key. That is
+deliberate: an entitlement check that cannot fail the build is not a check,
+and this step spent two revisions proving it — `continue-on-error: true`
+with an `::error::` annotation, then that annotation re-emitted at the end
+of the job, both of which left the job green while the gate went unverified.
+
+**The steps after it still run**, so a stale secret no longer costs you
+unrelated coverage: the tablet-trust page and Postgres backup/restore checks
+carry `if: success() || steps.license_check.conclusion == 'failure'` and
+execute when the license step is the only failure. What you lose while the
+secret is stale is a green workflow, which is the point — reissuing it is
+now a visible obligation rather than an annotation someone has to notice.
 
 **Threat model, honestly:** this is a trust-and-verify gate for legitimate
 self-hosters, not DRM — anyone with the source (which every self-hosted

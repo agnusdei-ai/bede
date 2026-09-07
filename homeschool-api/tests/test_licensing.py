@@ -134,3 +134,65 @@ def test_get_license_returns_none_for_empty_key():
 def test_get_license_raises_for_invalid_key(test_keypair):
     with pytest.raises(licensing.InvalidLicenseError):
         licensing.get_license("garbage.garbage")
+
+
+# ── Legacy signed tiers, and the collision with the commercial vocabulary ──
+#
+# Contract §C rule 1: a license signed with `trial`, `core` or `coop` was
+# signed once and cannot be re-signed on a customer's machine, so any change
+# that stops one verifying is a regression rather than a migration. Nothing
+# proved that for `coop` until these tests: before them, the only `coop` in
+# this file was inside test_signature_from_a_different_keypair_is_rejected,
+# where it is asserted to be REJECTED. So the one legacy tier whose name
+# collides with a commercial tier had no evidence it still verified at all.
+
+
+@pytest.mark.parametrize("legacy_tier", ["trial", "core", "coop"])
+def test_every_legacy_signed_tier_still_verifies(test_keypair, legacy_tier):
+    """Every already-issued tier verifies and round-trips its own value.
+
+    Fails when a tier is dropped from _VALID_TIERS — which is the shape
+    contract §J Stage A item 4 asks for: evidence that already-issued
+    licenses still verify, in a test that fails when they do not.
+    """
+    # A trial must expire (scripts/issue_license.py enforces --days for it),
+    # so give every tier here a live expiry rather than special-casing one.
+    lic = _sign(
+        test_keypair,
+        tier=legacy_tier,
+        licensee="An Existing Customer",
+        seats=10,
+        expires=date.today() + timedelta(days=365),
+    )
+    info = licensing.verify_license(lic)
+    assert info.tier == legacy_tier
+    assert info.is_expired is False
+    assert info.seats == 10
+
+
+def test_the_three_legacy_tiers_are_all_still_accepted():
+    """A superset assertion, deliberately, not an equality one.
+
+    Requiring _VALID_TIERS to be *exactly* these three would forbid a future
+    addition that nobody has ruled on. What must not happen is one of them
+    quietly leaving, so that is what is asserted.
+    """
+    assert {"trial", "core", "coop"} <= licensing._VALID_TIERS
+
+
+@pytest.mark.parametrize("commercial_only", ["family", "network"])
+def test_a_commercial_tier_is_not_a_signed_tier(test_keypair, commercial_only):
+    """`family` and `network` are commercial values and never license fields.
+
+    Contract §C: a commercial_tier "is not a feature flag, not a permission,
+    not a capability grant, and not a license field." The wrong move this
+    guards is someone "migrating" by adding the commercial vocabulary to
+    _VALID_TIERS, which would let an unsigned commercial string become an
+    access decision. `coop` is deliberately absent from this list: it is a
+    legitimate LEGACY signed tier that merely shares a spelling with a
+    commercial one, which is exactly the collision §C rule 2 names.
+    """
+    assert commercial_only not in licensing._VALID_TIERS
+    lic = _sign(test_keypair, tier=commercial_only, seats=10)
+    with pytest.raises(licensing.InvalidLicenseError, match="unknown license tier"):
+        licensing.verify_license(lic)

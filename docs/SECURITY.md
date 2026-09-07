@@ -114,19 +114,6 @@ list as items are closed.
   `homeschool-tutor/`/`demo/`). Worth confirming directly in GitHub
   settings — required checks and force-push protection — before a
   production release; not something a code change can confirm or fix.
-- **`production-regression.yml`'s "Confirm the license is ACTIVE" step is
-  non-blocking (`continue-on-error: true`), so CI can silently stop proving
-  the license gate actually works.** `CI_TEST_LICENSE_KEY` went invalid
-  (bad signature against `core/licensing.py`'s `PUBLIC_KEY_PEM` — not
-  simple expiry) and stayed that way across many runs, because reissuing it
-  needs the offline private signing key (`docs/PRODUCTION_SETUP.md
-  #licensing`) that nothing in CI holds — left blocking, this one stale
-  secret also skipped every step after it (tablet-trust page, Postgres
-  backup/restore), throwing away real coverage over an unrelated problem.
-  The step still runs and still reports failure in the Actions UI, but a
-  human with that private key has to notice and act on it — nothing
-  enforces that anymore. Worth periodically confirming this step is
-  actually green, not just that the workflow overall is.
 - **A proposed Bede↔Locuto content-agent connector has one remaining
   unresolved pre-implementation blocker, tracked in
   [`docs/LOCUTO_CONNECTOR_DECISIONS.md`](LOCUTO_CONNECTOR_DECISIONS.md).**
@@ -144,6 +131,30 @@ list as items are closed.
   agent ships at all) resolves.
 
 ## Closed gaps
+
+- **`production-regression.yml`'s "Confirm the license is ACTIVE" step now
+  blocks, so a license that stops verifying reds `main` instead of being
+  reported and ignored.** It ran `continue-on-error: true` through two
+  revisions, each adding a louder signal rather than a consequence: first an
+  `::error::` annotation, then a final always-run step re-emitting the same
+  annotation at the end of the job. Both left the job **green** while the
+  gate went unverified, which is the shape a reader trusts least — an
+  annotation is a message, and only a non-zero exit is a gate.
+  `CI_TEST_LICENSE_KEY` had previously gone invalid (bad signature against
+  `core/licensing.py`'s `PUBLIC_KEY_PEM`, not simple expiry) and stayed that
+  way across many runs on exactly that basis.
+  **What the bypass protected is preserved rather than discarded**, because
+  it was a real concern: reissuing that secret needs the offline private
+  signing key (`docs/PRODUCTION_SETUP.md#licensing`) that nothing in CI
+  holds, and leaving the step blocking used to skip every later step —
+  tablet-trust page, Postgres backup/restore — throwing away unrelated
+  coverage while somebody found the human with that key. Those two steps now
+  carry `if: success() || steps.license_check.conclusion == 'failure'`, so
+  they still run when the license step is the only thing that failed.
+  Coverage is kept; the green job is not. The residual, stated plainly: when
+  that secret next expires, `main` goes red until an operator reissues it.
+  That is the intended fail-closed behavior and converts a silent staleness
+  into a visible owner task.
 
 - **GitHub Actions were pinned to mutable version tags (`@v4`), not commit
   SHAs — closed 2026-08-12.** A compromised upstream Action could push a

@@ -180,6 +180,13 @@ has to be explicit in code rather than a string passthrough. That contract's
 §11 is the compatibility plan this entry `needs:`; it does not perform the
 migration.
 
+**Ruled on the narrower question, 2026-09-07 — entry 28.** There is no implicit
+mapping, and a legacy signed tier is never inferred to be a commercial one
+because the names collide. That does not close this entry: it names what a
+future mapping must be (explicit, separately approved, with a migration plan),
+which is exactly what this entry still `needs:`. `core/commercial_tiers.py`
+carries the guard that fails if a mapping is added without one.
+
 ---
 
 ## 8. `[COMMERCIAL]` The checkout pipeline predates the current pricing model
@@ -289,11 +296,17 @@ cap is driven by `core/licensing.py`, whose `_VALID_TIERS` knows nothing about
 this model. See entry 7, whose finding is now larger rather than smaller.
 
 **Not decided here:** whether the metered diagnostic tier is cancelled or
-merely absent from this launch; whether a trial still precedes the Family
-Membership; what a household above 6 children pays; where the Co-op
-Membership's "from" ends; and how monthly billing reconciles with the offline,
-phone-home-free license verification `core/licensing.py` deliberately
-implements. Each is its own entry when someone rules on it.
+merely absent from this launch; where the Co-op Membership's "from" ends; and
+how monthly billing reconciles with the offline, phone-home-free license
+verification `core/licensing.py` deliberately implements. Each is its own entry
+when someone rules on it.
+
+**Two items left this list on 2026-09-07.** Whether a trial precedes the Family
+Membership is now entry 29, and what happens to a household above the 6-child
+figure is now entry 30. Both were ruled rather than answered: there is no
+commercial trial, and **no cap policy is authorized at all** — which means the
+6-child figure above remains a price-list statement and is deliberately not a
+number any code enforces. Entry 30 says why that distinction matters.
 
 ---
 
@@ -1287,3 +1300,114 @@ already built and already included — would close it cheaply, but nobody has
 said so, and a guess written down reads afterwards as a decision.
 
 **Related:** entry 10, entry 25, `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`.
+
+---
+
+## 28. `[COMMERCIAL]` Legacy signed tiers map to no commercial tier
+
+**Status:** closed
+
+**Decided (2026-09-07).** There is **no implicit mapping** between a legacy
+signed tier and a commercial tier, and a legacy tier is never inferred to be a
+commercial one merely because the names collide — `coop` included. Any future
+mapping requires an explicit, separately approved policy decision and a
+migration plan.
+
+**The collision is the whole reason this needed ruling rather than assuming.**
+`core/licensing.py` verifies `trial`, `core` and `coop` inside an Ed25519-signed
+payload; `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md` §C fixes the commercial
+tiers as `family`, `coop` and `network`. So `coop` names two different things in
+two vocabularies, and §C rule 2 already forbade reading either from the other's
+field. What rule 2 did not say is whether a mapping was *wanted*. This says it
+is not, until somebody decides otherwise in writing.
+
+**Implemented as an absence, guarded rather than trusted.**
+`core/commercial_tiers.py` has no mapping function, and
+`test_no_legacy_to_commercial_mapping_exists` scans that module's own namespace
+for a mapping-shaped symbol so one cannot be added quietly.
+`describe_legacy_tier` deliberately returns prose for an operator rather than a
+`CommercialTier`, so no call site can mistake it for a mapping or grow one by
+accident.
+
+**Direction of authority is untouched.** §C rule 4 already settles it: a
+commercial entitlement may inform what an operator provisions and may never
+override, relax, or substitute for what a signed license verifies. Where the
+two disagree the signed license governs, and the disagreement is a
+`manual_review` condition that `compare_children_limit` reports and does not
+resolve.
+
+**Related:** entry 7 (which this constrains without closing), entry 25,
+`docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md` §C.
+
+---
+
+## 29. `[COMMERCIAL]` There is no commercial trial tier
+
+**Status:** closed
+
+**Decided (2026-09-07).** No commercial trial. `TRIAL` is not added to the
+commercial vocabulary, and no existing concept is treated as a commercial
+entitlement without a contract amendment and explicit approval. A trial remains
+what it already was: a **signed-license tier only**, verified by
+`core/licensing.py`, expiring, and carrying no commercial meaning.
+
+**This was listed as undecided in entry 10 and blocked two stages.**
+`docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md` §J names it as a precondition for
+Stage A *and* for Stage B, the latter because a checkout that mints a tier
+string has to know which vocabulary it is minting into.
+
+**Why it could not be answered by implementation.** §C rule 3 says `core` and
+`trial` have no commercial counterpart and Stage A must not invent one. The
+commercial tier set is fixed at three by the contract, so adding a fourth member
+would have been a **contract amendment** wearing the clothes of an enum edit —
+the cross-repository semantic change that requires a companion change in
+`agnusdei-ai/locuto` and parity verification, not a decision an implementing
+agent may take.
+
+**Guarded:** `test_core_and_trial_are_not_commercial_tiers` and
+`test_exactly_three_canonical_commercial_tiers` both fail if a fourth member
+appears.
+
+**Related:** entry 1 (the superseded pricing model that carried a trial),
+entry 10, entry 25.
+
+---
+
+## 30. `[COMMERCIAL]` No cap policy is authorized
+
+**Status:** closed
+
+**Decided (2026-09-07).** **No cap policy.** No numeric children, seat, account
+or related cap is embedded on the strength of pricing material or a naming
+inference. Any cap requires a separately approved policy stating its authority,
+the population it affects, its enforcement point, and its migration behavior for
+customers already outside it.
+
+**This is narrower and stricter than the question it answers.** The question was
+what happens to a household above the Family Membership's 6-child figure. The
+ruling declines to answer it in code at all: the figure in entry 10 is a
+**price-list statement**, and a price list is not an enforcement authority. A
+cap read off a marketing page and written into a constant is exactly the kind of
+number that later turns out to have governed real customers without anyone
+having decided it should.
+
+**What already enforces a limit is unchanged and is not this.**
+`routers/pod.py` enforces the `seats` count inside the signed license, which is
+a per-deployment issued value rather than a policy figure. This ruling does not
+touch it, raise it, lower it, or reinterpret it.
+
+**Guarded:** `test_no_cap_policy_is_embedded` fails if a numeric cap constant
+appears in `core/commercial_tiers.py`. The four limit fields
+(`max_children`, `max_households`, `max_seats`, `max_organizations`) are
+*representations* of a value an entitlement may carry, defaulting to `None`,
+which per §E means "not constrained by this field" and never zero and never
+unlimited-by-default.
+
+**The fail-closed consequence is intended.** A consumer that cannot determine a
+limit it needs in order to provision safely sets `manual_review` rather than
+assuming a generous value. An above-cap household therefore reaches an operator
+and a Co-op conversation rather than being auto-upgraded, auto-priced, or
+silently allowed.
+
+**Related:** entry 10, entry 25,
+`docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md` §E and §J item 3.

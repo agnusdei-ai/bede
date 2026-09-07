@@ -1,0 +1,557 @@
+# Bede–Locuto Commercial Entitlement Contract
+
+**This is a specification only.** Nothing in it is implemented in this
+repository, and adopting it implements nothing.
+
+It is adopted by both `agnusdei-ai/bede` and `agnusdei-ai/locuto` at
+`contract_version` **1.0.0**. Everything between the `CONTRACT-V1-BEGIN` and
+`CONTRACT-V1-END` markers below is byte-identical to `agnusdei-ai/locuto`'s
+`docs/bede-locuto-entitlement-contract.md`. A change inside those markers that
+lands in one repository and not the other is a defect, not a divergence.
+
+**It changes no licensing, payment, or runtime behavior.** `core/licensing.py`,
+`_VALID_TIERS`, the signed payload, verification, seat caps and `checkout/` are
+untouched.
+
+**It is not a Locuto IPC capability contract.** It does not register a
+capability, and it does not fill `services/locuto_ipc/capabilities.py`'s
+deliberately empty registry. That registry stays empty, and this document may
+not be cited as the schema negotiation that would fill it.
+
+<!-- CONTRACT-V1-BEGIN -->
+## Contract identity
+
+| Field | Value |
+| --- | --- |
+| Contract name | Bede–Locuto Commercial Entitlement Contract |
+| `contract_version` | `1.0.0` |
+| Status | Adopted by both repositories. Specification only. Nothing here is implemented. |
+| Canonical copies | `agnusdei-ai/bede` `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`, `agnusdei-ai/locuto` `docs/bede-locuto-entitlement-contract.md` |
+
+**The two copies are byte-identical between the `CONTRACT-V1-BEGIN` and
+`CONTRACT-V1-END` markers.** Each repository may add its own preamble above the
+opening marker and its own adoption note below the closing marker. Nothing
+inside the markers is repository-specific, and a change inside them that lands
+in one repository and not the other is a defect rather than a divergence.
+
+---
+
+## A. Purpose and boundaries
+
+**Purpose.** This contract is the shared vocabulary in which Bede and Locuto
+state, to each other and to an operator, **what a paying customer has bought
+and what provisioning status that purchase has reached.** It exists so that one
+question — *is this organization commercially entitled to this service, for this
+term, within these limits* — has one answer with one set of words, rather than
+one answer per product.
+
+**This is a commercial entitlement and provisioning contract. It is not:**
+
+- a payment protocol, and it carries no payment instrument, card, bank or
+  processor data;
+- a license-verification protocol, and it neither replaces nor weakens Bede's
+  offline signed-license verification;
+- a runtime capability contract between Bede and Locuto, and it is **not** an
+  extension of `bede-ipc-spec.md`, `bede-connector.md`, or Bede's
+  `services/locuto_ipc/` capability registry;
+- a message-delivery, identity-provider, key-management or data-transfer
+  protocol;
+- an authorization mechanism for any operation on a user's behalf.
+
+**Nothing in this contract registers, implies, authorizes or prepares a runtime
+capability.** A capability between the two products remains governed solely by
+`bede-ipc-spec.md` §4's rule that a new capability is a new named message body,
+declared per §5, never a widening of an existing one, and by the joint
+negotiation `bede-connector.md` and Bede's `docs/LOCUTO_CONNECTOR_DECISIONS.md`
+both require. **The capability registry stays empty.** This contract may not be
+cited as the schema negotiation that would fill it.
+
+**Naming a service in commercial material does not implement it.** An
+entitlement record says a customer is *entitled to* a service. It never asserts
+that the service is provisioned, reachable, or built. Section D states this per
+service and section J states what must be true before any of it becomes runtime
+behavior.
+
+**Word reservations, because both repositories already use these words.**
+
+| Word | Reserved meaning elsewhere | This contract |
+| --- | --- | --- |
+| entitlement | Locuto `storage.md` §5.1: cryptographic **entitlement to sign** a claim | Always written **commercial entitlement** when this contract is meant. The unqualified word never refers to this contract inside Locuto. |
+| `coop` | Bede `core/licensing.py` `_VALID_TIERS`: a **signed legacy license tier** | A `commercial_tier` value. The two strings are equal and the meanings are not. Section C forbids substituting either for the other. |
+| principal, participant | Locuto decision 236 and `product-loop.md` §7 | Not used here. This contract's actors are `organization_id`, `purchaser_account_id` and `organization_admin_id` and nothing else. |
+| tier | Bede: a signed license field. Locuto: a Linux host support contract. | Always written **commercial tier**, carried only in `commercial_tier`. |
+
+---
+
+## B. Canonical identifiers
+
+Every identifier below is an **opaque string**. A consumer may compare it for
+equality and use it as a key. A consumer may not parse it, derive meaning from
+its shape, or reconstruct any other value from it.
+
+| Identifier | Required | Meaning | Stability |
+| --- | --- | --- | --- |
+| `contract_version` | yes | The version of this contract the event was written against. Semantic version string. | Fixed per event |
+| `entitlement_id` | yes | The commercial entitlement itself. One per purchased term per organization. | Stable for the life of the entitlement, including across renewal-state changes |
+| `organization_id` | yes | The entity that holds the entitlement: a household, a co-op, or a network organization. | Stable across terms |
+| `purchaser_account_id` | yes | The account that paid. May equal `organization_admin_id`. | Stable |
+| `organization_admin_id` | yes | The account authorized to administer the organization's provisioning. | Stable; may be reassigned by a `manual_review` transition |
+| `source_purchase_reference` | yes | An opaque reference to the originating commercial record, for reconciliation. | Stable |
+| `idempotency_key` | yes | Uniquely identifies one logical delivery attempt of one event. | Unique per logical event |
+| `correlation_id` | yes | Groups every event and retry belonging to one provisioning episode. | Stable across retries |
+
+**Forbidden as, or inside, any identifier or any other event field:** email
+addresses, personal names, student or child names, student identifiers,
+household member names, educational records, assessment or mastery data,
+narration text, prompts, message content or metadata, voice data, payment
+instrument data, credentials, secrets, and any value from which any of these
+can be derived. Section I states the rule; this table states that it binds the
+identifiers too, because an identifier is the easiest place for a name to hide.
+
+**An `organization_id` is not a `student`, a `pod`, a `child` or a Locuto
+account.** It is a commercial entity. Mapping it onto any product-internal
+record is Stage A and Stage B work, governed by section J.
+
+---
+
+## C. Commercial tiers, and legacy compatibility
+
+**The canonical `commercial_tier` values are exactly three:**
+
+| Value | Sold as | Shape |
+| --- | --- | --- |
+| `family` | Family Membership | One household |
+| `coop` | Co-op Membership | Several households under one co-op |
+| `network` | Network Partnership | Schools and organizations, negotiated |
+
+**These are commercial values only.** A `commercial_tier` is what a customer
+bought. It is not a feature flag, not a permission, not a capability grant, and
+not a license field.
+
+**Bede's legacy signed tiers are untouched by this contract.** `core/licensing.py`
+verifies `trial`, `core` and `coop` inside an Ed25519-signed payload. This
+contract changes none of that, and Stage C ships no change to
+`_VALID_TIERS`, to the signed payload, or to verification.
+
+**Five rules bind Stage A, and they are the reason this section exists:**
+
+1. **Already-issued licenses must keep verifying.** A license signed with
+   `trial`, `core` or `coop` was signed once and cannot be re-signed on a
+   customer's machine. Any Stage A change that stops one verifying is a
+   regression, not a migration.
+2. **`coop` the legacy signed tier and `coop` the commercial tier are different
+   values that happen to be spelled the same.** Neither may be read from the
+   other's field, compared to the other, or defaulted from the other. A mapping
+   between them, if one is wanted, is an explicit table in Stage A, written
+   down, and not an equality test.
+3. **`core` and `trial` have no commercial counterpart in this contract.**
+   `core` was superseded by the Family Membership; whether a trial still
+   precedes the Family Membership is undecided. Stage A must not invent a
+   commercial tier for either.
+4. **Direction of authority is one way.** A commercial entitlement may inform
+   what an operator provisions. It may never override, relax, or substitute for
+   what a signed license verifies. Where the two disagree, the signed license
+   governs what the software does and the disagreement is a `manual_review`
+   condition.
+5. **An unknown `commercial_tier` fails closed.** A consumer that receives a
+   value outside the three above does not guess, does not fall back to the
+   cheapest or the most generous, and does not proceed. It records the event,
+   sets status `manual_review`, and stops.
+
+---
+
+## D. Services
+
+`entitled_services` is a set, drawn from exactly these values:
+
+| Value | What it names |
+| --- | --- |
+| `bede_tutor` | The Bede tutoring product |
+| `locuto` | Locuto messaging |
+| `family_portal` | The family-facing portal surface |
+
+**For every service, without exception: entitlement is not provisioning.**
+Presence of a service in `entitled_services` states that the customer has
+bought the right to it. It states nothing about whether the service is
+installed, reachable, configured, licensed, or built. A consumer that treats
+membership in this set as proof of runtime access has misread the contract.
+
+**`family_portal` is named here because it is sold, and it is not defined.**
+Neither repository defines what surface `family_portal` denotes, who builds it,
+or how it is delivered. **Until product ownership defines it in writing, sales
+material may not describe it as a separately delivered surface**, and no
+implementation may treat its presence in `entitled_services` as an instruction
+to provision anything. This is recorded as an open decision in both
+repositories rather than resolved here.
+
+**`locuto` in `entitled_services` grants no Locuto runtime capability to Bede,
+and no Bede runtime capability to Locuto.** It records that the customer bought
+Locuto. Nothing follows from it about what either process may ask the other to
+do.
+
+**An unknown service value fails closed**, on the same terms as an unknown
+tier: record, `manual_review`, stop. A consumer must not ignore an unrecognized
+member and proceed with the rest, because a partially understood entitlement
+provisioned partially is exactly the silent wrong outcome section H forbids.
+
+---
+
+## E. Limits
+
+`limits` is a structured object. **There is no bare `seats` field, and there
+never may be**, because the word means children to one product, households to
+another, and administrators to a third, and a single number carrying all three
+meanings is how a co-op comes to be provisioned as a family.
+
+| Field | Type | Meaning | Absent means |
+| --- | --- | --- | --- |
+| `max_children` | integer or `null` | Children who may be configured under this entitlement | Not limited by this field |
+| `max_households` | integer or `null` | Distinct households the entitlement covers | Not limited by this field |
+| `max_seats` | integer or `null` | Administrative or adult accounts | Not limited by this field |
+| `max_organizations` | integer or `null` | Sub-organizations, for `network` only | Not limited by this field |
+
+**`null` means *this dimension is not constrained by this field*. It never
+means zero and it never means unlimited-by-default.** A consumer that cannot
+determine a limit it needs in order to provision safely does not assume a
+generous value: it sets `manual_review`.
+
+**Tier-shaped expectations, stated so that a mismatch is visible rather than
+inferred:**
+
+| `commercial_tier` | Typically constrains | Typically `null` |
+| --- | --- | --- |
+| `family` | `max_children` | `max_households`, `max_organizations` |
+| `coop` | `max_households`, `max_children` | `max_organizations` |
+| `network` | negotiated per contract | — |
+
+**These are expectations, not validation rules.** A `family` entitlement
+carrying `max_households` is not rejected; it is a shape a consumer must be
+able to represent and an operator may want to look at. What is rejected is an
+ambiguous limit, never an unusual one.
+
+**No limit in this contract is enforced by this contract.** Enforcement lives
+where the software already enforces things, and today Bede's per-pod cap is
+driven by its signed license and knows nothing about this model. Reconciling
+the two is Stage A work named in section J.
+
+---
+
+## F. Lifecycle
+
+**Eight states, and no others:**
+
+| State | Meaning |
+| --- | --- |
+| `pending` | Purchase recorded; provisioning has not completed |
+| `provisioned` | Provisioning steps completed; term may not have begun |
+| `active` | Within term, provisioned, in force |
+| `renewal_due` | Within term, term end approaching |
+| `expired` | Term ended without renewal |
+| `suspended` | In force but administratively halted |
+| `failed` | A provisioning step failed and did not complete |
+| `manual_review` | A human must decide before anything else happens |
+
+**Legal transitions, with owner, trigger, audit and customer-visible result.**
+Every transition not in this table is illegal, and an attempt to make one fails
+closed into `manual_review`.
+
+| From | To | Trigger | Who may initiate | Required audit | Customer sees | On failure |
+| --- | --- | --- | --- | --- | --- | --- |
+| — | `pending` | Purchase recorded | Commercial system of record | `entitlement_id`, `source_purchase_reference`, `correlation_id`, timestamp | Purchase acknowledged; access not yet available | `failed` |
+| `pending` | `provisioned` | Every provisioning step for every entitled service completed | Provisioning operator or automated provisioner | Per-service outcome, `correlation_id`, timestamp | Access being prepared | `failed` |
+| `pending` | `failed` | Any provisioning step did not complete | Provisioning operator or automated provisioner | Failing step, reason, `correlation_id` | Something needs attention; support informed | — |
+| `pending` | `manual_review` | Unknown version, tier, service, or ambiguous limit | Any consumer | The unrecognized value verbatim, `correlation_id` | Being set up; support informed | — |
+| `provisioned` | `active` | `effective_at` reached | Time, observed by the operator of record | Timestamp | Access available | `manual_review` |
+| `active` | `renewal_due` | Renewal window opens before `expires_at` | Commercial system of record | Timestamp, `expires_at` | Renewal notice | — |
+| `renewal_due` | `active` | Renewal purchase recorded, extending `expires_at` | Commercial system of record | New term, new `source_purchase_reference` | Renewed | `manual_review` |
+| `renewal_due` | `expired` | `expires_at` passed with no renewal | Time, observed by the operator of record | Timestamp | Term ended | — |
+| `active` | `expired` | `expires_at` passed | Time, observed by the operator of record | Timestamp | Term ended | — |
+| `expired` | `active` | Late renewal recorded | Commercial system of record | New term, `correlation_id` | Restored | `manual_review` |
+| `active` | `suspended` | Administrative decision | Named human operator only | Deciding operator, stated reason, `correlation_id` | Access paused; support informed | — |
+| `suspended` | `active` | Administrative decision | Named human operator only | Deciding operator, stated reason | Access restored | — |
+| `failed` | `manual_review` | Escalation, or retry budget exhausted | Provisioning operator | Retry count, last failure | Support informed | — |
+| `failed` | `pending` | Deliberate retry of the whole episode | Provisioning operator | Retry rationale, same `correlation_id` | No change | `manual_review` |
+| `manual_review` | `pending`, `provisioned`, `active`, `suspended`, `expired` | A human decided | Named human operator only | Deciding operator, stated reason, resulting state | As the resulting state | — |
+
+**Four properties of this table are load-bearing:**
+
+- **`suspended` is only ever entered by a named human.** Nothing automatic
+  suspends a customer, because an automatic suspension is a revocation the
+  customer cannot appeal to anyone, and nothing implements one today.
+- **`manual_review` is reachable from every state and is never terminal.** A
+  state a customer can be stuck in with nobody responsible is the failure this
+  state exists to prevent.
+- **`expired` is not `suspended` and not revocation.** It records that a term
+  ended. It asserts nothing about what any software then does.
+- **Time is observed, not enforced.** `expires_at` passing changes the
+  entitlement record. Whether any software behaves differently is out of scope
+  for this contract entirely.
+
+**What is assumed, and what is undecided:**
+
+- **Assumed for Phase 1: annual prepaid.** One term, an explicit `effective_at`
+  and an explicit `expires_at`, paid in advance.
+- **Undecided, and out of scope here:** monthly subscription billing and its
+  enforcement; refunds; cancellation and its timing; immediate offline
+  revocation; online phone-home validation; whether a trial precedes the Family
+  Membership. **A monthly product is sold today** and this contract does not
+  describe it. That gap is recorded as an open decision in both repositories.
+- **Nothing implicit.** No suspension, revocation, downgrade or enforcement
+  behavior may be described anywhere as already implemented on the strength of
+  this table. The table says what a transition *would mean*. No code performs
+  any of them.
+
+---
+
+## G. The provisioning event
+
+The minimum versioned event shape. A consumer that cannot read every required
+field fails closed into `manual_review`.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `event_type` | string | yes | Closed vocabulary; an unknown value fails closed |
+| `contract_version` | string | yes | Semantic version of this contract |
+| `occurred_at` | RFC 3339 UTC timestamp | yes | When the fact occurred, not when it was sent |
+| `entitlement_id` | opaque string | yes | Section B |
+| `organization_id` | opaque string | yes | Section B |
+| `purchaser_account_id` | opaque string | yes | Section B |
+| `organization_admin_id` | opaque string | yes | Section B |
+| `commercial_tier` | `family` / `coop` / `network` | yes | Section C |
+| `entitled_services` | array of service values | yes | Section D; may not be empty |
+| `limits` | object | yes | Section E; may have every member `null` |
+| `effective_at` | RFC 3339 UTC timestamp | yes | Term start |
+| `expires_at` | RFC 3339 UTC timestamp | yes | Term end; required because Phase 1 is annual prepaid |
+| `source_purchase_reference` | opaque string | yes | Section B |
+| `idempotency_key` | opaque string | yes | Section H |
+| `correlation_id` | opaque string | yes | Section H |
+| `status` | lifecycle state | yes | Section F |
+
+**`event_type` is a closed vocabulary:** `entitlement.created`,
+`entitlement.updated`, `entitlement.status_changed`. Nothing else is defined,
+and an undefined value fails closed.
+
+**Illustrative schema example; not a runtime IPC payload.** The values below
+are invented for illustration and carry no personal, child, account, payment or
+secret data.
+
+```json
+{
+  "event_type": "entitlement.created",
+  "contract_version": "1.0.0",
+  "occurred_at": "2026-09-07T14:03:11Z",
+  "entitlement_id": "ent_7Qx2m4Kd",
+  "organization_id": "org_3Ha9pZ1t",
+  "purchaser_account_id": "acct_5Yb8nR0w",
+  "organization_admin_id": "acct_5Yb8nR0w",
+  "commercial_tier": "family",
+  "entitled_services": ["bede_tutor", "locuto"],
+  "limits": {
+    "max_children": 6,
+    "max_households": null,
+    "max_seats": 2,
+    "max_organizations": null
+  },
+  "effective_at": "2026-09-08T00:00:00Z",
+  "expires_at": "2027-09-08T00:00:00Z",
+  "source_purchase_reference": "src_Nk4vT6ez",
+  "idempotency_key": "idem_Ww1cB9uy",
+  "correlation_id": "corr_Jr6sD2fq",
+  "status": "pending"
+}
+```
+
+**This example is not a wire format, not a transport frame, and not a message
+body of `bede-ipc-spec.md`.** How such an event travels between systems is
+deliberately unspecified here and is named in section J as work that must be
+designed before any of it is built.
+
+---
+
+## H. Delivery reliability
+
+**Idempotency.** `idempotency_key` identifies one logical event. Processing the
+same key twice must produce the same stored outcome as processing it once, and
+must not repeat a side effect. A consumer stores the key and its outcome
+durably.
+
+**Duplicates.** A duplicate `idempotency_key` with an identical body is
+acknowledged and ignored. A duplicate key with a **different** body is a
+conflict: it is never applied, never silently preferred, and always
+`manual_review`.
+
+**Ordering and replay.** Events may arrive out of order or be replayed.
+`occurred_at` orders facts; arrival order does not. An event older than the
+stored state for its `entitlement_id` is recorded and does not overwrite a
+newer state.
+
+**Retry.** Retries carry the same `idempotency_key` and the same
+`correlation_id`. Retries are bounded and backed off. When the budget is
+exhausted the episode goes to `manual_review` with the retry count recorded.
+**A retry budget that silently ends in doing nothing is forbidden.**
+
+**No silent partial provisioning.** An entitlement covering several services
+either reaches `provisioned` with every service's step completed, or reaches
+`failed` or `manual_review` with the incomplete steps named. **It may not sit
+in `provisioned` with a service unprovisioned.** "Paid but silently
+unprovisioned" is the specific outcome this section exists to make
+impossible.
+
+**Durability and audit.** Every state and every transition is durably recorded
+with its `correlation_id`, its trigger, and the operator or system that
+initiated it. `failed` and `manual_review` are **operator-visible**, not merely
+logged. An entitlement stuck in either state must appear in whatever queue the
+responsible operator actually reads.
+
+**Reconciliation.** An operator procedure compares the commercial system of
+record against stored entitlement state and lists every entitlement whose
+status, term, tier, services or limits disagree, plus every entitlement in
+`failed` or `manual_review`. **Discrepancies are listed for a human. Nothing
+is auto-corrected.**
+
+**Escalation ownership.** Every `failed` and `manual_review` entitlement has a
+named responsible role at the moment it enters the state. An unowned failure is
+the same as a silent one.
+
+---
+
+## I. Security and privacy
+
+**Least data.** An event carries what is needed to identify a commercial
+entitlement and its terms, and nothing else. A field that would be merely
+useful is not carried.
+
+**No child data, ever.** No child's name, identifier, age, grade, work,
+narration, assessment, mastery estimate, transcript, voice, or any datum
+describing a child, in any field, in any event, in any log of an event, or in
+any example in this contract or its adoption documents. `max_children` is a
+count of permitted children and is the only child-adjacent value permitted, and
+it is a number in a commercial record rather than a fact about any child.
+
+**No raw payment data.** No card, bank, processor token, amount, or payment
+instrument of any kind. `source_purchase_reference` is opaque and is the entire
+link to the commercial record.
+
+**No credentials or secrets** in an event, a log, an example, or either
+repository's copy of this contract.
+
+**Transport is out of scope and must be specified separately.** Any transfer of
+these events between systems requires authenticated, authorized,
+confidentiality-protected service-to-service transport, designed and reviewed
+on its own terms. **Until that exists, no transfer mechanism may be built**, and
+this contract may not be cited as authorizing one.
+
+**Fail closed, everywhere.** An unknown `contract_version`, an unknown
+`commercial_tier`, an unknown service, an unknown `event_type`, an illegal
+transition, a missing required field, an unreadable event, or an ambiguous
+limit all produce the same behavior: record what was received, enter
+`manual_review`, do nothing else. **A consumer never guesses, never defaults to
+a permissive value, and never proceeds with the part it understood.**
+
+**No generic invocation.** This contract defines no method call, no command, no
+remote procedure, and no way to name one. Nothing in it may be extended into a
+generic invocation mechanism between the two products.
+
+**No authority escalation in either direction.** A commercial entitlement grants
+Bede no access to Locuto data, keys, messages, identities, or operations, and
+grants Locuto none in Bede. It grants neither product the ability to act as a
+user. Cross-product access, if it is ever wanted, is a separate design under
+`bede-ipc-spec.md`'s own rules and is not reachable from here.
+
+**Auditability without sensitive content.** The audit record required by section
+F is composed entirely of opaque identifiers, timestamps, state names, operator
+identities and stated reasons. It is designed to be reviewable by an operator
+who is not entitled to see any customer content, because there is no customer
+content in it.
+
+---
+
+## J. Acceptance criteria, and what is handed forward
+
+**Nothing below is authorized by this contract's adoption.** Each item names
+what must be true first, and every one of them is somebody's decision rather
+than an implementation task waiting for time.
+
+**Before Stage A (legacy tier migration) may start:**
+
+1. A written mapping between legacy signed tiers (`trial`, `core`, `coop`) and
+   commercial tiers, including the explicit statement that legacy `coop` and
+   commercial `coop` are not the same value.
+2. A stated answer for `trial`: whether a trial precedes the Family Membership.
+3. A stated answer for how a household above the `family` child limit is
+   handled.
+4. Evidence that every already-issued license still verifies, in a test that
+   fails when it does not.
+5. A decision on which of the signed license and the commercial entitlement
+   governs an enforced limit, and what happens when they disagree.
+
+**Before Stage B (payment integration) may start:**
+
+1. Section J's Stage A items 1, 2 and 5 answered, because a checkout that mints
+   a tier string needs to know which vocabulary it is minting into.
+2. A ruling on whether the monthly membership is in the first commercial phase,
+   since this contract describes only the annual prepaid path and a monthly
+   product is sold today.
+3. A specified, reviewed service-to-service transport for these events.
+4. A named operator role owning `failed` and `manual_review`, and the queue
+   they read.
+
+**Before any Locuto provisioning runtime may be implemented:**
+
+1. A definition of what provisioning a Locuto entitlement actually does, from
+   Locuto's product ownership.
+2. Items 3 and 4 of the Stage B list.
+3. A statement of what an entitlement record may and may not cause inside
+   Locuto, reviewed against Locuto's own integration-boundary rules.
+
+**Before any Bede–Locuto IPC capability may be proposed:**
+
+1. **Nothing in this contract counts toward it.** The capability registry stays
+   empty, and the joint schema negotiation both repositories require is
+   untouched by this adoption.
+2. That negotiation, on its own terms, under `bede-ipc-spec.md` §4 and §5.
+
+**Before `family_portal` may be described in sales material as a separately
+delivered surface:**
+
+1. A written definition from product ownership of what it is and who delivers
+   it.
+
+**Sales-claim boundary, stated once and binding on every claim.** A customer may
+be told what they have bought. A customer may not be told that a service is
+delivered, provisioned, running, or integrated on the strength of an entitlement
+record. Where this contract and a piece of sales material disagree about what
+exists, this contract is the one describing reality.
+<!-- CONTRACT-V1-END -->
+
+---
+
+## Bede's adoption note
+
+**What this pull request does not implement.** No change to
+`core/licensing.py`, to `_VALID_TIERS`, to the signed license payload, to
+verification, to any seat cap, to `scripts/issue_license.py`, to `checkout/`,
+to `docker-compose.yml`, or to any runtime code anywhere in this repository.
+No table, no field, no endpoint, no setting. A reader looking for the code that
+does what section F describes will not find it, because none was written. The
+lifecycle table says what a transition *would* mean, and nothing performs one.
+
+**Entry 7 stays open, and this contract feeds it rather than closing it.**
+Entry 7 records that the tier vocabulary in code no longer matches the pricing
+model, and needs a migration plan rather than a rename. Section C and section
+J's Stage A list state what such a plan must answer, including the explicit
+statement that legacy signed `coop` and commercial `coop` are two different
+values that happen to be spelled the same. Stating the requirement is not
+meeting it.
+
+**Entry 10 sells a monthly membership this contract does not describe.** The
+contract assumes an annual prepaid term with an explicit `effective_at` and
+`expires_at`. The Family Membership is sold monthly or annually today. Whether
+the monthly path is in the first commercial phase is an open question handed to
+Stage B, named in section J, and is not answered here.
+
+**`family_portal` is sold and undefined.** It appears in entry 10's list of
+what every membership carries and in this contract's `entitled_services`, and
+neither repository defines what surface it denotes or who delivers it.
+
+**Related:** [`DECISIONS.md`](DECISIONS.md) entry 25, and entries 7 and 10.

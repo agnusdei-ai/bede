@@ -1135,3 +1135,47 @@ on.
 
 **Related:** `docs/PARENT_SETUP.md`, `docs/SPECIAL_NEEDS.md`,
 `homeschool-tutor/src/utils/readingPresentation.ts`.
+
+---
+
+## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement vocabulary is adopted at v1.0.0
+
+**Status:** closed
+
+**Decided (2026-09).** Bede and Locuto adopt one shared vocabulary for stating
+what a paying customer has bought and what provisioning status that purchase
+has reached: the **Bede–Locuto Commercial Entitlement Contract**, at
+`contract_version` **1.0.0**. Its canonical block — everything between the
+`CONTRACT-V1-BEGIN` and `CONTRACT-V1-END` markers — is byte-identical in both
+repositories, and its sha256 is
+`69abda9af44e68af0a65f8bff80a1857db1495214b5881445fc17d1edf64336e`. That digest
+is the parity token: `homeschool-api/tests/test_entitlement_contract.py` fails
+if a single byte of the block changes here, so a change that lands in one
+repository and not the other is a defect rather than a divergence.
+
+**Adopting a contract implements nothing, and this entry is closed on the
+adoption rather than on anything working.** No change to `core/licensing.py`,
+`_VALID_TIERS`, the signed license payload, verification, seat caps,
+`scripts/issue_license.py`, `checkout/`, `docker-compose.yml`, or any runtime
+code. It registers no capability and does not fill
+`services/locuto_ipc/capabilities.py`'s deliberately empty registry, which
+stays empty; the joint schema negotiation `docs/LOCUTO_CONNECTOR_DECISIONS.md`
+requires is untouched by this. What was decided is that both products will use
+these words when they build, not that either has built.
+
+**Three questions it hands forward rather than answers:**
+
+* **Monthly billing.** The contract describes an annual prepaid term only, with
+  an explicit `effective_at` and `expires_at`. Entry 10 sells a Family
+  Membership monthly or annually. Whether the monthly path is in the first
+  commercial phase is a Stage B question and is not answered here.
+* **The `coop` string collision.** `core/licensing.py`'s signed legacy tier
+  `coop` and the contract's commercial tier `coop` are two different values
+  that happen to be spelled the same. Neither may be read from, compared to, or
+  defaulted from the other. A mapping, if one is wanted, is an explicit written
+  table — which is entry 7's migration plan, still owed.
+* **`family_portal` is sold and undefined.** It is named in entry 10's list of
+  what every membership carries and in the contract's `entitled_services`, and
+  neither repository defines what surface it denotes or who delivers it.
+
+**Related:** `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`, and entries 7 and 10.

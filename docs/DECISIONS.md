@@ -170,6 +170,16 @@ permanently. Whatever replaces `_VALID_TIERS` has to keep verifying those, or
 existing licenses stop working. `checkout/` (see entry 8) mints the same
 strings and moves with it.
 
+**The target vocabulary is now written down, and it carries a collision this
+entry did not previously name.** Entry 25's
+[`BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`](BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md) fixes the
+commercial tiers as `family`/`coop`/`network`, so `coop` now appears in both
+vocabularies meaning two different things: a legacy signed tier, and the
+Co-op Membership. The mapping between commercial and signed tiers therefore
+has to be explicit in code rather than a string passthrough. That contract's
+§11 is the compatibility plan this entry `needs:`; it does not perform the
+migration.
+
 ---
 
 ## 8. `[COMMERCIAL]` The checkout pipeline predates the current pricing model
@@ -605,9 +615,16 @@ being empty. An empty dict with an unagreed schema behind it is not the same
 thing as a real, negotiated contract, and a populated dict without one is
 worse: it looks finished.
 
+**Not to be confused with entry 25.** That entry defines the *commercial*
+entitlement contract between the two products — how a purchase becomes a
+provisioned household. This entry is the *runtime* wire schema for a local
+socket. They share a product pairing and nothing else: no identifier, no
+transport, no schema. Entry 25 being adopted does nothing for this entry, and
+an implementer who closes one has not touched the other.
+
 **Related:** `docs/LOCUTO_CONNECTOR_DECISIONS.md` holds the connector's own
 pre-implementation packets; this entry carries the state, per this register's
-own design-document-points-here rule.
+own design-document-points-here rule. Entry 25 for the commercial contract.
 
 ---
 

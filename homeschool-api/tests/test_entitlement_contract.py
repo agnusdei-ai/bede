@@ -33,6 +33,7 @@ _CONTRACT = _ROOT / "docs" / "BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md"
 _CAPABILITIES = (
     _ROOT / "homeschool-api" / "services" / "locuto_ipc" / "capabilities.py"
 )
+_DECISIONS = _ROOT / "docs" / "DECISIONS.md"
 
 _BEGIN = "<!-- CONTRACT-V1-BEGIN -->"
 _END = "<!-- CONTRACT-V1-END -->"
@@ -40,15 +41,15 @@ _END = "<!-- CONTRACT-V1-END -->"
 # The cross-repository parity token. This is the sha256 of the canonical block
 # — the bytes from the start of the BEGIN marker line through the newline that
 # ends the END marker line, inclusive of both markers — frozen at
-# contract_version 1.2.0. `agnusdei-ai/locuto`'s copy of the same block hashes
-# to the same value. Nothing here checks that — it is the property review at
-# adoption exists to preserve, and a coordinated divergence (both blocks
-# edited, both digests updated) would defeat both sides' checks. Changing this
-# constant to make a failing test pass is not a fix: it is the divergence,
-# recorded.
-CANONICAL_SHA256 = "501d729af685ee79cf2096004f66b047949fcd84f297e9f8d7bf67d1a871bf14"
+# contract_version 1.3.0. `agnusdei-ai/locuto`'s copy of the same block is
+# meant to hash to the same value. Nothing here checks that — it is the
+# property review at adoption exists to preserve, and a coordinated divergence
+# (both blocks edited, both digests updated) would defeat both sides' checks.
+# Changing this constant to make a failing test pass is not a fix: it is the
+# divergence, recorded.
+CANONICAL_SHA256 = "d8649901af66e3a9145f79a7bbe5b9f9dd88e6c7dd3dbde3b37901a6b0f99e53"
 
-CONTRACT_VERSION = "1.2.0"
+CONTRACT_VERSION = "1.3.0"
 
 # Closed vocabularies, written as literals rather than parsed out of whatever
 # the document currently says. A test that reads its expectations from its
@@ -148,6 +149,84 @@ def _stated_count(text: str, pattern: str) -> int:
     return _NUMBER_WORDS[word]
 
 
+def _word_to_int(word: str) -> int:
+    if word.isdigit():
+        return int(word)
+    assert word.lower() in _NUMBER_WORDS, (
+        f"The stated count {word!r} is not a number this test can read. Add "
+        "it to _NUMBER_WORDS rather than dropping the assertion."
+    )
+    return _NUMBER_WORDS[word.lower()]
+
+
+# A counted claim: a bold run that OPENS with a number and CLOSES with a colon.
+#
+# Both halves of that shape are load-bearing, and the colon is the one doing
+# the scoping work. Markdown's convention is that a colon-terminated line
+# introduces the list beneath it, so requiring one is what separates a claim
+# about the rows below ("**Four properties of this table are load-bearing:**")
+# from ordinary prose that merely contains a number and enumerates nothing
+# ("**One stated exception, recorded so it is not read as precedent.**", which
+# is followed by a paragraph). Without that scope this guard would demand a
+# list under a sentence that never promised one, and a guard that cries wolf
+# gets routed around.
+#
+# `(?:[^*\n]|\n(?!\s*\n))*?` lets the claim wrap across source lines — the
+# contract is hard wrapped — while refusing to run past a blank line into a
+# later `:**` in a different paragraph.
+_COUNTED_CLAIM_RE = re.compile(
+    r"\*\*(\w+)\s+([a-z]+)((?:[^*\n]|\n(?!\s*\n))*?):\*\*",
+    re.IGNORECASE,
+)
+
+
+def _counted_claims(text: str) -> list[tuple[str, int, int]]:
+    """Every counted claim in `text`, with what it says and what follows it.
+
+    Returns `(intro, stated, actual)` per claim. `actual` counts the items of
+    the list immediately below — a markdown table's data rows, a `1.`-numbered
+    list, or a `- ` bulleted one — since the contract states its counts over
+    all three shapes and a guard that knew only about tables would have
+    missed section C, while one that knew only about numbered lists would have
+    missed both of the others.
+    """
+    claims: list[tuple[str, int, int]] = []
+    for match in _COUNTED_CLAIM_RE.finditer(text):
+        head = match.group(1)
+        if not (head.isdigit() or head.lower() in _NUMBER_WORDS):
+            continue  # "**What is assumed, and what is undecided:**" and kin.
+        intro = match.group(0)
+        stated = _word_to_int(head)
+
+        rest = text[match.end():].lstrip("\n")
+        lines = rest.splitlines()
+        assert lines, f"Counted claim {intro!r} is the last thing in the block."
+        first = lines[0].strip()
+
+        if first.startswith("|"):
+            rows = _table_after(text, intro)
+            actual = len(rows)
+        else:
+            item = re.compile(r"^\d+\. ") if re.match(r"^\d+\. ", first) else None
+            if item is None:
+                assert first.startswith("- "), (
+                    f"Counted claim {intro!r} states a number and is not "
+                    "followed by a table, a numbered list or a bulleted one. "
+                    "Either it enumerates something this guard cannot see, or "
+                    "the colon promises a list that is not there — both are "
+                    "defects rather than reasons to loosen the scan."
+                )
+                item = re.compile(r"^- ")
+            actual = 0
+            for line in lines:
+                if not line.strip():
+                    break
+                if item.match(line):
+                    actual += 1
+        claims.append((intro, stated, actual))
+    return claims
+
+
 def _section(letter: str) -> str:
     """The canonical block's section `letter`, up to the next `## ` heading.
 
@@ -161,6 +240,84 @@ def _section(letter: str) -> str:
     rest = block[start.end():]
     nxt = re.search(r"^## ", rest, re.MULTILINE)
     return rest[: nxt.start()] if nxt else rest
+
+
+def test_every_counted_claim_matches_the_list_below_it():
+    """The generalized form of the two section-specific count guards below.
+
+    Those two were written against the two claims somebody had noticed, and
+    the block carries more: section F's "**Four properties of this table are
+    load-bearing:**" sits over a bulleted list with nothing checking it — the
+    exact shape of the v1.1.0 defect ("Five rules bind Stage A" over six
+    rules), unguarded, in the same section as a claim that was guarded.
+    Enumerating the claims you happen to know about is how the third one goes
+    unnoticed, so this reads them out of the block instead.
+
+    The two specific guards stay: each carries structural assertions this one
+    cannot make — that section C's rules are numbered 1..N with none skipped
+    or repeated, and that section F's declared states and its transition
+    table use exactly the same vocabulary.
+    """
+    claims = _counted_claims(_canonical_text())
+
+    assert len(claims) >= 3, (
+        f"Only {len(claims)} counted claim(s) were found: "
+        f"{[c[0] for c in claims]}. The block carried three when this guard "
+        "was written, so a smaller number means the scan stopped matching "
+        "rather than that the contract stopped counting — and a scan that "
+        "matches nothing passes silently."
+    )
+
+    wrong = [(intro, stated, actual) for intro, stated, actual in claims if stated != actual]
+    assert not wrong, (
+        "A sentence in the canonical block states a count the list beneath it "
+        f"does not carry: {wrong}. That is the defect v1.1.0 shipped in "
+        "section C — prose and rows disagreeing inside a digest-pinned "
+        "document, which the digest cannot see. Fix whichever half is wrong, "
+        "in both repositories, under a new contract_version and digest."
+    )
+
+
+def test_the_register_entry_states_the_same_digest_and_version_as_this_file():
+    """docs/DECISIONS.md entry 25 restates both facts this file pins, in
+    prose, and nothing compared them. They agree today; two copies of one
+    fact that nothing checks is the drift this repository's own standing
+    workflow says to close with an assertion rather than a memory.
+
+    Both directions are read out of the entry rather than hardcoded here:
+    every dotted version and every 64-hex token inside entry 25 must be the
+    adopted one. Reading them all — rather than the first of each — is what
+    catches the heading, which carries the version too and is the half most
+    easily left behind when the body is updated.
+    """
+    text = _DECISIONS.read_text()
+    start = re.search(r"^## 25\. ", text, re.MULTILINE)
+    assert start, "docs/DECISIONS.md has no entry 25, which adopts this contract."
+    rest = text[start.start():]
+    nxt = re.search(r"^## 26\. ", rest, re.MULTILINE)
+    entry = rest[: nxt.start()] if nxt else rest
+
+    # Not `\b\d+\.\d+\.\d+\b`: the entry's own heading writes the version as
+    # `v1.3.0`, and `v` is a word character, so there is no word boundary
+    # before the digit and that pattern cannot see the heading at all. The
+    # first cut used it, and a heading left at the previous version passed —
+    # which is the half most easily left behind, and the exact reason this
+    # guard reads every occurrence rather than the first.
+    versions = set(re.findall(r"(?<![\d.])\d+\.\d+\.\d+(?![\d.])", entry))
+    assert versions == {CONTRACT_VERSION}, (
+        f"Entry 25 names version(s) {sorted(versions)}; this file pins "
+        f"{CONTRACT_VERSION}. The register is where a reader learns which "
+        "version was adopted, so a stale one there describes an adoption "
+        "that did not happen."
+    )
+
+    digests = set(re.findall(r"\b[0-9a-f]{64}\b", entry))
+    assert digests == {CANONICAL_SHA256}, (
+        f"Entry 25 names digest(s) {sorted(digests)}; this file pins "
+        f"{CANONICAL_SHA256}. The digest in the register is the parity token "
+        "a reader would compare against Locuto's copy by hand, so a stale one "
+        "there is worse than none."
+    )
 
 
 def test_section_c_states_the_number_of_rules_it_actually_carries():
@@ -284,9 +441,19 @@ def test_the_contract_document_exists_and_carries_both_markers_exactly_once():
 
 
 def test_the_canonical_block_still_hashes_to_the_frozen_parity_token():
-    """The one test this file exists for. Everything else here is a statement
-    about the contract's content; this is the statement that Bede's copy and
-    Locuto's copy are the same document."""
+    """The one test this file exists for, and it proves less than its name
+    suggests. Everything else here is a statement about the contract's
+    content; this is the statement that **this** repository's block is the
+    one that was reviewed at adoption — no byte of it has moved since.
+
+    It does NOT prove that Bede's copy and Locuto's copy are the same
+    document. Nothing here fetches Locuto's copy, and the constant above
+    says so. Cross-repository byte-identity is the norm section A of the
+    block states, upheld by review at adoption plus Locuto's own equivalent
+    check on its own copy — and a coordinated divergence, both blocks edited
+    and both digests updated, would defeat both sides. An earlier version of
+    this docstring claimed the stronger property that constant explicitly
+    disclaims, forty lines away."""
     import hashlib
 
     actual = hashlib.sha256(_canonical_block()).hexdigest()

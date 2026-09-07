@@ -1138,17 +1138,17 @@ on.
 
 ---
 
-## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement vocabulary is adopted at v1.2.0
+## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement vocabulary is adopted at v1.3.0
 
 **Status:** closed
 
 **Decided (2026-09).** Bede and Locuto adopt one shared vocabulary for stating
 what a paying customer has bought and what provisioning status that purchase
 has reached: the **Bede–Locuto Commercial Entitlement Contract**, at
-`contract_version` **1.2.0**. Its canonical block — everything between the
+`contract_version` **1.3.0**. Its canonical block — everything between the
 `CONTRACT-V1-BEGIN` and `CONTRACT-V1-END` markers — is byte-identical in both
 repositories, and its sha256 is
-`501d729af685ee79cf2096004f66b047949fcd84f297e9f8d7bf67d1a871bf14`. That digest
+`d8649901af66e3a9145f79a7bbe5b9f9dd88e6c7dd3dbde3b37901a6b0f99e53`. That digest
 is the parity token, and what it enforces is narrower than the byte-identity
 just claimed: `homeschool-api/tests/test_entitlement_contract.py` hashes
 **this** repository's block and fails if a single byte of it changes, so a

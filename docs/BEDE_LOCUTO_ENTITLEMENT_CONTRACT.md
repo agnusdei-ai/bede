@@ -4,10 +4,16 @@
 repository, and adopting it implements nothing.
 
 It is adopted by both `agnusdei-ai/bede` and `agnusdei-ai/locuto` at
-`contract_version` **1.2.0**. Everything between the `CONTRACT-V1-BEGIN` and
-`CONTRACT-V1-END` markers below is byte-identical to `agnusdei-ai/locuto`'s
-`docs/bede-locuto-entitlement-contract.md`. A change inside those markers that
-lands in one repository and not the other is a defect, not a divergence.
+`contract_version` **1.3.0**. Everything between the `CONTRACT-V1-BEGIN` and
+`CONTRACT-V1-END` markers below is *meant to be* byte-identical to
+`agnusdei-ai/locuto`'s `docs/bede-locuto-entitlement-contract.md` — that is the
+norm both repositories hold themselves to, not an observed fact this repository
+can vouch for. Nothing here reads Locuto's copy:
+`homeschool-api/tests/test_entitlement_contract.py` freezes **this** block's
+digest, so a silent unilateral edit here is impossible, and a divergence
+introduced on the other side is caught by Locuto's own equivalent check on its
+own copy. A change inside those markers that lands in one repository and not the
+other is a defect, not a divergence.
 
 **It changes no licensing, payment, or runtime behavior.**
 `homeschool-api/core/licensing.py`, `_VALID_TIERS`, the signed payload — its
@@ -24,7 +30,7 @@ not be cited as the schema negotiation that would fill it.
 | Field | Value |
 | --- | --- |
 | Contract name | Bede–Locuto Commercial Entitlement Contract |
-| `contract_version` | `1.2.0` |
+| `contract_version` | `1.3.0` |
 | Status | Adopted by both repositories. Specification only. Nothing here is implemented. |
 | Canonical copies | `agnusdei-ai/bede` `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`, `agnusdei-ai/locuto` `docs/bede-locuto-entitlement-contract.md` |
 
@@ -85,14 +91,31 @@ behavior.
 ### Versioning and compatibility policy
 
 `contract_version` is a semantic version, `MAJOR.MINOR.PATCH`. Every change to
-this contract is classified by the **strongest** row it matches, and the last
-row of each part is a catch-all so that no change is unclassifiable:
+this contract is classified by the **strongest** row it matches. The three rows
+are exhaustive over changes a consumer can observe, and the paragraph after
+them disposes of the rest, so that no change is unclassifiable:
 
 | Part | Changes when |
 | --- | --- |
 | MAJOR | A field is removed or renamed; a required field is added; an identifier's meaning changes; a value is removed from a closed vocabulary; a legal transition is removed; **or any change that could make a consumer written for an earlier version behave incorrectly rather than fail closed** |
 | MINOR | An optional field is added; a value is added to a closed vocabulary; a legal transition is added; a field or value is marked deprecated; **or any other change to a rule that an earlier consumer meets by failing closed** |
-| PATCH | Wording, citation, example, formatting or clarification that changes no field, value, state, transition or rule |
+| PATCH | Wording, citation, example, formatting or clarification that changes no field, value, state, transition, or rule a consumer or operator acts on |
+
+**A change confined to this contract's own authoring rules is PATCH.** The
+classification table, the deprecation rule, and this paragraph bind whoever
+writes the next version; no consumer reads them and no consumer's behavior
+turns on them. Changing them alters nothing a consumer or operator can observe,
+so such a change takes the lowest part — even though it is a rule change, and
+even though the wording of MAJOR and MINOR would otherwise pull it upward.
+
+**This paragraph exists because the change that added it had no row.** The
+catch-alls were written to make the scheme exhaustive and were themselves
+unclassifiable under it: not MAJOR, since no consumer can behave incorrectly on
+a table it never reads; not MINOR, since an earlier consumer does not meet an
+author-facing rule by failing closed or in any other way; and not PATCH as that
+row then read, since a rule had changed. A scheme that cannot number the
+obligation it imposes on itself is not a scheme, which was the argument for the
+catch-alls and applies with equal force to them.
 
 **A consumer accepts a MAJOR line, not a single version.** A consumer written
 for `1.1.0` accepts any `1.y.z` at or above it and refuses every `2.y.z`. This
@@ -107,6 +130,14 @@ value.** An accepted event whose `commercial_tier`, `entitled_services` member,
 routed to `manual_review` under section C rule 5, section D and section I —
 never ignored, never partially applied. So a MINOR addition is safe to make
 *and* an older consumer still refuses what it does not understand.
+
+**A lower version on the accepted line is read under its own version's
+meaning.** A `1.0.0` event reaching a `1.2.0` consumer is accepted — it is on
+the line — and every field keeps the meaning its own version gave it, per the
+Superseding paragraph below. Where an identifier's meaning changed within the
+line, as `entitlement_id`'s did, a consumer that cannot honor the older meaning
+records the event and routes it to `manual_review` rather than silently reading
+it under the newer one.
 
 **Outside the accepted line there is no negotiation.** A `2.y.z` event reaching
 a `1.y.z` consumer is recorded and routed to `manual_review` whole. No
@@ -344,7 +375,7 @@ closed into `manual_review`.
 | `suspended` | `active` | Administrative decision | Named human operator only | Deciding operator, stated reason | Access restored | — |
 | `failed` | `manual_review` | Escalation, or retry budget exhausted | Provisioning operator | Retry count, last failure | Support informed | — |
 | `failed` | `pending` | Deliberate retry of the whole episode | Provisioning operator | Retry rationale, same `correlation_id` | No change | `manual_review` |
-| `provisioned`, `active`, `renewal_due`, `suspended`, `expired` | `manual_review` | An operator escalates, or a consumer detects a disagreement between the signed license and this entitlement (section C rule 4), or reconciliation (section H) reports a mismatch | Any consumer, or a named human operator | What disagreed and the values on each side, the escalating operator or system, `correlation_id` | Being looked at; support informed | — |
+| `provisioned`, `active`, `renewal_due`, `suspended`, `expired` | `manual_review` | An operator escalates; a consumer detects a disagreement between the signed license and this entitlement (section C rule 4); reconciliation (section H) reports a mismatch; or a consumer receives an unrecognized tier, service, `event_type`, version or transition for an entitlement already past `pending` | Any consumer, or a named human operator | What disagreed and the values on each side, or the unrecognized value verbatim and the field it arrived in; the escalating operator or system; `correlation_id` | Being looked at; support informed | — |
 | `manual_review` | `pending`, `provisioned`, `active`, `suspended`, `expired` | A human decided | Named human operator only | Deciding operator, stated reason, resulting state | As the resulting state | — |
 
 **Four properties of this table are load-bearing:**
@@ -416,7 +447,7 @@ secret data.
 ```json
 {
   "event_type": "entitlement.created",
-  "contract_version": "1.2.0",
+  "contract_version": "1.3.0",
   "occurred_at": "2026-09-07T14:03:11Z",
   "entitlement_id": "ent_7Qx2m4Kd",
   "organization_id": "org_3Ha9pZ1t",

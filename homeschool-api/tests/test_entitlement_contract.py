@@ -41,9 +41,11 @@ _END = "<!-- CONTRACT-V1-END -->"
 # — the bytes from the start of the BEGIN marker line through the newline that
 # ends the END marker line, inclusive of both markers — frozen at
 # contract_version 1.2.0. `agnusdei-ai/locuto`'s copy of the same block hashes
-# to the same value, and that equality is the only mechanism keeping the two
-# documents one document. Changing this constant to make a failing test pass
-# is not a fix: it is the divergence, recorded.
+# to the same value. Nothing here checks that — it is the property review at
+# adoption exists to preserve, and a coordinated divergence (both blocks
+# edited, both digests updated) would defeat both sides' checks. Changing this
+# constant to make a failing test pass is not a fix: it is the divergence,
+# recorded.
 CANONICAL_SHA256 = "501d729af685ee79cf2096004f66b047949fcd84f297e9f8d7bf67d1a871bf14"
 
 CONTRACT_VERSION = "1.2.0"

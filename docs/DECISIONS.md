@@ -170,6 +170,16 @@ permanently. Whatever replaces `_VALID_TIERS` has to keep verifying those, or
 existing licenses stop working. `checkout/` (see entry 8) mints the same
 strings and moves with it.
 
+**The target vocabulary is now written down, and it carries a collision this
+entry did not previously name.** Entry 25's
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) fixes the
+commercial tiers as `family`/`coop`/`network`, so `coop` now appears in both
+vocabularies meaning two different things: a legacy signed tier, and the
+Co-op Membership. The mapping between commercial and signed tiers therefore
+has to be explicit in code rather than a string passthrough. That contract's
+§11 is the compatibility plan this entry `needs:`; it does not perform the
+migration.
+
 ---
 
 ## 8. `[COMMERCIAL]` The checkout pipeline predates the current pricing model
@@ -605,9 +615,16 @@ being empty. An empty dict with an unagreed schema behind it is not the same
 thing as a real, negotiated contract, and a populated dict without one is
 worse: it looks finished.
 
+**Not to be confused with entry 25.** That entry defines the *commercial*
+entitlement contract between the two products — how a purchase becomes a
+provisioned household. This entry is the *runtime* wire schema for a local
+socket. They share a product pairing and nothing else: no identifier, no
+transport, no schema. Entry 25 being adopted does nothing for this entry, and
+an implementer who closes one has not touched the other.
+
 **Related:** `docs/LOCUTO_CONNECTOR_DECISIONS.md` holds the connector's own
 pre-implementation packets; this entry carries the state, per this register's
-own design-document-points-here rule.
+own design-document-points-here rule. Entry 25 for the commercial contract.
 
 ---
 
@@ -1135,3 +1152,65 @@ on.
 
 **Related:** `docs/PARENT_SETUP.md`, `docs/SPECIAL_NEEDS.md`,
 `homeschool-tutor/src/utils/readingPresentation.ts`.
+
+---
+
+## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement contract
+
+**Status:** open · needs: a counterpart pull request in `agnusdei-ai/locuto`
+adopting the same `contract_version`, contract tests in both repositories, and
+agreement on the transport left open in
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §9
+
+**A Bede-side draft now exists**:
+[`docs/LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md),
+version `1.0.0-draft`. It defines the shared vocabulary by which a completed
+purchase becomes a provisioned household in both products — stable
+identifiers, the canonical `family`/`coop`/`network` tiers, per-service
+entitlement fields, explicit limits, lifecycle states with named transition
+owners, a minimal provisioning event schema, idempotency and reconciliation
+rules, and the security and privacy rules governing entitlement data.
+
+**Why it is written before any of it is built.** Two repositories were about
+to implement against two compatible-looking guesses. The failure mode is not a
+build error — both sides ship, the shapes nearly agree, and the divergence
+surfaces as a household that paid and is provisioned in one product only. That
+is the "config that looks maintained but silently isn't" shape this repository
+has shipped twice, moved across a product boundary where neither side's tests
+can see it.
+
+**This entry resolves the commercial entitlement contract definition only.**
+It does **not** resolve, advance, or pre-empt the runtime Locuto IPC
+capability negotiation, which is **entry 14** and remains open on its own
+terms. Those are separate concerns that share a product pairing and nothing
+else — no identifier, no transport, no schema.
+`services/locuto_ipc/capabilities.py` stays `CAPABILITIES = {}`, and the
+contract document registers no capability. Entry 14 closes on a jointly
+agreed *wire schema for a local socket*; this entry closes on a jointly
+adopted *commercial provisioning contract*. Neither closing does anything for
+the other.
+
+**Deliberately out of scope, each tracked elsewhere:** Stripe and any
+checkout (entry 11 chose the processor; no pipeline exists), automated
+issuance and online validation
+([`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) Phases 1 and 2),
+monthly billing and immediate offline revocation (entry 10 records both as
+undecided, and `core/licensing.py` has no revocation mechanism at all), and
+feature gating inside Bede (entries 5 and 6). The contract covers **annual
+prepaid** entitlement and says so.
+
+**It does not perform the tier migration, and it makes that migration
+harder to get wrong.** Entry 7 stays open. What this adds is a stated target
+vocabulary plus one finding entry 7 did not have: the string `coop` now
+appears in both vocabularies meaning different things — a legacy signed tier
+and the Co-op Membership — so the mapping between commercial and signed tiers
+has to be explicit rather than a passthrough. §11 of the contract is the
+compatibility plan.
+
+**Open rather than deferred** because nothing external is being waited on
+except a conversation this side can start. A deferral would need a trigger,
+and "the other repository gets to it" is not one.
+
+**Related:** entries 7, 10, 11, 14;
+[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md);
+`homeschool-api/tests/test_locuto_entitlement_contract.py`.

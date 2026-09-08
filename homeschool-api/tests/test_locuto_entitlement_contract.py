@@ -109,6 +109,18 @@ def _section(heading_fragment: str) -> str:
     )
 
 
+def _flat(text: str) -> str:
+    """Whitespace collapsed to single spaces.
+
+    Markdown wraps prose at 79 columns, so a phrase this file asserts can sit
+    across a line break and a raw substring check reports it missing after an
+    innocent rewrap. Two break-verification attempts on this file failed for
+    exactly that reason and briefly looked like vacuous guards. Normalising
+    makes the assertion about the words rather than about the wrapping.
+    """
+    return " ".join(text.split())
+
+
 def _table_first_column(section_fragment: str, header_label: str) -> set[str]:
     """The backticked values in the first column of the table whose header row
     starts with `header_label`.
@@ -488,20 +500,61 @@ def test_lifecycle_transitions_name_an_owner():
     )
 
 
-def test_it_states_that_suspension_has_no_enforcement_in_bede_today():
-    """core/licensing.py verifies offline with no revocation path, so a
-    `suspended` entitlement does not stop a running deployment. Recording the
-    state without recording that gap is how a support team promises something
-    the software cannot do."""
-    text = _text()
-    assert "no revocation" in text.lower(), (
-        "The contract no longer states that core/licensing.py has no "
-        "revocation mechanism. That is the fact `suspended` depends on."
+def test_suspended_is_ruled_prospective_only():
+    """docs/DECISIONS.md entry 27. `suspended` blocks future issuance, renewal
+    and provisioning, and reaches nothing already issued — because
+    core/licensing.py verifies offline with no revocation path, so nothing the
+    commercial system records can touch a deployment already holding a valid
+    key."""
+    section = _section("6.1 `suspended` is prospective only")
+    assert "entry 27" in section, (
+        "Section 6.1 no longer cites docs/DECISIONS.md entry 27, so the ruling "
+        "has no recorded status."
     )
-    assert "no enforcement mechanism in Bede" in text, (
-        "The contract no longer states that `suspended` is unenforceable in "
-        "Bede today. A lifecycle state that reads as enforced and is not is "
-        "the silent-degradation failure this repository refuses."
+    for blocked in ("Future issuance", "Renewal", "Further provisioning"):
+        assert blocked in section, (
+            f"Section 6.1 no longer states that suspension blocks {blocked!r}. "
+            "Prospective-only means naming what it DOES block, not only what "
+            "it does not — a state that blocks nothing is not a state."
+        )
+    assert re.search(r"[Rr]evoke an already-issued signed key", section), (
+        "Section 6.1 no longer states that suspension does not revoke an "
+        "already-issued key. That is the half a support conversation gets "
+        "wrong."
+    )
+    assert "no revocation path" in section, (
+        "Section 6.1 no longer explains WHY suspension is prospective — "
+        "core/licensing.py verifies offline with no revocation path. Without "
+        "the mechanism, the rule reads as a policy choice someone can argue "
+        "with rather than a fact about the software."
+    )
+
+
+def test_the_suspension_communications_rule_survives():
+    """The operative half of entry 27, and the one that reaches past this
+    contract. A schema can carry a state honestly while a support macro
+    promises something the software cannot do, and the second is what a
+    customer actually hears."""
+    section = _section("6.1 `suspended` is prospective only")
+    assert re.search(
+        r"[Cc]ustomer-facing and support materials must not represent suspension\s+as\s+immediate runtime enforcement",
+        section,
+    ), (
+        "Section 6.1 no longer forbids customer-facing and support materials "
+        "representing suspension as immediate runtime enforcement. That "
+        "sentence is the reason entry 27 exists as a product ruling rather "
+        "than a schema footnote."
+    )
+
+
+def test_the_suspended_row_points_at_its_own_ruling():
+    """The lifecycle table is what an implementer reads. A row that reads
+    'administratively halted' with no pointer invites the assumption that
+    halting is what it does."""
+    assert re.search(r"\| `suspended` \|[^|]*[Pp]rospective only", _section("6. Lifecycle")), (
+        "The `suspended` row in the lifecycle table no longer marks itself "
+        "prospective-only. Someone reading the table alone would take "
+        "'administratively halted mid-term' at face value."
     )
 
 
@@ -706,3 +759,121 @@ def test_every_document_the_contract_points_at_exists():
     assert not missing, (
         f"The contract links to document(s) that do not exist: {missing}."
     )
+
+
+@pytest.mark.parametrize(
+    "prop, why",
+    [
+        ("Explicit", "a declared mapping, never signed_tier = commercial_tier"),
+        ("Tested", "each pair asserted, so a passthrough cannot pass by luck"),
+        ("Versioned", "which mapping produced a given signed key stays answerable"),
+        ("Reversible", "an already-issued license stays attributable at renewal"),
+    ],
+)
+def test_the_tier_mapping_ruling_names_all_four_properties(prop, why):
+    """docs/DECISIONS.md entry 7's 2026-09-08 amendment. Commercial tier
+    identifiers and Bede signed-tier identifiers are separate namespaces that
+    happen to share a spelling, and the mapping between them is never a
+    passthrough."""
+    section = _section("11. Compatibility plan")
+    assert f"**{prop}**" in section, (
+        f"Section 11 no longer requires the tier mapping to be {prop.lower()} "
+        f"— {why}."
+    )
+
+
+def test_the_no_passthrough_rule_is_stated_in_the_contract():
+    section = _section("11. Compatibility plan")
+    assert re.search(r"never a passthrough|not be treated as a passthrough", section), (
+        "Section 11 no longer forbids a passthrough tier mapping. `coop` means "
+        "a legacy signed tier AND the Co-op Membership, so `coop` -> `coop` "
+        "mints a valid key today and the ambiguity surfaces only once the two "
+        "vocabularies diverge — after keys have been issued."
+    )
+    assert re.search(r"separate\s+namespaces", section), (
+        "Section 11 no longer states that the commercial and signed tier "
+        "vocabularies are separate namespaces. Sharing a spelling is the whole "
+        "trap; without this sentence the two read as one vocabulary."
+    )
+
+
+def test_the_register_carries_the_tier_mapping_ruling():
+    """Entry 7 stays open — the migration is unbuilt — but the ruling that
+    constrains it is decided and belongs in the register, not only in a design
+    document."""
+    register = _REGISTER.read_text()
+    assert "must not be\ntreated as a passthrough" in register or re.search(
+        r"must not be\s+treated as a passthrough", register
+    ), (
+        "docs/DECISIONS.md no longer carries the no-passthrough tier-mapping "
+        "ruling. The contract's §11 is the compatibility plan; the register is "
+        "where the decision's state lives."
+    )
+
+
+def test_the_adoption_record_exists_and_names_what_adoption_requires():
+    """Joint adoption is a dated, owned fact or it has not happened. An
+    adoption with no date and no named owner on each side is the shape that
+    lets two repositories each believe the other went first."""
+    section = _section("12.1 Adoption record")
+    for field in (
+        "Effective contract version",
+        "Effective date",
+        "Bede-side owner",
+        "Locuto-side owner",
+        "Locuto companion pull request",
+    ):
+        assert field in section, (
+            f"The adoption record no longer has a {field!r} row. Each is a "
+            "thing that must be true before this contract binds anyone."
+        )
+
+
+def test_the_adoption_record_is_still_unfilled():
+    """A canary, not a permanent rule. This contract is not adopted, and the
+    record says so by being empty. When it is genuinely filled, this test is
+    what should be updated — deliberately, by whoever adopts it — rather than
+    the record quietly acquiring values nobody ratified."""
+    section = _section("12.1 Adoption record")
+    assert section.count("*unfilled*") >= 5, (
+        "The adoption record has acquired values. If the contract has genuinely "
+        "been jointly adopted, update this test and docs/DECISIONS.md entry 25 "
+        "in the same change — an adoption record filled in without the register "
+        "moving is exactly the drift this repository keeps catching."
+    )
+
+
+def test_approval_scope_is_recorded_where_an_implementer_will_read_it():
+    """'The contract is approved' is a sentence read later by someone deciding
+    whether they may build against it. Approving a draft artifact is not
+    authorising an implementation, and the distinction has to survive in the
+    document rather than in a pull-request comment."""
+    section = _section("12.2 What approving this document does and does not")
+    for forbidden in (
+        "payment",
+        "entitlement issuance",
+        "validation",
+        "revocation",
+        "IPC capability registration",
+        "provisioning",
+    ):
+        assert forbidden.lower() in _flat(section).lower(), (
+            f"Section 12.2 no longer names {forbidden!r} among what approval "
+            "does NOT authorise."
+        )
+    assert re.search(r"draft contract artifact only", section), (
+        "Section 12.2 no longer states that approval covers a draft contract "
+        "artifact only."
+    )
+
+
+def test_the_locuto_side_obligations_are_enumerated():
+    """Condition 1 of the merge conditions. 'A compatible Locuto PR' is not
+    checkable; a named list of what it must adopt is."""
+    section = _section("Joint adoption required")
+    for obligation in ("identifiers", "event contract", "lifecycle", "limits", "idempotency"):
+        assert obligation in _flat(section).lower(), (
+            f"The joint-adoption section no longer requires the Locuto side to "
+            f"adopt the same {obligation}. Without the list, 'compatible' is "
+            "whatever the other side decides it means."
+        )

@@ -263,23 +263,43 @@ signed payload's `seats` field is part of the entry 7 migration (§11).
 | `active` | In force. | Commercial system (time-driven) |
 | `renewal_due` | Still active; term end approaching. Advisory — **never** a degradation. | Commercial system (time-driven) |
 | `expired` | Term ended without renewal. | Commercial system (time-driven) |
-| `suspended` | Administratively halted mid-term. | Commercial system, deliberate operator act |
+| `suspended` | Administratively halted mid-term. **Prospective only at v1** — see §6.1. | Commercial system, deliberate operator act |
 | `failed` | Provisioning did not complete after exhausting retries. | Producing side, on terminal failure |
 | `manual_review` | Held for a human. Never entered automatically **except** from `failed`. | Either side, or an operator |
 
-### What a state does and does not do in Bede today
+### 6.1 `suspended` is prospective only
 
-Honesty here matters more than completeness, because the gap is the point.
+**Ruled for v1** ([`DECISIONS.md`](DECISIONS.md) entry 27). `suspended` blocks
+what has not happened yet and reaches nothing already issued:
 
-- `expired` and `suspended` describe the **commercial** relationship. They do
-  **not** disable a running Bede deployment. `core/licensing.py` verifies a
-  signed key offline with no revocation path, so a deployment continues until
-  the signed `expires` date passes — which for annual prepaid is the same
-  moment in the ordinary case and a divergence in every other.
-- `suspended` mid-term therefore has **no enforcement mechanism in Bede
-  today**. It is recorded so the commercial system and support have one word
-  for the situation, not because the software will act on it.
-- Closing that gap is Phase 2 online validation, which §1 puts out of scope.
+| `suspended` **does** block | `suspended` **does not** do |
+| --- | --- |
+| Future issuance | Revoke an already-issued signed key |
+| Renewal | End a running deployment before its signed `expires` date |
+| Further provisioning | Take effect on any device, at any time, mid-term |
+
+This is a description of the mechanism, not a policy preference.
+`core/licensing.py` verifies a signed key offline against an embedded public
+key, with no revocation path and no phone-home, so nothing the commercial
+system records can reach a deployment already holding a valid key. `expired`
+carries the same limitation: it describes the commercial relationship, and a
+deployment runs until its signed `expires` date passes — the same moment in
+the ordinary annual-prepaid case, and a divergence in every other.
+
+**Customer-facing and support materials must not represent suspension as
+immediate runtime enforcement.** This is the operative half of the ruling and
+the reason it is stated here rather than left as an implementation note: the
+schema can carry a state honestly and a support macro can still promise
+something the software cannot do. A suspension is an administrative act with
+prospective effect, and saying so is a factual accuracy obligation, not a
+caveat to bury.
+
+**Immediate revocation is not designed here and is not implied by this
+state.** It needs Phase 2 online validation
+([`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md)), which §1 puts out of
+scope. A later version that adds it must say so explicitly and must not
+silently redefine what `suspended` meant for entitlements issued under this
+one — the same rule §4.4 applies to surface promotion.
 
 **Annual prepaid is the only term shape this contract covers.** A term has a
 single `effective_date` and a single `expiry_date`, and renewal produces a new
@@ -522,10 +542,25 @@ the target, so the migration has something to migrate *to*:
 2. **The signed-license vocabulary stays a separate, wider set.** Whatever
    replaces `_VALID_TIERS` continues to verify `trial`, `core` and `coop`, or
    existing deployments stop booting.
-3. **The mapping between them is explicit and one-directional.** The migration
-   PR states, in code, which commercial tier issues which signed tier. It is
-   not a string passthrough, precisely because `coop` means two different
-   things (§3).
+3. **The mapping between them is explicit, tested, versioned and reversible —
+   never a passthrough.** Ruled 2026-09-08
+   ([`DECISIONS.md`](DECISIONS.md) entry 7's amendment). Commercial
+   product/tier identifiers and Bede signed-tier identifiers are **separate
+   namespaces that happen to share a spelling**. The legacy signed tier `coop`
+   must not be treated as a passthrough mapping for the Co-op Membership.
+   Concretely, the migration PR owes four properties:
+
+   | Property | What it means |
+   | --- | --- |
+   | **Explicit** | A declared mapping in code, one commercial tier to one signed tier. Never `signed_tier = commercial_tier`, and never a fallback that lands on a same-spelled string when a lookup misses. |
+   | **Tested** | Each pair asserted, including that the two `coop` values are related by the mapping rather than by identity — a passthrough would pass any test that only checks the output string. |
+   | **Versioned** | The mapping carries a version, so which mapping produced a given signed key is answerable later. |
+   | **Reversible** | Given a signed key, the commercial tier that issued it is recoverable. A lossy mapping makes an already-issued license unattributable at renewal. |
+
+   The trap is that a passthrough **works today**: `coop` → `coop` produces a
+   valid key, every test passes, and the defect surfaces only when the two
+   vocabularies diverge — at which point keys have been issued under an
+   ambiguity nobody recorded.
 4. **`seats` keeps its meaning.** §5's limits are the richer commercial
    representation; the migration decides how they collapse onto the single
    signed `seats` integer. Both are recorded, so a support conversation can
@@ -544,7 +579,10 @@ only when all of the following are true:
 
 1. A pull request in `agnusdei-ai/locuto` adopts the **same
    `contract_version`**, with a counterpart document, and states any
-   divergence rather than silently accommodating it.
+   divergence rather than silently accommodating it. It must implement or
+   adopt the same stable identifiers (§2), event contract (§7), lifecycle
+   interpretation (§6, including §6.1's prospective-only `suspended`), limits
+   (§5), and idempotency expectations (§8).
 2. **Both repositories carry contract tests** against that version. A contract
    asserted on one side is a hope; a contract tested on both is an interface.
 3. The transport specification left open in §9 is agreed in both
@@ -553,6 +591,36 @@ only when all of the following are true:
 Until then, no implementation in this repository should read this document as
 settled, and no marketing or commercial commitment should be made on the
 assumption that Locuto provisioning is contracted.
+
+### 12.1 Adoption record
+
+Joint adoption is a dated, owned fact or it has not happened. This table is
+**deliberately unfilled**, and filling it is the act of adopting — not a
+formality afterwards. An adoption with no date and no named owner on each side
+is the shape that lets two repositories each believe the other went first.
+
+| Field | Value |
+| --- | --- |
+| Effective contract version | *unfilled* |
+| Effective date | *unfilled* |
+| Bede-side owner | *unfilled* |
+| Locuto-side owner | *unfilled* |
+| Locuto companion pull request | *unfilled* |
+| Bede-side contract tests | `homeschool-api/tests/test_locuto_entitlement_contract.py` |
+| Locuto-side contract tests | *unfilled* |
+
+### 12.2 What approving this document does and does not authorise
+
+Recorded because "the contract is approved" is a sentence that will be read
+later by someone deciding whether they may build against it.
+
+**Approved as a draft contract artifact only.** Approval of this document is
+**not** authorisation to implement payment, entitlement issuance, license
+validation, revocation, IPC capability registration, or provisioning
+behaviour. Each of those is out of scope per §1 and is tracked in its own
+decision-register entry. An implementing pull request needs its own
+authorisation and, for anything touching the entitlement flow, the adoption
+record above filled in.
 
 **This resolves the commercial entitlement contract definition only.** It does
 **not** resolve, advance, or pre-empt the runtime Locuto IPC capability

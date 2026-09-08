@@ -157,7 +157,8 @@ license status.
 
 ## 7. `[DESIGN]` The tier vocabulary in code no longer matches the pricing model
 
-**Status:** open · needs: a migration plan, not just a rename
+**Status:** open · needs: a migration plan implementing the mapping ruling
+below — the ruling settles what the mapping must be, not that it is built
 
 `core/licensing.py`'s `_VALID_TIERS` accepts `trial`, `core` and `coop`. Entry
 1 replaced `core` and `coop` with three new tiers. A license issued today can
@@ -169,6 +170,39 @@ verified on boot, so any already-issued license carries the old vocabulary
 permanently. Whatever replaces `_VALID_TIERS` has to keep verifying those, or
 existing licenses stop working. `checkout/` (see entry 8) mints the same
 strings and moves with it.
+
+**Ruled (2026-09-08): the two vocabularies are separate namespaces, and the
+mapping between them is never a passthrough.** Commercial product/tier
+identifiers and Bede signed-tier identifiers are separate namespaces that
+happen to share a spelling. **The legacy signed tier `coop` must not be
+treated as a passthrough mapping for the Co-op Membership.** The mapping must
+be:
+
+- **explicit** — a declared mapping in code, one commercial tier to one signed
+  tier, never `signed_tier = commercial_tier` and never a fallback that lands
+  on a same-spelled string when a lookup misses;
+- **tested** — each pair asserted, including that the two `coop` values are
+  related by the mapping rather than by identity, since a passthrough passes
+  any test that only checks the output string;
+- **versioned** — the mapping carries a version, so which mapping produced a
+  given signed key is answerable later;
+- **reversible** — given a signed key, the commercial tier that issued it is
+  recoverable, or an already-issued license becomes unattributable at renewal.
+
+**Why this needed ruling rather than leaving it to the implementer.** A
+passthrough *works today*: `coop` → `coop` mints a valid key, every test
+passes, and nothing is visibly wrong. The defect appears only when the two
+vocabularies diverge — by which point keys have been issued under an ambiguity
+nobody recorded, and a signed tier cannot be changed after issuance because it
+is signed. This is the same shape as the settings `docker-compose.yml` never
+passed through: no error, no failure to build, and a system that quietly is
+not what it reads as.
+
+This does **not** close the entry. The migration is still unbuilt, and
+`scripts/issue_license.py`'s usage example still reads `--tier core`.
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §11 carries
+the same four properties as the compatibility plan the implementing PR works
+from.
 
 **The target vocabulary is now written down, and it carries a collision this
 entry did not previously name.** Entry 25's
@@ -1157,10 +1191,12 @@ on.
 
 ## 25. `[COMMERCIAL]` The Bede–Locuto commercial entitlement contract
 
-**Status:** open · needs: a counterpart pull request in `agnusdei-ai/locuto`
-adopting the same `contract_version`, contract tests in both repositories, and
-agreement on the transport left open in
-[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §9
+**Status:** open · needs: joint adoption — a counterpart pull request in
+`agnusdei-ai/locuto`, contract tests in both repositories, agreement on the
+transport left open in
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §9, and
+§12.1's adoption record filled in with an effective version, an effective
+date, and a named owner on each side
 
 **A Bede-side draft now exists**:
 [`docs/LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md),
@@ -1219,7 +1255,34 @@ entitlement. Amended in place rather than by a version bump: the contract is
 still an unadopted one-sided draft, and a bump would imply a predecessor the
 Locuto side never saw.
 
-**Related:** entries 7, 10, 11, 13, 14, 26;
+**Approved 2026-09-08 as a draft contract artifact only, and deliberately not
+merged.** Approval is **not** authorisation to implement payment, entitlement
+issuance, license validation, revocation, IPC capability registration, or
+provisioning behaviour; §12.2 of the contract records that scope where an
+implementer will read it. Six conditions govern reconsidering the merge, and
+they are listed here rather than in a pull-request comment because a pull
+request is not where anyone looks a year later:
+
+| # | Condition | State |
+| --- | --- | --- |
+| 1 | A Locuto companion PR adopting the same identifiers, event contract, lifecycle interpretation, limits and idempotency expectations | Not started |
+| 2 | Entry 25 jointly adopted, with effective version/date and owners on both sides (§12.1) | Record added, unfilled |
+| 3 | Entry 7's explicit no-passthrough tier-mapping ruling | **Done** — ruled 2026-09-08 |
+| 4 | Prospective-only `suspended` accepted by product/support | **Done** — entry 27 |
+| 5 | `family_portal` scope ruled | **Done** — entry 26 |
+| 6 | Repository CI independently runs the document guards, including the change-filter behaviour | **Done** — verified on PR #493, see below |
+
+**Condition 6 was verified rather than asserted.** On PR #493's first commit —
+a change touching only `docs/`, one test file and the workflow's own filter
+line — GitHub Actions ran `api-tests` to completion rather than skipping it,
+which is the observable proof that naming
+`docs/LOCUTO_ENTITLEMENT_CONTRACT.md` in `.github/workflows/test.yml`'s
+`grep -qE` pattern actually computes `relevant=true`. The failure this rules
+out is the one `test_decision_register.py` documents: a guard that is real
+everywhere except on the changes it exists to guard. A green overall run would
+not have shown it, since a skipped job also reports success.
+
+**Related:** entries 7, 10, 11, 13, 14, 26, 27;
 [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md);
 `homeschool-api/tests/test_locuto_entitlement_contract.py`.
 
@@ -1278,3 +1341,49 @@ purchase whatever the schema permitted, and §4.4 says so.
 
 **Related:** entries 13 and 25;
 [`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §4.
+
+---
+
+## 27. `[PRODUCT]` `suspended` is prospective only, and support must not say otherwise
+
+**Status:** closed
+
+**Decided (2026-09-08), accepted by product and support.** In contract v1, the
+`suspended` entitlement state is **prospective only**. It blocks future
+issuance, renewal and provisioning. It does **not** revoke an already-issued
+offline signed key before that key's expiry, and it does not end a running
+deployment.
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §6.1
+carries the definition.
+
+**This describes the mechanism, not a policy preference.**
+`core/licensing.py` verifies a signed key offline against an embedded public
+key, with no revocation path and no phone-home — a deliberate fit with a
+self-hosted product whose whole premise is that a family's server never
+reports back to us. Nothing the commercial system records can reach a
+deployment already holding a valid key. Immediate revocation would need Phase
+2 online validation ([`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md)),
+which is out of scope for this contract.
+
+**The operative half is the communications rule.** Customer-facing and support
+materials must not represent suspension as immediate runtime enforcement. A
+schema can carry a state perfectly honestly while a support macro promises
+something the software cannot do, and the second is what a customer actually
+hears. Stating a suspension's real effect is a factual-accuracy obligation of
+the same kind the constitution's "never fabricate certainty" rule imposes on
+Bede itself — applied here to what the company says rather than what the tutor
+says.
+
+**Recorded as its own entry rather than a line in the contract** because it
+reaches past the contract. The contract binds two repositories; this binds
+whoever writes a help-centre article or a cancellation email, and neither of
+those people reads a provisioning schema.
+
+**What would reopen it:** Phase 2 online validation shipping. A version that
+adds immediate revocation must say so explicitly and must not silently
+redefine what `suspended` meant for entitlements issued under v1 — the same
+no-retroactive-redefinition rule entry 26 applies to surface promotion.
+
+**Related:** entries 25 and 26;
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §6.1;
+[`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) Phase 2.

@@ -1411,3 +1411,70 @@ silently allowed.
 
 **Related:** entry 10, entry 25,
 `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md` §E and §J item 3.
+
+---
+
+## 31. `[DESIGN]` Key lifecycle for an offline-verified credential is lifetime plus fail-closed detection, not scheduled rotation
+
+**Status:** closed
+
+**Decided (2026-09-08).** For a credential verified **offline, against an
+embedded public key, with no phone-home and no revocation**, lifecycle
+management is three things and not a rotation schedule:
+
+1. **A bounded lifetime** — the expiry signed into the payload at issue time.
+   `CI_TEST_LICENSE_KEY`'s convention is a multi-year `trial` license rather
+   than a perpetual `core` one, precisely so the credential dies on its own if
+   nothing else catches it.
+2. **Fail-closed detection** — the credential's failure must stop something.
+   This is what **#495** supplies, and it is the component that was missing.
+3. **A named owner** who holds the offline signing key and acts when 2 fires.
+
+**A fixed, universal rotation interval was looked for and does not exist here.**
+The repository has no scheduled rotation cadence for any credential.
+`MASTER_SECRET` rotation is event-driven (`rotate_master_secret()`, closed
+2026-08-02); the CI license has an expiry, which is a lifetime rather than a
+cadence; the signing keypair has neither. So there was nothing to remove, and
+this entry records the position that replaces the interval nobody had rather
+than describing a deletion that did not happen.
+
+**Detection was the real gap, not cadence.** `CI_TEST_LICENSE_KEY` had been
+invalid for an unknown period while `production-regression` reported green on
+every run, because the step that checks it ran `continue-on-error: true`. The
+GitHub REST API compounds it: for such a step it reports
+`conclusion: success` whether or not the step failed, so the field a reader
+naturally consults cannot distinguish the two. That masking was diagnosed on
+2026-09-07 and is what #495 removes. **A rotation interval would not have
+helped**, because nothing would have told anyone the interval had lapsed.
+
+**Automated rotation of the production signing key inside CI is refused.**
+Automating reissue of `CI_TEST_LICENSE_KEY` requires the Ed25519 **private
+signing key** to be reachable by automation. That key mints licenses at any
+tier, seat count and expiry, without limit and without revocation, so placing
+it in CI converts a leaked test credential into a leaked minting authority —
+strictly worse than the problem being solved, and a direct reversal of the
+design decision that keeps the key offline and out of every repository and CI
+environment.
+
+**This refusal stands until overridden in writing, citing this entry**, and any
+override should state that it supersedes the offline-signing-key constraint
+rather than working around it quietly.
+
+**What is not refused.** Giving CI its **own** keypair, so the
+production-regression stack mints a fresh short-lived license per run and holds
+no long-lived secret at all, is a legitimate and un-taken option. Its honest
+cost is that the run would then exercise a build carrying a CI public key, so
+it would stop proving that the *shipped* `PUBLIC_KEY_PEM` matches the real
+private key — a property that would need its own check. Not decided here, and
+deliberately not started.
+
+**The compromise case has no plan, and that is now written down where a
+responder will meet it.** `docs/INCIDENT_RESPONSE.md` gains a
+"Compromised license signing key" section recording the hard fact that rotation
+invalidates every already-issued customer license simultaneously, and stating
+explicitly that no migration plan exists and none should be invented under
+incident conditions.
+
+**Related:** entry 7, entry 25,
+[`docs/INCIDENT_RESPONSE.md`](INCIDENT_RESPONSE.md),
+[`docs/PRODUCTION_SETUP.md`](PRODUCTION_SETUP.md).

@@ -166,6 +166,57 @@ If you operate `docs/DEMO_HOSTING.md`'s shared instance:
    which limits what there is to actually expose. That's a design property,
    not a substitute for actually checking what happened.
 
+## Compromised license signing key
+
+**This one has no good answer, and the section exists to say so plainly rather
+than to leave a reader searching for a procedure that was never written.**
+
+**It fits neither operator above.** The split at the top of this document is
+your family's own instance against the public demo. A leaked signing key is
+neither: it is an incident belonging to whoever holds the key that signs every
+Bede license, and the blast radius is every deployment that has ever been
+issued one. Nothing else in this plan has that shape.
+
+**Detection trigger.** Exposure of the Ed25519 private signing key is suspected
+or confirmed — it appeared in a repository, a backup, a chat log, a shared
+drive, a laptop that was lost or seized, or anywhere other than the offline
+medium it is supposed to live on. Treat suspicion as the trigger. There is no
+telemetry that would confirm it for you: `core/licensing.py` verifies offline
+against the embedded `PUBLIC_KEY_PEM` and no deployment ever reports back, so a
+stolen key in active use produces no signal anywhere you can see.
+
+**What the key is worth.** It mints licenses at any tier, any seat count, any
+expiry, indefinitely. `.github/workflows/production-regression.yml` records why
+even a single *issued license string* is not committed to this repository; the
+private key is the authority that produces them without limit.
+
+**Immediate action: there is none that does not invalidate every issued license
+at once.** The only lever the design offers is replacing `PUBLIC_KEY_PEM` and
+shipping a new build. Because verification is offline, embedded, and carries no
+revocation list, no expiry override and no fallback key, that single act
+invalidates **every already-issued customer license simultaneously** — every
+family, every co-op, valid and paid-for licenses included, at the moment they
+next restart. There is no partial, staged, or targeted revocation, and there is
+no mechanism to distinguish a stolen license from a legitimate one, because
+nothing in the system was built to tell them apart.
+
+**No revocation, by design.** `core/licensing.py`'s own threat model says this
+is a trust-and-verify gate for honest self-hosters rather than DRM. That choice
+bought a real property — a family's server never needs outbound network access
+to prove it is licensed, and never reports back — and this is its cost, paid in
+full at exactly the wrong moment.
+
+**No migration plan exists, and this section does not invent one.** What a
+rotation would require — reissuing every outstanding license, reaching every
+deployment, sequencing the new build against those reissues so nobody is locked
+out mid-term, and deciding what happens to a family who cannot be reached — is
+unwritten. Writing it here from first principles, under no incident, would
+produce a procedure nobody has tested and that would read afterwards as
+approved. **If this fires, the first action is to stop and design the
+migration, not to follow steps that do not exist.** Decision register entry 31
+records the lifecycle position this gap sits inside.
+
+---
 ## Breach notification
 
 - **Self-hosted family instance:** there is no one else to notify — you

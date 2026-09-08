@@ -268,31 +268,36 @@ jobs:
         # auth even runs, so a normal auth-shaped 401 here proves the gate
         # is NOT up (and therefore the license verified and is unexpired).
         #
-        # continue-on-error: reissuing CI_TEST_LICENSE_KEY needs the private
-        # signing key, which is deliberately kept offline and out of every
-        # repo/CI environment (docs/PRODUCTION_SETUP.md#licensing) — so a
-        # stale secret here is only actionable by a human who holds that
-        # key, not by anything running in this workflow. Left blocking, it
-        # also skipped every step after it (tablet-trust, Postgres
-        # backup/restore) for as long as the secret stayed bad, which threw
-        # away real coverage over an unrelated problem. This step still
-        # runs and still reports failure in the Actions UI as a visible
-        # signal to go reissue the key (see docs/SECURITY.md's Known open
-        # gaps) — it just no longer blocks the rest of this job or later CI
-        # on unrelated changes.
+        # THIS STEP BLOCKS. A license that is missing, invalid, expired or
+        # gated fails this step, fails this job, and reds `main`. That is
+        # the point: an entitlement check that cannot fail the build is not
+        # a check, and the two revisions before this one proved it —
+        # `continue-on-error: true` plus an `::error::` annotation, then
+        # that annotation re-emitted by a final always() step, both of
+        # which left the job GREEN while the gate went unverified. An
+        # annotation is a message; only a non-zero exit is a gate.
         #
-        # A prior revision relied on that "still reports failure" alone —
-        # true, but easy to miss: continue-on-error hides the step behind a
-        # yellow/passing job in the PR checks list, so it takes actually
-        # opening this step's log to notice. This step now also emits a
-        # `::error::` workflow-command annotation (shows as a red banner on
-        # the PR and the run summary, not just inside the log) and writes
-        # to $GITHUB_STEP_SUMMARY, so a stale secret is visible without
-        # anyone going looking for it. A final always()-run step below
-        # re-surfaces the same banner as the LAST thing in the job summary,
-        # in case later steps' own output pushes this one out of view.
+        # What the bypass was protecting is preserved rather than
+        # discarded, because it was a real concern: reissuing
+        # CI_TEST_LICENSE_KEY needs the offline private signing key
+        # (docs/PRODUCTION_SETUP.md#licensing), so a stale secret is
+        # actionable only by a human, and leaving this blocking used to
+        # skip every later step — tablet-trust, Postgres backup/restore —
+        # throwing away unrelated coverage while somebody found that human.
+        # Those two steps now carry
+        # `if: success() || steps.license_check.conclusion == 'failure'`,
+        # so they still run when this step is the only thing that failed.
+        # Coverage is kept; the green job is not.
+        #
+        # Why /health cannot do this job: /health is on the license gate's
+        # allowlist (core/middleware.py's LicenseGateMiddleware), so ever
+        # since an unlicensed production instance began booting into gated
+        # mode instead of refusing to start, a healthy /health would sail
+        # through while the instance sat gated. A gated instance answers
+        # every non-allowlisted path with a license_required 403 before
+        # auth even runs, so an auth-shaped 401/403 from /pod/configs
+        # proves the gate is DOWN and the license verified and unexpired.
         id: license_check
-        continue-on-error: true
         run: |
           body=$(curl -sk https://localhost/api/pod/configs)
           code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/api/pod/configs)
@@ -326,6 +331,7 @@ jobs:
           echo "License gate is down (auth answered normally) — license is active."
 
       - name: Confirm the no-CLI tablet-trust page works end-to-end
+        if: success() || steps.license_check.conclusion == 'failure'
         run: |
           ok=true
 
@@ -378,6 +384,7 @@ jobs:
           fi
 
       - name: Confirm local Postgres backup/restore actually restores lost data
+        if: success() || steps.license_check.conclusion == 'failure'
         # Before this, the step below only proved a restore leaves the API
         # able to boot and answer /health afterward — it never confirmed
         # any actual DATA survived. Worse, `make db-restore` was being run
@@ -461,25 +468,6 @@ jobs:
       - name: Dump logs on failure
         if: failure()
         run: docker compose logs
-
-      - name: Re-flag a stale CI_TEST_LICENSE_KEY, if there was one
-        # The license-gate step above is continue-on-error (see its own
-        # comment for why), so its ::error:: annotation and step summary
-        # can end up buried under everything that ran after it — tablet-
-        # trust, Postgres backup/restore, several more minutes of log
-        # output. This runs unconditionally (always(), so it fires whether
-        # or not anything else failed) as the LAST thing in the job, purely
-        # to check that one step's outcome and re-surface the same signal
-        # if it failed, so "was the license actually verified this run" is
-        # never something you have to scroll back through the whole job to
-        # find out.
-        if: always()
-        run: |
-          if [ "${{ steps.license_check.outcome }}" = "failure" ]; then
-            echo "::error title=Stale CI_TEST_LICENSE_KEY::This run's license gate was NOT verified — see the 'Confirm the license is ACTIVE' step above. CI_TEST_LICENSE_KEY needs reissuing (scripts/issue_license.py, private key required — docs/PRODUCTION_SETUP.md#licensing)."
-            echo "## :rotating_light: Reminder: this run's license gate was NOT verified" >> "$GITHUB_STEP_SUMMARY"
-            echo "See the 'Confirm the license is ACTIVE' step above for details. CI_TEST_LICENSE_KEY needs reissuing." >> "$GITHUB_STEP_SUMMARY"
-          fi
 
       - name: Tear down
         if: always()

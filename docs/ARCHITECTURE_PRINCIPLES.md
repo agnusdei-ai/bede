@@ -622,7 +622,7 @@ the real parent out of their own admin panel on purpose, repeatably, without
 the password. A control can be present, correct, and still make the system
 easier to attack.
 
-**Implications.** Non-blocking CI checks emit annotations and step summaries.
+**Implications.** A control that can fail without consequence is not a control: the CI license gate now blocks rather than annotating, and the coverage its bypass protected is preserved by conditioning the steps after it rather than by excusing it. Where a check genuinely must stay non-blocking, it emits annotations and step summaries.
 Punch-list #7's child-PIN lockout is designed with this tradeoff explicit —
 escalating delay rather than a flat lock, or a more tightly scoped counter —
 rather than mechanically copying the pattern that already has the flaw.

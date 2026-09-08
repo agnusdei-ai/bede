@@ -24,6 +24,7 @@ the refusal designs against a capability that does not exist.
 
 Every guard here was verified by breaking the thing it guards.
 """
+import json
 import re
 from pathlib import Path
 
@@ -39,7 +40,18 @@ _CAPABILITIES = _ROOT / "homeschool-api" / "services" / "locuto_ipc" / "capabili
 # with whatever the file happens to say, which is the vacuous pass this
 # repository has shipped before.
 COMMERCIAL_TIERS = {"family", "coop", "network"}
-SERVICE_KEYS = {"bede_tutor", "locuto", "family_portal"}
+# `family_portal` is deliberately NOT here — docs/DECISIONS.md entry 26 rules it
+# a SURFACE of bede_tutor for v1, not a third service. A guard below fails if it
+# reappears as a service key, because "add the Family Portal as a service" is an
+# obvious-sounding change and the reason it is refused lives in a register entry
+# nobody re-reads.
+SERVICE_KEYS = {"bede_tutor", "locuto"}
+SURFACE_IDS = {"family_portal"}
+# The surface-level extension point. `bundled` is the only value legal at
+# 1.0.0-draft; `independent` exists in the vocabulary, reserved, so that a later
+# version promotes a surface by adding a legal VALUE rather than a field shape.
+SURFACE_ENTITLEMENTS = {"bundled", "independent"}
+LEGAL_SURFACE_ENTITLEMENTS_V1 = {"bundled"}
 LIFECYCLE_STATES = {
     "pending",
     "provisioned",
@@ -97,12 +109,41 @@ def _section(heading_fragment: str) -> str:
     )
 
 
+def _table_first_column(section_fragment: str, header_label: str) -> set[str]:
+    """The backticked values in the first column of the table whose header row
+    starts with `header_label`.
+
+    Scoped to one named table rather than to a section, because a section here
+    routinely carries three: section 4.2 declares surfaces, then the fields a
+    surface carries, then the `entitlement` vocabulary, and a bare row regex
+    reads all three as if they were one list. That mistake was made writing
+    this file and caught by the guard below failing with `included` and
+    `notes` in the surface set.
+    """
+    section = _section(section_fragment)
+    lines = section.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith(f"| {header_label} |"):
+            values = set()
+            for row in lines[i + 2 :]:
+                if not row.startswith("|"):
+                    break
+                m = re.match(r"^\| `([a-z_]+)` \|", row)
+                if m:
+                    values.add(m.group(1))
+            return values
+    raise AssertionError(
+        f"No table with a {header_label!r} first column in the section matching "
+        f"{section_fragment!r}. Either the table was removed or its header "
+        "changed; both need a human rather than a vacuous pass."
+    )
+
+
 def _tier_table_values() -> set[str]:
     """The `tier` values declared in section 3's own table, not anywhere the
     string happens to appear. A tier named only in a cross-reference is not a
     tier either side can send."""
-    rows = re.findall(r"^\| `([a-z_]+)` \|", _section("Canonical commercial tiers"), re.M)
-    return set(rows)
+    return _table_first_column("Canonical commercial tiers", "`tier` value")
 
 
 def _example_payload() -> str:
@@ -201,21 +242,23 @@ def test_the_coop_collision_is_named_rather_than_left_to_be_discovered():
     )
 
 
-@pytest.mark.parametrize("service", sorted(SERVICE_KEYS))
-def test_every_service_entitlement_field_is_defined(service):
+@pytest.mark.parametrize("service", sorted(SERVICE_KEYS | SURFACE_IDS))
+def test_every_service_and_surface_is_defined_somewhere(service):
     assert f"`{service}`" in _text(), (
-        f"Service key {service!r} is not defined. A service that is not named "
-        "is not entitled, so an undefined key cannot be sold."
+        f"{service!r} is not defined anywhere in the contract. A service or "
+        "surface that is not named is not entitled."
     )
 
 
 def test_it_refuses_to_claim_a_component_exists_because_it_has_a_name():
-    """Two of the three services are not separately built in this repository:
+    """Neither non-tutor component is separately built in this repository:
     Locuto is another product, and the Family Portal is the parent-facing pages
     of the tutor app. An entitlement schema that quietly implies three shipped
-    products is a marketing claim wearing a data model."""
+    products is a marketing claim wearing a data model — and the marketing site
+    does present three named things, which is exactly why the schema has to be
+    the place that says otherwise."""
     text = _text()
-    assert "not a distinct deliverable" in text or "Named, not separately built" in text, (
+    assert "Not a distinct deliverable" in text, (
         "The contract no longer states what family_portal actually is today. "
         "A component is not claimed to exist because it has a marketing name."
     )
@@ -223,6 +266,182 @@ def test_it_refuses_to_claim_a_component_exists_because_it_has_a_name():
         "The contract no longer states that Locuto is not integrated with "
         "Bede. services/locuto_ipc/ is a protocol skeleton with an empty "
         "capability registry, and the contract has to say so."
+    )
+
+
+def _service_table_keys() -> set[str]:
+    """Service keys from section 4.1's own service table — not its field table."""
+    return _table_first_column("4.1 Services", "Service key")
+
+
+def _surface_table_ids() -> set[str]:
+    """Surface ids from section 4.2's surface table — not its field table and
+    not its `entitlement` vocabulary table."""
+    return _table_first_column("4.2 Surfaces", "Surface id")
+
+
+def test_the_service_table_declares_exactly_the_independently_entitled_services():
+    declared = _service_table_keys()
+    assert declared == SERVICE_KEYS, (
+        f"Section 4.1's service table declares {sorted(declared)}, expected "
+        f"{sorted(SERVICE_KEYS)}. A service key is a thing that can be bought "
+        "on its own; adding one is a commercial ruling (docs/DECISIONS.md "
+        "entries 13 and 26), not a table edit."
+    )
+
+
+def test_family_portal_is_a_surface_and_not_a_service():
+    """docs/DECISIONS.md entry 26. The parent-facing pages are served by the
+    same process, behind the same auth, as the tutor — entitling them
+    separately would sell a boundary that does not exist. 'Add the Family
+    Portal as a service' is an obvious-sounding change, so the refusal is
+    placed where someone making it would trip over it."""
+    assert "family_portal" not in _service_table_keys(), (
+        "family_portal is back in section 4.1's service table. For contract v1 "
+        "it is an included SURFACE of bede_tutor (docs/DECISIONS.md entry 26). "
+        "If this is deliberate, entry 26, entry 13 and section 4.4's promotion "
+        "rules all need changing first — not just the table."
+    )
+    assert _surface_table_ids() == SURFACE_IDS, (
+        f"Section 4.2's surface table declares {sorted(_surface_table_ids())}, "
+        f"expected {sorted(SURFACE_IDS)}."
+    )
+
+
+def test_every_service_in_the_example_payload_carries_a_surfaces_object():
+    """`surfaces` is required and present even when empty. That is the whole
+    extension point: a field that ships in v1 carrying its only legal value can
+    be extended by adding a VALUE later, where a field added later makes every
+    v1 payload retroactively ambiguous — a reader cannot tell 'this version had
+    no surfaces' from 'this producer omitted them'."""
+    payload = json.loads(_example_payload())
+    services = payload["services"]
+    assert set(services) == SERVICE_KEYS, (
+        f"The example payload's services are {sorted(services)}, expected "
+        f"{sorted(SERVICE_KEYS)}."
+    )
+    for key, service in services.items():
+        assert "surfaces" in service, (
+            f"Service {key!r} in the example payload has no `surfaces` object. "
+            "It is required even when empty; an omitted one is what makes a "
+            "later promotion ambiguous."
+        )
+        assert isinstance(service["surfaces"], dict), (
+            f"Service {key!r}'s `surfaces` is not an object."
+        )
+
+
+def test_the_example_payload_bundles_family_portal_under_bede_tutor():
+    payload = json.loads(_example_payload())
+    surfaces = payload["services"]["bede_tutor"]["surfaces"]
+    assert "family_portal" in surfaces, (
+        "The example payload no longer carries family_portal as a surface of "
+        "bede_tutor (docs/DECISIONS.md entry 26)."
+    )
+    assert surfaces["family_portal"]["entitlement"] == "bundled", (
+        "family_portal is not `bundled` in the example payload. `independent` "
+        "is reserved and not legal at this contract version — §4.2."
+    )
+    for name, surface in surfaces.items():
+        assert surface["entitlement"] in LEGAL_SURFACE_ENTITLEMENTS_V1, (
+            f"Surface {name!r} carries entitlement "
+            f"{surface['entitlement']!r}, which is not legal at 1.0.0-draft. "
+            f"Legal values: {sorted(LEGAL_SURFACE_ENTITLEMENTS_V1)}."
+        )
+        assert "included" in surface, f"Surface {name!r} has no `included` field."
+
+
+@pytest.mark.parametrize("value", sorted(SURFACE_ENTITLEMENTS))
+def test_the_surface_entitlement_vocabulary_is_declared(value):
+    """Both values are named in §4.2's table, including the reserved one. A
+    reserved value documented now is what makes promotion a value addition
+    rather than a schema change."""
+    assert f"`{value}`" in _section("4.2 Surfaces"), (
+        f"Surface entitlement value {value!r} is not declared in section 4.2. "
+        "`independent` must stay documented-and-reserved even though it is "
+        "illegal at this version — that is the extension point."
+    )
+
+
+def test_independent_entitlement_is_reserved_and_illegal_at_this_version():
+    """The reserved value must be unmistakably not-yet-legal. A vocabulary that
+    lists `independent` without saying it is refused reads as permission."""
+    section = _section("4.2 Surfaces")
+    assert re.search(r"`independent`.*[Rr]eserved", section, re.S), (
+        "Section 4.2 no longer marks `independent` as reserved."
+    )
+    assert re.search(r"[Nn]ot a legal value|fails closed|\*\*No\. Reserved\.\*\*", section), (
+        "Section 4.2 no longer states that `independent` is refused at this "
+        "contract version. Listing a value without refusing it reads as "
+        "permission to send it."
+    )
+
+
+def test_the_v1_ruling_on_family_portal_is_stated_and_sourced():
+    section = _section("4.3 The v1 ruling")
+    assert "entry 26" in section, (
+        "Section 4.3 no longer cites docs/DECISIONS.md entry 26, so the ruling "
+        "has no recorded status and nothing says who made it."
+    )
+    assert re.search(r"included surface of\s+`bede_tutor`", section), (
+        "Section 4.3 no longer states the ruling: family_portal is an included "
+        "surface of bede_tutor, not a separately entitled product."
+    )
+
+
+@pytest.mark.parametrize(
+    "rule, missing",
+    [
+        (
+            r"carrying its only legal value|value addition in a later\s+version",
+            "the field-ships-in-v1 rule — without it, adding `surfaces` later "
+            "makes every v1 payload ambiguous",
+        ),
+        (
+            r"share one namespace",
+            "the shared-namespace rule — without it, promotion is a rename and "
+            "the surface id stops meaning one thing",
+        ),
+        (
+            r"[Ii]dentifiers do not move|changes no `organization_id`",
+            "the identifiers-do-not-move rule — the explicit requirement that a "
+            "later promotion disturbs no existing household",
+        ),
+        (
+            r"interpreted under the `contract_version` it was issued",
+            "the no-retroactive-redefinition rule — an entitlement is read under "
+            "the version it was issued under",
+        ),
+        (
+            r"disposition of already-issued entitlements",
+            "the requirement that a promoting version states what happens to "
+            "entitlements already sold",
+        ),
+        (
+            r"not a way to remove something from an\s+existing membership",
+            "the refusal to use promotion to strip a paid-for surface",
+        ),
+    ],
+)
+def test_the_promotion_rules_survive(rule, missing):
+    """Section 4.4 is the half of entry 26 that makes the v1 ruling safe to
+    revisit. Each rule exists against a specific failure, and losing one is
+    silent — the schema still validates, and the damage appears only when
+    someone tries to promote a surface years later."""
+    assert re.search(rule, _section("4.4 Why the extension point"), re.S), (
+        f"Section 4.4 no longer carries {missing}."
+    )
+
+
+def test_the_extension_point_does_not_pre_empt_the_a_la_carte_decision():
+    """Entry 13 is open on whether the membership is sold à la carte at all.
+    The extension point keeps that decision reachable; it must not read as
+    having taken it."""
+    text = _text()
+    assert "entry 13" in text, (
+        "The contract no longer points at docs/DECISIONS.md entry 13. Without "
+        "it, §4.4's extension point reads as a plan to unbundle rather than as "
+        "keeping an open decision reachable."
     )
 
 

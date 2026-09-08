@@ -1211,6 +1211,70 @@ compatibility plan.
 except a conversation this side can start. A deferral would need a trigger,
 and "the other repository gets to it" is not one.
 
-**Related:** entries 7, 10, 11, 14;
+**Amended 2026-09-08 by entry 26.** `family_portal` is now ruled an included
+surface of `bede_tutor` rather than a third service key, and the contract
+gained the `surfaces` extension point that keeps a later independent-
+entitlement ruling reachable without disturbing an already-issued
+entitlement. Amended in place rather than by a version bump: the contract is
+still an unadopted one-sided draft, and a bump would imply a predecessor the
+Locuto side never saw.
+
+**Related:** entries 7, 10, 11, 13, 14, 26;
 [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md);
 `homeschool-api/tests/test_locuto_entitlement_contract.py`.
+
+---
+
+## 26. `[PRODUCT]` The Family Portal is a surface of Bede Tutor, not a separately entitled product
+
+**Status:** closed
+
+**Decided (2026-09-08).** For contract v1, `family_portal` is an **included
+surface of `bede_tutor`**, not a separately entitled product. It is
+`bundled`, and `independent` is not a legal value at that contract version.
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §4.3
+carries the ruling; §4.2 and §4.4 carry the schema that expresses it.
+
+**Because that is what the software is.** The parent-facing planning and
+oversight pages are `ParentSetup.tsx`, `Progress.tsx` and the parent-only
+routers — served by the same process, behind the same auth, part of the same
+application. Entitling them separately would sell a boundary that does not
+exist, and this repository's standing position is that a component is not
+claimed to exist because it has a marketing name. Note the marketing site and
+`demo/public/launch.html` present the Family Portal as one of three named
+things a membership carries; that is a description of what a family gets, and
+this entry rules on what is *entitled*, which is a different question.
+
+**A v1 answer, not a permanent one.** Entry 13 is open on whether the
+membership is broken into à la carte components at all, and its own
+recommendation names exactly one candidate standalone. This entry does not
+pre-empt it — it rules for the contract version being drafted now.
+
+**The extension point is the load-bearing half, and it is why this entry is
+closed rather than simply deferred into entry 13.** A later ruling must be
+able to entitle a surface independently **without changing an existing
+household's identifiers and without redefining what an already-issued
+entitlement bought**. Four rules in §4.4 make that true, and each exists
+against a specific way it otherwise fails:
+
+- **The `surfaces` field ships in v1 carrying its only legal value.** Adding
+  it later would make every v1 payload ambiguous the day it appeared — a
+  reader could not tell "this version had no surfaces" from "this producer
+  omitted them". A field present and constrained is a decision recorded in
+  data; a field absent until needed is a shape change wearing a version bump.
+- **Surface ids and service keys share one namespace and are never reused**,
+  so promotion is a move between sections rather than a rename.
+- **Identifiers do not move.** No `organization_id`, `purchaser_account_id`,
+  `admin_account_id` or `entitlement_id` changes.
+- **An entitlement is read under the `contract_version` it was issued
+  under**, and any version that promotes a surface must state the disposition
+  of already-issued entitlements, defaulting to access already sold being
+  retained. Silently reinterpreting a completed purchase under new rules is
+  forbidden in the contract's own text rather than left to good intentions.
+
+**What promotion may never be used for:** removing something from a
+membership a household already paid for. That would be repricing a completed
+purchase whatever the schema permitted, and §4.4 says so.
+
+**Related:** entries 13 and 25;
+[`LOCUTO_ENTITLEMENT_CONTRACT.md`](LOCUTO_ENTITLEMENT_CONTRACT.md) §4.

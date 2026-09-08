@@ -4,7 +4,13 @@
 **Status:** draft, Bede side only. **Not active** — see
 [Joint adoption required](#joint-adoption-required).
 **Counterpart repository:** `agnusdei-ai/locuto`
-**Decision register:** [`DECISIONS.md`](DECISIONS.md) entry 25.
+**Decision register:** [`DECISIONS.md`](DECISIONS.md) entries 25 and 26.
+
+**Amended 2026-09-08, in place rather than by a version bump.** The v1 ruling
+on `family_portal` (§4.3) and the surface extension point it required (§4.2,
+§4.4) landed while this document was still an unadopted one-sided draft. A
+version bump would imply an adopted predecessor that never existed, and would
+give the Locuto side two versions to reconcile where there is only one.
 
 This is the canonical Bede-side definition of the commercial entitlement
 contract between Bede and Locuto: the shared vocabulary by which a completed
@@ -25,6 +31,9 @@ ships behaviour.
 - The canonical commercial tier vocabulary for the upcoming offer.
 - Per-service entitlement fields, stated so that an entitlement can say a
   service is **not** included.
+- Surfaces: named parts of a service, with a stable extension point so a
+  later version can entitle one independently without disturbing an
+  already-issued entitlement.
 - Seat, child, and household limits, represented explicitly.
 - Entitlement lifecycle states and who owns each transition.
 - A minimal provisioning event schema, with an illustrative payload.
@@ -47,6 +56,7 @@ Each of these is named because its absence is a decision, not an omission.
 | Immediate offline revocation | `core/licensing.py`'s own docstring: there is no revocation mechanism. A signed key remains valid until its `expires` date. Stated here so nobody designs against a capability that does not exist. |
 | Any runtime Locuto IPC capability | `services/locuto_ipc/capabilities.py` is `CAPABILITIES = {}` deliberately. The wire schema for that is [`DECISIONS.md`](DECISIONS.md) entry 14 and requires a joint negotiation. **This document does not touch it.** |
 | Feature gating inside Bede | [`DECISIONS.md`](DECISIONS.md) entries 5 and 6. An entitlement says what was bought; what the running app does with that is a separate, unresolved decision. |
+| Whether the membership is sold à la carte | [`DECISIONS.md`](DECISIONS.md) entry 13, open. §4.4's extension point is what keeps that decision *possible*; it does not take it. |
 | Pricing, discounts, proration, tax, invoicing | Commercial matters recorded in [`DECISIONS.md`](DECISIONS.md) entry 10 and [`PRICING_RESEARCH.md`](PRICING_RESEARCH.md). An entitlement carries no money. |
 
 **The runtime/commercial split is the load-bearing distinction in this
@@ -110,35 +120,112 @@ migration is entry 7's, not this document's — see §11.
 
 ---
 
-## 4. Service entitlements
+## 4. Service entitlements and surfaces
 
 An entitlement names each service explicitly. A service that is not named is
 not entitled; there is no implicit inclusion.
 
+### 4.1 Services
+
+Two services are independently entitled at this contract version.
+
 | Service key | What it refers to | State in Bede today |
 | --- | --- | --- |
-| `bede_tutor` | The Socratic tutor and everything `homeschool-api` serves. | **Shipped.** This is the product this repository is. |
+| `bede_tutor` | The Socratic tutor and everything `homeschool-api` serves, including its parent-facing surfaces. | **Shipped.** This is the product this repository is. |
 | `locuto` | Locuto secure messaging. | **Not integrated with Bede.** A separate product in `agnusdei-ai/locuto`. Bede's `services/locuto_ipc/` is a protocol skeleton with an empty capability registry. |
-| `family_portal` | Parent-facing planning and oversight. | **Named, not separately built.** In this repository it is `ParentSetup.tsx`, `Progress.tsx` and the parent-only routers — part of `bede_tutor`, not a distinct deliverable. |
 
-**A component is not claimed to exist because it has a marketing name.** The
-`family_portal` row above says what it actually is today. Whether it becomes a
-separately-entitled surface, stays part of `bede_tutor`, or is renamed is a
-product decision this contract does not make — the field exists so that
-decision can be recorded in data rather than inferred from a price list.
-
-Each service carries the same shape:
+Each service carries:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `included` | boolean | Whether this service is part of this entitlement. Required. |
 | `notes` | string or `null` | Human-readable qualification. Never machine-parsed. |
+| `surfaces` | object | Named surfaces of this service. Required; `{}` where the service has none declared at this version. See §4.2. |
 
 `included: false` is a meaningful, expected value. An entitlement that omits a
 known service key entirely is **not** the same as one that sets it false, and
 a consumer must not treat the two alike: an omission means the producer said
 nothing, and per §8 an entitlement referencing an unknown service key fails
 closed rather than being partially applied.
+
+### 4.2 Surfaces
+
+A **surface** is a named, separately-identifiable part of a service. It exists
+in the schema so that what a household bought is legible at the granularity a
+price list talks about, without asserting that the part is a product.
+
+| Surface id | Belongs to | What it refers to | State in Bede today |
+| --- | --- | --- | --- |
+| `family_portal` | `bede_tutor` | Parent-facing planning and oversight. | **Not a distinct deliverable.** In this repository it is `ParentSetup.tsx`, `Progress.tsx` and the parent-only routers — part of `bede_tutor`. |
+
+Each surface carries:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `included` | boolean | Whether this surface is part of this entitlement. Required. |
+| `entitlement` | string | How it is entitled. Closed vocabulary — see below. Required. |
+| `notes` | string or `null` | Human-readable qualification. Never machine-parsed. |
+
+`entitlement` takes one of:
+
+| Value | Meaning | Legal at `1.0.0-draft` |
+| --- | --- | --- |
+| `bundled` | Entitled by its parent service. Its `included` follows the parent's and carries no separate purchase. | **Yes — the only legal value.** |
+| `independent` | Separately entitled, with its own purchase. | **No. Reserved.** An entitlement carrying it at this version fails closed (§8). |
+
+**A component is not claimed to exist because it has a marketing name.** The
+`family_portal` row says what it actually is today.
+
+### 4.3 The v1 ruling on `family_portal`
+
+**Decided.** For contract v1, `family_portal` is an **included surface of
+`bede_tutor`**, not a separately entitled product. It is `bundled`, and
+`independent` is not a legal value at this version. Recorded as
+[`DECISIONS.md`](DECISIONS.md) entry 26.
+
+This is what the software actually is — the parent-facing pages are part of
+the tutor application, served by the same process, behind the same auth — so
+entitling them separately would sell a boundary that does not exist.
+
+### 4.4 Why the extension point exists anyway
+
+The ruling above is a v1 answer, not a permanent one.
+[`DECISIONS.md`](DECISIONS.md) entry 13 is open on whether the membership is
+broken into à la carte components at all, and its own recommendation names
+exactly one candidate standalone. If a later version rules that a surface
+becomes independently entitled, that must be possible **without changing any
+existing household's identifiers and without redefining what an
+already-issued entitlement bought**. Four rules make that true, and they are
+what the `surfaces` object is for:
+
+1. **The field exists in v1 carrying its only legal value.** `surfaces` is
+   required and populated now, so promotion is a value addition in a later
+   version rather than a shape change. Had it been omitted until needed, every
+   v1 payload would become ambiguous the day it appeared: a reader could not
+   distinguish "this version had no surfaces" from "this producer omitted
+   them".
+2. **Surface ids and service keys share one namespace, and neither is ever
+   reused.** `family_portal` is the same string as a surface and as a service,
+   so promotion is a move between sections rather than a rename. A promoted
+   surface's id must not be reassigned to anything else, ever — including
+   after retirement.
+3. **Identifiers do not move.** Promotion changes no `organization_id`,
+   `purchaser_account_id`, `admin_account_id` or `entitlement_id`. A household
+   that bought under v1 keeps the identity it had; nothing about a schema
+   change reaches the customer record.
+4. **An entitlement is interpreted under the `contract_version` it was issued
+   under.** A later version that promotes a surface **must state the
+   disposition of already-issued entitlements in its own text**, and the
+   default is that access already sold is retained: a household that bought a
+   membership including a bundled surface does not lose it because the surface
+   later became purchasable on its own. Silently reinterpreting an old
+   entitlement under new rules is a retroactive redefinition of a completed
+   purchase, and is forbidden here rather than left to good intentions.
+
+**What promotion is not.** It is not a way to remove something from an
+existing membership. Rule 4 governs; a version that used promotion to strip a
+surface a household had already paid for would be repricing a completed
+purchase, whatever the schema said.
 
 ---
 
@@ -222,7 +309,7 @@ of the entitlement's full intended state, not a diff.
 | `lifecycle_state` | string | yes | §6. |
 | `tier` | string | yes | §3. |
 | `term` | object | yes | `{ "shape": "annual_prepaid", "effective_date": date, "expiry_date": date }`. Dates are `YYYY-MM-DD`. |
-| `services` | object | yes | §4. |
+| `services` | object | yes | §4. Each service carries `surfaces`, required and possibly `{}`. |
 | `limits` | object | yes | §5. |
 | `source_reference` | object | yes | `{ "system": string, "reference_id": string }` — the purchase record, by opaque reference only. Never processor payloads, card data, or amounts. |
 | `previous_entitlement_id` | string or `null` | no | Set on renewal. |
@@ -254,9 +341,22 @@ real organization. Values are placeholders.
     "expiry_date": "2027-09-30"
   },
   "services": {
-    "bede_tutor": { "included": true, "notes": null },
-    "locuto": { "included": true, "notes": null },
-    "family_portal": { "included": true, "notes": null }
+    "bede_tutor": {
+      "included": true,
+      "notes": null,
+      "surfaces": {
+        "family_portal": {
+          "included": true,
+          "entitlement": "bundled",
+          "notes": null
+        }
+      }
+    },
+    "locuto": {
+      "included": true,
+      "notes": null,
+      "surfaces": {}
+    }
   },
   "limits": {
     "max_children": 6,
@@ -313,7 +413,18 @@ A consumer **rejects the whole event and does not partially apply it** when:
 - `contract_version` is unrecognised;
 - `tier` is not in the vocabulary for that version;
 - a named service key is unknown;
+- a named surface id is unknown, or is named under a service it does not
+  belong to;
+- a surface's `entitlement` value is not legal at this contract version —
+  which at `1.0.0-draft` means anything other than `bundled`, `independent`
+  included (§4.2);
 - a required field is absent, or a limit is negative or malformed.
+
+**The version gate is what keeps the surface vocabulary closed.** A consumer
+rejects an unrecognised `contract_version` outright, so it never has to guess
+at a surface introduced by a version it has not adopted. That is why surfaces
+need no lenient-forward-compatibility rule, and why adding one is a version
+bump both sides take deliberately rather than a field that quietly appears.
 
 A rejection is a `failed` outcome with a recorded reason, never a silent drop
 and never a best-effort partial write. Bede already behaves this way for the
@@ -362,26 +473,37 @@ the following hold:
 
 1. Every identifier in §2 has exactly one owner, and no side mints another's.
 2. A tier outside §3's vocabulary is rejected, not defaulted.
-3. Every service in §4 is stated explicitly, and `included: false` is
+3. Every service in §4.1 is stated explicitly, and `included: false` is
    distinguishable from an omitted key.
-4. A six-child maximum is carried as `max_children: 6` and is not inferred
+4. Every service carries a `surfaces` object, present even when empty, and
+   every surface carries an `entitlement` value legal at this version.
+5. `family_portal` is a surface of `bede_tutor` and is not a service key.
+6. Promoting a surface to an independent service in a later version requires
+   no change to `organization_id`, `purchaser_account_id`, `admin_account_id`
+   or `entitlement_id`, and no reinterpretation of an entitlement issued under
+   an earlier `contract_version`.
+7. A six-child maximum is carried as `max_children: 6` and is not inferred
    from the tier anywhere in either implementation.
-5. Every lifecycle state in §6 has a named owner, and the states Bede cannot
+8. Every lifecycle state in §6 has a named owner, and the states Bede cannot
    currently enforce say so.
-6. A replayed `idempotency_key` produces no second side effect.
-7. A retried event is recognisable as the same logical event.
-8. Terminal failure is visible to an operator and reconcilable.
-9. Manual issuance remains a supported, reconcilable path.
-10. No entitlement payload contains child data, faith-engagement data, or a
+9. A replayed `idempotency_key` produces no second side effect.
+10. A retried event is recognisable as the same logical event.
+11. Terminal failure is visible to an operator and reconcilable.
+12. Manual issuance remains a supported, reconcilable path.
+13. No entitlement payload contains child data, faith-engagement data, or a
     secret.
-11. An unknown `contract_version`, tier, or service key fails closed.
-12. Both repositories reference the same `contract_version` and each has
+14. An unknown `contract_version`, tier, service key, surface id, or surface
+    `entitlement` value fails closed.
+15. Both repositories reference the same `contract_version` and each has
     contract tests against it (§12).
 
-Criteria 1–5 and 10–11 are properties of this document and are guarded by
-`homeschool-api/tests/test_locuto_entitlement_contract.py`. Criteria 6–9 and
-12 are properties of an implementation that does not exist yet and cannot be
-tested here; they are stated so the implementing PR knows what it owes.
+Criteria 1–8, 13 and 14 are properties of this document and are guarded by
+`homeschool-api/tests/test_locuto_entitlement_contract.py`. Criterion 6 is
+guarded only as far as a document can be: the tests assert the rule is
+stated, not that a future version obeys it — that is the implementing PR's to
+honour. Criteria 9–12 and 15 are properties of an implementation that does
+not exist yet and cannot be tested here; they are stated so the implementing
+PR knows what it owes.
 
 ---
 

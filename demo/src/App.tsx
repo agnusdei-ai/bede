@@ -20,6 +20,7 @@ import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import DebugOverlay from './DebugOverlay'
 import { logDebug } from './debugBus'
+import { readerFacingError } from './networkFailure'
 import { useVoiceModePreference } from './useVoiceModePreference'
 import { createHoldHandlers } from './holdGesture'
 // Lazily loaded: the drawing canvas is a heavyweight component most demo
@@ -1554,7 +1555,16 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
       if (err instanceof TrialSessionEndedError) {
         onSessionInvalid?.()
       } else if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${err.message}` }])
+        // A dropped connection reaches here as Safari's "Load failed" or
+        // Chrome's "Failed to fetch" — browser-internal wording a visitor
+        // cannot act on, and which reads as though Bede itself broke. By
+        // this point api.ts has already retried it (see TUTOR_MAX_ATTEMPTS),
+        // so this is a connection that stayed down. friendlyErrorMessage is
+        // deliberately NOT reused here: its wording guesses at a backend
+        // waking from idle, which is right at the code screen and wrong
+        // mid-lesson, where the session is demonstrably already awake.
+        const content = readerFacingError(err, t('chatScreen.turnNetworkFailed'))
+        setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${content}` }])
       }
     } finally {
       setIsStreaming(false)
@@ -1563,7 +1573,7 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
       // advancing while Bede's own transition line is still playing would
       // cut it off mid-sentence.
     }
-  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid])
+  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid, t])
 
   // Fires once when a turn's text AND speech have both genuinely finished
   // (not just the text) — see the fire-and-forget speak() comment above for

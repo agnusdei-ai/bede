@@ -2,6 +2,7 @@ import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessm
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 import { getOrCreateDeviceId } from '../utils/deviceId'
+import { isNetworkFailure } from '../utils/networkFailure'
 
 const BASE = '/api'
 
@@ -304,6 +305,62 @@ function stripDataUrlPrefix(dataUrl: string): string {
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1)
 }
 
+// ── A dropped connection is not a lost turn ─────────────────────────────
+//
+// `fetch()` rejecting with a TypeError means no response was received at
+// all: the request never reached a server, or the connection died before
+// any headers came back. On a child's tablet on mobile data that is an
+// ordinary event, not an exceptional one — a real trace from a 5G phone
+// mid-lesson shows the POST failing after 12.9 seconds, the child's own
+// answer ("I was coughing the whole day") discarded, and nothing but
+// Safari's own words, "Load failed", where Bede's reply should have been.
+//
+// The turn was simply gone. Nothing retried it, and the only thing that
+// eventually spoke was the 60-second idle timer sending [CONTINUE], which
+// asks the child to go on as though they had said nothing at all.
+//
+// `useHybridVoiceInput.ts` already reached this conclusion for the request
+// that OPENS a voice stream — see its START_STREAM_MAX_ATTEMPTS, whose own
+// comment records that without a retry "every single hold immediately gave
+// up ... making voice input feel unusable on anything less than a
+// rock-solid connection." That reasoning was never applied to the turn
+// carrying the child's actual words, which is the more costly of the two
+// to lose. This applies it.
+//
+// Three properties keep it honest:
+//
+//   1. **Only a transport failure retries.** A 4xx/5xx is a decision the
+//      server actually made; repeating it just asks to be refused twice.
+//      `isNetworkFailure` is the same predicate the voice path uses.
+//   2. **Only before anything has been shown.** Once a single chunk has
+//      reached the caller, text is on screen and a retry would duplicate
+//      it mid-sentence, so a failure after that point is final.
+//   3. **Never past an abort.** A child who navigated away, or a turn
+//      superseded by the next one, must not have a request quietly
+//      reissued on their behalf.
+//
+// Deliberately NOT retried: a stall. `parseSSEStream`'s 60-second
+// StreamStallError means the server accepted the request and then went
+// quiet, so it is very likely still working — reissuing costs a second
+// model call for a family and buys nothing a longer wait would not.
+const TUTOR_MAX_ATTEMPTS = 3
+const TUTOR_RETRY_BASE_DELAY_MS = 600
+
+/** A cancellable pause, so a retry delay can't outlive the turn it belongs to. */
+function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+}
+
 // How long a gap between consecutive SSE chunks this client will tolerate
 // before giving up on the stream. The backend has its own matching
 // server-side stall guard (core/sse_utils.py) that normally closes a
@@ -386,33 +443,54 @@ export async function* streamTutorChat(
   // remotely — neither value was ever traced anywhere before, so a family
   // hitting either had no way to show what the client thought "now" was.
   logDebug(`streamTutorChat local_date=${localDate ?? 'null'} local_time_of_day=${timeOfDay ?? 'null'}`)
-  const res = await fetch(`${BASE}/tutor/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      session_config: config,
-      current_subject: subject,
-      conversation_history: history,
-      child_message: childMessage,
-      drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
-      local_time_of_day: timeOfDay ?? null,
-      local_date: localDate ?? null,
-      // Keys this sitting's mastery estimate when the deployment is set to
-      // keep no profile between sessions (see the backend's
-      // retain_mastery_profiles). Ignored entirely otherwise.
-      session_id: sessionId ?? null,
-    }),
-    signal,
-  })
+  // See TUTOR_MAX_ATTEMPTS above for why this loop exists and what it
+  // deliberately will not retry.
+  for (let attempt = 1; ; attempt++) {
+    // Set before the first yield, so a failure that arrives after the child
+    // has already seen part of Bede's reply is final rather than restarting
+    // the sentence they are mid-way through reading.
+    let delivered = false
+    try {
+      const res = await fetch(`${BASE}/tutor/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          session_config: config,
+          current_subject: subject,
+          conversation_history: history,
+          child_message: childMessage,
+          drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
+          local_time_of_day: timeOfDay ?? null,
+          local_date: localDate ?? null,
+          // Keys this sitting's mastery estimate when the deployment is set to
+          // keep no profile between sessions (see the backend's
+          // retain_mastery_profiles). Ignored entirely otherwise.
+          session_id: sessionId ?? null,
+        }),
+        signal,
+      })
 
-  if (!res.ok) {
-    throw new Error('Tutor request failed — check your connection')
+      if (!res.ok) {
+        throw new Error('Tutor request failed — check your connection')
+      }
+
+      for await (const chunk of parseSSEStream<StreamChunk>(res)) {
+        delivered = true
+        yield chunk
+      }
+      return
+    } catch (err) {
+      if (delivered || attempt >= TUTOR_MAX_ATTEMPTS || signal?.aborted || !isNetworkFailure(err)) {
+        throw err
+      }
+      const wait = TUTOR_RETRY_BASE_DELAY_MS * attempt
+      logDebug(`streamTutorChat retrying after network failure (attempt ${attempt}/${TUTOR_MAX_ATTEMPTS}, waiting ${wait}ms)`)
+      await retryPause(wait, signal)
+    }
   }
-
-  yield* parseSSEStream<StreamChunk>(res)
 }
 
 /**

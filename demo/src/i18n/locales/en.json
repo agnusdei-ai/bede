@@ -31,6 +31,7 @@
     "withName": "with {{name}}",
     "learningSubject": "Learning Subject",
     "bedeThinking": "Bede is thinking…",
+    "turnNetworkFailed": "Your message didn't reach me — we lost the connection for a moment. Try sending it again.",
     "transcribing": "Transcribing…",
     "voiceReviewSend": "Send",
     "voiceReviewCancel": "Cancel",

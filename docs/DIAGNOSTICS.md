@@ -232,6 +232,71 @@ the cause lives in Render, Cloudflare, or DNS.
 (dedicated and separately revocable). Without it the detector still runs
 and still reports; only the automated repair is skipped.
 
+## A turn lost to a dropped connection
+
+This is what it looks like in a trace, from a real 5G phone mid-lesson:
+
+```
+[782496ms] streamTutorChat local_date=2026-09-08 local_time_of_day=afternoon
+[782496ms] -> POST https://bede-demo-api.onrender.com/tutor/chat
+[795437ms] x POST https://bede-demo-api.onrender.com/tutor/chat (12941ms) TypeError: Load failed
+```
+
+`TypeError` is the tell. `fetch()` rejects with one for every
+transport-level failure and with nothing else — a 404, a 500 and a refused
+request all resolve normally and are read from `res.status`. So a
+`TypeError` means **no response was received at all**: the request never
+reached a server, or the connection died before any headers came back. The
+message is browser-specific and means nothing beyond that ("Load failed" on
+Safari, "Failed to fetch" on Chrome, "NetworkError when attempting to fetch
+resource." on Firefox).
+
+Note the 12,941ms. This is not a fast failure a reader will re-try through
+impatience; it is thirteen seconds of "Bede is thinking..." followed by an
+error.
+
+**What used to happen next was nothing.** The turn was gone. The child's own
+answer had been sent and discarded, the bubble where Bede's reply belonged
+read `Load failed`, and the next thing to speak was the 60-second idle timer
+sending `[CONTINUE]` — which invites the child to carry on as though they
+had never answered. In the trace that prompted this, the child had just said
+"I was coughing the whole day."
+
+**What happens now**, in `services/api.ts` and `demo/src/api.ts`:
+
+```
+[  ...  ] streamTutorChat retrying after network failure (attempt 1/3, waiting 600ms)
+```
+
+The turn is reissued, with the child's own message unchanged, up to
+`TUTOR_MAX_ATTEMPTS` (3) with a 600ms/1200ms backoff. Seeing that line is
+the whole diagnosis: the connection dropped and Bede covered it. Seeing it
+twice, followed by an error, means the connection stayed down.
+
+**What it deliberately does not retry**, each for a reason worth keeping:
+
+| Case | Why not |
+| --- | --- |
+| A 4xx/5xx | A decision the server actually made. Repeating it asks to be refused twice and spends a family's tokens doing it. |
+| A failure after the first chunk | Text is already on screen; a retry would restart a sentence under someone reading it. |
+| An abort | The child navigated away, or the next turn superseded this one. Nothing should be reissued on their behalf. |
+| A stall (`StreamStallError`, 60s) | The server accepted the request and went quiet, so it is very likely still working. A second model call buys nothing a longer wait would not. |
+
+**And the reader no longer sees the browser's own words.** `Load failed` in
+a chat bubble reads as Bede breaking, and names nothing anyone can act on;
+one report of exactly this had a family looking for a fault in the app when
+the answer was a weak signal. `readerFacingError` (`utils/networkFailure.ts`,
+mirrored in `demo/src/`) substitutes the translated
+`chat.turnNetworkFailed` / `chatScreen.turnNetworkFailed` for a dropped
+connection, and leaves every other error's own text alone, since those are
+our sentences and were written for a reader.
+
+The same predicate, `isNetworkFailure`, answers both questions — what to say,
+and whether trying again is reasonable — and is shared with the voice path,
+which reached this conclusion first for the request that opens a voice
+stream (see `docs/VOICE_SETUP.md`). Guards: `services/tutorRetry.test.ts`,
+`demo/src/tutorRetry.test.ts`, `demo/src/networkFailure.test.ts`.
+
 ## Related
 
 - **Voice-specific tracing** — `docs/VOICE_SETUP.md` covers the mic/TTS

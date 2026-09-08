@@ -2058,6 +2058,64 @@ to cost WebKit's user-activation window before the fresh call runs. Both
 produce the identical `NotAllowedError` text on iOS Safari, and only a real
 device trace after this fix ships can distinguish them going forward.
 
+## Troubleshooting: `AudioSession category is not compatible with audio capture` on every turn, on iPhone/iPad
+
+In a debug trace from iOS, once per turn, before the child has touched
+anything:
+
+```
+getStream() rejected name=InvalidStateError message=AudioSession category is not compatible with audio capture. report=false
+```
+
+`report=false` is why this went unnoticed for so long: it marks a call whose
+failure is deliberately never shown to the child, because a fallback is
+still coming. Nothing appeared on screen, nothing errored, and the turn
+still worked.
+
+**What was actually failing was the prewarm** — and only on iOS, which is
+the platform this runs on.
+
+Two mechanisms, each correct alone, cancelled each other out:
+
+- `useHybridVoiceInput.ts`'s mode-driven effect pins WebKit's audio session
+  to `'playback'` whenever the mic is not capturing. That is the fix for
+  Bede's voice switching to the device's built-in earpiece mid-lesson (see
+  that troubleshooting section above), and it is right.
+- `prewarm()` opens the microphone *before* any press, from an effect that
+  fires the moment it becomes the child's turn — precisely when the session
+  is pinned to `'playback'`. On iOS/iPadOS 17+, WebKit refuses a
+  `getUserMedia()` call in that category outright.
+
+So on every single turn, on every iPhone and iPad, the prewarm was refused.
+`getStream()` resolves to `null` rather than rejecting and
+`startRecording()` falls back to its own fresh call at press time, so
+nothing broke — the entire benefit simply never arrived. The cost is the
+thing prewarming exists to prevent: a cold `getUserMedia()` on every press,
+which is the "transcript is missing its first few words" report, and which a
+slow connection only makes more likely to matter.
+
+**The fix** is that the prewarm now enters the recording-capable category
+itself, synchronously, before touching the mic — the same thing `_start()`
+already does at press time and for the same reason. Its counterpart matters
+just as much: `cancelPrewarm()` hands the category back when a prewarmed mic
+is never actually pressed (Bede started speaking again), or the session
+would stay pinned to `'play-and-record'` for the rest of the lesson and
+reintroduce the earpiece-routing bug the first mechanism exists to prevent.
+That restore is guarded on the mode not being `recording`, because
+`cancelPrewarm()` also fires on the press path, where a live capture is
+already underway and pulling the category out from under it would break it.
+
+Pinned by three cases in each app's `useHybridVoiceInput.test.ts` — the call
+happens, it happens *before* the prewarm, and it is not undone under a live
+recording — each verified by breaking it.
+
+**Not verified on a physical device from this sandbox.** The tests assert
+the ordering and the guard, which is what regressed; WebKit's actual
+acceptance of the category change, and the audio routing that follows from
+it, can only be confirmed on a real iPhone or iPad. If Bede's voice ever
+returns to the earpiece after a turn where the mic was warmed but never
+pressed, this is the first place to look.
+
 ## Endpointing: how a continuous-mode turn ends
 
 Hold-to-talk needs no endpointing — releasing the button *is* the endpoint.

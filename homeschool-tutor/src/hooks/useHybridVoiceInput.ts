@@ -4,6 +4,7 @@ import { useVoiceRecorder } from './useVoiceRecorder'
 import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents } from '../services/voiceApi'
 import { logDebug } from './debugBus'
 import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../utils/audioSession'
+import { isNetworkFailure } from '../utils/networkFailure'
 import {
   SAMPLE_INTERVAL_MS, advanceEndpointState, endReason, initialEndpointState,
 } from '../utils/endpointing'
@@ -82,28 +83,6 @@ const MAX_RECORDING_MS = 120000
 // on the backend side for the identical class of failure.
 const START_STREAM_MAX_ATTEMPTS = 2
 const START_STREAM_RETRY_DELAY_MS = 500
-
-/**
- * Whether a rejected voice-stream request failed at the network layer (the
- * request never reached a server at all) rather than being refused by one.
- *
- * fetch() rejects with a TypeError for every transport-level failure; the
- * message differs per browser and is deliberately opaque ("Load failed" on
- * Safari, "Failed to fetch" on Chrome, "NetworkError when attempting to
- * fetch resource." on Firefox), so the message check is only a fallback for
- * anything that arrives already re-wrapped. api.ts's own rejections are
- * plain Errors with our text, so they don't match either test.
- *
- * The distinction is what the child actually reads: "something's wrong with
- * the microphone" sends a family off checking browser permissions for a mic
- * that was working perfectly, when the real answer is that the connection
- * dropped and pressing again in a moment will work.
- */
-function isNetworkFailure(err: unknown): boolean {
-  if (err instanceof TypeError) return true
-  const message = err instanceof Error ? err.message : String(err)
-  return /load failed|failed to fetch|network\s*(error|request failed)/i.test(message)
-}
 
 interface Options {
   token: string | null
@@ -615,6 +594,44 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   releaseRef.current = release
   stopRef.current = stop
 
+  // Prewarming needs the recording-capable audio session too — this is what
+  // made it dead on the one platform it matters most for.
+  //
+  // On iOS/iPadOS 17+ the mode-driven effect above pins the session to
+  // 'playback' whenever the mic is not capturing, which is exactly the state
+  // prewarm() fires in: it runs from an effect the moment it becomes the
+  // child's turn, long before any press. WebKit then refuses the
+  // getUserMedia() call outright — `InvalidStateError: AudioSession category
+  // is not compatible with audio capture` — on every single turn, silently,
+  // because a prewarm failure is deliberately never reported to the child
+  // (`report: false`). Seen on every turn of a real iPhone trace.
+  //
+  // Nothing broke visibly, which is why it survived: getStream() resolves to
+  // null rather than rejecting, and startRecording() falls back to its own
+  // fresh call at press time. The cost is the entire benefit of prewarming —
+  // the child is back to paying cold getUserMedia latency on every press,
+  // which is the "transcript missing its first few words" report prewarm was
+  // added to fix, and which a slow connection only makes more likely to
+  // matter.
+  const prewarm = useCallback(() => {
+    enterRecordingAudioSession()
+    return recorder.prewarm()
+  }, [recorder.prewarm])
+
+  // The other half, and the reason this is safe. A prewarmed stream that is
+  // never pressed gets released here — and the category has to come back
+  // with it, or a session that opened the mic for a press that never came
+  // would leave 'play-and-record' pinned for the rest of the lesson, which
+  // is precisely the state audioSession.ts exists to keep Bede's own speech
+  // out of (it routes TTS to the earpiece instead of the family's chosen
+  // output). Guarded on modeRef because this also fires when the child DID
+  // press: _start() has already set 'play-and-record' synchronously by then,
+  // and restoring playback under a live recording would break the capture.
+  const cancelPrewarm = useCallback(() => {
+    recorder.cancelPrewarm()
+    if (modeRef.current !== 'recording') restorePlaybackAudioSession()
+  }, [recorder.cancelPrewarm])
+
   return {
     isListening: mode === 'recording',
     isTranscribing: mode === 'transcribing',
@@ -632,7 +649,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     // by itself: it's already essentially as early as a cold call can be.
     // A caller only benefits by invoking this BEFORE the child presses,
     // e.g. as soon as it's genuinely their turn to speak.
-    prewarm: recorder.prewarm,
-    cancelPrewarm: recorder.cancelPrewarm,
+    prewarm,
+    cancelPrewarm,
   }
 }

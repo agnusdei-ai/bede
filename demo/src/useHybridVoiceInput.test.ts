@@ -386,6 +386,61 @@ describe('useHybridVoiceInput exposes prewarm/cancelPrewarm (demo)', () => {
 
     expect(cancelPrewarm).toHaveBeenCalledTimes(1)
   })
+
+  // ── The audio session has to be recording-capable BEFORE getUserMedia ──
+  //
+  // On iOS/iPadOS 17+ the mode-driven effect pins the session to 'playback'
+  // whenever the mic is idle, which is exactly the state prewarm() fires in.
+  // WebKit then refuses the capture outright — `InvalidStateError:
+  // AudioSession category is not compatible with audio capture` — on every
+  // turn, and silently, because a prewarm failure is deliberately never
+  // reported to the child. A real iPhone trace shows it on every turn.
+  //
+  // Nothing broke visibly (getStream resolves null; startRecording falls
+  // back to its own press-time call), which is why it survived: the only
+  // cost is that prewarming, on the one platform it matters most for, never
+  // did anything at all.
+  it('enters the recording session before asking the recorder to prewarm', () => {
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    result.current.prewarm()
+
+    expect(enterRecordingAudioSession).toHaveBeenCalled()
+    // Ordering is the whole point: entering it afterwards is the same bug.
+    expect(enterRecordingAudioSession.mock.invocationCallOrder[0])
+      .toBeLessThan(prewarm.mock.invocationCallOrder[0])
+  })
+
+  it('hands the session back when a prewarmed mic is never pressed', () => {
+    // Bede starts speaking again without the child pressing. Leaving
+    // 'play-and-record' pinned is what routes his voice to the earpiece
+    // instead of the family's chosen output — see audioSession.ts.
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+
+    result.current.prewarm()
+    restorePlaybackAudioSession.mockClear()
+    result.current.cancelPrewarm()
+
+    expect(restorePlaybackAudioSession).toHaveBeenCalled()
+  })
+
+  it('does NOT hand the session back when the child actually pressed', async () => {
+    // cancelPrewarm also fires on the press path, where the prewarmed stream
+    // has just been claimed by a live recording. Restoring playback there
+    // would pull the category out from under the capture in progress.
+    streamVoiceEvents.mockImplementation(() => pendingForever())
+    startVoiceStream.mockResolvedValue('sess-prewarm')
+
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    expect(result.current.isListening).toBe(true)
+
+    restorePlaybackAudioSession.mockClear()
+    act(() => { result.current.cancelPrewarm() })
+
+    expect(cancelPrewarm).toHaveBeenCalled()
+    expect(restorePlaybackAudioSession).not.toHaveBeenCalled()
+  })
 })
 
 describe('useHybridVoiceInput stop() cancellation (demo)', () => {

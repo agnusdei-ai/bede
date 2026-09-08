@@ -9,6 +9,7 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
+import { readerFacingError } from '../utils/networkFailure'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
@@ -460,7 +461,14 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       if (speechSegments.length) speak(speechSegments.join(' '))
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
-        addToolMessage('error', `⚠️ ${err.message}`)
+        // A dropped connection reaches here as Safari's "Load failed" or
+        // Chrome's "Failed to fetch" — browser-internal wording a child
+        // cannot act on, and which reads as though Bede itself broke. By
+        // this point api.ts has already retried it (see TUTOR_MAX_ATTEMPTS),
+        // so this is a connection that stayed down, and the useful thing to
+        // say is what to do next. Same distinction the mic already draws
+        // with chat.micNetworkUnavailable.
+        addToolMessage('error', `⚠️ ${readerFacingError(err, t('chat.turnNetworkFailed'))}`)
       }
     } finally {
       finalizeAssistantMessage()

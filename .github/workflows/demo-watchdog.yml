@@ -122,7 +122,7 @@ jobs:
           node-version: '22'
 
       - name: Install Playwright (chromium only)
-        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+        run: npm install --no-save playwright && npx playwright install chromium
 
       # Every device profile in ONE job, deliberately — this was a
       # three-leg matrix until 2026-08-06.

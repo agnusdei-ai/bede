@@ -140,21 +140,21 @@ list as items are closed.
   annotation at the end of the job. Both left the job **green** while the
   gate went unverified, which is the shape a reader trusts least — an
   annotation is a message, and only a non-zero exit is a gate.
-  `CI_TEST_LICENSE_KEY` had previously gone invalid (bad signature against
-  `core/licensing.py`'s `PUBLIC_KEY_PEM`, not simple expiry) and stayed that
-  way across many runs on exactly that basis.
-  **What the bypass protected is preserved rather than discarded**, because
-  it was a real concern: reissuing that secret needs the offline private
-  signing key (`docs/PRODUCTION_SETUP.md#licensing`) that nothing in CI
-  holds, and leaving the step blocking used to skip every later step —
-  tablet-trust page, Postgres backup/restore — throwing away unrelated
-  coverage while somebody found the human with that key. Those two steps now
-  carry `if: success() || steps.license_check.conclusion == 'failure'`, so
-  they still run when the license step is the only thing that failed.
-  Coverage is kept; the green job is not. The residual, stated plainly: when
-  that secret next expires, `main` goes red until an operator reissues it.
-  That is the intended fail-closed behavior and converts a silent staleness
-  into a visible owner task.
+  The original long-lived `CI_TEST_LICENSE_KEY` then went invalid (bad
+  signature against `core/licensing.py`'s `PUBLIC_KEY_PEM`, not simple
+  expiry), which proved the gate worked but also made unrelated pushes to
+  `main` go red until a human with the offline private signing key reissued
+  it. `production-regression.yml` now mints a throwaway Ed25519 keypair and
+  short-lived trial license inside each job, rewrites the checked-out
+  `core/licensing.py` to trust that public key for the run, and still keeps
+  the license check blocking. **What the bypass protected is preserved rather
+  than discarded**: the tablet-trust page and Postgres backup/restore steps
+  still carry `if: success() || steps.license_check.conclusion == 'failure'`,
+  so they run when the license step is the only thing that failed. Coverage
+  is kept; the green job is not. The honest cost is narrower evidence: this
+  workflow no longer proves the shipped `PUBLIC_KEY_PEM` matches the offline
+  operator signing key, only that the licensed production path works with a
+  real signed license.
 
 - **GitHub Actions were pinned to mutable version tags (`@v4`), not commit
   SHAs — closed 2026-08-12.** A compromised upstream Action could push a

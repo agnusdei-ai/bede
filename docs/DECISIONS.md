@@ -1460,13 +1460,15 @@ environment.
 override should state that it supersedes the offline-signing-key constraint
 rather than working around it quietly.
 
-**What is not refused.** Giving CI its **own** keypair, so the
-production-regression stack mints a fresh short-lived license per run and holds
-no long-lived secret at all, is a legitimate and un-taken option. Its honest
-cost is that the run would then exercise a build carrying a CI public key, so
-it would stop proving that the *shipped* `PUBLIC_KEY_PEM` matches the real
-private key — a property that would need its own check. Not decided here, and
-deliberately not started.
+**What is not refused — and was later taken for CI specifically.** Giving CI
+its **own** keypair, so the production-regression stack mints a fresh
+short-lived license per run and holds no long-lived secret at all, is a
+legitimate option and became the chosen workflow on 2026-09-09 once the old
+`CI_TEST_LICENSE_KEY`'s signature drift turned unrelated pushes red. Its
+honest cost remains the same: the run exercises a build carrying a CI public
+key, so it no longer proves that the *shipped* `PUBLIC_KEY_PEM` matches the
+real private key. That property now needs a separate check; it is no longer
+what `production-regression.yml` is evidence for.
 
 **The compromise case has no plan, and that is now written down where a
 responder will meet it.** `docs/INCIDENT_RESPONSE.md` gains a

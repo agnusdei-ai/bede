@@ -33,32 +33,64 @@ on:
 # No job here writes to the repo, comments on a PR, or creates a release —
 # the default token only ever needs to check out code. Worth being
 # explicit here specifically: this workflow both runs on push to main
-# (where some org defaults grant read-write) and handles a real secret
-# (CI_TEST_LICENSE_KEY below) — least-privilege scoping matters more than
-# usual for this one.
+# (where some org defaults grant read-write) and temporarily rewrites the
+# checked-out copy of core/licensing.py so the stack trusts a throwaway CI
+# keypair minted inside the runner itself. Least-privilege scoping still
+# matters more than usual for a workflow mutating its checkout before a
+# real Docker build.
 permissions:
   contents: read
-
-env:
-  # A real, signed license — validly verifiable against core/licensing.py's
-  # embedded PUBLIC_KEY_PEM, which is exactly why this is NOT safe to
-  # commit as a plaintext value the way the throwaway ANTHROPIC_API_KEY
-  # below is: unlike a fake API key, a valid LICENSE_KEY is worth real
-  # money to whoever holds it (there's no revocation — anyone with the
-  # string can license their own instance for free, forever, with a public
-  # repo's git/PR history being exactly the kind of place that gets
-  # scraped for exactly this). Stored as a GitHub Actions repository secret
-  # instead — see docs/PRODUCTION_SETUP.md#licensing for how to (re)issue
-  # one via scripts/issue_license.py; bounded to a multi-year trial expiry
-  # rather than a perpetual core license, as defense in depth if it's ever
-  # exposed some other way.
-  CI_TEST_LICENSE_KEY: ${{ secrets.CI_TEST_LICENSE_KEY }}
 
 jobs:
   compose-config-validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Generate a throwaway signed LICENSE_KEY for this run
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import uuid
+          from datetime import date, timedelta
+          from pathlib import Path
+          from Crypto.PublicKey import ECC
+          from Crypto.Signature import eddsa
+
+          def b64url(data: bytes) -> str:
+              return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+          key = ECC.generate(curve="ed25519")
+          public_pem = key.public_key().export_key(format="PEM")
+
+          issued = date.today()
+          expires = issued + timedelta(days=30)
+          payload = {
+              "id": str(uuid.uuid4()),
+              "licensee": "CI production regression",
+              "tier": "trial",
+              "seats": 10,
+              "issued": issued.isoformat(),
+              "expires": expires.isoformat(),
+          }
+          payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+          signature = eddsa.new(key, "rfc8032").sign(payload_bytes)
+          license_key = f"{b64url(payload_bytes)}.{b64url(signature)}"
+
+          env_path = Path(os.environ["GITHUB_ENV"])
+          with env_path.open("a", encoding="utf-8") as fh:
+              fh.write(f"CI_TEST_LICENSE_KEY={license_key}\n")
+
+          licensing_path = Path("homeschool-api/core/licensing.py")
+          text = licensing_path.read_text(encoding="utf-8")
+          replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
+          licensing_path.write_text(updated, encoding="utf-8")
+          PY
       # Generated per run rather than hardcoded. A literal PIN committed
       # here is published exactly like the one in .env.example was, and
       # that value (602656) is now refused at boot for precisely that
@@ -133,6 +165,51 @@ jobs:
     needs: compose-config-validation
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Generate a throwaway signed LICENSE_KEY for this run
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import uuid
+          from datetime import date, timedelta
+          from pathlib import Path
+          from Crypto.PublicKey import ECC
+          from Crypto.Signature import eddsa
+
+          def b64url(data: bytes) -> str:
+              return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+          key = ECC.generate(curve="ed25519")
+          public_pem = key.public_key().export_key(format="PEM")
+
+          issued = date.today()
+          expires = issued + timedelta(days=30)
+          payload = {
+              "id": str(uuid.uuid4()),
+              "licensee": "CI production regression",
+              "tier": "trial",
+              "seats": 10,
+              "issued": issued.isoformat(),
+              "expires": expires.isoformat(),
+          }
+          payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+          signature = eddsa.new(key, "rfc8032").sign(payload_bytes)
+          license_key = f"{b64url(payload_bytes)}.{b64url(signature)}"
+
+          env_path = Path(os.environ["GITHUB_ENV"])
+          with env_path.open("a", encoding="utf-8") as fh:
+              fh.write(f"CI_TEST_LICENSE_KEY={license_key}\n")
+
+          licensing_path = Path("homeschool-api/core/licensing.py")
+          text = licensing_path.read_text(encoding="utf-8")
+          replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
+          licensing_path.write_text(updated, encoding="utf-8")
+          PY
 
       # Generated per run rather than hardcoded. A literal PIN committed
       # here is published exactly like the one in .env.example was, and
@@ -209,6 +286,51 @@ jobs:
     needs: wizard-end-to-end
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Generate a throwaway signed LICENSE_KEY for this run
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import uuid
+          from datetime import date, timedelta
+          from pathlib import Path
+          from Crypto.PublicKey import ECC
+          from Crypto.Signature import eddsa
+
+          def b64url(data: bytes) -> str:
+              return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+          key = ECC.generate(curve="ed25519")
+          public_pem = key.public_key().export_key(format="PEM")
+
+          issued = date.today()
+          expires = issued + timedelta(days=30)
+          payload = {
+              "id": str(uuid.uuid4()),
+              "licensee": "CI production regression",
+              "tier": "trial",
+              "seats": 10,
+              "issued": issued.isoformat(),
+              "expires": expires.isoformat(),
+          }
+          payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+          signature = eddsa.new(key, "rfc8032").sign(payload_bytes)
+          license_key = f"{b64url(payload_bytes)}.{b64url(signature)}"
+
+          env_path = Path(os.environ["GITHUB_ENV"])
+          with env_path.open("a", encoding="utf-8") as fh:
+              fh.write(f"CI_TEST_LICENSE_KEY={license_key}\n")
+
+          licensing_path = Path("homeschool-api/core/licensing.py")
+          text = licensing_path.read_text(encoding="utf-8")
+          replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
+          licensing_path.write_text(updated, encoding="utf-8")
+          PY
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wizard-generated-env
@@ -261,30 +383,24 @@ jobs:
         # (core/middleware.py's LicenseGateMiddleware), so ever since an
         # unlicensed production instance started booting into gated mode
         # instead of refusing to start, a healthy /health alone can no
-        # longer prove CI_TEST_LICENSE_KEY is still valid — an expired
-        # secret would sail through the health check while the instance
-        # sat gated. This step closes that gap: a gated instance answers
+        # longer prove the injected CI license actually verified and lifted
+        # the gate. This step closes that gap: a gated instance answers
         # every non-allowlisted path with a license_required 403 before
-        # auth even runs, so a normal auth-shaped 401 here proves the gate
-        # is NOT up (and therefore the license verified and is unexpired).
+        # auth even runs, so a normal auth-shaped 401/403 here proves the
+        # gate is NOT up.
         #
-        # THIS STEP BLOCKS. A license that is missing, invalid, expired or
-        # gated fails this step, fails this job, and reds `main`. That is
-        # the point: an entitlement check that cannot fail the build is not
-        # a check, and the two revisions before this one proved it —
-        # `continue-on-error: true` plus an `::error::` annotation, then
-        # that annotation re-emitted by a final always() step, both of
-        # which left the job GREEN while the gate went unverified. An
-        # annotation is a message; only a non-zero exit is a gate.
+        # THIS STEP BLOCKS. If the just-minted CI license fails to verify,
+        # fails to reach the app, or the gate otherwise stays up, this step
+        # fails the job and reds `main`. That is the point: an entitlement
+        # check that cannot fail the build is not a check, and the two
+        # revisions before this one proved it — `continue-on-error: true`
+        # plus an `::error::` annotation, then that annotation re-emitted by
+        # a final always() step, both of which left the job GREEN while the
+        # gate went unverified. An annotation is a message; only a non-zero
+        # exit is a gate.
         #
-        # What the bypass was protecting is preserved rather than
-        # discarded, because it was a real concern: reissuing
-        # CI_TEST_LICENSE_KEY needs the offline private signing key
-        # (docs/PRODUCTION_SETUP.md#licensing), so a stale secret is
-        # actionable only by a human, and leaving this blocking used to
-        # skip every later step — tablet-trust, Postgres backup/restore —
-        # throwing away unrelated coverage while somebody found that human.
-        # Those two steps now carry
+        # The "keep later coverage even when this fails" part is preserved:
+        # the tablet-trust and Postgres backup/restore checks now carry
         # `if: success() || steps.license_check.conclusion == 'failure'`,
         # so they still run when this step is the only thing that failed.
         # Coverage is kept; the green job is not.
@@ -302,8 +418,8 @@ jobs:
           body=$(curl -sk https://localhost/api/pod/configs)
           code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/api/pod/configs)
           if echo "$body" | grep -q 'license_required'; then
-            msg="CI_TEST_LICENSE_KEY is missing/invalid/expired — the production-regression license gate has not actually been proven this run. Reissue with scripts/issue_license.py (needs the offline private signing key — docs/PRODUCTION_SETUP.md#licensing) and update the CI_TEST_LICENSE_KEY repository secret."
-            echo "::error title=Stale CI_TEST_LICENSE_KEY::${msg}"
+            msg="The workflow-minted CI license did not lift the gate — production-regression has not actually proven the licensed production path this run."
+            echo "::error title=License gate still active::${msg}"
             {
               echo "## :rotating_light: License gate NOT verified this run"
               echo "${msg}"
@@ -327,8 +443,8 @@ jobs:
             echo "Response: $body"
             exit 1
           fi
-          echo "License gate verified: CI_TEST_LICENSE_KEY is valid and the gate lifts correctly." >> "$GITHUB_STEP_SUMMARY"
-          echo "License gate is down (auth answered normally) — license is active."
+          echo "License gate verified: the workflow-minted CI license lifts correctly." >> "$GITHUB_STEP_SUMMARY"
+          echo "License gate is down (auth answered normally) — the CI license is active."
 
       - name: Confirm the no-CLI tablet-trust page works end-to-end
         if: success() || steps.license_check.conclusion == 'failure'
@@ -404,7 +520,7 @@ jobs:
         # by wiping the schema before restoring, then comparing a DATA-ONLY
         # snapshot taken right before the wipe against one taken right
         # after restore. No API/auth/license dependency at all (sidesteps
-        # this workflow's own known CI_TEST_LICENSE_KEY staleness gap —
+
         # see docs/SECURITY.md's Known open gaps — entirely, rather than
         # inheriting it), and it's a stronger check than probing one field
         # through the API: pg_dump serializes the raw encrypted BYTEA

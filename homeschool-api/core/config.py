@@ -44,6 +44,33 @@ SUPPORTED_LOCALES = {
 TRANSCRIPTION_PROVIDERS = {"local", "openai"}
 
 
+# The processes that construct Settings. `api` serves tutoring turns;
+# `locuto_ipc` is services/locuto_ipc/'s own listener, which by design may
+# only ever resolve a model through resolve_local_only() and is never given
+# a commercial provider's credentials at all (docker-compose.yml says so in
+# its own block, implementing bede-ipc-spec.md §6).
+PROCESS_ROLE_API = "api"
+PROCESS_ROLE_LOCUTO_IPC = "locuto_ipc"
+PROCESS_ROLES = (PROCESS_ROLE_API, PROCESS_ROLE_LOCUTO_IPC)
+
+
+def role_is_exempt_from_provider_requirement(role: str) -> bool:
+    """Whether this process is one the "configure an AI provider" rule does
+    not apply to.
+
+    Written as an exact match on the exempt role, NEVER as "anything that is
+    not the api role". The difference only shows up for an unrecognised
+    value: `!=` hands a typo the exemption, `==` keeps the strict behaviour.
+    `reject_unknown_process_role` also refuses a typo outright, but it does
+    so only because it happens to be defined first — pydantic runs `after`
+    validators in definition order, so that protection would evaporate if
+    someone reordered the two methods. This form does not depend on the
+    order, which is why it is a separate function with its own guard rather
+    than an expression inlined into a validator nothing could test around.
+    """
+    return role == PROCESS_ROLE_LOCUTO_IPC
+
+
 class Settings(BaseSettings):
     # ── AI models ──────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
@@ -72,6 +99,19 @@ class Settings(BaseSettings):
     # anthropic) it pins the tutor to that provider, skipping order/failover
     # entirely. Empty = honor BEDE_ADAPTER_ORDER.
     bede_force_adapter: str = ""
+
+    # ── Which process this is ────────────────────────────────────────────────
+    # Bede's compose stack runs core/config.py in TWO processes with different
+    # jobs, and one production rule below is true of only one of them. The
+    # default is the tutoring API, so a deployment that never sets this is
+    # exactly as validated as before.
+    #
+    # Deliberately a closed vocabulary rather than free text: this value can
+    # RELAX a production check, so a typo must fail loudly instead of quietly
+    # buying an exemption — see reject_unknown_process_role below, and note
+    # that the check it relaxes independently tests for the exact literal, so
+    # a misspelling keeps the strict behaviour rather than skipping it.
+    bede_process_role: str = PROCESS_ROLE_API
 
     # ── Local self-hosted LLM (OpenAI-compatible, e.g. vLLM) ──────────────────
     # Points at a vLLM (or any OpenAI-compatible) server's /v1 endpoint serving
@@ -650,6 +690,22 @@ class Settings(BaseSettings):
     # brickable over an expiry.
 
     @model_validator(mode="after")
+    def reject_unknown_process_role(self) -> "Settings":
+        """BEDE_PROCESS_ROLE is set by docker-compose.yml, not by a family,
+        and it can relax a production check — so an unrecognised value is a
+        deployment mistake worth stopping for rather than defaulting past.
+        Runs in every mode, including development: a role typo is equally
+        wrong there and is far easier to find at the moment it is written
+        than after it has quietly changed what a container validates."""
+        if self.bede_process_role not in PROCESS_ROLES:
+            raise ValueError(
+                f"BEDE_PROCESS_ROLE={self.bede_process_role!r} is not a known process role — "
+                f"expected one of {', '.join(PROCESS_ROLES)}. This value is set by "
+                "docker-compose.yml per service, not by a deployment's .env."
+            )
+        return self
+
+    @model_validator(mode="after")
     def reject_no_ai_provider_configured_in_production(self) -> "Settings":
         """services/adapters/router.py never REQUIRES any single vendor's
         credentials to be present — an unconfigured adapter is simply
@@ -663,8 +719,34 @@ class Settings(BaseSettings):
         of Anthropic, OpenAI, Mistral, or a local self-hosted model must be
         configured before a real family deployment goes live. Deliberately
         does not care WHICH one — that choice belongs entirely to the family
-        (see docs/PROVIDER_ADAPTERS.md and setup.sh's provider picker)."""
+        (see docs/PROVIDER_ADAPTERS.md and setup.sh's provider picker).
+
+        Asked of the LOCUTO-IPC process, this question has no coherent
+        answer, which is why that process is exempt rather than merely
+        excused. Its only model path is resolve_local_only(), and
+        docker-compose.yml deliberately withholds every commercial key from
+        it (bede-ipc-spec.md §6) — so on an ordinary cloud-provider
+        household it can never satisfy this check, and demanding it would be
+        demanding a credential the process must not be able to use. With no
+        local model it starts and answers `Unavailable`, which is already
+        what its empty v1 capability registry does anyway.
+
+        That is not hypothetical: PRODUCTION=true is pinned for that service
+        and LOCAL_LLM_BASE_URL is unset for every family on a cloud
+        provider, so Settings() raised here at IMPORT time, before
+        server.py's own LOCUTO_IPC_ENABLED kill-switch could be read — a
+        container crash-looping under `restart: unless-stopped` that turning
+        the feature off could not stop. It reached CI as a red
+        full-stack-boot; it reaches a household as a container that never
+        stays up.
+
+        The exemption is decided by role_is_exempt_from_provider_requirement,
+        which matches the exact literal so that a typo in BEDE_PROCESS_ROLE
+        keeps the STRICT behaviour rather than buying an exemption — see that
+        function for why this must not depend on validator ordering."""
         if not self.is_production:
+            return self
+        if role_is_exempt_from_provider_requirement(self.bede_process_role):
             return self
         if not (
             self.anthropic_api_key

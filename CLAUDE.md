@@ -183,7 +183,36 @@ contains a wildcard (`reject_exposed_docs_and_wildcard_cors_in_production`
 `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`MISTRAL_API_KEY`/
 `LOCAL_LLM_BASE_URL` is set (`reject_no_ai_provider_configured_in_production`
 — at least one AI provider is required, but never a specific one; see
-`docs/PROVIDER_ADAPTERS.md`). All four validators live in `core/config.py`.
+`docs/PROVIDER_ADAPTERS.md`), or if `BEDE_PROCESS_ROLE` names a process that
+doesn't exist (`reject_unknown_process_role`). All five validators live in
+`core/config.py`.
+
+**One of those rules is true of only one process, which is why
+`BEDE_PROCESS_ROLE` exists.** The compose stack runs `core/config.py` in two
+processes: the tutoring `api`, and `services/locuto_ipc/`'s listener. The
+listener is deliberately never passed a commercial provider's credentials
+(bede-ipc-spec.md §6 — `resolve_local_only()` is its only model path), so on
+an ordinary cloud-provider household it has ZERO providers by construction
+and `Settings()` raised at **import**, before `server.py` could read
+`LOCUTO_IPC_ENABLED` — a container crash-looping under `restart:
+unless-stopped` that turning the connector off could not stop, seen as a red
+`full-stack-boot` and, for a family, as a container that never stays up.
+Asked of that process the rule has no coherent answer: it must not hold such
+a key, so requiring one demands what it may never use, and with no local
+model it correctly starts and answers `Unavailable` (which its empty v1
+capability registry does regardless). The role defaults to `api`, so any
+deployment that never sets it validates exactly as before; it is set per
+service in `docker-compose.yml` and deliberately NOT in `.env.example`,
+since it describes which container is running rather than anything a family
+chooses. `role_is_exempt_from_provider_requirement()` matches the exact
+role rather than negating `api` — the two differ only on a typo, where the
+negated form would hand out the exemption, and the membership validator only
+catches that because it happens to be defined first (pydantic runs `after`
+validators in definition order). Both properties, plus a guard that the fix
+was never "just give it a key", are pinned by
+`tests/test_locuto_ipc_boot.py`, which builds `Settings` from the REAL
+compose block so the validator and its invocation are one assertion. See
+`docs/LOCUTO_CONNECTOR_DECISIONS.md` packet 1's deployment-consequence note.
 
 **One credential policy, three implementations, and a test that they
 agree.** `core/pin_policy.py` holds both rules: `pin_is_strong()` (shape —
@@ -978,7 +1007,13 @@ names — a partial answer to packet 2, letting Locuto detect the registry
 changed between sessions, nothing about signed releases or hash-pinned
 weights. `__main__.py` does NOT run `main.py`'s full FastAPI lifespan
 (no constitution check, license gating, or voice warm-up) — none of that
-is this listener's concern.
+is this listener's concern. It DOES construct `core/config.py`'s
+`Settings` at import, though (`server.py`'s module-level
+`from core.config import settings`), which is why this process needs
+`BEDE_PROCESS_ROLE=locuto_ipc` in its compose block — see "Required
+Environment Variables" above for the crash loop that followed from getting
+that wrong, and note that the `LOCUTO_IPC_ENABLED` kill-switch inside
+`serve()` cannot help with any failure that happens at import.
 
 ## Security Constraints
 

@@ -301,6 +301,19 @@ services:
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-}
       - LOCAL_LLM_API_KEY=${LOCAL_LLM_API_KEY:-not-needed}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      # Says which process this is, so core/config.py's production
+      # validation applies the rules that are actually true of it. Exactly
+      # one differs: `api` must have an AI provider configured, and this
+      # process must NOT be able to reach a commercial one (the deliberate
+      # omission just above) — so on any household using a cloud provider it
+      # could never satisfy that check. It crash-looped at IMPORT for
+      # precisely that reason, before server.py's own LOCUTO_IPC_ENABLED
+      # kill-switch could be read, which is why turning the connector off did
+      # not stop it. With no local model it starts and answers `Unavailable`,
+      # which is what its empty v1 capability registry does regardless.
+      # Deliberately not in .env.example: this is a property of which
+      # container is running, never a knob a family sets.
+      - BEDE_PROCESS_ROLE=locuto_ipc
       # core/config.py's Settings() construction validates these as present
       # regardless of whether THIS process's own logic uses them — same
       # values `api` already requires, reused rather than duplicated.

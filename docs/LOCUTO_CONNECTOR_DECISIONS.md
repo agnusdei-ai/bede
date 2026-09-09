@@ -100,6 +100,43 @@ tutoring path, nothing on Locuto's side. B/C: none beyond what's noted above.
 of household configuration, fails safe, and costs a small, isolated addition rather than touching
 anything already shipping.
 
+### Deployment consequence, found after A shipped
+
+A's enforcement has a second half that lives in `docker-compose.yml` rather than in code: the
+`locuto-ipc` service is never *passed* `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`MISTRAL_API_KEY` at
+all, so the isolation holds even against a future call site that forgot to use
+`resolve_local_only()`. That is the strongest form of A and should stay.
+
+It also collided with an unrelated production rule, and the collision took the container down.
+`core/config.py`'s `reject_no_ai_provider_configured_in_production` requires at least one of the
+four providers whenever `PRODUCTION=true`, which that service pins. On the ordinary household —
+a cloud provider and no local model — `locuto-ipc` therefore had *zero* providers by construction
+and `Settings()` raised at **import**, before `server.py` could read `LOCUTO_IPC_ENABLED`. So the
+container crash-looped under `restart: unless-stopped`, and **turning the connector off did not
+stop it**: the kill-switch was unreachable. It showed up as a red `full-stack-boot`; a family
+would have seen a container that never stays up.
+
+**The rule does not apply to this process, and that is a statement about the process rather than
+an excuse.** `reject_no_ai_provider_configured_in_production` asks "can this deployment tutor?".
+For `locuto-ipc` the honest answer is that it must not: its only model path is
+`resolve_local_only()`, and a commercial credential is something it is deliberately prevented from
+holding. Demanding one would be demanding a key the process may never use. With no local model it
+starts and answers `Unavailable` — which is what its empty v1 capability registry does anyway.
+
+`BEDE_PROCESS_ROLE` (`core/config.py`, set per service in compose, deliberately absent from
+`.env.example` since it describes which container is running rather than anything a family
+chooses) carries that distinction. Two properties are worth not undoing, both pinned by
+`homeschool-api/tests/test_locuto_ipc_boot.py`:
+
+- **The exemption is an exact match on the role, never "anything that is not `api`".** The two
+  differ only for an unrecognised value, where the negated form hands a typo the exemption — the
+  dangerous direction for a value that relaxes a production check. `reject_unknown_process_role`
+  also refuses a typo, but only because it is defined first, and pydantic runs `after` validators
+  in definition order; the exact match is what makes the safe behaviour independent of that.
+- **The fix must not become "give it a key so the check passes."** That would satisfy the
+  validator by destroying the property this whole packet exists to establish, and a guard fails if
+  any commercial credential is ever added to that service block.
+
 ---
 
 ## 2. Does a Bede companion need to satisfy `agents.md` §5's measurement requirements, and if so, how?

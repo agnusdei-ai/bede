@@ -372,34 +372,34 @@ Family" --seats 10 --private-key /path/to/private.pem` prints the
 the full flag reference (trial expiry via `--days`, co-op seat counts,
 etc.).
 
-**The CI test license** (operator-only housekeeping): the
-`production-regression` workflow boots the real stack under
-`PRODUCTION=true`, so it needs a genuine license — stored as the
-`CI_TEST_LICENSE_KEY` repository secret (Settings → Secrets and variables →
-Actions), never committed. Convention: a **multi-year `trial`** license
-(e.g. `--tier trial --days 730 --licensee "CI regression test"`), not a
-perpetual `core` one — defense in depth if the secret ever leaks. The
-workflow asserts the license is actually ACTIVE (not just that the app
-booted, since an unlicensed instance now boots gated), so when it expires
-or otherwise goes invalid the "Confirm the license is ACTIVE" step reports
-exactly that, with a reminder to reissue with `scripts/issue_license.py`
-and paste the new value into the secret. Set a calendar reminder a month
-before the expiry printed at issue time. If the signing keypair is ever
-rotated, reissue this key in the same change.
+**The CI test license** (workflow housekeeping): `production-regression`
+boots the real stack under `PRODUCTION=true`, so it still needs a genuine
+license — but it now **mints its own short-lived trial license inside each
+job** rather than storing a long-lived `CI_TEST_LICENSE_KEY` repository
+secret. Each job generates a throwaway Ed25519 keypair, rewrites the
+checked-out `core/licensing.py` to trust that public key for the duration of
+the run, then signs a one-job `trial` license against the matching private
+key. Nothing long-lived is committed, and nothing needs manual rotation when
+the old workflow credential would have gone stale.
 
-**That step blocks.** A stale, invalid or expired secret fails it, fails the
-job, and turns `main` red until someone reissues the key. That is
-deliberate: an entitlement check that cannot fail the build is not a check,
-and this step spent two revisions proving it — `continue-on-error: true`
-with an `::error::` annotation, then that annotation re-emitted at the end
-of the job, both of which left the job green while the gate went unverified.
+**The honest trade-off:** this no longer proves the shipped
+`core/licensing.py` `PUBLIC_KEY_PEM` matches the operator's offline private
+signing key. What it still proves is the full licensed production path —
+wizard, `.env`, boot, gate-lift — against a real signed license in a real
+stack. Keep that narrower scope in mind when using this workflow as evidence.
 
-**The steps after it still run**, so a stale secret no longer costs you
-unrelated coverage: the tablet-trust page and Postgres backup/restore checks
-carry `if: success() || steps.license_check.conclusion == 'failure'` and
-execute when the license step is the only failure. What you lose while the
-secret is stale is a green workflow, which is the point — reissuing it is
-now a visible obligation rather than an annotation someone has to notice.
+**That step blocks.** If the workflow-minted license fails to verify, fails
+to reach the app, or otherwise leaves the gate up, the step fails, the job
+fails, and `main` goes red. That is deliberate: an entitlement check that
+cannot fail the build is not a check, and this step spent two revisions
+proving it — `continue-on-error: true` with an `::error::` annotation, then
+that annotation re-emitted at the end of the job, both of which left the job
+green while the gate went unverified.
+
+**The steps after it still run**, so a license-gate failure no longer costs
+you unrelated coverage: the tablet-trust page and Postgres backup/restore
+checks carry `if: success() || steps.license_check.conclusion == 'failure'`
+and execute when the license step is the only failure.
 
 **Threat model, honestly:** this is a trust-and-verify gate for legitimate
 self-hosters, not DRM — anyone with the source (which every self-hosted
@@ -418,13 +418,8 @@ worth real money to whoever holds it — this repo has no revocation
 mechanism, so a key exposed in a public commit, PR description, or issue
 is usable forever by anyone who finds it, not just embarrassing. Treat it
 with the same handling as any other credential in this repo (`.env`, a
-platform's secret store) — never a plaintext file or workflow `env:`
-value. `production-regression.yml`'s CI run still needs one real, signed
-license (it exercises the family-install path, which is never exempt) to
-prove the full stack actually boots with `PRODUCTION=true`; that value
-lives in this repo's **Settings → Secrets and variables → Actions** as
-`CI_TEST_LICENSE_KEY`, not in the workflow file itself. To rotate it:
-`python homeschool-api/scripts/issue_license.py --tier trial --licensee
-"CI Test" --seats 10 --days 1095 --private-key /path/to/private.pem`
-(bounded to a long-but-finite expiry, not perpetual, as defense in depth),
-then update the secret's value in GitHub's UI.
+platform's secret store) — never a plaintext file. `production-regression.yml`
+now avoids a long-lived CI license entirely by minting a per-job throwaway
+license inside the runner and patching the checked-out `PUBLIC_KEY_PEM`
+before the build; nothing license-shaped needs to live in GitHub Actions
+secrets for that workflow anymore.

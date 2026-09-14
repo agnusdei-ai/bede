@@ -46,6 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pycryptodome for throwaway license minting
+        run: python3 -m pip install pycryptodome
       - name: Generate a throwaway signed LICENSE_KEY for this run
         run: |
           python3 - <<'PY'
@@ -165,6 +167,8 @@ jobs:
     needs: compose-config-validation
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pycryptodome for throwaway license minting
+        run: python3 -m pip install pycryptodome
       - name: Generate a throwaway signed LICENSE_KEY for this run
         run: |
           python3 - <<'PY'
@@ -286,6 +290,8 @@ jobs:
     needs: wizard-end-to-end
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pycryptodome for throwaway license minting
+        run: python3 -m pip install pycryptodome
       - name: Generate a throwaway signed LICENSE_KEY for this run
         run: |
           python3 - <<'PY'

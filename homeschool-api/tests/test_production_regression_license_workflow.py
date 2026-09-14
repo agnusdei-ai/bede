@@ -44,10 +44,13 @@ def test_every_license_using_job_mints_its_own_key_before_using_it():
 
     for job, first_consumer in expected_followups.items():
         block = _job_block(job)
+        installer = block.index("name: Install pycryptodome for throwaway license minting")
         generator = block.index("name: Generate a throwaway signed LICENSE_KEY for this run")
+        assert 'python3 -m pip install pycryptodome' in block
         assert "ECC.generate(curve=\"ed25519\")" in block
         assert "PUBLIC_KEY_PEM" in block
         assert "CI_TEST_LICENSE_KEY=" in block
+        assert installer < generator, job
         assert generator < block.index(first_consumer), job
 
 
@@ -57,6 +60,8 @@ jobs:
   full-stack-boot:
     steps:
       - uses: actions/checkout@v4
+      - name: Install pycryptodome for throwaway license minting
+        run: python3 -m pip install pycryptodome
       - name: Start the full stack (as the wizard configured it)
         run: docker compose up -d --build
       - name: Generate a throwaway signed LICENSE_KEY for this run
@@ -70,3 +75,24 @@ jobs:
     generator = block.index("name: Generate a throwaway signed LICENSE_KEY for this run")
     consumer = block.index("name: Start the full stack (as the wizard configured it)")
     assert not generator < consumer
+
+
+def test_the_guard_would_fail_if_pycryptodome_install_came_after_generation():
+    reconstructed = """
+jobs:
+  compose-config-validation:
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate a throwaway signed LICENSE_KEY for this run
+        run: |
+          python3 - <<'PY'
+          from Crypto.PublicKey import ECC
+          ECC.generate(curve="ed25519")
+          PY
+      - name: Install pycryptodome for throwaway license minting
+        run: python3 -m pip install pycryptodome
+"""
+    block = reconstructed.split("\n  compose-config-validation:\n", 1)[1]
+    installer = block.index("name: Install pycryptodome for throwaway license minting")
+    generator = block.index("name: Generate a throwaway signed LICENSE_KEY for this run")
+    assert not installer < generator

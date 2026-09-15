@@ -106,6 +106,43 @@ and `get_catechism_note()` correctly returns `None` for `"K"`). Feeds the
 Picture study (`art_music`) and history maps/artifacts. No image hosting —
 `wiki_title` is resolved client-side against Wikipedia's REST summary API.
 
+**How picture study rotates, and what that asks of the catalog.** One artist
+per term, one of that artist's works per calendar week. The artist is
+`services/ai_service.py`'s `_TERM_ARTISTS` indexed by grade *and* term
+(`_term_rotation_index`: a trimester year walks three consecutive names, a
+quarterly year four, and the next grade picks up where the last stopped),
+so every name in the list is reached by some grade and none repeats within
+a year. The week's picture is that artist's entries **in this file's order**
+(`_this_weeks_pick`, ISO week salted by `current_term`), marked
+`[THIS WEEK'S PICTURE]` in the prompt and listed first; the rest of the term
+stays listed behind it so Bede can compare or revisit. Two consequences for
+contributors, both pinned by `tests/test_catalog_data_integrity.py`:
+
+- **Every rotation artist needs at least `MIN_WORKS_PER_ROTATION_ARTIST`
+  (5) works**, or a nine-week quarter cycles the same picture too soon.
+  Adding an artist is appending the name to `_TERM_ARTISTS` and its works
+  here — nothing else — but the floor applies from the first commit.
+- **`creator` must match the `_TERM_ARTISTS` string exactly.** The match
+  is literal; a stray accent or initial silently drops the whole artist
+  (the code falls back to the whole catalog rather than an empty list).
+
+**Sculpture is picture study too.** Rodin (d. 1917, long public domain) is
+the first: the card shows a photograph of the work, and the `description`
+must say plainly that it is a statue, a bronze, a bust — so Bede's usual
+"what do you notice in this painting?" never calls a sculpture a painting.
+A test scans every Rodin entry for that wording. Choose works a child in
+K-8 can look at unprompted: the catalog deliberately carries The Thinker,
+The Burghers of Calais, Monument to Balzac, The Cathedral, and the Bust of
+Victor Hugo, and leaves out the nude studies and The Gates of Hell.
+
+**Title verification.** Wikipedia is not reachable from every sandbox this
+repository is edited in; when it isn't, confirm each `wiki_title` through
+a search engine's canonical `en.wikipedia.org/wiki/…` URL rather than from
+memory, and prefer the article's own title over a redirect (the summary
+API follows redirects, but a canonical title survives a redirect's later
+retargeting). A wrong title fails silently as a captioned card, which is
+exactly why the pinned-URL check matters.
+
 **That client-side resolution is a Content-Security-Policy dependency, and
 it takes two directives, not one.** The lookup is a `fetch()` to
 `en.wikipedia.org` (`connect-src`); the thumbnail it returns is served from
@@ -127,7 +164,7 @@ component at a different endpoint does.
   "subject": "art_music",           // only "art_music" and "history" have entries today
   "category": "picture_study",
   "title": "Girl with a Pearl Earring",
-  "creator": "Johannes Vermeer",
+  "creator": "Johannes Vermeer",    // for a rotation artist: byte-identical to the _TERM_ARTISTS entry
   "year": "c. 1665",
   "wiki_title": "Girl with a Pearl Earring",   // must be the EXACT Wikipedia article title
   "description": "A luminous portrait study — notice the light on her face..."
@@ -141,10 +178,11 @@ Amabilis's "one composer at a time" practice. Metadata and original
 descriptive listening notes only, **never audio itself**: Bede has no
 audio output, and `services/ai_service.py`'s `_get_composer_context()`
 (which renders this into the prompt) explicitly tells Bede never to claim
-it's playing music. Which composer is featured rotates by term
-(`_TERM_COMPOSERS` in `ai_service.py`, same "one artist per term" pattern
+it's playing music. Which composer is featured rotates by grade + term
+(`_TERM_COMPOSERS` in `ai_service.py`, through the same `_term_rotation_index`
 as picture study's `_TERM_ARTISTS`); which of that composer's works comes
-up rotates weekly off the calendar, same mechanism as poetry/prayer below.
+up rotates weekly off the calendar (`_this_weeks_pick`, shared with picture
+study), same mechanism as poetry/prayer below.
 
 `listening_notes` is one general note shared by every grade; `stage_notes`
 is where grade-by-grade progression actually lives — three required keys,

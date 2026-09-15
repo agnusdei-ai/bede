@@ -316,7 +316,7 @@
     "trimesterYear": "Mater Amabilis 3-term year",
     "quarterYear": "4-quarter year",
     "termMasterySuffix": "exposure to all topics, mastery of up to 3 per area",
-    "termAdvanceHint": "Also picks Art & Music's composer/artist for the term — advance this each term for variety, it never changes on its own.",
+    "termAdvanceHint": "With the grade, also picks Art & Music's artist and composer for the term. The week's picture changes on its own; advance this each term to move on to the next artist.",
     "termsOption": "Terms (3/yr)",
     "quartersOption": "Quarters (4/yr)",
     "termN": "Term {{n}}",

@@ -62,12 +62,15 @@ def _demo_current_term(code: str | None) -> int:
     A demo session has no real academic calendar to derive current_term
     from, and SessionConfig's own default (1) is never overridden here —
     which meant every single demo visitor, forever, saw term 1's
-    picture-study artist (Millet, ai_service.py's _TERM_ARTISTS[0]), with
-    no way to ever see the other three. Deriving a 1-4 value from the demo
-    code itself keeps one session internally consistent (the artist can't
-    shift mid-conversation) while actually exercising the rotation feature
-    across different visitors/codes, which is presumably the point of
-    having it in a demo meant to show the curriculum's breadth.
+    picture-study artist (at the time Millet for every grade; the artist
+    is now a function of grade AND term, ai_service.py's
+    _term_rotation_index), with no way to ever see the others. Deriving a
+    1-4 value from the demo code itself keeps one session internally
+    consistent (the artist can't shift mid-conversation) while actually
+    exercising the rotation feature across different visitors/codes,
+    which is presumably the point of having it in a demo meant to show
+    the curriculum's breadth. Which PICTURE of that artist's is featured
+    then rotates on the calendar week on its own, as for a real family.
 
     This value also gets reused as poetry's week_salt (services/
     poetry_catalog.py) — not because poetry is term-based anymore (it now
@@ -93,7 +96,8 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
 
     term_schedule is pinned to quarterly (4 terms) rather than the default
     trimester (3) specifically so _demo_current_term's 1-4 range lines up
-    with the full picture-study artist rotation, not just its first three.
+    with a full year of the picture-study artist rotation, not just its
+    first three terms (the visitor's chosen grade supplies the year).
 
     current_unit is the other optional per-code personalization (see
     DemoCodeRequest.current_unit and CLAUDE.md's "Continuing Mastery

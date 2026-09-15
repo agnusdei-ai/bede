@@ -1,5 +1,5 @@
 {
-  "_comment": "Curated visual aids for Picture Study (art_music) and History maps/artifacts. wiki_title is the exact Wikipedia article title, resolved client-side via the Wikipedia REST summary API for a live thumbnail rather than a hardcoded image URL — keeps this catalog resilient to file/path changes and doesn't require hosting the images ourselves. If a title's thumbnail ever fails to resolve, the UI falls back to a plain text caption instead of a broken image.",
+  "_comment": "Curated visual aids for Picture Study (art_music) and History maps/artifacts. wiki_title is the exact Wikipedia article title, resolved client-side via the Wikipedia REST summary API for a live thumbnail rather than a hardcoded image URL — keeps this catalog resilient to file/path changes and doesn't require hosting the images ourselves. If a title's thumbnail ever fails to resolve, the UI falls back to a plain text caption instead of a broken image. Picture study rotates one artist per grade+term (services/ai_service.py's _TERM_ARTISTS) and one of that artist's works per calendar week, in this file's order for that artist — so every rotation artist needs enough works to fill a term without immediate repeats (tests/test_catalog_data_integrity.py pins the floor). Sculpture is picture study too (Rodin): the card shows a photograph of the work, and the description says so plainly so Bede never calls a statue a painting.",
   "visual_aids": [
     {
       "id": "vermeer_girl_pearl",
@@ -230,6 +230,206 @@
       "year": "1516-1520",
       "wiki_title": "Transfiguration (Raphael)",
       "description": "Christ rises in light above while the crowd below struggles in shadow — two stories in one painting."
+    },
+    {
+      "id": "millet_shepherdess_flock",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Shepherdess with her Flock",
+      "creator": "Jean-François Millet",
+      "year": "c. 1863",
+      "wiki_title": "Shepherdess with her Flock",
+      "description": "A shepherdess stands knitting while her sheep graze close behind her as the day ends — notice the low light catching the backs of the flock, and how still and quiet she is in the middle of it."
+    },
+    {
+      "id": "millet_winnower",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Winnower",
+      "creator": "Jean-François Millet",
+      "year": "1847-1848",
+      "wiki_title": "The Winnower (Millet)",
+      "description": "A farm worker tosses grain from a wide basket so the wind carries the chaff away — notice the cloud of dust lit by the doorway, and the strength it takes to hold that basket."
+    },
+    {
+      "id": "millet_potato_harvest",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Potato Harvest",
+      "creator": "Jean-François Millet",
+      "year": "1855",
+      "wiki_title": "The Potato Harvest",
+      "description": "Field workers gather potatoes into sacks across a wide plain as the light goes golden — notice how the flat land stretches to the horizon, and the rhythm of bending and lifting."
+    },
+    {
+      "id": "fra_angelico_cortona_annunciation",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Annunciation of Cortona",
+      "creator": "Fra Angelico",
+      "year": "1433-1434",
+      "wiki_title": "Annunciation of Cortona",
+      "description": "The angel Gabriel greets Mary beneath a painted arcade, his words written in gold across the air between them — and look small in the corner, where Adam and Eve walk out of the garden."
+    },
+    {
+      "id": "fra_angelico_madonna_humility",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Madonna of Humility",
+      "creator": "Fra Angelico",
+      "year": "1433-1435",
+      "wiki_title": "Madonna of Humility (Fra Angelico)",
+      "description": "Mary sits low on a cushion rather than on a throne, holding the Child against a shining gold ground — notice the pattern of the cloth and how the gold makes the whole picture feel lit from inside."
+    },
+    {
+      "id": "fra_angelico_fiesole_altarpiece",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Fiesole Altarpiece",
+      "creator": "Fra Angelico",
+      "year": "c. 1424-1425",
+      "wiki_title": "Fiesole Altarpiece",
+      "description": "Mary and the Child sit enthroned with saints standing to either side, painted for the friars' own church at Fiesole — notice which figures look at us and which look at the Child."
+    },
+    {
+      "id": "fra_angelico_deposition",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Deposition of Christ",
+      "creator": "Fra Angelico",
+      "year": "c. 1432-1434",
+      "wiki_title": "Deposition of Christ (Angelico)",
+      "description": "Friends gently lower Christ's body from the cross on ladders, with a city and hills glowing behind them — a sorrowful scene painted with great tenderness; notice how carefully every hand supports him."
+    },
+    {
+      "id": "constable_flatford_mill",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Flatford Mill (Scene on a Navigable River)",
+      "creator": "John Constable",
+      "year": "1816-1817",
+      "wiki_title": "Flatford Mill (painting)",
+      "description": "Boys work a barge horse on the towpath of the River Stour near the mill — notice the big summer sky, the rope, and how much of the picture is water and cloud."
+    },
+    {
+      "id": "constable_wivenhoe_park",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Wivenhoe Park",
+      "creator": "John Constable",
+      "year": "1816",
+      "wiki_title": "Wivenhoe Park (painting)",
+      "description": "A lake with swans, cows grazing, and a house among the trees on a bright day — notice the reflections in the water and how the clouds are painted as carefully as the land."
+    },
+    {
+      "id": "constable_vale_of_dedham",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Vale of Dedham",
+      "creator": "John Constable",
+      "year": "1828",
+      "wiki_title": "The Vale of Dedham (painting)",
+      "description": "A view down the valley to Dedham church tower and the distant sea, framed by tall trees — notice how far your eye can travel, from the figures in front all the way to the horizon."
+    },
+    {
+      "id": "constable_the_lock",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Lock",
+      "creator": "John Constable",
+      "year": "1824",
+      "wiki_title": "The Lock (Constable)",
+      "description": "A man leans hard on a lock gate to let a barge through, under a wide, windy sky — notice the effort in his back, and the church tower far off through the trees."
+    },
+    {
+      "id": "raphael_madonna_goldfinch",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Madonna of the Goldfinch",
+      "creator": "Raphael",
+      "year": "c. 1505-1506",
+      "wiki_title": "Madonna del Cardellino",
+      "description": "Mary reads while the young John the Baptist offers a goldfinch to the Child, with green countryside behind — notice the little bird passing from one child's hands to the other's."
+    },
+    {
+      "id": "raphael_madonna_seggiola",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Madonna della Seggiola",
+      "creator": "Raphael",
+      "year": "c. 1513-1514",
+      "wiki_title": "Madonna della Seggiola",
+      "description": "A round picture: Mary hugs the Child close on a chair while the small John the Baptist looks on — notice how everything curves to fit the circle, and how she looks straight at you."
+    },
+    {
+      "id": "raphael_st_george_dragon",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Saint George and the Dragon",
+      "creator": "Raphael",
+      "year": "c. 1505",
+      "wiki_title": "Saint George and the Dragon (Raphael)",
+      "description": "A knight on a rearing white horse drives his lance at the dragon while the princess prays nearby — a small painting full of action; notice the broken lance on the ground and the horse's eye."
+    },
+    {
+      "id": "raphael_alba_madonna",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Alba Madonna",
+      "creator": "Raphael",
+      "year": "c. 1510",
+      "wiki_title": "Alba Madonna",
+      "description": "A round picture of Mary seated on the ground in open countryside, with the Child and young John the Baptist holding a small cross — notice how calm the wide landscape is behind them."
+    },
+    {
+      "id": "rodin_thinker",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Thinker",
+      "creator": "Auguste Rodin",
+      "year": "1880-1904",
+      "wiki_title": "The Thinker",
+      "description": "A bronze sculpture of a man seated on a rock, chin resting on his hand, deep in thought — this is a statue, not a painting, so notice how the whole body is thinking: the bent back, the tight toes, the heavy hand."
+    },
+    {
+      "id": "rodin_burghers_of_calais",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Burghers of Calais",
+      "creator": "Auguste Rodin",
+      "year": "1884-1889",
+      "wiki_title": "The Burghers of Calais",
+      "description": "A bronze group of six leading men of Calais walking out to hand themselves over and save their city during a siege — notice that each man's face and hands show something different: fear, resolve, grief."
+    },
+    {
+      "id": "rodin_monument_to_balzac",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Monument to Balzac",
+      "creator": "Auguste Rodin",
+      "year": "1891-1898",
+      "wiki_title": "Monument to Balzac",
+      "description": "A statue of the writer Balzac wrapped in his long dressing gown, head thrown back as if an idea has just arrived — notice how the sculptor left out small details so the shape reads from far away."
+    },
+    {
+      "id": "rodin_cathedral",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "The Cathedral",
+      "creator": "Auguste Rodin",
+      "year": "1908",
+      "wiki_title": "The Cathedral (sculpture)",
+      "description": "Two right hands, from two different people, rise toward each other and almost touch, leaving an arched space between them like the inside of a church — notice the empty shape the hands make together."
+    },
+    {
+      "id": "rodin_bust_victor_hugo",
+      "subject": "art_music",
+      "category": "picture_study",
+      "title": "Bust of Victor Hugo",
+      "creator": "Auguste Rodin",
+      "year": "1883",
+      "wiki_title": "Bust of Victor Hugo",
+      "description": "A sculpted portrait head — a bust — of the poet Victor Hugo, modelled in plaster while he was an old man — notice the furrowed brow and the beard, and how a sculptor shows a face's character with bumps and hollows instead of colour."
     }
   ]
 }

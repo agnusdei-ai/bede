@@ -105,6 +105,51 @@ def test_every_visual_aid_has_required_non_empty_fields():
         )
 
 
+# Picture study rotates one artist per grade+term and one of that artist's
+# works per calendar week (services/ai_service.py's _TERM_ARTISTS /
+# _get_visual_aids_context). A quarter is about nine weeks, so an artist
+# with fewer works than this repeats a picture inside a single quarter
+# more than once — the "same handful indefinitely" the weekly rotation
+# exists to end. Every rotation artist must clear it, and every name in
+# the rotation must actually have works, since a name with none silently
+# falls back to the whole catalog (every artist at once).
+MIN_WORKS_PER_ROTATION_ARTIST = 5
+
+
+def test_every_rotation_artist_has_enough_works_for_a_term_of_weekly_pictures():
+    from services.ai_service import _TERM_ARTISTS
+    by_artist: dict[str, list[dict]] = {}
+    for entry in _load_visual_aids_raw():
+        if entry["subject"] == "art_music":
+            by_artist.setdefault(entry.get("creator", ""), []).append(entry)
+    for artist in _TERM_ARTISTS:
+        works = by_artist.get(artist, [])
+        assert len(works) >= MIN_WORKS_PER_ROTATION_ARTIST, (
+            f"{artist!r} has {len(works)} picture-study works in data/visual_aids.json; "
+            f"the weekly rotation needs at least {MIN_WORKS_PER_ROTATION_ARTIST}"
+        )
+
+
+def test_rotation_artist_names_match_the_catalog_exactly():
+    """The rotation matches on the literal `creator` string, so a stray
+    accent or initial in either place silently drops the whole artist."""
+    from services.ai_service import _TERM_ARTISTS
+    creators = {e.get("creator") for e in _load_visual_aids_raw() if e["subject"] == "art_music"}
+    for artist in _TERM_ARTISTS:
+        assert artist in creators, f"_TERM_ARTISTS names {artist!r}, which no catalog entry's creator matches"
+
+
+def test_sculpture_entries_say_they_are_sculpture():
+    """The catalog carries Rodin — the card shows a photograph of a
+    statue, and the description must say so, or Bede's "what do you
+    notice in this painting?" opener calls a bronze a painting."""
+    for entry in _load_visual_aids_raw():
+        if entry.get("creator") == "Auguste Rodin":
+            text = entry["description"].lower()
+            assert any(w in text for w in ("sculpture", "statue", "bronze", "bust", "hands")), entry["id"]
+            assert "painting" not in text or "not a painting" in text, entry["id"]
+
+
 # ── Composer catalog ─────────────────────────────────────────────────────
 
 def _load_composer_works_raw() -> list[dict]:

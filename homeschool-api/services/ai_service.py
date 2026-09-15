@@ -41,6 +41,7 @@ from models.schemas import (
     subject_label,
     SessionSummaryRequest,
     PUBLIC_DOMAIN_BIBLE_TRANSLATIONS,
+    VALID_GRADES,
 )
 from core.audit import AuditEvent, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
@@ -2293,37 +2294,121 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
 
 
 # Picture-study artist rotation — one artist per term, per Mater Amabilis
-# practice. (Poetry co-study used to mirror this term-based design but now
-# rotates weekly off the calendar instead — see services/poetry_catalog.py
-# — since this pace fits picture study fine and there was no reason to
-# touch it too.) Trimester years rotate the first three; quarterly years
-# all four. Every painting is centuries old and public domain.
-_TERM_ARTISTS = ["Jean-François Millet", "Fra Angelico", "John Constable", "Raphael"]
+# practice, and one PICTURE per calendar week within that artist (see
+# _get_visual_aids_context). Every work is public domain: the painters are
+# centuries dead, and Rodin (d. 1917) — the first sculptor here, added so
+# picture study is not only ever paintings — has been out of copyright
+# everywhere for decades.
+#
+# Which artist a term lands on is a function of BOTH the parent's Term
+# dropdown and the student's grade (_term_rotation_index): a trimester
+# year walks three consecutive entries of this list, a quarterly year
+# four, and the next grade picks up where the last one left off. Before
+# the grade entered into it, term 1 was Millet for every child every
+# year, so a family that advanced the term faithfully still met the same
+# four artists in the same order for nine years — "iterating through
+# content" was true within a year and false across them. The list is
+# deliberately longer than a year's rotation so consecutive grades never
+# repeat a set; adding an artist (with enough catalog works — see
+# tests/test_catalog_data_integrity.py's per-artist floor) is appending
+# a name here and its works to data/visual_aids.json, nothing else.
+_TERM_ARTISTS = [
+    "Jean-François Millet",
+    "Fra Angelico",
+    "John Constable",
+    "Raphael",
+    "Auguste Rodin",
+]
+
+# A term's picture is featured for a week (ISO calendar week, the same
+# clock poetry/prayer/composer study rotate on) and then the next one in
+# the artist's catalog order comes up; with a catalog deeper than a
+# quarter, a picture returns a second time in the same term only for a
+# trimester family. Mater Amabilis itself paces roughly six pictures a
+# term, so weekly is a touch brisker than the source practice — chosen
+# deliberately so a child who studies Art & Music once a week meets a
+# fresh picture every session, and "look → put away → narrate" is done
+# on something new rather than on last week's picture again.
+_THIS_WEEK_MARK = "[THIS WEEK'S PICTURE]"
+
+
+def _term_rotation_index(config: SessionConfig, n: int) -> int:
+    """
+    Index into an n-entry per-term rotation list (_TERM_ARTISTS,
+    _TERM_COMPOSERS) for this session's grade + term.
+
+    A trimester year consumes three consecutive entries, a quarterly year
+    four; grade K starts at entry 0, so a K-through-8 family walks the
+    whole list in order and wraps. Two properties matter more than the
+    arithmetic: within one grade every term is a DIFFERENT entry whenever
+    n >= the terms per year (so a year never repeats an artist), and
+    consecutive grades never see the same set (so a child who advances a
+    grade meets someone new in term 1 rather than Millet again). Grade is
+    read through VALID_GRADES' order rather than int(grade) because "K"
+    is a real value there.
+    """
+    if n <= 0:
+        return 0
+    terms_per_year = 3 if config.term_schedule.value == "trimester" else 4
+    try:
+        year_index = VALID_GRADES.index(config.grade)
+    except ValueError:
+        year_index = 0
+    term = max(1, config.current_term) - 1
+    return (year_index * terms_per_year + term) % n
+
+
+def _term_artist(config: SessionConfig) -> str:
+    """The picture-study artist for this session's grade + term."""
+    return _TERM_ARTISTS[_term_rotation_index(config, len(_TERM_ARTISTS))]
+
+
+def _this_weeks_pick(entries: list, config: SessionConfig, today: "date | None" = None) -> int:
+    """
+    Which of a term's entries is featured this week — same ISO-week
+    mechanism as poetry_catalog/prayer_catalog/_get_composer_context, with
+    current_term as the salt so two families (or two demo codes) on
+    different terms don't all land on entry k in calendar week k.
+    """
+    if not entries:
+        return 0
+    week = (today or date.today()).isocalendar()[1]
+    return (week + max(1, config.current_term) - 1) % len(entries)
 
 
 def _get_visual_aids_context(
     subject: Subject,
     config: SessionConfig,
     history: Optional[List[ChatMessage]] = None,
+    today: "date | None" = None,
 ) -> str:
     """
     List the visual aid ids available for this subject, so Claude's show_visual_aid
     calls always reference something real. Only art_music and history have
     curated entries today; other subjects get an empty string (tool unused).
 
+    For art_music the list is one artist's works — the term artist, per
+    _term_artist — and ONE of them is marked _THIS_WEEK_MARK and listed
+    first: the picture this calendar week's study is built on. The rest of
+    the term's pictures stay listed (Bede may revisit last week's to
+    compare, or when a child asks for it), but the featured one is the one
+    to open with. Before the weekly mark existed, a term offered the same
+    three or four pictures with nothing distinguishing them, so which one
+    a child saw was the model's coin-flip each session and "the same
+    handful indefinitely" was the honest description of a term.
+
     Also flags which of those have already been shown this session. The
-    catalog is small (6 entries for art_music) and this list is rebuilt
-    identically on every single turn regardless of what's already
-    happened — without an explicit marker here, avoiding a repeat depends
-    entirely on Bede correctly inferring "I already did this" from one
-    line of prose (toApiMessage/getApiMessages's synthesized
-    "[Showed a picture: ...]" note) buried somewhere in a long history.
-    That's a real signal, but a soft one; this makes it a hard one.
-    Detected by a plain substring match on the exact quoted title against
-    every PRIOR assistant turn (not this one) — simple, and low-risk even
-    when wrong: a false-positive "already shown" just steers Bede toward a
-    different image it hasn't technically used yet, never toward a genuine
-    error.
+    catalog per artist is small and this list is rebuilt identically on
+    every single turn regardless of what's already happened — without an
+    explicit marker here, avoiding a repeat depends entirely on Bede
+    correctly inferring "I already did this" from one line of prose
+    (toApiMessage/getApiMessages's synthesized "[Showed a picture: ...]"
+    note) buried somewhere in a long history. That's a real signal, but a
+    soft one; this makes it a hard one. Detected by a plain substring
+    match on the exact quoted title against every PRIOR assistant turn
+    (not this one) — simple, and low-risk even when wrong: a
+    false-positive "already shown" just steers Bede toward a different
+    image it hasn't technically used yet, never toward a genuine error.
     """
     if subject not in (Subject.art_music, Subject.history):
         return ""
@@ -2335,20 +2420,28 @@ def _get_visual_aids_context(
 
         # Art & Music picture study lives with one artist per term (see
         # _TERM_ARTISTS) — offer only the current term's artist so a term
-        # works through one painter's pictures with no duplications, the
+        # works through one artist's pictures with no duplications, the
         # way it rotates one poet's poems. Falls back to the full list if
         # the term artist has no catalog entries (misconfigured catalog).
         artist_line = ""
+        featured_id: Optional[str] = None
         if subject == Subject.art_music:
-            rotation_len = 3 if config.term_schedule.value == "trimester" else 4
-            artist = _TERM_ARTISTS[(max(1, config.current_term) - 1) % rotation_len]
+            artist = _term_artist(config)
             term_aids = [a for a in aids if a.get("creator") == artist]
             if term_aids:
-                aids = term_aids
+                pick = _this_weeks_pick(term_aids, config, today)
+                featured = term_aids[pick]
+                featured_id = featured["id"]
+                # Featured first, the rest in catalog order after it.
+                aids = [featured] + [a for a in term_aids if a["id"] != featured_id]
                 term_word = "term" if config.term_schedule.value == "trimester" else "quarter"
                 artist_line = (
                     f"\nThis {term_word}'s artist is {artist} — Mater Amabilis picture study lives with "
                     "one artist at a time, so use only this artist's pictures listed below.\n"
+                    f"This week's picture is \"{featured['title']}\" (marked {_THIS_WEEK_MARK}): open "
+                    "picture study with it and build this week's looking and narration on it. The others "
+                    "are this term's earlier or later pictures — show one of those only to compare with "
+                    "this week's, or when the child asks to see it.\n"
                 )
 
         shown_ids: set[str] = set()
@@ -2358,6 +2451,7 @@ def _get_visual_aids_context(
 
         lines = [
             f"- {a['id']}: \"{a['title']}\"" + (f" ({a['creator']})" if a.get("creator") else "") + f" — {a['description']}"
+            + (f"  {_THIS_WEEK_MARK}" if a["id"] == featured_id else "")
             + ("  [ALREADY SHOWN this session]" if a["id"] in shown_ids else "")
             for a in aids
         ]
@@ -2374,7 +2468,8 @@ def _get_visual_aids_context(
 
 
 # Composer study rotates the same way picture study does (see _TERM_ARTISTS
-# just above) — one composer per term. Currently a single-entry list: every
+# just above) — one composer per grade + term via _term_rotation_index, one
+# work per week via _this_weeks_pick. Currently a single-entry list: every
 # term resolves to Vivaldi until more composers are added to
 # data/composer_catalog.json, at which point this list (and the rotation
 # math in _get_composer_context, already generic over its length) simply
@@ -2414,13 +2509,12 @@ def _get_composer_context(subject: Subject, config: SessionConfig, today: "date 
         if not works:
             return ""
 
-        composer = _TERM_COMPOSERS[(max(1, config.current_term) - 1) % len(_TERM_COMPOSERS)]
+        composer = _TERM_COMPOSERS[_term_rotation_index(config, len(_TERM_COMPOSERS))]
         term_works = [w for w in works if w.get("composer") == composer]
         if not term_works:
             term_works = works
 
-        week = (today or date.today()).isocalendar()[1]
-        work = term_works[(week + config.current_term - 1) % len(term_works)]
+        work = term_works[_this_weeks_pick(term_works, config, today)]
         # GradeStage member NAMES ("foundations"/"core_mastery"/"independent")
         # are the stage_notes keys — not .value ("K-2"/"3-5"/"6-8").
         stage_note = work.get("stage_notes", {}).get(config.grade_stage.name) or work["listening_notes"]
@@ -2892,7 +2986,7 @@ async def _build_subject_prompt(
     # without touching bookmark storage/fade logic at all.
     bookmark_note = "" if resume_note else _bookmark_note(bookmark, today=local_date)
     catalog_note = _get_catalog_context(config, subject)
-    visual_aids_note = _get_visual_aids_context(subject, config, history)
+    visual_aids_note = _get_visual_aids_context(subject, config, history, today=local_date)
     composer_note = _get_composer_context(subject, config, today=local_date)
     session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
     time_of_day_note = _time_of_day_note(time_of_day)

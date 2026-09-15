@@ -14,21 +14,6 @@ name: Production deployment regression
 # stack boots and serves traffic without making any real, billable Claude
 # API calls.
 on:
-  # Runnable on demand, on a branch. Without this the ONLY way to exercise
-  # this workflow was to push to main, so every diagnostic iteration on a
-  # failure here reddened main to learn anything -- which is how a defect in
-  # it went unnoticed across four runs. CLAUDE.md's own root-cause rule asks
-  # for a real workflow_dispatch run rather than a code-reading argument.
-  workflow_dispatch:
-    inputs:
-      license_mode:
-        description: >-
-          licensed = normal. gated = skip full-stack-boot's .env re-point so
-          the instance boots UNLICENSED, isolating the license gate as a
-          variable when diagnosing a later step.
-        type: choice
-        options: [licensed, gated]
-        default: licensed
   schedule:
     - cron: '0 13 * * 1'  # every Monday, 13:00 UTC
   push:
@@ -43,7 +28,16 @@ on:
       - 'setup.sh'
       - 'scripts/setup-gui-common.sh'
       - '.github/workflows/production-regression.yml'
+  # Already dispatchable; this only adds an input. `license_mode: gated`
+  # skips full-stack-boot's .env re-point so the instance boots UNLICENSED,
+  # isolating the license gate as a variable when diagnosing a later step.
   workflow_dispatch:
+    inputs:
+      license_mode:
+        description: 'licensed = normal; gated = boot unlicensed to isolate the license gate'
+        type: choice
+        options: [licensed, gated]
+        default: licensed
 
 # No job here writes to the repo, comments on a PR, or creates a release —
 # the default token only ever needs to check out code. Worth being
@@ -364,8 +358,14 @@ jobs:
       # the license this job actually holds the key for. Everything else the
       # wizard wrote is left exactly as it wrote it.
       - name: Re-point the wizard's .env at this job's own license
-        # Empty on push/schedule, so the default path is unchanged.
-        if: inputs.license_mode != 'gated'
+        # `github.event.inputs`, NOT bare `inputs`. The `inputs` context only
+        # exists for workflow_dispatch/workflow_call; referencing it from a
+        # push-triggered run is a WORKFLOW VALIDATION error ("Unrecognized
+        # named-value: 'inputs'") that fails the entire run instantly with zero
+        # jobs -- which is exactly what it did on main, run 402.
+        # `github.event.inputs.*` is always defined (null off a dispatch), so
+        # this is empty on push/schedule and the default path is unchanged.
+        if: github.event.inputs.license_mode != 'gated'
         run: |
           python3 - <<'PY'
           import os

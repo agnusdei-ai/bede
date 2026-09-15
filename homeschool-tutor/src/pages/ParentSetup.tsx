@@ -983,10 +983,12 @@ function StudentCard({
                   ? t('parentSetup.trimesterYear')
                   : t('parentSetup.quarterYear')} · {t('parentSetup.termMasterySuffix')}
               </p>
-              {/* current_term also drives Art & Music's one-artist-per-term
-                  picture study (services/ai_service.py's _TERM_ARTISTS) —
-                  nothing else in the UI says so, so a parent who never
-                  advances this sees the same handful of pictures for
+              {/* current_term (with the grade) also drives Art & Music's
+                  one-artist-per-term picture study (services/ai_service.py's
+                  _TERM_ARTISTS / _term_rotation_index) — nothing else in the
+                  UI says so. The picture within a term now changes weekly on
+                  its own; the ARTIST still only moves when this does, so a
+                  parent who never advances it stays with one artist for
                   months without knowing why. */}
               <p className="text-xs text-gray-400 mt-0.5">{t('parentSetup.termAdvanceHint')}</p>
             </div>

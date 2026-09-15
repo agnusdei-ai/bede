@@ -996,13 +996,25 @@ prayer your child hears from Bede, on any day, is one Bede made up itself.
 
 **The term selector (in "Term & mastery outcomes") does more than track mastery
 topics.** Art & Music picture study follows the Mater Amabilis practice of one
-composer or artist per term: which artist is showing is tied directly to the
-**Term** dropdown you set there, not to the calendar or how many sessions
-you've run. If you never advance it, your child sees the same handful of
-pictures for that one artist indefinitely: nothing rotates it for you.
-Advance the term yourself each time your family's own term/quarter turns
-over. (The weekly poem and prayer above are different: those rotate
-automatically off the calendar and need no action from you.)
+composer or artist per term: which artist is showing is tied to the **Term**
+dropdown you set there together with your child's **grade**, not to how many
+sessions you've run. Each grade continues the rotation from where the last
+one stopped, so a child who moves up a grade meets a new artist in term 1
+rather than the same first artist every year. The artists today are
+Jean-François Millet, Fra Angelico, John Constable, Raphael, and Auguste
+Rodin — Rodin is sculpture, so for that term the picture on the card is a
+photograph of a bronze or a bust (The Thinker, The Burghers of Calais, and
+others), and Bede talks about it as a statue rather than a painting.
+
+**Within a term, the picture changes every week on its own.** Each calendar
+week one of that artist's works is "this week's picture": Bede opens picture
+study with it, and the classic look → put away → tell it back happens on that
+one. The rest of the term's pictures stay available, so Bede can bring last
+week's back to compare or show it again if your child asks, but it will not
+simply reshuffle the same handful every session. Advance the **Term** yourself
+each time your family's own term or quarter turns over; the weekly picture,
+like the weekly poem and prayer above, rotates off the calendar and needs no
+action from you.
 
 **Art & Music also includes composer study — talked through, not played.**
 Alongside picture study, Bede introduces one composer at a time (currently
@@ -1018,7 +1030,7 @@ during handwriting, composition, or drawing time. If you don't have a
 recording playing, Bede still teaches from the facts and won't pretend
 music is playing. Which composer is featured follows the same **Term**
 dropdown as picture study; which of that composer's pieces comes up
-rotates weekly on its own, same as the poem and prayer above.
+rotates weekly on its own, same as the picture, poem, and prayer above.
 
 The same piece comes up regardless of your child's grade, but how Bede
 talks about it grows with them, the same way it already paces every other

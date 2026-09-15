@@ -21,7 +21,7 @@ right now" placeholder. The repeat came from the bounded tool_result loop
   having already displayed it.
 
 So the model had both the opportunity and no signal against taking it, and
-against a six-entry art catalog reaching for the same painting again is the
+against one artist's handful of catalog works reaching for the same picture again is the
 likely case rather than the unlucky one. Nothing downstream deduplicated:
 `visual_aid` chunks are appended raw by both frontends, unlike `tool`
 chunks which pass through isDuplicateUtterance.

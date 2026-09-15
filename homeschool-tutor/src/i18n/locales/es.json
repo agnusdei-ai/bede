@@ -316,7 +316,7 @@
     "trimesterYear": "Año de 3 períodos Mater Amabilis",
     "quarterYear": "Año de 4 trimestres",
     "termMasterySuffix": "exposición a todos los temas, dominio de hasta 3 por área",
-    "termAdvanceHint": "También elige el compositor o artista de Arte y Música para el término — avanza esto cada término para variar; nunca cambia por sí solo.",
+    "termAdvanceHint": "Junto con el grado, también elige el artista y el compositor de Arte y Música para el término. La obra de la semana cambia por sí sola; avanza esto cada término para pasar al siguiente artista.",
     "termsOption": "Períodos (3/año)",
     "quartersOption": "Trimestres (4/año)",
     "termN": "Período {{n}}",

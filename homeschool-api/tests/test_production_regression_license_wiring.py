@@ -156,9 +156,17 @@ def test_the_repoint_is_on_by_default_on_push(workflow):
     assert condition, "the re-point step lost its condition entirely"
     assert "!= 'gated'" in condition or '!= "gated"' in condition, (
         f"the re-point condition is {condition!r}. It must be a negative test "
-        f"against the opt-in value, because inputs.license_mode is empty on "
-        f"push/schedule and an equality test would be false there -- disabling "
-        f"the re-point on every normal run."
+        f"against the opt-in value, because the input is empty on push/schedule "
+        f"and an equality test would be false there -- disabling the re-point on "
+        f"every normal run."
+    )
+    assert "github.event.inputs." in condition, (
+        f"the re-point condition is {condition!r}. It must read the input via "
+        f"`github.event.inputs.*`, never the bare `inputs` context: `inputs` is "
+        f"only defined for workflow_dispatch/workflow_call, so on a push-triggered "
+        f"run it is a WORKFLOW VALIDATION error -- 'Unrecognized named-value: "
+        f"inputs' -- which fails the whole run instantly with zero jobs. That is "
+        f"exactly what it did to main in run 402."
     )
 
 

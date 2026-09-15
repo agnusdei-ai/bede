@@ -364,8 +364,14 @@ jobs:
       # the license this job actually holds the key for. Everything else the
       # wizard wrote is left exactly as it wrote it.
       - name: Re-point the wizard's .env at this job's own license
-        # Empty on push/schedule, so the default path is unchanged.
-        if: inputs.license_mode != 'gated'
+        # `github.event.inputs`, NOT bare `inputs`. The `inputs` context only
+        # exists for workflow_dispatch/workflow_call; referencing it from a
+        # push-triggered run is a WORKFLOW VALIDATION error ("Unrecognized
+        # named-value: 'inputs'") that fails the entire run instantly with zero
+        # jobs -- which is exactly what it did on main, run 402.
+        # `github.event.inputs.*` is always defined (null off a dispatch), so
+        # this is empty on push/schedule and the default path is unchanged.
+        if: github.event.inputs.license_mode != 'gated'
         run: |
           python3 - <<'PY'
           import os

@@ -217,15 +217,48 @@ async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.Strea
             pass
 
 
+def _is_group_or_world_writable(mode: int) -> bool:
+    """bede-ipc-spec.md §2's actual requirement, expressed as a predicate."""
+    return bool(stat.S_IMODE(mode) & (stat.S_IWGRP | stat.S_IWOTH))
+
+
 def _prepare_socket_path(path: str) -> None:
     """bede-ipc-spec.md §2: parent directory not group- or world-writable,
     socket file mode 0600. Creates the parent directory (0700) if it
     doesn't exist; removes a stale socket file left over from a previous
-    run (a Unix socket bind() fails on an existing path unconditionally)."""
+    run (a Unix socket bind() fails on an existing path unconditionally).
+
+    The chmod is best-effort BY NECESSITY. The socket's directory is a
+    bind-mount (docker-compose.yml, so a native Locuto process on the host
+    can reach it), and Docker creates a missing bind-mount source as
+    root-owned. This container runs as `sage`, which cannot chmod a
+    directory it does not own: the call raises EPERM — "Operation not
+    permitted", distinct from a permissions denial — and that killed the
+    process before it could serve anything.
+
+    What §2 actually requires is that the directory not be group- or
+    world-writable, never that WE were the one to set that. So an
+    already-compliant directory is accepted as-is. A genuinely permissive
+    one we cannot tighten is still refused."""
     p = Path(path)
     parent = p.parent
     parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    os.chmod(parent, 0o700)  # mkdir's mode is masked by umask; be explicit
+    try:
+        os.chmod(parent, 0o700)  # mkdir's mode is masked by umask; be explicit
+    except PermissionError:
+        mode = parent.stat().st_mode
+        if _is_group_or_world_writable(mode):
+            raise PermissionError(
+                f"{parent} is group- or world-writable (mode {stat.S_IMODE(mode):04o}) "
+                f"and this process does not own it, so it cannot be tightened. "
+                f"bede-ipc-spec.md §2 requires a private directory; refusing to "
+                f"bind a socket into a shared one."
+            ) from None
+        log.warning(
+            "Could not chmod %s (not owned by this process); its mode %04o already "
+            "satisfies bede-ipc-spec.md §2, so continuing.",
+            parent, stat.S_IMODE(mode),
+        )
     if p.exists():
         if stat.S_ISSOCK(p.stat().st_mode):
             p.unlink()
@@ -249,10 +282,28 @@ async def serve(socket_path: str | None = None) -> None:
         return
 
     path = socket_path or settings.locuto_ipc_socket_path
-    _prepare_socket_path(path)
-
-    server = await asyncio.start_unix_server(_handle_connection, path=path)
-    os.chmod(path, 0o600)
+    try:
+        _prepare_socket_path(path)
+        server = await asyncio.start_unix_server(_handle_connection, path=path)
+        os.chmod(path, 0o600)
+    except OSError as exc:
+        # Same reasoning as the disabled branch above, for a different cause:
+        # exiting here means Docker restart-loops this container forever under
+        # `restart: unless-stopped`. That loop is not just untidy — it reprints
+        # this traceback every second or so, and `docker compose logs` is what
+        # production-regression's own "Dump logs on failure" step captures, so
+        # a looping listener drowns the diagnostics for every OTHER failure in
+        # the stack. Report the cause once, clearly, and idle.
+        log.error(
+            "Locuto IPC listener could not bind %s (%s). The connector is "
+            "unavailable for this run; the rest of the stack is unaffected. "
+            "Most likely the socket's host directory is owned by another user: "
+            "Docker creates a missing bind-mount source as root, and this "
+            "container runs unprivileged. Idling rather than restart-looping.",
+            path, exc,
+        )
+        await asyncio.Event().wait()
+        return
     log.info("Locuto IPC listener bound at %s", path)
 
     try:

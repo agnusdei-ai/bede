@@ -14,6 +14,21 @@ name: Production deployment regression
 # stack boots and serves traffic without making any real, billable Claude
 # API calls.
 on:
+  # Runnable on demand, on a branch. Without this the ONLY way to exercise
+  # this workflow was to push to main, so every diagnostic iteration on a
+  # failure here reddened main to learn anything -- which is how a defect in
+  # it went unnoticed across four runs. CLAUDE.md's own root-cause rule asks
+  # for a real workflow_dispatch run rather than a code-reading argument.
+  workflow_dispatch:
+    inputs:
+      license_mode:
+        description: >-
+          licensed = normal. gated = skip full-stack-boot's .env re-point so
+          the instance boots UNLICENSED, isolating the license gate as a
+          variable when diagnosing a later step.
+        type: choice
+        options: [licensed, gated]
+        default: licensed
   schedule:
     - cron: '0 13 * * 1'  # every Monday, 13:00 UTC
   push:
@@ -349,6 +364,8 @@ jobs:
       # the license this job actually holds the key for. Everything else the
       # wizard wrote is left exactly as it wrote it.
       - name: Re-point the wizard's .env at this job's own license
+        # Empty on push/schedule, so the default path is unchanged.
+        if: inputs.license_mode != 'gated'
         run: |
           python3 - <<'PY'
           import os
@@ -617,7 +634,19 @@ jobs:
 
       - name: Dump logs on failure
         if: failure()
-        run: docker compose logs
+        # Per-service and BOUNDED. An unbounded `docker compose logs`
+        # interleaves every container into one stream, so a single
+        # crash-looping service buries the diagnostics for every other one --
+        # observed directly here, where a 205-line tail of this job's log
+        # contained nothing but one repeating traceback while the actual
+        # failure was unreadable. Grouped per service so a noisy container
+        # costs its own fold, not everyone else's evidence.
+        run: |
+          for svc in $(docker compose config --services); do
+            echo "::group::docker compose logs: $svc"
+            docker compose logs --no-color --tail=120 "$svc" || true
+            echo "::endgroup::"
+          done
 
       - name: Tear down
         if: always()

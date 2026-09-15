@@ -141,6 +141,27 @@ def test_the_repoint_refuses_rather_than_silently_booting_nothing(workflow):
     )
 
 
+def test_the_repoint_is_on_by_default_on_push(workflow):
+    """The diagnostic switch must not change the normal path.
+
+    `workflow_dispatch` adds a `license_mode` input so the license gate can be
+    isolated as a variable when diagnosing a later step. On a `push` or
+    `schedule` event that input is EMPTY, so the condition has to be written as
+    `!= 'gated'` (true when empty). An `== 'licensed'` form reads as the
+    obvious equivalent and is false on every push -- silently disabling the
+    re-point on the normal path and re-breaking main exactly as before, with
+    nothing erroring."""
+    step = _repoint_step(workflow)
+    condition = str(step.get("if", ""))
+    assert condition, "the re-point step lost its condition entirely"
+    assert "!= 'gated'" in condition or '!= "gated"' in condition, (
+        f"the re-point condition is {condition!r}. It must be a negative test "
+        f"against the opt-in value, because inputs.license_mode is empty on "
+        f"push/schedule and an equality test would be false there -- disabling "
+        f"the re-point on every normal run."
+    )
+
+
 def test_this_workflow_is_in_the_ci_change_filter():
     """Without this the guards above never run for the change they exist to
     catch: test.yml computes relevant=false and skips api-tests. Reads the

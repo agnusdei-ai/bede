@@ -88,7 +88,7 @@ jobs:
           licensing_path = Path("homeschool-api/core/licensing.py")
           text = licensing_path.read_text(encoding="utf-8")
           replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
-          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\s\S]*?"""', replacement, text, count=1)
           if count != 1:
               raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
           licensing_path.write_text(updated, encoding="utf-8")
@@ -209,10 +209,17 @@ jobs:
           licensing_path = Path("homeschool-api/core/licensing.py")
           text = licensing_path.read_text(encoding="utf-8")
           replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
-          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\s\S]*?"""', replacement, text, count=1)
           if count != 1:
               raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
           licensing_path.write_text(updated, encoding="utf-8")
+
+          # full-stack-boot boots the .env this job is about to upload, so
+          # it needs the key that verifies the LICENSE_KEY inside it. It
+          # used to mint a second, unrelated keypair instead — which could
+          # never verify this job's signature, so the gate stayed up and the
+          # blocking license check failed every run.
+          Path("ci-license-public-key.pem").write_text(public_pem, encoding="utf-8")
           PY
 
       # Generated per run rather than hardcoded. A literal PIN committed
@@ -277,7 +284,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wizard-generated-env
-          path: .env
+          path: |
+            .env
+            ci-license-public-key.pem
           retention-days: 1
           # v4 excludes dotfiles by default — .env is exactly that, and
           # without this the upload silently succeeds with zero files
@@ -290,56 +299,40 @@ jobs:
     needs: wizard-end-to-end
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Install pycryptodome for throwaway license minting
-        run: python3 -m pip install pycryptodome
-      - name: Generate a throwaway signed LICENSE_KEY for this run
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wizard-generated-env
+
+      # This job boots the .env the wizard job produced, so the license it
+      # must verify is the one the WIZARD signed. It used to mint a second
+      # keypair of its own here and bake that public key into the image --
+      # which cannot verify the wizard's signature by construction, so the
+      # instance booted gated and the blocking license check below failed
+      # every run. Trusting the wizard's own key instead also makes this
+      # job prove the stronger property: the exact license written into a
+      # real .env is the one that lifts the gate.
+      - name: Trust the license the wizard job actually issued
         run: |
           python3 - <<'PY'
-          import base64
-          import json
-          import os
           import re
-          import uuid
-          from datetime import date, timedelta
           from pathlib import Path
-          from Crypto.PublicKey import ECC
-          from Crypto.Signature import eddsa
 
-          def b64url(data: bytes) -> str:
-              return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-          key = ECC.generate(curve="ed25519")
-          public_pem = key.public_key().export_key(format="PEM")
-
-          issued = date.today()
-          expires = issued + timedelta(days=30)
-          payload = {
-              "id": str(uuid.uuid4()),
-              "licensee": "CI production regression",
-              "tier": "trial",
-              "seats": 10,
-              "issued": issued.isoformat(),
-              "expires": expires.isoformat(),
-          }
-          payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-          signature = eddsa.new(key, "rfc8032").sign(payload_bytes)
-          license_key = f"{b64url(payload_bytes)}.{b64url(signature)}"
-
-          env_path = Path(os.environ["GITHUB_ENV"])
-          with env_path.open("a", encoding="utf-8") as fh:
-              fh.write(f"CI_TEST_LICENSE_KEY={license_key}\n")
+          pem_path = Path("ci-license-public-key.pem")
+          if not pem_path.is_file():
+              raise SystemExit(
+                  "ci-license-public-key.pem missing from the wizard artifact -- "
+                  "without it this job cannot verify the wizard's LICENSE_KEY"
+              )
+          public_pem = pem_path.read_text(encoding="utf-8").strip()
 
           licensing_path = Path("homeschool-api/core/licensing.py")
           text = licensing_path.read_text(encoding="utf-8")
           replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
-          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\s\S]*?"""', replacement, text, count=1)
           if count != 1:
               raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
           licensing_path.write_text(updated, encoding="utf-8")
           PY
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: wizard-generated-env
 
       - name: Start the full stack (as the wizard configured it)
         run: docker compose up -d --build

@@ -8,7 +8,7 @@ resolves the picture live, from the browser, across TWO origins in TWO
 different CSP directives:
 
     fetch(en.wikipedia.org/api/rest_v1/...)   -> connect-src
-    <img src=upload.wikimedia.org/...>        -> img-src
+    <img src=thumb.wikimedia.org/...>         -> img-src
 
 and there are two policies to satisfy, for two deployments: `site/_headers`
 (the public demo on Cloudflare) and `homeschool-tutor/nginx.conf` (a
@@ -40,11 +40,10 @@ _NGINX = _REPO / "homeschool-tutor" / "nginx.conf"
 _CARD = _REPO / "homeschool-tutor" / "src" / "components" / "VisualAidCard.tsx"
 _DEMO_CARD = _REPO / "demo" / "src" / "VisualAidCard.tsx"
 
-# The image host cannot be derived from source the way the lookup host can:
-# it arrives at runtime in the API response (`thumbnail.source`), so it
-# appears in no file here. Wikimedia serves every file from this single
-# host — the article host never serves the image itself.
-_IMAGE_HOST = "https://upload.wikimedia.org"
+# The image hosts cannot be derived from source the way the lookup host can:
+# they arrive at runtime in the API response (`thumbnail.source` or
+# `originalimage.source`), so they appear in no file here.
+_IMAGE_HOSTS = {"https://upload.wikimedia.org", "https://thumb.wikimedia.org"}
 
 
 def _policy(text: str) -> str:
@@ -99,10 +98,11 @@ def test_img_src_allows_the_image_that_lookup_returns(path):
     """The half-fix guard. connect-src alone leaves a card that resolves
     and then cannot paint — visually identical to the bug."""
     img = _directive(_policy(path.read_text()), "img-src")
-    assert _IMAGE_HOST in img, (
-        f"{path.name}'s img-src does not permit {_IMAGE_HOST}. The lookup "
-        f"will succeed and the thumbnail will still be blocked, which "
-        f"renders the same 'Picture unavailable' card as no fix at all."
+    missing = sorted(host for host in _IMAGE_HOSTS if host not in img)
+    assert not missing, (
+        f"{path.name}'s img-src is missing {missing}. The lookup will "
+        "succeed and the returned image can still be blocked, which renders "
+        "the same 'Picture unavailable' card as no fix at all."
     )
 
 

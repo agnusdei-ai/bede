@@ -101,9 +101,9 @@
   # VisualAidCard.tsx therefore does two separate cross-origin things:
   #   1. connect-src https://en.wikipedia.org — the REST summary lookup,
   #      which is a fetch() and is governed by connect-src, not img-src.
-  #   2. img-src https://upload.wikimedia.org — the thumbnail that lookup
-  #      returns. Wikimedia serves every file from that one host; the
-  #      article host never serves the image itself.
+  #   2. img-src https://upload.wikimedia.org + https://thumb.wikimedia.org
+  #      — the image hosts that summary payloads can return (original image
+  #      and thumbnail). The article host never serves the image itself.
   # Allowing only the first leaves a card that resolves and then cannot
   # paint, which looks identical to the failure being fixed. Both, or
   # neither.
@@ -112,4 +112,4 @@
   # which is why strict-CSP guidance treats naming it as mandatory even
   # where — as here — there is no upload path and no user-controlled
   # same-origin content to point one at.
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://upload.wikimedia.org; font-src 'self'; connect-src 'self' https://*.onrender.com https://en.wikipedia.org; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://upload.wikimedia.org https://thumb.wikimedia.org; font-src 'self'; connect-src 'self' https://*.onrender.com https://en.wikipedia.org; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';

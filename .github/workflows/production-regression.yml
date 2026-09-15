@@ -88,7 +88,7 @@ jobs:
           licensing_path = Path("homeschool-api/core/licensing.py")
           text = licensing_path.read_text(encoding="utf-8")
           replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
-          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\s\S]*?"""', replacement, text, count=1)
           if count != 1:
               raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
           licensing_path.write_text(updated, encoding="utf-8")
@@ -209,7 +209,7 @@ jobs:
           licensing_path = Path("homeschool-api/core/licensing.py")
           text = licensing_path.read_text(encoding="utf-8")
           replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
-          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\s\S]*?"""', replacement, text, count=1)
           if count != 1:
               raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
           licensing_path.write_text(updated, encoding="utf-8")
@@ -332,7 +332,7 @@ jobs:
           licensing_path = Path("homeschool-api/core/licensing.py")
           text = licensing_path.read_text(encoding="utf-8")
           replacement = f'PUBLIC_KEY_PEM = """{public_pem}"""'
-          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\\s\\S]*?"""', replacement, text, count=1)
+          updated, count = re.subn(r'PUBLIC_KEY_PEM = """[\s\S]*?"""', replacement, text, count=1)
           if count != 1:
               raise SystemExit("could not locate PUBLIC_KEY_PEM in homeschool-api/core/licensing.py")
           licensing_path.write_text(updated, encoding="utf-8")
@@ -340,6 +340,34 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wizard-generated-env
+
+      # The wizard job minted its OWN keypair and signed the LICENSE_KEY now
+      # sitting in this .env with it. This job minted a different one and just
+      # baked that public half into core/licensing.py, so as downloaded the two
+      # cannot verify each other by construction: the instance boots GATED and
+      # the blocking license check below fails every run. Re-point the .env at
+      # the license this job actually holds the key for. Everything else the
+      # wizard wrote is left exactly as it wrote it.
+      - name: Re-point the wizard's .env at this job's own license
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          license_key = os.environ["CI_TEST_LICENSE_KEY"]
+          env_path = Path(".env")
+          text = env_path.read_text(encoding="utf-8")
+          updated, count = re.subn(
+              r"^LICENSE_KEY=.*$", f"LICENSE_KEY={license_key}", text, count=1, flags=re.M
+          )
+          if count != 1:
+              raise SystemExit(
+                  "no LICENSE_KEY line in the wizard's .env -- the artifact is not "
+                  "what this job expects, and booting it would silently test nothing"
+              )
+          env_path.write_text(updated, encoding="utf-8")
+          PY
 
       - name: Start the full stack (as the wizard configured it)
         run: docker compose up -d --build

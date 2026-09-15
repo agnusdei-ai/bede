@@ -1,24 +1,27 @@
-"""production-regression.yml mints a throwaway license and swaps the public
-key that verifies it into core/licensing.py. Two facts have to agree for
-that to work, and neither is checked by anything that runs per-PR:
+"""production-regression.yml mints a throwaway license per job and swaps the
+public key that verifies it into core/licensing.py. Two facts have to hold for
+that to work, and until now neither was checked per-PR.
 
-1. The workflow's regex has to actually match how licensing.py declares
-   PUBLIC_KEY_PEM. It stopped matching -- the pattern was written
+1. The substitution has to actually match how licensing.py declares
+   PUBLIC_KEY_PEM. It stopped matching: the pattern was written
    `r'[\\s\\S]'`, a RAW string, so `\\s` is a literal backslash followed by
-   `s` and the substitution found nothing. Every run of the whole workflow
-   died about a second in, on `could not locate PUBLIC_KEY_PEM`, which
-   skipped both downstream jobs including full-stack-boot.
+   `s` and it found nothing. Every run of the whole workflow died about a
+   second in on `could not locate PUBLIC_KEY_PEM`, which skipped both
+   downstream jobs -- full-stack-boot has been reported as SKIPPED, not red,
+   since #502.
 
-2. The job that BOOTS the stack has to trust the key belonging to the
-   license actually present in the .env it boots. full-stack-boot used to
-   mint a second, unrelated keypair and bake that public key into the image,
-   while the .env it downloaded carried a LICENSE_KEY signed by the wizard
-   job's DIFFERENT key. Those can never verify each other, so the instance
-   booted gated and the blocking license check failed -- which would have
-   kept the job red even with (1) fixed.
+2. The key baked into the image and the LICENSE_KEY in the .env being booted
+   have to come from the SAME mint. full-stack-boot mints its own keypair
+   (see test_production_regression_license_workflow.py, which requires that)
+   but boots the .env the WIZARD job uploaded, carrying a LICENSE_KEY the
+   wizard signed with a different key. Those cannot verify each other by
+   construction, so the instance booted gated and the deliberately-blocking
+   license check failed -- which would have kept the job red even with (1)
+   fixed. The per-job minting design was right; it was just never finished on
+   the consuming side.
 
-Both are the "same fact in two files" shape this repo checks rather than
-trusts. See CLAUDE.md's "Test The Function AND Its Invocation".
+Companion to test_production_regression_license_workflow.py, which guards the
+ORDER of the minting steps. This file guards that what they mint is coherent.
 """
 
 from pathlib import Path
@@ -32,8 +35,6 @@ WORKFLOW = REPO / ".github/workflows/production-regression.yml"
 LICENSING = REPO / "homeschool-api/core/licensing.py"
 TEST_WORKFLOW = REPO / ".github/workflows/test.yml"
 
-PEM_ARTIFACT = "ci-license-public-key.pem"
-
 
 @pytest.fixture(scope="module")
 def workflow_text() -> str:
@@ -46,21 +47,21 @@ def workflow(workflow_text: str) -> dict:
 
 
 def _substitution_patterns(text: str) -> list[str]:
-    """Every regex the workflow uses to rewrite PUBLIC_KEY_PEM."""
     return re.findall(r"re\.subn\(r'(.*?)', replacement", text)
 
 
 def test_the_workflow_still_rewrites_the_public_key_somewhere(workflow_text):
-    patterns = _substitution_patterns(workflow_text)
-    assert patterns, (
-        "No PUBLIC_KEY_PEM substitution found in production-regression.yml. "
-        "If the license-injection approach changed, this guard needs to change "
-        "with it -- do not just delete it."
+    """Guards the guards: if this ever finds nothing, every check below would
+    pass vacuously."""
+    assert _substitution_patterns(workflow_text), (
+        "No PUBLIC_KEY_PEM substitution found in production-regression.yml. If "
+        "the license-injection approach changed, update this file with it -- as "
+        "written it would now pass no matter what the workflow does."
     )
 
 
 def test_every_public_key_regex_actually_matches_licensing_py(workflow_text):
-    """The defect that reds the workflow: a pattern that matches nothing."""
+    """The defect that took the whole workflow down: a pattern matching nothing."""
     source = LICENSING.read_text(encoding="utf-8")
     for pattern in _substitution_patterns(workflow_text):
         count = len(re.findall(pattern, source))
@@ -68,12 +69,12 @@ def test_every_public_key_regex_actually_matches_licensing_py(workflow_text):
             f"The workflow's regex {pattern!r} matches core/licensing.py "
             f"{count} time(s), not exactly once. The workflow raises "
             f"SystemExit('could not locate PUBLIC_KEY_PEM') on anything but 1, "
-            f"which fails the job before any of it runs."
+            f"killing the job before any of it runs."
         )
 
 
 def test_licensing_declares_the_key_the_way_the_workflow_expects():
-    """The other half of the same fact, asserted from licensing.py's side."""
+    """The same fact from licensing.py's side."""
     source = LICENSING.read_text(encoding="utf-8")
     assert re.search(r'^PUBLIC_KEY_PEM = """', source, re.M), (
         "core/licensing.py no longer declares PUBLIC_KEY_PEM as a triple-quoted "
@@ -82,57 +83,70 @@ def test_licensing_declares_the_key_the_way_the_workflow_expects():
     )
 
 
-def test_the_booting_job_does_not_mint_its_own_keypair(workflow):
-    """full-stack-boot boots the wizard's .env, so minting its own key
-    guarantees a signature it cannot verify."""
-    steps = workflow["jobs"]["full-stack-boot"]["steps"]
-    body = "\n".join(s.get("run", "") for s in steps)
-    assert "ECC.generate" not in body, (
-        "full-stack-boot mints its own keypair again. The .env it downloads "
-        "carries a LICENSE_KEY signed by the wizard job's key, so a locally "
-        "minted public key cannot verify it: the instance boots GATED and the "
-        "blocking license check fails."
+def _step_names(job: dict) -> list[str]:
+    return [s.get("name") or str(s.get("uses", "")) for s in job["steps"]]
+
+
+def test_the_booting_job_repoints_the_downloaded_env_at_its_own_license(workflow):
+    """full-stack-boot mints its own keypair, so the wizard-signed LICENSE_KEY
+    it downloads is unverifiable by the key it just installed."""
+    job = workflow["jobs"]["full-stack-boot"]
+    body = "\n".join(s.get("run", "") for s in job["steps"])
+    assert "LICENSE_KEY=" in body and "CI_TEST_LICENSE_KEY" in body, (
+        "full-stack-boot no longer rewrites the downloaded .env's LICENSE_KEY "
+        "from the license it minted. It boots a .env signed by the WIZARD job's "
+        "key while its image carries a different public key: the gate stays up "
+        "and the blocking license check fails every run."
     )
 
 
-def test_the_booting_job_trusts_the_wizard_key(workflow):
-    steps = workflow["jobs"]["full-stack-boot"]["steps"]
-    body = "\n".join(s.get("run", "") for s in steps)
-    assert PEM_ARTIFACT in body, (
-        f"full-stack-boot no longer reads {PEM_ARTIFACT}, so nothing makes the "
-        f"image trust the key that signed the license in the .env it boots."
+def test_it_repoints_after_downloading_and_before_booting(workflow):
+    """Order is the whole point -- rewriting before the download would be
+    overwritten by it, and after the boot would be too late."""
+    names = _step_names(workflow["jobs"]["full-stack-boot"])
+    download = next(i for i, n in enumerate(names) if "download-artifact" in n)
+    repoint = next(i for i, n in enumerate(names) if "Re-point" in n)
+    boot = next(i for i, n in enumerate(names) if n.startswith("Start the full stack"))
+    assert download < repoint < boot, (
+        f"full-stack-boot's steps are out of order: download={download}, "
+        f"re-point={repoint}, boot={boot}. The re-point must sit between them."
     )
 
 
-def test_the_wizard_publishes_the_key_it_signed_with(workflow):
-    """The producer side of the same handoff."""
-    steps = workflow["jobs"]["wizard-end-to-end"]["steps"]
+def _repoint_step(workflow: dict) -> dict:
+    for step in workflow["jobs"]["full-stack-boot"]["steps"]:
+        if "Re-point" in (step.get("name") or ""):
+            return step
+    raise AssertionError("full-stack-boot has no .env re-point step")
 
-    writes_pem = any(PEM_ARTIFACT in s.get("run", "") for s in steps)
-    assert writes_pem, (
-        f"The wizard job no longer writes {PEM_ARTIFACT}, so full-stack-boot "
-        f"has no key to verify the license the wizard just signed."
-    )
 
-    uploads = [
-        s for s in steps
-        if str(s.get("uses", "")).startswith("actions/upload-artifact")
-    ]
-    assert uploads, "The wizard job no longer uploads an artifact at all."
-    paths = "\n".join(str(s.get("with", {}).get("path", "")) for s in uploads)
-    assert PEM_ARTIFACT in paths, (
-        f"{PEM_ARTIFACT} is written but not uploaded, so full-stack-boot's "
-        f"download will not contain it."
+def test_the_repoint_refuses_rather_than_silently_booting_nothing(workflow):
+    """A .env with no LICENSE_KEY line must fail loudly. Appending one instead,
+    or writing nothing, would boot an unlicensed stack whose /health still
+    answers -- a green job proving nothing.
+
+    Scoped to the re-point step's OWN body, never the whole job: the minting
+    step above it contains the identical `count != 1` / `raise SystemExit`
+    pair, so a job-wide scan passes on that text while this step silently
+    stops failing closed. That vacuous version was written first and caught
+    by break-verifying it."""
+    body = _repoint_step(workflow).get("run", "")
+    assert "count != 1" in body, (
+        "The .env re-point no longer checks that exactly one LICENSE_KEY line "
+        "was replaced."
     )
-    assert ".env" in paths, "The wizard job stopped uploading .env."
+    assert "raise SystemExit" in body, (
+        "The .env re-point no longer fails closed when LICENSE_KEY is absent -- "
+        "it would boot an unlicensed stack and report success."
+    )
 
 
 def test_this_workflow_is_in_the_ci_change_filter():
-    """Without this the guard above never runs for the change it exists to
-    catch -- test.yml computes relevant=false and skips api-tests entirely.
-    Same reasoning as test_decision_register.py's own filter guard, and the
-    same reason it reads the pattern line rather than the whole file (the
-    filename appearing in a nearby comment is a vacuous pass)."""
+    """Without this the guards above never run for the change they exist to
+    catch: test.yml computes relevant=false and skips api-tests. Reads the
+    pattern line itself rather than the whole file, since the filename in a
+    nearby comment is a vacuous pass -- the trap test_decision_register.py
+    records falling into."""
     pattern_line = next(
         (l for l in TEST_WORKFLOW.read_text(encoding="utf-8").splitlines()
          if "grep -qE" in l),

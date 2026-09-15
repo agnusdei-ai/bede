@@ -50,7 +50,3 @@ ipython_config.py
 
 # Windows installer build output (packaging/windows/) — local Inno Setup builds
 packaging/windows/Output/
-
-# Written by .github/workflows/production-regression.yml so full-stack-boot
-# can verify the license the wizard job minted. CI-only, never committed.
-ci-license-public-key.pem

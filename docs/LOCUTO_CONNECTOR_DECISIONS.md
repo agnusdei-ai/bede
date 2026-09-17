@@ -49,15 +49,29 @@ unilaterally. What ships is a tested protocol skeleton — transport, framing, p
 check, handshake, and the §6 enforcement point — with zero actual agent behavior.
 `resolve_local_only()` has a caller now, but that caller still dispatches nothing real.
 
-**The listener ships enabled by default.** `LOCUTO_IPC_ENABLED` defaults `true` and the
-`locuto-ipc` docker-compose service starts with the rest of the stack — Bede is meant to
-interoperate with a paired Locuto installation out of the box, a deliberate departure from this
-codebase's usual "empty/off = disabled" convention. Safe only because of the empty registry
-above: a deployment that never pairs with Locuto gets a socket that completes a handshake and
-refuses every real capability, nothing more. A deployer can still set `LOCUTO_IPC_ENABLED=false`
-(install time or later, restart required) to disable it outright; a disabled listener idles
-rather than exiting, so that choice can't turn into a restart-loop. See
-`services/locuto_ipc/__init__.py` and `server.py`'s own docstrings.
+**The listener ships DISABLED, behind the `locuto` compose profile.** `LOCUTO_IPC_ENABLED`
+defaults `false` and the `locuto-ipc` service does not start unless `COMPOSE_PROFILES` names
+`locuto`. Running it takes both.
+
+It formerly shipped enabled, on the reasoning that Bede should interoperate with a paired Locuto
+installation out of the box — a deliberate departure from this codebase's usual
+"empty/off = disabled" convention, justified by the empty registry above making an unpaired
+deployment harmless. **Reversed 2026-09-17, because that justification was the wrong way round.**
+The empty registry is not what makes running it safe; it is what makes running it pointless. And
+it was worse than pointless in practice: on an ordinary household the socket could not bind at
+all (Docker creates the bind-mount source root-owned, the container runs as `sage`), so every
+family ran a container that started, logged one error, idled forever, and held a memory-limit
+slot. While it crash-looped — before the fix in #508/#509 — it additionally drowned
+`docker compose logs` and buried the diagnostics for unrelated failures in the same stack.
+
+**Gated rather than repaired.** Making the socket bind needs a fixed UID for `sage` plus
+host-directory ownership, which changes the image's user model and risks the volume ownership of
+deployments that already work. That is a real stability risk taken on behalf of a feature that
+does nothing, so the profile gate is the correct trade until the connector has real capabilities.
+`homeschool-api/tests/test_locuto_ipc_boot.py` fails if the capability registry stops being
+empty, so removing the gate becomes a decision someone makes rather than a question nobody
+revisits. A disabled listener still idles rather than exiting, so the flag can't turn into a
+restart-loop. See `services/locuto_ipc/__init__.py` and `server.py`'s own docstrings.
 
 Left below unedited otherwise, as the record of the question and the options it was closed against.
 

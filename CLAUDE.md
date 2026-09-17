@@ -972,17 +972,33 @@ agent behavior.
 
 Runs as its own process (`python -m services.locuto_ipc`), never inside the
 tutor-facing `api` container — a `locuto-ipc` service in
-`docker-compose.yml`, starting with the rest of the stack by default (no
-compose profile gate), since Bede is meant to interoperate with a paired
-Locuto installation out of the box. `LOCUTO_IPC_ENABLED` (`core/config.py`)
-defaults **true** — an opt-OUT rather than this codebase's usual
-"empty/off = disabled" convention (`DEMO_PIN`, `sandbox_pin`,
-`mcp_external_enabled`) — safe because the empty registry means an
-unpaired deployment just completes a handshake and refuses every real
-capability. A deployer can set `LOCUTO_IPC_ENABLED=false` (install time or
-later, restart required) to disable it; a disabled `serve()` idles rather
-than returning, so it doesn't restart-loop under `restart: unless-stopped`
-now that the container runs by default — see `server.py`'s own docstring.
+`docker-compose.yml`, **behind the `locuto` compose profile and off by
+default** — `LOCUTO_IPC_ENABLED` (`core/config.py`) defaults **false**, which
+puts it back on this codebase's usual "empty/off = disabled" convention
+(`DEMO_PIN`, `sandbox_pin`, `mcp_external_enabled`). Running it takes both:
+`COMPOSE_PROFILES=locuto` decides whether the container exists at all, and
+the flag is the listener's own kill-switch (spec §7).
+
+It used to start with the rest of the stack, on the reasoning that Bede
+should interoperate with a paired Locuto installation out of the box. **That
+reasoning rested on a capability the connector does not have.** v1's registry
+is empty, so it can answer nothing; and on an ordinary household it could not
+even bind — Docker creates the bind-mount source root-owned while this
+container runs as `sage`, so `serve()` logs one error and idles. Every family
+therefore ran a container that started, failed, idled forever and held a
+memory-limit slot, in exchange for nothing — and while it crash-looped (before
+#508) it also drowned `docker compose logs`, burying the diagnostics for every
+other failure in the stack.
+
+**Gated rather than repaired, deliberately.** Making the socket bind needs a
+fixed UID for `sage` plus host-directory ownership, which changes the image's
+user model and risks the volume ownership of deployments that already work —
+a real stability risk taken on behalf of a feature that does nothing. Remove
+the profile when the registry is non-empty AND the socket binds;
+`tests/test_locuto_ipc_boot.py` fails if the registry stops being empty, so
+that decision gets made rather than drifting. A disabled `serve()` idles
+rather than returning, so enabling the profile and then turning the flag off
+is never a restart-loop — see `server.py`'s own docstring.
 The socket's parent directory is bind-mounted (`volumes:`, not `tmpfs`) so
 a native Locuto process on the host can reach it — the one place this
 container is less isolated than `api`'s tmpfs-only scratch space, keeping

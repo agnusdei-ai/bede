@@ -387,7 +387,12 @@ class Settings(BaseSettings):
     # services/locuto_ipc/server.py's own docstring for why this is
     # restart-based rather than live, and for why the process stays up
     # (rather than exiting) while disabled.
-    locuto_ipc_enabled: bool = True
+    # Defaults FALSE. v1's capability registry is empty, so an enabled
+    # listener can answer nothing; docker-compose.yml additionally gates the
+    # container behind the `locuto` profile, and both must be turned on to
+    # run it. See that file's own comment for why this is gated rather than
+    # repaired.
+    locuto_ipc_enabled: bool = False
     # bede-ipc-spec.md §2: a Unix domain socket, never TCP even on loopback.
     # Default path sits under the api container's one writable location
     # (docker-compose.yml's `/tmp:size=64m,mode=1777` tmpfs) — a real

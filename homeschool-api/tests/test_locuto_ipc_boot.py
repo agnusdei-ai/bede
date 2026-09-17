@@ -252,3 +252,63 @@ def test_docker_compose_is_in_the_ci_change_filter():
         "docker-compose.yml is not in test.yml's change filter, so a compose-only "
         "edit would skip the suite that reads it."
     )
+
+
+# ── The connector ships OFF until it can actually do something ──────────────
+
+
+def _locuto_block() -> str:
+    text = _COMPOSE.read_text()
+    start = text.index("\n  locuto-ipc:\n")
+    rest = text[start + 1 :]
+    end = re.search(r"\n  [a-z0-9-]+:\n", rest)
+    return rest[: end.start()] if end else rest
+
+
+def test_the_connector_is_behind_a_compose_profile():
+    """It used to start with every family's stack. v1's capability registry is
+    EMPTY, and on an ordinary household it cannot even bind its socket (Docker
+    creates the bind-mount source root-owned; this container runs as `sage`),
+    so every deployment ran a container that logged one error, idled forever,
+    and held a memory-limit slot in exchange for nothing.
+
+    Gated rather than repaired: making the socket bind needs a fixed UID for
+    `sage` plus host directory ownership, which changes the image's user model
+    and risks the volume ownership of deployments that already work — a real
+    stability risk taken on behalf of a feature that does nothing."""
+    assert 'profiles: ["locuto"]' in _locuto_block(), (
+        "docker-compose.yml's locuto-ipc service lost its `locuto` profile, so "
+        "it starts in every family's stack again. Remove the profile only once "
+        "the capability registry is non-empty AND the socket actually binds."
+    )
+
+
+def test_the_listener_defaults_off_in_both_places():
+    """compose and core/config.py are two copies of one fact."""
+    assert "LOCUTO_IPC_ENABLED=${LOCUTO_IPC_ENABLED:-false}" in _locuto_block(), (
+        "docker-compose.yml no longer defaults LOCUTO_IPC_ENABLED to false."
+    )
+    # Read the DECLARED default, not a Settings built from the compose block:
+    # that block now passes LOCUTO_IPC_ENABLED explicitly, so it masks the code
+    # default entirely and an instance-based assertion passes no matter what
+    # core/config.py says. That vacuous version was written first and caught by
+    # break-verifying it.
+    assert Settings.model_fields["locuto_ipc_enabled"].default is False, (
+        "core/config.py's locuto_ipc_enabled no longer DECLARES False, so a "
+        "deployment that sets nothing (or any other process constructing "
+        "Settings) would run an inert listener."
+    )
+
+
+def test_the_registry_is_still_empty_or_this_gate_should_be_reconsidered():
+    """The whole justification for gating is that the connector can answer
+    nothing. If that stops being true, this gate deserves a fresh decision
+    rather than silently continuing to hide a working feature."""
+    import services.locuto_ipc.capabilities as capabilities_module
+
+    assert capabilities_module.CAPABILITIES == {}, (
+        "The capability registry is no longer empty. The `locuto` profile gate "
+        "was justified by the connector being inert — revisit that decision "
+        "(and the socket ownership fix it deferred) rather than leaving a real "
+        "capability switched off by default."
+    )

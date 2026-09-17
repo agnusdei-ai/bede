@@ -282,7 +282,7 @@ read the log. `GET /admin/status` reports the same facts.
 | `ELEVATION_TTL_MINUTES` | `10` | How long a step-up lasts, absolute from the moment of elevation. |
 | `LEGACY_TOKEN_GRACE` | `true` | Accept JWTs issued before identity domains existed. |
 | `DEMO_SECRET_KEY` | unset | Independent signing key for the public demo's identity domain. |
-| `LOCUTO_IPC_ENABLED` | `true` | Run the local-IPC listener that lets a paired `agnusdei-ai/locuto` installation on the same machine talk to Bede. See below. |
+| `LOCUTO_IPC_ENABLED` | `false` | Run the local-IPC listener that lets a paired `agnusdei-ai/locuto` installation on the same machine talk to Bede. Off by default, and also needs `COMPOSE_PROFILES=locuto`. See below. |
 
 Two of these want your attention rather than being left alone:
 
@@ -311,17 +311,26 @@ generates one for the hosted demo. `docker-compose.yml` passes all four of
 environment variables explicitly, so a setting you add to `.env` without
 also naming it there is silently ignored.
 
-**`LOCUTO_IPC_ENABLED` defaults on and starts a second, small container**
-(`locuto-ipc` in `docker-compose.yml`) alongside `api` — an `docker compose
-up`/`make start` on an ordinary deployment will now show this extra
-container running, plus a `./locuto-ipc` directory created next to your
-`.env`. This is expected and harmless if you have no Locuto installation:
-the listener binds a Unix domain socket, completes a handshake with
-whatever connects to it, and refuses every real capability request, since
-v1 ships with none actually implemented — see
-[docs/LOCUTO_CONNECTOR_DECISIONS.md](LOCUTO_CONNECTOR_DECISIONS.md). Set
-`LOCUTO_IPC_ENABLED=false` in `.env` and restart the stack if you'd rather
-this listener not run at all.
+**`LOCUTO_IPC_ENABLED` defaults off, and the listener does not run.** You
+should see no `locuto-ipc` container and no `./locuto-ipc` directory on an
+ordinary `docker compose up`/`make start`. Nothing is missing: the connector
+ships with no capabilities implemented, so running it did nothing except
+occupy memory — see
+[docs/LOCUTO_CONNECTOR_DECISIONS.md](LOCUTO_CONNECTOR_DECISIONS.md). An
+earlier version of Bede did start it; if you are upgrading and still see that
+container or directory, both are safe to ignore, and the directory is safe to
+delete once the container is gone.
+
+If you are pairing with a Locuto installation on the same machine, turn on
+both — the profile decides whether the container exists, the flag is the
+listener's own switch:
+
+```
+COMPOSE_PROFILES=locuto        # comma-separate to combine, e.g. local-db,locuto
+LOCUTO_IPC_ENABLED=true
+```
+
+then restart the stack.
 
 ## Licensing
 

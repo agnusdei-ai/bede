@@ -152,6 +152,7 @@ _SPECS: Tuple[ToolSpec, ...] = (
     ToolSpec("record_literacy_evidence", silent=True),
     ToolSpec("record_phonics_evidence", silent=True),
     ToolSpec("record_language_evidence", silent=True),
+    ToolSpec("record_music_evidence", silent=True),
 )
 
 TUTOR_TOOL_SPECS: Dict[str, ToolSpec] = {spec.name: spec for spec in _SPECS}

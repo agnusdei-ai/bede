@@ -31,6 +31,11 @@ from services.diagnostic.language_exposure import (
     LANGUAGE_CHECKIN_HINTS as _EXPOSURE_LANGUAGE_HINTS,
     LANGUAGE_LABELS as _EXPOSURE_LANGUAGE_LABELS,
 )
+from services.diagnostic.music import (
+    DOMAINS as _MUSIC_DOMAINS,
+    DOMAIN_CHECKIN_HINTS as _MUSIC_DOMAIN_HINTS,
+    DOMAIN_LABELS as _MUSIC_DOMAIN_LABELS,
+)
 from models.schemas import (
     SessionConfig,
     Subject,
@@ -764,6 +769,40 @@ TUTOR_TOOLS = [
                 **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["language", "outcome"],
+        },
+    },
+    {
+        "name": "record_music_evidence",
+        "description": (
+            "SILENTLY record what an Art & Music listening lesson showed about what this child "
+            "KNOWS about the music — which instruments they heard, whether they could place the "
+            "piece in its period, whether they recalled the composer. Call this at most once per "
+            "session, only when the child's own listening and narration genuinely showed you "
+            "something, and never after inventing a quiz to produce it. "
+            "Record only knowledge. NEVER record, score, or infer whether the child enjoyed the "
+            "music, found it beautiful, preferred one piece to another, or felt anything about it "
+            "— a child's response to beauty is theirs, it is not something to measure, and there "
+            "is deliberately no field here to put it in. The child never sees this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "enum": list(_MUSIC_DOMAINS),
+                    "description": "Which kind of musical knowledge this observation is evidence about",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How it went: correct=knew it unaided, partial=some grasp, "
+                        "incorrect=didn't have it, hint_dependent=only after you helped"
+                    ),
+                },
+                **_WORK_SCORE_TOOL_FIELDS,
+            },
+            "required": ["domain", "outcome"],
         },
     },
 ]
@@ -2664,6 +2703,14 @@ move on warmly; do not correct or drill. Never mention this tracking to the chil
 
 _LANGUAGE_CHECKIN_SUBJECTS = (Subject.history, Subject.saints, Subject.art_music)
 
+# Music knowledge is evidence from a listening lesson, so unlike the
+# opportunistic language check-in (which rides three subjects) this is
+# gated to the one subject where listening actually happens. Ungated by
+# GradeStage, deliberately: every stage listens, and what differs is the
+# DEPTH of the question, which each catalogue entry's own stage_notes
+# already carries.
+_MUSIC_CHECKIN_SUBJECTS = (Subject.art_music,)
+
 # Subjects that carry their own weekly, stage-filtered catalog block, each
 # mapped to the function that renders it. All three share the signature
 # (grade, grade_stage, week_salt, today) -> str and the same VERBATIM
@@ -3191,6 +3238,7 @@ async def _build_subject_prompt(
     work_scoring_note = _WORK_SCORING_NOTE
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
+    music_note = _music_checkin_note(config, subject)
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
@@ -3202,7 +3250,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3744,6 +3792,8 @@ def _work_label(subject_area: str, skill_id: str) -> str:
         return _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
     if subject_area == "language_exposure":
         return _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
+    if subject_area == "music_knowledge":
+        return _MUSIC_DOMAIN_LABELS.get(skill_id, skill_id)
     return skill_id
 
 
@@ -3960,6 +4010,50 @@ Rules, and they matter more than the three fields:
 </what_you_noticed_about_the_work>"""
 
 
+def _music_checkin_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    Art & Music: a nudge to record what the listening lesson revealed about
+    what the child KNOWS, and a hard refusal to record anything about how
+    they responded to it.
+
+    The refusal is the load-bearing half. Mater Amabilis composer study is
+    the contemplation of something beautiful, and a model asked to "assess a
+    music lesson" will reach for the child's reaction, because that is the
+    most salient thing in the room. Whether a child found a piece lovely is
+    not Bede's to score — it is the same refusal CLAUDE.md already makes for
+    a child's spiritual engagement and for character virtues, applied to
+    aesthetic response. So the wording here names what to record, and then
+    names what must never be recorded, rather than leaving the second to be
+    inferred from the absence of a field.
+
+    Observational, never probing, and at most once per session — the same
+    prompt-only limit the phonics and language check-ins carry, since
+    `record_music_evidence` is fully silent and leaves nothing in the
+    transcript to scan for.
+    """
+    if subject not in _MUSIC_CHECKIN_SUBJECTS:
+        return ""
+    domain_lines = "\n".join(
+        f"  - {domain} ({_MUSIC_DOMAIN_LABELS[domain]}): {_MUSIC_DOMAIN_HINTS[domain]}"
+        for domain in _MUSIC_DOMAINS
+    )
+    return f"""
+
+<music_checkin>
+If this listening lesson genuinely showed you something about what this child KNOWS about the
+music, call `record_music_evidence` once with that domain id and an honest outcome:
+{domain_lines}
+Record only what the child actually demonstrated, in the ordinary course of listening and telling
+back. Do NOT invent a quiz, do not announce that you are noting anything, and never record more
+than one domain in a session.
+
+Never record anything about how the child RESPONDED to the music — whether they liked it, found it
+beautiful, preferred it to last week's, or were moved by it. There is deliberately no field for
+that, because a child's response to something beautiful is theirs and is not a thing to be scored.
+You may and should still delight in it with them; you simply never write it down.
+</music_checkin>"""
+
+
 def _literacy_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
     Grades 3-8, Language Arts and Living Books: a nudge to notice what the
@@ -4039,6 +4133,48 @@ async def _record_literacy_evidence(
             await _record_work_done_demo(demo_code, "literacy", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
+
+
+async def _record_music_evidence(
+    db: Optional["AsyncSession"],
+    demo_code: Optional[str],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently record music-knowledge evidence — see
+    services/diagnostic/music.py for the domain sequence and for the line
+    between knowledge (recorded) and response (never recorded).
+
+    Gated at the code level to Art & Music, a second defensive backstop
+    matching where the prompt guidance is gated — the same belt-and-braces
+    the phonics and literacy recorders use for their own gates.
+
+    **Demo and production both work here, and differently on purpose.** The
+    mastery estimate needs history a fifteen-minute demo cannot produce, so
+    it stays real-sessions-only, exactly as phonics/literacy/language do.
+    The work LEDGER needs no history at all — it records an event, not an
+    estimate, and its first entry is as true as its two-hundredth — so a
+    demo visitor's listening lesson lands in the real ledger and shows on
+    the real card.
+    """
+    if db is None and demo_code is None:
+        return
+    if subject not in _MUSIC_CHECKIN_SUBJECTS:
+        return
+    try:
+        from models.schemas import RecordMusicEvidenceInput
+        from services.diagnostic.music import process_evidence as _process_music
+
+        ev = RecordMusicEvidenceInput(**tool_input)  # validate/clamp
+        if db is not None:
+            await _process_music(db, config.student_name, ev.domain, ev.outcome)
+            await _record_work_done(db, config.student_name, "music_knowledge", ev.domain, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "music_knowledge", ev.domain, ev.outcome, ev)
+    except Exception as exc:
+        log.warning("Music-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_phonics_evidence(
@@ -4559,6 +4695,12 @@ async def stream_tutor_response(
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.
                                     await _record_language_evidence(db, demo_code, config, subject, tool_input)
+                                elif tc["name"] == "record_music_evidence":
+                                    # Fully silent, same as record_skill_evidence above —
+                                    # see _record_music_evidence's own docstring, and
+                                    # services/diagnostic/music.py for why this records
+                                    # what the child knows and never how they responded.
+                                    await _record_music_evidence(db, demo_code, config, subject, tool_input)
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,

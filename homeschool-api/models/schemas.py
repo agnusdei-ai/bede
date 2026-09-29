@@ -1276,6 +1276,19 @@ class RecordPhonicsEvidenceInput(WorkScoreFields):
     domain:  str = Field(..., max_length=40)
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
 
+class RecordMusicEvidenceInput(WorkScoreFields):
+    """Server-side validation of the silent record_music_evidence tool's
+    input — see services/diagnostic/music.py, and read that module's
+    docstring before touching this: it records what a child KNOWS about the
+    music, never how they responded to it. `domain` isn't validated against
+    music.DOMAINS here for the same reason the three siblings below don't —
+    a Literal would require importing the diagnostic package into the schema
+    module, and music.apply_evidence already degrades an unrecognized domain
+    to a true no-op."""
+    domain:  str = Field(..., max_length=40)
+    outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+
 class RecordLanguageEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_language_evidence tool's
     input — see services/diagnostic/language_exposure.py. Never leaves the

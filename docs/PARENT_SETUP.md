@@ -1027,6 +1027,22 @@ each time your family's own term or quarter turns over; the weekly picture,
 like the weekly poem and prayer above, rotates off the calendar and needs no
 action from you.
 
+**The Progress page now has a Music knowledge row, and there is one thing it
+deliberately will not tell you.** As your child listens across the weeks, Bede
+notices what they have come to *know* about the music: which instruments they
+can pick out, whose music it is, roughly when it was written, how the piece is
+put together. That row fills in slowly on purpose, because music is one
+listening lesson a week, so expect it to say "still getting to know your
+learner" for the first couple of weeks.
+
+What it will never show you is whether your child *liked* the music. Bede does
+not score that, and there is no hidden field for it. Whether a piece moved your
+child, whether they found it beautiful, whether they would choose it again: that
+belongs to them, and putting a number on it would be both false precision and
+not Bede's place. Bede still delights in the music with your child; it simply
+never writes that part down. If you want to know whether they love Bach, ask
+them.
+
 **Art & Music also includes composer study — talked through, not played.**
 Alongside picture study, Bede introduces one composer at a time (currently
 Antonio Vivaldi, with more composers to be added over time) and, each week,

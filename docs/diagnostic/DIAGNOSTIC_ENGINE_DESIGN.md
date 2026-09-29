@@ -1012,6 +1012,83 @@ fits, rather than assuming something new is needed by default.
 
 ---
 
+### 13.4 Music knowledge — a fifth shape, and the first engine defined by what it refuses (implemented)
+
+Music knowledge (`services/diagnostic/music.py`, `subject_area="music_knowledge"`)
+is the fourth lighter-weight extension on `MasteryProfile`, structurally a
+sibling of phonics: single-domain-per-call updates, the shared
+`prior + weight*(observed-prior)` blend, and a `next_steps` that walks
+`DOMAINS` in a fixed developmental order rather than sorting by probability.
+
+**Why the fixed walk rather than language exposure's probability sort.**
+Language exposure sorts because its six languages have no prerequisite
+order — a child is not supposed to secure Latin before German. Music is the
+other kind. Hearing that a piece is fast or slow precedes naming its form,
+which precedes placing it in a period, which precedes connecting it to the
+history around it. That is not an opinion introduced here: it is the same
+progression every entry's own `stage_notes` already encodes for K-2, 3-5 and
+6-8, so sorting by score would contradict the content.
+
+Domains, in that order: `musical_elements`, `instrumentation`,
+`composer_knowledge`, `form`, `period_placement`, `historical_connection`.
+
+**What makes this engine unlike the other four: it is defined as much by its
+refusal as by its measure.** There are two quite different things one could
+score in a listening lesson, and only one is ours.
+
+*Knowledge is measurable.* That a largo is slow, that a concerto sets a
+soloist against an ensemble, that Vivaldi worked in Venice, that the Baroque
+ran to about 1750 — facts a child either has or is still gathering, and a
+parent choosing what to teach next is genuinely helped by knowing which.
+
+*A child's response is not.* Whether they found a piece beautiful, whether
+they loved it, how deeply they felt it, whether they would choose it again.
+`_SUBJECT_CONTEXT[Subject.art_music]` describes this subject as "the
+contemplation of the beautiful … appreciation, not technical critique", and
+a number standing for a child's appreciation would be false precision about
+the one part of the subject that is entirely theirs. This is the same
+refusal the repository already makes twice — a child's spiritual engagement
+is governed qualitatively and never counted, and `_character_virtues_note`
+has no `record_virtue_evidence` tool and must never grow one. Aesthetic
+response belongs in that company.
+
+**The refusal is enforced rather than documented.**
+`FORBIDDEN_DOMAIN_SUBSTRINGS` lists the words someone would reach for
+(`enjoy`, `prefer`, `taste`, `emotion`, `appreciat`, `beauty`, `reaction`
+and others), and `tests/diagnostic/test_music.py` fails if any domain name,
+any tool input field, or the rendered summary payload contains one. A
+second test checks that vocabulary is wide enough to catch the synonyms,
+because a guard whose word list is too narrow passes while the thing it
+forbids walks in under another name. The `record_music_evidence` tool
+description carries the refusal in the text the *model* reads, not only in
+a docstring, and a test pins that too. The reason this needs tests rather
+than a comment is that the forbidden field is the easy thing to add later:
+"how much did they enjoy it" looks like richer data and reads, to a
+reviewer skimming a diff, exactly like the fields beside it.
+
+The honest consequence, worth stating where a parent-facing writer will see
+it: this profile can report that a child reliably hears which instrument
+carries a tune, and it can never report whether they like Bach. The second
+is a better question. It is answered by asking the child.
+
+**Calibration is the sparsest of any engine, and says so.**
+`CALIBRATION_THRESHOLD` is 3, matching phonics and language exposure, but
+the evidence rate is lower than either: one listening lesson a week inside
+one subject, at most one check-in per session. Three observations is
+therefore roughly three weeks of Art & Music, and a family will honestly see
+"still getting to know your learner" on this row for the first fortnight.
+The threshold was not lowered to flatter the card. The Progress row's own
+calibration copy names the weekly cadence as the reason.
+
+**Demo and production both work, and differently on purpose** — the same
+split phonics, literacy and language exposure already carry.
+`_record_music_evidence` writes the mastery profile only when `db is not
+None`, so a `demo_code` session never accumulates an estimate it has no
+history to support. The work ledger takes the write either way, because it
+records an event rather than an estimate: its first entry is as true as its
+two-hundredth, so a demo visitor's listening lesson lands in the real
+ledger and shows on the real card. A test asserts both halves.
+
 ## 14. Open-Standards Appendix
 
 Standards implemented from scratch (proprietary implementation of open, published algorithms):

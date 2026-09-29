@@ -71,12 +71,14 @@ def known_skill_ids() -> Set[str]:
     from services.diagnostic.composition import DOMAINS as COMPOSITION_DOMAINS
     from services.diagnostic.language_exposure import LANGUAGES
     from services.diagnostic.literacy import DOMAINS as LITERACY_DOMAINS
+    from services.diagnostic.music import DOMAINS as MUSIC_DOMAINS
     from services.diagnostic.phonics import DOMAINS as PHONICS_DOMAINS
     from services.diagnostic.skill_map import SKILL_MAP
 
     ids: Set[str] = set(SKILL_MAP)
     for vocabulary in (
-        PHONICS_DOMAINS, LITERACY_DOMAINS, COMPOSITION_DOMAINS, LANGUAGES
+        PHONICS_DOMAINS, LITERACY_DOMAINS, COMPOSITION_DOMAINS, LANGUAGES,
+        MUSIC_DOMAINS,
     ):
         ids.update(vocabulary)
     return ids

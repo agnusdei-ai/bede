@@ -299,6 +299,18 @@ export default function TutorSession() {
         ? pickBreakActivity(sessionPhase.cycleIndex + suggestedBreak.mark)
         : null
 
+  // How much working time the child actually has for a task Bede might start
+  // now: the soonest of the three clocks that can stop them, because
+  // whichever runs out first is the one that ends the task. The subject block
+  // alone would be wrong for a child two minutes from the session cap.
+  // Sent to the backend so Bede can decline to open a narration or a drawing
+  // it cannot finish — see api.ts's time_remaining_seconds.
+  const taskBudgetSecs = Math.max(0, Math.min(
+    remainingSecs,
+    sessionPhase.remainingSecs,
+    screenPhase ? screenPhase.remainingSecs : Number.POSITIVE_INFINITY,
+  ))
+
   const isWarning = !isOnBreak && remainingSecs > 0 && remainingSecs <= timerCfg.warningMinutes * 60
 
   const handleEndSession = async () => {
@@ -607,7 +619,14 @@ export default function TutorSession() {
             </div>
           </div>
         )}
-        <SocraticChat breakActive={isPaused || showConcludedMessage} gradeStage={sessionConfig.grade_stage} />
+        <SocraticChat
+          breakActive={isPaused || showConcludedMessage}
+          gradeStage={sessionConfig.grade_stage}
+          /* Null while paused or concluded: the chat is not taking turns, so
+             there is no task to budget and a stale countdown would only make
+             Bede wind down a thread nobody is on. */
+          remainingSecs={isPaused || showConcludedMessage ? null : taskBudgetSecs}
+        />
         </>
         )}
       </main>

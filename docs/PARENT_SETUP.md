@@ -387,6 +387,17 @@ has to be named rather than left to whatever fits.
 | A Bit More Structure | 100 min | 110 min | 10 min |
 | **Full Daily Plan** | **185 min** | **215 min** | **30 min** |
 
+**Bede now watches the clock so your child isn't cut off mid-task.** Near the
+end of a subject's block it stops starting anything your child couldn't
+finish — no request to tell a passage back, no invitation to write or draw —
+and winds up whatever they're already working on instead. Before this, Bede
+had no idea how much time was left and could open a five-minute narration
+with one minute on the timer, which then stopped the child mid-sentence.
+Bede never mentions the clock to your child and never tells them to hurry;
+the pacing is its job to manage quietly, not something they should feel. It
+uses whichever limit comes first, so a child two minutes from the end of the
+whole session is treated as having two minutes, not a full subject block.
+
 Session length is wall-clock and includes the mandatory 10-minute break
 after every hour. That's why it always exceeds the instruction figure.
 Each preset's session length is now **derived from its own subject list**,

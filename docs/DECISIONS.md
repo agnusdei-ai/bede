@@ -1480,3 +1480,58 @@ incident conditions.
 **Related:** entry 7, entry 25,
 [`docs/INCIDENT_RESPONSE.md`](INCIDENT_RESPONSE.md),
 [`docs/PRODUCTION_SETUP.md`](PRODUCTION_SETUP.md).
+
+---
+
+## 32. `[DESIGN]` Whether a turn observes the child's answer in its own pass before deciding what to do
+
+**Status:** open · needs: a founder call on whether a second model round-trip on every tutoring turn is worth what it buys
+
+This is a latency and cost decision before it is an architecture one, and
+the number is knowable: measure it against `GET /admin/agentic-loop-stats`,
+which already reports what a multi-round turn costs today.
+
+**The question.** A controller sketch reviewed on 2026-09-29 separated two
+things Bede currently does at once:
+
+```
+evidence = await observe_student_response(objective, response)
+action   = await tutor.propose_action(lesson, level, evidence, prior_observations)
+```
+
+Bede does the second and, inside it, the model may choose to emit evidence
+as a silent tool call (`record_skill_evidence` and its three siblings). So
+evidence is a **byproduct of acting**, never an **input to deciding**. The
+model never sees a considered judgment of the answer it is responding to,
+because it is forming both in one pass.
+
+**What splitting them would buy.** A judgment made before the action is a
+judgment that can be *checked* before the action — the Action Validator
+(`services/action_governance.py`) could gate on the observation, and the
+observation would be recorded whether or not the model remembered to call
+the tool. Evidence capture stops depending on the model's own diligence,
+which is the same argument that moved the follow-up count out of the prompt
+and into `_consecutive_question_turns`.
+
+**What it costs, and why that is not obviously worth paying.** Every turn
+becomes two model calls instead of one. The bounded tool_result loop is
+deliberately built the other way: an ordinary turn "always exits after one
+round, byte-for-byte the same as before this loop existed," and the two
+reactable tools were chosen precisely so extra round-trips are the
+exception. Doubling the floor reverses that, on the one path a child waits
+on in real time. A self-hosted family on a local model pays it in latency
+they can feel.
+
+**Not a gap in the controller.** The other seven stages of that sketch all
+exist and are named in CLAUDE.md's "Bede's turn controller". Two inputs
+that genuinely were missing — the follow-up count and the time budget —
+were built the same day (#507). This one is the remaining difference, and
+it is a deliberate open question rather than an oversight: the current
+shape is a defensible choice, not an accident.
+
+**A cheaper middle option to weigh first.** The observation could be
+computed without a second model call at all, from what the turn already
+produces — the evidence tools' own arguments, plus the deterministic
+signals already in hand. That keeps one round-trip and still makes the
+observation a recorded thing rather than a hoped-for one. Whether that is
+enough is part of this question.

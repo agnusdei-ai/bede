@@ -340,6 +340,7 @@ async def chat(
                     locale=auth.get("locale", "en"),
                     role=role,
                     session_id=req.session_id,
+                    time_remaining_seconds=req.time_remaining_seconds,
                     **audit_from_request(request),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,

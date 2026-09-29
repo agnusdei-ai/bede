@@ -49,8 +49,20 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
-export default function SocraticChat({ breakActive = false, gradeStage }: { breakActive?: boolean; gradeStage?: string }) {
+export default function SocraticChat({
+  breakActive = false,
+  gradeStage,
+  remainingSecs = null,
+}: { breakActive?: boolean; gradeStage?: string; remainingSecs?: number | null }) {
   const { t, i18n } = useTranslation()
+  // Read through a ref rather than the prop inside the send callbacks below.
+  // They are useCallback-memoized and deliberately read live store state via
+  // getState() for the same reason: this value changes every second, so a
+  // captured copy would either go stale or rebuild the whole callback chain
+  // once a second. Assigned during render (not in an effect) so a turn sent
+  // immediately after a tick still reads the tick's own value.
+  const remainingSecsRef = useRef<number | null>(remainingSecs)
+  remainingSecsRef.current = remainingSecs
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
   const { bubble } = useChatTheme()
@@ -508,6 +520,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       state.timeOfDay,
       state.localDate,
       state.sessionId,
+      remainingSecsRef.current,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening])
@@ -547,6 +560,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       state.timeOfDay,
       state.localDate,
       state.sessionId,
+      remainingSecsRef.current,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
@@ -614,6 +628,7 @@ export default function SocraticChat({ breakActive = false, gradeStage }: { brea
       timeOfDay,
       localDate,
       sessionId,
+      remainingSecsRef.current,
     )
     await consumeTurnStream(stream)
   }, [

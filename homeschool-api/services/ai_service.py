@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-from services import tool_registry
+from services import action_governance, tool_registry
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
@@ -2956,6 +2956,139 @@ child.
 </term_outcomes>"""
 
 
+# The emoji a rendered tool card opens with. Locale-INDEPENDENT, unlike the
+# wording after it (see _CARD_PHRASES), which is why the history scan below
+# keys on these rather than on translated text the way
+# handwriting_card_titles() has to.
+_HINT_CARD_PREFIX = "\U0001F50D "
+_CELEBRATION_CARD_PREFIX = "✨ "
+
+# Past this many consecutive question-only turns on one thread, the pacing
+# note below stops being a reminder and starts naming a number. Matches
+# _build_static_prompt's own persona rule ("two rounds is the general outer
+# limit") rather than setting a second, competing figure - and
+# _STAGE_GUIDANCE[GradeStage.foundations] tightens it to one round for K-2,
+# which is why the note reads the stage rather than applying one cap to
+# every child.
+_FOLLOW_UP_SOFT_LIMIT = 2
+_FOLLOW_UP_SOFT_LIMIT_FOUNDATIONS = 1
+
+
+def _consecutive_question_turns(history: Optional[List[ChatMessage]]) -> int:
+    """How many of Bede's own most recent turns asked a question and did
+    nothing else - the follow-up depth of the thread now in progress.
+
+    Deliberately named for what it counts rather than for what it is used
+    for. It is NOT an "attempt count": it says nothing about whether the
+    child was right, and nothing about whether Bede's questions were all on
+    the same idea, which is a semantic judgment this function cannot make
+    and must not appear to. What it does measure is honest and is the thing
+    the pacing rule actually turns on - how many times in a row Bede has
+    answered a child with another question.
+
+    The walk stops at a hint or a celebration, because both end a thread: a
+    hint is Bede giving ground, a celebration is the child having got
+    there. So a turn following either starts again at zero, which is why a
+    lesson that is going well never accumulates a depth at all.
+
+    `history` reaching the server is already sliced to the current subject
+    (see sessionStore.ts's getApiMessages(displayMessages, subjectStart)),
+    so this is scoped to today's block in that subject without needing to
+    know where the subject began.
+    """
+    if not history:
+        return 0
+    depth = 0
+    for msg in reversed(history):
+        if msg.role != "assistant":
+            continue
+        content = (msg.content or "").strip()
+        if content.startswith(_HINT_CARD_PREFIX) or content.startswith(_CELEBRATION_CARD_PREFIX):
+            break
+        if "?" not in content:
+            break
+        depth += 1
+    return depth
+
+
+def _pacing_note(history: Optional[List[ChatMessage]], stage: GradeStage) -> str:
+    """Tell Bede the follow-up depth it has actually reached on this thread.
+
+    `_build_static_prompt`'s persona paragraph already caps consecutive
+    follow-ups, and `_STAGE_GUIDANCE[GradeStage.foundations]` tightens it
+    for K-2 - but both ask the model to count its own prior turns out of a
+    conversation history, which is exactly the kind of bookkeeping a model
+    does unreliably and silently. The rule was therefore real in the prompt
+    and unenforced in practice. This does the counting in code and hands
+    over the number, so the existing rule finally has the one fact it needs
+    to be followed.
+
+    Returns "" below the limit - under the cap there is nothing to say, and
+    a note on every turn reading "you have asked 1 question" would spend
+    prompt budget teaching Bede to worry about a thread that is going fine.
+    """
+    depth = _consecutive_question_turns(history)
+    limit = (
+        _FOLLOW_UP_SOFT_LIMIT_FOUNDATIONS
+        if stage is GradeStage.foundations
+        else _FOLLOW_UP_SOFT_LIMIT
+    )
+    if depth < limit:
+        return ""
+    return (
+        "\n\n<pacing>\n"
+        f"You have now answered this child with a question {depth} turn(s) in a "
+        "row without offering a hint or acknowledging that they got somewhere. "
+        "That is at or past the follow-up limit in your persona rules for this "
+        "child's stage. On this turn, do one of: offer a real hint "
+        "(`offer_socratic_hint`), simplify the question to something much more "
+        "concrete, tell them the piece they are missing and build from there, or "
+        "move the lesson on. Do NOT ask another question of the same difficulty. "
+        "A child who has been asked the same thing three ways has not been "
+        "taught, and asking a fourth time is the point at which Socratic "
+        "questioning stops being teaching and starts being an obstacle."
+        "\n</pacing>"
+    )
+
+
+def _time_remaining_note(time_remaining_seconds: Optional[int]) -> str:
+    """Tell Bede how much of this subject's block is actually left.
+
+    The server never knew. `SUBJECT_DURATIONS` sets a block and
+    `gradeTimer.ts` hard stops the session, with nothing in between, so Bede
+    could open a narration - the longest task in this pedagogy - with ninety
+    seconds on the clock and the child would be cut off mid-sentence by a
+    timer neither of them could see coming. This is the graceful half of the
+    fix; services/action_governance.py is the backstop that holds when a turn
+    proposes one anyway.
+
+    Deliberately silent when there is plenty of time, and silent when the
+    caller did not supply a budget (older clients, the sandbox, tests) - an
+    absent number disables the guidance rather than inventing urgency. Never
+    phrased as something to tell the CHILD: hurrying a child is what
+    `_WORK_SCORING_NOTE` forbids outright, and a clock is Bede's constraint to
+    work within quietly, not a fact to put in front of them.
+    """
+    if time_remaining_seconds is None:
+        return ""
+    if time_remaining_seconds >= action_governance.MIN_SECONDS_FOR_LONG_FORM_TASK:
+        return ""
+    minutes_left = max(0, time_remaining_seconds) // 60
+    left = f"about {minutes_left} minute(s)" if minutes_left else "less than a minute"
+    return (
+        "\n\n<time_remaining>\n"
+        f"There is {left} left in this subject's block. "
+        "Do not start anything the child cannot finish in that time - no "
+        "narration request, no writing or drawing invitation, no new line of "
+        "inquiry. Bring the thread you are already on to a natural close: a last "
+        "short question, or a plain summary of what they worked out today. Never "
+        "mention the clock, never tell the child to hurry, and never imply they "
+        "are running out of time - the pacing is yours to manage and theirs not "
+        "to feel."
+        "\n</time_remaining>"
+    )
+
+
 async def _build_subject_prompt(
     config: SessionConfig,
     subject: Subject,
@@ -2968,6 +3101,7 @@ async def _build_subject_prompt(
     processing_style: Optional[str] = None,
     locale: str = "en",
     bookmark: Optional[dict] = None,
+    time_remaining_seconds: Optional[int] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -3061,9 +3195,14 @@ async def _build_subject_prompt(
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
     companion_note = _classical_language_companion_note(config, subject)
+    # The two turn-budget notes. Both are computed here rather than in the
+    # cached static block: follow-up depth changes every single turn, and
+    # the clock changes continuously, so neither could survive caching.
+    pacing_note = _pacing_note(history, config.grade_stage)
+    time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -4015,6 +4154,7 @@ async def stream_tutor_response(
     locale: str = "en",
     role: Optional[str] = None,
     session_id: Optional[str] = None,
+    time_remaining_seconds: Optional[int] = None,
     ip: str = "unknown",
     user_agent: str = "",
 ) -> AsyncIterator[str]:
@@ -4123,6 +4263,7 @@ async def stream_tutor_response(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
         history=history, time_of_day=time_of_day, local_date=local_date, processing_style=processing_style,
         locale=locale, bookmark=bookmark,
+        time_remaining_seconds=time_remaining_seconds,
     )
     system = [
         {
@@ -4196,7 +4337,13 @@ async def stream_tutor_response(
     for round_num in range(_MAX_TOOL_LOOP_ROUNDS):
         round_tool_results: dict[str, dict] = {}
         round_has_reactable_result = False
-        hit_call_cap = False
+        # Set when the Action Validator refuses a proposed call for ANY
+        # reason (see services/action_governance.py) — the cap, an unknown
+        # tool, or too little time left for a long-form task. Named for the
+        # consequence rather than one cause: whichever rule fired, the
+        # refused tool_use block has no tool_result, so this turn cannot ask
+        # for another round.
+        suppressed_a_call = False
         # A terminal UI transition fired this round (ToolSpec.terminal — see
         # the check after this round's `async with` block below for why it
         # force-ends the loop outright).
@@ -4267,27 +4414,34 @@ async def stream_tutor_response(
                                 # auditability layer this app didn't have before for
                                 # real (non-demo) sessions, whose tool calls left no
                                 # trace beyond the ephemeral SSE stream itself.
-                                if tool_calls_this_turn >= _MAX_TOOL_CALLS_PER_TURN:
+                                decision = action_governance.validate(
+                                    tc["name"],
+                                    calls_this_turn=tool_calls_this_turn,
+                                    max_calls_per_turn=_MAX_TOOL_CALLS_PER_TURN,
+                                    time_remaining_seconds=time_remaining_seconds,
+                                )
+                                if not decision.allowed:
                                     log.warning(
-                                        "Suppressing tool call past the per-turn cap (%d): %s for %s",
-                                        _MAX_TOOL_CALLS_PER_TURN, tc["name"], config.student_name,
+                                        "Action Validator refused a tool call for %s: %s",
+                                        config.student_name, decision.reason,
                                     )
                                     log_event_nowait(
                                         AuditEvent.TOOL_CALL_SUPPRESSED,
                                         ip=ip, user_agent=user_agent, role=role,
                                         student_name=config.student_name,
-                                        detail=f"tool={tc['name']} subject={subject.value} cap={_MAX_TOOL_CALLS_PER_TURN}",
+                                        detail=f"{decision.reason} subject={subject.value}",
                                     )
                                     tool_calls_buffer.pop(block_id, None)
                                     # Hitting the cap ends the whole loop, not just
-                                    # this call — see hit_call_cap below. A suppressed
+                                    # this call — see suppressed_a_call below. A suppressed
                                     # tool_use block never gets a tool_result, so the
                                     # loop must not try to continue past it (the
                                     # Anthropic API requires every tool_use in a turn
                                     # to be answered before the next request, and once
                                     # the cap is hit that's a promise this code can no
                                     # longer keep).
-                                    hit_call_cap = True
+                                    if decision.end_loop:
+                                        suppressed_a_call = True
                                     continue
                                 tool_calls_this_turn += 1
                                 log_event_nowait(
@@ -4477,10 +4631,10 @@ async def stream_tutor_response(
         # never give the model a further round to keep reasoning about a
         # subject it's already leaving, no matter what else fired alongside it
         # this round.
-        if terminal_tool_fired or hit_call_cap or stop_reason != "tool_use" or not round_has_reactable_result:
-            if hit_call_cap:
+        if terminal_tool_fired or suppressed_a_call or stop_reason != "tool_use" or not round_has_reactable_result:
+            if suppressed_a_call:
                 log.info(
-                    "Tool loop ending early for %s: per-turn call cap hit",
+                    "Tool loop ending early for %s: a proposed tool call was refused",
                     config.student_name,
                 )
             break

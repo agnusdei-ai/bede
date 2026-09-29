@@ -3149,6 +3149,8 @@ async def _build_subject_prompt(
     locale: str = "en",
     bookmark: Optional[dict] = None,
     time_remaining_seconds: Optional[int] = None,
+    music_vector: Optional[dict] = None,
+    music_evidence_count: int = 0,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -3239,6 +3241,7 @@ async def _build_subject_prompt(
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
     music_note = _music_checkin_note(config, subject)
+    music_so_far_note = _music_calibration_note(subject, music_vector, music_evidence_count)
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
@@ -3250,7 +3253,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3578,6 +3581,136 @@ async def _save_assessment(
 # quietly causing. 5 minutes is short enough that a freshly (re)synthesized
 # profile takes effect within the same session, not just next login.
 _READONLY_PROMPT_CACHE_TTL_SECONDS = 300
+
+# Same per-student, TTL-bounded cache as the three sibling read-only
+# loaders. Keyed by student alone rather than (student, subject) because
+# there is exactly one music profile per child.
+_music_vector_cache: dict = {}
+
+
+async def _load_music_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
+    """
+    Read-only load of a child's music-knowledge vector for prompt injection
+    — the CALIBRATE step of the listening loop, and the piece without which
+    this engine would be write-only.
+
+    That matters more here than for any sibling engine. phonics, literacy and
+    language_exposure are all write-only today: they accumulate a picture for
+    the PARENT to read and none of them feeds back into Bede's own next
+    lesson. For music that would defeat the point. Composer study revisits
+    the same small repertoire deliberately — one composer a term, one work a
+    week — so "what did this child already show me about this" is the
+    difference between a second encounter that deepens and a second encounter
+    that restarts from the child's grade as though the first had not
+    happened.
+
+    Never writes, unlike music.process_evidence. Returns (None, 0) on a cold
+    start rather than a synthesized vector, and degrades to (None, 0) on any
+    DB or decrypt failure rather than raising into stream_tutor_response —
+    the same defensive convention as _load_mastery_vector_readonly, which
+    this mirrors.
+    """
+    now = time.monotonic()
+    cached = _music_vector_cache.get(student_name)
+    if cached is not None and cached[1] > now:
+        return cached[0]
+
+    try:
+        from sqlalchemy import select
+
+        from core.database import MasteryProfile
+        from core.encryption import decrypt_json, student_aad
+        from services.diagnostic.music import SUBJECT_AREA as _MUSIC_AREA
+
+        result = await db.execute(
+            select(MasteryProfile).where(
+                MasteryProfile.student_name == student_name,
+                MasteryProfile.subject_area == _MUSIC_AREA,
+            )
+        )
+        row = result.scalar_one_or_none()
+        value = (None, 0) if row is None else (
+            decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, _MUSIC_AREA),
+                await _student_keys_mod().get_existing(db, student_name),
+            ),
+            row.evidence_count,
+        )
+    except Exception as exc:
+        log.warning("Music vector prompt-load failed for %s: %s", student_name, exc)
+        value = (None, 0)
+
+    _music_vector_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    return value
+
+
+def _music_calibration_note(
+    subject: Subject,
+    vector: Optional[dict],
+    evidence_count: int,
+) -> str:
+    """
+    Tell Bede where this child already stands, so a listening lesson starts
+    from what they last demonstrated instead of from their grade.
+
+    Three deliberate properties:
+
+    **Silent below the calibration threshold.** Under three observations
+    there is no honest read to give, and a confident-sounding note built on
+    two would be worse than none — the same reason the Progress row says
+    "still getting to know your learner" rather than drawing a bar. Bede
+    simply teaches the lesson.
+
+    **Phrased as what to build on, never as what the child lacks.** The
+    wording names the next thing worth reaching for and the ground already
+    secure, because a note reading "this child is weak at hearing
+    instruments" invites exactly the sentence `_learning_support_note`
+    forbids Bede from ever saying out loud. Same discipline as
+    `lesson_planner`'s reason strings and the mastery cycle's `no_evidence`:
+    a finding about what to teach, not a verdict on the person.
+
+    **Bede-facing only.** Nothing here is ever said to the child, which the
+    note states outright rather than leaving to inference.
+    """
+    if subject not in _MUSIC_CHECKIN_SUBJECTS or not vector:
+        return ""
+    from services.diagnostic.music import (
+        CALIBRATION_THRESHOLD as _MUSIC_CALIBRATION,
+        DOMAINS as _DOMAINS,
+        DOMAIN_LABELS as _LABELS,
+    )
+    if evidence_count < _MUSIC_CALIBRATION:
+        return ""
+
+    secure = [_LABELS[d] for d in _DOMAINS if vector.get(d, 0.5) >= 0.75]
+    reaching = next(
+        (_LABELS[d] for d in _DOMAINS if vector.get(d, 0.5) < 0.75),
+        None,
+    )
+    if not reaching and not secure:
+        return ""
+
+    lines = []
+    if secure:
+        lines.append(
+            "Already steady ground for this child, so you can lean on it rather than re-explain it: "
+            + "; ".join(secure) + "."
+        )
+    if reaching:
+        lines.append(
+            f"The next thing worth reaching for, when the music itself gives you a natural opening: {reaching}."
+        )
+    return (
+        "\n\n<music_so_far>\n"
+        + " ".join(lines)
+        + " This comes from what this child has actually shown you in earlier listening lessons, so "
+        "open where they got to rather than starting over from their grade. It is a note about what "
+        "to teach next and not a judgement of the child, and none of it is ever said to them.\n"
+        "</music_so_far>"
+    )
+
+
 def _student_keys_mod():
     """Local import indirection — core.student_keys imports core.encryption,
     and these loaders are themselves imported early; keeping it lazy avoids
@@ -4393,6 +4526,16 @@ async def stream_tutor_response(
     if db is not None:
         bookmark = await _load_lesson_bookmark_readonly(db, config.student_name, subject)
 
+    # Real sessions only, and only where listening actually happens. This is
+    # the CALIBRATE step of the listening loop — see
+    # _load_music_vector_readonly's docstring for why music, unlike the other
+    # light engines, would be pointless as a write-only signal. A demo
+    # session has no history to read back, so it gets the lesson without the
+    # calibration, exactly as it gets no bookmark.
+    music_vector, music_evidence_count = None, 0
+    if db is not None and subject in _MUSIC_CHECKIN_SUBJECTS:
+        music_vector, music_evidence_count = await _load_music_vector_readonly(db, config.student_name)
+
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
@@ -4400,6 +4543,7 @@ async def stream_tutor_response(
         history=history, time_of_day=time_of_day, local_date=local_date, processing_style=processing_style,
         locale=locale, bookmark=bookmark,
         time_remaining_seconds=time_remaining_seconds,
+        music_vector=music_vector, music_evidence_count=music_evidence_count,
     )
     system = [
         {

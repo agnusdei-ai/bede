@@ -176,10 +176,16 @@ async def db_session():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    # _load_music_vector_readonly caches per student at module level with a
+    # 5-minute TTL, so without this a later test reads an earlier test's
+    # vector for the same student name and the database it was given looks
+    # like it already had history.
+    ai_service._music_vector_cache.clear()
     async with session_factory() as session:
         from core.encryption import initialize_encryption
         await initialize_encryption(settings.master_secret, session)
         yield session
+    ai_service._music_vector_cache.clear()
     await engine.dispose()
 
 
@@ -324,3 +330,126 @@ def test_the_curation_gate_accepts_a_music_skill_id():
     ids = known_skill_ids()
     for domain in DOMAINS:
         assert domain in ids, domain
+
+
+# ── The adaptability loop: the profile must feed back, not just accumulate ──
+
+@pytest.mark.asyncio
+async def test_a_later_lesson_is_calibrated_from_what_the_child_already_showed(db_session):
+    """The CALIBRATE step. Without this read-back the engine would be
+    write-only — a picture for the parent that never changes Bede's own next
+    listening lesson — which for a subject that revisits the same small
+    repertoire on purpose defeats the point."""
+    for _ in range(CALIBRATION_THRESHOLD):
+        await process_evidence(db_session, "Sam", "musical_elements", "correct")
+
+    vector, count = await ai_service._load_music_vector_readonly(db_session, "Sam")
+    assert vector is not None and count == CALIBRATION_THRESHOLD
+
+    note = ai_service._music_calibration_note(Subject.art_music, vector, count)
+    assert "<music_so_far>" in note
+    assert DOMAIN_LABELS["musical_elements"] in note
+    assert "ever said to them" in note
+
+
+def test_the_calibration_note_says_nothing_before_it_honestly_can():
+    """Two observations is not a read. A confident note built on it would be
+    worse than no note."""
+    vector = {d: 0.9 for d in DOMAINS}
+    assert ai_service._music_calibration_note(Subject.art_music, vector, CALIBRATION_THRESHOLD - 1) == ""
+    assert ai_service._music_calibration_note(Subject.art_music, None, 99) == ""
+
+
+def test_the_calibration_note_names_what_to_build_on_not_what_the_child_lacks():
+    """A note reading "weak at X" invites the sentence _learning_support_note
+    forbids Bede from ever saying to a child. Same discipline as
+    lesson_planner's reason strings."""
+    vector = {d: 0.2 for d in DOMAINS}
+    vector["musical_elements"] = 0.9
+    note = ai_service._music_calibration_note(Subject.art_music, vector, 10).lower()
+    for judgment in ("weak", "poor", "struggl", "behind", "cannot", "fail", "bad at"):
+        assert judgment not in note, judgment
+    assert "worth reaching for" in note
+
+
+def test_the_calibration_note_is_scoped_to_art_music():
+    vector = {d: 0.9 for d in DOMAINS}
+    for subject in (Subject.mathematics, Subject.history, Subject.living_books):
+        assert ai_service._music_calibration_note(subject, vector, 10) == ""
+
+
+@pytest.mark.asyncio
+async def test_reading_the_vector_back_never_consumes_or_changes_it(db_session):
+    await process_evidence(db_session, "Sam", "form", "correct")
+    before = await ai_service._load_music_vector_readonly(db_session, "Sam")
+    ai_service._music_vector_cache.clear()
+    after = await ai_service._load_music_vector_readonly(db_session, "Sam")
+    assert before == after
+
+    from sqlalchemy import select
+    row = (await db_session.execute(
+        select(MasteryProfile).where(MasteryProfile.subject_area == SUBJECT_AREA)
+    )).scalar_one()
+    assert row.evidence_count == 1, "a read must not count as evidence"
+
+
+@pytest.mark.asyncio
+async def test_the_real_turn_actually_puts_the_calibration_into_the_prompt(db_session):
+    """Asserts the CALL SITE, not the loader.
+
+    Every test above calls `_load_music_vector_readonly` or
+    `_music_calibration_note` directly, so all of them keep passing if
+    `stream_tutor_response` stops loading the vector at all — which was
+    verified by deleting that load and watching them stay green. That is the
+    `bayesian_update`-unpassed-`params` defect shape exactly: a function
+    tested in isolation, unreachable from the only path that matters. So this
+    one drives the real turn and reads the system block the model was
+    actually handed.
+    """
+    import json as _json
+    from contextlib import asynccontextmanager
+    from unittest.mock import MagicMock, patch
+
+    for _ in range(CALIBRATION_THRESHOLD):
+        await process_evidence(db_session, "Sam", "musical_elements", "correct")
+    ai_service._music_vector_cache.clear()
+
+    captured = {}
+
+    @asynccontextmanager
+    async def _fake(**kwargs):
+        captured.update(kwargs)
+
+        class _S:
+            def __aiter__(self):
+                return self._it()
+
+            async def _it(self):
+                if False:
+                    yield None
+
+            async def get_final_message(self):
+                msg = MagicMock()
+                msg.stop_reason = "end_turn"
+                msg.content = []
+                msg.usage = MagicMock(
+                    input_tokens=1, output_tokens=1,
+                    cache_creation_input_tokens=0, cache_read_input_tokens=0,
+                )
+                return msg
+
+        yield _S()
+
+    with patch.object(ai_service._client.messages, "stream", side_effect=_fake):
+        async for _ in ai_service.stream_tutor_response(
+            config=_config(), subject=Subject.art_music, history=[],
+            child_message="ready", db=db_session,
+        ):
+            pass
+
+    system_text = _json.dumps(captured.get("system", []))
+    assert "<music_so_far>" in system_text, (
+        "the turn never loaded the child's music vector, so the engine is "
+        "write-only and a second listening lesson starts from the grade"
+    )
+    assert DOMAIN_LABELS["musical_elements"] in system_text

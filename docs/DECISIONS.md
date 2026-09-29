@@ -1535,3 +1535,82 @@ produces — the evidence tools' own arguments, plus the deterministic
 signals already in hand. That keeps one round-trip and still makes the
 observation a recorded thing rather than a hoped-for one. Whether that is
 enough is part of this question.
+
+---
+
+## 33. `[RESEARCH]` The music repertoire cannot be broadened until a page-level source check is possible
+
+**Status:** open · needs: a page-level source check for every composer date and catalogue number, from an environment that can actually open a reference page
+
+**The defect this blocks is live today.** `data/catalog/yearN.json`'s
+`subject_plans.art_music` names a different composer per year — **Mozart**
+for Year 1, **Bach** for Year 4, **Beethoven** for Year 8 — while
+`services/ai_service.py`'s `_TERM_COMPOSERS` holds only
+`["Antonio Vivaldi"]`. Both strings are interpolated into the *same* subject
+prompt (`catalog_note` and `composer_note`), so Bede is currently handed
+"this year's composer is Bach" and "this quarter's composer is Antonio
+Vivaldi" in one breath. Nothing reconciles them and no test catches it. The
+`_term_rotation_index` grade-and-term rotation added for picture study is
+also a no-op here, because a one-entry list makes every grade and term
+resolve to index 0: one composer, three movements, for nine years.
+
+**Why it is not simply fixed.** Closing it means catalogue entries for the
+composers the year plans already name, and `docs/CONTENT_CONTRIBUTING.md`
+§4's sourcing standard applies to every date, catalogue number,
+instrumentation list and biographical sentence in them.
+
+**What was attempted, and the honest result.** A research pass on
+2026-09-29 covered 11 composers spanning Medieval to Romantic and 33
+candidate works. **Every reference domain was blocked by this
+environment's egress proxy** — britannica.com, imslp.org, musopen.org,
+loc.gov, cpdl.org and the rest all returned `EGRESS_BLOCKED`, and direct
+`curl` failed identically for every host including en.wikipedia.org. Search
+was the only channel that worked, so the result is **search-verified, not
+page-verified**: no page was opened end to end. That is one step weaker
+than the fallback `docs/CONTENT_CONTRIBUTING.md` §3 records for
+egress-blocked Wikipedia, and it is weakest on exactly the fields a parent
+most reasonably trusts and a search summary most easily garbles — dates and
+catalogue numbers. Fifteen specific items could not be verified at all.
+Shipping it as sourced fact would breach the first non-negotiable rule
+against fabricated certainty, so it was not shipped.
+
+**The pass was still worth running**, and its findings should survive into
+whatever closes this entry, because several correct a belief the content
+would otherwise have repeated:
+
+* **Palestrina did not save church music from the Council of Trent.** Trent
+  never considered banning polyphony; the story first appears in print in
+  1607, thirteen years after his death.
+* **Grieg's "Morning Mood" is not a Norwegian sunrise.** Grieg's own title
+  places it *in the desert* — Ibsen's scene is Morocco.
+* **Dvořák's New World Largo: the funereal reading is the unreliable one.**
+  The earliest contemporaneous account ties it to Hiawatha's wooing, and
+  "Goin' Home" was made *from* Dvořák in 1922, not the reverse.
+* **"Moonlight" (1832) and "The Harmonious Blacksmith" (1836) are both
+  posthumous nicknames**, neither the composer's own.
+* **Hildegard's canonisation was never formally completed** — Benedict XVI
+  used equivalent canonisation in 2012. Both "canonised 2012" and
+  "venerated for centuries" are true, and stating only one misleads.
+
+**Two selection traps to carry forward.** "In the Hall of the Mountain
+King" and "Åse's Death" sit in the same Op. 46 suite as "Morning Mood", so
+the catalog must never offer that suite as a unit; and the Pastoral's
+movements 3-5 run without a pause, so starting at the third runs into the
+Thunderstorm with no gap.
+
+**What closing this looks like.** Catalogue entries for at least the
+composers the year plans already name, each date and catalogue number
+checked against a page that was actually opened; a per-composer works floor
+mirroring `MIN_WORKS_PER_ROTATION_ARTIST`; and a test asserting
+`_TERM_COMPOSERS` and the year plans cannot disagree again. Selection also
+needs a founder read regardless of sourcing —
+`CurationVerdict.accepted` means "nothing mechanical is wrong", never "this
+belongs in a child's year".
+
+**A separate decision hides inside this one.** A public-domain
+*composition* does not make a *recording* public domain, and no genuinely
+free recording could be confirmed for any of the 33 works. One candidate
+found on archive.org is a transfer of a 1981 commercial LP. So the
+repository needs a rights field distinguishing the work's status from the
+recording's, and Bede must keep pointing families at their own recording
+rather than naming one it cannot vouch for.

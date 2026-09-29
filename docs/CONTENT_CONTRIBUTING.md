@@ -184,6 +184,19 @@ as picture study's `_TERM_ARTISTS`); which of that composer's works comes
 up rotates weekly off the calendar (`_this_weeks_pick`, shared with picture
 study), same mechanism as poetry/prayer below.
 
+**A public-domain composition is not a public-domain recording, and this is
+the trap to check before naming any source.** Every composer in scope here
+died long enough ago that the *work* is unquestionably public domain, which
+makes it easy to assume a recording of it is too. It is not: a modern
+performance carries its own copyright in the recording, independent of the
+composition. A page proving the *score* is free (an IMSLP entry, say) proves
+nothing about audio, and at least one archive.org item surfaced while
+researching this catalog is a transfer of a 1981 commercial LP. So never name
+a specific recording unless its own licence has been read, and keep Bede
+pointing families at whatever recording they already have — which the prompt
+block already does, and which is the safe default rather than a limitation.
+See `docs/DECISIONS.md` entry 33.
+
 `listening_notes` is one general note shared by every grade; `stage_notes`
 is where grade-by-grade progression actually lives — three required keys,
 one per `GradeStage` **member name** (`foundations`/`core_mastery`/

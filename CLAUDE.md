@@ -679,6 +679,37 @@ the consent modal). A child's own `CHAT_THEMES`/`BUBBLE_COLORS` choices
 (`useChatTheme.ts`) deliberately range beyond the brand; only their defaults
 come from these ramps.
 
+**The curriculum grid is one fact in three files, and the binding is
+positional (`src/curriculumColors.test.ts`).** `site/assets/site.css`'s
+`.curriculum .card:nth-child(N)` rules give each subject its own accent —
+`SUBJECTS.length` hues evenly spaced around the wheel at one constant
+saturation and lightness (`S=38%`, `L=36%`) — and `types/index.ts`'s
+`SubjectInfo.color` mirrors them as hex so a family sees a subject in the same
+colour on the marketing site and in the app. That comment already named the CSS
+as "the source of truth" and **nothing checked it**, which is the promise this
+repository has twice watched go stale. What makes it worth a test rather than a
+convention is `nth-child`: the accents are bound by POSITION, so inserting a
+card shifts every later subject's hue and desyncs the app mirror with nothing
+erroring anywhere — Saints simply starts being painted Scripture's blue. The
+guard pins all three lists to the same length and order, each CSS hue to the
+app's hex for the subject at that position, the even spacing (so a fifteenth
+subject cannot borrow or duplicate a hue — it has to respace all of them, which
+is the change the mirror then has to follow), the card title and the CSS comment
+against the subject's own label, and **the lede's written-out subject count**,
+since "the site said 'Eleven subjects' for three shipped subjects" is a real
+defect here and it is one word of prose that nothing about looks wrong. Every
+one of the eight was verified by breaking it. `site/index.html` is named in
+`frontend-tests.yml`'s change filter (both `on.push.paths` and the `grep -qE`
+line, each asserted) for the reason `test_decision_register.py` documents:
+without it, adding a subject card computes `relevant=false`, skips the frontend
+suites, and never runs the guard written for exactly that change.
+
+**Adding a subject to the site therefore means adding a subject to the
+product.** The grid is a 1:1 subject list by construction, so a card with no
+`Subject` behind it is a marketing page offering something `ParentSetup.tsx`
+does not — the drift the guard exists to refuse, not a copy change to slip past
+it.
+
 ```
 App.tsx              React Router routes + RequireAuth guard + `GlobalAuthInterceptor` (401 → logout; its own file under components/ since it grew a rule worth testing) + ElevationPrompt (403 elevation_required → password/TOTP prompt, retries once — see below)
 guards/

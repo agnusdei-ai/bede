@@ -54,14 +54,18 @@ def test_terminal_tools():
     assert tool_registry.TERMINAL_TOOLS == {"suggest_next_subject"}
 
 
-def test_silent_tools_are_the_four_diagnostic_writes():
-    """These four have an explicit, separately-tested contract of emitting
-    nothing to the SSE stream and returning nothing to the model."""
+def test_silent_tools_are_the_diagnostic_writes():
+    """Each of these has an explicit, separately-tested contract of emitting
+    nothing to the SSE stream and returning nothing to the model. Set
+    equality rather than a membership check, so a new silent tool has to be
+    added here deliberately — that is the review moment where someone asks
+    whether it really should be invisible to the child."""
     assert tool_registry.SILENT_TOOLS == {
         "record_skill_evidence",
         "record_literacy_evidence",
         "record_phonics_evidence",
         "record_language_evidence",
+        "record_music_evidence",
     }
 
 

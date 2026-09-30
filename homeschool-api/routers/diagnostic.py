@@ -15,6 +15,7 @@ from services.diagnostic.composition import get_composition_summary
 from services.diagnostic.phonics import get_phonics_summary
 from services.diagnostic.language_exposure import get_language_summary
 from services.diagnostic.literacy import get_literacy_summary
+from services.diagnostic.music import get_music_summary
 from services.diagnostic_demo import get_mastery_summary_demo
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
@@ -150,6 +151,7 @@ _SUMMARY_BUILDERS = {
     "phonics": get_phonics_summary,
     "language_exposure": get_language_summary,
     "literacy": get_literacy_summary,
+    "music_knowledge": get_music_summary,
 }
 
 
@@ -366,19 +368,26 @@ async def get_student_mastery_summary(
     No quota: unlike the public demo, this is the family's own data behind
     a real login, not a free-tier abuse surface.
 
-    subject_area picks which engine's summary to build — "mathematics"
-    (services.diagnostic.get_mastery_summary, the CDM/IRT/KST engine),
-    "composition" (services.diagnostic.composition.get_composition_summary,
-    a rollup over assess_narration's own rubric), "phonics"
-    (services.diagnostic.phonics.get_phonics_summary, K-2 reading
-    foundations), or "language_exposure"
-    (services.diagnostic.language_exposure.get_language_summary, foreign-
-    language check-ins woven into History/Saints/Art & Music — see that
-    module's docstring). All four read the same mastery_profiles table
-    keyed by (student_name, subject_area), so this one endpoint covers all
-    of them without a per-subject route; an unrecognized subject_area 404s
-    the same as "no data yet" rather than a separate error shape, since
-    from the frontend's perspective both mean nothing to show.
+    subject_area picks which engine's summary to build, and the registry is
+    `_SUMMARY_BUILDERS` above rather than this list, so the two cannot drift:
+
+    * "mathematics" — services.diagnostic.get_mastery_summary, the full
+      CDM/IRT/KST engine.
+    * "composition" — a rollup over assess_narration's own rubric.
+    * "phonics" — K-2 reading foundations.
+    * "literacy" — reading and spelling for grades 3-8, the complement of
+      phonics rather than an overlap with it.
+    * "language_exposure" — foreign-language check-ins woven into
+      History/Saints/Art & Music.
+    * "music_knowledge" — what a child knows about the music they have
+      listened to, and deliberately never how they responded to it; see
+      services/diagnostic/music.py's docstring for that line.
+
+    Every one reads the same mastery_profiles table keyed by (student_name,
+    subject_area), so this one endpoint covers all of them without a
+    per-subject route; an unrecognized subject_area 404s the same as "no
+    data yet" rather than a separate error shape, since from the frontend's
+    perspective both mean nothing to show.
 
     404 until this student has produced some real evidence in that subject
     — same no-data contract as the demo endpoint above, so the frontend

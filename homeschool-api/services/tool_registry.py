@@ -152,6 +152,7 @@ _SPECS: Tuple[ToolSpec, ...] = (
     ToolSpec("record_literacy_evidence", silent=True),
     ToolSpec("record_phonics_evidence", silent=True),
     ToolSpec("record_language_evidence", silent=True),
+    ToolSpec("record_music_evidence", silent=True),
 )
 
 TUTOR_TOOL_SPECS: Dict[str, ToolSpec] = {spec.name: spec for spec in _SPECS}
@@ -174,6 +175,26 @@ def get_spec(name: str) -> ToolSpec | None:
     caller decides; this function only reports.
     """
     return TUTOR_TOOL_SPECS.get(name)
+
+
+def is_dispatchable_by_tutor(name: str) -> bool:
+    """Whether the tutor loop may execute this tool at all.
+
+    Two ways to fail: a name that is no tutor tool (a hallucination), and a
+    real spec whose `trust` is anything but `internal`. The second can only
+    fire if an external-trust spec is ever added to `_SPECS`, which
+    `test_every_tutor_tool_is_internal` forbids — so today this is a
+    structural guarantee restated as a runtime check rather than a live
+    branch. That is the point: CLAUDE.md's claim that the tutor loop
+    "cannot dispatch an external tool even if one is registered" was true
+    only because the set happened to hold none, and now it is enforced at
+    the moment of dispatch as well as asserted about the set.
+
+    `services/action_governance.py` is the caller — the Action Validator
+    stage of the turn controller.
+    """
+    spec = TUTOR_TOOL_SPECS.get(name)
+    return bool(spec and spec.trust == "internal")
 
 
 def is_reactable(name: str) -> bool:

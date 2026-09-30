@@ -453,16 +453,19 @@ def test_speed_is_defined_as_ease_rather_than_the_clock():
         assert "ease, not the clock" in described, tool["name"]
 
 
-def test_the_score_criteria_are_declared_once_for_all_four_tools():
+def test_the_score_criteria_are_declared_once_for_every_recording_tool():
     """
-    These three fields were written out four times before, which is four
-    chances for the criteria — the part most likely to be revised — to
-    drift apart between tools.
+    These three fields were written out once per tool before, which was one
+    chance per tool for the criteria — the part most likely to be revised —
+    to drift apart between them. Asserted by identity against the single
+    declaration rather than by comparing copies, and over however many
+    recorders exist rather than a hardcoded count, so adding one cannot
+    quietly opt out of the shared spec.
     """
     from services.ai_service import TUTOR_TOOLS, _WORK_SCORE_TOOL_FIELDS
 
     recorders = [t for t in TUTOR_TOOLS if t["name"].startswith("record_")]
-    assert len(recorders) == 4
+    assert len(recorders) >= 4, "the recording tools have gone missing, not been added to"
     for tool in recorders:
         for field, spec in _WORK_SCORE_TOOL_FIELDS.items():
             assert tool["input_schema"]["properties"][field] is spec, f"{tool['name']}.{field}"

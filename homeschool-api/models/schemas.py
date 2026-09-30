@@ -751,6 +751,26 @@ class TutorRequest(BaseModel):
     # rather than the student. Absent from older clients and the sandbox,
     # in which case there is simply nothing to accumulate into.
     session_id: Optional[str] = Field(default=None, max_length=64)
+    # Seconds left in THIS subject's study block, from the child's own
+    # running timer (gradeTimer.ts's getPhase().remainingSecs, which
+    # TutorSession.tsx already computes every second to paint the
+    # countdown). The server has no clock of its own for this: it never
+    # learns when the session started, and SUBJECT_DURATIONS is a planned
+    # length rather than a live one.
+    #
+    # Two consumers, one graceful and one enforcing — services/
+    # ai_service.py's _time_remaining_note asks Bede not to start a task
+    # the block cannot hold, and services/action_governance.py refuses one
+    # if it proposes it anyway. Both treat None as "no budget known" and do
+    # nothing, so an older client or the sandbox behaves exactly as before.
+    #
+    # Advisory, never authoritative: it is a number the client supplies, so
+    # it can only ever make Bede MORE conservative about starting long
+    # tasks. Nothing security-relevant reads it, and a child sending a
+    # dishonest value can at most decline themselves a narration
+    # invitation. Clamped non-negative; an absurd value is harmless because
+    # every rule keyed on it is a floor rather than a ceiling.
+    time_remaining_seconds: Optional[int] = Field(default=None, ge=0, le=86_400)
 
 
 class NarrationUploadRequest(BaseModel):
@@ -1255,6 +1275,19 @@ class RecordPhonicsEvidenceInput(WorkScoreFields):
     so a hallucinated value is harmless, just unpersisted."""
     domain:  str = Field(..., max_length=40)
     outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
+class RecordMusicEvidenceInput(WorkScoreFields):
+    """Server-side validation of the silent record_music_evidence tool's
+    input — see services/diagnostic/music.py, and read that module's
+    docstring before touching this: it records what a child KNOWS about the
+    music, never how they responded to it. `domain` isn't validated against
+    music.DOMAINS here for the same reason the three siblings below don't —
+    a Literal would require importing the diagnostic package into the schema
+    module, and music.apply_evidence already degrades an unrecognized domain
+    to a true no-op."""
+    domain:  str = Field(..., max_length=40)
+    outcome: Literal["correct", "partial", "incorrect", "hint_dependent"]
+
 
 class RecordLanguageEvidenceInput(WorkScoreFields):
     """Server-side validation of the silent record_language_evidence tool's

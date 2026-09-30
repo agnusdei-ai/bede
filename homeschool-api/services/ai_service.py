@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-from services import tool_registry
+from services import action_governance, tool_registry
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
 from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_note
@@ -30,6 +30,11 @@ from services.diagnostic.language_exposure import (
     LANGUAGES as _EXPOSURE_LANGUAGES,
     LANGUAGE_CHECKIN_HINTS as _EXPOSURE_LANGUAGE_HINTS,
     LANGUAGE_LABELS as _EXPOSURE_LANGUAGE_LABELS,
+)
+from services.diagnostic.music import (
+    DOMAINS as _MUSIC_DOMAINS,
+    DOMAIN_CHECKIN_HINTS as _MUSIC_DOMAIN_HINTS,
+    DOMAIN_LABELS as _MUSIC_DOMAIN_LABELS,
 )
 from models.schemas import (
     SessionConfig,
@@ -764,6 +769,40 @@ TUTOR_TOOLS = [
                 **_WORK_SCORE_TOOL_FIELDS,
             },
             "required": ["language", "outcome"],
+        },
+    },
+    {
+        "name": "record_music_evidence",
+        "description": (
+            "SILENTLY record what an Art & Music listening lesson showed about what this child "
+            "KNOWS about the music — which instruments they heard, whether they could place the "
+            "piece in its period, whether they recalled the composer. Call this at most once per "
+            "session, only when the child's own listening and narration genuinely showed you "
+            "something, and never after inventing a quiz to produce it. "
+            "Record only knowledge. NEVER record, score, or infer whether the child enjoyed the "
+            "music, found it beautiful, preferred one piece to another, or felt anything about it "
+            "— a child's response to beauty is theirs, it is not something to measure, and there "
+            "is deliberately no field here to put it in. The child never sees this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "enum": list(_MUSIC_DOMAINS),
+                    "description": "Which kind of musical knowledge this observation is evidence about",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["correct", "partial", "incorrect", "hint_dependent"],
+                    "description": (
+                        "How it went: correct=knew it unaided, partial=some grasp, "
+                        "incorrect=didn't have it, hint_dependent=only after you helped"
+                    ),
+                },
+                **_WORK_SCORE_TOOL_FIELDS,
+            },
+            "required": ["domain", "outcome"],
         },
     },
 ]
@@ -2664,6 +2703,14 @@ move on warmly; do not correct or drill. Never mention this tracking to the chil
 
 _LANGUAGE_CHECKIN_SUBJECTS = (Subject.history, Subject.saints, Subject.art_music)
 
+# Music knowledge is evidence from a listening lesson, so unlike the
+# opportunistic language check-in (which rides three subjects) this is
+# gated to the one subject where listening actually happens. Ungated by
+# GradeStage, deliberately: every stage listens, and what differs is the
+# DEPTH of the question, which each catalogue entry's own stage_notes
+# already carries.
+_MUSIC_CHECKIN_SUBJECTS = (Subject.art_music,)
+
 # Subjects that carry their own weekly, stage-filtered catalog block, each
 # mapped to the function that renders it. All three share the signature
 # (grade, grade_stage, week_salt, today) -> str and the same VERBATIM
@@ -2956,6 +3003,139 @@ child.
 </term_outcomes>"""
 
 
+# The emoji a rendered tool card opens with. Locale-INDEPENDENT, unlike the
+# wording after it (see _CARD_PHRASES), which is why the history scan below
+# keys on these rather than on translated text the way
+# handwriting_card_titles() has to.
+_HINT_CARD_PREFIX = "\U0001F50D "
+_CELEBRATION_CARD_PREFIX = "✨ "
+
+# Past this many consecutive question-only turns on one thread, the pacing
+# note below stops being a reminder and starts naming a number. Matches
+# _build_static_prompt's own persona rule ("two rounds is the general outer
+# limit") rather than setting a second, competing figure - and
+# _STAGE_GUIDANCE[GradeStage.foundations] tightens it to one round for K-2,
+# which is why the note reads the stage rather than applying one cap to
+# every child.
+_FOLLOW_UP_SOFT_LIMIT = 2
+_FOLLOW_UP_SOFT_LIMIT_FOUNDATIONS = 1
+
+
+def _consecutive_question_turns(history: Optional[List[ChatMessage]]) -> int:
+    """How many of Bede's own most recent turns asked a question and did
+    nothing else - the follow-up depth of the thread now in progress.
+
+    Deliberately named for what it counts rather than for what it is used
+    for. It is NOT an "attempt count": it says nothing about whether the
+    child was right, and nothing about whether Bede's questions were all on
+    the same idea, which is a semantic judgment this function cannot make
+    and must not appear to. What it does measure is honest and is the thing
+    the pacing rule actually turns on - how many times in a row Bede has
+    answered a child with another question.
+
+    The walk stops at a hint or a celebration, because both end a thread: a
+    hint is Bede giving ground, a celebration is the child having got
+    there. So a turn following either starts again at zero, which is why a
+    lesson that is going well never accumulates a depth at all.
+
+    `history` reaching the server is already sliced to the current subject
+    (see sessionStore.ts's getApiMessages(displayMessages, subjectStart)),
+    so this is scoped to today's block in that subject without needing to
+    know where the subject began.
+    """
+    if not history:
+        return 0
+    depth = 0
+    for msg in reversed(history):
+        if msg.role != "assistant":
+            continue
+        content = (msg.content or "").strip()
+        if content.startswith(_HINT_CARD_PREFIX) or content.startswith(_CELEBRATION_CARD_PREFIX):
+            break
+        if "?" not in content:
+            break
+        depth += 1
+    return depth
+
+
+def _pacing_note(history: Optional[List[ChatMessage]], stage: GradeStage) -> str:
+    """Tell Bede the follow-up depth it has actually reached on this thread.
+
+    `_build_static_prompt`'s persona paragraph already caps consecutive
+    follow-ups, and `_STAGE_GUIDANCE[GradeStage.foundations]` tightens it
+    for K-2 - but both ask the model to count its own prior turns out of a
+    conversation history, which is exactly the kind of bookkeeping a model
+    does unreliably and silently. The rule was therefore real in the prompt
+    and unenforced in practice. This does the counting in code and hands
+    over the number, so the existing rule finally has the one fact it needs
+    to be followed.
+
+    Returns "" below the limit - under the cap there is nothing to say, and
+    a note on every turn reading "you have asked 1 question" would spend
+    prompt budget teaching Bede to worry about a thread that is going fine.
+    """
+    depth = _consecutive_question_turns(history)
+    limit = (
+        _FOLLOW_UP_SOFT_LIMIT_FOUNDATIONS
+        if stage is GradeStage.foundations
+        else _FOLLOW_UP_SOFT_LIMIT
+    )
+    if depth < limit:
+        return ""
+    return (
+        "\n\n<pacing>\n"
+        f"You have now answered this child with a question {depth} turn(s) in a "
+        "row without offering a hint or acknowledging that they got somewhere. "
+        "That is at or past the follow-up limit in your persona rules for this "
+        "child's stage. On this turn, do one of: offer a real hint "
+        "(`offer_socratic_hint`), simplify the question to something much more "
+        "concrete, tell them the piece they are missing and build from there, or "
+        "move the lesson on. Do NOT ask another question of the same difficulty. "
+        "A child who has been asked the same thing three ways has not been "
+        "taught, and asking a fourth time is the point at which Socratic "
+        "questioning stops being teaching and starts being an obstacle."
+        "\n</pacing>"
+    )
+
+
+def _time_remaining_note(time_remaining_seconds: Optional[int]) -> str:
+    """Tell Bede how much of this subject's block is actually left.
+
+    The server never knew. `SUBJECT_DURATIONS` sets a block and
+    `gradeTimer.ts` hard stops the session, with nothing in between, so Bede
+    could open a narration - the longest task in this pedagogy - with ninety
+    seconds on the clock and the child would be cut off mid-sentence by a
+    timer neither of them could see coming. This is the graceful half of the
+    fix; services/action_governance.py is the backstop that holds when a turn
+    proposes one anyway.
+
+    Deliberately silent when there is plenty of time, and silent when the
+    caller did not supply a budget (older clients, the sandbox, tests) - an
+    absent number disables the guidance rather than inventing urgency. Never
+    phrased as something to tell the CHILD: hurrying a child is what
+    `_WORK_SCORING_NOTE` forbids outright, and a clock is Bede's constraint to
+    work within quietly, not a fact to put in front of them.
+    """
+    if time_remaining_seconds is None:
+        return ""
+    if time_remaining_seconds >= action_governance.MIN_SECONDS_FOR_LONG_FORM_TASK:
+        return ""
+    minutes_left = max(0, time_remaining_seconds) // 60
+    left = f"about {minutes_left} minute(s)" if minutes_left else "less than a minute"
+    return (
+        "\n\n<time_remaining>\n"
+        f"There is {left} left in this subject's block. "
+        "Do not start anything the child cannot finish in that time - no "
+        "narration request, no writing or drawing invitation, no new line of "
+        "inquiry. Bring the thread you are already on to a natural close: a last "
+        "short question, or a plain summary of what they worked out today. Never "
+        "mention the clock, never tell the child to hurry, and never imply they "
+        "are running out of time - the pacing is yours to manage and theirs not "
+        "to feel."
+        "\n</time_remaining>"
+    )
+
+
 async def _build_subject_prompt(
     config: SessionConfig,
     subject: Subject,
@@ -2968,6 +3148,9 @@ async def _build_subject_prompt(
     processing_style: Optional[str] = None,
     locale: str = "en",
     bookmark: Optional[dict] = None,
+    time_remaining_seconds: Optional[int] = None,
+    music_vector: Optional[dict] = None,
+    music_evidence_count: int = 0,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -3057,13 +3240,20 @@ async def _build_subject_prompt(
     work_scoring_note = _WORK_SCORING_NOTE
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
+    music_note = _music_checkin_note(config, subject)
+    music_so_far_note = _music_calibration_note(subject, music_vector, music_evidence_count)
     guadalupe_note = _guadalupe_note(subject, locale)
     faith_tradition_note = _faith_tradition_note(config, subject)
     bible_translation_note = _bible_translation_note(config, subject)
     companion_note = _classical_language_companion_note(config, subject)
+    # The two turn-budget notes. Both are computed here rather than in the
+    # cached static block: follow-up depth changes every single turn, and
+    # the clock changes continuously, so neither could survive caching.
+    pacing_note = _pacing_note(history, config.grade_stage)
+    time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3391,6 +3581,136 @@ async def _save_assessment(
 # quietly causing. 5 minutes is short enough that a freshly (re)synthesized
 # profile takes effect within the same session, not just next login.
 _READONLY_PROMPT_CACHE_TTL_SECONDS = 300
+
+# Same per-student, TTL-bounded cache as the three sibling read-only
+# loaders. Keyed by student alone rather than (student, subject) because
+# there is exactly one music profile per child.
+_music_vector_cache: dict = {}
+
+
+async def _load_music_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
+    """
+    Read-only load of a child's music-knowledge vector for prompt injection
+    — the CALIBRATE step of the listening loop, and the piece without which
+    this engine would be write-only.
+
+    That matters more here than for any sibling engine. phonics, literacy and
+    language_exposure are all write-only today: they accumulate a picture for
+    the PARENT to read and none of them feeds back into Bede's own next
+    lesson. For music that would defeat the point. Composer study revisits
+    the same small repertoire deliberately — one composer a term, one work a
+    week — so "what did this child already show me about this" is the
+    difference between a second encounter that deepens and a second encounter
+    that restarts from the child's grade as though the first had not
+    happened.
+
+    Never writes, unlike music.process_evidence. Returns (None, 0) on a cold
+    start rather than a synthesized vector, and degrades to (None, 0) on any
+    DB or decrypt failure rather than raising into stream_tutor_response —
+    the same defensive convention as _load_mastery_vector_readonly, which
+    this mirrors.
+    """
+    now = time.monotonic()
+    cached = _music_vector_cache.get(student_name)
+    if cached is not None and cached[1] > now:
+        return cached[0]
+
+    try:
+        from sqlalchemy import select
+
+        from core.database import MasteryProfile
+        from core.encryption import decrypt_json, student_aad
+        from services.diagnostic.music import SUBJECT_AREA as _MUSIC_AREA
+
+        result = await db.execute(
+            select(MasteryProfile).where(
+                MasteryProfile.student_name == student_name,
+                MasteryProfile.subject_area == _MUSIC_AREA,
+            )
+        )
+        row = result.scalar_one_or_none()
+        value = (None, 0) if row is None else (
+            decrypt_json(
+                row.profile_enc,
+                student_aad("mastery_profiles", "profile_enc", student_name, _MUSIC_AREA),
+                await _student_keys_mod().get_existing(db, student_name),
+            ),
+            row.evidence_count,
+        )
+    except Exception as exc:
+        log.warning("Music vector prompt-load failed for %s: %s", student_name, exc)
+        value = (None, 0)
+
+    _music_vector_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    return value
+
+
+def _music_calibration_note(
+    subject: Subject,
+    vector: Optional[dict],
+    evidence_count: int,
+) -> str:
+    """
+    Tell Bede where this child already stands, so a listening lesson starts
+    from what they last demonstrated instead of from their grade.
+
+    Three deliberate properties:
+
+    **Silent below the calibration threshold.** Under three observations
+    there is no honest read to give, and a confident-sounding note built on
+    two would be worse than none — the same reason the Progress row says
+    "still getting to know your learner" rather than drawing a bar. Bede
+    simply teaches the lesson.
+
+    **Phrased as what to build on, never as what the child lacks.** The
+    wording names the next thing worth reaching for and the ground already
+    secure, because a note reading "this child is weak at hearing
+    instruments" invites exactly the sentence `_learning_support_note`
+    forbids Bede from ever saying out loud. Same discipline as
+    `lesson_planner`'s reason strings and the mastery cycle's `no_evidence`:
+    a finding about what to teach, not a verdict on the person.
+
+    **Bede-facing only.** Nothing here is ever said to the child, which the
+    note states outright rather than leaving to inference.
+    """
+    if subject not in _MUSIC_CHECKIN_SUBJECTS or not vector:
+        return ""
+    from services.diagnostic.music import (
+        CALIBRATION_THRESHOLD as _MUSIC_CALIBRATION,
+        DOMAINS as _DOMAINS,
+        DOMAIN_LABELS as _LABELS,
+    )
+    if evidence_count < _MUSIC_CALIBRATION:
+        return ""
+
+    secure = [_LABELS[d] for d in _DOMAINS if vector.get(d, 0.5) >= 0.75]
+    reaching = next(
+        (_LABELS[d] for d in _DOMAINS if vector.get(d, 0.5) < 0.75),
+        None,
+    )
+    if not reaching and not secure:
+        return ""
+
+    lines = []
+    if secure:
+        lines.append(
+            "Already steady ground for this child, so you can lean on it rather than re-explain it: "
+            + "; ".join(secure) + "."
+        )
+    if reaching:
+        lines.append(
+            f"The next thing worth reaching for, when the music itself gives you a natural opening: {reaching}."
+        )
+    return (
+        "\n\n<music_so_far>\n"
+        + " ".join(lines)
+        + " This comes from what this child has actually shown you in earlier listening lessons, so "
+        "open where they got to rather than starting over from their grade. It is a note about what "
+        "to teach next and not a judgement of the child, and none of it is ever said to them.\n"
+        "</music_so_far>"
+    )
+
+
 def _student_keys_mod():
     """Local import indirection — core.student_keys imports core.encryption,
     and these loaders are themselves imported early; keeping it lazy avoids
@@ -3605,6 +3925,8 @@ def _work_label(subject_area: str, skill_id: str) -> str:
         return _PHONICS_DOMAIN_LABELS.get(skill_id, skill_id)
     if subject_area == "language_exposure":
         return _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
+    if subject_area == "music_knowledge":
+        return _MUSIC_DOMAIN_LABELS.get(skill_id, skill_id)
     return skill_id
 
 
@@ -3821,6 +4143,50 @@ Rules, and they matter more than the three fields:
 </what_you_noticed_about_the_work>"""
 
 
+def _music_checkin_note(config: SessionConfig, subject: Subject) -> str:
+    """
+    Art & Music: a nudge to record what the listening lesson revealed about
+    what the child KNOWS, and a hard refusal to record anything about how
+    they responded to it.
+
+    The refusal is the load-bearing half. Mater Amabilis composer study is
+    the contemplation of something beautiful, and a model asked to "assess a
+    music lesson" will reach for the child's reaction, because that is the
+    most salient thing in the room. Whether a child found a piece lovely is
+    not Bede's to score — it is the same refusal CLAUDE.md already makes for
+    a child's spiritual engagement and for character virtues, applied to
+    aesthetic response. So the wording here names what to record, and then
+    names what must never be recorded, rather than leaving the second to be
+    inferred from the absence of a field.
+
+    Observational, never probing, and at most once per session — the same
+    prompt-only limit the phonics and language check-ins carry, since
+    `record_music_evidence` is fully silent and leaves nothing in the
+    transcript to scan for.
+    """
+    if subject not in _MUSIC_CHECKIN_SUBJECTS:
+        return ""
+    domain_lines = "\n".join(
+        f"  - {domain} ({_MUSIC_DOMAIN_LABELS[domain]}): {_MUSIC_DOMAIN_HINTS[domain]}"
+        for domain in _MUSIC_DOMAINS
+    )
+    return f"""
+
+<music_checkin>
+If this listening lesson genuinely showed you something about what this child KNOWS about the
+music, call `record_music_evidence` once with that domain id and an honest outcome:
+{domain_lines}
+Record only what the child actually demonstrated, in the ordinary course of listening and telling
+back. Do NOT invent a quiz, do not announce that you are noting anything, and never record more
+than one domain in a session.
+
+Never record anything about how the child RESPONDED to the music — whether they liked it, found it
+beautiful, preferred it to last week's, or were moved by it. There is deliberately no field for
+that, because a child's response to something beautiful is theirs and is not a thing to be scored.
+You may and should still delight in it with them; you simply never write it down.
+</music_checkin>"""
+
+
 def _literacy_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
     Grades 3-8, Language Arts and Living Books: a nudge to notice what the
@@ -3900,6 +4266,48 @@ async def _record_literacy_evidence(
             await _record_work_done_demo(demo_code, "literacy", ev.domain, ev.outcome, ev)
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
+
+
+async def _record_music_evidence(
+    db: Optional["AsyncSession"],
+    demo_code: Optional[str],
+    config: SessionConfig,
+    subject: Subject,
+    tool_input: dict,
+) -> None:
+    """
+    Silently record music-knowledge evidence — see
+    services/diagnostic/music.py for the domain sequence and for the line
+    between knowledge (recorded) and response (never recorded).
+
+    Gated at the code level to Art & Music, a second defensive backstop
+    matching where the prompt guidance is gated — the same belt-and-braces
+    the phonics and literacy recorders use for their own gates.
+
+    **Demo and production both work here, and differently on purpose.** The
+    mastery estimate needs history a fifteen-minute demo cannot produce, so
+    it stays real-sessions-only, exactly as phonics/literacy/language do.
+    The work LEDGER needs no history at all — it records an event, not an
+    estimate, and its first entry is as true as its two-hundredth — so a
+    demo visitor's listening lesson lands in the real ledger and shows on
+    the real card.
+    """
+    if db is None and demo_code is None:
+        return
+    if subject not in _MUSIC_CHECKIN_SUBJECTS:
+        return
+    try:
+        from models.schemas import RecordMusicEvidenceInput
+        from services.diagnostic.music import process_evidence as _process_music
+
+        ev = RecordMusicEvidenceInput(**tool_input)  # validate/clamp
+        if db is not None:
+            await _process_music(db, config.student_name, ev.domain, ev.outcome)
+            await _record_work_done(db, config.student_name, "music_knowledge", ev.domain, ev.outcome, ev)
+        else:
+            await _record_work_done_demo(demo_code, "music_knowledge", ev.domain, ev.outcome, ev)
+    except Exception as exc:
+        log.warning("Music-evidence record failed for %s: %s", config.student_name, exc)
 
 
 async def _record_phonics_evidence(
@@ -4015,6 +4423,7 @@ async def stream_tutor_response(
     locale: str = "en",
     role: Optional[str] = None,
     session_id: Optional[str] = None,
+    time_remaining_seconds: Optional[int] = None,
     ip: str = "unknown",
     user_agent: str = "",
 ) -> AsyncIterator[str]:
@@ -4117,12 +4526,24 @@ async def stream_tutor_response(
     if db is not None:
         bookmark = await _load_lesson_bookmark_readonly(db, config.student_name, subject)
 
+    # Real sessions only, and only where listening actually happens. This is
+    # the CALIBRATE step of the listening loop — see
+    # _load_music_vector_readonly's docstring for why music, unlike the other
+    # light engines, would be pointless as a write-only signal. A demo
+    # session has no history to read back, so it gets the lesson without the
+    # calibration, exactly as it gets no bookmark.
+    music_vector, music_evidence_count = None, 0
+    if db is not None and subject in _MUSIC_CHECKIN_SUBJECTS:
+        music_vector, music_evidence_count = await _load_music_vector_readonly(db, config.student_name)
+
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
         history=history, time_of_day=time_of_day, local_date=local_date, processing_style=processing_style,
         locale=locale, bookmark=bookmark,
+        time_remaining_seconds=time_remaining_seconds,
+        music_vector=music_vector, music_evidence_count=music_evidence_count,
     )
     system = [
         {
@@ -4196,7 +4617,13 @@ async def stream_tutor_response(
     for round_num in range(_MAX_TOOL_LOOP_ROUNDS):
         round_tool_results: dict[str, dict] = {}
         round_has_reactable_result = False
-        hit_call_cap = False
+        # Set when the Action Validator refuses a proposed call for ANY
+        # reason (see services/action_governance.py) — the cap, an unknown
+        # tool, or too little time left for a long-form task. Named for the
+        # consequence rather than one cause: whichever rule fired, the
+        # refused tool_use block has no tool_result, so this turn cannot ask
+        # for another round.
+        suppressed_a_call = False
         # A terminal UI transition fired this round (ToolSpec.terminal — see
         # the check after this round's `async with` block below for why it
         # force-ends the loop outright).
@@ -4267,27 +4694,34 @@ async def stream_tutor_response(
                                 # auditability layer this app didn't have before for
                                 # real (non-demo) sessions, whose tool calls left no
                                 # trace beyond the ephemeral SSE stream itself.
-                                if tool_calls_this_turn >= _MAX_TOOL_CALLS_PER_TURN:
+                                decision = action_governance.validate(
+                                    tc["name"],
+                                    calls_this_turn=tool_calls_this_turn,
+                                    max_calls_per_turn=_MAX_TOOL_CALLS_PER_TURN,
+                                    time_remaining_seconds=time_remaining_seconds,
+                                )
+                                if not decision.allowed:
                                     log.warning(
-                                        "Suppressing tool call past the per-turn cap (%d): %s for %s",
-                                        _MAX_TOOL_CALLS_PER_TURN, tc["name"], config.student_name,
+                                        "Action Validator refused a tool call for %s: %s",
+                                        config.student_name, decision.reason,
                                     )
                                     log_event_nowait(
                                         AuditEvent.TOOL_CALL_SUPPRESSED,
                                         ip=ip, user_agent=user_agent, role=role,
                                         student_name=config.student_name,
-                                        detail=f"tool={tc['name']} subject={subject.value} cap={_MAX_TOOL_CALLS_PER_TURN}",
+                                        detail=f"{decision.reason} subject={subject.value}",
                                     )
                                     tool_calls_buffer.pop(block_id, None)
                                     # Hitting the cap ends the whole loop, not just
-                                    # this call — see hit_call_cap below. A suppressed
+                                    # this call — see suppressed_a_call below. A suppressed
                                     # tool_use block never gets a tool_result, so the
                                     # loop must not try to continue past it (the
                                     # Anthropic API requires every tool_use in a turn
                                     # to be answered before the next request, and once
                                     # the cap is hit that's a promise this code can no
                                     # longer keep).
-                                    hit_call_cap = True
+                                    if decision.end_loop:
+                                        suppressed_a_call = True
                                     continue
                                 tool_calls_this_turn += 1
                                 log_event_nowait(
@@ -4405,6 +4839,12 @@ async def stream_tutor_response(
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.
                                     await _record_language_evidence(db, demo_code, config, subject, tool_input)
+                                elif tc["name"] == "record_music_evidence":
+                                    # Fully silent, same as record_skill_evidence above —
+                                    # see _record_music_evidence's own docstring, and
+                                    # services/diagnostic/music.py for why this records
+                                    # what the child knows and never how they responded.
+                                    await _record_music_evidence(db, demo_code, config, subject, tool_input)
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,
@@ -4477,10 +4917,10 @@ async def stream_tutor_response(
         # never give the model a further round to keep reasoning about a
         # subject it's already leaving, no matter what else fired alongside it
         # this round.
-        if terminal_tool_fired or hit_call_cap or stop_reason != "tool_use" or not round_has_reactable_result:
-            if hit_call_cap:
+        if terminal_tool_fired or suppressed_a_call or stop_reason != "tool_use" or not round_has_reactable_result:
+            if suppressed_a_call:
                 log.info(
-                    "Tool loop ending early for %s: per-turn call cap hit",
+                    "Tool loop ending early for %s: a proposed tool call was refused",
                     config.student_name,
                 )
             break

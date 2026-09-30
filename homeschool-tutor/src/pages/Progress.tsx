@@ -634,6 +634,7 @@ export default function Progress() {
   const [phonicsSummary, setPhonicsSummary] = useState<MasteryProfileSummary | null>(null)
   const [languageSummary, setLanguageSummary] = useState<MasteryProfileSummary | null>(null)
   const [literacySummary, setLiteracySummary] = useState<MasteryProfileSummary | null>(null)
+  const [musicSummary, setMusicSummary] = useState<MasteryProfileSummary | null>(null)
   const [workLedger, setWorkLedger] = useState<WorkLedgerData | null>(null)
   const [coverage, setCoverage] = useState<SubjectCoverageData | null>(null)
   const [podRoster, setPodRoster] = useState<PodWorkRosterData | null>(null)
@@ -697,6 +698,21 @@ export default function Progress() {
       noDataText: t('progress.noLanguageMasteryData', { name: activeStudent }),
       calibrationText: t('progress.languageMasteryCalibration', { name: activeStudent, count: languageSummary?.evidence_count ?? 0 }),
     },
+    // Ungated by stage, unlike phonics/literacy: every grade listens, and
+    // what changes with age is the depth of the question rather than whether
+    // the subject applies. Last in the order because it is the newest and
+    // the sparsest — one listening lesson a week — so it will sit
+    // uncalibrated longest, and a row that says so belongs below the ones
+    // that have something to show. It reports what the child KNOWS about
+    // the music and never how they responded to it; see the backend's
+    // services/diagnostic/music.py for why that line is drawn in code.
+    {
+      key: 'music_knowledge',
+      label: t('mastery.areaMusic'),
+      summary: musicSummary,
+      noDataText: t('progress.noMusicMasteryData', { name: activeStudent }),
+      calibrationText: t('progress.musicMasteryCalibration', { name: activeStudent, count: musicSummary?.evidence_count ?? 0 }),
+    },
   ]
 
   useEffect(() => {
@@ -711,6 +727,7 @@ export default function Progress() {
     setPhonicsSummary(null)
     setLanguageSummary(null)
     setLiteracySummary(null)
+    setMusicSummary(null)
     setWorkLedger(null)
     setCoverage(null)
     setPodRoster(null)
@@ -729,6 +746,7 @@ export default function Progress() {
       activeStudentIsBeyondFoundations
         ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
         : Promise.resolve(null),
+      fetchMasteryProfileSummary(token, activeStudent, 'music_knowledge'),
       fetchStudentActivity(token, activeStudent),
       fetchSubjectCoverage(token, activeStudent),
       // The pod roster is about the whole pod, not the active student —
@@ -739,7 +757,7 @@ export default function Progress() {
         : Promise.resolve(null),
       fetchStudentUsage(token, activeStudent),
     ])
-      .then(([a, p, bc, m, c, ph, lang, lit, act, cov, pod, u]) => {
+      .then(([a, p, bc, m, c, ph, lang, lit, mus, act, cov, pod, u]) => {
         setAssessments(a)
         setProfile(p)
         setBehaviorCheck(bc)
@@ -748,6 +766,7 @@ export default function Progress() {
         setPhonicsSummary(ph)
         setLanguageSummary(lang)
         setLiteracySummary(lit)
+        setMusicSummary(mus)
         setWorkLedger(act)
         setCoverage(cov)
         setPodRoster(pod)

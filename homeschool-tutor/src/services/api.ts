@@ -436,7 +436,8 @@ export async function* streamTutorChat(
   drawingImageDataUrl?: string | null,
   timeOfDay?: TimeOfDay | null,
   localDate?: string | null,
-  sessionId?: string | null
+  sessionId?: string | null,
+  timeRemainingSeconds?: number | null
 ): AsyncGenerator<StreamChunk> {
   // The debug panel is the only way a report like "greeting doesn't match
   // the time of day" or "wrong week's poem" can actually be diagnosed
@@ -469,6 +470,14 @@ export async function* streamTutorChat(
           // keep no profile between sessions (see the backend's
           // retain_mastery_profiles). Ignored entirely otherwise.
           session_id: sessionId ?? null,
+          // Seconds left on whichever of the child's clocks runs out first
+          // (TutorSession.tsx's taskBudgetSecs). Lets Bede decline to START a
+          // narration or a drawing the block cannot hold, rather than the
+          // timer cutting the child off mid-task — see the backend's
+          // _time_remaining_note and services/action_governance.py. Null
+          // during a break, and null here disables both rules rather than
+          // assuming the worst.
+          time_remaining_seconds: timeRemainingSeconds ?? null,
         }),
         signal,
       })
@@ -847,7 +856,7 @@ export async function fetchLearnerBehaviorCheck(
 export async function fetchMasteryProfileSummary(
   token: string,
   studentName: string,
-  subjectArea: 'mathematics' | 'composition' | 'phonics' | 'language_exposure' | 'literacy' = 'mathematics'
+  subjectArea: 'mathematics' | 'composition' | 'phonics' | 'language_exposure' | 'literacy' | 'music_knowledge' = 'mathematics'
 ): Promise<MasteryProfileSummary | null> {
   const res = await fetch(
     `${BASE}/diagnostic/${encodeURIComponent(studentName)}/summary?subject_area=${subjectArea}`,

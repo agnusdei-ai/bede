@@ -710,6 +710,44 @@ product.** The grid is a 1:1 subject list by construction, so a card with no
 does not — the drift the guard exists to refuse, not a copy change to slip past
 it.
 
+**The home page's "keeps a real record" claim names every mastery area, and
+that is checked against the code (`tests/test_site_mastery_claims.py`).** One
+sentence on `site/index.html` tells a prospective family which areas Bede
+actually records, and it is prose: an engine ships, the sentence stays as it
+was, and nothing errors. It was stale twice over when the guard was written —
+`phonics` had been shipping for months and `music_knowledge` had just landed,
+and the page named neither. `routers/diagnostic.py`'s `_SUMMARY_BUILDERS` is
+the source of truth for WHICH areas exist, since an area in it is one a parent
+can actually open; the app's own `mastery.area*` labels in `en.json` are the
+source of truth for WHAT EACH IS CALLED. That second half is the one a first
+draft of this guard got wrong — it let the page say "composition" and
+"phonics" while the Progress page a parent actually opens says "Writing" and
+"Reading foundations", which is a marketing claim naming a thing the product
+does not call that. The `subject_area` → i18n-key map is hand-written because
+it is a real mapping rather than a transformation (`literacy` → `areaLiteracy`
+but `language_exposure` → `areaLanguage`). An area with no entry fails, which
+is the point — **adding a diagnostic engine makes someone decide, in one line,
+what a family is told it measures.** Comparison is case-insensitive (a Title
+Case card heading runs lower-case mid-sentence, which is English, not drift).
+Both directions are pinned — an engine with no label, and a label outliving its
+engine — and `site/index.html` is named in `test.yml`'s change filter with a
+test on the `grep -qE` line itself.
+
+**Music is taught inside Art & Music, not as a subject of its own.** The
+`music_knowledge` diagnostic area is a tracked area, not a timetable block:
+`Subject.art_music` stays one subject covering picture study and composer
+study together, and the site card says so. A standalone `Subject.music` was
+considered and not taken — `_TERM_COMPOSERS` holds one name and the catalogue
+three movements, so the repertoire cannot yet carry a subject of its own (see
+`docs/DECISIONS.md` entry 33), and the curriculum grid's 1:1 binding means a
+card would have had to come with one. **That same one-entry list is why the
+card must not claim a composer rotation.** A first draft read "one painter and
+one composer at a time", which is true of `_TERM_ARTISTS` (five, rotating by
+grade and term) and false of `_TERM_COMPOSERS` (one, for every grade and every
+term) — an overclaim on the marketing page about the very gap entry 33 is open
+on. The card describes the practice instead, which is true of both halves
+today and stays true when the repertoire grows.
+
 ```
 App.tsx              React Router routes + RequireAuth guard + `GlobalAuthInterceptor` (401 → logout; its own file under components/ since it grew a rule worth testing) + ElevationPrompt (403 elevation_required → password/TOTP prompt, retries once — see below)
 guards/

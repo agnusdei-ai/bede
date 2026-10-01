@@ -1,0 +1,188 @@
+name: Security patch
+
+# Continuously patches pinned Python dependencies that have a KNOWN
+# VULNERABILITY — and only those.
+#
+# ── WHY THIS IS NOT lockfile-refresh.yml WITH A SCHEDULE ─────────────────
+#
+# lockfile-refresh.yml's schedule is off, on the repository owner's
+# instruction, because refreshing ~110 packages daily into a
+# memory-constrained production instance was destabilising it (see that
+# file's own note, and docs/DECISIONS.md entry 12). That instruction stands
+# and this workflow does not reverse it.
+#
+# What changed is the question being asked. A refresh asks "are these the
+# newest resolvable pins", which is a currency question and a deployment
+# decision. This asks "is anything we ship known to be vulnerable", which is
+# a security question with a different answer and a different urgency —
+# nobody wants to hold a known-vulnerable parser on a public endpoint until
+# someone has time to watch a deploy.
+#
+# So the blast radius is deliberately tiny, and that is the whole design:
+#
+#   * ONLY packages with a live advisory move. Everything else is untouched.
+#   * Each moves to the LOWEST version that actually clears every advisory
+#     against it — not to latest. A security fix should be the smallest
+#     change that stops being vulnerable.
+#   * A declared ceiling in requirements*.in is never violated.
+#     `setuptools<84` exists so pkg_resources survives for webrtcvad, which
+#     voice authentication depends on; the tool reports and refuses rather
+#     than clearing an alert by breaking login.
+#
+# scripts/security_patch.py carries the full reasoning and its guards live
+# in homeschool-api/tests/test_security_patch.py.
+#
+# ── WHERE THIS SITS AMONG THE OTHER GATES ────────────────────────────────
+#
+#   per PR    test.yml's `dependency-audit` — DETECTS, and blocks the merge.
+#   scheduled this workflow                 — DETECTS, FIXES, opens a PR.
+#
+# Deliberately not a per-PR fixer: a pull request must not fail, or mutate
+# itself, because a stranger published an advisory while it was open. That
+# is the exact failure `dependency-audit` was split out of `api-tests` to
+# stop (2026-10-01, twice in one day).
+#
+# ── IT OPENS A PULL REQUEST. IT NEVER MERGES. ────────────────────────────
+#
+# A dependency change reaching `main` without CI running against it, and
+# without a human reading it, is not something to automate — `main` IS the
+# release (docs/RELEASE_QUALITY_GATES.md), so it is what every family's
+# `make update` builds next. The PR runs the full suite like any other.
+#
+# ONE standing PR on a fixed branch, updated in place, so a week of daily
+# runs produces one pull request rather than seven.
+#
+# ── A REPOSITORY SETTING THIS FILE CANNOT SET ────────────────────────────
+#
+# `pull-requests: write` below is necessary and NOT sufficient. A separate
+# toggle governs whether Actions may open a PR at all:
+#
+#   Settings > Actions > General > Workflow permissions >
+#   "Allow GitHub Actions to create and approve pull requests"
+#
+# With it off, `gh pr create` fails with "GitHub Actions is not permitted to
+# create or approve pull requests". lockfile-refresh.yml hit exactly this on
+# 2026-08-18 and it went unnoticed for three days, because the runs before it
+# found no drift and skipped every step after the regeneration — the first
+# time that job was needed was the first time its PR path ran at all.
+#
+# This workflow therefore FAILS LOUDLY when it cannot open the PR, rather
+# than succeeding with a pushed branch nobody is looking at. A security
+# patcher that silently stops patching is worse than not having one, because
+# a green schedule reads as "nothing was vulnerable".
+
+on:
+  schedule:
+    # Daily. Advisories are published continuously — two landed on this
+    # repository within two hours of each other on 2026-10-01 — so the
+    # window between "published" and "patch proposed" is what this bounds.
+    # Off-the-hour: most schedules run at :00 and get delayed under load.
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-patch
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write        # to push the patch branch — NOT to push to main
+      pull-requests: write   # to open or update the standing PR
+    env:
+      BRANCH: chore/security-patch
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+
+      - name: Install the patcher's only dependency
+        # `packaging` alone — deliberately NOT the lockfile, for the same
+        # reason lockfile-freshness installs nothing else: this must stay
+        # runnable even when the environment it is checking cannot install.
+        run: pip install --quiet packaging
+
+      - name: Patch anything with a known advisory
+        id: patch
+        working-directory: homeschool-api
+        # Exit codes are three-valued on purpose and must not be collapsed:
+        #   0 = nothing vulnerable, or everything vulnerable was patched
+        #   1 = something is vulnerable that could NOT be patched automatically
+        #   2 = no verdict was reached (PyPI unreachable) — fails closed
+        run: |
+          set +e
+          python scripts/security_patch.py --fix | tee /tmp/patch-report.txt
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if git diff --quiet -- requirements.lock.txt requirements-dev.lock.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$code" -eq 2 ]; then
+            echo "::error::Could not reach PyPI, so no verdict was reached. This run proves nothing."
+            exit 2
+          fi
+
+      - name: Push the standing patch branch
+        if: steps.patch.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add homeschool-api/requirements.lock.txt homeschool-api/requirements-dev.lock.txt
+          git commit -F - <<'MSG'
+          Patch dependencies with known advisories
+
+          Opened by .github/workflows/security-patch.yml. Only packages with a
+          live advisory moved, each to the lowest version that clears every
+          advisory against it. The floors and ceilings in requirements*.in are
+          unchanged. See the pull request body for which packages moved and why.
+          MSG
+          git push --force-with-lease origin "$BRANCH"
+
+      - name: Open or update the standing pull request
+        if: steps.patch.outputs.changed == 'true'
+        run: |
+          {
+            echo 'Opened by `.github/workflows/security-patch.yml`.'
+            echo
+            echo 'Only packages with a **known advisory** moved, each to the'
+            echo 'lowest version that clears every advisory against it. Floors and'
+            echo 'ceilings in `requirements*.in` are unchanged.'
+            echo
+            echo '```'
+            cat /tmp/patch-report.txt
+            echo '```'
+            echo
+            echo '**Before merging:** CI runs the full suite against these pins,'
+            echo 'including `dependency-audit`, which must now come back clean.'
+            echo 'A `BLOCKED` line above is a vulnerability this could NOT fix'
+            echo 'automatically — usually because a declared ceiling excludes every'
+            echo 'fixed version — and needs a human decision rather than a merge.'
+          } > /tmp/pr-body.md
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" --body-file /tmp/pr-body.md
+          else
+            gh pr create \
+              --base main --head "$BRANCH" \
+              --title "Patch dependencies with known advisories" \
+              --body-file /tmp/pr-body.md
+          fi
+
+      - name: Fail if something vulnerable could not be patched
+        # Runs even when nothing changed: `--fix` exits 1 for a finding it
+        # could not act on, and that is precisely the case a human must see.
+        if: steps.patch.outputs.code == '1'
+        run: |
+          echo "::error::A known vulnerability could not be patched automatically. See the report above."
+          exit 1

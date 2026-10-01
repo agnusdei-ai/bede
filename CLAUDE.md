@@ -166,6 +166,33 @@ being a deployment rather than CI hygiene. The CI job keeps the name
 it would silently stop that requirement applying. See docs/DECISIONS.md
 entry 12 and `tests/test_lockfile_consistency_gate.py`.
 
+**A third check, because neither of those two asks whether anything is
+vulnerable.** Consistency and currency are both about drift.
+`.github/workflows/security-patch.yml` (daily) runs
+`homeschool-api/scripts/security_patch.py`, which queries PyPI's own
+vulnerability data for every pinned version in both lockfiles, moves **only**
+packages with a live advisory, and moves each to the **lowest** version that
+clears every advisory against it — then opens one standing pull request and
+never merges it. It is deliberately not `lockfile-refresh.yml` with a
+schedule: that job stays `workflow_dispatch`-only because refreshing ~110
+packages into a memory-constrained production instance was destabilising it,
+and that reasoning is untouched. Five properties make it safe unattended, each
+pinned by `tests/test_security_patch.py` and verified by breaking it: a
+declared ceiling is never violated (`setuptools<84` exists so `pkg_resources`
+survives for `webrtcvad`, which voice authentication depends on, so a fix only
+reachable at 84+ is REPORTED rather than applied); the chosen version is
+verified clean itself rather than merely newer than some `fixed_in` (pypdf
+published eight advisories with staggered fix versions, so trusting one would
+land on a version still affected by a sibling); hashes are fetched for the new
+version, never carried over; it fails CLOSED, exit 2, when PyPI is unreachable,
+since a security check reporting "clean" because it could not ask is
+indistinguishable from good news; and nothing but the affected pin and its
+`--hash=` lines moves. Per-PR detection stays `test.yml`'s `dependency-audit`
+job, which blocks the merge; this one proposes the fix. Written after
+2026-10-01, when two advisories landed two hours apart and both were found
+only because someone looked. See docs/DECISIONS.md entry 12's 2026-10-01
+amendment and entry 17.
+
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 
 ## Required Environment Variables

@@ -537,6 +537,25 @@ The decision itself is unchanged — the live resolve still buys the property it
 was kept for. What is recorded here is that its cost was being paid by a person
 rather than by the automation, silently, for three days.
 
+**AMENDED 2026-10-01: a third question, which neither check was asking.**
+This entry split *consistency* (does the lockfile honour the `.in`?) from
+*currency* (are these today's pins?). Both are about drift. Neither asks **is
+anything we ship known to be vulnerable**, and that question went unasked
+between pull requests — which cost two incidents in one day, urllib3
+(CVE-2026-97687/97688/97689) and pypdf (eight advisories, CVE-2026-102993
+through -103000), each found only because a human happened to look.
+
+`.github/workflows/security-patch.yml` and
+`homeschool-api/scripts/security_patch.py` ask it daily and propose the fix.
+**This does not reverse the instruction that disabled `lockfile-refresh.yml`'s
+schedule** — that instruction was about refreshing ~110 packages into a
+memory-constrained production instance, and it stands. The patcher moves only
+packages with a live advisory, each to the *lowest* version that clears it, and
+refuses to violate a declared ceiling (`setuptools<84` exists so
+`pkg_resources` survives for `webrtcvad`, which voice authentication depends
+on). A security fix is the smallest change that stops being vulnerable; a
+refresh is a deployment decision, and the two stay separate.
+
 
 ---
 
@@ -726,8 +745,31 @@ commitment.
 
 ## 17. `[PRODUCT]` Whether Bede ships releases, or delivers continuously from `main`
 
-**Status:** open · needs: a founder ruling — it decides how every existing
-family receives updates, so it is not a tidy-up
+**Status:** closed
+
+**Decided (2026-10-01).** Continuous delivery from `main`. No tags, no
+release artifact, no staging period — and, as the ruling's own stated
+reason, **security fixes ship as they land rather than waiting for a release
+boundary**: *"continuous security and patching of underlying infrastructure
+relative to Bede's operating model. If software is vulnerable, we need to
+continuously apply fixes and updates in CI."*
+
+That reason is what settles it rather than the convenience. A tagged release
+would put a queue between a published advisory and the families exposed to
+it, and this product's whole update path (`make update` = `git pull` plus a
+rebuild) is what makes a same-day patch reach them at all. The two advisories
+of 2026-10-01 — urllib3, then pypdf two hours later — are the worked example:
+both reached every family's next rebuild the day they were fixed.
+
+**The obligation this creates is the point, and it is not optional.** With no
+moment between merged and shipped, `main` must be continuously proven rather
+than periodically blessed. Three things carry that and none may be weakened
+without reopening this entry: the merge gate (Gate 1 in
+`docs/RELEASE_QUALITY_GATES.md`), `dependency-audit` blocking any merge that
+installs a known-vulnerable pin, and `.github/workflows/security-patch.yml`
+proposing the fix within a day of an advisory being published. See entry 12's
+2026-10-01 amendment for why that last one is not the lockfile refresh this
+repository switched off.
 
 **Today's answer is "continuously from `main`", by default rather than by
 decision.** That is what this entry exists to convert into a choice.

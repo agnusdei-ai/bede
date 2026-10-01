@@ -103,6 +103,44 @@ jobs:
         # From the hash-locked lockfile, not requirements-dev.in directly —
         # see this file's header.
         run: pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Run tests
+        working-directory: homeschool-api
+        run: python -m pytest tests/ -v
+
+  dependency-audit:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    # Deliberately its OWN job, not a step inside api-tests — the same
+    # reasoning agent-governance-tests and lockfile-freshness already carry.
+    #
+    # WHY THIS MOVED (2026-10-01). pip-audit ran as api-tests' step 5, ahead
+    # of "Run tests". A pip-audit failure therefore SKIPPED the entire backend
+    # suite, and the trigger for that is an advisory published by a stranger,
+    # not a change a contributor made. It happened TWICE in one day: urllib3
+    # (CVE-2026-97687/97688/97689) took the suite down in the morning, and
+    # pypdf (CVE-2026-102999) was published in the two hours between PR #513's
+    # green run and its own merge commit, taking `main`'s suite down again.
+    # `main` IS the release, so for that window nothing could tell a real
+    # regression from a third party's publication.
+    #
+    # This is NOT a weakening of the gate — it still fails the workflow, and
+    # the standing rule is unchanged: a red audit means upgrade the pin or
+    # record why it is unreachable in .github/audit-allowlist.json, never
+    # delete the step (see this file's header, and frontend-tests.yml's
+    # account of #296). What changes is only that a dependency advisory can
+    # no longer hide a test regression behind it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: homeschool-api
+        # The same hash-locked install api-tests does: pip-audit reads the
+        # lockfile directly, but installing first keeps this job's
+        # environment identical to the one being audited.
+        run: pip install --require-hashes -r requirements-dev.lock.txt
       - name: Audit dependencies for known vulnerabilities
         working-directory: homeschool-api
         # Hard gate — see this file's header. Both lockfiles are audited: a
@@ -125,9 +163,6 @@ jobs:
           ")
           pip-audit -r requirements.lock.txt $IGNORE_ARGS
           pip-audit -r requirements-dev.lock.txt $IGNORE_ARGS
-      - name: Run tests
-        working-directory: homeschool-api
-        run: python -m pytest tests/ -v
 
   agent-governance-tests:
     needs: changes

@@ -102,7 +102,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The green path is ~45 seconds. Without this the default cap is six
     # hours, so a genuinely hung page load — a plausible shape for a broken
     # demo — would burn an afternoon before reporting anything.
@@ -206,7 +206,7 @@ jobs:
     # `always()` so this evaluates even though `check` failed — without it
     # the whole point (repair on failure) never runs.
     if: always() && needs.check.result == 'failure' && (github.event_name == 'schedule' || inputs.repair)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # An agent reading a report and opening a PR, with a hard stop. This is
     # the job that spends money and holds write permissions, so it does not
     # get the 6-hour default.

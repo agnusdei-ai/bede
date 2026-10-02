@@ -52,7 +52,7 @@ permissions:
 
 jobs:
   compose-config-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pycryptodome for throwaway license minting
@@ -172,7 +172,7 @@ jobs:
           rm .env
 
   wizard-end-to-end:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: compose-config-validation
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -295,7 +295,7 @@ jobs:
           include-hidden-files: true
 
   full-stack-boot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: wizard-end-to-end
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

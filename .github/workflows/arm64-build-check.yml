@@ -77,7 +77,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The x86 build of this image takes minutes. Under QEMU, compiling
     # webrtcvad and unpacking a ~500MB torch wheel is far slower. Generous,
     # but bounded — an emulated build that hangs must fail, not run forever.

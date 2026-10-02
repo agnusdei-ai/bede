@@ -19,6 +19,30 @@ from pypdf import PdfReader
 # growing a second, parallel plumbing path through ai_service.py.
 MAX_NARRATION_CHARS = 2000
 
+# A narration is a child telling one passage back in their own words, and
+# MAX_NARRATION_CHARS above already caps the result at roughly one page of
+# text. Parsing more pages than that can ever consume is work done to be
+# thrown away, and `routers/tutor.py`'s /tutor/extract-narration is reachable
+# by the public demo's anonymous role (`require_auth` admits it) with up to
+# ~5.25 MB of attacker-chosen bytes, on a 512 MB Render instance this
+# codebase has already recorded being OOM-killed at 642 MB. So the page walk
+# is bounded twice, because the two bounds stop different things:
+#
+#   * Stopping once there is enough text handles the ordinary large upload —
+#     it falls out of the output cap rather than being a second arbitrary
+#     number, so a real family's export is never truncated differently than
+#     it already was.
+#   * MAX_PDF_PAGES handles the case the early stop CANNOT: a PDF whose pages
+#     yield no text at all. `extract_text()` returns "" for a blank or
+#     image-only page, so the accumulated length never grows, the early stop
+#     never fires, and a file declaring tens of thousands of empty pages
+#     walks every one of them. That is the cheap denial-of-service here, and
+#     it is invisible to a bound expressed only in characters.
+#
+# Not bounded here: a decompression bomb inside a SINGLE page's content
+# stream, which is pypdf's own to limit and which neither of these reaches.
+MAX_PDF_PAGES = 50
+
 
 class UnsupportedNarrationFileError(ValueError):
     """Raised for an unreadable file, wrong extension, or one with no
@@ -40,7 +64,15 @@ def extract_narration_text(filename: str, content_base64: str) -> str:
     else:
         try:
             reader = PdfReader(io.BytesIO(raw))
-            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+            parts: list[str] = []
+            length = 0
+            for page in reader.pages[:MAX_PDF_PAGES]:
+                extracted = page.extract_text() or ""
+                parts.append(extracted)
+                length += len(extracted) + 1  # the "\n" join adds one
+                if length >= MAX_NARRATION_CHARS:
+                    break
+            text = "\n".join(parts)
         except Exception as e:
             raise UnsupportedNarrationFileError("Could not read that PDF") from e
 

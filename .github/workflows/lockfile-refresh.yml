@@ -121,7 +121,7 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # pip-compile --generate-hashes over this tree (torch and its CUDA stack
     # included) took ~17 minutes when run by hand. Generous, but bounded.
     timeout-minutes: 45

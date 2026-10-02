@@ -1,9 +1,9 @@
 name: Build Windows installer (.exe)
 
 # Compiles packaging/windows/BedeSetup.iss (Inno Setup) on a real Windows
-# runner — ISCC.exe is Windows-native and isn't preinstalled on
-# ubuntu-latest. Signs the result with Azure Artifact Signing (Basic tier)
-# IF the repo has the required secrets/vars configured — see
+# runner — ISCC.exe is Windows-native and isn't preinstalled on the Ubuntu
+# runners the rest of CI uses. Signs the result with Azure Artifact Signing
+# (Basic tier) IF the repo has the required secrets/vars configured — see
 # docs/WINDOWS_INSTALLER.md's "Code signing" section for the one-time Azure
 # Portal + GitHub setup this depends on. Without them, this still builds and
 # uploads an UNSIGNED .exe (SmartScreen will warn on it) — signing is

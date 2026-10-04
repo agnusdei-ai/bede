@@ -1656,3 +1656,89 @@ found on archive.org is a transfer of a 1981 commercial LP. So the
 repository needs a rights field distinguishing the work's status from the
 recording's, and Bede must keep pointing families at their own recording
 rather than naming one it cannot vouch for.
+
+---
+
+## 34. `[COMMERCIAL]` A Guided Membership at a second household price point
+
+**Status:** open · needs: a founder ruling on two delivery parameters — what
+"up to 10 hours of reserved guide time" entitles (a seat in the cohort hours,
+or guide time reserved for one household), and whether Pacific families get a
+window of their own. The price, the cohort shape and the schedule are decided;
+these two are not.
+
+**Decided so far (2026-10-04).** A second household membership at
+**$500/month**, above entry 10's $199 Family Membership, carrying a live
+**cohort** hour with a remote homeschool guide. Windows are **8-9am and 4-5pm
+America/Chicago, Monday to Friday** — ten staffed hours a week.
+
+**This amends entry 10 without reopening entries 5 and 6, and the distinction
+is the whole reason.** Entry 10 settled on "one membership for a household,
+not a ladder of tiers", and superseded entry 1 specifically because a
+three-tier ladder "implies feature gating (entries 5 and 6) that this model
+does not need." A Guided Membership is a **service** tier, not a feature
+tier: the software is byte-identical at both prices, the seat cap is the same
+six children, and nothing in Bede is gated differently. What $500 buys is a
+human being's time, delivered through a calendar, outside this codebase
+entirely. So entries 5 and 6 stay *unnecessary* rather than becoming live
+again — and that is a property to preserve, not a coincidence. **The moment a
+price point gates a feature, those two entries reopen and this one has to say
+so.**
+
+**It requires no change to any licensing or entitlement code, and that is the
+load-bearing finding.** `core/commercial_tiers.py`'s `CommercialTier`
+(`family`/`coop`/`network`) describes the **shape of the buyer** — one
+household, a co-op of households, a school network — never a price or a
+service level. A guided household is still `family`. Concretely:
+
+* No fourth `CommercialTier`. `test_exactly_three_canonical_commercial_tiers`
+  keeps holding, and entry 29's warning is untouched — adding a member would
+  be a **contract amendment** needing a companion change in
+  `agnusdei-ai/locuto`, which a service add-on does not justify.
+* No change to `core/licensing.py`'s `_VALID_TIERS`. A guided family gets the
+  same signed `core` licence at `--seats 6` as any other, per
+  `docs/SELLING_BEDE.md`.
+* No change to `routers/pod.py`'s seat cap, since the entitlement is identical.
+* Nothing prices anything in code. Licensing knows seats and term; it has
+  never known a price, and must not learn one here.
+
+**The published figures are the part that cannot be changed quietly.** Entry 9
+reversed itself and prices **are** published: `demo/public/launch.html`
+(deployed at `/bede/launch.html`), `site/faq/index.html`, and the pricing PDF
+`docs/marketing/README.md` names. Two of those sit under the `site/`/`demo/`
+carve-out, so publishing a second price point needs explicit sign-off rather
+than the ordinary auto-merge — and until it lands, a page a prospective family
+reads will name one membership while a second is being sold.
+
+**The two open parameters, and why each matters more than it looks.**
+
+*What ten hours entitles.* Two windows a day across five days is **exactly**
+the ten hours quoted, which reads as "a reserved place in all of it" — the
+guide staffs those hours whether one family attends or ten, and ten members at
+$500 is roughly $116 per staffed guide-hour of revenue. Read instead as guide
+time reserved for one household, the same $500 buys about 43 hours a month, or
+**under $12 an hour** before overhead, margin, or the software — which is not a
+business. The words "cohort" and "reserved" point opposite ways and the
+readings differ by an order of magnitude, so this is written down rather than
+assumed.
+
+*Pacific.* 8-9am Chicago is **6-7am Pacific**, which is not a time a family
+with children attends. The afternoon window is 2-3pm Pacific and works well.
+So of the two windows only one serves the west coast today, and "flexible for
+PST" needs either a third window or a shifted morning. Eastern needs nothing:
+Calendly renders every invitee's own zone, so 8-9am Chicago simply displays as
+9-10am to a New York family and 5-6pm for the afternoon.
+
+**A guide meeting children is a separate precondition, not a parameter.**
+Background checks, a written safeguarding policy for guides, parent consent
+for adult contact, and a decision on session oversight all precede a first
+session. `docs/CONSTITUTION.md` and this repository's COPPA posture both
+assume Bede is the only tutor and that no adult has contact with the child;
+that assumption ends with this membership. It is the one item here whose lead
+time is not ours to compress.
+
+**Related:** entry 1 (the superseded ladder), entry 5 and entry 6 (which this
+deliberately does not reopen), entry 9 (prices are published), entry 10 (the
+membership this sits above), entry 21 (provider/co-op administration),
+entry 26 (monthly billing), entry 29 (no fourth commercial tier without a
+contract amendment), `docs/SELLING_BEDE.md`.

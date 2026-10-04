@@ -81,10 +81,20 @@ no customers yet that costs nothing; after your first sale it is a migration.
 
 There is deliberately no payment code here, and for annual billing you do not
 need any. A Stripe payment link, an invoice, or an ACH transfer all work, and
-none of them touch Bede. Prices are
-[decision register entry 10](DECISIONS.md); they are deliberately unpublished
-([entry 9](DECISIONS.md)), so quote them yourself rather than putting them on a
-page.
+none of them touch Bede.
+
+**Prices are published, and this runbook said the opposite until 2026-10-04.**
+[Entry 10](DECISIONS.md) is the model; [entry 9](DECISIONS.md) is titled
+"Prices are not published" and its body **reverses** that — "Decided (2026-08),
+reversing the position described below. Prices are published." The earlier
+wording here cited entry 9 by its title without reading it, and told an
+operator to quote prices privately. That is worse than merely wrong: the
+figures are already on `demo/public/launch.html` (deployed at
+`/bede/launch.html`), `site/faq/index.html` and `docs/marketing/README.md`'s
+pricing PDF, so a quiet quote would contradict a page the customer may have
+read first. Quote what is published, and when the published figures change,
+change them there too — those two pages are the public surface, so they need
+sign-off before merging rather than riding the ordinary auto-merge.
 
 ### 2. Mint the key
 

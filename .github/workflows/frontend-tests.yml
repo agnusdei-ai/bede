@@ -87,6 +87,50 @@ jobs:
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
           fi
+  # Its own job, for the reason homeschool-api/tests/test_dependency_audit_job.py
+  # records about the backend: as a STEP inside a test job, a failing audit left
+  # `Type-check` and `Run tests` SKIPPED — so an advisory published by a stranger
+  # took the whole frontend suite down with it. That is not hypothetical here
+  # either: GHSA-vfj7-8cjw-p6xm (braces) did exactly this on 2026-10-04, hiding
+  # 574 homeschool-tutor tests and the demo's behind a dependency finding that
+  # had nothing to do with the change under review.
+  #
+  # The split does NOT weaken the gate. This job still fails the workflow, and
+  # the standing rule is unchanged: a red audit means upgrade the dependency, or
+  # record why it is unreachable in .github/audit-allowlist.json — never delete
+  # the step (see this file's own header on #296). What changes is only that a
+  # dependency advisory can no longer hide a test regression behind it.
+  frontend-dependency-audit:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: '20'
+      - name: Install homeschool-tutor dependencies
+        working-directory: homeschool-tutor
+        run: npm ci
+      - name: Install demo dependencies
+        working-directory: demo
+        run: npm ci
+      # Hard gate at MODERATE, not high. `--audit-level=high` was the original
+      # threshold and is not sufficient: the open redirect fixed in #319 — the
+      # highest-impact finding in that whole review, a post-authentication
+      # redirect off-site on the login screen — was published as a MODERATE
+      # advisory (GHSA-wrjc-x8rr-h8h6), and a gate set to `high` would have let
+      # it through. npm's severity rating reflects the advisory in the abstract,
+      # not what the dependency is load-bearing for in THIS app, so the gate
+      # errs toward surfacing and letting a human decide.
+      #
+      # Run through scripts/npm_audit_gate.py rather than `npm audit` directly,
+      # because `npm audit` has no --ignore flag and so could not honour the
+      # escape hatch this file's own header has always named. See that script's
+      # docstring; it fails closed and allowlists by ADVISORY, never by package.
+      - name: Audit dependencies for known vulnerabilities
+        run: python3 scripts/npm_audit_gate.py homeschool-tutor demo
+
   homeschool-tutor-tests:
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
@@ -101,30 +145,6 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-tutor
         run: npm ci
-      - name: Audit dependencies for known vulnerabilities
-        working-directory: homeschool-tutor
-        # Hard gate at MODERATE, not high.
-        #
-        # `--audit-level=high` was the threshold when this gate was first
-        # written, and it is not sufficient. The open redirect fixed in
-        # #319 — the highest-impact finding in that whole review, a
-        # post-authentication redirect off-site on the login screen — was
-        # published as a MODERATE advisory (GHSA-wrjc-x8rr-h8h6). A gate
-        # set to `high` would have let it through untouched, which is
-        # exactly what happened for as long as it sat in the tree.
-        #
-        # npm's severity rating reflects the advisory in the abstract, not
-        # what the dependency is load-bearing for in THIS app. A moderate
-        # advisory in the router that owns our post-login navigation
-        # matters more here than a high one in a build-time-only tool. We
-        # are not positioned to make that judgement automatically, so the
-        # gate errs toward surfacing it and letting a human decide.
-        #
-        # Both projects sit at zero findings, so this costs nothing today.
-        # When it goes red: upgrade, or record why it is unreachable —
-        # never delete the step, and never quietly raise the threshold
-        # back to high to make a red build go away.
-        run: npm audit --audit-level=moderate
       - name: Type-check
         working-directory: homeschool-tutor
         run: npx tsc --noEmit
@@ -146,30 +166,6 @@ jobs:
       - name: Install dependencies
         working-directory: demo
         run: npm ci
-      - name: Audit dependencies for known vulnerabilities
-        working-directory: demo
-        # Hard gate at MODERATE, not high.
-        #
-        # `--audit-level=high` was the threshold when this gate was first
-        # written, and it is not sufficient. The open redirect fixed in
-        # #319 — the highest-impact finding in that whole review, a
-        # post-authentication redirect off-site on the login screen — was
-        # published as a MODERATE advisory (GHSA-wrjc-x8rr-h8h6). A gate
-        # set to `high` would have let it through untouched, which is
-        # exactly what happened for as long as it sat in the tree.
-        #
-        # npm's severity rating reflects the advisory in the abstract, not
-        # what the dependency is load-bearing for in THIS app. A moderate
-        # advisory in the router that owns our post-login navigation
-        # matters more here than a high one in a build-time-only tool. We
-        # are not positioned to make that judgement automatically, so the
-        # gate errs toward surfacing it and letting a human decide.
-        #
-        # Both projects sit at zero findings, so this costs nothing today.
-        # When it goes red: upgrade, or record why it is unreachable —
-        # never delete the step, and never quietly raise the threshold
-        # back to high to make a red build go away.
-        run: npm audit --audit-level=moderate
       - name: Type-check
         working-directory: demo
         run: npx tsc --noEmit

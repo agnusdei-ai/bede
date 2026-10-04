@@ -528,6 +528,7 @@ export interface LicenseStatus {
   tier?: 'trial' | 'core' | 'coop'
   licensee?: string
   seats?: number
+  issued?: string
   expires?: string | null
   days_remaining?: number | null
   is_expired?: boolean

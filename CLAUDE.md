@@ -217,6 +217,61 @@ cut of the filter check that passed with the entry deleted because
 it now splits the alternation and requires the directory as a whole
 alternative.
 
+**Licence expiry has to happen, and for a long time it did not.**
+`core/license_state.py`'s `current()` returns a **cached** `EffectiveLicense`,
+and `refresh()` had exactly two call sites: `main.py`'s startup lifespan
+(once) and `routers/admin.py`'s paste endpoint. `docker-compose.yml` runs the
+API under `restart: unless-stopped`, which restarts on a crash or a host
+reboot and **never on a schedule**, so a self-hosted family's LAN server kept
+whatever verdict it computed at boot, indefinitely. For a perpetual or
+365-day key that was invisible. It stops being invisible the moment a
+SHORT-dated key exists: a 30-day trial expires on day 31 by design, for every
+trial that does not convert, and with nothing recomputing the verdict the
+gate never went up — **the trial became perpetual**, which is exactly what
+`docs/DECISIONS.md` entry 2 rejected ("Pay-per-use, never zero"), reached by
+a cached variable rather than by a decision.
+
+`main.py`'s `_periodic_license_refresh` closes it, and `_refresh_license_once`
+is extracted from the loop so the rules are testable as a unit rather than by
+driving a 24-hour schedule (the same split `services/diagnostic/activity.py`
+makes between `summarize()` and `summarize_records()`). **Daily is the
+correct cadence and more often buys nothing**: `LicenseInfo.is_expired` is
+`expires < date.today()`, so the verdict is a pure function of the local date
+and can only change at midnight.
+
+**The guard that matters is the inverse of the obvious one.** A failed
+database read **skips the cycle entirely** rather than refreshing with half
+its inputs — the DB-applied key WINS over the env key, so calling
+`refresh(env_key, None)` after a transient error would discard a renewal the
+parent pasted in-app and gate a family who had paid. A missed cycle costs at
+most a day of enforcement; a wrongly-dropped renewal costs a lesson.
+`tests/test_periodic_license_refresh.py` drives the REAL
+`refresh` → `verify_license` → `is_expired` → `is_gated` chain over a
+throwaway keypair (the `tests/test_licensing.py` convention) rather than
+stubbing the verdict it exists to prove, and covers both the function and its
+invocation in the real `main.lifespan`. Verifying the DB guard needs care and
+the test says so: simply deleting the `return` does **not** reach `refresh()`,
+because `db_text` is then unbound and the second `except` swallows the
+`UnboundLocalError` — so the guard passes for the wrong reason. The realistic
+mistake is pre-initialising `db_text = None` and dropping the guard, which is
+what it was verified against.
+
+**Making expiry real also made it able to interrupt a lesson**, so the notice
+had to ship in the same change. `homeschool-tutor/src/utils/licenseUrgency.ts`
+sizes the warning against the licence's own **term** rather than a flat number
+of days: 10% of the term, floored at `MIN_NOTICE_DAYS` (a week, the least
+notice anyone can act on) and capped at `MAX_NOTICE_DAYS` (beyond a month a
+renewal is not yet news). `LicenseSettings.tsx` used `days_remaining <= 30`,
+which is right for a 365-day membership and **lit for the whole of a 30-day
+trial** — so the one population that needs the warning saw it permanently,
+learned the chip meant nothing, and got no signal at day 28. The card now
+names the remaining days instead of "needs attention", and opens itself
+inside `URGENT_DAYS` rather than leaving a chip to be noticed (once only, so
+a parent who collapses it is not overruled). `issued` was added to
+`GET /admin/license`'s payload for this, and the window falls back to the old
+flat 30 days when it is absent, so an older server keeps warning exactly as
+it did rather than silently going quiet.
+
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 
 ## Required Environment Variables
@@ -329,7 +384,7 @@ bundles always ship; the toggle switches live).
 ### Backend (`homeschool-api/`)
 
 ```
-main.py              FastAPI app + lifespan (constitution verify, DB init, encryption init, voice-model warm-up, periodic data-retention purge — see docs/DATA_RETENTION.md — and a periodic local-AI-adapter health check, see "AI backend failure alerting" below)
+main.py              FastAPI app + lifespan (constitution verify, DB init, encryption init, voice-model warm-up, periodic data-retention purge — see docs/DATA_RETENTION.md — and a periodic local-AI-adapter health check, see "AI backend failure alerting" below, and a DAILY license re-evaluation so an expiry actually takes effect on an instance nobody restarts — see "Licence expiry has to happen" below)
 core/
   config.py          Pydantic Settings — all env vars + production validation
   constitution.py    Verifies constitution/bede.constitution.json's SHA-256 digest + structure at import time; exposes recursively read-only data (see "Bede's Constitution" above)
@@ -337,7 +392,7 @@ core/
   encryption.py      AES-256-GCM; MASTER_SECRET → KEK → DATA_KEY hierarchy; all BYTEA columns encrypted
   audit.py           Encrypted audit log — every security event written independently of request transaction; log_event() also runs a sliding-window anomaly watch (repeated auth failures, JWT fingerprint mismatches, access-denied hits, a single ExfiltrationGuard block, a burst of tool invocations, one suppressed tool call, or 3 adversarial-pipeline detections — see services/ai_service.py and services/policy_engine.py below — all keyed per-IP) and, past threshold, records AuditEvent.ANOMALY_ALERT + best-effort emails PARENT_EMAIL — see docs/SECURITY.md. One rule is deliberately NOT per-IP: AI_BACKEND_FAILURE (see "AI backend failure alerting" below) is pooled across every caller, since a broken AI backend is a household-wide reliability condition, not one actor's pattern — see _GLOBAL_ANOMALY_EVENTS. log_event_nowait() fire-and-forgets the write itself (asyncio.create_task, tracked so it can't be GC'd mid-write) for hot paths like login/voice-verify, and every tool invocation during a tutoring turn, where the DB round-trip must not add to response latency
   deps.py            require_auth / require_parent / require_parent_recovery FastAPI dependencies (JWT + IP/UA fingerprint). require_auth also checks a 'cv' (credentials_version) claim on parent/parent_pending tokens against core/parent_credential.py's cached current value — a mismatch means the password changed since this token was issued, and 401s it immediately rather than letting it linger to natural expiry; see "Parent account lockout & recovery" below
-  license_state.py   Effective-license resolution: DB-applied key (POST /admin/license) wins over env LICENSE_KEY; unlicensed production boots GATED instead of refusing (renewal is pasted into the parent UI, no .env edit)
+  license_state.py   Effective-license resolution: DB-applied key (POST /admin/license) wins over env LICENSE_KEY; unlicensed production boots GATED instead of refusing (renewal is pasted into the parent UI, no .env edit). `current()` returns a CACHED verdict, so `refresh()` being called is what makes any of it true — see "Licence expiry has to happen" below for why a periodic call was load-bearing and absent.
                      The OPERATOR's side of that — producing a key to sell — is docs/SELLING_BEDE.md: hand issuance via scripts/issue_license.py, which docs/LICENSE_SERVER_DESIGN.md §11 Phase 1 explicitly anticipates ('manual paste still works exactly as today') and Phase 4 migrates. Two facts there live in two places and are checked rather than trusted (tests/test_selling_runbook.py): every `--tier` it tells you to mint is in core/licensing.py's `_VALID_TIERS`, and its `--seats` figure for a Family Membership equals the child cap DECISIONS.md entry 10 publishes — entry 10 records that cap as having 'no implementation', which is true of the tier NAME and not of the cap, since routers/pod.py enforces the `seats` value signed into the license. So the published cap is enforced only by that mint instruction being right, which is why it has a guard.
   parent_credential.py  DB-backed PARENT_PASSWORD override — same "DB value wins over env, live, no restart" precedent as license_state.py, applied to the password so it's actually changeable in-app for the first time. Caches credentials_version in-process (refreshed at startup and on every change) so core/deps.py's per-request check is a sync int comparison, not a DB round trip. See "Parent account lockout & recovery" below.
   provider_state.py  DB-backed override for WHICH already-configured AI adapter (services/adapters/) serves as primary — same "DB value wins over env, live, no restart" precedent again, applied to BEDE_ADAPTER_ORDER/BEDE_FORCE_ADAPTER so a parent can move off a degraded provider (e.g. a local Ollama model) from the UI without an .env edit or restart. Caches the chosen provider name in-process (refreshed at startup, like the two modules above) since services/adapters/router.py's FailoverClient consults it on every tutoring turn. Only ever stores the NAME of an already-configured adapter, never a credential. Also holds a SECONDARY override (same DB table, key="secondary" — the primary-key column was always a string rather than a hardcoded singleton for exactly this) letting a parent pick which adapter is tried first if primary errors, meaningful once 3+ adapters are configured (e.g. openai/mistral/anthropic) since with only two the non-primary one is already the only fallback there is. See "Live AI-provider switching" below.

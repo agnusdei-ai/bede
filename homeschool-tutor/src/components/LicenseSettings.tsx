@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BadgeCheck, ChevronDown, ChevronUp, Loader2, ScrollText, TriangleAlert } from 'lucide-react'
 import { applyLicenseKey, fetchLicenseStatus } from '../services/api'
+import { licenseUrgency } from '../utils/licenseUrgency'
 import type { LicenseStatus } from '../types'
 
 /**
@@ -13,6 +14,7 @@ import type { LicenseStatus } from '../types'
  */
 export default function LicenseSettings({ token }: { token: string }) {
   const [expanded, setExpanded] = useState(false)
+  const [openedForUrgency, setOpenedForUrgency] = useState(false)
   const [status, setStatus] = useState<LicenseStatus | null | undefined>(undefined)
   const [keyInput, setKeyInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -23,12 +25,46 @@ export default function LicenseSettings({ token }: { token: string }) {
     fetchLicenseStatus(token).then(setStatus).catch(() => setStatus(undefined))
   }, [token])
 
+  // Open the card on arrival when the license is genuinely about to stop
+  // working. A chip is enough notice for a renewal a month out; it is not
+  // enough for one three days out, and a parent landing on this page should
+  // not have to click to discover their lessons are about to stop.
+  //
+  // `openedForUrgency` makes this fire ONCE rather than on every render:
+  // without it, a parent who deliberately collapsed the card would have it
+  // reopened under them by the next state update. Deliberately never
+  // collapses the card either — the parent's own click is the last word in
+  // both directions.
+  useEffect(() => {
+    if (openedForUrgency || !status) return
+    const urgency = licenseUrgency(status)
+    if (urgency === 'urgent' || urgency === 'expired') {
+      setExpanded(true)
+      setOpenedForUrgency(true)
+    }
+  }, [status, openedForUrgency])
+
   // Dev mode (nothing configured, nothing required) or status unavailable:
   // no card at all — a family that never thinks about licensing shouldn't
   // see a settings section demanding thought.
   if (status === undefined || (status === null)) return null
 
-  const needsAttention = !status.ok || (status.days_remaining !== null && status.days_remaining !== undefined && status.days_remaining <= 30)
+  // Proportional to the license's own term rather than a flat 30 days, which
+  // was lit for the whole of a 30-day trial and so said nothing — see
+  // utils/licenseUrgency.ts.
+  const urgency = licenseUrgency(status)
+  const needsAttention = urgency !== 'none'
+  // Name the deadline instead of only its existence: "needs attention" tells
+  // a parent to click, and a day count tells them whether to click now.
+  const days = status.days_remaining
+  const chipLabel =
+    urgency === 'expired'
+      ? 'expired'
+      : days === 1
+        ? '1 day left'
+        : days !== null && days !== undefined
+          ? `${days} days left`
+          : 'needs attention'
 
   const handleApply = async () => {
     setBusy(true)
@@ -55,8 +91,14 @@ export default function LicenseSettings({ token }: { token: string }) {
         <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
           <ScrollText size={16} className="text-navy-500" /> License
           {needsAttention ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
-              <TriangleAlert size={11} /> needs attention
+            <span
+              className={
+                urgency === 'expired' || urgency === 'urgent'
+                  ? 'flex items-center gap-1 text-xs font-medium text-madder-700 bg-madder-50 border border-madder-200 rounded-full px-2 py-0.5'
+                  : 'flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5'
+              }
+            >
+              <TriangleAlert size={11} /> {chipLabel}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">

@@ -348,6 +348,16 @@ upgrades are pasted straight into the app — log in as the parent, open
 Setup, and use the **License** card. The new key is verified and takes
 effect immediately, no restart.
 
+**When an expiry takes effect, and the warning before it.** Bede
+re-evaluates your license once a day while it runs, so a key that lapses
+stops working without needing a restart. Before that, you get notice in the
+same **License** card: it shows how many days are left, and in the last few
+days it opens itself instead of waiting to be clicked. How early the warning
+starts depends on the length of your license — about a week's notice on a
+short trial, up to a month on an annual one — so the warning means something
+whichever you have. If a license does lapse, nothing is lost: pasting a new
+key in that same card brings everything straight back.
+
 **What happens without a valid license:** the instance still boots, but
 into a gated "license required" mode (`core/license_state.py` +
 `LicenseGateMiddleware`): tutoring and every other endpoint answer with a

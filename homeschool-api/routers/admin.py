@@ -61,6 +61,12 @@ def _license_status_payload() -> dict | None:
             "tier": s.info.tier,
             "licensee": s.info.licensee,
             "seats": s.info.seats,
+            # `issued` is here so the parent UI can size its own warning
+            # against the license's TERM rather than a fixed number of days.
+            # A 30-day trial and a 365-day membership need different notice
+            # periods, and a single threshold written for one is noise at the
+            # other — see homeschool-tutor/src/utils/licenseUrgency.ts.
+            "issued": s.info.issued.isoformat(),
             "expires": s.info.expires.isoformat() if s.info.expires else None,
             "days_remaining": s.info.days_remaining,
             "is_expired": s.info.is_expired,

@@ -176,6 +176,94 @@ async def _periodic_data_purge():
             log.warning("Elevation purge failed — will retry next interval", exc_info=True)
 
 
+_LICENSE_REFRESH_INTERVAL_SECONDS = 24 * 60 * 60  # once a day — see below
+
+
+async def _refresh_license_once() -> None:
+    """One re-evaluation of the effective license.
+
+    Extracted from the loop below so it can be tested as a unit — the same
+    reason `services/diagnostic/activity.py` splits `summarize_records()` out
+    of `summarize()`. The loop is then only a schedule, and every rule worth
+    asserting lives here.
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            db_license = await db.get(LicenseConfig, "license")
+        db_text = db_license.license_text if db_license else None
+    except Exception:
+        # Deliberately NO refresh() on this path. The DB-applied key wins
+        # over the env key, so refreshing with `None` for the DB half after a
+        # transient read failure would discard a renewal the parent pasted
+        # in-app and gate a family who had paid. A missed cycle costs at most
+        # a day of enforcement; a wrongly-dropped renewal costs a lesson.
+        log.warning(
+            "Periodic license refresh: could not read the stored license, "
+            "keeping the current verdict and retrying next interval",
+            exc_info=True,
+        )
+        return
+
+    try:
+        was_gated = license_state.is_gated()
+        state = license_state.refresh(
+            settings.license_key,
+            db_text,
+            required=settings.is_production and not settings.is_demo_deployment,
+        )
+        if license_state.is_gated() and not was_gated:
+            log.critical(
+                "Periodic license refresh: the license is no longer usable — "
+                "this instance is now gated. %s",
+                state.problem,
+            )
+    except Exception:
+        log.warning(
+            "Periodic license refresh failed — will retry next interval",
+            exc_info=True,
+        )
+
+
+async def _periodic_license_refresh():
+    """
+    Re-evaluates the effective license while the process runs, so an expiry
+    actually takes effect.
+
+    `core/license_state.py`'s `current()` returns a CACHED `_state`, and
+    `refresh()` had exactly two call sites: this module's own startup
+    lifespan (once) and `routers/admin.py`'s paste endpoint. Nothing else.
+    `docker-compose.yml` runs the API under `restart: unless-stopped`, which
+    restarts on a crash or a host reboot and never on a schedule, so a
+    self-hosted family's LAN server simply keeps running — and kept whatever
+    verdict it computed at boot.
+
+    For a perpetual or long-dated key that was invisible. It stops being
+    invisible the moment a SHORT-dated key exists: a 30-day trial expires on
+    day 31 by design, for every trial that does not convert, and without this
+    task the gate never goes up and the trial becomes perpetual. That is
+    exactly what `docs/DECISIONS.md` entry 2 rejected ("Pay-per-use, never
+    zero") — reached by a cached variable rather than by a decision.
+
+    **Once a day is the correct cadence, and more often buys nothing.**
+    `LicenseInfo.is_expired` is `expires < date.today()` — date granularity —
+    so the verdict is a pure function of the local date and can only change
+    at midnight. A six-hourly loop would do the same work four times for one
+    possible transition.
+
+    **A failed read skips the cycle rather than refreshing with half the
+    inputs**, which is the inverse of the obvious risk and the one that would
+    actually hurt. The DB-applied key WINS over the env key
+    (`license_state`'s selection order), so calling `refresh(env, None)`
+    after a transient database error would discard a renewal the parent
+    pasted in-app and gate a family who had paid. A missed cycle costs at
+    most a day of enforcement; a wrongly-dropped renewal costs a family
+    their lesson.
+    """
+    while True:
+        await asyncio.sleep(_LICENSE_REFRESH_INTERVAL_SECONDS)
+        await _refresh_license_once()
+
+
 _LOCAL_HEALTH_CHECK_INTERVAL_SECONDS = 10 * 60  # every 10 minutes
 
 
@@ -329,6 +417,11 @@ async def lifespan(app: FastAPI):
     # function's own docstring and CLAUDE.md's "AI backend failure
     # alerting" section.
     local_health_check_task = asyncio.create_task(_periodic_local_health_check())
+    # Makes an expiry actually take effect on a long-running instance, which
+    # nothing did before: license_state.current() is cached and refresh() ran
+    # only at startup and on a pasted key. Load-bearing for any short-dated
+    # key (a 30-day trial above all) — see that function's own docstring.
+    license_refresh_task = asyncio.create_task(_periodic_license_refresh())
 
     yield
 
@@ -337,6 +430,7 @@ async def lifespan(app: FastAPI):
     credentials_refresh_task.cancel()
     device_refresh_task.cancel()
     local_health_check_task.cancel()
+    license_refresh_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

@@ -30,6 +30,17 @@ npm run build       # tsc + vite build — type errors fail the build
 npx tsc --noEmit    # type-check without building
 ```
 
+### Native iOS wrapper security updates
+
+After updating `@capacitor/ios`, run `npm run build` and `npm run cap:sync`
+from `homeschool-tutor/`. Commit the regenerated
+`ios/App/CapApp-SPM/Package.swift` alongside the npm manifest and lockfile:
+the native app uses that Swift package pin, not the npm lockfile alone.
+Then run `npm run cap:open` on macOS, rebuild in Xcode, and redistribute the
+app to every device. Updating the web deployment does not patch an installed
+native wrapper. Version 8.4.3 fixes GHSA-rvm3-566m-v7fv; disabling
+`CapacitorHttp` alone is not a mitigation on affected versions.
+
 ## Backend (`homeschool-api/`)
 
 FastAPI with async SQLAlchemy — requires a live PostgreSQL connection on

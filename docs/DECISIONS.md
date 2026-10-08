@@ -815,8 +815,9 @@ today it is neither read nor updated.
 
 **Decided (2026-08).** `agent-governance/` — a generic extraction of Bede's
 own governance layer, carrying no product name, persona, trademark, curriculum,
-or domain content — is published by Adapt Cloud and licensed to everyone under
-the Apache License, Version 2.0. The rest of this repository stays proprietary and unchanged.
+or domain content — is published by Agnus Dei Technologies, LLC, the same
+licensor as the rest of this repository, and licensed to everyone under the
+Apache License, Version 2.0. The rest of this repository stays proprietary and unchanged.
 `LICENSE` section 6 states the carve-out so the two cannot be confused, and
 section 5's trademark reservation continues to apply to it: the licence covers
 the prompts and code, never the "Bede" name or mark.
@@ -839,6 +840,23 @@ already see the pattern.
 the assumption that it does: it carries no warranty that an agent governed by
 these prompts will behave, and it grants no trademark rights. The package says
 so in its own `NOTICE`.
+
+**Amended 2026-10-08 — the licensor is named correctly.** This entry, the root
+`LICENSE` carve-out, the package's `NOTICE`, its seven source headers, the
+public `README`, and the carve-out test all named **Adapt Cloud** as the
+publisher and copyright holder. Nothing in the repository said what that entity
+was, or how it related to Agnus Dei Technologies, LLC, which the root `LICENSE`
+names as the owner of everything else and which the installer, the privacy
+notices and every product surface name too. So a permissive grant was being
+made in one company's name, inside a repository owned by another, with the
+relationship stated nowhere — defective as a grant and ambiguous as a
+carve-out, which is the precise failure the carve-out test's own docstring
+warns about. It was a stale placeholder, now corrected everywhere to Agnus Dei
+Technologies, LLC. **Nothing about the licensing decision changed**: the
+directory is still Apache-2.0, still carries no product name, and still grants
+no trademark rights. Only the licensor's name is now the real one, and
+`test_license_carveout.py` derives it from the root `LICENSE` rather than
+restating it, so the two cannot disagree again.
 
 **Related:** `agent-governance/README.md` carries the argument. This entry carries the
 state. The package's own guards run in CI via `.github/workflows/test.yml`.

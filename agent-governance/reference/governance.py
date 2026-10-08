@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Adapt Cloud
+# Copyright 2026 Agnus Dei Technologies, LLC
 """Reference builder: constitution JSON + prompt blocks -> one system prompt.
 
 Language-agnostic by design — the prompts are plain text and the constitution

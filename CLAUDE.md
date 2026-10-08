@@ -1943,6 +1943,30 @@ same rule `frontend-tests.yml` records after being deleted once in #296.
 `test_site_headers.py` asserts the live workflow and its script still exist,
 because the only signal that a gate has been removed is its absence.
 
+**Which is why the script must not be able to cry wolf, and for a long time it
+could.** `check_live_site_headers.sh` decided "did the origin answer" by
+testing whether the response was EMPTY. When an intermediary answers the
+request itself — an egress proxy, a captive portal, a Cloudflare error page
+mid-deploy — the response is non-empty, carries that intermediary's headers,
+and contains none of ours, so the script reported `missing: <every header>`
+and printed its Worker-configuration advice: a confident diagnosis of a
+problem that does not exist, on a gate that runs twice daily against `main`.
+It now reads the HTTP status and refuses to read headers off a response the
+origin did not serve, and the Worker advice is gated on a real header failure
+(`header_failed`) rather than on any failure at all, while the exit code still
+fires for both. `tests/test_live_header_check_script.py` runs the REAL script
+against a real local HTTP server in each of the three shapes it must tell
+apart — healthy, an intermediary answering, and a genuine missing header —
+because the defect lived in how it reads an actual HTTP response, and the
+third case is the point: the detection has to survive a fix aimed at the other
+two. `scripts/check_live_site_headers.sh` is named in `test.yml`'s change
+filter with a test on the `grep -qE` line itself. Each guard was verified by
+breaking it. Note the first cut of the intermediary test failed against a
+script that was behaving correctly, because its `"Worker"` sentinel matched the
+honest unreachable message — which names the Worker in order to say *do not
+look there yet*. The same blunt-scan trap as a guard that fires on a docstring
+describing the thing it forbids; the sentinels are now specific strings.
+
 This is a standing rule for this repo across sessions, not a one-off for
 whichever change prompted it.
 

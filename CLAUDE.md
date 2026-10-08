@@ -120,6 +120,13 @@ npx tsc --noEmit   # type-check without building
 npm test           # vitest run
 ```
 
+The native iOS wrapper's Capacitor version is also pinned in
+`homeschool-tutor/ios/App/CapApp-SPM/Package.swift`. After an iOS dependency
+update, regenerate it with `npm run build` and `npm run cap:sync`, then
+rebuild and redistribute the native app; see `docs/DEVELOPMENT.md`.
+`src/capacitorSecurity.test.ts` checks the patched npm version and the
+native pin agree.
+
 **Backend** — FastAPI with async SQLAlchemy:
 ```bash
 cd homeschool-api

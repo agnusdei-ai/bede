@@ -1535,6 +1535,29 @@ carved out by name in the root `LICENSE`'s section 6, recorded as
 `docs/DECISIONS.md` entry 18. Section 5's trademark reservation still
 applies — the grant covers the prompts and code, never the "Bede" mark.
 
+**The licensor is the repository's own owner, derived rather than restated.**
+Until 2026-10-08 the `NOTICE`, all seven source headers, the root `LICENSE`
+carve-out, the public `README`, entry 18 and the carve-out test itself named
+**Adapt Cloud**, an entity the repository described nowhere — so a permissive
+grant was being made in one company's name inside a repository the root
+`LICENSE` says Agnus Dei Technologies, LLC owns. A grant whose licensor is
+unidentified is defective, and a carve-out naming a second entity is the
+ambiguity the carve-out exists to remove. Corrected everywhere; see entry 18's
+amendment. `test_license_carveout.py` now reads the holder out of the root
+`LICENSE`'s first line instead of hardcoding it, and additionally fails if ANY
+copyright line anywhere in the package names a different entity — the first
+guard catches a half-finished rename, the second catches a *new* second
+licensor appearing beside the right one, which is how the original defect got
+in. `tests/test_trademark_attribution.py` is the same discipline on the mark
+a family actually reads: the attribution sentence exists twice
+(`BedeMark.tsx` in both apps), nothing checked that the two agreed, and
+neither was tied to the owner on the root `LICENSE`. Both paths are named in
+`test.yml`'s change filter, with a test on the `grep -qE` line itself. Note
+its extractor reads the rendered `are trademarks of` claim, never any line
+containing "trademark" — the first cut matched the file's own docstring and
+asserted against prose describing the attribution rather than the
+attribution, the same vacuous pass the COPPA guards hit.
+
 **Two properties make the Apache-2.0 grant safe, and both are tested rather
 than promised.** The package names nothing proprietary
 (`test_no_file_names_the_proprietary_product`, which scans every shipped
@@ -1565,8 +1588,9 @@ from `homeschool-api/`, and its 15 guards run as their own
 `agent-governance-tests` job in `.github/workflows/test.yml` — deliberately
 not coupled to that backend's lockfile install, since the package needs no
 backend dependency. The parent repository tests the *carve-out*
-(`test_license_carveout.py`, whose seven guards were each verified by
-breaking them). The package tests *itself*. A test in the package that
+(`test_license_carveout.py`, whose ten guards were each verified by
+breaking them — the count said seven while there were nine, which is why it
+is stated here at all). The package tests *itself*. A test in the package that
 reached back into this repo would break the moment someone vendored it,
 which is the whole point of the extraction.
 

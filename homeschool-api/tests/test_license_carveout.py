@@ -15,6 +15,7 @@ test_decision_register.py applies to the register. Note .github/workflows/
 test.yml's change filter names both LICENSE and agent-governance/, without
 which a licensing-only edit would compute relevant=false and never run this.
 """
+import re
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,27 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _ROOT_LICENSE = _ROOT / "LICENSE"
 _PKG = _ROOT / "agent-governance"
+
+
+def _root_copyright_holder() -> str:
+    """The repository's own statement of who owns it, read from the root
+    LICENSE rather than restated here.
+
+    This is what makes the guard below span the repository boundary. The
+    holder used to be hardcoded, and it named a different entity from the
+    one on the root LICENSE and on every other file in the repository — so
+    the Apache grant was made in one company's name inside a repository
+    owned by another, with nothing anywhere saying how the two were
+    related. Deriving it means the two cannot disagree again: rename the
+    company and this fails until the sweep is finished.
+    """
+    first = _ROOT_LICENSE.read_text().splitlines()[0]
+    match = re.match(r"Copyright \(c\) \d{4} (.+?)\. All Rights Reserved\.", first)
+    assert match, (
+        "The root LICENSE no longer opens with a parseable copyright line, so "
+        f"the package's holder cannot be checked against it: {first!r}"
+    )
+    return match.group(1)
 
 
 def test_the_package_exists_and_is_apache_licensed():
@@ -50,7 +72,7 @@ def test_one_copyright_holder_across_the_whole_package():
     and not the others would leave the grant naming two different licensors,
     which is worse than a stale comment: it is ambiguity in the document that
     conveys rights."""
-    holder = "Adapt Cloud"
+    holder = _root_copyright_holder()
     notice = (_PKG / "NOTICE").read_text()
     assert f"Copyright 2026 {holder}" in notice
 
@@ -63,8 +85,56 @@ def test_one_copyright_holder_across_the_whole_package():
         head = "\n".join(source.read_text(encoding="utf-8").splitlines()[:4])
         assert f"Copyright 2026 {holder}" in head, source.name
 
-    assert holder in _ROOT_LICENSE.read_text(), (
-        "The root LICENSE carve-out no longer names the package's publisher."
+    # Deliberately the carve-out SECTION, not the file. `holder` is derived
+    # from the root LICENSE's first line, so "is it anywhere in that file"
+    # is tautological and would pass with section 6 naming nobody at all.
+    section = _ROOT_LICENSE.read_text().split("6. SEPARATELY LICENSED COMPONENT")
+    assert len(section) == 2, "the root LICENSE no longer has a section 6 to read"
+    # Collapse whitespace first: this is wrapped prose, so a 27-character
+    # company name straddles a line break as often as not, and a literal
+    # substring check would fail on formatting rather than on substance.
+    carveout = " ".join(section[1].split("\n\n")[0].split())
+    assert holder in carveout, (
+        "The root LICENSE's section 6 carve-out does not name "
+        f"{holder!r} as the publisher of the separately licensed directory. "
+        "A permissive grant inside a proprietary repository has to say who "
+        "is making it.\n" + carveout
+    )
+
+
+def test_no_second_entity_appears_as_a_copyright_holder_in_the_package():
+    """The guard above proves the right entity is named everywhere it looked.
+    This one proves no *other* entity is named anywhere else in the package.
+
+    Those are different failures. A hardcoded holder caught a rename that
+    reached some files and not others; it could not catch a new file, or a
+    new paragraph, introducing a second licensor beside the first — which is
+    how the Apache grant came to be made in a name the repository never
+    identified. Every copyright line in the package must name the one entity
+    the root LICENSE says owns this repository.
+    """
+    holder = _root_copyright_holder()
+    pattern = re.compile(r"Copyright(?:\s+\(c\))?\s+\d{4}\s+(.+)")
+    offenders: list[str] = []
+    for path in sorted(_PKG.rglob("*")):
+        if not path.is_file() or path.name == "LICENSE":
+            continue  # Apache-2.0's own text carries no holder of ours.
+        if any(part in {"dist", "__pycache__", ".pytest_cache", "node_modules"}
+               for part in path.parts):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for line in text.splitlines():
+            found = pattern.search(line)
+            if found and not found.group(1).startswith(holder):
+                offenders.append(f"{path.relative_to(_ROOT)}: {line.strip()}")
+    assert not offenders, (
+        f"These lines name a copyright holder other than {holder!r}, the owner "
+        "named on the root LICENSE. A permissive grant must identify its "
+        "licensor, and this repository has exactly one:\n  "
+        + "\n  ".join(offenders)
     )
 
 

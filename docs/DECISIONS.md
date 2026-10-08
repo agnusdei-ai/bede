@@ -1744,8 +1744,22 @@ assumed.
 with children attends. The afternoon window is 2-3pm Pacific and works well.
 So of the two windows only one serves the west coast today, and "flexible for
 PST" needs either a third window or a shifted morning. Eastern needs nothing:
-Calendly renders every invitee's own zone, so 8-9am Chicago simply displays as
-9-10am to a New York family and 5-6pm for the afternoon.
+a scheduling page renders every invitee's own zone, so 8-9am Chicago simply
+displays as 9-10am to a New York family and 5-6pm for the afternoon.
+
+**Amended 2026-10-08 — the scheduler is TidyCal, not Calendly.** An earlier
+draft of this entry named Calendly, because a stale 2023 free Calendly account
+on a personal address was connected to the session that wrote it. The account
+is not used and the tool is **TidyCal**. Two consequences, neither of which
+changes the two open parameters above. First, TidyCal does support a group
+booking type with a per-slot seat cap, so the seat-count question above maps
+onto it directly rather than needing a workaround — but the sources are
+third-party reviews that disagree on which tier carries it, TidyCal's own
+documentation was not retrieved, and nothing was verified against the live
+account, so confirm it there before relying on it. Second, there is no TidyCal
+connector in this environment, so every setting here is set by hand in their UI
+— unlike Calendly, whose availability rules an agent could have written through
+its API. Notifications go to `bede@agnusdei.ai`.
 
 **A guide meeting children is a separate precondition, not a parameter.**
 Background checks, a written safeguarding policy for guides, parent consent

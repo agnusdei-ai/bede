@@ -71,6 +71,8 @@ printf '  %s\n' "${EXPECTED[@]}"
 echo
 
 failed=0
+unreachable=0
+header_failed=0
 for host in $HOSTS; do
   for path in $PATHS; do
     url="${host}${path}"
@@ -78,18 +80,39 @@ for host in $HOSTS; do
     # A merge triggers a Cloudflare deploy that finishes on its own schedule,
     # so retry rather than racing it. Only the fetch is retried; a fetch that
     # succeeds with headers missing is a real result, not a flake.
+    # Emptiness is the wrong test. When an intermediary answers the request
+    # itself — this repo's own agent sandbox returns 403 to CONNECT, and a
+    # captive portal, a corporate proxy or a Cloudflare error page all behave
+    # the same way — the response is NON-empty, carries that intermediary's
+    # headers, and contains none of ours. Checking `-z` alone then reports
+    # "missing: <every header>" and sends the reader to the Worker-config
+    # advice below, which is a confident diagnosis of a problem that does not
+    # exist. A false red is how a gate loses its reputation and then gets
+    # deleted (see #296). So the status has to come from the origin before any
+    # header is read off the response.
     got=""
+    status=""
     for attempt in $(seq 1 "$ATTEMPTS"); do
-      if got=$(curl -sS -I --max-time 30 --location "$url" 2>/dev/null); then
-        break
+      raw=""
+      if raw=$(curl -sS -I --max-time 30 --location -w '\nHTTPSTATUS:%{http_code}' "$url" 2>/dev/null); then
+        status=$(printf '%s' "$raw" | sed -n 's/^HTTPSTATUS:\([0-9][0-9]*\)$/\1/p' | tail -n 1)
+        got=$(printf '%s' "$raw" | grep -v '^HTTPSTATUS:' || true)
+        case "$status" in
+          2??|3??) break ;;
+        esac
+        echo "  ($url answered HTTP ${status:-?}, attempt $attempt/$ATTEMPTS)"
+        status=""
+      else
+        echo "  ($url unreachable, attempt $attempt/$ATTEMPTS)"
       fi
-      echo "  ($url unreachable, attempt $attempt/$ATTEMPTS)"
       [ "$attempt" -lt "$ATTEMPTS" ] && sleep "$SLEEP_SECONDS"
     done
 
-    if [ -z "$got" ]; then
-      echo "FAIL $url — unreachable after $ATTEMPTS attempts."
+    if [ -z "$status" ] || [ -z "$got" ]; then
+      echo "FAIL $url — no response from the origin after $ATTEMPTS attempts."
+      echo "     Not reading headers off a response the origin did not serve."
       failed=1
+      unreachable=1
       continue
     fi
 
@@ -104,11 +127,23 @@ for host in $HOSTS; do
     else
       echo "FAIL $url — missing: ${missing[*]}"
       failed=1
+      header_failed=1
     fi
   done
 done
 
-if [ "$failed" -ne 0 ]; then
+if [ "$unreachable" -ne 0 ]; then
+  cat <<'MSG'
+
+At least one URL never answered from the origin, so this run proves nothing
+about the header set either way. Look at the network path before the Worker
+configuration: an egress proxy, DNS, or an intermediary answering on the
+origin's behalf. This repository's own agent sandbox blocks these hosts, so
+a run from there always lands here.
+MSG
+fi
+
+if [ "$header_failed" -ne 0 ]; then
   cat <<'MSG'
 
 The deployed site is not serving headers that site/_headers declares.
@@ -122,6 +157,9 @@ order:
      https://developers.cloudflare.com/workers/static-assets/headers/
   3. Did the deploy for this commit actually finish?
 MSG
+fi
+
+if [ "$failed" -ne 0 ]; then
   exit 1
 fi
 

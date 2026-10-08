@@ -1558,6 +1558,51 @@ containing "trademark" — the first cut matched the file's own docstring and
 asserted against prose describing the attribution rather than the
 attribution, the same vacuous pass the COPPA guards hit.
 
+**The whole IP position lives in one document now —
+[docs/INTELLECTUAL_PROPERTY.md](docs/INTELLECTUAL_PROPERTY.md).** The carve-out
+above is one part of it, and the rest was equally real and equally scattered:
+the root `LICENSE`'s reservation, the `BedeMark.tsx` attribution, entry 18, and
+the guards holding them together, across five files with no single statement of
+what the position was. That document holds what the property is, who owns each
+part, which claims are enforced by test rather than promised, the
+formation-and-assignment runbook, the assignment instrument itself, the
+trademark position, and the recorded decision that no patent filing is planned.
+
+**It is the method, and deliberately carries no state.** There is no register
+entry tracking how far along the company is in perfecting its own title, and
+there was one briefly — struck before merge. How complete a private company's
+chain of title is at a given moment is not a fact this repository needs, it is
+readable by anyone, and a register entry would have restated it on every
+amendment. Where each step has got to belongs with the company's records. The
+same reasoning removed the entity's registration particulars: no code reads a
+formation date or a Secretary of State file number, and the first draft made
+publishing them an *obligation* — the shape worth remembering, since that is
+not a leak but a rule that would have invited one repeatedly.
+
+**Deliberately unguarded by test, and that is the second lesson.** A first
+pass shipped 42 parametrized cases policing that document's prose — scanning
+for adverse phrasings, for status language, for internal mechanism names. They
+were deleted before merge: no code reads the document, it gates no release, and
+the compliance documents that genuinely need enforcement already have
+`tests/test_coppa_compliance.py`. Three of those scans had already fired on
+*correct* text, including the sentence explaining the rule they enforced, which
+is how a gate earns a reputation for crying wolf and then gets deleted — this
+repository has done that once (#296). The rule lives here instead, where the
+next session reads it, costs no CI time on every backend pull request, and
+cannot produce a false red. Guard code; write down judgment.
+
+What the document carries: the assignment instrument, whose three load-bearing
+clauses are the mark conveyed **together with its goodwill** (without which a
+mark assignment is void), the acknowledgement that the published Apache-2.0
+grant is a real encumbrance (without which the instrument's own warranty is
+inaccurate), and further assurances (what makes signing a rough version safe).
+Its `[FORMATION DATE]`/`[FILE NUMBER]`/`[FULL LEGAL NAME]`/`[ADDRESS]` fields
+stay placeholders in the committed copy — fill them in the signed one. The
+document is in the repository and not on the public site: `build_pages_site.sh`
+publishes no part of `docs/`, which the COPPA guards already assert, and which
+is a real boundary rather than a hiding place, since the repository itself is
+public.
+
 **Two properties make the Apache-2.0 grant safe, and both are tested rather
 than promised.** The package names nothing proprietary
 (`test_no_file_names_the_proprietary_product`, which scans every shipped
@@ -1966,6 +2011,79 @@ script that was behaving correctly, because its `"Worker"` sentinel matched the
 honest unreachable message — which names the Worker in order to say *do not
 look there yet*. The same blunt-scan trap as a guard that fires on a docstring
 describing the thing it forbids; the sentinels are now specific strings.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever change prompted it.
+
+## Standing Workflow: Never Publish What The Repository Does Not Need
+
+**This repository is public. Anything committed to it is readable by a
+competitor, a counterparty, or anyone looking for leverage — permanently, and
+regardless of whether it ever reaches `agnusdei.ai`.** Before committing text
+about the business, the entity, or the commercial position, the test is not
+"is this true" or "is this useful to us" but **does the repository need it, and
+what does it hand to someone who is not on our side.**
+
+Four categories, each of which was written into a draft of
+`docs/INTELLECTUAL_PROPERTY.md` and removed before merge:
+
+1. **A private entity's registration particulars.** No code reads a formation
+   date or a Secretary of State file number. A draft register entry made
+   publishing them an *obligation*, which is the worse shape: not a leak, but
+   a rule that would have invited one on every amendment.
+   Keep the assignment template's
+   `[FORMATION DATE]`/`[FILE NUMBER]`/`[FULL LEGAL NAME]`/`[ADDRESS]` fields
+   as placeholders in the committed copy; the filled one is the signed
+   instrument and lives with the company's records.
+
+   **The register entry went too**, and that is the broader rule: where the
+   only thing an entry would track is how far along a private matter is, the
+   entry itself is the disclosure. A `needs:` line naming what remains is a
+   statement about current posture however neutrally it is worded. Keep the
+   method in `docs/`, keep the state out of the repository, and do not leave a
+   stub — a withdrawn entry advertises that something was withdrawn.
+2. **An adverse conclusion about our own legal position.** Three reached a
+   draft: one about the completeness of our own title, one about which
+   jurisdictions' rights a public repository costs us, and one about our own
+   mark's strength. They are **described rather than quoted here on purpose** —
+   a rule that reproduces the sentences it forbids preserves the whole payload
+   under a heading saying not to write it, which is the inverse of the
+   blunt-scan trap further down and just as easy to walk into. Each was
+   true-sounding, each quotable verbatim by an opponent, and none was needed by
+   the runbook it sat beside. State the **requirement** ("title passes by
+   written assignment, so execute it at formation"), never the **status**. A
+   conclusion about our position at a moment in time is a lawyer's to reach,
+   through a channel that is not a public file.
+3. **A strategic self-assessment.** A draft ranked the mark against the
+   architecture for defensibility — telling a competitor our own view of what
+   is worth copying and what is not. Free intelligence, bought for nothing,
+   and likewise not restated here.
+4. **A map to what is valuable.** The sharpest instance: a draft §7 named the
+   two internal mechanisms believed most likely to be novel, with their file
+   and class names, under a heading about patentability. That is a "here is
+   what is worth taking first" pointer written for an adversary's convenience.
+   An IP or commercial document has no business enumerating which internal
+   mechanisms are the differentiated ones.
+
+**Where the analysis genuinely belongs with counsel, say that it does and stop
+there.** Recording that a question was *considered* keeps the register honest;
+publishing a partial, public, non-lawyer answer helps nobody who should have it
+and is readable by everyone who should not.
+
+**This cuts against two instincts that are otherwise right here.** The register
+exists to state what is open and why, and this file prizes writing down the
+reasoning rather than the conclusion — so the pull toward completeness is
+strong, and it is exactly what produced all four categories above in a single
+document, twice in one session, the second time immediately after being
+corrected on the first. Completeness about *method* is the virtue. Completeness
+about *our own exposure* is not.
+
+Not everything sensitive is secret, and the boundary is need rather than
+confidentiality: Texas filings are public record, and that is no reason to
+aggregate them into a repository alongside everything else. `docs/` is excluded
+from `scripts/build_pages_site.sh`'s output, so nothing here reaches the
+marketing site — that is a real boundary and not a hiding place, since the
+repository itself is public.
 
 This is a standing rule for this repo across sessions, not a one-off for
 whichever change prompted it.

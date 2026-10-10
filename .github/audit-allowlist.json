@@ -57,20 +57,6 @@
       "fix_version": "7.29.1",
       "reason": "Same dependency path and remediation reasoning as the GHSA-rfgv-xxqx-mfg5 entry above (undici via @cloudflare/vitest-pool-workers -> miniflare; dev/test only; workerd is the production runtime; retires on the next miniflare/pool undici bump).",
       "added": "2026-10-10"
-    },
-    {
-      "id": "GHSA-rgj7-g3m4-5g8c",
-      "package": "sharp",
-      "fix_version": "0.35.4",
-      "reason": "sharp reaches this repository only through @cloudflare/vitest-pool-workers -> miniflare (image-resizing internals exercised by Workers tests), exclusively at dev/test time; neither the shipped Worker bundle nor either frontend imports it. npm's suggested fix is again the pool downgrade to 0.35.4-bearing releases via pool 0.8.30 (semver-major, vitest 2 era) -- rejected for the reasons recorded on the undici entries above. The upstream fixes are 0.35.4/0.35.5; the exception retires when a miniflare/pool bump carries them.",
-      "added": "2026-10-10"
-    },
-    {
-      "id": "GHSA-wq5f-xc86-pv6w",
-      "package": "sharp",
-      "fix_version": "0.35.5",
-      "reason": "Same dependency path and remediation reasoning as the GHSA-rgj7-g3m4-5g8c entry directly above (sharp via @cloudflare/vitest-pool-workers -> miniflare; dev/test only; retires on the next miniflare/pool sharp bump).",
-      "added": "2026-10-10"
     }
   ]
 }

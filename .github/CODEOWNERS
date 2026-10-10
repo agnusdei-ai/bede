@@ -1,0 +1,9 @@
+# Default owner for everything in the repo
+* @realjkg
+
+# Security-sensitive paths stay with the owner, explicitly
+/SECURITY.md @realjkg
+/.github/workflows/ @realjkg
+/.github/rulesets/ @realjkg
+/.github/audit-allowlist.json @realjkg
+/.github/dependabot.yml @realjkg

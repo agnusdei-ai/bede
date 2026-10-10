@@ -1,0 +1,43 @@
+name: CodeQL analysis
+
+# The portfolio security baseline makes CodeQL the SAST of record for this
+# repo, which had no code scanning anywhere. Both languages present —
+# Python (homeschool-api, scripts/) and TypeScript/JavaScript
+# (homeschool-tutor, demo, license-server) — are interpreted, so analysis
+# runs with build-mode: none and no autobuild step. First-analysis findings
+# land as code-scanning alerts recording pre-existing posture, not as PR
+# failures; a broken analysis is what fails the job.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+# The default token only ever reads the repo; only the SARIF upload needs a
+# write, scoped to the one job that performs it.
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript', 'python']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        with:
+          category: '/language:${{ matrix.language }}'

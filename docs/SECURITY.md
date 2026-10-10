@@ -36,6 +36,11 @@ than policy-based:
 - **The deployment is single-tenant and LAN-scoped.** Each family runs
   its own instance (see `docs/PRODUCTION_SETUP.md`); there is no shared,
   internet-facing multi-tenant surface an attacker could pivot through.
+  The operator does run two internet-facing services — the public demo and
+  the license server (see "The license server (commerce surface)" below) —
+  but neither widens the agent's own attack surface: the demo's data
+  posture is pseudonymous and transient (`docs/DATA_RETENTION.md`), and
+  the license server holds no child data at all.
 - **The constitution's non-negotiable rules are a second, independent
   layer on top of the architectural limits above** — `core/constitution.py`
   verifies a SHA-256-pinned, structurally-validated constitution at every
@@ -47,6 +52,76 @@ This reasoning has **not** been validated by third-party adversarial
 testing (see the open Safety-pillar gap below) — it documents why the
 architecture makes this pillar low-risk by construction, not that the
 absence of these harms has been independently red-teamed.
+
+## The license server (commerce surface)
+
+The License Server (`license-server/`, deployed per
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md)) is an
+operator-run, internet-facing Cloudflare Worker + D1 service that owns
+checkout, license issuance, and license truth. It is not part of a
+family's deployment, and it holds no child data. What it does hold, and
+what protects it, changes two posture claims that older documents state
+absolutely — this section is the precise, current form of both.
+
+**"No payment information by design" — now true in this precise form:
+no card data ever touches Bede systems.** Checkout is Stripe-hosted, so
+card data is captured, processed, and stored entirely by Stripe and PCI
+scope never leaves Stripe. What the operator's own database (D1) does
+hold is purchaser email and purchase records — PII, classified in
+`docs/DATA_CLASSIFICATION.md` and retained per `docs/DATA_RETENTION.md`
+(retain while active; purge 30 days after revocation, a proposed default
+owned by the operator). Pages that still read "no payment information,
+ever" without the card-data qualifier (the demo and site privacy pages,
+`docs/INCIDENT_RESPONSE.md`) are accurate in spirit and outdated in
+letter; this paragraph is the current truth, and those pages are updated
+by the work that touches them.
+
+**"No phone-home, no telemetry" — telemetry remains true; the phone-home
+claim is now conditional, and the condition is the family's own.** License
+verification stays offline-first and always runs first
+(`core/licensing.py`, unchanged). A family's instance contacts the license
+server **only** if the operator running it sets `LICENSE_SERVER_URL` —
+and an empty value is today's fully-offline behavior, byte for byte (the
+client-side test asserting exactly that lands with the heartbeat
+integration). When set, the heartbeat
+is a jittered daily background call that carries exactly two things — the
+license key and an `install_id` — and never session content, child data,
+usage metrics, or anything else; a 30-day offline grace window means an
+unreachable server gates nobody in the meantime. The claim "no phone-home"
+was a promise that nothing is *required* to leave the machine; that
+promise now reads: nothing leaves the machine unless the operator opts in,
+and what leaves then is a license check, not telemetry.
+
+**The new internet-facing surface, and what guards it.** The Worker's
+public endpoints are the storefront page, `POST /v1/webhooks/stripe`,
+`POST /v1/activate`, `POST /v1/validate`, and `POST /v1/trial`:
+
+- **Webhook authenticity is the load-bearing control.** Every Stripe
+delivery is signature-verified (Stripe's Workers-native async path,
+`constructEventAsync` + `SubtleCryptoProvider`) before anything is
+written; a missing or bad signature gets a 400 and zero rows written.
+Getting this wrong converts the webhook into an unauthenticated "issue me
+a free license" endpoint — the single highest-severity risk in the
+component (`LICENSE_SERVER_DESIGN.md` §8), and the reason verification
+lives inside the payment adapter, where a reviewer cannot miss it.
+- **Rate limiting** mirrors `core/middleware.py`'s per-IP sliding-window
+pattern on `/v1/activate`, `/v1/validate`, and `/v1/trial` — the
+endpoints most likely to be probed by someone testing whether a shared
+key works elsewhere. The trial endpoint, the one surface with no payment
+friction at all, additionally enforces one active trial per email.
+- **The operator API** (list licenses, revoke/comp, resend delivery) is
+token-authenticated (`OPERATOR_TOKEN`); without the bearer token every
+operator route answers 401.
+
+**Key custody moved — deliberately.** `ED25519_PRIVATE_KEY`, the private
+half of `core/licensing.py`'s embedded `PUBLIC_KEY_PEM`, now lives as a
+Workers Secret on this internet-facing service instead of solely on an
+offline medium — the trade that makes automated issuance possible
+(`LICENSE_SERVER_DESIGN.md` §8). Stored via `wrangler secret put`, never
+in source, never logged, never displayed; a suspected exposure is an
+incident handled by `docs/INCIDENT_RESPONSE.md`'s "Compromised license
+signing key" section, with the planned rotation sequence in
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md).
 
 ## Known open gaps
 
@@ -73,6 +148,9 @@ list as items are closed.
   tracks this — same in-house-not-independent caveat applies, and same
   git-SHA-pinned tracking format as the adversarial probes above, so
   findings can be correlated release-to-release once testing starts.
+  The license server Worker is now part of that same exposure: an
+  internet-facing surface with its own webhook verification, rate limits,
+  and signing key, untested until an engagement covers it.
 - **Parent MFA is opt-in, not required.** WebAuthn/TOTP only gate login once
   a parent has separately enrolled a method (`services/mfa_service.py`) — a
   family that never visits MFA setup runs single-factor (password only) on

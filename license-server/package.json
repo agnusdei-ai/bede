@@ -21,6 +21,9 @@
     "vitest": "^4.1.11",
     "wrangler": "^4.149.0"
   },
+  "overrides": {
+    "undici@7.29.0": "7.29.1"
+  },
   "engines": {
     "node": ">=20.0.0"
   }

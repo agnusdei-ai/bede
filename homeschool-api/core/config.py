@@ -561,6 +561,25 @@ class Settings(BaseSettings):
     # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
     license_key: str = ""
 
+    # ── License server (optional) ───────────────────────────────────────────
+    # Base URL of the license server (the checkout/issuance service). When
+    # set, this instance registers itself once (POST /v1/activate with the
+    # applied license key and this install's random install_id) and then
+    # revalidates daily (POST /v1/validate) in a background task, so a
+    # renewal or revocation reaches a running instance without the family
+    # re-pasting a key — see core/license_heartbeat.py. Contact failures are
+    # never fatal: the last successful answer is cached (tamper-evidently)
+    # and honored for a 30-day offline grace before the instance falls back
+    # to the gated mode.
+    #
+    # Empty (the default) is a permanent opt-out and byte-for-byte today's
+    # behavior: licenses verify fully offline against the embedded public
+    # key and NOTHING is ever sent anywhere — no activation, no heartbeat,
+    # no outbound license traffic of any kind. This is asserted as code in
+    # tests/test_license_heartbeat.py (the opt-out path provably issues zero
+    # HTTP requests). See docs/PRODUCTION_SETUP.md#licensing.
+    license_server_url: str = ""
+
     # Both sets now live in core/pin_policy.py rather than here, because the
     # setup wizard has to enforce exactly the same rule at the moment a
     # parent types a value, and it cannot import this module (it runs in a
@@ -687,7 +706,7 @@ class Settings(BaseSettings):
     # expiry bricked the instance until someone edited that file. Licensing
     # is now resolved at startup in main.py's lifespan via
     # core/license_state.py — a valid license stored in the DATABASE (pasted
-    # into the parent UI, PUT /admin/license) wins over the env key, and an
+    # into the parent UI, POST /admin/license) wins over the env key, and an
     # unlicensed production instance boots into a gated "license required"
     # mode (core/middleware.py's LicenseGateMiddleware) where the parent can
     # log in and paste a key, instead of refusing to start. Production

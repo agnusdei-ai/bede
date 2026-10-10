@@ -56,6 +56,10 @@ services:
       - CHILD_PIN=${CHILD_PIN:?CHILD_PIN is required}
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
       - LICENSE_KEY=${LICENSE_KEY:?LICENSE_KEY is required — issue one with homeschool-api/scripts/issue_license.py, see docs/PRODUCTION_SETUP.md#licensing}
+      # Optional license-server heartbeat — empty keeps the instance fully
+      # offline (no outbound license traffic). See .env.example and
+      # docs/PRODUCTION_SETUP.md, Licensing.
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
       # Security posture knobs (core/config.py). All optional, all with safe
       # defaults — but they must be listed here or they never reach the
       # container: this block enumerates variables explicitly rather than

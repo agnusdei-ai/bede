@@ -335,11 +335,12 @@ then restart the stack.
 ## Licensing
 
 Once `PRODUCTION=true`, Bede requires a valid license. A license is a
-compact, **offline-verifiable** certificate — no phone-home, no license
-server, no telemetry. Verification happens entirely against a public key
-embedded in `homeschool-api/core/licensing.py`; your server never needs
-outbound network access to prove it's licensed, and it never reports back
-to us.
+compact, **offline-verifiable** certificate — verification happens entirely
+against a public key embedded in `homeschool-api/core/licensing.py`. By
+default there is no phone-home: with no license server configured, your
+server never needs outbound network access to prove it's licensed, and it
+never reports back to us. (The optional license-server check-in below is
+the one exception, and only when you turn it on.)
 
 **Getting one:** if you purchased Bede or started a trial, you were given a
 license key. The setup wizards (terminal and browser) prompt for it at
@@ -365,6 +366,49 @@ clear message, while parent login and the License card keep working — so
 an expired license is fixed by pasting the renewal into the UI, never by
 SSH-ing into the server. The key applied in-app is stored in the database
 and wins over the `.env` key.
+
+**Optional: checking in with the license server (`LICENSE_SERVER_URL`).**
+By default this variable is empty and everything above is the whole story:
+Bede verifies licenses fully offline and makes no license-related network
+connections of any kind. This is a supported, permanent configuration —
+nothing requires the license server.
+
+If the variable is set (e.g. `LICENSE_SERVER_URL=https://license-server.agnusdei.workers.dev`),
+the instance additionally checks in with that license server
+(`core/license_heartbeat.py`): shortly after boot it activates once,
+revalidating daily thereafter with a little jitter, in the background —
+it never blocks or fails a request, and a check-in that can't reach the
+server is logged and retried. What the check-in changes:
+
+- **Renewals apply themselves.** The server tracks your paid term, so a
+  renewal extends the license without pasting a new key; the signed
+  certificate's own expiry becomes a long-dated backstop rather than the
+  operative date.
+- **Revocation takes effect.** A refund or cancellation is reported back
+  on a daily check-in, and the instance returns to the gated mode above
+  — bounded by the grace window below, not by the certificate's printed
+  expiry.
+- **Outages are invisible for 30 days.** The last successful answer is
+  cached locally, tamper-evidently (HMAC-sealed with the instance's
+  `SECRET_KEY`), and honored for up to 30 days of failed check-ins. Past
+  that window the instance returns to the gated mode with a
+  "reconnect to revalidate" message; the first successful check-in
+  restores everything.
+- **Unknown keys change nothing.** A signature-valid license the server
+  has no record of (e.g. one issued by hand before the server existed)
+  keeps working exactly as it does today, governed by its signed expiry
+  — the server only overrules licenses it actually knows.
+- **Activation count.** Each installation that checks in binds a random,
+  self-generated `install_id` (a first-boot UUID persisted next to the
+  encryption salt — never derived from hardware). A license allows a
+  small number of distinct installations (2 by default); the License
+  card shows how many are in use. Rebuilding the container on the same
+  data volume re-activates the same install — it doesn't consume a slot.
+
+The License card (`GET /admin/license`) reports the server-tracked status
+alongside the certificate fields, including `activations_used` and
+`max_activations`. To revoke the check-in later, empty
+`LICENSE_SERVER_URL` and restart: offline verification resumes unchanged.
 
 **What it controls today:**
 - The gate above — an unlicensed production instance can't tutor until a

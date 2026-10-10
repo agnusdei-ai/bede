@@ -25,6 +25,7 @@ unconditionally destructive.
 import asyncio
 import logging
 import struct
+import uuid
 from typing import Optional
 
 from Crypto.Cipher import AES
@@ -62,6 +63,7 @@ _HEADER_SIZE = 4 + 1 + 16 + 16   # magic + version + nonce + tag
 _PBKDF2_ITERS = 600_000
 
 _DATA_KEY: Optional[bytes] = None
+_INSTALL_ID: Optional[str] = None
 
 
 def aad_for(table: str, column: str, row_key: str) -> bytes:
@@ -271,6 +273,54 @@ async def initialize_encryption(master_secret: str, db) -> None:
     # Scrub KEK (best-effort — CPython GC will collect it, but not guaranteed)
     kek = b"\x00" * len(kek)
     del kek
+
+
+# ── Install identity (device_salt pattern) ───────────────────────────────────
+
+async def get_or_create_install_id(db) -> str:
+    """Loads — or on first boot generates and persists — this install's
+    identity UUID, used by the optional license-server heartbeat
+    (core/license_heartbeat.py) to register itself.
+
+    The same load-or-generate-at-first-boot pattern as device_salt above:
+    a random UUID stored in the encryption_config table, created once and
+    read back forever after. Deliberately NOT hardware-derived — a Mac
+    address or disk serial churns under Docker/VMs and would betray a
+    legitimate migration to new hardware as a brand-new install (the
+    activation cap counts installs, so a stable id is what makes
+    re-activating after a container rebuild idempotent rather than a
+    second activation). The server sees this id only as an opaque label
+    bound to one license.
+
+    Returns the cached module value when already loaded this process;
+    reads the row otherwise. Safe to call repeatedly (idempotent)."""
+    global _INSTALL_ID
+    if _INSTALL_ID is not None:
+        return _INSTALL_ID
+
+    from sqlalchemy import select
+
+    from core.database import EncryptionConfig
+
+    result = await db.execute(
+        select(EncryptionConfig).where(EncryptionConfig.key == "install_id")
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        _INSTALL_ID = str(uuid.uuid4())
+        db.add(EncryptionConfig(key="install_id", value=_INSTALL_ID.encode("utf-8")))
+        await db.commit()
+        log.info("First boot: generated install id")
+    else:
+        _INSTALL_ID = row.value.decode("utf-8")
+    return _INSTALL_ID
+
+
+def install_id() -> Optional[str]:
+    """The loaded install id — None until get_or_create_install_id() has
+    run in this process (main.py's lifespan does, right after
+    initialize_encryption)."""
+    return _INSTALL_ID
 
 
 # ── Public encrypt/decrypt (called after initialize_encryption) ──────────────

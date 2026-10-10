@@ -88,7 +88,7 @@ class EncryptionConfig(Base):
 
 
 class LicenseConfig(Base):
-    """The license key applied from the parent UI (PUT /admin/license) — a
+    """The license key applied from the parent UI (POST /admin/license) — a
     renewal/upgrade path that needs no .env edit and no restart. A single
     well-known row; the signed license text is not secret material (it's
     the same token the customer received by email, verifiable only against

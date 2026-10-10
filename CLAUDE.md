@@ -945,6 +945,21 @@ addToolMessage()       → finalizes placeholder text, inserts tool card, reopen
 finalizeAssistantMessage() → promotes placeholder to a real message, sets isStreaming=false
 ```
 
+### License Server Worker (`license-server/`)
+
+A second, separately-deployed service in this repo (the `scripts/trust_service/` precedent): a Cloudflare Worker + D1 that owns checkout→issuance so a sale never requires the operator's laptop. `docs/LICENSE_SERVER_DESIGN.md` is the design it implements (narrowed to launch scope); `docs/LICENSE_SERVER_SETUP.md` is the runbook. It emits license keys in EXACTLY the wire format `core/licensing.py` already verifies — the format is frozen, not shared by convention. That equality is asserted two ways, both in CI: `homeschool-api/tests/test_license_server_cross_language.py` verifies a Worker-generated signed vector under the UNMODIFIED Python verifier, and `license-server/test/runtime-signing.test.ts` signs INSIDE the real Workers runtime (workerd, via @cloudflare/vitest-pool-workers with the project's own `wrangler.jsonc`) — a Node WebCrypto pass proves nothing about what Cloudflare's runtime accepts. Pieces:
+
+- `src/adapters/` — the payment-adapter seam mirroring `services/adapters/base.py`'s shape: `base.ts` defines the `PaymentAdapter` protocol over a canonical `PaymentEvent` whose vocabulary is Stripe-shaped on purpose (the canonical shape follows the Phase-1 provider, exactly as `base.py` follows Anthropic's); a future Square adapter would TRANSLATE into this shape — issuance logic never changes. `stripe.ts` verifies webhook signatures INSIDE the adapter (`constructEventAsync` + `createSubtleCryptoProvider` — the sync `constructEvent()` throws in the Workers runtime): a wrong or missing signature surfaces as `AdapterVerificationError`, because a wrong one turns the webhook into an unauthenticated "issue me a free license" endpoint (design §8's highest-severity risk).
+- `src/license/entitlements.ts` — the price→entitlement mapping: one configured Stripe price ID → `{tier: "core", seats: 6, max_activations: 2}`. Explicit registration (DECISIONS.md entry 28) — a purchase never implicitly mints an entitlement shape the contract lacks, and an unmapped price ID issues NOTHING and logs.
+- `src/license/sign.ts` — WebCrypto Ed25519 signing (`crypto.subtle.importKey` "pkcs8" + `sign`); `encode.ts` — canonical JSON (codepoint-sorted keys, compact separators, unpadded base64url) matching `scripts/issue_license.py` byte for byte.
+- `src/license/issue.ts` — issuance/renewal/revoke logic over D1. Paid licenses are issued with `valid_until` at paid-term end (server-authoritative; renewals EXTEND it) and a nominal signed `expires` +5 years (a dead-man's-switch floor); revocation flips the row's status, never the signed string.
+- `src/routes/webhooks.ts` — `POST /v1/webhooks/stripe`: verify FIRST (bad/missing signature → 400 with ZERO D1 writes), then claim the event idempotently via `webhook_events`' `unique(payment_provider, external_event_id)` — Stripe's at-least-once delivery must not double-issue — then dispatch: `subscription_created` issues + emails, `invoice.paid` extends `valid_until` one term (nobody re-pastes a key to renew), `customer.subscription.deleted` and `payment_failed` PAST dunning revoke (a still-dunning payment does not).
+- `src/email/resend.ts` — Resend HTTP API delivery of the `LICENSE_KEY=` email (the `services/email_service.py` pattern re-implemented over `fetch`; same vendor, no new provider).
+- Schema: `migrations/0001_init.sql` — `customers`, `licenses`, `activations`, `webhook_events` (design §7, launch scope). Tests run the actual migration SQL against real SQLite (better-sqlite3) so unique constraints and ON CONFLICT clauses have real semantics.
+- CI: `frontend-tests.yml`'s `license-server-tests` job (both tsc configs, both vitest projects) under the same hard npm-audit gate as the frontends; the Python cross-language half rides `test.yml`'s api-tests.
+
+Deliberately NOT in this service at launch (next staged task): the storefront page, `POST /v1/trial`, `/v1/activate`, `/v1/validate`, and the operator API — nothing here talks to a family instance yet.
+
 ## Models
 
 Which model actually serves a tutor turn now depends on `services/adapters/` (see

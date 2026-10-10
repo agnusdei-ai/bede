@@ -1,0 +1,26 @@
+// Bede License Server — a SECOND Cloudflare Worker, deliberately separate from
+// the root wrangler.jsonc (which is the static-assets Worker for site/ +
+// demo/dist/). docs/LICENSE_SERVER_DESIGN.md §5 locks this shape: its own
+// `main` script and its own D1 database, launched as Phase 1 of that design
+// and narrowed to launch scope by the Bede ecommerce readiness spec.
+//
+// Everything a customer or the pipeline can influence lives in code checked
+// into this repo; the only deploy-time values are the D1 database id (created
+// by the operator, see the setup runbook) and the Worker Secrets (Stripe /
+// Ed25519 / Resend / operator token) — never in this file, never in source.
+{
+  "name": "bede-license-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bede-licenses",
+      // Deploy-time value: `wrangler d1 create bede-licenses` prints the id.
+      // Local dev and the vitest suite (miniflare) create their own local
+      // database regardless of what sits here.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

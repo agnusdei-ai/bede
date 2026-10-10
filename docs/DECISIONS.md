@@ -1774,3 +1774,65 @@ deliberately does not reopen), entry 9 (prices are published), entry 10 (the
 membership this sits above), entry 21 (provider/co-op administration),
 entry 26 (monthly billing), entry 29 (no fourth commercial tier without a
 contract amendment), `docs/SELLING_BEDE.md`.
+
+---
+
+## 35. `[COMMERCIAL]` The launch catalog goes self-serve: annual Family Membership and a free trial, everything else stays manual
+
+**Status:** closed
+
+**Decided (2026-10-09).** The first self-serve storefront — Stripe checkout,
+automated issuance, automated delivery — sells exactly two things:
+
+- **The Annual Family Membership, $2,149/year, up to six children** — entry
+  10's annual shape, nothing added. A one-time perpetual license is **not**
+  offered: it appears nowhere in the published pricing, and the entitlement
+  contract (entry 25, v1.3.0) has words only for an annual prepaid term.
+  Inventing a SKU the price list has never printed is its own pricing
+  decision, not a byproduct of building checkout.
+- **A free 30-day trial, no card** — self-serve, delivered immediately to
+  an email, no payment step.
+
+**Monthly, Co-op, and Network keep selling through the manual runbook**
+(`docs/SELLING_BEDE.md`). This entry changes *how the annual Family
+Membership is fulfilled*, not what is sold: entry 10's model is untouched,
+and the published prices stay where they are (`demo/public/launch.html`,
+`site/faq`).
+
+**The entitlement mapping is explicit, per entry 28.** The configured
+Stripe price ID maps — in the license server's configuration, never from
+user input — to the signed license `{tier: "core", seats: 6}`. That is the
+Family Membership → `core` mapping entry 28 requires to be explicit rather
+than inferred from a name collision. The trial rides the **existing signed
+`trial` tier** with a baked-in 30-day expiry — exactly entry 29's ruling
+("a signed-license tier only … carrying no commercial meaning"); no fourth
+commercial tier exists, and no contract amendment is needed. Both are
+consistent with entry 30: `seats: 6` is a value issued into a signed
+license at mint time (the carve-out entry 30 already names), not a numeric
+cap embedded in code, and `max_activations` (default 2) is a new, separate
+dimension — device activations, not children.
+
+**Entry 26 stays open, untouched.** Nothing in the launch catalog puts
+monthly billing through a checkout: monthly is not a Stripe price at
+launch, so no checkout can mint an entitlement in a shape the contract
+lacks words for. The question entry 26 actually asks — which of the
+contract and the pricing moves if monthly ever goes self-serve — is owed
+its own ruling regardless.
+
+**The owner of the trade is the operator.** Self-serve means the signing
+private key moves from an offline medium to the license server's Workers
+Secret (`docs/LICENSE_SERVER_SETUP.md` documents the handover and the
+rotation path), purchaser email and purchase records become PII the
+operator holds (`docs/DATA_CLASSIFICATION.md`), and renewal/revocation
+become server truth rather than baked-in expiry
+(`docs/LICENSE_SERVER_DESIGN.md` §6.3). Those governance consequences are
+part of this decision, not fallout from it.
+
+**Related:** entry 10 (the pricing model), entry 25 and
+[`BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`](BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md)
+(the vocabulary this maps into), entry 26 (monthly billing — untouched,
+still open), entry 28 (the explicit mapping this performs), entry 29 (the
+trial's shape), entry 30 (why `seats` is not a cap policy),
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md) (the runbook this
+decision created), [`SELLING_BEDE.md`](SELLING_BEDE.md) (the runbook the
+other tiers keep).

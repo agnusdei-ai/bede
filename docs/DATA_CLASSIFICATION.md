@@ -342,6 +342,8 @@ Two properties are deliberately **required at every tier T1–T4**: AAD
 binding, and AES-256-GCM (never an unauthenticated mode). Tiering changes
 the *key strategy* and the *deletion mechanism*, not whether the data is
 authenticated. A control that should be universal is not a tiering decision.
+(The License Server's D1 data above is the one dataset outside this
+envelope, with the reasons given in its own subsection.)
 
 ### Why biometrics get their own tier above session content
 
@@ -373,6 +375,44 @@ compared to transcripts.
 | `learner_behavior_checks.count_enc` | Adaptation counter | **T4** | Per-student key + AAD ✅ | Exceeds the T4 target deliberately: the row is `student_name`-scoped and dies with the student, so keying it per student costs nothing and makes it shreddable too |
 | `api_usage_events` | Token counts | **T4** | No encrypted column (counts only) | Unchanged — nothing to bind |
 | `demo_*` (codes, notes, signals) | Pseudonymous demo state | **T4** | Shared key + AAD ✅ | Reached. Bound to the demo code/session token, not a student — these have no student identity to key on |
+| `license_config.license_text` | The applied license string | **T3 (PII)** | Plaintext, deliberately — see the model's own docstring | Unchanged — a documented deviation from the T3 mechanism, like `device_salt`'s from T0. The license string is the same token the customer received by email, verified offline against the embedded public key (`core/licensing.py`); encryption would add nothing against an attacker who can read the database, since the string is itself the credential. It carries the licensee name — personal data — and nothing else sensitive |
+
+### The license server's data (a separate, operator-run D1)
+
+The License Server (`license-server/`, deployed per
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md)) keeps its **own** D1
+database — the seller's commerce records, not a family's data. This is
+where the purchaser identity the family instance has never had actually
+lives, and it is classification territory this document's T0–T4 taxonomy
+was not originally scoped to cover, so the mapping is stated explicitly:
+
+| Table | Contents | Classification |
+|---|---|---|
+| `customers.email` | Purchaser contact | **PII** — T3-equivalent |
+| `licenses` | Purchase records: tier, seats, status, `valid_until`, payment-provider IDs, the signed license string (which embeds the licensee name) | **PII** — T3-equivalent business records |
+| `activations` | `install_id` + first-seen/heartbeat timestamps, bound to a license | Operational — T4-equivalent |
+| `webhook_events` | Payment-provider event IDs, type, received-at | Operational — T4-equivalent (idempotency ledger) |
+
+Two facts stated plainly, because older posture claims elsewhere were
+more absolute than this:
+
+- **Customer email and purchase records are PII, held by the operator.**
+  This D1 sits outside the family instance, so the AES-256-GCM/AAD
+  envelope above does not extend to it — those mechanics bind family data
+  to family rows, and there is no `student_name` scope here to bind to.
+  What protects this data instead is that there is very little of it (an
+  email and a purchase record — no names, addresses, or phone numbers,
+  which the storefront never asks for), D1 access is gated to the
+  operator's Cloudflare account, and every Worker credential is a Workers
+  Secret (`LICENSE_SERVER_SETUP.md` §4). Retention for these rows is
+  ruled in [`DATA_RETENTION.md`](DATA_RETENTION.md).
+- **No card data ever touches Bede systems.** Checkout is Stripe-hosted:
+  card data is captured, processed, and stored entirely by Stripe, keeping
+  PCI scope with Stripe. The claim "no payment information, ever," as it
+  still reads on the demo and site privacy pages and in
+  `INCIDENT_RESPONSE.md`, is now true in this precise form: no **card**
+  data, by design; purchaser email + purchase records, held by the
+  operator under the classification and retention rules above.
 
 ### Deviation: per-student keys, not per-record
 

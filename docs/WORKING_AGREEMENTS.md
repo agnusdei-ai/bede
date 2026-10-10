@@ -191,6 +191,40 @@ problem to tidy.
    pass counts, and break-verification results belong in that commit message,
    and only the agent that ran them has them.
 
+## 9. What never goes into the repository
+
+*Source: `CLAUDE.md` → Standing Workflow: Never Publish What The Repository Does Not Need*
+
+The repository is public and permanent: anything committed is readable by a
+competitor, a counterparty, or anyone looking for leverage, forever. Before
+committing text about the business, the entity, or the commercial position,
+the test is not "is this true" or "is this useful to us" but **does the
+repository need it, and what does it hand to someone who is not on our
+side.**
+
+Four categories have each reached a draft and been removed before merge:
+
+1. **A private entity's registration particulars** — and where the only
+   thing a register entry would track is how far along a private matter is,
+   the entry itself is the disclosure: keep the method in `docs/`, keep the
+   state out of the repository, and do not leave a stub.
+2. **An adverse conclusion about our own legal position** — state the
+   **requirement**, never the **status**; a conclusion about our position at
+   a moment in time is a lawyer's to reach, through a channel that is not a
+   public file.
+3. **A strategic self-assessment** — never our own ranking of what is worth
+   copying and what is not.
+4. **A map to what is valuable** — no repository document enumerates which
+   internal mechanisms are the differentiated ones, with file and class
+   names.
+
+Where analysis genuinely belongs with counsel, say that it does and stop
+there. The pull toward completeness is strong and it is exactly what produced
+all four categories above: completeness about **method** is the virtue;
+completeness about **our own exposure** is not. `docs/` being excluded from
+the marketing-site build is a real boundary, not a hiding place — the
+repository itself is public.
+
 ---
 
 ## The refusals

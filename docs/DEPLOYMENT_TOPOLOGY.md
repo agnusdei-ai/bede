@@ -43,6 +43,46 @@ roadmap:
 to replicate, and that is a code property, not a manifest property — no
 amount of Kubernetes configuration fixes it.
 
+## The license server: the seller-side topology
+
+Selling Bede adds a second topology, and it belongs in this document
+because its shape is the opposite of the family appliance's: where the
+family instance is one LAN machine with no internet exposure, the License
+Server (`license-server/`, deployed per
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md)) is one small
+internet-facing service with no LAN presence. It is operated by the
+seller, not by families — families never deploy, patch, or back it up.
+
+- **Compute:** a Cloudflare Worker with its own `wrangler.jsonc` —
+  distinct from the root static-assets Worker, by the same in-repo
+  small-service precedent as `scripts/trust_service/`. It serves the
+  storefront page, the Stripe webhook receiver, the
+  `/v1/activate` + `/v1/validate` endpoints, the trial endpoint, and the
+  token-authenticated operator API.
+- **Database:** Cloudflare D1 — one logical database, four tables
+  (`customers`, `licenses`, `activations`, `webhook_events`). It holds the
+  **authoritative** license truth: `status` and `valid_until` live here,
+  and a family instance that opted into the heartbeat defers to it. This
+  is the answer to the staleness problem the tables below document for the
+  family instance — license state that once went stale across replicas now
+  has exactly one home, and everything reads from it.
+- **Third parties:** Stripe (hosted checkout + signed webhook delivery)
+  and Resend (license delivery email). Card data passes through no Bede
+  system — Stripe holds it.
+- **Who talks to it:** Stripe (webhooks; unsigned deliveries get a 400 and
+  nothing written); a family instance, **only if it opted in** by setting
+  `LICENSE_SERVER_URL` — one activation, then a jittered daily heartbeat,
+  never a per-request call, and unset means fully offline behavior; the
+  operator, over the bearer-token operator API.
+- **Replication:** a non-question in the way that matters here. The
+  Worker scales horizontally underneath by platform design, and D1 is one
+  logical database — so the failure mode this document warns about
+  (in-process state diverging across replicas) does not apply, because
+  the Worker holds no in-process state that matters: every row it reads
+  or writes is in D1. Its rate limiting is per-isolate, the same
+  in-process pattern as the family instance's middleware — a bound on
+  precision, not on correctness.
+
 ## What breaks under replication
 
 Every item below is correct on a single instance and silently wrong across

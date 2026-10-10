@@ -129,6 +129,41 @@ The demo never persists a transcript, a narration, or a learner profile at
 all (`db=None` for demo-role sessions throughout the backend) — there's
 nothing beyond the three tables above to delete.
 
+## The license server's data (operator-run)
+
+The License Server (`license-server/`, deployed per
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md)) keeps its own D1
+database — the seller's commerce records. This is data the **operator**
+holds, not any family: a family's instance database is untouched by it.
+No card data exists in any of these tables — Stripe holds card data, by
+design (see `DATA_CLASSIFICATION.md`'s license-server section).
+
+| Table | What it holds | Retention |
+|---|---|---|
+| `customers` | Purchaser email | Retained while any of the customer's licenses is active; purged 30 days after the last one leaves `active` |
+| `licenses` | The purchase record and the signed key string, stored for re-delivery | Retained while the license is active; purged 30 days after it leaves `active` — by revocation, or by a trial's signed expiry passing |
+| `activations` | `install_id` + first-seen/heartbeat timestamps | Retained while the license is active; purged with the license |
+| `webhook_events` | Payment-provider event IDs and types | The idempotency ledger that keeps a retried webhook from double-issuing; purged on the same clock as the license it belongs to |
+
+**The rule: retain while active, purge 30 days after revocation — a
+proposed default (2026-10-09), owned by Kristian to confirm or amend on
+review** (flagged for that confirmation in the PR that added this
+section). The number is a genuine trade, which is why it is a named
+decision and not a constant that drifted into place: the 30 days is
+support headroom — a customer whose license was revoked can still ask
+for their key or a correction within the window, and a comp is a row
+edit rather than a fresh sale — set against data minimization, since
+every day of retention is a day the operator holds a past customer's
+email and purchase record for no active purpose. Once purged, the row is
+gone for good: the license key is unrecoverable, and a re-subscribing
+customer is issued a fresh license rather than having their old one
+resurrected.
+
+An expired trial never extends by any server path — its row simply runs
+out the same 30-day clock from expiry. How the purge executes is the
+Worker's own housekeeping (`license-server/`); what this section rules is
+how long each category is kept.
+
 ## Not a compliance certification
 
 This describes what the code does. Whether that satisfies COPPA, GDPR, or

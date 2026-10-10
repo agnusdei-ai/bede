@@ -32,6 +32,13 @@ self-hosted family instance:
    downstream of them.
 5. **License/business-logic integrity** — lower stakes than the above; a
    forged license costs the operator revenue, not a family their privacy.
+6. **The operator's commerce records and signing authority** — purchaser
+   emails and purchase history (the license server's D1, classified in
+   `docs/DATA_CLASSIFICATION.md`), and the Ed25519 private signing key,
+   now held as a Workers Secret on the license server. Lower stakes than
+   a child's data — but the signing key's blast radius is every license
+   ever issued, which is why `docs/INCIDENT_RESPONSE.md`'s
+   "Compromised license signing key" section exists.
 
 For the public demo specifically, add: pseudonymous visitors' transient
 data, and the operator's AI-provider budget (abuse/cost exhaustion).
@@ -41,7 +48,7 @@ data, and the operator's AI-provider budget (abuse/cost exhaustion).
 | ID | Adversary | Capability | Maps to test surface |
 |----|-----------|------------|----------------------|
 | A1 | **Device already on the home LAN** | A sibling, houseguest, or anyone sharing the WiFi — no credentials, but network-adjacent | `docs/environment-pentests/` — "inside the network" posture |
-| A2 | **Tester or attacker with no prior network access** | Starts from outside a known perimeter — internet scanning, a misconfigured port-forward, or the public demo (which is genuinely internet-facing) | `docs/environment-pentests/` — "outside a known access perimeter" posture |
+| A2 | **Tester or attacker with no prior network access** | Starts from outside a known perimeter — internet scanning, a misconfigured port-forward, or the internet-facing surfaces the operator runs (the public demo, and the license server: storefront, Stripe webhook, activation/validate/trial endpoints) | `docs/environment-pentests/` — "outside a known access perimeter" posture |
 | A3 | **Compromised or malicious dependency** | A supply-chain compromise reaching the codebase via `pip`/`npm`/a GitHub Action | Dependabot + audit gates (`docs/SECURITY.md`'s closed gaps); SHA-pinning for Actions remains an open gap |
 | A4 | **Code execution inside the `api` container** | The worst case short of physical/host compromise — one process holds `DATA_KEY` unwrapped in memory, `SECRET_KEY`, `MASTER_SECRET`, DB credentials, every AI provider key | No network segmentation defeats this; see "What's already correctly segmented" below for the one boundary that survives it |
 | A5 | **Database-only compromise** | SQL injection, a stolen DB credential, or a stolen backup — *without* also compromising the `api` container's environment | Genuinely bounded — see below |
@@ -84,6 +91,45 @@ monolithic process with no formal control/data/management-plane
 separation (A4 is not defended against by any existing boundary; see
 `docs/PENTEST_AIUC1_READINESS.md`'s punch list for the concrete,
 proportionate mitigations planned).
+
+**The license server's boundaries, stated the same way.** The operator's
+new internet-facing service (`license-server/`, per
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md)) earns the same
+crediting-and-limiting treatment as A5/A6 above:
+
+**Webhook authenticity is the boundary that matters most.** The Stripe
+webhook (`/v1/webhooks/stripe`) is, mechanically, a public URL that mints
+licenses — if its signature verification is wrong. Every delivery is
+verified against `STRIPE_WEBHOOK_SECRET` (Workers' async path) before any
+row is written; bad or missing signatures get a 400 and nothing else.
+That is the single highest-severity implementation risk in the component
+(`LICENSE_SERVER_DESIGN.md` §8) and the first thing an assessment of this
+service should try to break.
+
+**A D1-only compromise yields plaintext, and it is bounded.** The license
+server's D1 is not covered by the family instance's AES-256-GCM/AAD
+envelope — `docs/DATA_CLASSIFICATION.md`'s license-server section says so
+plainly. A stolen dump yields purchaser emails, purchase records, and
+valid license strings (stored for re-delivery). It yields **no card data**
+(Stripe holds it; nothing card-shaped ever crosses any Bede system), **no
+signing authority** (the private key is a Workers Secret, not a database
+row), and **no child data**. A stolen license string is a bearer
+credential, and the activation cap (`max_activations`, default 2) is what
+bounds its usefulness on a second install — the casual-copy resistance
+this whole design sells.
+
+**A compromised Worker is the compromised-signing-key incident.** The
+Worker's secrets (`ED25519_PRIVATE_KEY`, `STRIPE_SECRET_KEY`,
+`RESEND_API_KEY`, `OPERATOR_TOKEN`) make it the minting authority for
+every license, plus the payment and email API credentials. Detection is
+the hard part, unchanged from the offline-only world: verification is
+offline and nothing reports back, so an abuser of a stolen signing key
+produces no signal — `docs/INCIDENT_RESPONSE.md`'s "Compromised license
+signing key" section governs, and the planned rotation sequence lives in
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md). Rate limits
+(per-IP sliding window mirroring `core/middleware.py`'s pattern, plus
+one-active-trial-per-email) bound probing of `/v1/activate`,
+`/v1/validate`, and `/v1/trial`; they bound it, they do not eliminate it.
 
 ## Non-goals
 

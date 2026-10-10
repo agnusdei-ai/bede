@@ -34,8 +34,10 @@ import { familyAnnualEntitlement } from "../config";
 /** Security headers for the rendered page — the storefront is the one
  * internet-facing HTML surface this Worker serves, so it carries the same
  * posture site/_headers gives the marketing site (CSP, nosniff, referrer
- * policy, no framing). */
-function pageHeaders(): HeadersInit {
+ * policy, no framing). Typed as Record<string, string> — a member of the
+ * HeadersInit union — because the test typecheck compiles this file under
+ * node types, where the DOM type NAME does not exist. */
+function pageHeaders(): Record<string, string> {
   return {
     "content-type": "text/html; charset=utf-8",
     "content-security-policy": [

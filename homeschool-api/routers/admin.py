@@ -14,7 +14,7 @@ from core.audit import AuditEvent, audit_from_request, log_event, read_audit_log
 from core.api_usage import get_loop_stats, get_usage_summary
 from core.config import settings
 from core.database import DeviceRecord, LicenseConfig, get_db
-from core import device_registry, elevation, identity
+from core import device_registry, elevation, identity, license_heartbeat
 from core.deps import require_elevated_parent, require_parent
 from core import license_state, licensing, provider_state
 from models.schemas import AgenticLoopStats, DeviceInfo, UsageSummary
@@ -70,6 +70,12 @@ def _license_status_payload() -> dict | None:
             "expires": s.info.expires.isoformat() if s.info.expires else None,
             "days_remaining": s.info.days_remaining,
             "is_expired": s.info.is_expired,
+            # How many installs have activated this key against the (optional)
+            # license server, and its cap — None unless the heartbeat is
+            # enabled and has reported (core/license_heartbeat.py). Lets a
+            # parent see their own activation count before hitting the cap.
+            "activations_used": s.activations_used,
+            "max_activations": s.max_activations,
         })
     return payload
 
@@ -117,10 +123,18 @@ async def apply_license(
         row.license_text = key
     await db.commit()
 
+    # A cached server answer describes the OLD key; refresh() re-binds it by
+    # digest, so a different pasted key simply ignores it — but re-pasting
+    # the SAME key after a revocation must not momentarily lift the gate.
+    # The kick then revalidates the new key within seconds instead of waiting
+    # up to a day (no-op when the heartbeat is disabled).
+    cached_report = await license_heartbeat.read_cached_report(db)
     state = license_state.refresh(
         settings.license_key, key,
         required=settings.is_production and not settings.is_demo_deployment,
+        server_report=cached_report,
     )
+    license_heartbeat.kick()
     await log_event(
         AuditEvent.LICENSE_APPLIED,
         role="parent",

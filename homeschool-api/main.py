@@ -9,11 +9,14 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from core import constitution, device_registry, elevation, identity, license_state, parent_credential, provider_state
+from core import (
+    constitution, device_registry, elevation, identity, license_heartbeat, license_state,
+    parent_credential, provider_state,
+)
 from core.audit import AuditEvent, log_event
 from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
-from core.encryption import initialize_encryption
+from core.encryption import get_or_create_install_id, initialize_encryption
 from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
@@ -137,6 +140,21 @@ def _log_security_posture() -> None:
                 "internet-facing demo instance."
             )
 
+    # Outbound license traffic is opt-in — say which state this instance is
+    # in, since "is this thing phoning home?" is exactly the kind of question
+    # a posture log exists to answer.
+    if license_heartbeat.enabled():
+        log.info(
+            "License heartbeat: ENABLED — activates once, then revalidates daily "
+            "with %s (30-day offline grace). See docs/PRODUCTION_SETUP.md#licensing.",
+            settings.license_server_url.strip(),
+        )
+    else:
+        log.info(
+            "License heartbeat: disabled — licenses verify fully offline; no "
+            "outbound license traffic (set LICENSE_SERVER_URL to enable)"
+        )
+
 
 async def _periodic_data_purge():
     """
@@ -206,10 +224,20 @@ async def _refresh_license_once() -> None:
 
     try:
         was_gated = license_state.is_gated()
+        # When the heartbeat is enabled, the last successful server answer
+        # (live or cached) outranks the nominal signed expiry in refresh()'s
+        # decision order — see core/license_heartbeat.py. An unset
+        # LICENSE_SERVER_URL leaves the report None and this behaves
+        # exactly as before.
+        server_report = None
+        if license_heartbeat.enabled():
+            async with AsyncSessionLocal() as db:
+                server_report = await license_heartbeat.read_cached_report(db)
         state = license_state.refresh(
             settings.license_key,
             db_text,
             required=settings.is_production and not settings.is_demo_deployment,
+            server_report=server_report,
         )
         if license_state.is_gated() and not was_gated:
             log.critical(
@@ -323,7 +351,9 @@ async def lifespan(app: FastAPI):
          ordering guarantee doesn't depend on which module happened to
          import core.constitution first.
       2. Create database tables (idempotent — safe on every boot)
-      3. Load or generate device_salt and DATA_KEY from the DB
+      3. Load or generate device_salt, DATA_KEY, and the optional
+         license heartbeat's install_id from the DB (all first-boot
+         persisted state — core/encryption.py).
          PBKDF2 key derivation runs in a thread pool so the event loop
          is not blocked during the ~1.5 s CPU-bound operation.
       4. Resolve the effective license (core/license_state.py): a valid
@@ -358,6 +388,10 @@ async def lifespan(app: FastAPI):
           model server rather than only discovering it via a child's
           failed real turn; see _periodic_local_health_check's own
           docstring and CLAUDE.md's "AI backend failure alerting" section.
+      7d. Start the optional license-server heartbeat (non-blocking,
+          LICENSE_SERVER_URL configured only) — activates once, then
+          revalidates daily so renewals and revocations reach a running
+          instance without a re-paste; see core/license_heartbeat.py.
     Shutdown:
       8. Dispose the database connection pool cleanly.
       9. Close the pooled httpx clients (OpenAI TTS, Resend) cleanly.
@@ -370,11 +404,24 @@ async def lifespan(app: FastAPI):
             await initialize_encryption(settings.master_secret, db)
         log.info("Encryption initialised ✓")
         async with AsyncSessionLocal() as db:
+            # The optional license heartbeat's install identity — generated
+            # once at first boot, persisted next to device_salt (core/
+            # encryption.py). Harmless no-op when the heartbeat is disabled.
+            await get_or_create_install_id(db)
+        license_server_report = None
+        if license_heartbeat.enabled():
+            # Seed the first refresh with the last successful heartbeat
+            # answer, so a restart during an outage doesn't momentarily
+            # fall back to the (nominal) signed expiry.
+            async with AsyncSessionLocal() as db:
+                license_server_report = await license_heartbeat.read_cached_report(db)
+        async with AsyncSessionLocal() as db:
             db_license = await db.get(LicenseConfig, "license")
         license_state.refresh(
             settings.license_key,
             db_license.license_text if db_license else None,
             required=settings.is_production and not settings.is_demo_deployment,
+            server_report=license_server_report,
         )
         async with AsyncSessionLocal() as db:
             await parent_credential.refresh_from_db(db)
@@ -422,6 +469,16 @@ async def lifespan(app: FastAPI):
     # only at startup and on a pasted key. Load-bearing for any short-dated
     # key (a 30-day trial above all) — see that function's own docstring.
     license_refresh_task = asyncio.create_task(_periodic_license_refresh())
+    # The optional license-server heartbeat — only started when
+    # LICENSE_SERVER_URL is configured. An unset URL (the default) is the
+    # permanent opt-out: no task, no outbound license traffic, byte-for-byte
+    # today's offline behavior (asserted as code in
+    # tests/test_license_heartbeat.py's opt-out test).
+    heartbeat_task = (
+        asyncio.create_task(license_heartbeat.run_periodic())
+        if license_heartbeat.enabled()
+        else None
+    )
 
     yield
 
@@ -431,6 +488,8 @@ async def lifespan(app: FastAPI):
     device_refresh_task.cancel()
     local_health_check_task.cancel()
     license_refresh_task.cancel()
+    if heartbeat_task is not None:
+        heartbeat_task.cancel()
 
     await engine.dispose()
     log.info("Database connections closed")

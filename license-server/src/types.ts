@@ -25,6 +25,8 @@ export interface Env {
   /** Verified Resend sender, e.g. "Bede <sales@agnusdei.ai>". */
   readonly RESEND_FROM_ADDRESS: string;
 
-  /** Bearer token for the operator API (later staged task). */
-  readonly OPERATOR_TOKEN: string;
+  /** Bearer token for the operator API. Optional at runtime: when the
+   * secret has not been put, the whole operator API answers 503 — disabled,
+   * never open. */
+  readonly OPERATOR_TOKEN?: string;
 }

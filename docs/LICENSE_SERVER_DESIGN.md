@@ -29,7 +29,7 @@ This document scopes a **License Server**: a new, small, separately-deployed ser
 
 - **Format:** `base64url(payload_json) + "." + base64url(ed25519_signature)`. Payload: `id, licensee, tier, seats, issued, expires` (`core/licensing.py::verify_license`).
 - **Verification:** fully offline, against `PUBLIC_KEY_PEM` embedded in `core/licensing.py`. No network call anywhere in this path.
-- **Storage:** a license can live in `.env` (`LICENSE_KEY`) or in the DB (`LicenseConfig` table, applied live via `PUT /admin/license`, `routers/admin.py`). DB wins over env (`core/license_state.py::refresh`).
+- **Storage:** a license can live in `.env` (`LICENSE_KEY`) or in the DB (`LicenseConfig` table, applied live via `POST /admin/license`, `routers/admin.py`). DB wins over env (`core/license_state.py::refresh`).
 - **Enforcement:** `LicenseGateMiddleware` (`core/middleware.py`) restricts an ungated-license production instance to login + license-management routes only. `routers/pod.py` enforces the `seats` cap when adding a student.
 - **Tiers:** `trial` (must expire), `core` (single household), `coop` (multi-household) — **superseded by §14's `tier1`/`tier2`/`tier3` service-level tiers**; `trial` itself is unaffected and stays the pre-purchase evaluation path into whichever of the three a family picks.
 - **Issuance:** `homeschool-api/scripts/issue_license.py`, operator-run, requires the private key (never committed; lives outside the repo entirely).

@@ -48,6 +48,33 @@ export function licenseDeliveryEmail(input: {
   };
 }
 
+/** The trial template — deliberately its own email (the spec's delivery
+ * rule): it says TRIAL up front, carries the baked-in expiry date, and
+ * points at the same paste-a-key setup. No billing language — no card was
+ * ever taken. */
+export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: string }): {
+  subject: string;
+  html: string;
+} {
+  const keyLine = `LICENSE_KEY=${input.licenseKey}`;
+  return {
+    subject: "Your Bede 30-day free trial",
+    html: [
+      "<p>Welcome to Bede!</p>",
+      `<p>Your <strong>30-day free trial</strong> is active through <strong>${escapeHtml(input.expiresDate)}</strong>. No card was required and nothing will auto-charge — when the trial ends, the app asks for a license key.</p>`,
+      "<p>To finish setting up your family's instance:</p>",
+      "<ol>",
+      "<li>Start your Bede instance (<code>make setup</code>, per the setup guide).</li>",
+      "<li>Open <strong>Parent Setup → License</strong> and paste the key below.</li>",
+      "</ol>",
+      "<p>Trial key (paste the whole line, including the <code>LICENSE_KEY=</code> prefix):</p>",
+      `<p style=\"font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all;\">${escapeHtml(keyLine)}</p>`,
+      "<p>Ready to continue after the trial? The Annual Family Membership is $2,149/year for up to six children — one price, the whole household.</p>",
+      "<p>— The Bede team</p>",
+    ].join("\n"),
+  };
+}
+
 export function createResendClient(apiKey: string, fromAddress: string): ResendClient {
   return {
     async send({ to, subject, html }: { to: string; subject: string; html: string }) {

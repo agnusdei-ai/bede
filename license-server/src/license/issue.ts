@@ -52,6 +52,11 @@ export function utcDate(offsetDays = 0): string {
  * — "long nominal signed expiry"). */
 export const NOMINAL_PAID_EXPIRY_YEARS = 5;
 
+/** The trial's baked-in signed expiry: 30 days (the spec's trial lock —
+ * "trials must expire, so here the signed payload _is_ the authority"). No
+ * server row extends it — every server path defers to this date. */
+export const TRIAL_DAYS = 30;
+
 function plusYearsIso(dateIso: string, years: number): string {
   const parts = dateIso.split("-");
   if (parts.length !== 3) throw new Error(`not an ISO date: ${dateIso}`);
@@ -60,6 +65,37 @@ function plusYearsIso(dateIso: string, years: number): string {
     throw new Error(`not an ISO date: ${dateIso}`);
   }
   const next = new Date(Date.UTC(y + years, m - 1, d));
+  return next.toISOString().slice(0, 10);
+}
+
+/** Mint the signed license key string for a TRIAL: same wire format, tier
+ * "trial", expiry baked into the payload (+TRIAL_DAYS). Pure aside from
+ * signing — every field is decided before this runs. */
+export async function mintTrialLicenseKey(input: {
+  privateKeyPem: string;
+  licenseId: string;
+  customerEmail: string;
+  /** Injectable clock (defaults to today) — the trial route never passes
+   * it; tests time-travel with it (an issuedDate 40 days back bakes a
+   * 10-days-ago expiry into the signature). */
+  issuedDate?: string;
+}): Promise<string> {
+  const issued = input.issuedDate ?? utcDate(0);
+  return signLicenseKey(
+    input.privateKeyPem,
+    buildLicensePayload({
+      id: input.licenseId,
+      licensee: input.customerEmail,
+      tier: "trial",
+      seats: 6, // the trial IS the product: same household cap as paid
+      issued,
+      expires: plusDaysIso(issued, TRIAL_DAYS),
+    }),
+  );
+}
+
+function plusDaysIso(dateIso: string, days: number): string {
+  const next = new Date(Date.parse(`${dateIso}T00:00:00Z`) + days * 86_400_000);
   return next.toISOString().slice(0, 10);
 }
 
@@ -103,7 +139,7 @@ export function firstValidUntil(event: PaymentEvent, entitlement: EntitlementCon
  * a random UUID — a derived id (stripped email) could collide across two
  * DIFFERENT emails and violate the primary key instead.
  */
-async function upsertCustomer(
+export async function upsertCustomer(
   db: D1Database,
   email: string,
   nowIso: string,

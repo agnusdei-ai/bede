@@ -281,13 +281,17 @@ instance keeps today's fully-offline behavior forever.
 ## 7. The operator API (support, not fulfillment)
 
 Token-authenticated with `OPERATOR_TOKEN` — every request carries
-`Authorization: Bearer $OPERATOR_TOKEN`; without it, every operator route
-answers 401. It exists so support never means querying D1 by hand:
+`Authorization: Bearer $OPERATOR_TOKEN`; a missing or wrong token answers
+401. If the secret was never put, the whole API answers 503 — disabled,
+never open. It exists so support never means querying D1 by hand:
 
 - **List licenses** — find a customer's row, see its status,
   `valid_until`, and activations used against `max_activations`.
-- **Revoke or comp** — revoke manually (a refund, a chargeback, a leaked
-  key); comp by extending `valid_until`.
+- **Revoke** — manually (a refund, a chargeback, a leaked key); idempotent,
+  so repeating it is safe.
+- **Comp** — mint a complimentary annual license for an email: the paid
+  shape (tier `core`, six seats, full term) with no Stripe identity, and
+  the key delivered to that email like any purchase.
 - **Resend the delivery email** — a family that lost the original email
   gets the same key re-delivered; no re-issue, no new row.
 

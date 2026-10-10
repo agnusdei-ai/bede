@@ -33,6 +33,25 @@ export function b64urlDecode(text: string): Uint8Array {
 export type LicensePayloadValue = string | number | null;
 export type LicensePayload = Record<string, LicensePayloadValue>;
 
+/** Decode a signed license key's payload WITHOUT verifying its signature —
+ * for reading metadata the server itself wrote (a trial's baked-in
+ * `expires`). Signature verification is the family instance's offline job
+ * (`core/licensing.py`); here the exact key string is also the DB lookup
+ * key, so anything that reaches a row was minted by this service. Returns
+ * null for garbage shapes — callers treat null as "not a trial". */
+export function decodeLicensePayload(licenseKey: string): LicensePayload | null {
+  const [payloadPart, sigPart] = licenseKey.split(".");
+  if (!payloadPart || !sigPart) return null;
+  try {
+    const decoded = new TextDecoder().decode(b64urlDecode(payloadPart));
+    const parsed: unknown = JSON.parse(decoded);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as LicensePayload;
+  } catch {
+    return null; // not JSON / not base64url — garbage in, null out
+  }
+}
+
 /**
  * Python-exact canonical serialization: compact separators, sorted keys.
  *

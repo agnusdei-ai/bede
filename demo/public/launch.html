@@ -144,6 +144,11 @@
   .tier p { margin: 0; font-size: 0.98rem; }
   .tier .alt { margin-top: 4px; color: var(--gilt-text); }
   .tier .includes { margin: 14px 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
+  /* The Family card's self-serve actions — the only card that takes them,
+     since Co-op and Network remain handled by the operator (the manual
+     runbook). Flex wraps the two buttons under each other on narrow
+     screens; the buttons reuse the .btn vocabulary of the final CTA. */
+  .tier .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
   .tier .includes li { padding: 4px 0 4px 18px; position: relative; }
   /* Decorative gold mark, not a list bullet — the <ul> already carries the
      list semantics, so this is hidden from the accessibility tree. */
@@ -354,6 +359,20 @@
           <li>Parent tools and oversight</li>
           <li>Verified access</li>
         </ul>
+        <!-- The storefront is the License Server's own page — the annual
+             membership and the free 30-day trial are both rendered there,
+             so both buttons carry its origin and the storefront decides
+             the offer layout. This page is static HTML served under
+             script-src 'self' (site/_headers), so no inline-script config
+             point exists: these two hrefs ARE the configuration. Keep them
+             identical, and update both when the License Server's actual
+             deployment host is finalized (license-server/wrangler.jsonc).
+             The storefront must be reachable before this page ships the
+             links — see the PR's merge-order note. -->
+        <div class="actions">
+          <a class="btn btn-primary" href="https://license-server.agnusdei.workers.dev/">Subscribe</a>
+          <a class="btn btn-secondary" href="https://license-server.agnusdei.workers.dev/">Start 30-day free trial</a>
+        </div>
       </article>
 
       <article class="tier">

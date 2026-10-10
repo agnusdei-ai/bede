@@ -1230,6 +1230,21 @@ If a license ever lapses before you renew, Bede pauses tutoring and says
 why, but your login and the License card keep working, so pasting the new
 key is all it takes to pick back up. Nothing is lost while paused.
 
+If the person who set up your Bede enabled license-server check-ins (it's
+optional — without it, Bede never talks to any license server), two things
+get easier. Renewals arrive on their own: Bede quietly confirms your
+license about once a day, and a renewal you've already paid for extends
+itself — no pasting, nothing for you to do. And if your internet goes
+out, nothing changes for up to a month: Bede keeps its last good answer
+and carries on tutoring through the outage.
+
+The License card may also show how many of your allowed installations are
+in use (for example, "1 of 2"). Each computer or container running Bede
+counts once; reinstalling on the same data doesn't use up a new one. If
+you ever see "reconnect to revalidate," it means Bede hasn't been able to
+confirm its license in over a month — when the connection is back, it
+fixes itself on the next daily check-in.
+
 ## 10. Switching AI providers
 
 If you've set up more than one AI provider for Bede (for example, a

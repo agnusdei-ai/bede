@@ -15,3 +15,14 @@ export function configuredEntitlements(): EntitlementConfig[] {
   // this is configured.
   return [ANNUAL_FAMILY_ENTITLEMENT];
 }
+
+/** The Family-annual entitlement the storefront and checkout route sell —
+ * null while the price id is unconfigured, so `GET /checkout/family-annual`
+ * answers 503 ("not configured") instead of calling Stripe with an empty
+ * price. One configured entitlement at launch: the ONE path, never a
+ * picker. */
+export function familyAnnualEntitlement(): EntitlementConfig | null {
+  const config = configuredEntitlements()[0] ?? null;
+  if (config === null || config.priceId.length === 0) return null;
+  return config;
+}

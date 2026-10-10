@@ -11,16 +11,19 @@
  */
 
 import Database from "better-sqlite3";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const MIGRATION_PATH = fileURLToPath(
-  new URL("../../migrations/0001_init.sql", import.meta.url),
-);
+const MIGRATIONS_DIR = fileURLToPath(new URL("../../migrations/", import.meta.url));
 
 export function createTestD1(): D1Database {
   const sqlite = new Database(":memory:");
-  sqlite.exec(readFileSync(MIGRATION_PATH, "utf-8"));
+  // Apply every migration in filename order — the same order
+  // `wrangler d1 migrations apply` would. New migration files are picked
+  // up without touching this helper.
+  for (const file of readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort()) {
+    sqlite.exec(readFileSync(`${MIGRATIONS_DIR}${file}`, "utf-8"));
+  }
 
   return {
     prepare: (sql: string) => {

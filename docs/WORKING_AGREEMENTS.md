@@ -191,7 +191,31 @@ problem to tidy.
    pass counts, and break-verification results belong in that commit message,
    and only the agent that ran them has them.
 
-## 9. What never goes into the repository
+## 9. Not writing code to throw away
+
+*Source: `CLAUDE.md` → Standing Workflow: Don't Write Code To Throw Away*
+
+CI minutes, review cycles and context are finite, and the most expensive
+output here is a change that lands and then has to be undone — it costs the
+build, the review, the revert, and the reader who finds it in between.
+
+1. **Check what already enforces the behaviour before building anything.**
+2. **Where a decision is the user's, get the decision first.** A ruling
+   determines which code is correct; guessing it produces work that is thrown
+   away when the ruling arrives.
+3. **Price the alternative honestly, including zero.** Naming the manual path
+   is how a build gets deferred rather than regretted.
+4. **Research the shape before committing to it.** The version that feels more
+   finished is sometimes the one carrying the regulatory cost.
+5. **Don't spend a CI cycle on a commit that could ride with the next one.**
+
+Written after: decision 36 asked for a trial that stops the product on day 31,
+and four of the five pieces already existed — the signed expiry, the daily
+re-evaluation, the licence gate, the in-app warning. The gap was one email.
+Building the obvious version first would have reimplemented cessation beside a
+working copy of it.
+
+## 10. What never goes into the repository
 
 *Source: `CLAUDE.md` → Standing Workflow: Never Publish What The Repository Does Not Need*
 

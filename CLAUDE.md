@@ -960,6 +960,7 @@ A second, separately-deployed service in this repo (the `scripts/trust_service/`
 - `src/routes/trial.ts` — `POST /v1/trial`: no card, no checkout — email in, a `trial` license signed with the 30-day baked-in expiry out (payload emailed via Resend; the response does not echo the key). One ACTIVE trial per email, judged by each prior trial's SIGNED expiry date (normalized before the check — case/whitespace cannot double-issue); an expired trial blocks nothing. The one-active guarantee is a DATABASE constraint — migration `0002`'s partial unique index (one active trial per customer) plus an `on conflict do nothing` insert whose `changes` the route reads, so concurrent same-email requests cannot double-issue; before inserting, the route flips prior trial rows whose signed expiry has passed to `status='expired'` so the index constrains only genuinely claimable trials (invisible to the client — the runtime defers on tier-`trial` rows regardless of row status). Trials are never extended by any server path: no row's `valid_until` exists to extend, and every runtime answer defers to the signed payload.
 - `src/routes/storefront.ts` — `GET /`: the one rendered surface, published figures verbatim from `demo/public/launch.html` (Annual Family Membership $2,149/year, up to six children; 30-day free trial, no card). ONE path — a single Subscribe button → `GET /checkout/family-annual` creates a subscription-mode Stripe Checkout Session against the configured price (no processor picker; Stripe is the only rail at launch), success returns to `/?welcome=1`. Unconfigured price → 503 `checkout_unconfigured` (honest, never a broken session); ships its own security headers. `POST /v1/trial` is the trial card's form target.
 - `src/routes/operator.ts` — the token-authenticated support surface (`Authorization: Bearer $OPERATOR_TOKEN`, hash-compared): `GET /operator/licenses` (list with activation counts), `POST /operator/licenses/:id/revoke` (manual revoke, idempotent), `POST /operator/licenses/:id/resend` (re-deliver the STORED key — no re-mint, no new row), `POST /operator/comp` (mint + email a complimentary annual license — paid shape, `payment_provider: 'none'`). With the secret unconfigured the whole API answers 503 — disabled, never open.
+- `src/reminders.ts` + the daily cron trigger in `wrangler.jsonc` — the ONE reminder a trial gets before it lapses, and the only new code decision 36 needed. **Cessation is not here and needs nothing**: a trial's 30 days are signed into the key, `core/licensing.py`'s `is_expired` is `expires < date.today()`, `main.py`'s `_periodic_license_refresh` recomputes that daily so it lands on an instance nobody restarts, and `LicenseGate` then refuses every path but `/auth/`, `/mfa/`, `/admin/license` and `/health`. That chain works with no network at all, so **a failed reminder can never extend a trial** — the expiry is inside the signed payload and nothing in this path can move it, which `test_never_writes_to_the_licence_row` pins. The email exists because `licenseUrgency.ts`'s in-app warning (10% of term floored at `MIN_NOTICE_DAYS` 7, so day 23 of 30) only fires if somebody opens the parent screen, and a lapsing trial is exactly when nobody does; `REMINDER_WINDOW_DAYS` is 7 to match that floor so the two appear together rather than contradicting. Order is **claim → send → release-on-failure**: the claim is a primary-key insert into migration `0003`'s `trial_reminders` (so two overlapping invocations cannot both send — a database guarantee, not a check-then-act race), and a thrown send deletes the claim so a Resend outage retries tomorrow instead of swallowing the reminder, with the 7-day window giving several attempts. A crash between a successful send and the release leaves the claim standing, which is the right direction to fail. **The test for the claim was vacuous in its first cut and only breaking it showed that**: the `select` already excludes claimed rows, so sequential runs never exercise the claim at all and the "exactly once" case passed with the check deleted — it now runs two invocations concurrently, which is the real case Cloudflare can produce. Expiry is read via `trial.ts`'s own `trialExpiresDate` rather than a new column, so there is one source of truth; a family with an active paid licence is excluded, since they are not in a trial whatever their old row says; and an ALREADY-expired trial gets nothing, because "your trial is ending" would be wrong and late and an after-the-fact note is a decision nobody has made. Note the whole codebase binds SQL with anonymous `?`, never `?N`: better-sqlite3 (the real engine behind `test/helpers/d1sqlite.ts`) rejects numbered placeholders under positional binding outright, so a `?1` introduced here fails every test that touches it.
 - `src/email/resend.ts` — Resend HTTP API delivery of the `LICENSE_KEY=` email (the `services/email_service.py` pattern re-implemented over `fetch`; same vendor, no new provider), with a separate trial template.
 - Schema: `migrations/0001_init.sql` — `customers`, `licenses`, `activations`, `webhook_events` (design §7, launch scope); `0002_trial_unique.sql` — the one-active-trial-per-customer partial unique index. Tests run the actual migration SQL against real SQLite (better-sqlite3) so unique constraints and ON CONFLICT clauses have real semantics.
 - CI: `frontend-tests.yml`'s `license-server-tests` job (both tsc configs, both vitest projects) under the same hard npm-audit gate as the frontends; the Python cross-language half rides `test.yml`'s api-tests.
@@ -2115,6 +2116,40 @@ aggregate them into a repository alongside everything else. `docs/` is excluded
 from `scripts/build_pages_site.sh`'s output, so nothing here reaches the
 marketing site — that is a real boundary and not a hiding place, since the
 repository itself is public.
+
+This is a standing rule for this repo across sessions, not a one-off for
+whichever change prompted it.
+
+## Standing Workflow: Don't Write Code To Throw Away
+
+**Before writing code, establish that it is the right code.** CI minutes,
+review cycles and context are finite, and the most expensive output here is a
+change that lands and then has to be undone — which costs the build, the
+review, the revert, and the reader who finds it in between.
+
+**In practice:**
+
+1. **Check what already enforces the behaviour before building anything.**
+   Decision 36 asked for a trial that stops the product on day 31. Four of the
+   five pieces already existed — the signed expiry, the daily re-evaluation,
+   the licence gate, the in-app warning — and the gap was one email. Building
+   the obvious version first would have reimplemented cessation beside a
+   working copy of it.
+2. **Where a decision is the user's, get the decision first.** A ruling
+   determines which code is correct; guessing it and building produces work
+   that is thrown away when the ruling arrives. Say what is blocked, offer the
+   options with their costs, and stop.
+3. **Price the alternative honestly, including zero.** Manual fulfilment with
+   `scripts/issue_license.py` already sells a licence, so the licence server is
+   fulfilment *automation* rather than a commercial prerequisite. Naming that
+   is how a build gets deferred rather than regretted.
+4. **Research the shape before committing to it.** Decision 36's no-card trial
+   turned out to sit outside FTC negative-option exposure entirely, and the
+   card-up-front version — the one that felt more "wired in" — is the shape
+   that attracts it. That was not obvious before looking, and it would have
+   been expensive to learn afterwards.
+5. **Don't spend a CI cycle on a commit that could ride with the next one.**
+   A docs-only change that has no urgency belongs in the PR already going out.
 
 This is a standing rule for this repo across sessions, not a one-off for
 whichever change prompted it.

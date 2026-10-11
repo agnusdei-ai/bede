@@ -75,6 +75,37 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
   };
 }
 
+/** The trial-ending reminder — the one notice sent between issuance and the
+ * product stopping.
+ *
+ * Deliberately plain about the consequence. A reminder that says "upgrade now!"
+ * and not "the app stops tutoring on this date" is a sales email pretending to
+ * be a service one, and the family finds out the hard way. It also repeats that
+ * nothing will auto-charge, because that was true at issuance and must not read
+ * as having quietly changed. */
+export function trialEndingEmail(input: { expiresDate: string; daysLeft: number }): {
+  subject: string;
+  html: string;
+} {
+  const when =
+    input.daysLeft <= 0
+      ? "today"
+      : input.daysLeft === 1
+        ? "tomorrow"
+        : `in ${input.daysLeft} days`;
+  return {
+    subject: `Your Bede trial ends ${when}`,
+    html: [
+      `<p>Your Bede 30-day free trial ends <strong>${escapeHtml(input.expiresDate)}</strong> (${escapeHtml(when)}).</p>`,
+      "<p><strong>What happens then.</strong> Lessons stop. Bede will not tutor without a current license key — a parent can still sign in and apply one, and nothing on your machine is deleted. Your instance runs in your house, so your family's work stays where it is.</p>",
+      "<p><strong>Nothing will auto-charge.</strong> No card was taken when the trial started and none is on file. Continuing is something you choose.</p>",
+      "<p>To continue, the Annual Family Membership is $2,149/year for up to six children — one price for the whole household. Once you subscribe, the key arrives by email and you paste it into <strong>Parent Setup &rarr; License</strong>.</p>",
+      "<p>If Bede is not right for your family, you need do nothing at all.</p>",
+      "<p>&mdash; The Bede team</p>",
+    ].join("\n"),
+  };
+}
+
 export function createResendClient(apiKey: string, fromAddress: string): ResendClient {
   return {
     async send({ to, subject, html }: { to: string; subject: string; html: string }) {

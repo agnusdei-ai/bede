@@ -243,6 +243,28 @@ processor choice. If the page shows figures that do not match
 and fix the page before selling anything: the storefront never invents
 prices the marketing pages do not already state.
 
+## 5a. The trial reminder runs itself
+
+`wrangler deploy` also registers the daily cron trigger in
+`license-server/wrangler.jsonc` (14:00 UTC). It emails any trial inside its
+final week once — see `src/reminders.ts` — using the same `RESEND_API_KEY` and
+`RESEND_FROM_ADDRESS` secrets section 4 already set. There is nothing further
+to configure.
+
+**It cannot extend a trial, by construction.** A trial's 30 days are signed
+into the key, and the family's own instance enforces that offline. So if this
+job never runs, or Resend is down for a week, the trial still ends on time and
+the only thing lost is the courtesy email. Verify it with
+`npx wrangler tail` around 14:00 UTC, or trigger it directly:
+
+```bash
+npx wrangler dev --test-scheduled    # then: curl "http://localhost:8787/__scheduled"
+```
+
+The job is idempotent per licence (migration `0003`'s `trial_reminders` table
+is keyed on the licence id), so running it twice, or two invocations
+overlapping, sends one email.
+
 ## 6. Verify: both registration flows, end to end
 
 **Do this in test mode before going live.** These are the two flows a

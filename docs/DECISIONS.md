@@ -1324,7 +1324,32 @@ and 27.
 
 ## 26. `[COMMERCIAL]` Whether monthly billing is in the first commercial phase
 
-**Status:** open · needs: a ruling from commercial ownership
+**Status:** open · needs: a `contract_version` agreed with `agnusdei-ai/locuto`
+carrying a term model that renews on a cadence. The product question below is
+**ruled**; this is the half Bede cannot make alone.
+
+**Ruled (2026-10-11, owner directive).** Paid plans are available on a
+**monthly or annual** basis. Monthly is in. Of the two shapes this entry
+named, that is the second one, and it names its own consequence: the
+entitlement contract describes only an annual prepaid term, so monthly needs a
+term model that renews on a cadence rather than once — a new `contract_version`
+agreed with the other repository, not an edit this one can make. That is now
+the whole of what this entry waits on.
+
+**Two things follow immediately, and neither is a licence to configure
+billing.** First, no surface may describe annual as the only way to buy:
+`demo/public/launch.html` already publishes both ($199/month, or $2,149/year),
+and `license-server/src/routes/storefront.ts` renders the monthly figure as
+comparison text with no way to buy it — entry 35 routed monthly to the manual
+runbook deliberately, and that routing is what this ruling eventually
+supersedes. Second, **the $2,149 figure's plan and cadence are already
+explicitly resolved and agree in both places that carry them**: `launch.html`
+publishes it as the Family Membership's annual price, and
+`license-server/src/license/entitlements.ts` maps it to
+`{tier: "core", seats: 6, termDays: 365}`. No second entitlement row exists for
+monthly, and `configuredEntitlements()` is a one-slot design ("the ONE path,
+never a picker") — so representing monthly in checkout is a catalog change that
+waits on the contract above, not a copy change.
 
 Entry 10 sells the Family Membership at **$199/month, or $2,149/year**. The
 Bede–Locuto Commercial Entitlement Contract
@@ -1389,7 +1414,16 @@ reading — that it is a name for `ParentSetup.tsx` and `Progress.tsx` together,
 already built and already included — would close it cheaply, but nobody has
 said so, and a guess written down reads afterwards as a decision.
 
-**Related:** entry 10, entry 25, `docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`.
+**A second surface now depends on this one.** The 2026-10-11 owner directive
+(entry 37) gives a Community tier access to "community-only portal resources".
+That names this undefined surface as the thing a whole tier's access is
+measured against, so the definition this entry waits on is now load-bearing for
+an access-control boundary rather than only for sales material. The rule above
+is unchanged and still binds: until it is defined, no sales material may
+describe it as a separately delivered surface.
+
+**Related:** entry 10, entry 25, entry 37,
+`docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`.
 
 ---
 
@@ -1972,3 +2006,155 @@ the signed `trial` tier carries no commercial meaning and still does not),
 entry 34 (the Guided Membership, which is where guide time lives),
 entry 35 (the launch catalog),
 [`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md).
+
+---
+
+## 37. `[COMMERCIAL]` A Community tier: limited self-help access, and no contact capability
+
+**Status:** open · needs: two things, both of which are somebody's to say rather
+than something to work out — the **list of resources** Community may read, and a
+`contract_version` agreed with `agnusdei-ai/locuto` that has a word for this
+tier. Nothing is being waited on to *learn*; what is missing is a decision.
+
+**Ruled (2026-10-11, owner directive).** There is a **Community** tier. It is
+limited-access and self-help: a Community user may read the community-only
+portal resources meant for self-directed research and viewing. Until a paid
+plan is selected it carries **no contact or communication capability of any
+kind** — no contact form, no messaging, no interactive support, no agent
+conversation. The boundary is **enforced in access control, not by hiding
+interface elements**, so a direct request to an endpoint must be refused and not
+merely unlinked. Community navigation stays focused on the permitted resources,
+and nothing may imply it includes coaching, personal assistance, or interactive
+support.
+
+**Nothing in either repository represents this tier today, and that is the
+honest state rather than an omission to fill in.** `core/commercial_tiers.py`'s
+`CommercialTier` is `family`/`coop`/`network`, "exactly three, closed by
+construction", with `from_wire` the only way in. That module's own docstring
+already answers the general case of adding a fourth member, in the sentence it
+wrote about a commercial trial: **"minting a fourth `CommercialTier` member
+would be a contract amendment rather than an implementation detail."** The same
+sentence governs `community`. So the tier cannot be added here first and
+reconciled later — the layer is deliberately built to make that impossible, and
+entry 28 forbids reaching the same place by mapping a name collision.
+
+**What the tier is measured against is itself undefined.** "Community-only
+portal resources" names the Family Portal surface entry 27 records as *sold and
+undefined* — "neither repository defines what surface it is, what a person does
+on it, who builds it, or how it is delivered." An access boundary needs a
+resource list on the far side of it; there is no list, no `site/community/`,
+and no portal. Writing one by inference is how an unruled scope becomes a fact
+nobody decided.
+
+**Deliberately not built, for a reason this repository has paid for three
+times.** A `community` enum member, a `can_contact` predicate, or a guard on a
+contact endpoint would each be code nothing invokes: there is no Community
+identity to carry, no resource to admit, and no contact endpoint to refuse.
+That is exactly the `bayesian_update`-unpassed-`params` shape the standing
+"Test The Function AND Its Invocation" workflow was written after, and building
+it now would be work thrown away the moment the resource list arrives and
+contradicts the guess. The enforcement obligation above is recorded so that
+whoever implements it implements it in authorization, and not so that a
+placeholder ships ahead of the decision.
+
+**What this does not decide.** The Community price or whether it is free; which
+resources are permitted; whether Community is an identity the licence payload
+carries at all, or an unlicensed state of the portal; and anything about
+Community during a trial — **the trial carries no contact entitlement inferred
+from this entry or from any paid plan's**, per the directive's own instruction
+to resolve that separately.
+
+**Related:** entry 10 (the published memberships), entry 25 and
+[`BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`](BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md)
+(the vocabulary a fourth tier amends), entry 27 (the portal this tier reads),
+entry 28 (why no name collision may stand in for a mapping), entry 29 (no
+commercial trial), entry 36 (the trial, untouched), entry 38 (how contact is
+delivered to the plans that have it).
+
+---
+
+## 38. `[PRODUCT]` Help is self-service, and contact is agent-mediated rather than an onboarding call
+
+**Status:** open · needs: founder sign-off on the replacement `site/` copy
+prepared under this entry, and a ruling on what the contact agent may say about
+escalation. The model below is **ruled**; those two are not.
+
+**Ruled (2026-10-11, owner directive).** The product is **self-service**. Plan
+selection, onboarding, resource discovery, account management and the available
+support flows are designed to minimise friction and to avoid requiring manual
+staff intervention, and **a separate manual-contact workflow is not the default
+route for a customer to get help**. Contact and communication are
+**agent-mediated**: for a user holding the required paid-plan entitlement, the
+agent is the primary entry point, and the experience is contextual. The
+agent-contact experience is **not available to a Community user before they
+select a paid plan**, and Community's self-help browsing **must not silently
+become an interactive agent conversation**.
+
+**Nothing may be invented about human escalation, response times, channels, or
+support availability.** Those are a separate explicit decision, and this entry
+does not make it. That restraint is the reason this entry is `open` rather than
+closed: a contact agent needs to know what it may promise, and today the honest
+answer is nothing.
+
+**The live conflict is published copy, and it is larger than a wording fix.**
+`site/index.html` (lines 397-440) publishes a **three-tier ladder** —
+Concierge, Guided, Metered — at "Custom annual quote", "Custom annual quote"
+and "$15 / diagnostic test", and closes with: *"None of this is a self-checkout
+price list. Every tier still starts with the same onboarding call, so we can
+tell you honestly which one fits your family before you commit to anything."*
+Read against this ruling and against the register, that section contradicts the
+product on five counts at once:
+
+1. **It makes a manual onboarding call the mandatory route to every plan** —
+   the precise shape this ruling removes, restated as a feature.
+2. **It is a tier ladder**, which entry 10 abolished when it superseded entry 1
+   ("one membership for a household, not a ladder of tiers"), specifically
+   because a ladder implies the feature gating entries 5 and 6 describe and
+   entry 10's model does not need.
+3. **It names none of the memberships actually sold.** Entry 10 publishes
+   Family, Co-op and Network; `launch.html` prices them. Concierge, Guided and
+   Metered appear in no catalog, no entitlement row and no licence payload.
+4. **It publishes coaching promises** — "a standing coaching relationship with
+   the same specialist", "a standing weekly community check-in", "without 1:1
+   coaching" as a differentiator — which are promises about communication
+   channels and availability of exactly the kind this ruling says must not be
+   invented. "Community check-in" additionally attaches the word *community* to
+   a human check-in, which entry 37 forbids implying.
+5. **It prices the metered tier concretely at $15 per diagnostic**, which entry
+   10 removed from the launch and whose cancellation that entry lists under
+   "Not decided here" — so a figure is published for a tier whose existence is
+   unruled.
+
+Two smaller instances of the same conflict: `site/index.html`'s
+`#request-a-call` form and `mailto:sales@agnusdei.ai`, and
+`license-server/src/routes/storefront.ts`'s duplicate-trial message, which
+tells a visitor to "Write to sales@agnusdei.ai to have its key re-sent" — a
+manual route where the operator API already has `POST /operator/licenses/:id/resend`.
+
+**Prepared, not merged.** These paths are under the `site/`,`demo/` carve-out,
+so replacement copy is prepared for review and the directive is explicitly not
+read as approval of unreviewed wording. The copy cannot simply be deleted
+either: entry 34's Guided Membership is `open` on two delivery parameters, so
+what replaces "Guided" on the home page depends on a ruling that has not
+landed, and entry 9's reasoning still holds for Network Partnership
+specifically — that one is genuinely a conversation and is published as
+"custom".
+
+**No contact agent exists, and building one is not a copy change.** The only
+model surfaces in this repository are the child-facing tutor and the
+parent-authenticated sandbox; `services/mcp_client.py` is confined to the
+sandbox by three independent mechanisms precisely so that outside content
+cannot reach a non-authenticated reader. A contact agent reachable by a
+prospective customer is a new surface with its own threat model — an
+unauthenticated conversational endpoint carries the denial-of-wallet exposure
+`core/demo_code_session.py`'s message quota was written for, and the
+attacker-authored-text exposure the sandbox confinement was written for.
+Neither is a reason not to build it; both are reasons it is its own scoped
+change with its own review, after the entitlement that gates it exists
+(entry 37).
+
+**Related:** entry 9 (why prices are published, and the one tier that stays a
+conversation), entry 10 (the memberships actually sold), entry 26 (monthly),
+entry 34 (the Guided Membership's open delivery parameters), entry 35 (what
+goes self-serve), entry 36 (the trial's own copy conflict, still open),
+entry 37 (the tier this gates contact against).

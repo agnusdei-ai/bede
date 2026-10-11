@@ -269,8 +269,8 @@
     "trialDaysLeft_one": "Trial — {{count}} day left",
     "trialDaysLeft_other": "Trial — {{count}} days left",
     "trialExpired": "Trial expired",
-    "coopLicense": "Co-op license",
-    "coreLicense": "Core license",
+    "coopLicense": "Co-op or Network Membership",
+    "coreLicense": "Family Membership",
     "checkingStatus": "Checking system status…",
     "addAnotherStudent": "Add Another Student",
     "hitlConsent": "I understand that Bede is an AI assistant that <strong>supports, not replaces</strong>, my role as primary educator. I remain responsible for my child's curriculum, wellbeing, and learning outcomes. I have reviewed today's plan and it reflects my intentions.",
@@ -385,7 +385,8 @@
     "lineRelaxed": "Relaxed",
     "lineLoose": "Loosest",
     "frequentBreaks": "Offer a break every 20 minutes",
-    "frequentBreaksTooltip": "Normally offered only to K-3; this offers the same pause at any age, and your child can always wave it off. It cannot change or skip the required hourly break. Removing an age limit on a choice that is yours to make, not a claim that more breaks improve attention."
+    "frequentBreaksTooltip": "Normally offered only to K-3; this offers the same pause at any age, and your child can always wave it off. It cannot change or skip the required hourly break. Removing an age limit on a choice that is yours to make, not a claim that more breaks improve attention.",
+    "trialLicense": "Trial"
   },
   "progress": {
     "advance": "Advance",

@@ -284,7 +284,9 @@ picks the extension up on its daily heartbeat — nobody re-pastes a key.
 A cancellation or exhausted dunning revokes the row, and the instance
 reverts to the gated mode a family already knows from an expired license.
 The heartbeat only runs where the family opted in, by setting
-`LICENSE_SERVER_URL` (see [`PARENT_SETUP.md`](PARENT_SETUP.md)); unset, an
+`LICENSE_SERVER_URL` (the setting itself is in
+[`PRODUCTION_SETUP.md`](PRODUCTION_SETUP.md); what the family sees when it is
+on is [`PARENT_SETUP.md`](PARENT_SETUP.md) §9); unset, an
 instance keeps today's fully-offline behavior forever.
 
 ## 7. The operator API (support, not fulfillment)

@@ -6,6 +6,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
 import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS, CHARACTER_VIRTUE_SUGGESTIONS, LEARNING_SUPPORT_SUGGESTIONS } from '../types'
 import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
+import { licenseTierLabel } from '../utils/licenseTierLabel'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
@@ -506,7 +507,7 @@ export default function ParentSetup() {
                     ? systemStatus.license.days_remaining != null && systemStatus.license.days_remaining >= 0
                       ? t('parentSetup.trialDaysLeft', { count: systemStatus.license.days_remaining })
                       : t('parentSetup.trialExpired')
-                    : systemStatus.license.tier === 'coop' ? t('parentSetup.coopLicense') : t('parentSetup.coreLicense')}
+                    : licenseTierLabel(systemStatus.license.tier, t)}
                 </span>
               )}
             </>

@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import license_state
+from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
@@ -72,7 +73,7 @@ async def save_pod_configs(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
-                    f"Your {license_info.tier} license allows up to {license_info.seats} "
+                    f"Your {tier_display.label_for(license_info.tier)} allows up to {license_info.seats} "
                     f"student{'s' if license_info.seats != 1 else ''} "
                     f"(this pod would have {total_seats_used}) — contact us to upgrade."
                 ),

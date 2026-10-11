@@ -16,7 +16,7 @@ Selection order: a valid, unexpired DB license wins (it's the renewal),
 then a valid, unexpired env license. If neither is usable the instance is
 gated (production only — dev and the public demo are never gated, same
 exemptions as before). The best *expired* candidate is kept for messaging
-so the parent sees "your core license expired on …" rather than a generic
+so the parent sees "your Family Membership expired on …" rather than a generic
 error.
 
 Also deliberately not here: any kind of phone-home. Licenses are verified
@@ -39,6 +39,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from core import licensing
+from core import tier_display
 
 log = logging.getLogger(__name__)
 
@@ -240,7 +241,7 @@ def refresh(
             )
         elif chosen is not None and chosen.is_expired:
             problem = (
-                f"Your {chosen.tier} license for {chosen.licensee!r} expired on "
+                f"Your {tier_display.label_for(chosen.tier)} for {chosen.licensee!r} expired on "
                 f"{chosen.expires.isoformat()} — paste a renewed license key to continue."
             )
         elif env_key or db_key:

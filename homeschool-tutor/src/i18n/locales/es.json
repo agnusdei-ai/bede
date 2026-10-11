@@ -269,8 +269,8 @@
     "trialDaysLeft_one": "Prueba — queda {{count}} día",
     "trialDaysLeft_other": "Prueba — quedan {{count}} días",
     "trialExpired": "Prueba vencida",
-    "coopLicense": "Licencia cooperativa",
-    "coreLicense": "Licencia principal",
+    "coopLicense": "Membresía de Cooperativa o Red",
+    "coreLicense": "Membresía Familiar",
     "checkingStatus": "Verificando el estado del sistema…",
     "addAnotherStudent": "Agregar otro estudiante",
     "hitlConsent": "Entiendo que Bede es un asistente de IA que <strong>apoya, no reemplaza</strong>, mi papel como educador principal. Sigo siendo responsable del currículo, el bienestar y los resultados de aprendizaje de mi hijo. He revisado el plan de hoy y refleja mis intenciones.",
@@ -385,7 +385,8 @@
     "lineRelaxed": "Holgado",
     "lineLoose": "Máximo",
     "frequentBreaks": "Ofrecer un descanso cada 20 minutos",
-    "frequentBreaksTooltip": "Normalmente solo se ofrece de K a 3.º; esto ofrece la misma pausa a cualquier edad, y su hijo siempre puede rechazarla. No cambia ni omite el descanso obligatorio de cada hora. Quita un límite de edad sobre una decisión que le corresponde a usted; no afirma que más descansos mejoren la atención."
+    "frequentBreaksTooltip": "Normalmente solo se ofrece de K a 3.º; esto ofrece la misma pausa a cualquier edad, y su hijo siempre puede rechazarla. No cambia ni omite el descanso obligatorio de cada hora. Quita un límite de edad sobre una decisión que le corresponde a usted; no afirma que más descansos mejoren la atención.",
+    "trialLicense": "Prueba"
   },
   "progress": {
     "advance": "Avanzar",

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BadgeCheck, ChevronDown, ChevronUp, Loader2, ScrollText, TriangleAlert } from 'lucide-react'
 import { applyLicenseKey, fetchLicenseStatus } from '../services/api'
 import { licenseUrgency } from '../utils/licenseUrgency'
+import { licenseTierLabel } from '../utils/licenseTierLabel'
 import type { LicenseStatus } from '../types'
 
 /**
@@ -13,6 +15,11 @@ import type { LicenseStatus } from '../types'
  * configured, none required).
  */
 export default function LicenseSettings({ token }: { token: string }) {
+  // Only the tier label is translated here. The rest of this card is plain
+  // English — a pre-existing, documented gap (see CLAUDE.md) that this change
+  // deliberately does not widen, and does not make worse either: rendering the
+  // raw signed tier was wrong in every locale, English included.
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [openedForUrgency, setOpenedForUrgency] = useState(false)
   const [status, setStatus] = useState<LicenseStatus | null | undefined>(undefined)
@@ -117,7 +124,7 @@ export default function LicenseSettings({ token }: { token: string }) {
           {status.tier && (
             <div className="text-sm text-gray-600 space-y-1">
               <p>
-                <span className="font-medium text-gray-800 capitalize">{status.tier}</span> license for{' '}
+                <span className="font-medium text-gray-800">{licenseTierLabel(status.tier, t)}</span> for{' '}
                 <span className="font-medium text-gray-800">{status.licensee}</span> · {status.seats} student
                 {status.seats === 1 ? '' : 's'}
               </p>

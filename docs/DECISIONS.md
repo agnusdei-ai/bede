@@ -180,6 +180,36 @@ has to be explicit in code rather than a string passthrough. That contract's
 §11 is the compatibility plan this entry `needs:`; it does not perform the
 migration.
 
+**Amended 2026-10-11 — the presentation half shipped; the design question is
+untouched.** Five surfaces rendered the signed tier verbatim to a parent, so
+under entry 35's self-serve catalog every annual Family Membership — which
+mints `core` on purpose — told the customer they held a "Core license", and in
+Spanish a "Licencia principal", a word implying a ladder with a lesser tier
+beneath it that entry 10 abolished. `core/tier_display.py` and
+`homeschool-tutor/src/utils/licenseTierLabel.ts` now map a signed tier to the
+name on the price list (`core` → Family Membership, per `SELLING_BEDE.md`'s own
+operator mapping; `coop` → "Co-op or Network Membership", since it serves both
+and the payload cannot distinguish them). No signed byte, payload field, or
+verifier moved, and no label is ever a `CommercialTier` value — asserted, since
+widening a display helper until it returns one is how entry 28's forbidden
+mapping would arrive by drift.
+
+**That changes nothing about this entry's question**, which is whether the two
+vocabularies should be reconciled at all. It remains `open` and is a `[DESIGN]`
+ruling. Two findings worth carrying into it, both verified against the code:
+**nothing branches on the signed tier** (every read in `homeschool-api` is an
+f-string, a log argument, or a status field), and a mapping from
+`{trial, core, coop}` to `{family, coop, network}` **cannot be a function**,
+because `coop` serves a Co-op *or* a Network and the signed payload carries
+nothing to tell them apart — so §J Stage A item 1's "written mapping between
+vocabularies" is not constructible for `coop` from the credential, which is a
+sharper statement of what "a plan, not a rename" has to mean.
+
+**Correction:** this entry's reference to "that contract's §11" does not
+resolve. The entitlement contract is lettered A–J with no numbered sections;
+§11 belongs to `LICENSE_SERVER_DESIGN.md`. The compatibility plan is §C plus
+§J's Stage A list.
+
 **Ruled on the narrower question, 2026-09-07 — entry 28.** There is no implicit
 mapping, and a legacy signed tier is never inferred to be a commercial one
 because the names collide. That does not close this entry: it names what a
@@ -1674,6 +1704,13 @@ found on archive.org is a transfer of a 1981 commercial LP. So the
 repository needs a rights field distinguishing the work's status from the
 recording's, and Bede must keep pointing families at their own recording
 rather than naming one it cannot vouch for.
+
+**Blocker re-verified 2026-10-11, still current.** `en.wikipedia.org` and
+`imslp.org` were both re-tested from this environment and both return 403 at
+the egress proxy, so the page-level check this entry `needs:` is still
+unreachable and the entry is not stale for want of someone trying. Recorded so
+the next session does not spend the probe again; re-test only if the
+environment's network policy is known to have changed.
 
 ---
 

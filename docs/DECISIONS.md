@@ -2064,6 +2064,29 @@ Community during a trial — **the trial carries no contact entitlement inferred
 from this entry or from any paid plan's**, per the directive's own instruction
 to resolve that separately.
 
+**One existing endpoint the boundary will have to be decided against, named
+now rather than discovered later.** The directive requires that Community
+reach no contact capability "including through direct endpoint requests", and
+`POST /feedback` already is one: `routers/feedback.py` guards it with
+`require_auth`, which admits **every** authenticated role including
+`demo_code` — an anonymous public demo visitor — and it routes free text to
+the operator's inbox over Resend. By any plain reading that is a contact form.
+
+**It is deliberately left alone, and tightening it would be the wrong move
+twice over.** A demo visitor is not a Community user, because Community does
+not exist yet, so applying this entry's rule to that role would be inventing
+the scope this entry says is unruled. And that endpoint carries work that is
+running today: `docs/BETA_SURVEY.md`'s three channels all post under
+`beta_survey`, the demo's own `plans` lead capture routes to `SALES_EMAIL`,
+and `BetaIntakeModal.tsx` posts the first-pod `onboarding` intake. Restricting
+it to satisfy a tier that does not exist would break the beta instrument.
+
+So the question to answer when Community lands is specific: **does a Community
+user get `POST /feedback`, and if so under which categories?** A plausible
+split — product feedback yes, anything that functions as contact no — is not
+written down here, because a guess recorded in the register reads afterwards
+as a decision.
+
 **Related:** entry 10 (the published memberships), entry 25 and
 [`BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md`](BEDE_LOCUTO_ENTITLEMENT_CONTRACT.md)
 (the vocabulary a fourth tier amends), entry 27 (the portal this tier reads),

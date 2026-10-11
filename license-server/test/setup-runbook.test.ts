@@ -58,6 +58,42 @@ describe("the setup runbook matches the Worker's own D1 binding", () => {
     }
   });
 
+  /** A secret the runbook never tells the operator to put is a deploy that
+   * fails at the first SALE rather than at deploy time. `RESEND_FROM_ADDRESS`
+   * was exactly that: non-optional on `Env`, read by all three delivery paths
+   * and passed straight to Resend's `from`, and absent from a section headed
+   * "all five". Unset, a paid purchase writes a license row and sends no
+   * email — the customer pays and receives nothing, with nothing erroring
+   * anywhere an operator would look. The required set is READ from `Env`
+   * rather than restated here, so adding a secret fails this until the
+   * runbook carries it. */
+  it("tells the operator to put every secret the Worker requires", () => {
+    const envSource = readFileSync(join(ROOT, "src", "types.ts"), "utf8");
+    const required = [...envSource.matchAll(/readonly ([A-Z][A-Z0-9_]*)(\??):/g)]
+      .filter((m) => m[2] !== "?" && m[1] !== "DB")
+      .map((m) => m[1]);
+    expect(required.length).toBeGreaterThan(1);
+    for (const secret of required) {
+      expect(RUNBOOK).toContain(`wrangler secret put ${secret}`);
+    }
+  });
+
+  /** The count is prose beside the list, so it goes stale silently — which is
+   * how the missing secret above stayed invisible: the heading asserted the
+   * list was complete. */
+  it("states a secret count that matches the commands it then lists", () => {
+    const words: Record<string, number> = {
+      three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    };
+    const heading = RUNBOOK.split("\n").find((line) => /^## \d+\. Secrets/.test(line));
+    expect(heading).toBeDefined();
+    const claimed = Object.entries(words).find(([word]) => (heading ?? "").includes(word));
+    expect(claimed, `no spelled-out count in: ${heading}`).toBeDefined();
+    const listed = [...RUNBOOK.matchAll(/wrangler secret put [A-Z][A-Z0-9_]*/g)];
+    const distinct = new Set(listed.map((m) => m[0]));
+    expect(distinct.size).toBe(claimed?.[1]);
+  });
+
   /** This suite reads a file outside license-server/, so without the runbook
    * being named in frontend-tests.yml's own change filter a runbook-only edit
    * computes relevant=false, skips the suites, and never runs the guard

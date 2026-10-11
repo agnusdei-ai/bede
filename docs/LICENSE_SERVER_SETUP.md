@@ -185,7 +185,7 @@ following the same in-repo small-service precedent as
    `--remote` for a local test database; it is created the same way and is
    entirely separate from the production one.
 
-## 4. Secrets — all five, via `wrangler secret put`
+## 4. Secrets — all six, via `wrangler secret put`
 
 Every credential below is a **Workers Secret**, set from the
 `license-server/` directory:
@@ -197,6 +197,7 @@ npx wrangler secret put ED25519_PRIVATE_KEY
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RESEND_FROM_ADDRESS
 npx wrangler secret put OPERATOR_TOKEN
 ```
 
@@ -211,6 +212,7 @@ interactive prompts avoid shell history entirely).
 | `STRIPE_SECRET_KEY` | `sk_test_...` first, then `sk_live_...` | Stripe dashboard → Developers → API keys |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` | The webhook endpoint created in section 1 (test and live endpoints have different secrets) |
 | `RESEND_API_KEY` | `re_...` | Resend dashboard → API keys |
+| `RESEND_FROM_ADDRESS` | A verified sender on that domain, e.g. `Bede <sales@agnusdei.ai>` | The domain verified in section 2. **Not optional**: every delivery path passes this straight to Resend's `from`, so leaving it unset makes a paid purchase issue a license row and send no email — the sale succeeds and the customer gets nothing |
 | `OPERATOR_TOKEN` | A long random string you generate, e.g. `openssl rand -hex 32` | You invent it now; it authenticates the operator API in section 7 |
 
 Handling rules, same as every credential in this repo: **never committed,

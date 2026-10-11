@@ -10,6 +10,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { storefrontPage, handleStorefront, handleFamilyAnnualCheckout } from "../../src/routes/storefront";
 import { createSlidingWindowLimiter } from "../../src/ratelimit";
 import { familyAnnualEntitlement } from "../../src/config";
@@ -64,13 +66,53 @@ beforeEach(() => {
 });
 
 describe("GET / — the storefront page", () => {
-  it("renders the PUBLISHED figures verbatim — the storefront never invents prices", () => {
+  /**
+   * "PUBLISHED" means published on demo/public/launch.html, so the figures are
+   * READ from that page rather than restated here. Restating them made this a
+   * second copy of the same four numbers: a marketing decision to move the
+   * annual price would leave the storefront charging the old one with this
+   * test still green, and moving all three together would leave the published
+   * page stale with nothing erroring either way. The drifting fact is a PRICE,
+   * which is the most consequential thing in this component to get wrong, and
+   * docs/LICENSE_SERVER_SETUP.md §5 already states the obligation in prose
+   * ("stop and fix the page before selling anything"). Each figure must be
+   * unique on that page, so an ambiguous match fails loudly instead of
+   * silently pinning whichever one matched first.
+   *
+   * demo/** is already in frontend-tests.yml's change filter (the demo's own
+   * suites need it), so a launch.html edit reaches this guard.
+   */
+  const PUBLISHED = readFileSync(
+    join(import.meta.dirname, "..", "..", "..", "demo", "public", "launch.html"),
+    "utf8",
+  );
+
+  /** Reads ONE figure off the published page. `expect` is what the storefront
+   * must then contain — some figures are published as contiguous text and some
+   * are split by markup (`$199<span class="per">/month</span>`), so the
+   * expected string is built from the capture group where there is one. */
+  function publishedFigure(label: string, pattern: RegExp, build: (m: RegExpMatchArray) => string): string {
+    const matches = [...PUBLISHED.matchAll(pattern)];
+    const found = new Set(matches.map(build));
+    expect(found.size, `${label}: expected exactly one on launch.html, saw ${[...found]}`).toBe(1);
+    return [...found][0] as string;
+  }
+
+  const identity = (m: RegExpMatchArray) => m[0];
+
+  it("renders the figures demo/public/launch.html publishes — never its own", () => {
     const page = storefrontPage();
-    expect(page).toContain("$2,149/year");
-    expect(page).toContain("$199/month");
-    expect(page).toContain("save $239");
-    expect(page).toContain("Up to six children");
-    expect(page).toContain("30-day free trial");
+    for (const [label, pattern, build] of [
+      ["annual price", /\$[\d,]+\/year/g, identity],
+      // Anchored on exactly ">/month<" so the Co-op card's own
+      // "/family/month" is a different figure, not a second match of this one.
+      ["monthly price", /\$([\d,]+)<span class="per">\/month<\/span>/g, (m: RegExpMatchArray) => `$${m[1]}/month`],
+      ["annual saving", /save \$\d+/g, identity],
+      ["child cap", /Up to \w+ children/g, identity],
+      ["trial length", /\d+-day free trial/g, identity],
+    ] as const) {
+      expect(page).toContain(publishedFigure(label, pattern, build));
+    }
     expect(page).toContain("no card required");
   });
 

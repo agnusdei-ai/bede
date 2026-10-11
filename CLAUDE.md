@@ -279,11 +279,12 @@ a parent who collapses it is not overruled). `issued` was added to
 flat 30 days when it is absent, so an older server keeps warning exactly as
 it did rather than silently going quiet.
 
-**`api-tests` prints four `Event loop is closed` annotations on a PASSING
-run, and they are never the cause.** They are `failure`-level GitHub
-annotations on a job whose conclusion is `success` — confirmed identical and
-deterministic across unrelated green commits — so they are asyncio teardown
-noise, not a result. **They cost a real wrong diagnosis on #538**, where the
+**`api-tests` prints `Event loop is closed` annotations on a PASSING run, and
+they are never the cause.** They are `failure`-level GitHub annotations on a
+job whose conclusion is `success`, so they are asyncio teardown noise, not a
+result. **The count varies and can be zero**: measured across five green
+runs it was 0, 4, 4, 4 and 8 (`7227e67`, `0c9cb76`, `162a0b9`, `7e4cb6e`,
+`ab0d255`). Do not reason from the number. **They cost a real wrong diagnosis on #538**, where the
 actual failure was a missing `docs/WORKING_AGREEMENTS.md` citation for a new
 standing workflow and the annotations led to twenty minutes spent on
 `asyncio`. The rule when `api-tests` is red: find the **assertion**, and if
@@ -301,12 +302,18 @@ disposal: `tests/test_privileged_elevation.py` and
 `tests/test_device_revocation.py` each build their `client` fixture with
 `asyncio.run(_create())`, then create the real engine outside any loop, then
 tear down with `asyncio.run(engine.dispose())` — three different event loops,
-and aiosqlite finalizers bound to a closed one. Two files times two
-`asyncio.run` calls happens to equal the four annotations, which is
-suggestive and **not** verified: `client` is function-scoped and runs for many
-tests, so four would also need GitHub to be sampling. Raw job logs are not
-reachable from this sandbox (`gh` refuses the blob-storage redirect), so
-nobody has yet seen which test emits them. **Do not "fix" this blind** — it is
+and aiosqlite finalizers bound to a closed one.
+
+**A tidy arithmetic explanation was proposed and is dead, which is worth more
+than the hypothesis was.** Two files times two `asyncio.run` calls equals
+four, and that looked like the answer for as long as every observed run said
+four — it was recorded here as suggestive and unverified, and the very next
+run said **eight**, with an earlier one saying **zero**. A varying count
+cannot come from a fixed number of call sites, so this is timing — when a
+finalizer happens to run relative to loop close — rather than a set of places
+to go and fix. Anyone picking this up should look for a race, not a list.
+Raw job logs are not reachable from this sandbox (`gh` refuses the
+blob-storage redirect), so nobody has yet seen which test emits them. **Do not "fix" this blind** — it is
 noise on a green suite, and a speculative asyncio change is churn that could
 turn real.
 

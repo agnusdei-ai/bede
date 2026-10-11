@@ -6,7 +6,7 @@
  * change.
  */
 import type { EntitlementConfig } from "./license/entitlements";
-import { ANNUAL_FAMILY_ENTITLEMENT } from "./license/entitlements";
+import { ANNUAL_FAMILY_ENTITLEMENT, resolveAnnualEntitlement } from "./license/entitlements";
 
 export function configuredEntitlements(): EntitlementConfig[] {
   // Deploy-time: paste the real Stripe price id of the $2,149/yr annual
@@ -19,10 +19,19 @@ export function configuredEntitlements(): EntitlementConfig[] {
 /** The Family-annual entitlement the storefront and checkout route sell —
  * null while the price id is unconfigured, so `GET /checkout/family-annual`
  * answers 503 ("not configured") instead of calling Stripe with an empty
- * price. One configured entitlement at launch: the ONE path, never a
- * picker. */
+ * price.
+ *
+ * **Selected by cadence, never by position.** This used to return
+ * `configuredEntitlements()[0]`, which agreed with the storefront's
+ * hardcoded "$2,149/year" only because exactly one row existed. Register
+ * entry 26 rules monthly IN, so a second row is a live prospect, and index 0
+ * is then whichever row someone happened to list first — see
+ * `EntitlementConfig.cadence` for what that costs a customer.
+ *
+ * Ambiguity is refused rather than resolved: two annual rows means nobody has
+ * said which one this route sells, so it answers null (503, "not configured")
+ * instead of picking. A checkout that charges the wrong price is worse than a
+ * checkout that is honestly unavailable. */
 export function familyAnnualEntitlement(): EntitlementConfig | null {
-  const config = configuredEntitlements()[0] ?? null;
-  if (config === null || config.priceId.length === 0) return null;
-  return config;
+  return resolveAnnualEntitlement(configuredEntitlements());
 }

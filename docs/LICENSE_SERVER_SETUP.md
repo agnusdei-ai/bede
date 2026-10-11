@@ -90,6 +90,17 @@ live-mode keys.
    That mapping is configuration, never user input — the explicit-mapping
    rule of [`DECISIONS.md`](DECISIONS.md) entry 28. A price ID the Worker
    does not know produces no license and a logged error.
+
+   **If you ever add a second row** (entry 26 rules monthly in, pending a
+   `contract_version` agreed with `agnusdei-ai/locuto`), every row must state
+   its own `cadence`. The annual checkout resolves its row **by cadence, not
+   by list position** — it used to take `configuredEntitlements()[0]`, which
+   agreed with the page's "$2,149/year" only while one row existed, so a
+   monthly row listed first would have charged the monthly price under annual
+   copy. Two rows claiming `cadence: "annual"` is refused rather than
+   resolved: `GET /checkout/family-annual` answers 503 until exactly one is
+   configured, because a checkout that charges the wrong price is worse than
+   one that is honestly unavailable.
 2. **Optional: Stripe Tax.** The seller of record — the operator — is
    responsible for sales tax / VAT on these sales. Stripe Tax can
    calculate and collect it at checkout automatically. Enable it in Stripe

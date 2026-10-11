@@ -12,6 +12,11 @@
   "name": "bede-license-server",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-01",
+  // Daily trial-ending reminder (src/reminders.ts). 14:00 UTC is mid-morning
+  // in the US — a reminder that lands overnight is read late or not at all.
+  // The job is idempotent per licence, so the exact minute does not matter and
+  // a missed day is absorbed by the 7-day reminder window.
+  "triggers": { "crons": ["0 14 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",

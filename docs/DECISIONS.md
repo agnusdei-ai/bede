@@ -1873,3 +1873,102 @@ trial's shape), entry 30 (why `seats` is not a cap policy),
 [`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md) (the runbook this
 decision created), [`SELLING_BEDE.md`](SELLING_BEDE.md) (the runbook the
 other tiers keep).
+
+---
+
+## 36. `[COMMERCIAL]` The trial is no-card, reminded once, and then the product stops
+
+**Status:** closed
+
+**Decided (2026-10-11).** The 30-day trial takes **no card**, carries no
+coaching or guide time, sends **one reminder** inside the final week, and when
+day 30 passes with no payment the product **ceases to tutor entirely**. Nothing
+auto-charges, because there is nothing on file to charge.
+
+**Most of this needed no code, which is why it was checked before any was
+written.** A trial licence carries a signed, baked-in 30-day `expires`;
+`core/licensing.py`'s `is_expired` is `expires < date.today()`; `main.py`'s
+`_periodic_license_refresh` recomputes that verdict daily so it lands on an
+instance nobody restarts; and `LicenseGate` then refuses every path except
+`/auth/`, `/mfa/`, `/admin/license` and `/health`. That chain works with no
+network at all — a self-hosted instance that never reaches the licence server
+still stops on day 31.
+
+**"Ceases to function" stops deliberately short of blocking sign-in**, and the
+distinction is the whole design rather than a softening of it. A parent can
+still log in and paste a key; everything that teaches a child is gone. Blocking
+sign-in as well would make renewal impossible and put a family's own encrypted
+data, on their own hardware, out of their reach — self-defeating commercially
+and hostile besides.
+
+**The one thing genuinely missing was the email.**
+`homeschool-tutor/src/utils/licenseUrgency.ts` already warns in-app from day 23
+(10% of term, floored at `MIN_NOTICE_DAYS` 7) and opens `LicenseSettings`
+itself — but an in-app chip only fires if somebody opens the parent screen, and
+a lapsing trial is exactly when nobody does. `license-server/src/reminders.ts`
+plus a daily Cloudflare cron trigger closes it, with
+`REMINDER_WINDOW_DAYS` set to 7 so the email and the chip appear together
+rather than contradicting each other.
+
+**A failed reminder can never extend a trial**, and that is structural rather
+than promised: the expiry is inside the signed payload and nothing in the
+reminder path can move it. `test_never_writes_to_the_licence_row` pins it. The
+reminder is also not the only notice — `trialDeliveryEmail` already states the
+end date at issuance and says plainly that nothing will auto-charge and the app
+will ask for a key.
+
+**Comparator evidence, and its class.** This rests on **vendor documentation
+and practitioner writing**, not the peer-reviewed literature
+`docs/PRICING_RESEARCH.md` carries, and it is recorded here rather than in a
+research document for that reason: `tests/test_research_citations.py` requires
+DOIs, and none of these sources has one. Stating the weaker class is the point.
+
+* **Salesforce** (vendor documentation) puts trial orgs into a `HOLD` status
+  where a user can still sign in but is routed to a purchase page, and keeps
+  paid orgs' data 120 days in `LOCKED`. Bede's gated mode is that same shape,
+  reached independently.
+* **Microsoft 365** (vendor documentation) gives a free trial a 30-day grace
+  status in most regions before deletion, and keeps an ended paid subscription
+  in a limited-function account for 90 days so data can be exported.
+* **Practitioner writing** (a product glossary; a proposal in a public issue
+  tracker) describes an immediate hard cutoff as maximising urgency while
+  harming users mid-workflow, and read-only access as preserving their work.
+  Both are blog-class sources and are weighted accordingly.
+* **Contract-focused sources** recommend a defined 30-to-90-day export window
+  after termination.
+
+**Where Bede's position is genuinely different, and better.** Every comparator
+above is wrestling with *vendor-side data deletion*, because the customer's data
+sits on the vendor's servers. Bede's does not: the instance runs in the family's
+house and the data is AES-256-GCM encrypted at rest on their own hardware. There
+is no deletion clock to design, no export window to promise, and nothing for us
+to hold hostage. The reminder email says so in as many words.
+
+**No negative-option exposure, and that followed from the no-card choice rather
+than being engineered.** The FTC's 2024 click-to-cancel amendments were vacated
+by the Eighth Circuit in July 2025, leaving the narrow 1973 Negative Option Rule
+in force; an advance notice of proposed rulemaking followed in March 2026, and
+enforcement continues under FTC Act §5 and ROSCA. All of that governs *charging
+without clear consent*. A trial that takes no card and charges nobody is outside
+it by construction. **A card-up-front auto-converting trial would be the shape
+that attracts it**, which is a cost that was not obvious before looking.
+
+**What this entry deliberately did not build.**
+`stripe.checkout.sessions.create` gains no `trial_period_days`: that is the
+card-up-front shape this ruling rejected. `POST /v1/trial` keeps its no-card
+design. No after-expiry email is sent — one reminder was what was asked for,
+and inventing a second notice would be an unruled policy becoming a fact.
+
+**What remains, and it is copy rather than code.**
+`site/index.html` and `site/faq/index.html` describe the learner's guarantee as
+refunding "the annual cost in full, coaching included," and add that the
+coaching "is not carved out." A no-card trial has no cost to refund, and this
+ruling puts the guide outside the trial, so both pages now contradict the
+product on two counts. They are under the `site/` carve-out and need explicit
+sign-off, so they are stated here rather than quietly changed.
+
+**Related:** entry 10 (the membership), entry 29 (no commercial trial tier —
+the signed `trial` tier carries no commercial meaning and still does not),
+entry 34 (the Guided Membership, which is where guide time lives),
+entry 35 (the launch catalog),
+[`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md).

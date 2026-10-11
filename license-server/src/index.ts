@@ -35,6 +35,7 @@ import { handleStorefront, handleFamilyAnnualCheckout } from "./routes/storefron
 import { handleTrial } from "./routes/trial";
 import { handleActivate, handleValidate } from "./routes/runtime";
 import { handleOperator } from "./routes/operator";
+import { sendDueTrialReminders } from "./reminders";
 
 function methodNotAllowed(allow: string): Response {
   return Response.json({ error: "method_not_allowed" }, {
@@ -44,6 +45,23 @@ function methodNotAllowed(allow: string): Response {
 }
 
 export default {
+  /**
+   * The daily trial-ending reminder (wrangler.jsonc's cron trigger).
+   *
+   * Cessation is NOT here and needs nothing: a trial's 30-day expiry is signed
+   * into the key, and the family instance enforces it offline via
+   * `core/licensing.py` + `main.py`'s daily re-evaluation + `LicenseGate`. This
+   * job only tells a family it is coming, so a failure here costs a courtesy
+   * and never changes who has access. See src/reminders.ts.
+   */
+  async scheduled(_event: ScheduledController, env: Env): Promise<void> {
+    const today = new Date().toISOString().slice(0, 10);
+    const run = await sendDueTrialReminders(env, today);
+    console.log(
+      `trial reminders ${today}: considered=${run.considered} sent=${run.sent} failed=${run.failed}`,
+    );
+  },
+
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;

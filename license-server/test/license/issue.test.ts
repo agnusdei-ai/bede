@@ -24,6 +24,7 @@ const ENTITLEMENT: EntitlementConfig = {
   tier: "core",
   seats: 6,
   maxActivations: 2,
+  cadence: "annual" as const,
   termDays: 365,
   planName: "Bede Annual Family Membership",
 };

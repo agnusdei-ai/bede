@@ -35,6 +35,7 @@ vi.mock("../../src/config", async (importOriginal) => {
         tier: "core" as const,
         seats: 6,
         maxActivations: 2,
+        cadence: "annual" as const,
         termDays: 365,
         planName: "Bede Annual Family Membership",
       },

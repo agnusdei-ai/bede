@@ -20,9 +20,14 @@ verifies.** That equality is asserted two ways, both in CI:
 ```
 wrangler.jsonc            Worker config: main + D1 binding `DB` (database `bede-licenses`)
 migrations/0001_init.sql  customers / licenses / activations / webhook_events
-src/index.ts              fetch handler → webhook route
+src/index.ts              fetch handler → route table (404 unknown, 405 wrong method)
+src/routes/storefront.ts  GET / (storefront page) + GET /checkout/family-annual
+src/routes/trial.ts       POST /v1/trial — self-serve, no-card trial key
+src/routes/runtime.ts     POST /v1/activate, POST /v1/validate — the family heartbeat
 src/routes/webhooks.ts    POST /v1/webhooks/stripe — verify, claim, dispatch
+src/routes/operator.ts    /operator/* — Bearer OPERATOR_TOKEN; list / comp / revoke / resend
 src/adapters/             PaymentAdapter protocol (base.ts) + Stripe adapter
+src/config.ts             deploy-time price-id mapping (ships EMPTY — see Scope)
 src/license/              encode (canonical JSON) / sign (Ed25519) / issue / entitlements
 src/email/resend.ts       Resend HTTP delivery of the LICENSE_KEY= email
 scripts/generate-cross-language-vector.mjs   regenerates test/vectors/* from one source
@@ -30,11 +35,26 @@ scripts/generate-cross-language-vector.mjs   regenerates test/vectors/* from one
 
 ## Scope
 
-At launch this Worker does exactly one thing: turn a verified Stripe webhook
-into a signed license row and a delivery email — idempotently. Renewals
-(`invoice.paid`) extend `valid_until`; cancellations and payment-failures past
-dunning revoke. **Not here yet** (next staged task): the storefront page,
-`POST /v1/trial`, `/v1/activate`, `/v1/validate`, and the operator API.
+The launch surface is complete in code: a storefront page and one checkout
+path, a no-card trial, the verified Stripe webhook that turns a payment into
+a signed license row and a delivery email (idempotently), the family
+instance's `activate`/`validate` heartbeat, and a Bearer-token operator API
+for support. Renewals (`invoice.paid`) extend `valid_until`; cancellations
+and payment failures past dunning revoke.
+
+**What is NOT complete is the deployment, and two committed values are
+placeholders on purpose**, so a half-configured deploy fails loudly instead
+of selling something it cannot fulfil:
+
+- `src/config.ts` → `ANNUAL_FAMILY_ENTITLEMENT.priceId` is `""`. It maps to
+  nothing, so `GET /checkout/family-annual` answers 503 and a webhook for an
+  unmapped price issues no license and logs an error. Paste the real Stripe
+  price id at deploy.
+- `wrangler.jsonc` → `database_id` is all zeros. `wrangler d1 create
+  bede-licenses` prints the real one.
+
+Both steps, the five Workers secrets and the end-to-end test-mode
+verification are [`docs/LICENSE_SERVER_SETUP.md`](../docs/LICENSE_SERVER_SETUP.md).
 
 ## Development
 

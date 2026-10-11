@@ -153,30 +153,37 @@ following the same in-repo small-service precedent as
 `scripts/trust_service/`. Runtime and database are locked decisions
 (`LICENSE_SERVER_DESIGN.md` §5): Workers + D1.
 
-1. **Create the database:**
+1. **Create the database.** The name is not free text: it must be the
+   `database_name` the Worker's own D1 binding declares
+   (`license-server/wrangler.jsonc`), or the deployed Worker binds to
+   nothing and every route that touches storage fails at runtime.
 
    ```bash
    cd license-server
-   npx wrangler d1 create bede-license-server
+   npx wrangler d1 create bede-licenses
    ```
 
    Copy the `database_id` from the output into `license-server/wrangler.jsonc`
-   (the D1 binding's `id` field).
+   (the D1 binding's `database_id` field, which ships as an all-zeros
+   placeholder).
 
 2. **Apply the schema.** The four tables — `customers`, `licenses`,
-   `activations`, `webhook_events` — are defined in `license-server/schema.sql`:
+   `activations`, `webhook_events` — are defined in
+   `license-server/migrations/0001_init.sql`, and the binding declares
+   `migrations_dir`, so wrangler applies them by migration rather than by
+   file path:
 
    ```bash
-   npx wrangler d1 execute bede-license-server --remote --file=./schema.sql
+   npx wrangler d1 migrations apply bede-licenses --remote
    ```
 
-   Every statement is `CREATE TABLE IF NOT EXISTS` — idempotent, safe to
-   re-run, and the same additive-only philosophy as the family instance's
-   startup migrations (`core/database.py`). A schema change to this
-   database is a new run of this command with an updated file; there is no
-   migration framework to learn. **Local** test databases (for `wrangler d1
-   execute` without `--remote`) are created the same way and are separate
-   from the production one.
+   Every statement is `create table if not exists`, so re-running is safe.
+   A schema change is a **new** numbered file in `migrations/` — `0001` is
+   immutable once applied, which is the one way this differs from the family
+   instance's `CREATE TABLE IF NOT EXISTS`-at-boot discipline
+   (`core/database.py`), where there is no migration ledger at all. Drop
+   `--remote` for a local test database; it is created the same way and is
+   entirely separate from the production one.
 
 ## 4. Secrets — all five, via `wrangler secret put`
 
@@ -215,7 +222,7 @@ alongside the offline private-key backup.
 Stripe test mode first: put the `sk_test_`/test `whsec_` values, verify
 end to end (section 6), then re-run the same `wrangler secret put` commands
 with the live values. D1 rows created during test-mode verification are
-test rows — clear them (`wrangler d1 execute bede-license-server --remote --command "DELETE FROM licenses; DELETE FROM customers; DELETE FROM activations; DELETE FROM webhook_events;"`) before going live,
+test rows — clear them (`wrangler d1 execute bede-licenses --remote --command "DELETE FROM licenses; DELETE FROM customers; DELETE FROM activations; DELETE FROM webhook_events;"`) before going live,
 so no test purchase ever appears in the production database.
 
 ## 5. Deploy
@@ -248,7 +255,7 @@ family runs with no operator in the loop — the whole point of the service.
    the signature, maps the configured price ID to `{tier: core, seats: 6}`,
    signs the license in the exact wire format
    `core/licensing.py` verifies, stores the row, and emails the key.
-3. Confirm in D1: `npx wrangler d1 execute bede-license-server --remote --command "SELECT id, tier, seats, status, valid_until FROM licenses;"` —
+3. Confirm in D1: `npx wrangler d1 execute bede-licenses --remote --command "SELECT id, tier, seats, status, valid_until FROM licenses;"` —
    one row, `active`, `valid_until` one year out.
 4. Confirm the email arrived, containing the `LICENSE_KEY=` string.
 5. Paste the key into a running family instance's License card (or

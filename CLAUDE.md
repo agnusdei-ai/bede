@@ -279,6 +279,37 @@ a parent who collapses it is not overruled). `issued` was added to
 flat 30 days when it is absent, so an older server keeps warning exactly as
 it did rather than silently going quiet.
 
+**`api-tests` prints four `Event loop is closed` annotations on a PASSING
+run, and they are never the cause.** They are `failure`-level GitHub
+annotations on a job whose conclusion is `success` — confirmed identical and
+deterministic across unrelated green commits — so they are asyncio teardown
+noise, not a result. **They cost a real wrong diagnosis on #538**, where the
+actual failure was a missing `docs/WORKING_AGREEMENTS.md` citation for a new
+standing workflow and the annotations led to twenty minutes spent on
+`asyncio`. The rule when `api-tests` is red: find the **assertion**, and if
+the annotation list shows nothing but these four, the failing test is one
+whose output pytest did not annotate — run the suspect subset locally with
+`--noconftest` (that is how #538's was found). Note this container is Python
+3.11 while `requirements-dev.lock.txt` needs 3.12 for `librosa`, so the full
+suite cannot run here and CI is the only complete check.
+
+**What is established about the cause and what is not**, so the next attempt
+starts further along: there is no missing `await engine.dispose()` — a grep
+suggesting two leaked engines was wrong, because `eng.dispose()` is a
+different string from `engine.dispose()`. The live suspicion is cross-loop
+disposal: `tests/test_privileged_elevation.py` and
+`tests/test_device_revocation.py` each build their `client` fixture with
+`asyncio.run(_create())`, then create the real engine outside any loop, then
+tear down with `asyncio.run(engine.dispose())` — three different event loops,
+and aiosqlite finalizers bound to a closed one. Two files times two
+`asyncio.run` calls happens to equal the four annotations, which is
+suggestive and **not** verified: `client` is function-scoped and runs for many
+tests, so four would also need GitHub to be sampling. Raw job logs are not
+reachable from this sandbox (`gh` refuses the blob-storage redirect), so
+nobody has yet seen which test emits them. **Do not "fix" this blind** — it is
+noise on a green suite, and a speculative asyncio change is churn that could
+turn real.
+
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 
 ## Required Environment Variables

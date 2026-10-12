@@ -29,6 +29,7 @@ import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { decodeLicensePayload } from "../license/encode";
 import { TRIAL_DAYS, mintTrialLicenseKey, upsertCustomer, utcDate } from "../license/issue";
 import { createResendClient, trialDeliveryEmail } from "../email/resend";
+import { storefrontUrl } from "../config";
 
 /** Plausible-email check — deliberately simple: something@something.tld,
  * no whitespace. Delivery failure — the only truth that matters —
@@ -174,7 +175,11 @@ async function trialCore(req: Request, env: Env): Promise<Response> {
   // Deliver — the same Resend vendor, trial template. Failures propagate:
   // the row exists, the operator API's resend re-delivers it.
   const expiresIso = trialExpiresDate(licenseKey)!;
-  const template = trialDeliveryEmail({ expiresDate: expiresIso, licenseKey });
+  const template = trialDeliveryEmail({
+    expiresDate: expiresIso,
+    licenseKey,
+    storefrontUrl: storefrontUrl(env),
+  });
   const client = createResendClient(env.RESEND_API_KEY, env.RESEND_FROM_ADDRESS);
   await client.send({ to: email, subject: template.subject, html: template.html });
 

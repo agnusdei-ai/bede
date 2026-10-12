@@ -31,7 +31,20 @@
 import type { Env } from "./types";
 import { globalLimiter } from "./ratelimit";
 import { handleStripeWebhook } from "./routes/webhooks";
-import { handleStorefront, handleFamilyAnnualCheckout } from "./routes/storefront";
+import {
+  cancelEntryPage,
+  handleCancelConfirmPage,
+  handleCancelEmailLinkPage,
+  handleCancelRequestPage,
+  handleCancelViewPage,
+} from "./routes/cancel_pages";
+import {
+  handleCancelConfirm,
+  handleCancelEmailLink,
+  handleCancelRequest,
+  handleCancelState,
+} from "./routes/cancel";
+import { handleStorefront, handleFamilyAnnualCheckout, pageHeaders as cancelPageHeaders } from "./routes/storefront";
 import { handleTrial } from "./routes/trial";
 import { handleActivate, handleValidate } from "./routes/runtime";
 import { handleOperator } from "./routes/operator";
@@ -82,6 +95,45 @@ export default {
         return methodNotAllowed("POST");
       case "/v1/validate":
         if (method === "POST") return handleValidate(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      // The cancellation SCREENS. Pages are GET and credentials travel by
+      // POST: a licence key or one-time token in a query string is written
+      // into every access log and Referer header between here and the
+      // customer. See src/routes/cancel_pages.ts.
+      case "/cancel":
+        if (method === "GET" || method === "HEAD") {
+          return new Response(cancelEntryPage(), { status: 200, headers: cancelPageHeaders() });
+        }
+        return methodNotAllowed("GET, HEAD");
+      case "/cancel/view":
+        if (method === "POST") return handleCancelViewPage(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      case "/cancel/confirm":
+        if (method === "POST") return handleCancelConfirmPage(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      case "/cancel/request":
+        if (method === "POST") return handleCancelRequestPage(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      case "/cancel/email-link":
+        if (method === "POST") return handleCancelEmailLinkPage(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      // The three cancellation tiers. Each is more available than the last
+      // and less able to confirm an outcome — see src/routes/cancel.ts. None
+      // requires an agent conversation, a reason, or any entitlement.
+      case "/v1/cancel/email-link":
+        if (method === "POST") return handleCancelEmailLink(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      case "/v1/cancel/state":
+        // POST although it only reads: the credential is in the body, and a
+        // licence key or one-time token in a query string is a credential
+        // written into every access log between here and the customer.
+        if (method === "POST") return handleCancelState(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      case "/v1/cancel/confirm":
+        if (method === "POST") return handleCancelConfirm(request, env, globalLimiter);
+        return methodNotAllowed("POST");
+      case "/v1/cancel/request":
+        if (method === "POST") return handleCancelRequest(request, env, globalLimiter);
         return methodNotAllowed("POST");
       case "/v1/webhooks/stripe":
         if (method === "POST") return handleStripeWebhook(request, env);

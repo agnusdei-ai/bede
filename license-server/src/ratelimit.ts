@@ -35,7 +35,7 @@ export interface RateLimitConfig {
 }
 
 export const RATE_LIMITS: Record<
-  "activate" | "validate" | "trial" | "checkout" | "operator",
+  "activate" | "validate" | "trial" | "checkout" | "operator" | "cancel",
   RateLimitConfig
 > = {
   activate: { bucket: "activate", limit: 30 },
@@ -52,6 +52,12 @@ export const RATE_LIMITS: Record<
   // token brute force from one address while leaving a human operator
   // (list, revoke, resend, comp) effectively unlimited.
   operator: { bucket: "operator", limit: 30 },
+  // Cancellation is the one route that must not be hard to reach, so this
+  // bucket is deliberately generous: it bounds enumeration attempts against
+  // the email-link and licence-key routes without ever being what stops a
+  // customer cancelling. A family retrying on a bad connection, or working
+  // through all three tiers in one sitting, stays well inside it.
+  cancel: { bucket: "cancel", limit: 30 },
 };
 
 const WINDOW_MS_DEFAULT = 60_000;

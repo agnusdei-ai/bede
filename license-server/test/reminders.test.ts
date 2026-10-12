@@ -320,3 +320,54 @@ describe("sending", () => {
     expect(after).toEqual(before);
   });
 });
+
+describe("sent_at means the notice's ACTUAL successful send", () => {
+  /**
+   * `conversion.ts`'s card gate is `sent_at + 24 hours`, so this value decides
+   * when a family can be asked for a card. The claim has to be written BEFORE
+   * the send (it is the concurrency guarantee above), so the claim's instant is
+   * provisional and the real one is written back on success.
+   *
+   * The test distinguishes the two by making the send take real time and
+   * recording the instant from INSIDE it: a claim-time `sent_at` is strictly
+   * earlier than that, a send-time one is not.
+   */
+  it("records an instant at or after the send itself, not the earlier claim", async () => {
+    const env = makeEnv();
+    await seedTrial(env, { id: "lic-1", email: "a@example.com", expires: "2026-10-15" });
+
+    let instantInsideSend = "";
+    sendSpy.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      instantInsideSend = new Date().toISOString();
+    });
+
+    expect((await sendDueTrialReminders(env, TODAY)).sent).toBe(1);
+
+    const row = await env.DB.prepare("select sent_at from trial_reminders where license_id = ?")
+      .bind("lic-1")
+      .first<{ sent_at: string }>();
+    expect(row).not.toBeNull();
+    // A full instant, never a date: the gate cannot be computed from YYYY-MM-DD.
+    expect(row?.sent_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(Date.parse(row?.sent_at ?? "")).toBeGreaterThanOrEqual(Date.parse(instantInsideSend));
+  });
+
+  it("leaves no row at all when the send throws, so the gate stays shut", async () => {
+    // The gate reads a missing row as closed, which is the safe direction: a
+    // family who was never told cannot be asked for a card.
+    const env = makeEnv();
+    await seedTrial(env, { id: "lic-1", email: "a@example.com", expires: "2026-10-15" });
+    sendSpy.mockRejectedValueOnce(new Error("resend is down"));
+
+    expect((await sendDueTrialReminders(env, TODAY))).toEqual({
+      considered: 1,
+      sent: 0,
+      failed: 1,
+    });
+    const row = await env.DB.prepare("select sent_at from trial_reminders where license_id = ?")
+      .bind("lic-1")
+      .first<{ sent_at: string }>();
+    expect(row).toBeNull();
+  });
+});

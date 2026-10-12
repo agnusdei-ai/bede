@@ -212,6 +212,28 @@ npx wrangler secret put RESEND_FROM_ADDRESS
 npx wrangler secret put OPERATOR_TOKEN
 ```
 
+### One value that is NOT a secret: `PUBLIC_BASE_URL`
+
+Set it in `wrangler.jsonc`'s `vars` to this Worker's own public origin, e.g.
+`https://licensing.agnusdei.ai`. It is a plain configuration value, not a
+credential, and it exists because email sent from the daily cron has no
+inbound request whose origin it could borrow. The trial emails use it to link
+a family to where the plans and their full terms are shown.
+
+Leaving it empty is supported — the emails fall back to `https://agnusdei.ai`,
+where the plans are published anyway, rather than carrying a dead link at the
+one moment a family is deciding whether to continue. Set it so the link is
+specific.
+
+### After any schema change
+
+`migrations/0004_cancellation.sql` adds the two tables the cancellation routes
+need (`cancel_tokens`, `cancellation_requests`), so a deployment that applied
+only 0001-0003 must run `wrangler d1 migrations apply` again before those
+routes will work. Until it does, `POST /v1/cancel/*` fails on the missing
+table rather than silently doing nothing — which is the right direction, but
+it is a step worth not skipping.
+
 Each command prompts for the value interactively (or reads it from stdin
 — see the caveat on process histories in
 [`LICENSE_SERVER_DESIGN.md`](LICENSE_SERVER_DESIGN.md) §8's custody notes;

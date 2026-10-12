@@ -53,8 +53,22 @@ export function licenseDeliveryEmail(input: {
 /** The trial template — deliberately its own email (the spec's delivery
  * rule): it says TRIAL up front, carries the baked-in expiry date, and
  * points at the same paste-a-key setup. No billing language — no card was
- * ever taken. */
-export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: string }): {
+ * ever taken.
+ *
+ * **And no price, cadence or recurrence claim**, which it used to carry: it
+ * asserted "$2,149/year" on day zero, in the first email a family receives,
+ * before they had chosen a plan or a billing frequency. Material terms are
+ * disclosed in full against a chosen plan immediately before billing
+ * information is collected, and nowhere else — a partial set read three
+ * weeks early is the version a family remembers, and it is the version they
+ * were never asked to consent to. */
+export function trialDeliveryEmail(input: {
+  expiresDate: string;
+  licenseKey: string;
+  /** Where the plans and their full terms are shown. Passed in rather than
+   * hardcoded so the link is this deployment's own. */
+  storefrontUrl: string;
+}): {
   subject: string;
   html: string;
 } {
@@ -81,7 +95,14 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
       "</ol>",
       "<p>Trial key (paste the whole line, including the <code>LICENSE_KEY=</code> prefix):</p>",
       `<p style=\"font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all;\">${escapeHtml(keyLine)}</p>`,
-      "<p>Ready to continue after the trial? The Annual Family Membership is $2,149/year for up to six children — one price, the whole household.</p>",
+      // Same rule as the trial-ending notice below: no price, no cadence, no
+      // recurrence claim. This one asserted "$2,149/year" on DAY ZERO, before
+      // the family had chosen a plan or a billing frequency, in the first
+      // email they receive. Material terms are shown in full against a chosen
+      // plan immediately before billing information is collected — nowhere
+      // else, because a partial set read early is the version a family
+      // remembers.
+      `<p>Nothing is decided during the trial, and no card is on file. If you would like to continue afterwards, the plans and their full terms are at <a href="${escapeHtml(input.storefrontUrl)}">${escapeHtml(input.storefrontUrl)}</a>.</p>`,
       "<p>— The Bede team</p>",
     ].join("\n"),
   };
@@ -108,10 +129,20 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
  * email would produce something a later reader mistakes for the real notice,
  * so this stays a trial-ending note and says only what is true today.
  */
-export function trialEndingEmail(input: { expiresDate: string; daysLeft: number; termDays: number }): {
+export function trialEndingEmail(input: {
+  expiresDate: string;
+  daysLeft: number;
+  termDays: number;
+  /** Where the plans and their full terms are shown. Passed in rather than
+   * hardcoded: the notice must point at the real storefront for THIS
+   * deployment, and a stale link in a billing email is a dead end at the
+   * one moment a family is deciding whether to stay. */
+  storefrontUrl: string;
+}): {
   subject: string;
   html: string;
 } {
+  const { storefrontUrl } = input;
   const when =
     input.daysLeft <= 0
       ? "today"
@@ -127,10 +158,109 @@ export function trialEndingEmail(input: { expiresDate: string; daysLeft: number;
       // blanket "nothing will auto-charge", which decision 36 §2 forbids
       // retaining now that the trial converts.
       "<p><strong>No card is on file.</strong> None was taken when the trial started. Continuing means subscribing — you would be asked for a card and to authorize a recurring charge, and that authorization is yours to give.</p>",
-      "<p>To continue, the Annual Family Membership is $2,149 USD per year for up to six children — one price for the whole household, recurring yearly until cancelled. Once you subscribe, the key arrives by email and you paste it into <strong>Parent Setup &rarr; License</strong>.</p>",
+      // DELIBERATELY NAMES NO PRICE, CADENCE OR RECURRENCE. This line used
+      // to read "$2,149 USD per year ... recurring yearly until cancelled",
+      // which was three separate problems in one sentence. It stated
+      // material terms (plan, amount, currency, cadence, recurrence) in an
+      // email this file’s own docstring says is NOT the pre-card notice. It
+      // asserted ANNUAL before the customer had selected a cadence, which
+      // the approved flow puts first. And it promised a charge recurring
+      // "until cancelled" while no cancellation route existed anywhere in
+      // the product — a representation about an experience a family could
+      // not actually have. Material terms belong where they can be shown in
+      // full, immediately before billing information is collected, against
+      // a plan the customer has chosen; an email sent on day 2 is none of
+      // those things. So this points at where the plans are shown and makes
+      // one promise only — the promise that nothing is decided here.
+      `<p>If you would like to continue, the plans are at <a href="${escapeHtml(storefrontUrl)}">${escapeHtml(storefrontUrl)}</a>. You choose the plan and how often you pay, and the full terms — the amount, the currency, how often it recurs, when the first charge lands and how to cancel — are shown there before you are ever asked for a card.</p>`,
       "<p>If Bede is not right for your family, you need do nothing at all.</p>",
       "<p>&mdash; The Bede team</p>",
     ].join("\n"),
+  };
+}
+
+/**
+ * The cancellation confirmation.
+ *
+ * **Every sentence is generated from the verified outcome**, never from
+ * assumed terms. There is no price, no cadence and no plan name in here: a
+ * cancellation confirmation is not the moment to restate what somebody is
+ * paying, and reconstructing those from configuration would mean a stale
+ * figure arriving at exactly the point a customer is checking our accuracy.
+ * `test/email/disclosure.test.ts`'s scan covers this template for the same
+ * reason it covers the trial emails.
+ *
+ * **The access-end date is OPTIONAL and omitted when it is not
+ * authoritative.** `paidAccessEndsAtIso` null simply drops the sentence; a
+ * guessed date in a billing email is worse than no date, because the customer
+ * plans around it.
+ *
+ * **Nothing here promises a refund or Community access.** Both are unresolved
+ * (`src/promises.ts`), so the only refund sentence present is the DISCLAIMER —
+ * that cancelling renewal does not itself refund the current payment — which
+ * exists precisely so a customer does not assume the opposite.
+ */
+/** A readable form of an instant, always in UTC and always labelled so. The
+ * exact ISO value is shown beside it, so the readable form can never be the
+ * only statement of when access ends. */
+export function formatInstantUtc(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, ${hh}:${mm} UTC`;
+}
+
+export function cancellationConfirmedEmail(input: {
+  /** The instant the provider confirmed it. */
+  readonly confirmedAtIso: string;
+  /** Authoritative end of already-paid access, or null when we do not have
+   * one we can stand behind. */
+  readonly paidAccessEndsAtIso: string | null;
+  /** The subscription's own original trial expiry, set ONLY for a verified
+   * trial cancellation under the adopted retained-access ruling. Null for a
+   * paid renewal, and null whenever the expiry was not read back. */
+  readonly trialAccessUntilIso?: string | null;
+  /** The ledger/request reference, so a support enquiry and our own record
+   * meet. */
+  readonly reference: string;
+  readonly storefrontUrl: string;
+}): { subject: string; html: string } {
+  if (input.trialAccessUntilIso) {
+    const until = input.trialAccessUntilIso;
+    return {
+      subject: "Your Bede trial will not convert to a paid subscription",
+      html: [
+        "<p>Your Bede trial will not convert to a paid subscription.</p>",
+        `<p>You can continue using your trial until <strong>${escapeHtml(formatInstantUtc(until))}</strong> (${escapeHtml(until)}).</p>`,
+        "<p>Cancelling does not restart or extend the trial.</p>",
+        `<p><strong>Cancellation confirmed:</strong> ${escapeHtml(input.confirmedAtIso)}</p>`,
+        `<p><strong>Reference:</strong> ${escapeHtml(input.reference)}</p>`,
+        `<p>Your account: <a href="${escapeHtml(input.storefrontUrl)}">${escapeHtml(input.storefrontUrl)}</a></p>`,
+        "<p>&mdash; The Bede team</p>",
+      ].join("\n"),
+    };
+  }
+  return {
+    subject: "Your Bede renewal is cancelled",
+    html: [
+      "<p>Your subscription will not renew.</p>",
+      `<p><strong>Cancellation confirmed:</strong> ${escapeHtml(input.confirmedAtIso)}</p>`,
+      input.paidAccessEndsAtIso === null
+        ? ""
+        : `<p><strong>Paid access ends:</strong> ${escapeHtml(input.paidAccessEndsAtIso)}</p>`,
+      `<p><strong>Reference:</strong> ${escapeHtml(input.reference)}</p>`,
+      input.paidAccessEndsAtIso === null
+        ? "<p>You can keep using the plan you have already paid for.</p>"
+        : "<p>You can keep using your paid plan until the access-end date above.</p>",
+      // The disclaimer, not a promise. Present so nobody assumes the inverse.
+      "<p>Cancelling renewal does not automatically refund your current payment.</p>",
+      `<p>Your account: <a href="${escapeHtml(input.storefrontUrl)}">${escapeHtml(input.storefrontUrl)}</a></p>`,
+      "<p>&mdash; The Bede team</p>",
+    ]
+      .filter((line) => line.length > 0)
+      .join("\n"),
   };
 }
 

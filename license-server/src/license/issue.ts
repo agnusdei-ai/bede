@@ -290,13 +290,27 @@ export async function issueLicenseForEvent(input: {
  * manual operator revoke is expected to accompany the cancellation IN
  * Stripe; a row that keeps paying stays active. Flagged for review in the
  * PR — it is the one policy call this module makes alone.)
+ *
+ * **`fallbackTermDays` is a parameter rather than a constant, and it used to
+ * be `365`.** The fallback fires only when a renewal event carries no
+ * `term_end` (normally the invoice's line periods supply one), so it is the
+ * failure path — but a hardcoded year would have granted a MONTHLY
+ * subscriber twelve months of access off one month's payment, silently, with
+ * nothing erroring. The caller resolves the term from the renewal's own price
+ * instead. When it cannot, it must pass the SHORTEST configured term, not the
+ * longest: under-granting is corrected by the next renewal (`valid_until`
+ * moves forward only, never back), whereas over-granting is a year of free
+ * service nobody notices.
  */
 export async function extendLicenseForRenewal(input: {
   db: D1Database;
   event: PaymentEvent;
   logger: Logger;
+  /** Term to use when the event carries no `term_end`. See the note above on
+   * why this is supplied rather than assumed. */
+  fallbackTermDays: number;
 }): Promise<{ updated: boolean; reason: string }> {
-  const { db, event, logger } = input;
+  const { db, event, logger, fallbackTermDays } = input;
 
   if (!event.term_end) {
     // No period end in the event: fall back to one term from the LATER of
@@ -314,10 +328,10 @@ export async function extendLicenseForRenewal(input: {
       return { updated: false, reason: "unknown_subscription" };
     }
     const base = row.valid_until && row.valid_until > new Date().toISOString() ? row.valid_until : new Date().toISOString();
-    const extended = new Date(Date.parse(base) + 365 * 86_400_000).toISOString();
+    const extended = new Date(Date.parse(base) + fallbackTermDays * 86_400_000).toISOString();
     await extendTo(db, event.external_subscription_id, event.provider, extended);
     logger.info(
-      `renewal event ${event.external_event_id}: no term_end in event — extended to ${extended} (one term from latest)`,
+      `renewal event ${event.external_event_id}: no term_end in event — extended to ${extended} (${fallbackTermDays}d from latest)`,
     );
     return { updated: true, reason: "extended_fallback" };
   }

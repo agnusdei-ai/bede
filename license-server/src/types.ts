@@ -25,6 +25,17 @@ export interface Env {
   /** Verified Resend sender, e.g. "Bede <sales@agnusdei.ai>". */
   readonly RESEND_FROM_ADDRESS: string;
 
+  /**
+   * This deployment's own public origin, e.g. "https://licensing.agnusdei.ai".
+   * NOT a secret — a `vars` entry in wrangler.jsonc. Needed because emails
+   * sent from the CRON have no inbound request to read an origin from, and a
+   * billing email must point at the real storefront: a dead link at the one
+   * moment a family is deciding whether to stay is worse than no link.
+   * Optional so an unconfigured deployment still sends — see
+   * `storefrontUrl()` for what it falls back to and why.
+   */
+  readonly PUBLIC_BASE_URL?: string;
+
   /** Bearer token for the operator API. Optional at runtime: when the
    * secret has not been put, the whole operator API answers 503 — disabled,
    * never open. */

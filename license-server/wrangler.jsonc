@@ -16,6 +16,10 @@
   // in the US — a reminder that lands overnight is read late or not at all.
   // The job is idempotent per licence, so the exact minute does not matter and
   // a missed day is absorbed by the 7-day reminder window.
+  // NOT a secret: the deployment's own public origin, which emails sent
+  // from the cron need because they have no inbound request to read an
+  // origin from. Set it to this Worker's real hostname at deploy time.
+  "vars": { "PUBLIC_BASE_URL": "" },
   "triggers": { "crons": ["0 14 * * *"] },
   "d1_databases": [
     {

@@ -101,6 +101,33 @@ export function entitlementForEvent(
  * id is not a purchasable row; and two annual rows are REFUSED rather than
  * resolved, because nobody has said which one is sold and a checkout that
  * charges the wrong price is worse than one that is honestly unavailable. */
+/**
+ * The shortest term any configured row sells — the conservative fallback when
+ * a renewal event carries neither a `term_end` nor a resolvable price.
+ * Under-granting access is corrected by the next renewal, since `valid_until`
+ * only ever moves forward; over-granting is free service nobody notices.
+ */
+export function shortestConfiguredTermDays(rows: readonly EntitlementConfig[]): number {
+  const terms = rows.filter((row) => row.termDays > 0).map((row) => row.termDays);
+  // No configured row at all: a month is shorter than every cadence this
+  // catalog can declare, so it cannot over-grant whatever gets added later.
+  return terms.length > 0 ? Math.min(...terms) : 30;
+}
+
+/**
+ * The entitlement row a renewal was paid against, matched on the invoice's own
+ * price id. Null when the event carries no price or names one the catalog does
+ * not configure — the caller then has to fall back deliberately rather than
+ * assume a term.
+ */
+export function entitlementForPriceId(
+  rows: readonly EntitlementConfig[],
+  priceId: string | null | undefined,
+): EntitlementConfig | null {
+  if (typeof priceId !== "string" || priceId.length === 0) return null;
+  return rows.find((row) => row.priceId.length > 0 && row.priceId === priceId) ?? null;
+}
+
 export function resolveAnnualEntitlement(
   rows: readonly EntitlementConfig[],
 ): EntitlementConfig | null {

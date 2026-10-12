@@ -169,6 +169,8 @@ describe("extendLicenseForRenewal", () => {
         term_end: "2028-10-09T00:00:00.000Z",
       },
       logger: QUIET,
+      // term_end is present, so the fallback never fires here.
+      fallbackTermDays: 365,
     });
     expect(updated).toBe(true);
     expect(reason).toBe("extended");
@@ -194,6 +196,8 @@ describe("extendLicenseForRenewal", () => {
         term_end: "2027-10-10T00:00:00.000Z",
       },
       logger: QUIET,
+      // term_end is present, so the fallback never fires here.
+      fallbackTermDays: 365,
     });
     expect(await oneRow(db, "valid_until")).toBe("2028-10-09T00:00:00.000Z");
   });
@@ -217,11 +221,40 @@ describe("extendLicenseForRenewal", () => {
         term_end: null,
       },
       logger: QUIET,
+      fallbackTermDays: 365,
     });
     expect(updated).toBe(true);
     // 2027-10-10 (existing, future) + 365 days — the existing value wins
     // over "now" and the extension never shortens it.
     expect(await oneRow(db, "valid_until")).toBe("2028-10-09T00:00:00.000Z");
+  });
+
+  it("falls back by the term it is GIVEN, so a monthly renewal buys a month", async () => {
+    // The fallback used to be a hardcoded 365, which handed a monthly
+    // subscriber twelve months of access off one month's payment — silently,
+    // since nothing about a longer valid_until looks wrong.
+    const db = createTestD1();
+    await issueLicenseForEvent({
+      db,
+      event: createdEvent({ term_end: "2027-10-10T00:00:00.000Z" }),
+      entitlement: ENTITLEMENT,
+      privateKeyPem: VECTOR.private_key_pem,
+      logger: QUIET,
+    });
+
+    const { updated } = await extendLicenseForRenewal({
+      db,
+      event: {
+        ...createdEvent(),
+        type: "subscription_renewed",
+        external_event_id: "evt_renewal_monthly",
+        term_end: null,
+      },
+      logger: QUIET,
+      fallbackTermDays: 30,
+    });
+    expect(updated).toBe(true);
+    expect(await oneRow(db, "valid_until")).toBe("2027-11-09T00:00:00.000Z");
   });
 
   it("ignores renewals for subscriptions it has never seen", async () => {
@@ -235,6 +268,7 @@ describe("extendLicenseForRenewal", () => {
         term_end: "2028-10-09T00:00:00.000Z",
       },
       logger: SILENT,
+      fallbackTermDays: 365,
     });
     expect(updated).toBe(false);
     expect(reason).toBe("unknown_subscription");

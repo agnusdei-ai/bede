@@ -53,8 +53,22 @@ export function licenseDeliveryEmail(input: {
 /** The trial template — deliberately its own email (the spec's delivery
  * rule): it says TRIAL up front, carries the baked-in expiry date, and
  * points at the same paste-a-key setup. No billing language — no card was
- * ever taken. */
-export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: string }): {
+ * ever taken.
+ *
+ * **And no price, cadence or recurrence claim**, which it used to carry: it
+ * asserted "$2,149/year" on day zero, in the first email a family receives,
+ * before they had chosen a plan or a billing frequency. Material terms are
+ * disclosed in full against a chosen plan immediately before billing
+ * information is collected, and nowhere else — a partial set read three
+ * weeks early is the version a family remembers, and it is the version they
+ * were never asked to consent to. */
+export function trialDeliveryEmail(input: {
+  expiresDate: string;
+  licenseKey: string;
+  /** Where the plans and their full terms are shown. Passed in rather than
+   * hardcoded so the link is this deployment's own. */
+  storefrontUrl: string;
+}): {
   subject: string;
   html: string;
 } {
@@ -81,7 +95,14 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
       "</ol>",
       "<p>Trial key (paste the whole line, including the <code>LICENSE_KEY=</code> prefix):</p>",
       `<p style=\"font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all;\">${escapeHtml(keyLine)}</p>`,
-      "<p>Ready to continue after the trial? The Annual Family Membership is $2,149/year for up to six children — one price, the whole household.</p>",
+      // Same rule as the trial-ending notice below: no price, no cadence, no
+      // recurrence claim. This one asserted "$2,149/year" on DAY ZERO, before
+      // the family had chosen a plan or a billing frequency, in the first
+      // email they receive. Material terms are shown in full against a chosen
+      // plan immediately before billing information is collected — nowhere
+      // else, because a partial set read early is the version a family
+      // remembers.
+      `<p>Nothing is decided during the trial, and no card is on file. If you would like to continue afterwards, the plans and their full terms are at <a href="${escapeHtml(input.storefrontUrl)}">${escapeHtml(input.storefrontUrl)}</a>.</p>`,
       "<p>— The Bede team</p>",
     ].join("\n"),
   };
@@ -108,10 +129,20 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
  * email would produce something a later reader mistakes for the real notice,
  * so this stays a trial-ending note and says only what is true today.
  */
-export function trialEndingEmail(input: { expiresDate: string; daysLeft: number; termDays: number }): {
+export function trialEndingEmail(input: {
+  expiresDate: string;
+  daysLeft: number;
+  termDays: number;
+  /** Where the plans and their full terms are shown. Passed in rather than
+   * hardcoded: the notice must point at the real storefront for THIS
+   * deployment, and a stale link in a billing email is a dead end at the
+   * one moment a family is deciding whether to stay. */
+  storefrontUrl: string;
+}): {
   subject: string;
   html: string;
 } {
+  const { storefrontUrl } = input;
   const when =
     input.daysLeft <= 0
       ? "today"
@@ -127,7 +158,21 @@ export function trialEndingEmail(input: { expiresDate: string; daysLeft: number;
       // blanket "nothing will auto-charge", which decision 36 §2 forbids
       // retaining now that the trial converts.
       "<p><strong>No card is on file.</strong> None was taken when the trial started. Continuing means subscribing — you would be asked for a card and to authorize a recurring charge, and that authorization is yours to give.</p>",
-      "<p>To continue, the Annual Family Membership is $2,149 USD per year for up to six children — one price for the whole household, recurring yearly until cancelled. Once you subscribe, the key arrives by email and you paste it into <strong>Parent Setup &rarr; License</strong>.</p>",
+      // DELIBERATELY NAMES NO PRICE, CADENCE OR RECURRENCE. This line used
+      // to read "$2,149 USD per year ... recurring yearly until cancelled",
+      // which was three separate problems in one sentence. It stated
+      // material terms (plan, amount, currency, cadence, recurrence) in an
+      // email this file’s own docstring says is NOT the pre-card notice. It
+      // asserted ANNUAL before the customer had selected a cadence, which
+      // the approved flow puts first. And it promised a charge recurring
+      // "until cancelled" while no cancellation route existed anywhere in
+      // the product — a representation about an experience a family could
+      // not actually have. Material terms belong where they can be shown in
+      // full, immediately before billing information is collected, against
+      // a plan the customer has chosen; an email sent on day 2 is none of
+      // those things. So this points at where the plans are shown and makes
+      // one promise only — the promise that nothing is decided here.
+      `<p>If you would like to continue, the plans are at <a href="${escapeHtml(storefrontUrl)}">${escapeHtml(storefrontUrl)}</a>. You choose the plan and how often you pay, and the full terms — the amount, the currency, how often it recurs, when the first charge lands and how to cancel — are shown there before you are ever asked for a card.</p>`,
       "<p>If Bede is not right for your family, you need do nothing at all.</p>",
       "<p>&mdash; The Bede team</p>",
     ].join("\n"),

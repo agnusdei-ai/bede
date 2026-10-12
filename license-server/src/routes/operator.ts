@@ -19,7 +19,7 @@
 import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
-import { configuredEntitlements } from "../config";
+import { configuredEntitlements, storefrontUrl } from "../config";
 import { mintPaidLicenseKey, upsertCustomer } from "../license/issue";
 import { createResendClient, licenseDeliveryEmail, trialDeliveryEmail } from "../email/resend";
 import { trialExpiresDate, plausibleEmail } from "./trial";
@@ -160,6 +160,7 @@ async function resendLicense(env: Env, licenseId: string): Promise<Response> {
   const template =
     row.tier === "trial"
       ? trialDeliveryEmail({
+          storefrontUrl: storefrontUrl(env),
           expiresDate: trialExpiresDate(row.license_key) ?? "unknown",
           licenseKey: row.license_key,
         })

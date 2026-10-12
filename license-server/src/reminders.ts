@@ -68,6 +68,7 @@
 import type { Env } from "./types";
 import { createResendClient, trialEndingEmail } from "./email/resend";
 import { trialExpiresDate, trialIssuedDate } from "./routes/trial";
+import { storefrontUrl } from "./config";
 
 /** Which day OF the trial the notice goes out, counted forward from issuance.
  * See the module docstring for why 2 rather than 0, 1 or 6. */
@@ -198,6 +199,7 @@ export async function sendDueTrialReminders(
     try {
       const client = createResendClient(env.RESEND_API_KEY, env.RESEND_FROM_ADDRESS);
       const { subject, html } = trialEndingEmail({
+        storefrontUrl: storefrontUrl(env),
         expiresDate: expires,
         daysLeft: daysUntil(expires, today),
         // The key's OWN term, so a trial minted under the old 30-day rule is

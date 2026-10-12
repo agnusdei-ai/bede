@@ -123,7 +123,7 @@ describe("GET / — the storefront page", () => {
    * It is `TRIAL_DAYS` — a number signed into every trial key and enforced
    * offline by `core/licensing.py`, so the page cannot be right and the code
    * wrong; only the page can be stale. Pinning it the other way round (which
-   * this test did until register entry 39 cut the term to 7) meant the
+   * this test did until decision 36 cut the term to 7) meant the
    * published page could hold the storefront to a term the product no longer
    * grants, and the failure read as a storefront bug.
    *

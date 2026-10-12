@@ -52,7 +52,7 @@ export function utcDate(offsetDays = 0): string {
  * — "long nominal signed expiry"). */
 export const NOMINAL_PAID_EXPIRY_YEARS = 5;
 
-/** The trial's baked-in signed expiry: **7 days** (register entry 39, the
+/** The trial's baked-in signed expiry: **7 days** (decision 36, the
  * owner supersession of 2026-10-12; it was 30 until then). The spec's trial
  * lock still holds — "trials must expire, so here the signed payload _is_
  * the authority" — and no server row extends it; every server path defers to

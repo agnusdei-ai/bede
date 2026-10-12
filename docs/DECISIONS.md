@@ -1912,15 +1912,7 @@ other tiers keep).
 
 ## 36. `[COMMERCIAL]` The trial is no-card, reminded once, and then the product stops
 
-**Status:** closed · **superseded by entry 39 (2026-10-12)**
-
-> **Superseded, and kept as it was written.** Entry 39 cuts the trial from 30
-> days to 7 and makes it convert to a recurring subscription on the customer's
-> own authorization. What follows is the 2026-10-11 ruling and its reasoning,
-> left intact: this entry records that a 30-day no-card trial is what shipped,
-> which is true and is how the reminder, the term and the copy came to be
-> shaped the way entry 39 had to reshape them. **Its FTC conclusion is
-> withdrawn** — see the marker on that paragraph, and entry 39.
+**Status:** closed
 
 **Decided (2026-10-11).** The 30-day trial takes **no card**, carries no
 coaching or guide time, sends **one reminder** inside the final week, and when
@@ -1987,13 +1979,7 @@ is no deletion clock to design, no export window to promise, and nothing for us
 to hold hostage. The reminder email says so in as many words.
 
 **No negative-option exposure, and that followed from the no-card choice rather
-than being engineered.** ⚠️ **WITHDRAWN by entry 39 — do not rely on the
-paragraph below.** It reasoned from a trial that took no card and charged
-nobody. Entry 39's trial collects a card and converts to a recurring charge,
-so the premise is gone and the conclusion does not survive it. The paragraph
-stays only because deleting it would hide that the conclusion was once drawn
-and acted on; it is not active guidance, and it has been removed from
-`CLAUDE.md`. The FTC's 2024 click-to-cancel amendments were vacated
+than being engineered.** The FTC's 2024 click-to-cancel amendments were vacated
 by the Eighth Circuit in July 2025, leaving the narrow 1973 Negative Option Rule
 in force; an advance notice of proposed rulemaking followed in March 2026, and
 enforcement continues under FTC Act §5 and ROSCA. All of that governs *charging
@@ -2195,133 +2181,3 @@ conversation), entry 10 (the memberships actually sold), entry 26 (monthly),
 entry 34 (the Guided Membership's open delivery parameters), entry 35 (what
 goes self-serve), entry 36 (the trial's own copy conflict, still open),
 entry 37 (the tier this gates contact against).
-
----
-
-## 39. `[COMMERCIAL]` The trial is 7 days and converts to a recurring subscription on the customer's own authorization
-
-**Status:** open · needs: three disclosures entry 39 §3 requires and nobody can
-write truthfully yet — **which cadence a trial converts to**, **when the first
-charge lands**, and **how a customer cancels before it** — plus a ruling on
-whether the storefront's existing customer-initiated Subscribe button is inside
-the pre-card notice rule or outside it. The term, the notice point and the
-cessation behaviour are **ruled** and shipped.
-
-**Ruled (2026-10-12, owner supersession of entry 36).** The trial is **7 days,
-not 30**. It converts to a **recurring subscription** — monthly or annual
-cadence, which is the billing cadence *after* the trial and changes the trial's
-length not at all. Conversion requires the customer to provide a card and
-explicitly authorize the disclosed recurring charge; **enrolling in the trial,
-or clicking a plan, is not that authorization**. Before a card is requested the
-customer gets **24 hours' notice** naming the plan, the cadence, the exact
-recurring amount and currency, when the first charge lands, that charges recur
-until cancellation, and how to cancel before the first charge.
-
-### The timeline, stated exactly
-
-§5 of the directive requires the first implementation to state its timeline
-rather than reinterpret the pre-card notice as a pre-charge reminder. It is:
-
-| Point | When | What happens |
-| --- | --- | --- |
-| T0 | day 0 | Trial issued, **no card**. Signed `expires` = T0 + 7 days |
-| T_notice | **day 2** | Notice sent; a real ISO timestamp recorded |
-| T_card | **day 3** (≥24h after T_notice) | Earliest moment a card may be requested |
-| T_convert | end of day 7 | Converts **only if** card + authorization obtained at/after T_card |
-| T_stop | day 8 | Not authorized → lessons stop, via the existing signed-expiry chain |
-
-**Day 2 is a decision, and the two obvious alternatives are arithmetically
-wrong.** A notice at the 24-hour limit — day 6 — leaves a card-collection
-window of a single instant, which is not a window. Day 0 or 1 shares a calendar
-date with issuance, and since the signed payload carries dates rather than
-instants the 24-hour interval then cannot be verified from what was stored. Day
-2 leaves days 3 to 7 to act and keeps the interval checkable.
-`tests/reminders.test.ts` asserts the arithmetic (`TRIAL_DAYS -
-NOTICE_DAY_OF_TRIAL >= 1`, and `NOTICE_DAY_OF_TRIAL >= 2`) rather than the
-number alone, so moving it cannot silently reintroduce either failure.
-
-### Shortening the term broke two notice windows, and one broke invisibly
-
-Neither was a consequence anyone would have predicted from "change 30 to 7",
-and both are fixed in the same change:
-
-* **`reminders.ts` fired on day 0.** Its window was `REMINDER_WINDOW_DAYS = 7`
-  *days before expiry*, sized to match the in-app floor when a trial ran 30
-  days. On a 7-day trial `daysUntil` is 7 on the issue date, so every day of
-  the trial was "due" and the notice went out on the first cron run after
-  issuance, headed *"your trial is ending"*, about a trial the family had not
-  used. **It still fired**, which is exactly why it looked fine — the defect
-  was in the content and the meaning, not in whether anything was sent. Timing
-  is now a day **of** the trial, counted forward from issuance and derived from
-  the signed expiry so it cannot disagree with the authority the client
-  enforces.
-* **`licenseUrgency.ts` warned for the entire trial.** Its floor is
-  `MIN_NOTICE_DAYS` (7), which on a 7-day term *equals the whole term*:
-  `days_remaining` is 7 on day 0, so the licence card read "needs attention"
-  from minute one and opened itself on arrival. That is precisely the defect
-  that module was written to fix, reintroduced by a shorter term rather than by
-  a flat threshold — **a floor is only a floor while it is smaller than what it
-  floors.** At or below a week the floor is now `URGENT_DAYS` (3), so a 7-day
-  trial is silent until its last three days and `soon` never fires for such a
-  term. That is honest: a one-week trial has no relaxed heads-up phase. Nothing
-  at 14 days or above moves.
-
-### What shipped, and what is deliberately absent
-
-Shipped: the 7-day term; the retimed notice with a real `sent_at` timestamp
-(the foundation the 24-hour gate needs); the short-term urgency floor; and the
-removal of every *blanket* "nothing will auto-charge" claim, which §2 forbids
-retaining and which a converting trial makes false. What replaces it is the
-narrow true fact — **no card is on file** — plus a plain statement that
-continuing means authorizing a recurring charge.
-
-**What is emphatically NOT shipped is entry 39's §3 pre-card notice itself**,
-and the emails say so in their own comments so a later reader cannot mistake
-one for the other. A §3 notice must state five things; three are unresolved
-above. Writing a half-set of disclosures into a live email would produce an
-artifact that reads as compliant and is not, which is worse than not sending
-it — so the notice remains a trial-ending note stating only what is true
-today. Also absent, each waiting on the same rulings: the card-collection gate
-that refuses a card until 24 hours after the recorded notice; the
-authorization record; and Stripe `subscription_data.trial_end` anchoring, without
-which a customer authorizing on day 4 is charged on day 4 rather than at the
-disclosed end of day 7.
-
-**The no-card trial start is now required rather than merely preferred.** Entry
-36 rejected a card-up-front trial because that is the shape negative-option
-enforcement attaches to. §3 independently forbids collecting the card before
-the notice interval elapses. So Stripe's `trial_period_days` — which takes the
-card at enrolment — is wrong under both, and the two rulings agree for
-different reasons.
-
-**One reading stated rather than assumed.** §3 says not to collect a card
-before the notice interval elapses. Read literally that would gate the
-storefront's ordinary Subscribe button for everyone, including a visitor who
-never took a trial and simply wants to buy — which cannot be the intent, since
-nobody is being *asked*. The implementation therefore treats the notice as
-gating the conversion flow **we** initiate, and leaves a customer-initiated
-purchase untouched. If that is wrong it is one gate in one route, but it is a
-reading, so it is written down here rather than left in the code.
-
-**Safeguards held (§7), and they were already true.** Notice delivery writes
-only to `trial_reminders` and never to a licence row —
-`test_never_writes_to_the_licence_row` pins it — so sending a notice cannot
-activate an entitlement or move an expiry. `LicenseGate` still admits
-`/auth/`, `/mfa/`, `/admin/license` and `/health` after lessons stop, so a
-parent can still sign in and complete a purchase.
-
-**Copy under sign-off.** `demo/public/launch.html` advertised a 30-day trial in
-two places and became **false the moment the term changed**, so its correction
-is in the same change rather than left to a follow-up — but it is under the
-`site/`/`demo/` carve-out and is not merged without explicit sign-off. The
-trial-length guard in `license-server/test/routes/storefront.test.ts` was
-reversed to make this detectable: that figure's authority is `TRIAL_DAYS`
-(signed into every key, enforced offline) and **not** the published page, which
-can only ever be stale. It caught this on the first run.
-
-**Related:** entry 36 (superseded; its FTC conclusion withdrawn), entry 10 (the
-cadences), entry 26 (monthly's remaining cross-repo prerequisite, which bounds
-which cadence can be disclosed), entry 29 (no commercial trial tier), entry 35
-(the launch catalog), entries 37 and 38 (Community and agent-mediated contact —
-this entry defines no communication access during the trial, and both of those
-still own their own gaps).

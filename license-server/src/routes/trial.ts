@@ -47,7 +47,7 @@ export function trialExpiresDate(licenseKey: string): string | null {
 
 /** The signed ISSUED date a trial key carries, or null when it does not
  * decode. `reminders.ts` needs this rather than inferring the day of a trial
- * from the current `TRIAL_DAYS`: keys signed before entry 39 carry a 30-day
+ * from the current `TRIAL_DAYS`: keys signed before decision 36 carry a 30-day
  * term, so subtracting today's term from their remaining days puts them at
  * the wrong day of their own trial. The payload has always carried `issued`;
  * nothing was reading it. */

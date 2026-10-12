@@ -82,7 +82,7 @@ describe('noticeWindowDays', () => {
 describe('a term no longer than a week', () => {
   /**
    * The same defect, reintroduced by a shorter TERM rather than a flat
-   * threshold — register entry 39 cut the trial from 30 days to 7.
+   * threshold — decision 36 cut the trial from 30 days to 7.
    *
    * `MIN_NOTICE_DAYS` is 7, so on a 7-day trial the floor equalled the whole
    * term: `days_remaining` is 7 on the issue date, the card read "needs

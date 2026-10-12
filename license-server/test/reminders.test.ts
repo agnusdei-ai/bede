@@ -80,7 +80,7 @@ async function seedTrial(
 beforeEach(() => sendSpy.mockReset());
 
 describe("the trial term and the notice point", () => {
-  /** Register entry 39's acceptance criterion, stated as one assertion. */
+  /** Decision 36's acceptance criterion, stated as one assertion. */
   it("expires in exactly 7 days", () => {
     expect(TRIAL_DAYS).toBe(7);
   });
@@ -90,7 +90,7 @@ describe("the trial term and the notice point", () => {
   });
 
   /**
-   * The arithmetic entry 39 turns on, asserted rather than trusted.
+   * The arithmetic decision 36 turns on, asserted rather than trusted.
    *
    * 24 hours of notice must elapse before a card is requested, and conversion
    * lands at the end of the trial — so the earliest card day is
@@ -136,7 +136,7 @@ describe("the trial term and the notice point", () => {
   });
 
   /**
-   * The guard for a trial already running when entry 39 shortened the term.
+   * The guard for a trial already running when decision 36 shortened the term.
    *
    * `trialDayOf` used to be `TRIAL_DAYS - daysUntil(expires)`, which assumes
    * every key carries today's term. A 30-day key two days into its own trial
@@ -224,7 +224,7 @@ describe("sending", () => {
     expect(call.to).toBe("a@example.com");
     expect(call.html).toContain("2026-10-15");
     expect(call.html).toMatch(/Lessons stop/i);
-    // Entry 39 §2: the blanket never-auto-charges promise must NOT be
+    // Decision 36 §2: the blanket never-auto-charges promise must NOT be
     // retained, because the trial now converts once a card is provided and
     // the recurring charge authorized. What stays is the narrow true fact.
     expect(call.html).not.toMatch(/auto-charge/i);
@@ -235,7 +235,7 @@ describe("sending", () => {
   });
 
   it("describes a key by ITS OWN term, not the current one", async () => {
-    // A trial minted before entry 39 carries 30 days. Telling that family
+    // A trial minted before decision 36 carries 30 days. Telling that family
     // their "7-day trial" ends in three weeks would be wrong and confusing,
     // so the term is read off the key rather than from TRIAL_DAYS.
     const env = makeEnv();

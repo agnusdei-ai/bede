@@ -18,7 +18,7 @@
  *   60-day key         -> 6, floored to 7
  *   7-day trial        -> 1, floored to 3      (warns at day 4, not day 0)
  *
- * **That last row is a fix, not an extra example.** Register entry 39 cut the
+ * **That last row is a fix, not an extra example.** Decision 36 cut the
  * trial from 30 days to 7, and a floor of `MIN_NOTICE_DAYS` (7) is then equal
  * to the entire term: `days_remaining` is 7 on the issue date, so the card
  * read "needs attention" from the minute the trial started and opened itself

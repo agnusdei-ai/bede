@@ -97,14 +97,14 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
  * both in plain words.
  *
  * `termDays` is the KEY's own term, passed in rather than read from
- * `TRIAL_DAYS`: a trial already running when entry 39 shortened the term
+ * `TRIAL_DAYS`: a trial already running when decision 36 shortened the term
  * carries 30 days, and telling that family their "7-day trial" ends in three
  * weeks would be both wrong and confusing.
  *
- * **This is not entry 39's §3 pre-card notice.** That one must state the plan,
+ * **This is not decision 36’s §3 pre-card notice.** That one must state the plan,
  * the billing cadence, the exact recurring amount and currency, when the first
  * charge lands, and how to cancel before it — and three of those are
- * unresolved (entry 39). Writing a half-set of those disclosures into this
+ * unresolved (decision 36). Writing a half-set of those disclosures into this
  * email would produce something a later reader mistakes for the real notice,
  * so this stays a trial-ending note and says only what is true today.
  */
@@ -124,7 +124,7 @@ export function trialEndingEmail(input: { expiresDate: string; daysLeft: number;
       `<p>Your Bede ${input.termDays}-day free trial ends <strong>${escapeHtml(input.expiresDate)}</strong> (${escapeHtml(when)}).</p>`,
       "<p><strong>What happens then.</strong> Lessons stop. Bede will not tutor without a current license key — a parent can still sign in and apply one, and nothing on your machine is deleted. Your instance runs in your house, so your family's work stays where it is.</p>",
       // Narrow and true: no card is on file. Deliberately NOT the old
-      // blanket "nothing will auto-charge", which entry 39 §2 forbids
+      // blanket "nothing will auto-charge", which decision 36 §2 forbids
       // retaining now that the trial converts.
       "<p><strong>No card is on file.</strong> None was taken when the trial started. Continuing means subscribing — you would be asked for a card and to authorize a recurring charge, and that authorization is yours to give.</p>",
       "<p>To continue, the Annual Family Membership is $2,149 USD per year for up to six children — one price for the whole household, recurring yearly until cancelled. Once you subscribe, the key arrives by email and you paste it into <strong>Parent Setup &rarr; License</strong>.</p>",

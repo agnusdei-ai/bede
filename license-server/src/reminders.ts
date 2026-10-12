@@ -17,7 +17,7 @@
  * **The timing is a day OF the trial now, not a window before expiry, and
  * that change is the whole point of this file's rewrite.** It was
  * `REMINDER_WINDOW_DAYS = 7` — days remaining — sized to match
- * `licenseUrgency.ts`'s floor back when a trial ran 30 days. Register entry 39
+ * `licenseUrgency.ts`'s floor back when a trial ran 30 days. Decision 36
  * cut the trial to 7, and a 7-days-remaining window on a 7-day trial is the
  * ENTIRE trial: `daysUntil` is 7 on day 0, so the notice fired on the first
  * cron run after issuance, headed "your trial is ending", about a trial the
@@ -30,7 +30,7 @@
  * cannot disagree with the authority the client enforces.
  *
  * **Why day 2 of 7**, and the arithmetic that rules out the obvious
- * alternatives: entry 39 requires 24 hours of notice BEFORE a card is
+ * alternatives: decision 36 requires 24 hours of notice BEFORE a card is
  * requested, and conversion at the end of day 7. A notice at the 24-hour
  * limit — day 6 — leaves a card-collection window of a single instant, which
  * is not a window. Day 0 or 1 shares a calendar date with issuance, and since
@@ -39,18 +39,18 @@
  * interval checkable. One constant, stated here so moving it is a decision
  * rather than a discovery.
  *
- * **`sent_at` is a full ISO timestamp, not a date.** Entry 39's card-collection
+ * **`sent_at` is a full ISO timestamp, not a date.** Decision 36's card-collection
  * gate has to answer "have 24 hours elapsed since the notice", and a
  * `YYYY-MM-DD` cannot answer that. Recording the real instant now is the
  * foundation that gate needs; this file does not implement the gate itself.
  *
- * **This is not yet entry 39's §3 pre-card notice**, and must not be mistaken
+ * **This is not yet decision 36’s §3 pre-card notice**, and must not be mistaken
  * for it. That notice has to state the plan, the cadence, the exact recurring
  * amount and currency, when the first charge lands, and how to cancel before
- * it. Three of those are unresolved (see entry 39), so what this sends is the
+ * it. Three of those are unresolved (see decision 36), so what this sends is the
  * honest subset: the real end date, that lessons stop, and that continuing is
  * a subscription the family chooses. The old copy's blanket "nothing will
- * auto-charge" is GONE — entry 39 §2 forbids retaining it, and under a
+ * auto-charge" is GONE — decision 36 §2 forbids retaining it, and under a
  * converting trial it would be false.
  */
 
@@ -80,7 +80,7 @@ export function daysUntil(expires: string, today: string): number {
  *
  * Measured from the key's own SIGNED `issued`, never as
  * `TRIAL_DAYS - daysUntil(expires)`. That subtraction assumes every key in
- * flight carries today's term, and keys signed before entry 39 carry 30 days:
+ * flight carries today's term, and keys signed before decision 36 carry 30 days:
  * such a key would be placed at day -23 on its own issue date and would reach
  * "day 2" with 28 days still to run. The day-0/day-1 guard would then be
  * computed against a term the key does not have. The payload has always
@@ -177,7 +177,7 @@ export async function sendDueTrialReminders(
       `insert into trial_reminders (license_id, sent_at) values (?, ?)
          on conflict do nothing`,
     )
-      // A full instant, not `today`: entry 39's card-collection gate has to
+      // A full instant, not `today`: decision 36’s card-collection gate has to
       // answer "have 24 hours elapsed since the notice", which a date cannot.
       .bind(row.id, new Date().toISOString())
       .run();

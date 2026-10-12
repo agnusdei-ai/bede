@@ -202,8 +202,8 @@ python scripts/issue_license.py --tier trial \
 a trial that cannot expire is not a trial. [Entry 29](DECISIONS.md) sanctions
 exactly this shape — *"a signed-license tier only, verified by
 `core/licensing.py`, expiring, and carrying no commercial meaning"* — while
-forbidding a fourth *commercial* tier. So the trial (7 days — register entry
-39, which superseded 36's 30) is in scope; a
+forbidding a fourth *commercial* tier. So the trial (7 days — decision 36) is
+in scope; a
 "Trial Membership" alongside Family/Co-op/Network is not.
 
 **What makes it end is `main.py`'s `_refresh_license_once`, and before that

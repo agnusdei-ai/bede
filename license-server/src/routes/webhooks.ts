@@ -24,7 +24,11 @@ import type { Env } from "../types";
 import { AdapterVerificationError, stripeAdapter } from "../adapters/stripe";
 import type { PaymentEvent } from "../adapters/base";
 import { configuredEntitlements } from "../config";
-import { entitlementForEvent } from "../license/entitlements";
+import {
+  entitlementForEvent,
+  entitlementForPriceId,
+  shortestConfiguredTermDays,
+} from "../license/entitlements";
 import {
   issueLicenseForEvent,
   extendLicenseForRenewal,
@@ -68,10 +72,13 @@ export async function deliverLicenseEmail(
   env: Env,
   customerEmail: string,
   issued: IssuedLicense,
+  planName: string,
 ): Promise<void> {
   const client = createResendClient(env.RESEND_API_KEY, env.RESEND_FROM_ADDRESS);
   const email = licenseDeliveryEmail({
-    planName: "Annual Family Membership",
+    // The matched row's own name. Hardcoding "Annual Family Membership" here
+    // would tell a monthly subscriber they had bought an annual plan.
+    planName,
     licenseKey: issued.licenseKey,
   });
   await client.send({ to: customerEmail, subject: email.subject, html: email.html });
@@ -132,14 +139,34 @@ export async function handleStripeWebhook(req: Request, env: Env): Promise<Respo
       });
       if (result.issued) {
         issued = result.issued;
-        await deliverLicenseEmail(env, event.customer_email, issued);
+        await deliverLicenseEmail(env, event.customer_email, issued, entitlement.planName);
         logger.info(`license ${issued.id} delivered to ${event.customer_email}`);
       }
       break;
     }
-    case "subscription_renewed":
-      await extendLicenseForRenewal({ db: env.DB, event, logger });
+    case "subscription_renewed": {
+      // The term a renewal buys comes from the price it was paid against, not
+      // from a constant: a hardcoded year would hand a monthly subscriber
+      // twelve months off one month's payment. When the price cannot be
+      // resolved, the SHORTEST configured term is the safe direction — the
+      // next renewal corrects an under-grant, nothing corrects an over-grant.
+      const rows = configuredEntitlements();
+      const paidAgainst = entitlementForPriceId(rows, event.price_id);
+      if (paidAgainst === null) {
+        logger.error(
+          `renewal event ${event.external_event_id}: price_id ${
+            event.price_id ?? "(missing)"
+          } is not a configured price — falling back to the shortest configured term`,
+        );
+      }
+      await extendLicenseForRenewal({
+        db: env.DB,
+        event,
+        logger,
+        fallbackTermDays: paidAgainst?.termDays ?? shortestConfiguredTermDays(rows),
+      });
       break;
+    }
     case "subscription_cancelled":
     case "payment_failed":
       await revokeLicenseForEvent({ db: env.DB, event, logger });

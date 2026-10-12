@@ -39,10 +39,21 @@
  * interval checkable. One constant, stated here so moving it is a decision
  * rather than a discovery.
  *
- * **`sent_at` is a full ISO timestamp, not a date.** Decision 36's card-collection
- * gate has to answer "have 24 hours elapsed since the notice", and a
- * `YYYY-MM-DD` cannot answer that. Recording the real instant now is the
- * foundation that gate needs; this file does not implement the gate itself.
+ * **`sent_at` is the ACTUAL successful send instant, and getting there takes
+ * two statements rather than one.** `conversion.ts`'s card gate is
+ * `sent_at + 24 hours`, so the value has to be a full instant (a
+ * `YYYY-MM-DD` cannot answer "have 24 hours elapsed") and it has to be the
+ * moment the send really succeeded, never a nominal or scheduled time. But
+ * the claim must come BEFORE the send, because the claim is what stops two
+ * overlapping cron invocations both sending — a primary-key insert, not a
+ * check-then-act. So the claim writes a provisional instant and a successful
+ * `send` writes the real one back. A crash between the two leaves the
+ * provisional value standing, which opens the gate a few seconds early rather
+ * than losing the notice; the alternative (insert only after success) would
+ * give up the concurrency guarantee entirely, which is the worse trade.
+ * A thrown send deletes the claim, so tomorrow's run gets a fresh timestamp,
+ * and a retry can never reset an ALREADY successful notice because the
+ * candidate query excludes rows that are already in `trial_reminders`.
  *
  * **This is not yet decision 36’s §3 pre-card notice**, and must not be mistaken
  * for it. That notice has to state the plan, the cadence, the exact recurring
@@ -173,12 +184,13 @@ export async function sendDueTrialReminders(
     if (!dueForReminder(issued, expires, today)) continue;
     considered += 1;
 
+    // CLAIM first, with a provisional instant. The claim is the concurrency
+    // guarantee (a primary-key insert, not a check-then-act), so it has to
+    // happen before the send; the real instant is written back below.
     const claim = await env.DB.prepare(
       `insert into trial_reminders (license_id, sent_at) values (?, ?)
          on conflict do nothing`,
     )
-      // A full instant, not `today`: decision 36’s card-collection gate has to
-      // answer "have 24 hours elapsed since the notice", which a date cannot.
       .bind(row.id, new Date().toISOString())
       .run();
     if ((claim.meta?.changes ?? 1) === 0) continue; // someone else has it
@@ -193,6 +205,13 @@ export async function sendDueTrialReminders(
         termDays: daysUntil(expires, issued),
       });
       await client.send({ to: row.email, subject, html });
+      // `sent_at` must mean the ACTUAL successful send, because the
+      // card-collection gate is `sent_at + 24 hours` and a provisional
+      // timestamp would open it early. Written back only now, after `send`
+      // returned without throwing.
+      await env.DB.prepare(`update trial_reminders set sent_at = ? where license_id = ?`)
+        .bind(new Date().toISOString(), row.id)
+        .run();
       sent += 1;
     } catch (err) {
       failed += 1;

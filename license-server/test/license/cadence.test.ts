@@ -24,7 +24,9 @@ import { join } from "node:path";
 import {
   ANNUAL_FAMILY_ENTITLEMENT,
   ANNUAL_TERM_DAYS,
+  entitlementForPriceId,
   resolveAnnualEntitlement,
+  shortestConfiguredTermDays,
   type EntitlementConfig,
 } from "../../src/license/entitlements";
 import { configuredEntitlements, familyAnnualEntitlement } from "../../src/config";
@@ -150,5 +152,80 @@ describe("the page's cadence and the row's cadence are the same cadence", () => 
     // may MENTION monthly and must not offer a checkout for it.
     const ctas = page.match(/href="\/checkout\/[a-z-]+"/g) ?? [];
     expect(new Set(ctas)).toEqual(new Set(['href="/checkout/family-annual"']));
+  });
+});
+
+describe("the term a renewal buys", () => {
+  const ANNUAL_ROW: EntitlementConfig = {
+    priceId: "price_a",
+    cadence: "annual",
+    planName: "Bede Annual Family Membership",
+    tier: "core",
+    seats: 6,
+    maxActivations: 2,
+    termDays: 365,
+  };
+  const MONTHLY_ROW: EntitlementConfig = {
+    ...ANNUAL_ROW,
+    priceId: "price_m",
+    cadence: "monthly",
+    planName: "Bede Monthly Family Membership",
+    termDays: 30,
+  };
+
+  it("matches the renewal's own price to its entitlement row", () => {
+    expect(entitlementForPriceId([ANNUAL_ROW, MONTHLY_ROW], "price_m")).toBe(MONTHLY_ROW);
+    expect(entitlementForPriceId([ANNUAL_ROW, MONTHLY_ROW], "price_a")).toBe(ANNUAL_ROW);
+  });
+
+  it("matches nothing for a missing, empty or unconfigured price", () => {
+    expect(entitlementForPriceId([ANNUAL_ROW], null)).toBeNull();
+    expect(entitlementForPriceId([ANNUAL_ROW], undefined)).toBeNull();
+    expect(entitlementForPriceId([ANNUAL_ROW], "")).toBeNull();
+    expect(entitlementForPriceId([ANNUAL_ROW], "price_nobody_configured")).toBeNull();
+    // An unconfigured ROW must never match an empty incoming price either —
+    // that would pair every price-less event with the launch placeholder.
+    expect(entitlementForPriceId([{ ...ANNUAL_ROW, priceId: "" }], "")).toBeNull();
+  });
+
+  it("falls back to the SHORTEST configured term, never the longest", () => {
+    // Under-granting is corrected by the next renewal (valid_until only moves
+    // forward). Over-granting is free service nobody notices, which is what a
+    // hardcoded 365 did to a monthly subscriber.
+    expect(shortestConfiguredTermDays([ANNUAL_ROW, MONTHLY_ROW])).toBe(30);
+    expect(shortestConfiguredTermDays([MONTHLY_ROW, ANNUAL_ROW])).toBe(30);
+    expect(shortestConfiguredTermDays([ANNUAL_ROW])).toBe(365);
+    // Nothing configured: a month is shorter than any cadence this catalog
+    // can declare, so it cannot over-grant whatever is added later.
+    expect(shortestConfiguredTermDays([])).toBe(30);
+  });
+
+  it("the webhook resolves the term rather than passing a constant", () => {
+    // The invocation guard. The pure functions above can be perfect while the
+    // only caller still hands over 365 — the bayesian_update defect this
+    // repository is named after. Comments are stripped first because this
+    // file and webhooks.ts both DISCUSS the old constant in order to forbid
+    // it, and a blunt scan would match the prose saying so.
+    const raw = readFileSync(
+      new URL("../../src/routes/webhooks.ts", import.meta.url),
+      "utf8",
+    );
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(code).toContain("fallbackTermDays:");
+    expect(code).toContain("entitlementForPriceId(");
+    expect(code).toContain("shortestConfiguredTermDays(");
+    expect(code).not.toMatch(/fallbackTermDays:\s*\d/);
+  });
+
+  it("the delivery email names the matched row's plan, not a hardcoded one", () => {
+    const raw = readFileSync(
+      new URL("../../src/routes/webhooks.ts", import.meta.url),
+      "utf8",
+    );
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    // A monthly subscriber told they bought an annual plan is a false
+    // statement about what the customer purchased.
+    expect(code).not.toMatch(/planName:\s*"/);
+    expect(code).toContain("entitlement.planName");
   });
 });

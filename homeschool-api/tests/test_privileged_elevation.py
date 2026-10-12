@@ -230,11 +230,10 @@ def client(monkeypatch, test_client_with_database_context):
     Nothing in the lifespan is what these tests are about — the guards are
     dependency-resolution behaviour.
 
-    A file-backed SQLite with NullPool rather than the in-memory StaticPool
-    used elsewhere in the suite: TestClient drives each request on its own
-    event loop, and an aiosqlite connection pooled across loops raises
-    "Event loop is closed". NullPool opens a fresh connection per checkout,
-    so it doesn't matter which loop asks.
+    File-backed SQLite with NullPool matches the device-revocation fixture,
+    whose direct asyncio.run helpers use loops outside TestClient's portal.
+    NullPool opens a fresh connection per checkout, so those helpers never
+    reuse a connection across loops. TestClient requests here share one loop.
     """
     import main
     import core.database as database_module

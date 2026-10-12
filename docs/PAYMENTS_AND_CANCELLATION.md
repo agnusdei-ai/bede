@@ -106,6 +106,45 @@ customer's request or takes back something already paid for.
 
 ### When the customer cannot get in
 
+`license-server/src/routes/cancel.ts` implements all three tiers. The ordering
+is the design: each is more available than the last and less able to confirm
+an outcome.
+
+| Tier | Route | Authenticates by | Confirms an outcome |
+| --- | --- | --- | --- |
+| 1 — account | `POST /v1/cancel/email-link`, then `/state` + `/confirm` | A one-time link emailed to the address of record, stored hashed, spent on use, one hour | Yes |
+| 2 — licence key | `POST /v1/cancel/state` + `/confirm` | The key the family already holds, in their own email and in Parent Setup | Yes |
+| 3 — recorded request | `POST /v1/cancel/request` | Nothing | No, and says so |
+
+**Tier 1 has no password and the server must never grow one**, so "sign in to
+billing" here means a link to the address of record. Only its hash is stored —
+a leaked row must not be a working cancellation link — and it is spent before
+the provider is called, because a link that survives its own use could cancel
+a subscription the customer re-started in between.
+
+**Tier 2 is the one that answers "I cannot get into my email either."** The
+licence key authenticates the *purchase* rather than an account, needs no
+login, and still confirms the outcome. A no-card trial licence is deliberately
+not found by it: there is no subscription and so nothing to stop.
+
+**Tier 3 must not be able to fail the way the other two can**, which is why it
+touches no provider at all. It writes a row and returns a reference, and that
+row is what makes "your request was received on <timestamp>" true rather than
+reassuring. Its form fields are an allowlist checked at the route — a
+password, card number or security code is refused with the field named.
+
+Neither identification route can be used to discover whether an address or a
+key exists: both answer identically for "no such thing" and for "not yours",
+and the email-link route returns the same body either way. Every route is
+POST, never GET, because a licence key or a one-time token in a query string
+is a credential written into every access log and `Referer` header between
+here and the customer.
+
+All four are rate-limited under their own generous `cancel` bucket — it bounds
+enumeration without ever being what stops a customer cancelling.
+
+### When the provider is unavailable
+
 An authenticated route cannot be the only route. Inability or unwillingness to
 authenticate must not prevent cancellation, so the design carries three tiers:
 
@@ -159,8 +198,11 @@ phishing page.
 
 ### When the provider is unavailable
 
-Record the request and its timestamp, show its true processing status, and
-offer the fallback route. A request received before a renewal and delayed by
+An unconfigured provider answers 503 **before** the customer commits to the
+action, naming tier 3, rather than failing on submit. A write the provider did
+not confirm records a tier-3 row, answers `pending` with a reference, and
+claims nothing about charges having stopped. Record the request and its
+timestamp, show its true processing status, and offer the fallback route. A request received before a renewal and delayed by
 our own failure is remediated by us; that failure is not shifted onto the
 customer. The remediation rule is a policy decision — see §8.
 
@@ -256,7 +298,9 @@ exact duration only once enforcement matches it.
 | --- | --- |
 | Card collection and the conversion charge | The two Stripe `price_id`s |
 | Cancellation decision layer | **Built** — `src/cancellation.ts` |
-| Cancellation routes and screens (three tiers) | Nothing — next to build |
+| Cancellation routes (three tiers) | **Built** — `src/routes/cancel.ts` |
+| Cancellation screens (the markup) | Nothing — next to build |
+| Confirmation email on cancellation | Nothing — until then no screen claims one was sent |
 | Retainable acknowledgement + consent retention | Cancellation route, since the acknowledgement must name it |
 | Three-state access policy | Nothing — grace length is the one decision |
 | Paid-expiry-in-payload | §7's payload change |

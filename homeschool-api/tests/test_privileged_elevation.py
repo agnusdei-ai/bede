@@ -17,12 +17,12 @@ control nothing fails without is not a control. That is P11's point, and
 this file is where the management plane satisfies it.
 """
 import asyncio
+import threading
 import tempfile
 from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
-from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool, StaticPool
 
@@ -222,20 +222,18 @@ def _reset_rate_limiter():
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, test_client_with_database_context):
     """The real, fully assembled app with only its database swapped out.
 
-    Deliberately NOT wrapped in `with TestClient(...)`: the context manager
-    runs main.py's lifespan, which builds tables against the real
-    DATABASE_URL and would try to reach Postgres. Nothing in the lifespan is
-    what these tests are about — the guards are dependency-resolution
-    behaviour.
+    Uses a persistent TestClient loop while bypassing main.py's lifespan,
+    which would build tables against the real DATABASE_URL and reach Postgres.
+    Nothing in the lifespan is what these tests are about — the guards are
+    dependency-resolution behaviour.
 
-    A file-backed SQLite with NullPool rather than the in-memory StaticPool
-    used elsewhere in the suite: TestClient drives each request on its own
-    event loop, and an aiosqlite connection pooled across loops raises
-    "Event loop is closed". NullPool opens a fresh connection per checkout,
-    so it doesn't matter which loop asks.
+    File-backed SQLite with NullPool matches the device-revocation fixture,
+    whose direct asyncio.run helpers use loops outside TestClient's portal.
+    NullPool opens a fresh connection per checkout, so those helpers never
+    reuse a connection across loops. TestClient requests here share one loop.
     """
     import main
     import core.database as database_module
@@ -269,12 +267,9 @@ def client(monkeypatch):
             yield session
 
     main.app.dependency_overrides[get_db] = _override
-    yield TestClient(main.app)
-    main.app.dependency_overrides.pop(get_db, None)
-    # Dispose on a fresh loop — the loops TestClient ran requests on are
-    # already closed, and leaving the engine undisposed surfaces as an
-    # "Event loop is closed" ResourceWarning during teardown.
-    asyncio.run(engine.dispose())
+    with test_client_with_database_context(main.app, engine) as test_client:
+        yield test_client
+        main.app.dependency_overrides.pop(get_db, None)
 
 
 def _parent_headers(client) -> dict:
@@ -320,6 +315,37 @@ def test_elevating_then_using_the_management_plane_succeeds(client):
     assert resp.json()["elevated"] is True
 
     assert client.get("/admin/audit", headers=headers).status_code == 200
+
+
+def test_client_keeps_fire_and_forget_audit_writes_on_a_live_loop(client, monkeypatch):
+    import core.audit as audit
+
+    started = threading.Event()
+    release = client.portal.call(asyncio.Event)
+    real_log_event = audit.log_event
+
+    async def _blocked_log_event(*args, **kwargs):
+        started.set()
+        await release.wait()
+        await real_log_event(*args, **kwargs)
+
+    monkeypatch.setattr(audit, "log_event", _blocked_log_event)
+    try:
+        response = client.post(
+            "/auth/elevate",
+            json={"password": settings.parent_password},
+            headers=_parent_headers(client),
+        )
+
+        assert response.status_code == 200
+        assert started.wait(timeout=1)
+        loop = client.portal.call(asyncio.get_running_loop)
+        assert any(
+            task.get_loop() is loop and not task.done()
+            for task in audit._background_tasks
+        )
+    finally:
+        client.portal.call(release.set)
 
 
 def test_the_wrong_password_does_not_elevate(client):

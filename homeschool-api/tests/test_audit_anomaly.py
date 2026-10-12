@@ -209,6 +209,35 @@ async def test_log_event_fires_alert_after_threshold_auth_failures(demo_db, audi
 
 
 @pytest.mark.asyncio
+async def test_anomaly_alert_task_is_tracked_until_complete(demo_db, monkeypatch):
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _blocked_alert(*args):
+        started.set()
+        await release.wait()
+
+    monkeypatch.setattr(audit_module, "_check_anomaly", lambda *args: 1)
+    monkeypatch.setattr(audit_module, "_fire_anomaly_alert", _blocked_alert)
+    alert_task = None
+
+    try:
+        await log_event(AuditEvent.AUTH_FAILURE, ip="10.0.0.9", success=False)
+        await asyncio.wait_for(started.wait(), timeout=1)
+
+        alert_task = next(
+            task for task in asyncio.all_tasks()
+            if task.get_coro().__name__ == "_blocked_alert"
+        )
+        assert alert_task in audit_module._background_tasks
+        assert not alert_task.done()
+    finally:
+        release.set()
+        if alert_task is not None:
+            await asyncio.gather(alert_task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
 async def test_log_event_does_not_alert_below_threshold(demo_db, audit_tasks, monkeypatch):
     called = []
     monkeypatch.setattr("services.email_service.security_alert_configured", lambda: True)

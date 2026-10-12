@@ -19,7 +19,6 @@ import tempfile
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -213,7 +212,7 @@ def _reset_rate_limiter():
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, test_client_with_database_context):
     """The real, fully assembled app with only its database swapped out —
     same fixture shape as tests/test_privileged_elevation.py's `client`;
     see that file's docstring for why each piece is built the way it is.
@@ -256,11 +255,10 @@ def client(monkeypatch):
             yield session
 
     main.app.dependency_overrides[get_db] = _override
-    test_client = TestClient(main.app)
-    test_client.db_factory = factory  # convenience for tests that need a session outside a request
-    yield test_client
-    main.app.dependency_overrides.pop(get_db, None)
-    asyncio.run(engine.dispose())
+    with test_client_with_database_context(main.app, engine) as test_client:
+        test_client.db_factory = factory  # convenience for tests that need a session outside a request
+        yield test_client
+        main.app.dependency_overrides.pop(get_db, None)
 
 
 def test_a_token_from_a_revoked_device_is_rejected_on_its_very_next_request(client):

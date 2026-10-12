@@ -4,7 +4,9 @@ imported — core.config.Settings() builds eagerly at import time (module
 level `settings = Settings()`), so this has to happen in conftest.py rather
 than inside individual test functions.
 """
+import asyncio
 import os
+from contextlib import asynccontextmanager, contextmanager
 
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-" + "x" * 32)
@@ -16,6 +18,46 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+
+
+@contextmanager
+def _test_client_with_database(app, engine):
+    """Keep the TestClient loop alive until its audit writes finish."""
+    from core.audit import _background_tasks
+    from fastapi.testclient import TestClient
+
+    @asynccontextmanager
+    async def _skip_lifespan(_app):
+        yield
+
+    original_lifespan = app.router.lifespan_context
+
+    async def _drain_audit_tasks():
+        loop = asyncio.get_running_loop()
+        while pending := tuple(
+            task for task in _background_tasks
+            if task.get_loop() is loop and not task.done()
+        ):
+            await asyncio.gather(*pending, return_exceptions=True)
+
+    try:
+        app.router.lifespan_context = _skip_lifespan
+        client = TestClient(app)
+        with client:
+            try:
+                yield client
+            finally:
+                try:
+                    client.portal.call(_drain_audit_tasks)
+                finally:
+                    client.portal.call(engine.dispose)
+    finally:
+        app.router.lifespan_context = original_lifespan
+
+
+@pytest.fixture
+def test_client_with_database_context():
+    return _test_client_with_database
 
 
 @pytest.fixture(autouse=True)

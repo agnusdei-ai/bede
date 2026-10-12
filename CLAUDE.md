@@ -279,43 +279,90 @@ a parent who collapses it is not overruled). `issued` was added to
 flat 30 days when it is absent, so an older server keeps warning exactly as
 it did rather than silently going quiet.
 
-**`api-tests` prints `Event loop is closed` annotations on a PASSING run, and
-they are never the cause.** They are `failure`-level GitHub annotations on a
-job whose conclusion is `success`, so they are asyncio teardown noise, not a
-result. **The count varies and can be zero**: measured across five green
-runs it was 0, 4, 4, 4 and 8 (`7227e67`, `0c9cb76`, `162a0b9`, `7e4cb6e`,
-`ab0d255`). Do not reason from the number. **They cost a real wrong diagnosis on #538**, where the
-actual failure was a missing `docs/WORKING_AGREEMENTS.md` citation for a new
-standing workflow and the annotations led to twenty minutes spent on
-`asyncio`. The rule when `api-tests` is red: find the **assertion**, and if
-the annotation list shows nothing but these four, the failing test is one
-whose output pytest did not annotate — run the suspect subset locally with
-`--noconftest` (that is how #538's was found). Note this container is Python
-3.11 while `requirements-dev.lock.txt` needs 3.12 for `librosa`, so the full
-suite cannot run here and CI is the only complete check.
+**`api-tests`'s failure-level `Event loop is closed` annotations vary and can
+be zero; they are not a fixed count or a failing assertion.** Six accessible,
+successful `api-tests` runs show 0, 0, 4, 4, 4, and 8 annotations:
+`7227e67` / `38153756423` (0), `de63694` / `38154609598` (0),
+`0c9cb76` / `38116480621` (4), `162a0b9` / `38153256870` (4),
+`7e4cb6e` / `38154092385` (4), and `ab0d255` / `38154174156` (8).
+This keeps #542's five-run set (0, 4, 4, 4, 8) distinct from the additional
+zero-count run. Do not infer a stable annotation count from either sample.
 
-**What is established about the cause and what is not**, so the next attempt
-starts further along: there is no missing `await engine.dispose()` — a grep
-suggesting two leaked engines was wrong, because `eng.dispose()` is a
-different string from `engine.dispose()`. The live suspicion is cross-loop
-disposal: `tests/test_privileged_elevation.py` and
-`tests/test_device_revocation.py` each build their `client` fixture with
-`asyncio.run(_create())`, then create the real engine outside any loop, then
-tear down with `asyncio.run(engine.dispose())` — three different event loops,
-and aiosqlite finalizers bound to a closed one.
+The four warning-bearing logs expose `PytestUnhandledThreadExceptionWarning`
+from `aiosqlite.core._connection_worker_thread`: line 66 calls
+`future.get_loop().call_soon_threadsafe(set_result, ...)` after the loop is
+closed; its exception handler at line 75 then calls `call_soon_threadsafe`
+again to report the first exception and hits the same closed loop. In CI,
+`asyncio/base_events.py:844` reaches `_check_closed` at line 545, which raises
+`RuntimeError: Event loop is closed`. The
+warnings appear in pytest's end-of-run warnings summary after the last test
+passes. The associated test IDs and timestamps are:
 
-**A tidy arithmetic explanation was proposed and is dead, which is worth more
-than the hypothesis was.** Two files times two `asyncio.run` calls equals
-four, and that looked like the answer for as long as every observed run said
-four — it was recorded here as suggestive and unverified, and the very next
-run said **eight**, with an earlier one saying **zero**. A varying count
-cannot come from a fixed number of call sites, so this is timing — when a
-finalizer happens to run relative to loop close — rather than a set of places
-to go and fix. Anyone picking this up should look for a race, not a list.
-Raw job logs are not reachable from this sandbox (`gh` refuses the
-blob-storage redirect), so nobody has yet seen which test emits them. **Do not "fix" this blind** — it is
-noise on a green suite, and a speculative asyncio change is churn that could
-turn real.
+- `0c9cb76`, `2026-10-11T06:01:08Z`:
+  `test_elevation_does_not_leak_to_a_second_session`,
+  `test_logging_out_ends_the_elevation`
+- `162a0b9`, `2026-10-11T15:59:10Z`:
+  `test_admin_status_reports_device_counts`,
+  `test_a_device_revoked_mid_login_cannot_complete_its_second_factor`
+- `7e4cb6e`, `2026-10-11T16:11:00Z`:
+  `test_admin_status_reports_device_counts`,
+  `test_elevating_then_using_the_management_plane_succeeds`
+- `ab0d255`, `2026-10-11T16:12:15Z`:
+  `test_elevating_then_using_the_management_plane_succeeds`,
+  `test_the_wrong_password_does_not_elevate`,
+  `test_elevation_does_not_leak_to_a_second_session`,
+  `test_dropping_elevation_re_locks_the_management_plane`
+
+Pytest's test IDs identify where its thread-exception hook reported each
+warning, not an individual connection ID.
+
+The lifecycle defect was reproduced in those two real test modules.
+`client` used a bare `TestClient`, which creates a request-scoped portal and
+closes its event loop after each synchronous request. The endpoint's
+`log_event_nowait()` schedules `log_event()` as a background task; that task
+performs an ORM insert through the fixture's `NullPool` engine. `NullPool`
+avoids reusing a connection across loops but does not keep a request loop alive
+for a detached task. Tracemalloc places the worker thread's connection
+allocation in SQLAlchemy's ORM flush path. A control run replacing the
+`log_event_nowait` call sites with no-ops removed the closed-loop warnings;
+the ordinary focused run produced 6 warnings from 61 passing tests, and
+promoting these warnings to errors failed two tests. This is not a missing
+`await engine.dispose()` diagnosis: both fixtures disposed their engines.
+
+An isolated FastAPI/SQLAlchemy route that only queried SQLite did not
+reproduce the error (500 requests each using a bare and a context-managed
+TestClient). The actual `log_event_nowait()` write was needed. With the
+original bare-client fixture, the new regression test fails because
+`client.portal` is `None`; with the persistent portal, it observes the
+deliberately blocked audit task still pending after the response.
+
+The fixtures now use `TestClient` as a context manager while replacing only
+the app lifespan with a no-op (the real lifespan would connect to Postgres),
+drain that portal's pending audit tasks, and dispose the engine on the same
+live loop. A regression test blocks an actual audit write and checks it remains
+on the request loop until released. With tracemalloc enabled and the warning
+promoted to an error, the focused modules pass: 62 passed, with only the
+unrelated Pydantic config deprecation warning.
+
+The local probes used Python 3.12.3, `pytest==9.1.1`,
+`pytest-asyncio==1.4.0`, `SQLAlchemy==2.0.52`, and `aiosqlite==0.22.1` (the
+current lock pins); they did not install the complete development lock, and
+CI uses Python 3.12.15. From `homeschool-api/`:
+
+| Check | Result |
+| --- | --- |
+| `python -X tracemalloc=25 -m pytest tests/test_privileged_elevation.py tests/test_device_revocation.py -q` before fix | 61 passed, 6 warnings |
+| Same baseline with `-W error::pytest.PytestUnhandledThreadExceptionWarning` | 2 failed |
+| `python -X tracemalloc=10 -m pytest tests/test_privileged_elevation.py tests/test_device_revocation.py -q -W error::pytest.PytestUnhandledThreadExceptionWarning` after fix | 62 passed; only the unrelated Pydantic config deprecation warning |
+
+The complete API CI suite is still pending on the PR. The local live-header
+script got no response from `https://agnusdei.ai/` after ten attempts, then
+was stopped while it retried `/faq/`; it could not validate the live origin
+from this sandbox. The latest accessible scheduled `Live site security
+headers` run on the current `main` passed (`38178355285`, 2026-10-11T21:55Z).
+The #538 lesson still applies: when `api-tests` is red, find the assertion
+before diagnosing unrelated annotations; that failure was a missing
+`docs/WORKING_AGREEMENTS.md` citation, not asyncio.
 
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 

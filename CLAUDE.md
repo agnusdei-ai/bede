@@ -338,9 +338,11 @@ deliberately blocked audit task still pending after the response.
 
 The fixtures now use `TestClient` as a context manager while replacing only
 the app lifespan with a no-op (the real lifespan would connect to Postgres),
-drain that portal's pending audit tasks, and dispose the engine on the same
-live loop. A regression test blocks an actual audit write and checks it remains
-on the request loop until released. With tracemalloc enabled and the warning
+drain that portal's pending audit tasks, including nested anomaly-alert tasks,
+and dispose the engine on the same live loop. The audit task registry holds
+both detached writes and the alerts they spawn until completion. Regression
+tests block an actual audit write and an anomaly alert and check they remain
+tracked on the live loop until released. With tracemalloc enabled and the warning
 promoted to an error, the focused modules pass: 62 passed, with only the
 unrelated Pydantic config deprecation warning.
 

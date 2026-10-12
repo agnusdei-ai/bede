@@ -106,6 +106,26 @@ describe('a term no longer than a week', () => {
     expect(licenseUrgency(term(7, 0))).toBe('expired')
   })
 
+  it('keeps the NOTICE WINDOW below the term at three days and below', () => {
+    // A flat `URGENT_DAYS` floor is no more a floor for a 3-day key than
+    // seven was for a seven-day one, so it is clamped to `term - 1`. This is
+    // about `noticeWindowDays` only.
+    expect(noticeWindowDays(term(3, 3))).toBeLessThan(3)
+    expect(noticeWindowDays(term(2, 2))).toBeLessThan(2)
+    expect(noticeWindowDays(term(1, 1))).toBe(1)
+  })
+
+  it('still calls a key urgent when its whole term is inside URGENT_DAYS', () => {
+    // NOT a defect, and worth pinning so nobody "fixes" it: `urgent` is
+    // deliberately a fixed number of days regardless of term, because the
+    // last days before lessons stop are equally short whatever the term was.
+    // A 3-day key really is urgent on day 0. What the window clamp above
+    // protects is `soon`, which is the signal that goes meaningless when it
+    // covers a whole term.
+    expect(licenseUrgency(term(3, 3))).toBe('urgent')
+    expect(licenseUrgency(term(1, 1))).toBe('urgent')
+  })
+
   it('leaves every term above a week exactly where it was', () => {
     expect(SHORT_TERM_DAYS).toBe(MIN_NOTICE_DAYS)
     expect(noticeWindowDays(term(14, 10))).toBe(MIN_NOTICE_DAYS)

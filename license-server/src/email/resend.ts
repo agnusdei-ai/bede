@@ -7,6 +7,8 @@
  * re-delivers the stored key), never silently swallowed.
  */
 
+import { TRIAL_DAYS } from "../license/issue";
+
 const RESEND_URL = "https://api.resend.com/emails";
 
 export interface ResendClient {
@@ -58,7 +60,10 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
 } {
   const keyLine = `LICENSE_KEY=${input.licenseKey}`;
   return {
-    subject: "Your Bede 7-day free trial",
+    // `TRIAL_DAYS`, never a literal: a key is signed with the term in
+    // force when it was minted, and a literal here would mislabel any key
+    // signed under a different one.
+    subject: `Your Bede ${TRIAL_DAYS}-day free trial`,
     html: [
       "<p>Welcome to Bede!</p>",
       // No card was taken, and that is stated as the fact it is. What is NOT
@@ -68,7 +73,7 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
       // the charge. Saying "no card was taken" is true and narrow; saying
       // "nothing will ever auto-charge" is a promise about a flow that now
       // exists.
-      `<p>Your <strong>7-day free trial</strong> is active through <strong>${escapeHtml(input.expiresDate)}</strong>. No card was required to start it, and none is on file. When the trial ends, lessons stop until a licence is applied.</p>`,
+      `<p>Your <strong>${TRIAL_DAYS}-day free trial</strong> is active through <strong>${escapeHtml(input.expiresDate)}</strong>. No card was required to start it, and none is on file. When the trial ends, lessons stop until a licence is applied.</p>`,
       "<p>To finish setting up your family's instance:</p>",
       "<ol>",
       "<li>Start your Bede instance (<code>make setup</code>, per the setup guide).</li>",
@@ -87,9 +92,14 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
  *
  * Deliberately plain about the consequence. A reminder that says "upgrade now!"
  * and not "the app stops tutoring on this date" is a sales email pretending to
- * be a service one, and the family finds out the hard way. It also repeats that
- * what happens at the end, because a family who is about to lose lessons is
- * owed the date and the consequence in plain words.
+ * be a service one, and the family finds out the hard way. So it states the
+ * date and what happens on it, because a family about to lose lessons is owed
+ * both in plain words.
+ *
+ * `termDays` is the KEY's own term, passed in rather than read from
+ * `TRIAL_DAYS`: a trial already running when entry 39 shortened the term
+ * carries 30 days, and telling that family their "7-day trial" ends in three
+ * weeks would be both wrong and confusing.
  *
  * **This is not entry 39's §3 pre-card notice.** That one must state the plan,
  * the billing cadence, the exact recurring amount and currency, when the first
@@ -98,7 +108,7 @@ export function trialDeliveryEmail(input: { expiresDate: string; licenseKey: str
  * email would produce something a later reader mistakes for the real notice,
  * so this stays a trial-ending note and says only what is true today.
  */
-export function trialEndingEmail(input: { expiresDate: string; daysLeft: number }): {
+export function trialEndingEmail(input: { expiresDate: string; daysLeft: number; termDays: number }): {
   subject: string;
   html: string;
 } {
@@ -111,7 +121,7 @@ export function trialEndingEmail(input: { expiresDate: string; daysLeft: number 
   return {
     subject: `Your Bede trial ends ${when}`,
     html: [
-      `<p>Your Bede 7-day free trial ends <strong>${escapeHtml(input.expiresDate)}</strong> (${escapeHtml(when)}).</p>`,
+      `<p>Your Bede ${input.termDays}-day free trial ends <strong>${escapeHtml(input.expiresDate)}</strong> (${escapeHtml(when)}).</p>`,
       "<p><strong>What happens then.</strong> Lessons stop. Bede will not tutor without a current license key — a parent can still sign in and apply one, and nothing on your machine is deleted. Your instance runs in your house, so your family's work stays where it is.</p>",
       // Narrow and true: no card is on file. Deliberately NOT the old
       // blanket "nothing will auto-charge", which entry 39 §2 forbids

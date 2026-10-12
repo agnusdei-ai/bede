@@ -56,8 +56,7 @@
 
 import type { Env } from "./types";
 import { createResendClient, trialEndingEmail } from "./email/resend";
-import { trialExpiresDate } from "./routes/trial";
-import { TRIAL_DAYS } from "./license/issue";
+import { trialExpiresDate, trialIssuedDate } from "./routes/trial";
 
 /** Which day OF the trial the notice goes out, counted forward from issuance.
  * See the module docstring for why 2 rather than 0, 1 or 6. */
@@ -77,11 +76,21 @@ export function daysUntil(expires: string, today: string): number {
   return Math.round((end - now) / 86_400_000);
 }
 
-/** Which day of the trial `today` is, derived from the signed expiry and the
- * fixed term — 0 on the issue date, `TRIAL_DAYS` on the expiry date. */
-export function trialDayOf(expires: string, today: string): number {
-  const left = daysUntil(expires, today);
-  return Number.isNaN(left) ? Number.NaN : TRIAL_DAYS - left;
+/** Which day of its own trial `today` is — 0 on the issue date.
+ *
+ * Measured from the key's own SIGNED `issued`, never as
+ * `TRIAL_DAYS - daysUntil(expires)`. That subtraction assumes every key in
+ * flight carries today's term, and keys signed before entry 39 carry 30 days:
+ * such a key would be placed at day -23 on its own issue date and would reach
+ * "day 2" with 28 days still to run. The day-0/day-1 guard would then be
+ * computed against a term the key does not have. The payload has always
+ * carried `issued`; nothing read it until this needed to be right for a trial
+ * already running when the term changed. */
+export function trialDayOf(issued: string, today: string): number {
+  const start = Date.parse(`${issued}T00:00:00Z`);
+  const now = Date.parse(`${today}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(now)) return Number.NaN;
+  return Math.round((now - start) / 86_400_000);
 }
 
 /**
@@ -98,11 +107,12 @@ export function trialDayOf(expires: string, today: string): number {
  * a separate after-the-fact note is a product decision nobody has made, and
  * inventing one here would be an unruled policy becoming a fact.
  */
-export function dueForReminder(expires: string, today: string): boolean {
+export function dueForReminder(issued: string, expires: string, today: string): boolean {
   const left = daysUntil(expires, today);
-  if (Number.isNaN(left)) return false;
-  if (left < 0) return false;
-  return trialDayOf(expires, today) >= NOTICE_DAY_OF_TRIAL;
+  if (Number.isNaN(left) || left < 0) return false;
+  const day = trialDayOf(issued, today);
+  if (Number.isNaN(day)) return false;
+  return day >= NOTICE_DAY_OF_TRIAL;
 }
 
 export interface ReminderRun {
@@ -158,7 +168,9 @@ export async function sendDueTrialReminders(
 
   for (const row of rows) {
     const expires = trialExpiresDate(row.license_key);
-    if (expires === null || !dueForReminder(expires, today)) continue;
+    const issued = trialIssuedDate(row.license_key);
+    if (expires === null || issued === null) continue;
+    if (!dueForReminder(issued, expires, today)) continue;
     considered += 1;
 
     const claim = await env.DB.prepare(
@@ -176,6 +188,9 @@ export async function sendDueTrialReminders(
       const { subject, html } = trialEndingEmail({
         expiresDate: expires,
         daysLeft: daysUntil(expires, today),
+        // The key's OWN term, so a trial minted under the old 30-day rule is
+        // described as the 30-day trial it actually is.
+        termDays: daysUntil(expires, issued),
       });
       await client.send({ to: row.email, subject, html });
       sent += 1;

@@ -194,7 +194,7 @@ A trial is a signed license with an expiry and nothing else:
 
 ```bash
 python scripts/issue_license.py --tier trial \
-    --licensee "trial-a1b2c3" --seats 6 --days 30 \
+    --licensee "trial-a1b2c3" --seats 6 --days 7 \
     --private-key ~/.bede-license-private.pem
 ```
 

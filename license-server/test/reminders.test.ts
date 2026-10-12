@@ -32,12 +32,16 @@ vi.mock("../src/email/resend", async (importOriginal) => {
 });
 
 const TODAY = "2026-10-11";
+/** Two days before TODAY, so a seeded trial sits at `NOTICE_DAY_OF_TRIAL` and
+ * is due. The sending cases are about delivery, the claim and the copy — not
+ * about the timing, which the pure-function block above covers. */
+const ISSUED_DUE = "2026-10-09";
 
 /** A key whose PAYLOAD decodes — the only part `trialExpiresDate` reads. The
  * signature is deliberately junk: this file tests selection and delivery, and
  * borrowing the real signer would couple it to key material it does not need. */
-function keyWithExpiry(expires: string): string {
-  const payload = { tier: "trial", expires, seats: 6 };
+function keyWithExpiry(expires: string, issued = ISSUED_DUE): string {
+  const payload = { tier: "trial", expires, issued, seats: 6 };
   const b64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${b64}.not-a-real-signature`;
 }
@@ -56,7 +60,7 @@ function makeEnv(): Env {
  * keep the codebase's `?N` style — they bind every value and are contiguous. */
 async function seedTrial(
   env: Env,
-  opts: { id: string; email: string; expires: string; status?: string },
+  opts: { id: string; email: string; expires: string; status?: string; issued?: string },
 ): Promise<void> {
   await env.DB.prepare(
     `insert into customers (id, email, created_at) values (?, ?, ?)
@@ -69,7 +73,7 @@ async function seedTrial(
                            valid_until, payment_provider, license_key, created_at)
      values (?, ?, 'trial', 6, 2, ?, null, 'none', ?, ?)`,
   )
-    .bind(opts.id, `cust-${opts.email}`, opts.status ?? "active", keyWithExpiry(opts.expires), TODAY)
+    .bind(opts.id, `cust-${opts.email}`, opts.status ?? "active", keyWithExpiry(opts.expires, opts.issued ?? ISSUED_DUE), TODAY)
     .run();
 }
 
@@ -110,10 +114,10 @@ describe("the trial term and the notice point", () => {
     expect(daysUntil("2026-10-10", TODAY)).toBe(-1);
   });
 
-  it("reads the day OF the trial from the signed expiry", () => {
-    expect(trialDayOf("2026-10-18", TODAY)).toBe(0); // issued today
-    expect(trialDayOf("2026-10-16", TODAY)).toBe(2);
-    expect(trialDayOf(TODAY, TODAY)).toBe(TRIAL_DAYS); // expiry day
+  it("reads the day OF the trial from the signed ISSUED date", () => {
+    expect(trialDayOf(TODAY, TODAY)).toBe(0);
+    expect(trialDayOf("2026-10-09", TODAY)).toBe(2);
+    expect(trialDayOf("2026-10-04", TODAY)).toBe(7);
   });
 
   it("sends nothing on day 0 or day 1 — the defect the old window had", () => {
@@ -121,30 +125,50 @@ describe("the trial term and the notice point", () => {
     // notice went out on the first cron run after issuance headed "your trial
     // is ending", about a trial nobody had used. It still fired, which is why
     // it looked fine.
-    expect(dueForReminder("2026-10-18", TODAY)).toBe(false); // day 0
-    expect(dueForReminder("2026-10-17", TODAY)).toBe(false); // day 1
+    expect(dueForReminder(TODAY, "2026-10-18", TODAY)).toBe(false); // day 0
+    expect(dueForReminder("2026-10-10", "2026-10-17", TODAY)).toBe(false); // day 1
   });
 
   it("sends from day 2 onward, including the expiry day itself", () => {
-    expect(dueForReminder("2026-10-16", TODAY)).toBe(true); // day 2
-    expect(dueForReminder("2026-10-12", TODAY)).toBe(true); // day 6
-    expect(dueForReminder(TODAY, TODAY)).toBe(true); // day 7, expires today
+    expect(dueForReminder("2026-10-09", "2026-10-16", TODAY)).toBe(true); // day 2
+    expect(dueForReminder("2026-10-05", "2026-10-12", TODAY)).toBe(true); // day 6
+    expect(dueForReminder("2026-10-04", TODAY, TODAY)).toBe(true); // day 7, expires today
+  });
+
+  /**
+   * The guard for a trial already running when entry 39 shortened the term.
+   *
+   * `trialDayOf` used to be `TRIAL_DAYS - daysUntil(expires)`, which assumes
+   * every key carries today's term. A 30-day key two days into its own trial
+   * has 28 days left, so that arithmetic placed it at day -21 and it would
+   * not have been reminded until 5 days remained — day 25 of its 30, three
+   * weeks late. Reading the key's own signed `issued` makes the term
+   * irrelevant.
+   */
+  it("places a key signed under the OLD 30-day term at its own day 2", () => {
+    const issued = "2026-10-09"; // two days ago
+    const expires = "2026-11-08"; // a 30-day term
+    expect(trialDayOf(issued, TODAY)).toBe(2);
+    expect(dueForReminder(issued, expires, TODAY)).toBe(true);
+    // What the term-assuming arithmetic would have answered:
+    expect(TRIAL_DAYS - daysUntil(expires, TODAY)).toBeLessThan(NOTICE_DAY_OF_TRIAL);
   });
 
   it("catches up rather than dropping a notice a missed cron run skipped", () => {
     // "On or after" day 2, not "exactly on": an outage or a deploy must not
     // cost a family their only notice, and the trial_reminders primary key
     // already makes a second send impossible.
-    expect(dueForReminder("2026-10-13", TODAY)).toBe(true); // day 5
+    expect(dueForReminder("2026-10-06", "2026-10-13", TODAY)).toBe(true); // day 5
   });
 
   it("sends nothing once the trial has already expired", () => {
     // The product has stopped; "your trial is ending" would be wrong and late.
-    expect(dueForReminder("2026-10-10", TODAY)).toBe(false);
+    expect(dueForReminder("2026-10-03", "2026-10-10", TODAY)).toBe(false);
   });
 
   it("treats an undecodable date as not due rather than throwing", () => {
-    expect(dueForReminder("not-a-date", TODAY)).toBe(false);
+    expect(dueForReminder("not-a-date", "2026-10-16", TODAY)).toBe(false);
+    expect(dueForReminder("2026-10-09", "not-a-date", TODAY)).toBe(false);
   });
 });
 
@@ -210,11 +234,38 @@ describe("sending", () => {
     expect(call.html).toMatch(/nothing on your machine is deleted/i);
   });
 
-  it("leaves a trial outside the window alone", async () => {
+  it("describes a key by ITS OWN term, not the current one", async () => {
+    // A trial minted before entry 39 carries 30 days. Telling that family
+    // their "7-day trial" ends in three weeks would be wrong and confusing,
+    // so the term is read off the key rather than from TRIAL_DAYS.
     const env = makeEnv();
-    await seedTrial(env, { id: "lic-1", email: "a@example.com", expires: "2026-11-09" });
-    expect((await sendDueTrialReminders(env, TODAY)).sent).toBe(0);
-    expect(sendSpy).not.toHaveBeenCalled();
+    await seedTrial(env, {
+      id: "lic-old",
+      email: "old@example.com",
+      issued: "2026-10-09",
+      expires: "2026-11-08", // a 30-day term
+    });
+    expect((await sendDueTrialReminders(env, TODAY)).sent).toBe(1);
+
+    const call = sendSpy.mock.calls[0]?.[0] as SentEmail;
+    expect(call.html).toContain("30-day free trial");
+    expect(call.html).not.toContain(`${TRIAL_DAYS}-day free trial`);
+  });
+
+  it("leaves a trial that has not reached the notice day alone", () => {
+    // "Outside the window" now means EARLY in the trial, not far from
+    // expiry — the timing is counted forward from issuance.
+    return (async () => {
+      const env = makeEnv();
+      await seedTrial(env, {
+        id: "lic-1",
+        email: "a@example.com",
+        expires: "2026-10-18",
+        issued: TODAY, // day 0
+      });
+      expect((await sendDueTrialReminders(env, TODAY)).sent).toBe(0);
+      expect(sendSpy).not.toHaveBeenCalled();
+    })();
   });
 
   it("does not remind a family who has already bought", async () => {

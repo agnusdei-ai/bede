@@ -67,12 +67,12 @@ sample would be drawn from.
 | 2 | Renewal | Term taken from the renewal's own price, never a constant; `valid_until` only moves forward | Ledger `license_renewed` + provider detail | Built |
 | 3 | Failed renewal, retries pending | Dunning does not revoke while the provider will retry | Ledger `license_revoked` absent until dunning exhausted | Built; **grace policy undecided** |
 | 4 | Dunning exhausted | Revocation on the provider's own "no further attempt" signal | Ledger `license_revoked` | Built |
-| 5 | Cancellation of renewal | Write, then read back; three tiers; period-end not immediate | Ledger `renewal_cancelled` with `actor_kind`; `cancellation_requests` | Built (routes); screens pending |
+| 5 | Cancellation of renewal | Write, then read back; three tiers; period-end not immediate | Ledger `renewal_cancelled` with `actor_kind`; `cancellation_requests` | Built |
 | 6 | Cancellation the provider did not confirm | Recorded as `pending`, never reported as success | Ledger `renewal_cancelled`/`pending` + request id | Built |
 | 7 | Cancellation by someone who cannot authenticate | Tier 3 records the request; touches no provider | Ledger `cancellation_requested`, actor `customer_unauthenticated` | Built |
 | 8 | Trial issuance | One active trial per customer, enforced by a partial unique index | Ledger `trial_issued`; `licenses` row | Built |
 | 9 | Trial conversion | Select → disclose → notice → 24h → card + authorization → convert | `trial_reminders.sent_at`; consent record | **Gate built; collection not** |
-| 10 | Trial cancellation before first charge | Same three tiers; `cancel_at_period_end` on a trialing subscription prevents the charge | Ledger `renewal_cancelled` on a trialing subscription | Routes built; **copy blocked on the trial-access policy** |
+| 10 | Trial cancellation before first charge | Same three tiers; `cancel_at_period_end` on a trialing subscription prevents the charge | Ledger `renewal_cancelled` on a trialing subscription | Routes built; screen **refuses** until the trial-access policy is recorded — a conversion-launch blocker |
 | 11 | Refund | Separate action from cancellation; never inferred from one | Provider refund record | **Policy undecided**; no promise can be made (§3) |
 | 12 | Chargeback or dispute | Not implemented; a dispute today is an operator action | Operator ledger rows | **Not built** |
 | 13 | Duplicate webhook delivery | `unique(payment_provider, external_event_id)` makes the claim the idempotency lock | `webhook_events` row count vs. provider delivery count | Built |
@@ -142,6 +142,7 @@ unimplementable rather than unmade, and nothing else would notice.
 | Refund terms | Scenario 11, and the `immediate_refund` authorisation |
 | Community eligibility after paid access ends | The `community_downgrade` authorisation |
 | Billing-boundary remediation | Scenario 6's operator procedure |
+| Remaining trial access after cancellation | Scenario 10's screen, and conversion launch |
 | Where consent records live, and for how long | Scenario 9 |
 
 ## 5. Evidence to assemble before the engagement

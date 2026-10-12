@@ -25,7 +25,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { licenseDeliveryEmail, trialDeliveryEmail, trialEndingEmail } from "../../src/email/resend";
+import {
+  cancellationConfirmedEmail,
+  licenseDeliveryEmail,
+  trialDeliveryEmail,
+  trialEndingEmail,
+} from "../../src/email/resend";
 import { storefrontUrl } from "../../src/config";
 
 const STOREFRONT = "https://licensing.example.test";
@@ -143,5 +148,51 @@ describe("the trailing-slash strip cannot be made to backtrack", () => {
     expect(storefrontUrl({ PUBLIC_BASE_URL: "https://x.test/" })).toBe("https://x.test");
     expect(storefrontUrl({ PUBLIC_BASE_URL: "https://x.test///" })).toBe("https://x.test");
     expect(storefrontUrl({ PUBLIC_BASE_URL: "///" })).toBe("https://agnusdei.ai");
+  });
+});
+
+describe("the cancellation confirmation is generated from the verified outcome", () => {
+  const confirmed = cancellationConfirmedEmail({
+    confirmedAtIso: "2026-10-12T09:00:00.000Z",
+    paidAccessEndsAtIso: "2027-10-12T00:00:00.000Z",
+    reference: "req_abc",
+    storefrontUrl: STOREFRONT,
+  });
+
+  it("states the confirmation instant, the access end and the reference", () => {
+    expect(confirmed.html).toContain("2026-10-12T09:00:00.000Z");
+    expect(confirmed.html).toContain("2027-10-12T00:00:00.000Z");
+    expect(confirmed.html).toContain("req_abc");
+    expect(confirmed.subject).toMatch(/renewal is cancelled/i);
+  });
+
+  it("reconstructs no subscription terms", () => {
+    // A cancellation confirmation is not the moment to restate what somebody
+    // is paying, and a figure rebuilt from configuration would go stale at
+    // exactly the point a customer is checking our accuracy.
+    expect(confirmed.html).not.toMatch(/\$\s?\d/);
+    expect(confirmed.html).not.toMatch(/\bUSD\b/i);
+    expect(confirmed.html).not.toMatch(/per year|\/year|yearly|per month|\/month|monthly/i);
+  });
+
+  it("omits the access-end sentence when the date is not authoritative", () => {
+    // A guessed date in a billing email is worse than no date, because the
+    // customer plans around it.
+    const vague = cancellationConfirmedEmail({
+      confirmedAtIso: "2026-10-12T09:00:00.000Z",
+      paidAccessEndsAtIso: null,
+      reference: "req_abc",
+      storefrontUrl: STOREFRONT,
+    });
+    expect(vague.html).not.toMatch(/Paid access ends/i);
+    expect(vague.html).not.toMatch(/until the access-end date/i);
+    // Still says the useful true thing.
+    expect(vague.html).toMatch(/already paid for/i);
+  });
+
+  it("promises no refund and no Community access, but keeps the disclaimer", () => {
+    expect(confirmed.html).toMatch(/does not automatically refund/i);
+    expect(confirmed.html).not.toMatch(/community/i);
+    expect(confirmed.html).not.toMatch(/we will refund|you will be refunded|money back/i);
   });
 });

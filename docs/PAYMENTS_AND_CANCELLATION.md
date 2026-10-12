@@ -143,6 +143,60 @@ here and the customer.
 All four are rate-limited under their own generous `cancel` bucket — it bounds
 enumeration without ever being what stops a customer cancelling.
 
+### The screens
+
+`license-server/src/routes/cancel_pages.ts` renders them, and the rule is that
+**they render; they do not decide.** Every statement and every action comes
+from `cancellation.ts`, reached through the same handlers the JSON API uses —
+so there is one implementation of the policy, not a copy of it in markup. A
+conditional there may ask whether the description it was handed *permits*
+something and may never ask a question about billing state; a source scan
+fails on `providerConfirmed`, `cancel_at_period_end`, `openInvoices.length`
+and the policy inputs, and a second scan fails if the module calls `describe`
+directly.
+
+That is a rule rather than tidiness. A UI can reintroduce a promise the data
+does not contain just by choosing the wrong sentence, exactly as
+`PodWorkRoster` can reintroduce a ranking by choosing the wrong layout — and a
+behavioural test of a correct page says nothing about the next conditional
+someone adds.
+
+**Pages are GET; credentials travel by POST.** The entry page needs no
+credential, and the screen carries the licence key or token forward in a
+hidden field rather than a link: a credential in a `href` is written into
+every access log and `Referer` header between here and the customer. A test
+asserts no rendered link contains the key and that the dispatcher offers no
+GET on the credential-bearing paths.
+
+**The trial screen refuses today, and the refusal is rendered as what it is**
+— we could not confirm this subscription's state well enough to show a screen,
+nothing has been changed, and here is the route that works without us. It does
+**not** substitute the paid copy, which would tell a trial subscriber their
+"paid access continues": false twice over, and the sentence a renderer reaches
+for by default. Once the remaining-trial-access policy is recorded the trial
+screen renders its own distinct copy. Until then, trial cancellation is a
+**conversion-launch blocker**: the conversion flow must not be enabled while
+the screen that stops a first charge cannot be shown.
+
+### The confirmation email
+
+`cancellationConfirmedEmail` is generated from the verified outcome and
+reconstructs no subscription terms — no price, no cadence, no plan name. A
+cancellation confirmation is not the moment to restate what somebody is
+paying, and a figure rebuilt from configuration would go stale at exactly the
+point a customer is checking our accuracy. The access-end sentence is dropped
+when the date is not authoritative, because a guessed date in a billing email
+is worse than none: the customer plans around it. The only refund sentence is
+the **disclaimer**, which exists so nobody assumes the opposite.
+
+**Delivery is recorded separately from the cancellation** (migration `0006`'s
+`confirmation_email_sent_at`). These are two different facts and conflating
+them is the failure the column prevents: a Resend outage must never read,
+later, as a cancellation that did not take, and a confirmed cancellation whose
+email bounced is still confirmed. A failed send clears one sentence and
+nothing else. An unconfirmed cancellation sends no email at all — there is
+nothing to confirm, so there is nothing to confirm in writing.
+
 ### When the provider is unavailable
 
 An authenticated route cannot be the only route. Inability or unwillingness to
@@ -299,8 +353,8 @@ exact duration only once enforcement matches it.
 | Card collection and the conversion charge | The two Stripe `price_id`s |
 | Cancellation decision layer | **Built** — `src/cancellation.ts` |
 | Cancellation routes (three tiers) | **Built** — `src/routes/cancel.ts` |
-| Cancellation screens (the markup) | Nothing — next to build |
-| Confirmation email on cancellation | Nothing — until then no screen claims one was sent |
+| Cancellation screens | **Built** — `src/routes/cancel_pages.ts` |
+| Confirmation email on cancellation | **Built** — delivery recorded separately from the cancellation (migration `0006`) |
 | Retainable acknowledgement + consent retention | Cancellation route, since the acknowledgement must name it |
 | Three-state access policy | Nothing — grace length is the one decision |
 | Paid-expiry-in-payload | §7's payload change |

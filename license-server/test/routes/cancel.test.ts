@@ -156,8 +156,6 @@ describe("tier 2: the licence key the family already holds", () => {
     expect(provider.cancelCalls).toEqual([SUB_ID]);
     expect(body.paid_access_ends_at).toBe("2027-10-12T00:00:00.000Z");
     expect(body.claims.mayClaimChargesStopped).toBe(true);
-    // No confirmation email is built yet, so none is claimed.
-    expect(body.claims.mayClaimEmailSent).toBe(false);
   });
 
   it("records the confirmed cancellation", async () => {
@@ -545,5 +543,75 @@ describe("the routes are actually reachable", () => {
     const block = code.slice(code.indexOf('case "/v1/cancel/email-link":'), code.indexOf('case "/v1/webhooks/stripe":'));
     expect(block).not.toMatch(/method === "GET"/);
     expect(block.match(/methodNotAllowed\("POST"\)/g)?.length).toBe(4);
+  });
+});
+
+describe("the confirmation email, and its delivery recorded separately", () => {
+  it("sends it and records the delivery instant on the request row", async () => {
+    // Two different facts: whether the cancellation happened, and whether we
+    // managed to TELL them. Conflating them would let a Resend outage read,
+    // later, as a cancellation that did not take.
+    const e = env();
+    await seedPaidLicence(e);
+    const sentTo: string[] = [];
+    const res = await handleCancelConfirm(post({ license_key: KEY }), e, limiter, {
+      provider: workingProvider(),
+      sendConfirmation: async (input) => {
+        sentTo.push(input.to);
+      },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { claims: { mayClaimEmailSent: boolean } };
+    expect(body.claims.mayClaimEmailSent).toBe(true);
+    expect(sentTo).toEqual([EMAIL]);
+    const row = await e.DB.prepare(
+      `select status, confirmation_email_sent_at from cancellation_requests`,
+    )
+      .bind()
+      .first<{ status: string; confirmation_email_sent_at: string | null }>();
+    expect(row?.status).toBe("confirmed");
+    expect(row?.confirmation_email_sent_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("a failed send leaves the cancellation confirmed and the column null", async () => {
+    const e = env();
+    await seedPaidLicence(e);
+    const res = await handleCancelConfirm(post({ license_key: KEY }), e, limiter, {
+      provider: workingProvider(),
+      sendConfirmation: async () => {
+        throw new Error("resend down");
+      },
+    });
+    // The cancellation stands. Only the one sentence changes.
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      outcome: string;
+      claims: { mayShowSuccess: boolean; mayClaimChargesStopped: boolean; mayClaimEmailSent: boolean };
+    };
+    expect(body.outcome).toBe("confirmed");
+    expect(body.claims.mayShowSuccess).toBe(true);
+    expect(body.claims.mayClaimChargesStopped).toBe(true);
+    expect(body.claims.mayClaimEmailSent).toBe(false);
+    const row = await e.DB.prepare(
+      `select status, confirmation_email_sent_at from cancellation_requests`,
+    )
+      .bind()
+      .first<{ status: string; confirmation_email_sent_at: string | null }>();
+    expect(row?.status).toBe("confirmed");
+    expect(row?.confirmation_email_sent_at).toBeNull();
+  });
+
+  it("an unconfirmed cancellation sends nothing", async () => {
+    // There is nothing to confirm, so there is nothing to confirm IN WRITING.
+    const e = env();
+    await seedPaidLicence(e);
+    let called = false;
+    await handleCancelConfirm(post({ license_key: KEY }), e, limiter, {
+      provider: unconfirmingProvider(),
+      sendConfirmation: async () => {
+        called = true;
+      },
+    });
+    expect(called).toBe(false);
   });
 });

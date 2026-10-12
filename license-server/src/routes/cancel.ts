@@ -36,6 +36,8 @@ import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { describe, describeOutcome, alternativeRouteMayAsk } from "../cancellation";
+import { cancellationConfirmedEmail, createResendClient } from "../email/resend";
+import { storefrontUrl } from "../config";
 import type { RemainingTrialAccess } from "../cancellation";
 import { maskEmail, record as recordBillingEvent } from "../audit/billing_events";
 import type { ActorKind } from "../audit/billing_events";
@@ -283,7 +285,12 @@ export async function handleCancelConfirm(
   request: Request,
   env: Env,
   limiter: SlidingWindowLimiter,
-  deps: { provider?: BillingProvider; policy?: CancellationPolicy } = {},
+  deps: {
+    provider?: BillingProvider;
+    policy?: CancellationPolicy;
+    /** Test seam for the confirmation send. Production builds the real client. */
+    sendConfirmation?: (input: { to: string; subject: string; html: string }) => Promise<void>;
+  } = {},
 ): Promise<Response> {
   const ip = clientIp(request);
   if (!limiter.check(ip, RATE_LIMITS.cancel)) {
@@ -359,13 +366,14 @@ export async function handleCancelConfirm(
       ? new Date(updated.current_period_end * 1000).toISOString()
       : null;
 
+  const recordId = crypto.randomUUID();
   await env.DB.prepare(
     `insert into cancellation_requests
        (id, received_at, account_email, license_id, status, confirmed_at, provider_detail)
      values (?, ?, ?, ?, 'confirmed', ?, ?)`,
   )
     .bind(
-      crypto.randomUUID(),
+      recordId,
       nowIso,
       ref.email,
       ref.licenseId,
@@ -373,6 +381,38 @@ export async function handleCancelConfirm(
       `cancel_at_period_end set on ${updated.id}`,
     )
     .run();
+
+  // Tell the customer, and record WHETHER WE MANAGED TO as a separate fact
+  // from whether the cancellation happened. The cancellation is already
+  // confirmed by the provider at this point and nothing below can undo it:
+  // a failed send clears one sentence (`mayClaimEmailSent`) and leaves the
+  // outcome exactly as it is. Conflating the two would let a Resend outage
+  // read, later, as a cancellation that did not take.
+  let confirmationEmailSent = false;
+  try {
+    const { subject, html } = cancellationConfirmedEmail({
+      confirmedAtIso: nowIso,
+      paidAccessEndsAtIso,
+      reference: recordId,
+      storefrontUrl: storefrontUrl(env),
+    });
+    const client = deps.sendConfirmation
+      ? { send: deps.sendConfirmation }
+      : createResendClient(env.RESEND_API_KEY, env.RESEND_FROM_ADDRESS);
+    await client.send({ to: ref.email, subject, html });
+    confirmationEmailSent = true;
+    await env.DB.prepare(
+      `update cancellation_requests set confirmation_email_sent_at = ? where id = ?`,
+    )
+      .bind(new Date().toISOString(), recordId)
+      .run();
+  } catch (err) {
+    // Visible as the real gap it is, and nothing more than that.
+    console.error(
+      `[license-server] cancellation ${recordId} confirmed; confirmation email FAILED`,
+      err,
+    );
+  }
 
   await recordBillingEvent(env.DB, {
     action: "renewal_cancelled",
@@ -393,10 +433,11 @@ export async function handleCancelConfirm(
       kind: "confirmed",
       confirmedAtIso: nowIso,
       paidAccessEndsAtIso,
-      // Email delivery is a separate step; until it is built, the screen must
-      // not claim a confirmation was sent. A false "we emailed you" sends a
-      // customer looking in their inbox for proof that does not exist.
-      confirmationEmailSent: false,
+      // The REAL delivery result, never an assumption: a false "we emailed
+      // you" sends a customer looking in their inbox for proof that does not
+      // exist, and a false "we could not" undersells a confirmation they
+      // already have in hand.
+      confirmationEmailSent,
     }),
   });
 }

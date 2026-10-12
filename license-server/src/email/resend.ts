@@ -179,6 +179,60 @@ export function trialEndingEmail(input: {
   };
 }
 
+/**
+ * The cancellation confirmation.
+ *
+ * **Every sentence is generated from the verified outcome**, never from
+ * assumed terms. There is no price, no cadence and no plan name in here: a
+ * cancellation confirmation is not the moment to restate what somebody is
+ * paying, and reconstructing those from configuration would mean a stale
+ * figure arriving at exactly the point a customer is checking our accuracy.
+ * `test/email/disclosure.test.ts`'s scan covers this template for the same
+ * reason it covers the trial emails.
+ *
+ * **The access-end date is OPTIONAL and omitted when it is not
+ * authoritative.** `paidAccessEndsAtIso` null simply drops the sentence; a
+ * guessed date in a billing email is worse than no date, because the customer
+ * plans around it.
+ *
+ * **Nothing here promises a refund or Community access.** Both are unresolved
+ * (`src/promises.ts`), so the only refund sentence present is the DISCLAIMER —
+ * that cancelling renewal does not itself refund the current payment — which
+ * exists precisely so a customer does not assume the opposite.
+ */
+export function cancellationConfirmedEmail(input: {
+  /** The instant the provider confirmed it. */
+  readonly confirmedAtIso: string;
+  /** Authoritative end of already-paid access, or null when we do not have
+   * one we can stand behind. */
+  readonly paidAccessEndsAtIso: string | null;
+  /** The ledger/request reference, so a support enquiry and our own record
+   * meet. */
+  readonly reference: string;
+  readonly storefrontUrl: string;
+}): { subject: string; html: string } {
+  return {
+    subject: "Your Bede renewal is cancelled",
+    html: [
+      "<p>Your subscription will not renew.</p>",
+      `<p><strong>Cancellation confirmed:</strong> ${escapeHtml(input.confirmedAtIso)}</p>`,
+      input.paidAccessEndsAtIso === null
+        ? ""
+        : `<p><strong>Paid access ends:</strong> ${escapeHtml(input.paidAccessEndsAtIso)}</p>`,
+      `<p><strong>Reference:</strong> ${escapeHtml(input.reference)}</p>`,
+      input.paidAccessEndsAtIso === null
+        ? "<p>You can keep using the plan you have already paid for.</p>"
+        : "<p>You can keep using your paid plan until the access-end date above.</p>",
+      // The disclaimer, not a promise. Present so nobody assumes the inverse.
+      "<p>Cancelling renewal does not automatically refund your current payment.</p>",
+      `<p>Your account: <a href="${escapeHtml(input.storefrontUrl)}">${escapeHtml(input.storefrontUrl)}</a></p>`,
+      "<p>&mdash; The Bede team</p>",
+    ]
+      .filter((line) => line.length > 0)
+      .join("\n"),
+  };
+}
+
 export function createResendClient(apiKey: string, fromAddress: string): ResendClient {
   return {
     async send({ to, subject, html }: { to: string; subject: string; html: string }) {

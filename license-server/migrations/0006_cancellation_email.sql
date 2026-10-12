@@ -1,0 +1,17 @@
+-- Whether we managed to TELL the customer, recorded separately from whether
+-- the cancellation happened.
+--
+-- These are two different facts and conflating them is the failure this column
+-- exists to prevent: a Resend outage must never read, later, as a cancellation
+-- that did not take — and a confirmed cancellation whose email bounced is
+-- still a confirmed cancellation. `cancellation_requests` is the operational
+-- record, which is where "did we write to them" belongs, for the same reason
+-- `trial_reminders` is not a column on `licenses`.
+--
+-- Deliberately NOT a `billing_events` row: that ledger records changes to what
+-- a customer is CHARGED, and an email is not one. Its own module says so.
+--
+-- Null means no confirmation email has been delivered for this row — which is
+-- the state of every row written before this migration, and is read as "do not
+-- claim we sent one" rather than as a failure.
+alter table cancellation_requests add column confirmation_email_sent_at text;

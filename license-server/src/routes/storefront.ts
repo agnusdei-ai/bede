@@ -38,7 +38,7 @@ import { TRIAL_DAYS } from "../license/issue";
  * policy, no framing). Typed as Record<string, string> — a member of the
  * HeadersInit union — because the test typecheck compiles this file under
  * node types, where the DOM type NAME does not exist. */
-function pageHeaders(): Record<string, string> {
+export function pageHeaders(): Record<string, string> {
   return {
     "content-type": "text/html; charset=utf-8",
     "content-security-policy": [

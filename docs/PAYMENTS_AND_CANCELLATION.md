@@ -117,6 +117,46 @@ authenticate must not prevent cancellation, so the design carries three tiers:
    timestamp. Not agent-mediated and not a help conversation: a received
    request is a cancellation, processed on receipt.
 
+### What a screen may say
+
+`license-server/src/cancellation.ts` is the decision layer: pure functions
+taking verified billing state and answering which screen applies and what it
+may assert. The interface draft it implements is the owner's cancellation UI
+spec; the module exists because a screen is a statement to a customer about
+their money, and the rules about what it may claim belong somewhere readable
+as a policy and testable without driving a browser.
+
+Four properties carry it:
+
+- **Nothing is asserted about state we did not read back.** `providerConfirmed`
+  false refuses every screen. A screen that says "cancelled" because the
+  request was sent, rather than because the provider answered, is the worst
+  thing this surface can do: the customer stops watching and the charge
+  arrives anyway.
+- **A missing value refuses the screen** rather than rendering a blank or a
+  guess, and the refusal names what was missing.
+- **"We have your request" and "your charges have stopped" are different
+  claims**, true at different moments. The first is honest once we have
+  durably recorded the request; the second only once the provider has agreed.
+  Collapsing them is how a pending request comes to read as a finished one.
+- **An invoice the provider already created withdraws the
+  no-further-charges claim** and is shown for review — but never gates the
+  cancellation, because a balance is not a condition on stopping a renewal.
+
+Unresolved policy is modelled as a **required input**, not a default. The
+remaining-trial-access sentence has two possible answers and nobody has chosen
+one, so `remainingTrialAccess` is required and its absence refuses the trial
+screen entirely. That is the mechanical form of "do not silently choose
+between them", and it deliberately does **not** block the paid screen — an
+unresolved question must not become an obstruction for a customer it does not
+concern.
+
+The no-sign-in route asks only for an account email, a name and a subscription
+reference. A password, a card number and a security code are refused by
+allowlist: a cancellation form is not an identity-proofing exercise, and
+asking for those is how a cancellation page becomes indistinguishable from a
+phishing page.
+
 ### When the provider is unavailable
 
 Record the request and its timestamp, show its true processing status, and
@@ -215,7 +255,8 @@ exact duration only once enforcement matches it.
 | Piece | Blocked on |
 | --- | --- |
 | Card collection and the conversion charge | The two Stripe `price_id`s |
-| Self-service cancellation (three tiers) | Nothing — next to build |
+| Cancellation decision layer | **Built** — `src/cancellation.ts` |
+| Cancellation routes and screens (three tiers) | Nothing — next to build |
 | Retainable acknowledgement + consent retention | Cancellation route, since the acknowledgement must name it |
 | Three-state access policy | Nothing — grace length is the one decision |
 | Paid-expiry-in-payload | §7's payload change |
@@ -224,6 +265,9 @@ exact duration only once enforcement matches it.
 
 ### Decisions still needed
 
+0. **Remaining trial access after a cancellation** — continues to the trial's
+   own end, or ends when the cancellation completes. Until recorded, the
+   trial-cancellation screen refuses to render rather than picking one.
 1. **No cadence selected by the day-2 notice.** Suppressing the conversion
    notice and letting the trial lapse is the safe default; the alternative is
    a selection prompt carrying no terms, with the 24-hour clock starting at
